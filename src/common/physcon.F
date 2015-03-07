@@ -59,11 +59,11 @@
 !>      - Updated to CODATA 2006. (26.03.2008,AK)
 !>      - Updated to CODATA 2010. (10.12.2012,MK)
 !>      - Turned constants into Fortran parameters (2014, Ole Schuett)
+!>      - Remove all but CODATA 2006 (2015, Ole Schuett)
 !> \author Matthias Krack (MK)
 ! *****************************************************************************
 MODULE physcon
 
-  
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
 
@@ -78,6 +78,8 @@ MODULE physcon
 
   PUBLIC :: write_physcon
 
+    ! CP2K uses the CODATA from 2006
+
     ! Exact constants
     ! Speed of light in vacuum [m/s]
     REAL(KIND=dp), PARAMETER :: c_light = 299792458.0_dp
@@ -88,59 +90,6 @@ MODULE physcon
     ! Electric constant or permittivity of vacuum [F/m]
     REAL(KIND=dp), PARAMETER :: permittivity = 1.0_dp/(mu_perm*c_light**2)
 
-#define CODATA_DEFAULT_VERSION 2006
-
-#if !defined CODATA_VERSION
-#define CODATA_VERSION CODATA_DEFAULT_VERSION
-#endif
-
-#if CODATA_VERSION != 1998 && CODATA_VERSION != 2006 && CODATA_VERSION != 2010
-#define CODATA_VERSION CODATA_DEFAULT_VERSION
-#endif
-
-#if CODATA_VERSION == 1998
-    ! Recommended fundamental constants of physics
-    ! and chemistry based on the 1998 adjustment
-
-    ! Planck constant [J*s]
-    REAL(KIND=dp), PARAMETER :: h_planck = 6.62606876E-34_dp
-    REAL(KIND=dp), PARAMETER :: h_bar = h_planck/(2.0_dp*pi)
-
-    ! Elementary charge [C]
-    REAL(KIND=dp), PARAMETER :: e_charge = 1.602176462E-19_dp
-
-    ! Electron mass [kg]
-    REAL(KIND=dp), PARAMETER :: e_mass = 9.10938188E-31_dp
-
-    ! Proton mass [kg]
-    REAL(KIND=dp), PARAMETER :: p_mass = 1.67262158E-27_dp
-
-    ! Electron g factor [ ]
-    REAL(KIND=dp), PARAMETER :: e_gfactor = -2.0023193043718_dp
-
-    ! Fine-structure constant
-!MK a_fine = 0.5_dp*mu_perm*c_light*e_charge**2/h_planck
-    REAL(KIND=dp), PARAMETER :: a_fine = 7.297352533E-3_dp
-
-    ! Rydberg constant [1/m]
-!MK rydberg = 0.5_dp*e_mass*c_light*a_fine**2/h_planck
-    REAL(KIND=dp), PARAMETER :: rydberg = 10973731.568549_dp
-
-    ! Avogadro constant [1/mol]
-    REAL(KIND=dp), PARAMETER :: n_avogadro = 6.02214199E+23_dp
-
-    ! Boltzmann constant [J/K]
-    REAL(KIND=dp), PARAMETER :: boltzmann = 1.3806503E-23_dp
-
-    ! Atomic mass unit [kg]; conversion factor [u] -> [kg]
-    REAL(KIND=dp), PARAMETER :: a_mass = 1.66053873E-27_dp
-
-    ! Bohr radius [m]
-!MK a_bohr = a_fine/(4.0_dp*pi*rydberg)
-    REAL(KIND=dp), PARAMETER :: a_bohr = 0.5291772083E-10_dp
-#endif
-
-#if CODATA_VERSION == 2006
     ! Recommended fundamental constants of physics
     ! and chemistry based on the 2006 adjustment
 
@@ -180,49 +129,6 @@ MODULE physcon
     ! Bohr radius [m]
 !MK a_bohr = a_fine/(4.0_dp*pi*rydberg)
     REAL(KIND=dp), PARAMETER :: a_bohr = 0.52917720859E-10_dp
-#endif
-
-#if CODATA_VERSION == 2010
-    ! Recommended fundamental constants of physics
-    ! and chemistry based on the 2010 adjustment
-
-    ! Planck constant [J*s]
-    REAL(KIND=dp), PARAMETER :: h_planck = 6.62606957E-34_dp
-    REAL(KIND=dp), PARAMETER :: h_bar = h_planck/(2.0_dp*pi)
-
-    ! Elementary charge [C]
-    REAL(KIND=dp), PARAMETER :: e_charge = 1.602176565E-19_dp
-
-    ! Electron mass [kg]
-    REAL(KIND=dp), PARAMETER :: e_mass = 9.10938291E-31_dp
-
-    ! Proton mass [kg]
-    REAL(KIND=dp), PARAMETER :: p_mass = 1.672621777E-27_dp
-
-    ! Electron g factor [ ]
-    REAL(KIND=dp), PARAMETER :: e_gfactor = -2.00231930436153_dp
-
-    ! Fine-structure constant
-!MK a_fine = 0.5_dp*mu_perm*c_light*e_charge**2/h_planck
-    REAL(KIND=dp), PARAMETER :: a_fine = 7.2973525698E-3_dp
-
-    ! Rydberg constant [1/m]
-!MK rydberg = 0.5_dp*e_mass*c_light*a_fine**2/h_planck
-    REAL(KIND=dp), PARAMETER :: rydberg = 10973731.568539_dp
-
-    ! Avogadro constant [1/mol]
-    REAL(KIND=dp), PARAMETER :: n_avogadro = 6.02214129E+23_dp
-
-    ! Boltzmann constant [J/K]
-    REAL(KIND=dp), PARAMETER :: boltzmann = 1.3806488E-23_dp
-
-    ! Atomic mass unit [kg]; conversion factor [u] -> [kg]
-    REAL(KIND=dp), PARAMETER :: a_mass = 1.660538921E-27_dp
-
-    ! Bohr radius [m]
-!MK a_bohr = a_fine/(4.0_dp*pi*rydberg)
-    REAL(KIND=dp), PARAMETER :: a_bohr = 0.52917721092E-10_dp
-#endif
 
     ! Conversion factors
 
@@ -306,30 +212,12 @@ MODULE physcon
 
     INTEGER, INTENT(IN) :: output_unit
 
-#if CODATA_VERSION == 1998
-    WRITE (UNIT=output_unit,FMT="(T2,/,T2,A,/,/,(T2,A))")&
-      "*** Fundamental physical constants (SI units) ***",&
-      "*** Literature: B. J. Mohr and B. N. Taylor,",&
-      "***             CODATA recommended values of the fundamental physical",&
-      "***             constants: 1998, Rev. Mod. Phys. 72(2), 351 (2000)"
-#endif
-
-#if CODATA_VERSION == 2006
     WRITE (UNIT=output_unit,FMT="(T2,/,T2,A,/,/,(T2,A))")&
       "*** Fundamental physical constants (SI units) ***",&
       "*** Literature: B. J. Mohr and B. N. Taylor,",&
       "***             CODATA recommended values of the fundamental physical",&
       "***             constants: 2006, Web Version 5.1",&
       "***             http://physics.nist.gov/constants"
-#endif
-
-#if CODATA_VERSION == 2010
-    WRITE (UNIT=output_unit,FMT="(T2,/,T2,A,/,/,(T2,A))")&
-      "*** Fundamental physical constants (SI units) ***",&
-      "*** Literature: P. J. Mohr, B. N. Taylor, and D. B. Newell,",&
-      "***             CODATA recommended values of the fundamental physical",&
-      "***             constants: 2010, Rev. Mod. Phys. 84, 1527-1605 (2012)"
-#endif
 
     WRITE (UNIT=output_unit,FMT="(/,T2,A,T61,ES20.14)")&
       "Speed of light in vacuum [m/s]",c_light
