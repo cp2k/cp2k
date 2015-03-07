@@ -103,6 +103,8 @@ MODULE f77_interface
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_type
   USE metadynamics_utils,              ONLY: metadyn_read
+  USE mixed_environment_types,         ONLY: mixed_env_release,&
+                                             mixed_environment_type
   USE mixed_main,                      ONLY: mixed_create_force_env
   USE periodic_table,                  ONLY: init_periodic_table
   USE pw_cuda,                         ONLY: pw_cuda_finalize,&
@@ -685,6 +687,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER :: fe_section, force_env_section, &
@@ -696,7 +699,7 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(input_declaration),cp_failure_level,routineP,error,failure)
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
-            fp_env,eip_env)
+            fp_env,eip_env,mixed_env)
     new_env_id=-1
     IF (PRESENT(mpi_comm)) THEN
        CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.,error=error)
@@ -886,9 +889,12 @@ CPSourceFileRef,&
                   globenv=globenv, force_env_section=force_env_section, error=error)
              CALL eip_env_release(eip_env, error=error)
           CASE (do_mixed)
-             CALL mixed_create_force_env(my_force_env, root_section, my_para_env, globenv,&
+             CALL mixed_create_force_env(mixed_env, root_section, my_para_env, globenv,&
                   force_env_section=force_env_section, n_subforce_eval=nsubforce_size,&
                   use_motion_section=use_motion_section, error=my_error)
+             CALL force_env_create(my_force_env, root_section, mixed_env=mixed_env, para_env=para_env,&
+                  globenv=globenv, force_env_section=force_env_section, error=error)
+             CALL mixed_env_release(mixed_env, error=error)
              use_multiple_para_env = .TRUE.
              lgroup_distribution => my_force_env%mixed_env%group_distribution
           CASE default

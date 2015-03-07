@@ -12,8 +12,6 @@ MODULE mixed_main
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_create
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE force_env_methods,               ONLY: force_env_create
-  USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
@@ -21,7 +19,6 @@ MODULE mixed_main
   USE message_passing,                 ONLY: mp_comm_split
   USE mixed_environment,               ONLY: mixed_init
   USE mixed_environment_types,         ONLY: mixed_env_create,&
-                                             mixed_env_release,&
                                              mixed_environment_type,&
                                              set_mixed_env
   USE timings,                         ONLY: timeset,&
@@ -40,7 +37,7 @@ MODULE mixed_main
 CONTAINS
 ! *****************************************************************************
 !> \brief Controls program flow for mixed calculations
-!> \param force_env ...
+!> \param mixed_env ...
 !> \param root_section ...
 !> \param para_env ...
 !> \param globenv ...
@@ -50,10 +47,10 @@ CONTAINS
 !> \param error ...
 !> \author fschiff
 ! *****************************************************************************
-  SUBROUTINE mixed_create_force_env ( force_env, root_section, para_env,globenv,&
+  SUBROUTINE mixed_create_force_env ( mixed_env, root_section, para_env,globenv,&
        force_env_section, n_subforce_eval, use_motion_section, error )
 
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -74,7 +71,6 @@ CONTAINS
     LOGICAL                                  :: failure, group_size_wish_set, &
                                                 ngroup_wish_set
     TYPE(cp_logger_type), POINTER            :: loc_logger, logger
-    TYPE(mixed_environment_type), POINTER    :: mixed_env
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -197,11 +193,6 @@ CONTAINS
     CALL set_mixed_env (mixed_env, error=error)
     CALL mixed_init ( mixed_env, root_section, para_env, force_env_section, &
                       use_motion_section, error )
-    CALL force_env_create ( force_env, root_section, mixed_env = mixed_env, &
-         para_env = para_env, globenv = globenv, &
-         force_env_section=force_env_section,&
-         error = error )
-    CALL mixed_env_release ( mixed_env, error = error )
     CALL timestop(handle)
 
   END SUBROUTINE mixed_create_force_env
