@@ -39,6 +39,7 @@ IMPLICIT NONE
  PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ma_process_mapping'
+  LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
   PUBLIC :: ma_mpi_reordering
 
@@ -1387,9 +1388,9 @@ SUBROUTINE ma_switch(mp_new_comm,mp_comm,order,kernel)
    ! Get a new MPI rank ordering, reduce comm costs
    CALL mp_environ(numtask,taskid,mp_comm)
 
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Starting switch - each MPI rank is exchanged with its 4 neighbors' 
-#endif
+   IF(debug_this_module) THEN
+      IF(taskid==0) WRITE(*,*) 'Starting switch - each MPI rank is exchanged with its 4 neighbors' 
+   ENDIF
 
    not_exchange = 0
    exchange = 0
@@ -1420,15 +1421,15 @@ SUBROUTINE ma_switch(mp_new_comm,mp_comm,order,kernel)
    !In the case that there is not a communication graph, we assume 
    ! that all tasks communicate with each other. 
    IF ( .NOT. PRESENT(kernel)) THEN
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Complete graph'
-#endif
-    CALL ma_comm_graph (mp_comm,complete_graph)
+      IF(debug_this_module) THEN
+       IF(taskid==0) WRITE(*,*) 'Complete graph'
+     ENDIF
+     CALL ma_comm_graph (mp_comm,complete_graph)
    ELSE
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Cannon graph'
-#endif
-   !Create the comm graph
+     IF(debug_this_module) THEN
+       IF(taskid==0) WRITE(*,*) 'Cannon graph'
+     ENDIF
+    !Create the comm graph
     CALL ma_comm_graph (mp_comm,kernel)
    ENDIF
  
@@ -1455,16 +1456,16 @@ IF(old_contention .GT. 0) THEN
        allocated_topology(jpe) = allocated_topology(jpe+1)
        allocated_topology(jpe+1) = tmp_order    
 
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Exchanged ',ordering(jpe+1), ' with ', ordering(jpe)
-#endif
+   IF(debug_this_module) THEN
+      IF(taskid==0) WRITE(*,*) 'Exchanged ',ordering(jpe+1), ' with ', ordering(jpe)
+   ENDIF
 
        CALL ma_compute_contention(contention,mp_comm)
        new_contention = SUM(contention)
 
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'New contention ', new_contention
-#endif
+   IF(debug_this_module) THEN
+      IF(taskid==0) WRITE(*,*) 'New contention ', new_contention
+   ENDIF
 
        !we just change if the new contention is at least 10% better than 
        IF ( new_contention .LT. old_contention) THEN
@@ -1480,9 +1481,9 @@ IF(old_contention .GT. 0) THEN
          allocated_topology(jpe) = tmp_order
 
          not_exchange = not_exchange + 1
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Exchanged back ',ordering(jpe), ' with ', ordering(jpe+1)
-#endif
+         IF(debug_this_module) THEN
+           IF(taskid==0) WRITE(*,*) 'Exchanged back ',ordering(jpe), ' with ', ordering(jpe+1)
+         ENDIF
       ENDIF
      ENDDO
 
@@ -1490,9 +1491,9 @@ IF(old_contention .GT. 0) THEN
    ENDDO
 ENDIF
 
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Finishing switch - have changed ', exchange
-#endif
+   IF(debug_this_module) THEN
+      IF(taskid==0) WRITE(*,*) 'Finishing switch - have changed ', exchange
+   ENDIF
 
  ! Create the new communicator
    CALL mp_reordering(mp_comm,mp_new_comm,ordering)
@@ -1539,9 +1540,9 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
  ! Get a new MPI rank ordering, reduce comm costs
   CALL mp_environ(numtask,taskid,mp_comm)
 
-#ifdef __DEBUG_HWTOPO
-   IF(taskid==0) WRITE(*,*) 'Starting Cannon heuristic'
-#endif
+  IF(debug_this_module) THEN
+    IF(taskid==0) WRITE(*,*) 'Starting Cannon heuristic'
+  ENDIF
   IF(square_grid(numtask) .OR. (IAND(numtask,numtask-1) .EQ. 0)) THEN
    
      !create the cannon graph
@@ -1563,9 +1564,9 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
       IF ( numtask .EQ. (h_grid_dim*h_grid_dim)) THEN
        CALL ma_hilbert_order(ranks_order,h_grid_dim)
    
-#ifdef __DEBUG_HWTOPO
-    IF(taskid==0) WRITE(*,*) 'Computing Hilbert curve - Only one curve is required'
-#endif
+      IF(debug_this_module) THEN
+        IF(taskid==0) WRITE(*,*) 'Computing Hilbert curve - Only one curve is required'
+      ENDIF
        
       ! there are other sub grids
       ELSE IF ( has_2dgrid .GT. 0 ) THEN
@@ -1583,16 +1584,16 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
        IF( ranks_order(ipe) == 0 ) ranks_order(ipe) = ipe-1
       ENDDO
    
-#ifdef __DEBUG_HWTOPO
-     IF(taskid==0) WRITE(*,*) 'Computing Hilbert curve - More than one curve is required'
-#endif
+      IF(debug_this_module) THEN
+        IF(taskid==0) WRITE(*,*) 'Computing Hilbert curve - More than one curve is required'
+      ENDIF
    
      !no perfect hilbert grids, use peano
       ELSE
    
-#ifdef __DEBUG_HWTOPO
-      IF(taskid==0) WRITE(*,*) 'Computing Hilbert-peano curve'
-#endif
+       IF(debug_this_module) THEN
+         IF(taskid==0) WRITE(*,*) 'Computing Hilbert-peano curve'
+       ENDIF
    
        ALLOCATE(tmp_order(h_grid_dim*h_grid_dim),stat=stat)
        IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
@@ -1727,15 +1728,15 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
      allocated_topology(:) = tmp_order(:)
    
 #if defined __GEMINI || __SEASTAR
-#ifdef __DEBUG_HWTOPO
-      IF(taskid==0) WRITE(*,*) 'Contention with Hilbert curve ', contention_hp, ' Contention with packed ', contention_packed
-#endif  
+     IF(debug_this_module) THEN
+       IF(taskid==0) WRITE(*,*) 'Contention with Hilbert curve ', contention_hp, ' Contention with packed ', contention_packed
+     ENDIF
    
      IF( contention_hp .LT. contention_packed) THEN
    
-#ifdef __DEBUG_HWTOPO
-      IF(taskid==0) WRITE(*,*) 'Contention is smaller with Hilbert curve'
-#endif
+     IF(debug_this_module) THEN
+       IF(taskid==0) WRITE(*,*) 'Contention is smaller with Hilbert curve'
+     ENDIF
    
      ALLOCATE(orderX(numtask),stat=stat)
      IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)
@@ -1822,9 +1823,9 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
    
      allocated_topology(:) = tmp_order(:)
    
-#ifdef __DEBUG_HWTOPO
-      IF(taskid==0) WRITE(*,*) 'Contention: ', contention_X,contention_Y,contention_Z
-#endif
+     IF(debug_this_module) THEN
+       IF(taskid==0) WRITE(*,*) 'Contention: ', contention_X,contention_Y,contention_Z
+     ENDIF
     
      IF ( (contention_X .LE. contention_Y+0.4*contention_Y) .AND. &
           (contention_X .LE. contention_Z+0.2*contention_Z)) THEN
@@ -1835,9 +1836,9 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
            allocated_topology(orderX(ipe)+1) = tmp_order(ipe)
         ENDDO
    
-#ifdef __DEBUG_HWTOPO
-      IF(taskid==0) WRITE(*,*) 'Use hilbert curve in X direction'
-#endif
+        IF(debug_this_module) THEN
+          IF(taskid==0) WRITE(*,*) 'Use hilbert curve in X direction'
+        ENDIF
       
      ELSE IF ( (contention_Y .LE. contention_X) .AND. &
           (contention_Y .LE. contention_Z)) THEN
@@ -1846,27 +1847,27 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
          DO ipe=1, numtask
            allocated_topology(orderY(ipe)+1) = tmp_order(ipe)
         ENDDO
-#ifdef __DEBUG_HWTOPO
-     IF(taskid==0) WRITE(*,*) 'Use hilbert curve in Y direction'
-#endif
+        IF(debug_this_module) THEN
+          IF(taskid==0) WRITE(*,*) 'Use hilbert curve in Y direction'
+        ENDIF
      ELSE 
         ranks_order(:) = orderZ(:)
         tmp_order(:) = allocated_topology(:)
         DO ipe=1, numtask
            allocated_topology(orderZ(ipe)+1) = tmp_order(ipe)
         ENDDO
-#ifdef __DEBUG_HWTOPO
-      IF(taskid==0) WRITE(*,*) 'Use hilbert curve in Z direction'
-#endif
+        IF(debug_this_module) THEN
+          IF(taskid==0) WRITE(*,*) 'Use hilbert curve in Z direction'
+        ENDIF
     ENDIF
    ENDIF
 #endif
    
      !hilbert does not improve the overall bw
      IF( contention_hp .GT. contention_packed) THEN
-#ifdef __DEBUG_HWTOPO
-      IF(taskid==0) WRITE(*,*) 'Back to packed! Hilbert is not improving contention'
-#endif
+       IF(debug_this_module) THEN
+         IF(taskid==0) WRITE(*,*) 'Back to packed! Hilbert is not improving contention'
+       ENDIF
        DO ipe=1, numtask
            ranks_order(ipe) = ipe - 1
        ENDDO
@@ -1885,9 +1886,9 @@ SUBROUTINE ma_cannon(mp_new_comm,mp_comm)
 #endif
      ENDIF
    
-#ifdef __DEBUG_HWTOPO
-      IF(taskid==0) WRITE(*,*) 'New communicator generated'
-#endif
+  IF(debug_this_module) THEN
+    IF(taskid==0) WRITE(*,*) 'New communicator generated'
+  ENDIF
 
   IF(ASSOCIATED(coord_order))DEALLOCATE(coord_order,stat=stat)
   IF ( stat /= 0 ) CALL ma_error_stop(ma_error_allocation)

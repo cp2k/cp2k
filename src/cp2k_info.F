@@ -210,9 +210,6 @@ ENDIF
 #if defined __DBCSR_ACC
    flags=TRIM(flags)//" dbcsr_acc"
 #endif
-#if defined __DEBUG_HWTOPO
-   flags=TRIM(flags)//" debug_hwtopo"
-#endif
 #if defined __HAS_LIBGRID
    flags=TRIM(flags)//" libgrid"
 #endif
