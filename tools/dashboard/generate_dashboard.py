@@ -301,6 +301,14 @@ def ticket_cell(label):
 #===============================================================================
 def parse_regtest_report(report_txt):
     report = dict()
+
+    m = re.search("svn: E000111: (Can't connect .*):", report_txt)
+    if(m):
+        report['revision'] = None
+        report['status'] = "UNKNOWN"
+        report['summary'] = m.group(1)
+        return(report)
+
     report['revision'] = int(re.search("(revision|Revision:) (\d+)\.?\n", report_txt).group(2))
 
     if("LOCKFILE" in report_txt):
