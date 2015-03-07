@@ -889,7 +889,7 @@ CPSourceFileRef,&
                   globenv=globenv, force_env_section=force_env_section, error=error)
              CALL eip_env_release(eip_env, error=error)
           CASE (do_mixed)
-             CALL mixed_create_force_env(mixed_env, root_section, my_para_env, globenv,&
+             CALL mixed_create_force_env(mixed_env, root_section, my_para_env,&
                   force_env_section=force_env_section, n_subforce_eval=nsubforce_size,&
                   use_motion_section=use_motion_section, error=my_error)
              CALL force_env_create(my_force_env, root_section, mixed_env=mixed_env, para_env=para_env,&

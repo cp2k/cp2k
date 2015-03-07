@@ -12,7 +12,6 @@ MODULE mixed_main
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_create
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length
@@ -40,20 +39,18 @@ CONTAINS
 !> \param mixed_env ...
 !> \param root_section ...
 !> \param para_env ...
-!> \param globenv ...
 !> \param force_env_section ...
 !> \param n_subforce_eval ...
 !> \param use_motion_section ...
 !> \param error ...
 !> \author fschiff
 ! *****************************************************************************
-  SUBROUTINE mixed_create_force_env ( mixed_env, root_section, para_env,globenv,&
+  SUBROUTINE mixed_create_force_env ( mixed_env, root_section, para_env,&
        force_env_section, n_subforce_eval, use_motion_section, error )
 
     TYPE(mixed_environment_type), POINTER    :: mixed_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     INTEGER, INTENT(IN)                      :: n_subforce_eval
     LOGICAL, INTENT(IN)                      :: use_motion_section
