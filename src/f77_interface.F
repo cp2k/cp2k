@@ -878,12 +878,12 @@ CPSourceFileRef,&
                   force_env_section=force_env_section, subsys_section=subsys_section,&
                   use_motion_section=use_motion_section, error=my_error )
           CASE (do_qs)
-             CALL qs_env_create(qs_env,globenv,error=error)
+             CALL qs_env_create(qs_env,globenv,error=my_error)
              CALL qs_init(qs_env, my_para_env, globenv, root_section, force_env_section=force_env_section,&
-                  subsys_section=subsys_section, use_motion_section=use_motion_section, error=error)
+                  subsys_section=subsys_section, use_motion_section=use_motion_section, error=my_error)
              CALL force_env_create(my_force_env, root_section, qs_env=qs_env, para_env=my_para_env, globenv=globenv,&
-                  sub_force_env=Null(), force_env_section=force_env_section,error=error)
-             CALL qs_env_release(qs_env,error=error)
+                  force_env_section=force_env_section,error=my_error)
+             CALL qs_env_release(qs_env,error=my_error)
 
           CASE (do_qmmm)
              CALL qmmm_create_force_env( my_force_env, root_section, my_para_env, globenv,&
@@ -891,20 +891,20 @@ CPSourceFileRef,&
                   use_motion_section=use_motion_section, error=my_error)
 
           CASE (do_eip)
-             CALL eip_env_create(eip_env, error=error)
+             CALL eip_env_create(eip_env, error=my_error)
              CALL eip_init(eip_env, root_section, my_para_env, force_env_section=force_env_section,&
-                  subsys_section=subsys_section, use_motion_section=use_motion_section, error=error)
+                  subsys_section=subsys_section, use_motion_section=use_motion_section, error=my_error)
              CALL force_env_create(my_force_env, root_section, eip_env=eip_env, para_env=my_para_env,&
-                  globenv=globenv, force_env_section=force_env_section, error=error)
-             CALL eip_env_release(eip_env, error=error)
+                  globenv=globenv, force_env_section=force_env_section, error=my_error)
+             CALL eip_env_release(eip_env, error=my_error)
 
           CASE (do_mixed)
              CALL mixed_create_force_env(mixed_env, root_section, my_para_env,&
                   force_env_section=force_env_section, n_subforce_eval=nsubforce_size,&
                   use_motion_section=use_motion_section, error=my_error)
              CALL force_env_create(my_force_env, root_section, mixed_env=mixed_env, para_env=my_para_env,&
-                  globenv=globenv, force_env_section=force_env_section, error=error)
-             CALL mixed_env_release(mixed_env, error=error)
+                  globenv=globenv, force_env_section=force_env_section, error=my_error)
+             CALL mixed_env_release(mixed_env, error=my_error)
              use_multiple_para_env = .TRUE.
              lgroup_distribution => my_force_env%mixed_env%group_distribution
 
