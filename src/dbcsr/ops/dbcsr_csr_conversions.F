@@ -1445,10 +1445,8 @@ CONTAINS
     CALL mp_environ(numnodes, mynode, csr_mat%mp_group)
 
     ! gather sizes (number of local non-zero elements and number of local rows)
-    IF (mynode .EQ. 0) THEN
-      ALLOCATE(sizes_nzelocal(numnodes))
-      ALLOCATE(sizes_numrowlocal(numnodes))
-    ENDIF
+    ALLOCATE(sizes_nzelocal(numnodes))
+    ALLOCATE(sizes_numrowlocal(numnodes))
 
     CALL mp_gather(csr_mat%nze_local,sizes_nzelocal,0,csr_mat%mp_group)
     CALL mp_gather(csr_mat%nrows_local, sizes_numrowlocal,0,csr_mat%mp_group)
