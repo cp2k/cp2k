@@ -303,7 +303,6 @@ completeness besides the flags described in this document.
     Linux-based architectures or using with the NAG, gfortran, compilers.
 
   * -D__mp_timeset__ Timing of MPI routines.
-  * -D_USE_GA Global Arrays Toolkit ?
 
 ==== 3e. Automatic architecture discovery ====
 The `I'm feeling lucky' version of building will try to guess what architecture

@@ -14,7 +14,7 @@
 !>      Teodoro Laino (05.2009) [tlaino] - Stress Tensor
 !>
 ! *****************************************************************************
-MODULE se_fock_matrix_coulomb_mpi
+MODULE se_fock_matrix_coulomb
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE atprop_types,                    ONLY: atprop_type
@@ -94,7 +94,7 @@ MODULE se_fock_matrix_coulomb_mpi
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_coulomb_mpi'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_coulomb'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
 
   PUBLIC :: build_fock_matrix_coulomb, build_fock_matrix_coulomb_lr,&
@@ -1632,5 +1632,5 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE build_fock_matrix_coul_lr_r3
 
-END MODULE se_fock_matrix_coulomb_mpi
+END MODULE se_fock_matrix_coulomb
 

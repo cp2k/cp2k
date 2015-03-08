@@ -127,7 +127,6 @@ MODULE force_env_methods
   USE qs_force,                        ONLY: qs_forces
   USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
   USE restraint,                       ONLY: restraint_control
-  USE se_ga_tools,                     ONLY: se_ga_release
   USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: print_warning
   USE virial_types,                    ONLY: cp_virial,&
@@ -249,8 +248,6 @@ CONTAINS
              ELSE
                 CALL qs_forces(force_env%qs_env, error=error)
              END IF
-! GA option
-             CALL se_ga_release ( force_env%qs_env, error )
              CALL get_qs_env(qs_env=force_env%qs_env,error=error)
           CASE (use_eip_force)
              IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN

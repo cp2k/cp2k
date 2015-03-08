@@ -145,7 +145,7 @@ MODULE qs_ks_methods
   USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
                                              rtp_admm_merge_ks_matrix
   USE scptb_ks_matrix,                 ONLY: build_scptb_ks_matrix
-  USE se_fock_matrix_control,          ONLY: build_se_fock_matrix_control
+  USE se_fock_matrix,                  ONLY: build_se_fock_matrix
   USE surface_dipole,                  ONLY: calc_dipsurf_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -1360,7 +1360,7 @@ CONTAINS
     CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
 
     IF (dft_control%qs_control%semi_empirical) THEN
-       CALL build_se_fock_matrix_control(qs_env,&
+       CALL build_se_fock_matrix(qs_env,&
                                calculate_forces=calculate_forces,&
                                just_energy=just_energy,&
                                error=error)

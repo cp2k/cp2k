@@ -12,7 +12,7 @@
 !>      Teodoro Laino (09.2008) [tlaino] - University of Zurich : Periodic SE
 !>      Teodoro Laino (05.2009) [tlaino] - Split and module reorganization
 ! *****************************************************************************
-MODULE se_fock_matrix_mpi
+MODULE se_fock_matrix
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atprop_types,                    ONLY: atprop_array_init,&
                                              atprop_type
@@ -48,7 +48,7 @@ MODULE se_fock_matrix_mpi
                                              mo_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-  USE se_fock_matrix_coulomb_mpi,      ONLY: build_fock_matrix_coul_lr_r3,&
+  USE se_fock_matrix_coulomb,          ONLY: build_fock_matrix_coul_lr_r3,&
                                              build_fock_matrix_coulomb,&
                                              build_fock_matrix_coulomb_lr
   USE se_fock_matrix_dbg,              ONLY: dbg_energy_coulomb_lr
@@ -63,11 +63,11 @@ MODULE se_fock_matrix_mpi
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix_mpi'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'se_fock_matrix'
   LOGICAL, PARAMETER, PRIVATE          :: debug_this_module       = .FALSE.
   LOGICAL, PARAMETER, PRIVATE          :: debug_energy_coulomb_lr = .FALSE.
 
-  PUBLIC :: build_se_fock_matrix_mpi
+  PUBLIC :: build_se_fock_matrix
 
 CONTAINS
 
@@ -81,12 +81,12 @@ CONTAINS
 !>         - Teodoro Laino [tlaino] (05.2009) - Split and module reorganization
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE build_se_fock_matrix_mpi (qs_env,calculate_forces,just_energy,error)
+  SUBROUTINE build_se_fock_matrix (qs_env,calculate_forces,just_energy,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix_mpi', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock_matrix', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, natom, &
@@ -277,7 +277,7 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE build_se_fock_matrix_mpi
+  END SUBROUTINE build_se_fock_matrix
 
-END MODULE se_fock_matrix_mpi
+END MODULE se_fock_matrix
 

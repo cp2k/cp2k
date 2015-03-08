@@ -11,7 +11,7 @@ MODULE se_fock_matrix_dbg
   USE qs_energy_types,                 ONLY: init_qs_energy,&
                                              qs_energy_type
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE se_fock_matrix_coulomb_mpi,      ONLY: build_fock_matrix_coulomb_lr
+  USE se_fock_matrix_coulomb,          ONLY: build_fock_matrix_coulomb_lr
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
 #include "./common/cp_common_uses.f90"
 

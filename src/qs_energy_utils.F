@@ -76,7 +76,6 @@ MODULE qs_energy_utils
   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
   USE se_core_core,                    ONLY: se_core_core_interaction
   USE se_core_matrix,                  ONLY: build_se_core_matrix
-  USE se_ga_tools,                     ONLY: se_ga_initialize
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_methods,                     ONLY: xas
@@ -300,8 +299,6 @@ CONTAINS
        CALL se_core_core_interaction(qs_env, para_env, calculate_forces=.FALSE., error=error)
        CALL get_qs_env(qs_env=qs_env,dispersion_env=dispersion_env,energy=energy,error=error)
        CALL calculate_dispersion_pairpot(qs_env,dispersion_env,energy%dispersion,calc_forces,error)
-       ! GA option
-       CALL se_ga_initialize ( qs_env, error )
     ELSEIF ( dft_control%qs_control%dftb ) THEN
        CALL build_dftb_matrices(qs_env=qs_env, para_env=para_env,&
                                 calculate_forces=.FALSE.,error=error)
