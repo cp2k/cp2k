@@ -190,6 +190,7 @@ CONTAINS
           CALL cell_release(subsys%cell,error=error)
           DEALLOCATE(subsys)
        END IF
+       NULLIFY(subsys)
     END IF
   END SUBROUTINE cp_subsys_release
 

@@ -12,8 +12,7 @@
 !>      10.2014 Rustam Z Khaliullin
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-MODULE mscfg_methods 
-
+MODULE mscfg_methods
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
@@ -25,9 +24,7 @@ MODULE mscfg_methods
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsys_type
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_release,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: almo_frz_crystal,&
@@ -38,17 +35,20 @@ MODULE mscfg_methods
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: default_string_length
   USE molecule_types_new,              ONLY: get_molecule_set_info,&
                                              molecule_type
   USE mscfg_types,                     ONLY: molecular_scf_guess_env_init,&
                                              molecular_scf_guess_env_type,&
                                              mscfg_max_moset_size
   USE particle_list_types,             ONLY: particle_list_type
+  USE qs_energy,                       ONLY: qs_energies
+  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_environment,                  ONLY: qs_init
   USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_env_create,&
+                                             qs_env_release,&
                                              qs_environment_type
-  USE qs_main,                         ONLY: quickstep_create_force_env
   USE qs_mo_types,                     ONLY: mo_set_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -163,16 +163,15 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list
     LOGICAL                                  :: failure, &
                                                 global_almo_scf_keyword
-    REAL(KIND=dp)                            :: energy_of_frag
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys, subsys_loc
-    TYPE(force_env_type), POINTER            :: force_env_loc
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos_of_frag
     TYPE(molecular_scf_guess_env_type), &
       POINTER                                :: mscfg_env
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(qs_energy_type), POINTER            :: qs_energy
     TYPE(qs_environment_type), POINTER       :: qs_env, qs_env_loc
     TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 force_env_section, &
@@ -182,9 +181,9 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    
+
     NULLIFY(subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, &
-         force_env_section, force_env_loc, qs_env_loc, mscfg_env, qs_env)
+         force_env_section, qs_env_loc, mscfg_env, qs_env, qs_energy)
     CALL force_env_get(force_env, force_env_section=force_env_section, &
             qs_env=qs_env, error=error)
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=force_method,error=error)
@@ -272,11 +271,12 @@ CONTAINS
             small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&
             sub_atom_kind_name=atom_type,para_env=para_env,&
             force_env_section=force_env_section,subsys_section=subsys_section,error=error)
-       CALL quickstep_create_force_env(force_env_loc,root_section,para_env,globenv,subsys=subsys_loc,&
-            force_env_section=force_env_section,subsys_section=subsys_section,use_motion_section=.FALSE.,&
-            error=error)
+       CALL qs_env_create(qs_env_loc, globenv,error=error)
+       CALL qs_init(qs_env_loc, para_env, globenv, root_section, cp_subsys=subsys_loc,&
+            force_env_section=force_env_section, subsys_section=subsys_section,&
+            use_motion_section=.FALSE., error=error)
        CALL cp_subsys_release(subsys_loc,error=error)
-       NULLIFY(subsys_loc)
+
        !
        ! Print-out fragment info
        !
@@ -285,18 +285,16 @@ CONTAINS
        !
        !  Run calculations on a subsystem
        !
-       CALL force_env_calc_energy_force(force_env_loc,calc_force=.FALSE.,error=error)
+       CALL qs_energies(qs_env_loc, error=error)
        !
        !  Get the desired results (energy and MOs) out
        !
-       CALL force_env_get(force_env_loc,potential_energy=energy_of_frag,qs_env=qs_env_loc,error=error)
-       CALL get_qs_env(qs_env_loc,mos=mos_of_frag,error=error)
-       CPPostcondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+       CALL get_qs_env(qs_env_loc, mos=mos_of_frag, energy=qs_energy, error=error)
        !
        ! Store all desired results of fragment calculations in the fragment_env 
        ! of the qs_env to use them later as needed
        !
-       mscfg_env%energy_of_frag(ifrag)=energy_of_frag
+       mscfg_env%energy_of_frag(ifrag) = qs_energy%total
        nmosets_of_frag=SIZE(mos_of_frag)
        CPPostcondition(nmosets_of_frag.le.mscfg_max_moset_size,cp_failure_level,routineP,error,failure)
        mscfg_env%nmosets_of_frag(ifrag)=nmosets_of_frag
@@ -314,8 +312,8 @@ CONTAINS
        !
        ! Clean up
        !
-       CALL force_env_release(force_env_loc, error=error)
-       NULLIFY(force_env_loc)
+       NULLIFY(qs_energy)
+       CALL qs_env_release(qs_env_loc, error=error)
        DEALLOCATE(atom_index, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(atom_type, stat=stat)
