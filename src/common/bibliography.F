@@ -2779,7 +2779,7 @@ CONTAINS
          "AF Rayson, Mark",&
          "   Briddon, Patrick",&
          "TI Highly efficient method for Kohn-Sham density functional",&
-         "   calculations of 500–10 000 atom systems ",&
+         "   calculations of 500-10 000 atom systems ",&
          "SO PHYSICAL REVIEW B",&
          "SN 1098-0121",&
          "PD NOV",&
