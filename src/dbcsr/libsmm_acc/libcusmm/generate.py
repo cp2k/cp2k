@@ -32,7 +32,7 @@ def main():
     usage = "Generator of LibCuSMM. The Library for Cuda Small Matrix Multiplications."
     parser = OptionParser(usage)
     parser.add_option("-p", "--params", metavar="filename.txt",
-        default="parameters.txt",
+        default="parameters_K20X.txt",
         help="Default: %default")
 
     (options, args) = parser.parse_args()

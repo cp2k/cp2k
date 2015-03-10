@@ -51,7 +51,7 @@ class Kernel_dnt_tiny(object):
             buf_sz = 2*(m*k + k*n)
             sizeof_int = 4; sizeof_double = 8
             smem_tot = buf_sz*sizeof_double + 4*grouping*sizeof_int
-            if(smem_tot*minblocks > 48*1024):
+            if(smem_tot*minblocks > 64*1024):
                 continue # uses too much shared memory
 
             params.append({'m':m, 'n':n, 'k':k,

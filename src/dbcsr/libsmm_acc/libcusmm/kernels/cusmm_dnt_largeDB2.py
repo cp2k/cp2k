@@ -89,7 +89,7 @@ class Kernel_dnt_largeDB2(object):
                                 buf_sz = max(m*w + w*n, v*m)
                                 sizeof_int = 4; sizeof_double = 8
                                 smem_tot = buf_sz*sizeof_double + 4*grouping*sizeof_int
-                                if(smem_tot*minblocks > 48*1024): continue
+                                if(smem_tot*minblocks > 64*1024): continue
 
                                 params.append({'m':m, 'n':n, 'k':k,
                                                'tile_m':tm, 'tile_n':tn,
