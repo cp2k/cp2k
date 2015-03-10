@@ -737,7 +737,8 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: sabda, sdaba, sdabda
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b, &
+                                                set_radius_ca
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, rpgfca, sphi_a, &
                                                 sphi_b, sphi_ca, zeta, zetb, &
                                                 zetca
@@ -747,41 +748,43 @@ CONTAINS
     NULLIFY(la_max, la_min, lb_max, lb_min, lca_max, lca_min, npgfa, npgfb,&
              npgfca, nsgfa, nsgfb, nsgfca) 
     NULLIFY(first_sgfa, first_sgfb, first_sgfca, set_radius_a, set_radius_b,&
-            rpgfa, rpgfb, rpgfca, sphi_a, sphi_b, sphi_ca, zeta, zetb, zetca) 
+            set_radius_ca, rpgfa, rpgfb, rpgfca, sphi_a, sphi_b, sphi_ca,&
+            zeta, zetb, zetca) 
 
     ! basis ikind
-    first_sgfa   =>  oba%first_sgf
-    la_max       =>  oba%lmax
-    la_min       =>  oba%lmin
-    npgfa        =>  oba%npgf
-    nseta        =   oba%nset
-    nsgfa        =>  oba%nsgf_set
-    rpgfa        =>  oba%pgf_radius
-    set_radius_a =>  oba%set_radius
-    sphi_a       =>  oba%sphi
-    zeta         =>  oba%zet
+    first_sgfa    =>  oba%first_sgf
+    la_max        =>  oba%lmax
+    la_min        =>  oba%lmin
+    npgfa         =>  oba%npgf
+    nseta         =   oba%nset
+    nsgfa         =>  oba%nsgf_set
+    rpgfa         =>  oba%pgf_radius
+    set_radius_a  =>  oba%set_radius
+    sphi_a        =>  oba%sphi
+    zeta          =>  oba%zet
     ! basis jkind
-    first_sgfb   =>  obb%first_sgf
-    lb_max       =>  obb%lmax
-    lb_min       =>  obb%lmin
-    npgfb        =>  obb%npgf
-    nsetb        =   obb%nset
-    nsgfb        =>  obb%nsgf_set
-    rpgfb        =>  obb%pgf_radius
-    set_radius_b =>  obb%set_radius
-    sphi_b       =>  obb%sphi
-    zetb         =>  obb%zet
+    first_sgfb    =>  obb%first_sgf
+    lb_max        =>  obb%lmax
+    lb_min        =>  obb%lmin
+    npgfb         =>  obb%npgf
+    nsetb         =   obb%nset
+    nsgfb         =>  obb%nsgf_set
+    rpgfb         =>  obb%pgf_radius
+    set_radius_b  =>  obb%set_radius
+    sphi_b        =>  obb%sphi
+    zetb          =>  obb%zet
 
     ! basis RI A
-    first_sgfca  =>  fba%first_sgf
-    lca_max      =>  fba%lmax
-    lca_min      =>  fba%lmin
-    npgfca       =>  fba%npgf
-    nsetca       =   fba%nset
-    nsgfca       =>  fba%nsgf_set
-    rpgfca       =>  fba%pgf_radius
-    sphi_ca      =>  fba%sphi
-    zetca        =>  fba%zet
+    first_sgfca   =>  fba%first_sgf
+    lca_max       =>  fba%lmax
+    lca_min       =>  fba%lmin
+    npgfca        =>  fba%npgf
+    nsetca        =   fba%nset
+    nsgfca        =>  fba%nsgf_set
+    rpgfca        =>  fba%pgf_radius
+    set_radius_ca =>  fba%set_radius
+    sphi_ca       =>  fba%sphi
+    zetca         =>  fba%zet
 
     dab = SQRT( SUM(rab**2) )
 
@@ -804,7 +807,11 @@ CONTAINS
           dac = 0._dp
           rbc = -rab
           dbc = dab
+
           DO kaset=1,nsetca
+
+             IF (set_radius_b(jset) + set_radius_ca(kaset) < dab) CYCLE
+
              ncoc = npgfca(kaset)*ncoset(lca_max(kaset))
              sgfc = first_sgfca(1,kaset)
              m3=sgfc+nsgfca(kaset)-1
@@ -913,7 +920,8 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: sdabb
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b, &
+                                                set_radius_cb
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, rpgfcb, sphi_a, &
                                                 sphi_b, sphi_cb, zeta, zetb, &
                                                 zetcb
@@ -923,41 +931,43 @@ CONTAINS
     NULLIFY(la_max, la_min, lb_max, lb_min, lcb_max, lcb_min, npgfa, npgfb,&
             npgfcb, nsgfa, nsgfb, nsgfcb)
     NULLIFY(first_sgfa, first_sgfb, first_sgfcb, set_radius_a, set_radius_b,&
-            rpgfa, rpgfb, rpgfcb, sphi_a, sphi_b, sphi_cb, zeta, zetb, zetcb) 
+            set_radius_cb, rpgfa, rpgfb, rpgfcb, sphi_a, sphi_b, sphi_cb,&
+            zeta, zetb, zetcb) 
 
     ! basis ikind
-    first_sgfa   =>  oba%first_sgf
-    la_max       =>  oba%lmax
-    la_min       =>  oba%lmin
-    npgfa        =>  oba%npgf
-    nseta        =   oba%nset
-    nsgfa        =>  oba%nsgf_set
-    rpgfa        =>  oba%pgf_radius
-    set_radius_a =>  oba%set_radius
-    sphi_a       =>  oba%sphi
-    zeta         =>  oba%zet
+    first_sgfa    =>  oba%first_sgf
+    la_max        =>  oba%lmax
+    la_min        =>  oba%lmin
+    npgfa         =>  oba%npgf
+    nseta         =   oba%nset
+    nsgfa         =>  oba%nsgf_set
+    rpgfa         =>  oba%pgf_radius
+    set_radius_a  =>  oba%set_radius
+    sphi_a        =>  oba%sphi
+    zeta          =>  oba%zet
     ! basis jkind
-    first_sgfb   =>  obb%first_sgf
-    lb_max       =>  obb%lmax
-    lb_min       =>  obb%lmin
-    npgfb        =>  obb%npgf
-    nsetb        =   obb%nset
-    nsgfb        =>  obb%nsgf_set
-    rpgfb        =>  obb%pgf_radius
-    set_radius_b =>  obb%set_radius
-    sphi_b       =>  obb%sphi
-    zetb         =>  obb%zet
+    first_sgfb    =>  obb%first_sgf
+    lb_max        =>  obb%lmax
+    lb_min        =>  obb%lmin
+    npgfb         =>  obb%npgf
+    nsetb         =   obb%nset
+    nsgfb         =>  obb%nsgf_set
+    rpgfb         =>  obb%pgf_radius
+    set_radius_b  =>  obb%set_radius
+    sphi_b        =>  obb%sphi
+    zetb          =>  obb%zet
 
     ! basis RI B
-    first_sgfcb  =>  fbb%first_sgf
-    lcb_max      =>  fbb%lmax
-    lcb_min      =>  fbb%lmin
-    npgfcb       =>  fbb%npgf
-    nsetcb       =   fbb%nset
-    nsgfcb       =>  fbb%nsgf_set
-    rpgfcb       =>  fbb%pgf_radius
-    sphi_cb      =>  fbb%sphi
-    zetcb        =>  fbb%zet
+    first_sgfcb   =>  fbb%first_sgf
+    lcb_max       =>  fbb%lmax
+    lcb_min       =>  fbb%lmin
+    npgfcb        =>  fbb%npgf
+    nsetcb        =   fbb%nset
+    nsgfcb        =>  fbb%nsgf_set
+    rpgfcb        =>  fbb%pgf_radius
+    set_radius_cb =>  fbb%set_radius
+    sphi_cb       =>  fbb%sphi
+    zetcb         =>  fbb%zet
 
     dab = SQRT( SUM(rab**2) )
 
@@ -980,7 +990,11 @@ CONTAINS
           dac = dab
           rbc = 0._dp
           dbc = 0._dp
+
           DO kbset=1,nsetcb
+ 
+             IF (set_radius_a(iset) + set_radius_cb(kbset) < dab) CYCLE
+
              ncoc = npgfcb(kbset)*ncoset(lcb_max(kbset))
              sgfc = first_sgfcb(1,kbset)
              m3=sgfc+nsgfcb(kbset)-1
