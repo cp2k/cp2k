@@ -1,0 +1,28 @@
+# *****************************************************************************
+# * CP2K: A general program to perform molecular dynamics simulations         *
+# * Copyright (C) 2000 - 2015 the CP2K developers group                       *
+# *****************************************************************************
+
+[
+  Kernel_dnt_largeDB2(m=10, n=10, k=10, tile_m=2, tile_n=1, w=4, v=10, threads=96, grouping=16, minblocks=4) , # 115.19 GFlop/s
+  Kernel_dnt_largeDB2(m=12, n=12, k=12, tile_m=3, tile_n=2, w=6, v=12, threads=96, grouping=16, minblocks=4) , # 193.79 GFlop/s
+  Kernel_dnt_largeDB2(m=16, n=16, k=16, tile_m=4, tile_n=2, w=8, v=16, threads=128, grouping=16, minblocks=1) , # 322.824 GFlop/s
+  Kernel_dnt_largeDB2(m=17, n=17, k=17, tile_m=2, tile_n=3, w=6, v=14, threads=128, grouping=16, minblocks=8) , # 279.903 GFlop/s
+  Kernel_dnt_largeDB2(m=22, n=22, k=22, tile_m=3, tile_n=3, w=8, v=22, threads=96, grouping=16, minblocks=8) , # 405.672 GFlop/s
+  Kernel_dnt_largeDB2(m=23, n=23, k=23, tile_m=3, tile_n=3, w=8, v=12, threads=96, grouping=16, minblocks=8) , # 439.289 GFlop/s
+  Kernel_dnt_largeDB2(m=24, n=24, k=24, tile_m=6, tile_n=3, w=12, v=24, threads=96, grouping=16, minblocks=4) , # 506.39 GFlop/s
+  Kernel_dnt_largeDB2(m=26, n=26, k=26, tile_m=3, tile_n=4, w=10, v=26, threads=96, grouping=16, minblocks=4) , # 464.067 GFlop/s
+  Kernel_dnt_largeDB2(m=29, n=29, k=29, tile_m=3, tile_n=5, w=12, v=28, threads=96, grouping=16, minblocks=1) , # 491.026 GFlop/s
+  Kernel_dnt_largeDB2(m=32, n=32, k=32, tile_m=4, tile_n=4, w=8, v=26, threads=128, grouping=16, minblocks=1) , # 594.053 GFlop/s
+  Kernel_dnt_medium(m=13, n=13, k=13, tile_m=2, tile_n=2, threads=96, grouping=16, minblocks=12) , # 204.17 GFlop/s
+  Kernel_dnt_medium(m=14, n=14, k=14, tile_m=4, tile_n=2, threads=96, grouping=16, minblocks=1) , # 239.224 GFlop/s
+  Kernel_dnt_medium(m=15, n=15, k=15, tile_m=4, tile_n=2, threads=96, grouping=16, minblocks=8) , # 275.724 GFlop/s
+  Kernel_dnt_small(m=11, n=11, k=11, tile_m=1, tile_n=1, threads=128, grouping=16, minblocks=1) , # 168.009 GFlop/s
+  Kernel_dnt_small(m=9, n=9, k=9, tile_m=1, tile_n=1, threads=96, grouping=16, minblocks=4) , # 117.001 GFlop/s
+  Kernel_dnt_tiny(m=5, n=5, k=5, split_thread=32, threads=64, grouping=16, minblocks=1) , # 33.4544 GFlop/s
+  Kernel_dnt_tiny(m=6, n=6, k=6, split_thread=32, threads=96, grouping=16, minblocks=1) , # 47.3645 GFlop/s
+  Kernel_dnt_tiny(m=7, n=7, k=7, split_thread=32, threads=96, grouping=16, minblocks=1) , # 70.7194 GFlop/s
+  Kernel_dnt_tiny(m=8, n=8, k=8, split_thread=32, threads=96, grouping=16, minblocks=1) , # 103.662 GFlop/s
+]
+
+#EOF
