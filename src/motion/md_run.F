@@ -47,7 +47,6 @@ MODULE md_run
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
-  USE mc_types,                        ONLY: mc_ekin_type
   USE md_ener_types,                   ONLY: create_md_ener,&
                                              md_ener_type,&
                                              release_md_ener
@@ -117,19 +116,20 @@ CONTAINS
 !> \param globenv ...
 !> \param averages ...
 !> \param rm_restart_info ...
-!> \param hmc_ekin ...
+!> \param hmc_e_initial ...
+!> \param hmc_e_final ...
 !> \param mdctrl ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE qs_mol_dyn ( force_env, globenv, averages, rm_restart_info, hmc_ekin, mdctrl, error )
+  SUBROUTINE qs_mol_dyn ( force_env, globenv, averages, rm_restart_info, hmc_e_initial, hmc_e_final, mdctrl, error )
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(average_quantities_type), &
       OPTIONAL, POINTER                      :: averages
     LOGICAL, INTENT(IN), OPTIONAL            :: rm_restart_info
-    TYPE(mc_ekin_type), OPTIONAL, POINTER    :: hmc_ekin
+    REAL(KIND=dp), OPTIONAL                  :: hmc_e_initial, hmc_e_final
     TYPE(mdctrl_type), OPTIONAL, POINTER     :: mdctrl
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -152,9 +152,9 @@ CONTAINS
     ! Real call to MD driver - Low Level
     CALL md_env_create(md_env, md_section, para_env, force_env=force_env, error=error)
     CALL set_md_env(md_env, averages=averages, error=error)
-    IF(PRESENT(hmc_ekin))THEN
+    IF(PRESENT(hmc_e_initial).AND.PRESENT(hmc_e_final))THEN
        CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, &
-            hmc_ekin=hmc_ekin, error=error)
+            hmc_e_initial=hmc_e_initial,hmc_e_final=hmc_e_final, error=error)
     ELSE
        CALL qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, mdctrl=mdctrl, error=error)
     ENDIF
@@ -171,7 +171,8 @@ CONTAINS
 !> \param motion_section ...
 !> \param force_env ...
 !> \param globenv ...
-!> \param hmc_ekin ...
+!> \param hmc_e_initial ...
+!> \param hmc_e_final ...
 !> \param mdctrl ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -180,13 +181,13 @@ CONTAINS
 !>   - Added lines to print out langevin regions (2014/02/04, LT)
 !> \author Creation (07.11.2002,MK)
 ! *****************************************************************************
-  SUBROUTINE qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, hmc_ekin, mdctrl, error)
+  SUBROUTINE qs_mol_dyn_low(md_env, md_section, motion_section, force_env, globenv, hmc_e_initial,hmc_e_final, mdctrl, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: md_section, motion_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(mc_ekin_type), OPTIONAL, POINTER    :: hmc_ekin
+    REAL(KIND=dp), OPTIONAL                  :: hmc_e_initial, hmc_e_final
     TYPE(mdctrl_type), OPTIONAL, POINTER     :: mdctrl
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -464,7 +465,7 @@ CONTAINS
          constraint_section,"LAGRANGE_MULTIPLIERS",error=error)
 
 ! if we need the initial kinetic energy for Hybrid Monte Carlo
-    IF(PRESENT(hmc_ekin)) hmc_ekin%initial_ekin=md_ener%ekin
+    IF(PRESENT(hmc_e_initial)) hmc_e_initial=md_ener%ekin
 
     ! Real MD Loop
     DO istep=1, simpar%nsteps, md_stride
@@ -546,7 +547,7 @@ CONTAINS
     END DO
 
 ! if we need the final kinetic energy for Hybrid Monte Carlo
-    IF(PRESENT(hmc_ekin)) hmc_ekin%final_ekin=md_ener%ekin
+    IF(PRESENT(hmc_e_final)) hmc_e_final=md_ener%ekin
 
     ! Remove the iteration level
     CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)

@@ -73,7 +73,7 @@ MODULE mc_run
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-#include "../common/cp_common_uses.f90"
+#include "../../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

@@ -133,7 +133,7 @@ MODULE tamc_run
   USE wiener_process,                  ONLY: create_wiener_process,&
                                              create_wiener_process_cv
 !!!!! monte carlo part
-#include "../common/cp_common_uses.f90"
+#include "../../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -1323,7 +1323,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages,error)
       IF (.NOT. localise) THEN
         CALL section_vals_val_set(dft_section,"LOCALIZE%_SECTION_PARAMETERS_",l_val=.FALSE.,error=error)
       ENDIF
-      CALL qs_mol_dyn(force_env,globenv,error=error,hmc_ekin=hmc_ekin)
+      CALL qs_mol_dyn(force_env,globenv,error=error,hmc_e_initial=hmc_ekin%initial_ekin,hmc_e_final=hmc_ekin%final_ekin)
       IF (.NOT. localise) THEN
         CALL section_vals_val_set(dft_section,"LOCALIZE%_SECTION_PARAMETERS_",l_val=.TRUE.,error=error)
         CALL scf_post_calculation_gpw(dft_section, scf_env, force_env%qs_env, error)

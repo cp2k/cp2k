@@ -56,7 +56,7 @@ MODULE mc_moves
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "../common/cp_common_uses.f90"
+#include "../../common/cp_common_uses.f90"
 
   IMPLICIT NONE
  
@@ -2500,7 +2500,6 @@ END SUBROUTINE mc_conformation_change
 !>                      since the initial configuration
 !> \param r_old the coordinates of the last accepted move involving an
 !>               unbiased calculation
-!> \param iw the unit number that writes to the screen
 !> \param rng_stream the random number stream that we draw from
 !> \param error the cp error type
 !>
@@ -2509,7 +2508,7 @@ END SUBROUTINE mc_conformation_change
 ! *****************************************************************************
   SUBROUTINE mc_hmc_move ( mc_par,force_env, globenv, moves,move_updates,&
                         old_energy,box_number,&
-                        energy_check,r_old,iw,rng_stream,error)
+                        energy_check,r_old,rng_stream,error)
 
     TYPE(mc_simpar_type), POINTER            :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
@@ -2520,7 +2519,6 @@ END SUBROUTINE mc_conformation_change
     REAL(KIND=dp), INTENT(INOUT)             :: energy_check
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: r_old
-    INTEGER, INTENT(IN)                      :: iw
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -2579,7 +2577,7 @@ END SUBROUTINE mc_conformation_change
       ENDDO
 
 ! now run the MD simulation
-      CALL qs_mol_dyn(force_env,globenv,error=error,hmc_ekin=hmc_ekin)
+      CALL qs_mol_dyn(force_env,globenv,error=error,hmc_e_initial=hmc_ekin%initial_ekin,hmc_e_final=hmc_ekin%final_ekin)
 
 
 ! get the energy

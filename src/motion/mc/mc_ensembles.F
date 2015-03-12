@@ -84,7 +84,7 @@ MODULE mc_ensembles
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#include "../common/cp_common_uses.f90"
+#include "../../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
@@ -628,7 +628,7 @@ CONTAINS
                moves(1,box_number)%moves,&
                move_updates(1,box_number)%moves,&
                old_energy(box_number),box_number,&
-               energy_check(box_number),r_old(:,:,box_number),iw,&
+               energy_check(box_number),r_old(:,:,box_number),&
                rng_stream,error=error)
 
        ELSEIF ( rand .LT. pmavbmc) THEN
