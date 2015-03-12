@@ -1,0 +1,4 @@
+{
+"description": "Subroutines for Monte-Carlo simulations",
+'requires': ["../..", "../../base", "../../common","../../mpiwrap", "../../input", "../../subsys", "..", "../thermostat"],
+}
