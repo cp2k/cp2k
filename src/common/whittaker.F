@@ -15,7 +15,7 @@
                                              fac,&
                                              rootpi
   USE termination,                     ONLY: stop_program
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 

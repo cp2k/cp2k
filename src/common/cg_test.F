@@ -23,7 +23,7 @@ MODULE cg_test
                                              clebsch_gordon_deallocate,&
                                              clebsch_gordon_init,&
                                              y_lm
-#include "./common/cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
 
