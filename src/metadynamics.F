@@ -337,6 +337,9 @@ CONTAINS
  
            DEALLOCATE (pos_plumed_x, pos_plumed_y, pos_plumed_z)
            DEALLOCATE (force_plumed_x, force_plumed_y, force_plumed_z, pma0_plumed)
+
+           ! Constraints ONLY of Fixed Atom type
+           CALL fix_atom_control(force_env, error=error)
 #endif
 
 #if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
