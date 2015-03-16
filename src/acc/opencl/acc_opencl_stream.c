@@ -63,7 +63,7 @@ int acc_stream_priority_range (int* least, int* greatest){
 
 /****************************************************************************/
 // NOTE: 'priority' and 'name' are ignored.
-int acc_stream_create (void** stream_p, char* name, int priority){
+int acc_stream_create (void** stream_p, const char* name, int priority){
   // debug info
   if (verbose_print){
     fprintf(stdout, "\n +++ STREAM CREATION +++ \n");

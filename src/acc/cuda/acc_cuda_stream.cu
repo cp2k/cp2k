@@ -32,7 +32,7 @@ extern "C" int acc_stream_priority_range(int* least, int* greatest){
 
 
 /****************************************************************************/
-extern "C" int acc_stream_create(void** stream_p, char* name, int priority){
+extern "C" int acc_stream_create(void** stream_p, const char* name, int priority){
   cudaError_t cErr;
   *stream_p = malloc(sizeof(cudaStream_t));
 

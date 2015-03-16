@@ -14,7 +14,7 @@
 
 // defines 'acc_opencl_my_device' and some default lenghts
 #include "acc_opencl_dev.h"
-uint acc_opencl_ndevices;
+cl_uint acc_opencl_ndevices;
 acc_opencl_dev_type *acc_opencl_devices;
 acc_opencl_dev_type *acc_opencl_my_device;
 
@@ -40,7 +40,7 @@ int acc_get_ndevices (int *n_devices){
   else {
     // declarations
     int nplats_avail, ndevs_avail, ndevs;
-    uint i, j, k;
+    cl_uint i, j, k;
     cl_uint plat_count, dev_count;
     cl_platform_id *platforms;
     cl_device_id *devices;
@@ -219,7 +219,7 @@ int acc_set_active_device (int device_id){
   if (verbose_print) fprintf(stdout, "Entering: acc_set_active_device.\n");
 
   // declarations
-  uint i;
+  cl_uint i;
 
   if (acc_opencl_set_device_configured) {
     // reset to (new) 'device_id'

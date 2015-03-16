@@ -19,13 +19,13 @@ typedef struct {
 } acc_opencl_dev_type;
 
 // global (per MPI) device information
-extern uint acc_opencl_ndevices;
+extern cl_uint acc_opencl_ndevices;
 extern acc_opencl_dev_type *acc_opencl_devices;
 extern acc_opencl_dev_type *acc_opencl_my_device;
 
 // global configuration information
-static uint acc_opencl_ndevices_configured = 0;
-static uint acc_opencl_set_device_configured = 0;
+static cl_uint acc_opencl_ndevices_configured = 0;
+static cl_uint acc_opencl_set_device_configured = 0;
 
 #endif
 #endif
