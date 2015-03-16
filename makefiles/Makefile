@@ -3,7 +3,7 @@
 #
 # will now perform a parallel build of 4 cp2k executables
 #
-.SUFFIXES: .F .dep .o .f90 .cu .c .instantiation .instantiated .template
+.SUFFIXES: .F .dep .o .f90 .cu .c .cpp .cxx .cc .instantiation .instantiated .template
 SHELL = /bin/sh
 #
 # the home dir is taken from the current directory: you must cd to the makefiles
@@ -70,6 +70,9 @@ ALL_PREPRETTY_DIRS = $(shell find $(SRCDIR) -type d -name preprettify)
 ALL_PKG_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "PACKAGE")
 OBJ_SRC_FILES  = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.F")
 OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.c")
+OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.cpp")
+OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.cxx")
+OBJ_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.cc")
 ALL_INST_FILES = $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.instantiation")
 
 ifneq ($(NVCC),)
@@ -81,6 +84,9 @@ endif
 ALL_SRC_FILES  = $(OBJ_SRC_FILES)
 ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.f90")
 ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.h")
+ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.hpp")
+ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.hxx")
+ALL_SRC_FILES += $(shell find $(SRCDIR) ! -path "*/preprettify/*" -name "*.hcc")
 
 ALL_OBJECTS        = $(addsuffix .o, $(basename $(notdir $(OBJ_SRC_FILES))))
 ALL_EXE_OBJECTS    = $(addsuffix .o, $(EXE_NAMES))
@@ -343,6 +349,9 @@ vpath %.h   $(ALL_SRC_DIRS)
 vpath %.f90 $(ALL_SRC_DIRS)
 vpath %.cu  $(ALL_SRC_DIRS)
 vpath %.c   $(ALL_SRC_DIRS)
+vpath %.cpp $(ALL_SRC_DIRS)
+vpath %.cxx $(ALL_SRC_DIRS)
+vpath %.cc  $(ALL_SRC_DIRS)
 
 #
 # Add additional dependency of cp2k_info.F to SVN-entry or git-HEAD.
@@ -386,6 +395,17 @@ endif
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
+
+%.o: %.cpp %.cxx %.cc
+ifneq ($(CXX),)
+ifneq ($(CXXFLAGS),)
+	$(CXX) -c $(CXXFLAGS) $<
+else
+	$(CXX) -c $(CFLAGS) $<
+endif
+else
+	$(CC) -c $(CFLAGS) $<
+endif
 
 ifneq ($(LIBDIR),)
 $(LIBDIR)/%:

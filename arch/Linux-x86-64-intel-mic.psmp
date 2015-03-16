@@ -1,0 +1,342 @@
+# Arch file targeting Linux 64-bit using the Intel tool chain
+#
+PERL     = perl
+CPP      = #cpp
+AR       = xiar -r
+
+# LIBINT: configure, build, and install
+# Version 1.1.5 (tested)
+#
+# $ env \
+#   AR=xiar \
+#   FC=ifort F77=ifort F90=ifort FCFLAGS="-O2 -xHost -ipo" \
+#   CC=icc CFLAGS="-O2 -xHost -ipo" \
+#   CXX=icpc CXXFLAGS="-O2 -xHost -ipo" \
+#   ./configure --prefix=$HOME/libint \
+#     --with-cc-optflags="-O2 -xHost -ipo" \
+#     --with-cxx-optflags="-O2 -xHost -ipo" \
+#     --with-libint-max-am=5 \
+#     --with-libderiv-max-am1=4
+# $ make
+# $ make install
+# $ make realclean
+#
+#LIBINTROOT = $(HOME)/libint
+
+# LIBXC: configure, build, and install
+# Version 2.2.2 (tested)
+#
+# $ env \
+#   AR=xiar \
+#   FC=ifort F77=ifort F90=ifort FCFLAGS="-O2 -xHost -ipo" \
+#   CC=icc CFLAGS="-O2 -xHost -ipo" \
+#   ./configure --prefix=$HOME/libxc
+# $ make
+# $ make install
+# $ make clean
+#
+#LIBXCROOT = $(HOME)/libxc
+
+# LIBXSMM: cp2k/tools/build_libsmm/libxsmm or https://github.com/hfp/libxsmm
+# Please note that CP2K redistributes LIBXSMM and allows to build LIBXSMM
+# according to an auto-tuning process. Defining LIBXSMMROOT may interfere
+# with CP2K's version of LIBXSMM. To offload work to LIBXSMM (DBCSR/ACC/MIC),
+# define the preprocessor symbol CP2K_DBCSR_ACC_MIC_USE_LIBXSMM
+# (cp2k/src/dbcsr/libsmm_acc/libmicsmm/libmicsmm_config.h).
+#
+# $ make ROW_MAJOR=0 \
+#   INDICES_M="$(echo $(seq 1 24))" \
+#   INDICES_N="$(echo $(seq 1 24))" \
+#   INDICES_K="$(echo $(seq 1 24))"
+# $ make clean
+#
+#LIBXSMMROOT = $(HOME)/libxsmm
+
+# LIBXSTREAM: cp2k/src/acc/mic/libxstream or https://github.com/hfp/libxstream
+# Please note that CP2K redistributes a tested version of LIBXSTREAM.
+#
+# $ make
+# $ make clean
+#
+#LIBXSTREAMROOT = $(HOME)/libxstream
+
+# Diagnostic message to be turned off
+DIAG_DISABLE = 8290,8291,10010,10212,11060
+
+# DEFAULTS
+#
+ifeq (,$(PAR))
+  PAR := 1
+endif
+ifeq (,$(SMP))
+  SMP := 1
+endif
+ifeq (,$(ACC))
+  ACC := 1
+endif
+ifeq (,$(MIC))
+  MIC := 1
+endif
+ifeq (,$(ATTRIBUTE))
+  ATTRIBUTE := mic
+endif
+ifeq (,$(MKL))
+  MKL := 2
+endif
+ifeq (,$(MKL_STATIC))
+  MKL_STATIC := 1
+endif
+ifeq (1,$(MKL_DIRECT))
+  MKL_STATIC := 1
+  # always using MKL_DIRECT_CALL_SEQ since it is nested
+  DFLAGS += -DMKL_DIRECT_CALL_SEQ
+endif
+ifeq (,$(OCL))
+  OCL := 0
+endif
+ifeq (,$(DBG))
+  DBG := 0
+endif
+
+CPPFLAGS  := $(NULL)
+CXXFLAGS  := -diag-disable $(DIAG_DISABLE) -std=c++0x
+CFLAGS    := -diag-disable $(DIAG_DISABLE)
+FCFLAGS   := -diag-disable $(DIAG_DISABLE) -free -fpp
+LDFLAGS   := -diag-disable $(DIAG_DISABLE)
+OPTFLAGS  := $(NULL)
+
+ifeq (0,$(DBG))
+  OPTFLAGS  += -O2
+  OPTFLAGS  += -xHost
+  DFLAGS    += -DNDEBUG
+
+  CXXFLAGS  += -fp-model precise #-fno-alias -ansi-alias
+  CFLAGS    += -fp-model precise #-fno-alias -ansi-alias
+  FCFLAGS   += -fp-model source
+  LDFLAGS   += #
+
+  ifeq (1,$(IPO))
+    OPTFLAGS += -ipo-separate
+  endif
+else
+  OPTFLAGS  += -O0 -g -traceback
+  ifeq (2,$(DBG))
+    FCFLAGS   += -fpe0 # debugging NaNs
+  endif
+endif
+
+ifneq (0,$(PAR))
+  CXX = mpiicpc
+  CC  = mpiicc
+  FC  = mpiifort
+  LD  = mpiifort
+  DFLAGS += -D__parallel -D__BLACS -D__SCALAPACK
+  ifneq (1,$(PAR))
+    DFLAGS += -D__SCALAPACK2
+  endif
+else
+  CXX = icpc
+  CC  = icc
+  FC  = ifort
+  LD  = ifort
+endif
+
+ifneq (0,$(SMP))
+  OPTFLAGS += -openmp
+endif
+
+ifneq (,$(LIBINTROOT))
+  DFLAGS  += -D__LIBINT -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5
+  IFLAGS  += -I$(LIBINTROOT)/include
+  LIBS    += $(LIBINTROOT)/lib/libderiv.a $(LIBINTROOT)/lib/libint.a
+endif
+
+ifneq (,$(LIBXCROOT))
+  DFLAGS  += -D__LIBXC2
+  IFLAGS  += -I$(LIBXCROOT)/include
+  LIBS    += $(LIBXCROOT)/lib/libxcf90.a $(LIBXCROOT)/lib/libxc.a
+endif
+
+ifneq (,$(LIBXSTREAMROOT))
+  DFLAGS  += -D__LIBXSTREAM
+  IFLAGS  += -I$(LIBXSTREAMROOT)/include
+else
+  DFLAGS  += -D__LIBXSTREAM
+  IFLAGS  += -I$(SRCDIR)/acc/mic/libxstream/include
+endif
+
+ifneq (0,$(ACC))
+  DFLAGS += -D__ACC -D__DBCSR_ACC
+
+  ifneq (,$(LIBXSMMROOT))
+    DFLAGS  += -D__LIBXSMM
+    IFLAGS  += -I$(LIBXSMMROOT)/include
+    #MIC_CXFLAGS += -offload-option,mic,compiler,"-Wl,$(LIBXSMMROOT)/lib/mic/libxsmm.a"
+    #MIC_CCFLAGS += -offload-option,mic,compiler,"-Wl,$(LIBXSMMROOT)/lib/mic/libxsmm.a"
+    #MIC_FCFLAGS += -offload-option,mic,compiler,"-Wl,$(LIBXSMMROOT)/lib/mic/libxsmm.a"
+    MIC_LDFLAGS += -offload-option,mic,ld,"$(LIBXSMMROOT)/lib/mic/libxsmm.a"
+  endif
+
+  ifeq (0,$(OCL))
+    DFLAGS += -D__ACC_MIC
+    ifeq (0,$(MIC))
+      OPTFLAGS += -no-offload
+    else # also true if MIC is not defined
+      #OPTFLAGS += -offload=mandatory
+      # enable OpenMP for MIC regardless of wether SMP is enabled or not
+      MIC_CXFLAGS += -offload-option,mic,compiler,"-openmp"
+      MIC_CCFLAGS += -offload-option,mic,compiler,"-openmp"
+      MIC_FCFLAGS += -offload-option,mic,compiler,"-openmp"
+      MIC_LDFLAGS += -offload-option,mic,ld,"--no-undefined"
+      ifneq (,$(ATTRIBUTE))
+        MIC_CXFLAGS += -offload-attribute-target=$(ATTRIBUTE)
+        MIC_CCFLAGS += -offload-attribute-target=$(ATTRIBUTE)
+        #MIC_FCFLAGS += -offload-attribute-target=$(ATTRIBUTE)
+      endif
+    endif
+  else
+    DFLAGS  += -D__OPENCL -D__USE_INTEL_CL
+    LIBS    += -L/usr/lib64 -lOpenCL -lrt
+  endif
+endif
+
+ifneq (1,$(MKL))
+  ifneq (0,$(MKL)) # smp
+    DFLAGS  += -D__MKL -D__FFTSG -D__FFTW3
+    IFLAGS  +=-I$(MKLROOT)/include -I$(MKLROOT)/include/fftw
+    ifneq (1,$(MKL_STATIC))
+      LIBS += -L$(MKLROOT)/lib/intel64
+      ifneq (0,$(PAR))
+        MIC_LDFLAGS += -offload-option,mic,ld,"-L$(MKLROOT)/lib/mic -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread -lmkl_blacs_intelmpi_lp64"
+        LIBS += -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread -lmkl_blacs_intelmpi_lp64
+      else
+        MIC_LDFLAGS += -offload-option,mic,ld,"-L$(MKLROOT)/lib/mic -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread"
+        LIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread
+      endif
+    else # static
+      ifneq (0,$(PAR))
+        MIC_LDFLAGS += -offload-option,mic,ld," \
+          $(MKLROOT)/lib/mic/libmkl_scalapack_lp64.a \
+          --start-group \
+            $(MKLROOT)/lib/mic/libmkl_intel_lp64.a \
+            $(MKLROOT)/lib/mic/libmkl_core.a \
+            $(MKLROOT)/lib/mic/libmkl_intel_thread.a \
+          --end-group \
+          $(MKLROOT)/lib/mic/libmkl_blacs_intelmpi_lp64.a"
+        LIBS += \
+          $(MKLROOT)/lib/intel64/libmkl_scalapack_lp64.a \
+          -Wl,--start-group \
+            $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a \
+            $(MKLROOT)/lib/intel64/libmkl_core.a \
+            $(MKLROOT)/lib/intel64/libmkl_intel_thread.a \
+          -Wl,--end-group \
+          $(MKLROOT)/lib/intel64/libmkl_blacs_intelmpi_lp64.a
+      else
+        MIC_LDFLAGS += -offload-option,mic,ld," \
+          --start-group \
+            $(MKLROOT)/lib/mic/libmkl_intel_lp64.a \
+            $(MKLROOT)/lib/mic/libmkl_core.a \
+            $(MKLROOT)/lib/mic/libmkl_intel_thread.a \
+          --end-group"
+        LIBS += \
+          -Wl,--start-group \
+            $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a \
+            $(MKLROOT)/lib/intel64/libmkl_core.a \
+            $(MKLROOT)/lib/intel64/libmkl_intel_thread.a \
+          -Wl,--end-group
+      endif
+    endif
+    ifeq (0,$(SMP))
+      MIC_LDFLAGS += -offload-option,mic,ld,"-liomp5"
+      LIBS += -liomp5
+    endif
+    MIC_LDFLAGS += -offload-option,mic,ld,"-lpthread -lm"
+    LIBS += -lpthread -lm
+  endif
+else # sequential
+  DFLAGS  += -D__MKL -D__FFTSG -D__FFTW3
+  IFLAGS  +=-I$(MKLROOT)/include -I$(MKLROOT)/include/fftw
+  ifneq (1,$(MKL_STATIC))
+    LIBS += -L$(MKLROOT)/lib/intel64
+    ifneq (0,$(PAR))
+      MIC_LDFLAGS += -offload-option,mic,ld,"-L$(MKLROOT)/lib/mic -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lmkl_blacs_intelmpi_lp64"
+      LIBS += -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_core -lmkl_sequential -lmkl_blacs_intelmpi_lp64
+    else
+      MIC_LDFLAGS += -offload-option,mic,ld,"-L$(MKLROOT)/lib/mic -lmkl_intel_lp64 -lmkl_core -lmkl_sequential"
+      LIBS += -lmkl_intel_lp64 -lmkl_core -lmkl_sequential
+    endif
+  else # static
+    ifneq (0,$(PAR))
+      MIC_LDFLAGS += -offload-option,mic,ld," \
+        $(MKLROOT)/lib/mic/libmkl_scalapack_lp64.a
+        --start-group \
+          $(MKLROOT)/lib/mic/libmkl_intel_lp64.a \
+          $(MKLROOT)/lib/mic/libmkl_core.a \
+          $(MKLROOT)/lib/mic/libmkl_sequential.a \
+        --end-group \
+        $(MKLROOT)/lib/mic/libmkl_blacs_intelmpi_lp64.a"
+      LIBS += \
+        $(MKLROOT)/lib/intel64/libmkl_scalapack_lp64.a
+        -Wl,--start-group \
+          $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a \
+          $(MKLROOT)/lib/intel64/libmkl_core.a \
+          $(MKLROOT)/lib/intel64/libmkl_sequential.a \
+        -Wl,--end-group \
+        $(MKLROOT)/lib/intel64/libmkl_blacs_intelmpi_lp64.a
+    else
+      MIC_LDFLAGS += -offload-option,mic,ld," \
+        --start-group \
+          $(MKLROOT)/lib/mic/libmkl_intel_lp64.a \
+          $(MKLROOT)/lib/mic/libmkl_core.a \
+          $(MKLROOT)/lib/mic/libmkl_sequential.a \
+        --end-group"
+      MKL_LIBS = \
+        -Wl,--start-group \
+          $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a \
+          $(MKLROOT)/lib/intel64/libmkl_core.a \
+          $(MKLROOT)/lib/intel64/libmkl_sequential.a \
+        -Wl,--end-group
+    endif
+  endif
+  MIC_LDFLAGS += -offload-option,mic,ld,"-lpthread -lm"
+  LIBS += -lpthread -lm
+endif
+
+DFLAGS  += -D__INTEL -D__HAS_ISO_C_BINDING -D__USE_CP2K_TRACE
+IFLAGS  += # general include paths
+
+# Define __INTEL_COMPILER in case of external preprocessing because some source (pw/fft/fftw3_lib.F)
+# toggles code using this symbol, but of course the cpp preprocessor is not defining this symbol.
+CPPFLAGS  += #-C $(IFLAGS) $(DFLAGS) -D__INTEL_COMPILER -P -traditional
+
+CXXFLAGS  += $(OPTFLAGS) $(DFLAGS) $(IFLAGS)
+CFLAGS    += $(OPTFLAGS) $(DFLAGS) $(IFLAGS)
+FCFLAGS   += $(OPTFLAGS) $(DFLAGS) $(IFLAGS)
+LDFLAGS   += $(OPTFLAGS)
+
+LIBS += -lstdc++
+ifneq (0,$(ACC))
+  ifneq (0,$(MIC))
+    LIBS      += $(MIC_LDFLAGS)
+    CXXFLAGS  += $(MIC_CXFLAGS)
+    CFLAGS    += $(MIC_CCFLAGS)
+    FCFLAGS   += $(MIC_FCFLAGS)
+    #LDFLAGS   += $(MIC_LDFLAGS)
+  endif
+endif
+
+thermostat_utils.o: thermostat_utils.F
+	$(FC) -c $(FCFLAGS) -O1 $<
+
+mp2_optimize_ri_basis.o: mp2_optimize_ri_basis.F
+	$(FC) -c $(FCFLAGS) -O0 $<
+
+qs_vxc_atom.o: qs_vxc_atom.F
+	$(FC) -c $(FCFLAGS) -O1 $<
+
+process.o: process.cpp
+	$(CXX) -c $(CXXFLAGS) -O1 $<
+
+transpose.o: transpose.cpp
+	$(CXX) -c $(CXXFLAGS) -O1 $<
+

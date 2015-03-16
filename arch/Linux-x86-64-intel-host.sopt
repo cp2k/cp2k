@@ -1,0 +1,9 @@
+# Arch file targeting Linux 64-bit using the Intel tool chain
+#
+ROOT := $(dir $(word $(words $(MAKEFILE_LIST)), $(MAKEFILE_LIST)))
+ACC := 0
+PAR := 0
+SMP := 0
+
+include $(ROOT)Linux-x86-64-intel-mic.psmp
+
