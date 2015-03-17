@@ -21,10 +21,11 @@ MODULE input_cp2k_global
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, &
-       dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, mm_driver_acc, &
-       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
-       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
+       dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_max_ele_block, &
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_subcomm, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_rma, &
+       mm_driver_acc, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
+       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              debug_print_level,&
@@ -695,17 +696,28 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !
-    CALL keyword_create(keyword, name="max_elements_images",&
-         description="Maximum number of elements (dense limit)" &
+    CALL keyword_create(keyword, name="avg_elements_images",&
+         description="Average number of elements (dense limit)" &
+         // " for each image, which also corresponds to" &
+         // " the average number of elements exchanged between MPI processes" &
+         // " during the operations." &
+         // " A negative or zero value means unlimited.",&
+         usage="avg_elements_images 10000",&
+         default_i_val=dbcsr_get_conf_avg_elements_images(),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !    
+    CALL keyword_create(keyword, name="use_mpi_rma",&
+         description="Use RMA for MPI communications" &
          // " for each image, which also corresponds to" &
          // " the number of elements exchanged between MPI processes" &
          // " during the operations." &
          // " A negative or zero value means unlimited.",&
-         usage="max_elements_images 10000",&
-         default_i_val=-1,error=error)
+         usage="use_mpi_rma F",&
+         default_l_val=dbcsr_get_conf_use_mpi_rma(),error=error)
     CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-    !    
+    CALL keyword_release(keyword,error=error)    
+    !
     CALL keyword_create(keyword, name="n_size_mnk_stacks",&
          description="Number of stacks to use for distinct atomic sizes" &
          // " (e.g., 2 for a system of mostly waters). "&

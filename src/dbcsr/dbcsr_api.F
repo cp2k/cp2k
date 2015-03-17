@@ -38,16 +38,17 @@ MODULE dbcsr_api
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, &
-       dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_max_ele_block, &
-       dbcsr_get_conf_max_elements_images, dbcsr_get_conf_mm_driver, &
+       dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
+       dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
        dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
        dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
-       dbcsr_get_conf_use_comm_thread, dbcsr_set_conf_comm_thread_load, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_rma, &
+       dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
        dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
-       dbcsr_set_conf_max_elements_images, dbcsr_set_conf_mm_driver, &
-       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
-       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, dbcsr_set_default_config, has_acc, &
+       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
+       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
+       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
+       dbcsr_set_conf_use_mpi_rma, dbcsr_set_default_config, has_acc, &
        has_mpi, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
        mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
        multrec_limit
@@ -62,13 +63,13 @@ MODULE dbcsr_api
        dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
        dbcsr_scalar_set_type, dbcsr_scalar_zero
   USE dbcsr_dist_methods,              ONLY: &
-       dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
-       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_new, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist
+       dbcsr_distribution_col_dist, dbcsr_distribution_get_num_images_1d, &
+       dbcsr_distribution_has_threads, dbcsr_distribution_init, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
+       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist
   USE dbcsr_dist_operations,           ONLY: create_bl_distribution,&
                                              dbcsr_create_dist_block_cyclic,&
                                              dbcsr_create_dist_r_unrot,&
@@ -247,11 +248,12 @@ MODULE dbcsr_api
             dbcsr_get_conf_comm_thread_load,&
             dbcsr_get_conf_max_ele_block,&
             dbcsr_get_conf_mm_driver,&
-            dbcsr_get_conf_max_elements_images,&
+            dbcsr_get_conf_avg_elements_images,&
             dbcsr_get_conf_mm_stacksize,&
             dbcsr_get_conf_mpi_mem,&
             dbcsr_get_conf_nstacks,&
             dbcsr_get_conf_subcomm,&
+            dbcsr_get_conf_use_mpi_rma,&
             dbcsr_get_conf_use_comm_thread,&
             dbcsr_get_data_p,&
             dbcsr_get_data_size,&
@@ -328,9 +330,10 @@ MODULE dbcsr_api
             dbcsr_set_conf_mm_driver,&
             dbcsr_set_conf_mm_stacksize,&
             dbcsr_set_conf_mpi_mem,&
-            dbcsr_set_conf_max_elements_images,&
+            dbcsr_set_conf_avg_elements_images,&
             dbcsr_set_conf_nstacks,&
             dbcsr_set_conf_subcomm,&
+            dbcsr_set_conf_use_mpi_rma,&
             dbcsr_set_conf_use_comm_thread,&
             dbcsr_set_diag,&
             dbcsr_sum_replicated,&
@@ -381,5 +384,6 @@ MODULE dbcsr_api
             csr_eqrow_ceil_dist,&
             csr_eqrow_floor_dist,&
             csr_print_sparsity,&
-            dbcsr_get_nze
+            dbcsr_get_nze, &
+            dbcsr_distribution_get_num_images_1d
 END MODULE dbcsr_api

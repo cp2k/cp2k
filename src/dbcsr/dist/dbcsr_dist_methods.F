@@ -16,7 +16,8 @@ MODULE dbcsr_dist_methods
                                              array_nullify,&
                                              array_release,&
                                              array_size
-  USE dbcsr_config,                    ONLY: comm_thread_load
+  USE dbcsr_config,                    ONLY: avg_elements_images,&
+                                             comm_thread_load
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
@@ -36,7 +37,8 @@ MODULE dbcsr_dist_methods
                                              dbcsr_mp_myprow,&
                                              dbcsr_mp_npcols,&
                                              dbcsr_mp_nprows
-  USE dbcsr_toollib,                   ONLY: sort
+  USE dbcsr_toollib,                   ONLY: lcm,&
+                                             sort
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
                                              dbcsr_mp_obj,&
                                              dbcsr_obj
@@ -65,7 +67,8 @@ MODULE dbcsr_dist_methods
             dbcsr_distribution_local_rows, dbcsr_distribution_local_cols,&
             dbcsr_distribution_thread_dist, dbcsr_distribution_has_threads,&
             dbcsr_distribution_make_threads, dbcsr_distribution_no_threads,&
-            dbcsr_distribution_num_threads, dbcsr_distribution_data_max_size_allproc
+            dbcsr_distribution_num_threads, dbcsr_distribution_data_max_size_allproc,&
+            dbcsr_distribution_get_num_images_1d
 
 CONTAINS
 
@@ -360,6 +363,25 @@ CONTAINS
     num_threads = dist%d%num_threads
   END FUNCTION dbcsr_distribution_num_threads
 
+! *****************************************************************************
+!> \brief Count number of images in the product matrix
+!> \param[in] matrix_dense_size_1d  1D size of the (equivalent) dense matrix 
+!> \param[in] nprows                Number of row processors
+!> \param[in] npcols                Number of column processors
+!> \retval num_images               Number of images
+! *****************************************************************************
+  FUNCTION dbcsr_distribution_get_num_images_1d (matrix_dense_size_1d,nprows,npcols) RESULT (num_images_1d)
+    INTEGER, INTENT(IN)                      :: matrix_dense_size_1d, nprows, &
+                                                npcols
+    INTEGER                                  :: num_images_1d
+
+    num_images_1d = lcm(nprows, npcols)
+    IF (avg_elements_images.GT.0) THEN
+       num_images_1d = num_images_1d* &
+            CEILING((DBLE(matrix_dense_size_1d)/num_images_1d)/ &
+                     SQRT(DBLE(avg_elements_images)))
+    ENDIF
+  END FUNCTION dbcsr_distribution_get_num_images_1d
 ! *****************************************************************************
 !> \brief Count max possible data storage for all processors used for matrix data
 !> \param[in] matrix          Count data of this matrix

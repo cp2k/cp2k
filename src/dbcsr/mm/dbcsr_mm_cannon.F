@@ -35,7 +35,7 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_block_real_neg,&
                                              dbcsr_block_scale,&
                                              dbcsr_block_transpose_aa
-  USE dbcsr_config,                    ONLY: dbcsr_get_conf_max_elements_images,&
+  USE dbcsr_config,                    ONLY: dbcsr_get_conf_avg_elements_images,&
                                              default_resize_factor,&
                                              mm_async,&
                                              mm_driver,&
@@ -791,12 +791,11 @@ MODULE dbcsr_mm_cannon
        release_tdist = .FALSE.
     ENDIF
 
-    IF (dbcsr_get_conf_max_elements_images()>0) THEN
+    mult_images = 1
+    IF (dbcsr_get_conf_avg_elements_images().GT.0) THEN
        mult_images = CEILING(DBLE(MAX(dbcsr_distribution_data_max_size_allproc(matrix_left),&
                                       dbcsr_distribution_data_max_size_allproc(matrix_right)))/&
-                             dbcsr_get_conf_max_elements_images())
-    ELSE
-       mult_images = -1
+                             dbcsr_get_conf_avg_elements_images())
     ENDIF
     !
     ! Create imaged distributions for the multiply.

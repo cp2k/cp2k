@@ -65,7 +65,7 @@
   PRINT_LEVEL MEDIUM
   EXTENDED_FFT_LENGTHS
   &DBCSR
-    max_elements_images 500
+    avg_elements_images 500
   &END
 ! TRACE
 ! TRACE_MASTER
