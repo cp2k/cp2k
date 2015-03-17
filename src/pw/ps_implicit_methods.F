@@ -80,11 +80,6 @@ MODULE ps_implicit_methods
                       apply_poisson_operator_dct
   END INTERFACE apply_poisson_operator
 
-  INTERFACE ps_implicit_compute_ehartree
-     MODULE PROCEDURE compute_ehartree_periodic_bc, &
-                      compute_ehartree_dirichlet_bc
-  END INTERFACE ps_implicit_compute_ehartree
-
   INTERFACE ps_implicit_compute_error
      MODULE PROCEDURE compute_error_periodic_bc, &
                       compute_error_mixed_bc
@@ -267,7 +262,7 @@ CONTAINS
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, ehartree, error)
+          ehartree = 0.5_dp * pw_integral_ab(density, v_new, error) 
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
           ps_implicit_env%ehartree = ehartree
        ELSE
@@ -427,7 +422,7 @@ CONTAINS
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, ehartree, error)
+          ehartree = 0.5_dp * pw_integral_ab(density, v_new, error) 
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
           ps_implicit_env%ehartree = ehartree
        ELSE
@@ -675,7 +670,7 @@ CONTAINS
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, Btxlambda_new3D, ehartree, error)
+          ehartree = 0.5_dp * pw_integral_ab(density, v_new, error) 
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
           ps_implicit_env%ehartree = ehartree
        ELSE
@@ -960,7 +955,7 @@ CONTAINS
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
-          CALL ps_implicit_compute_ehartree(pw_pool, dielectric, v_new, res_new, g, Btxlambda_new3D, ehartree, error)
+          ehartree = 0.5_dp * pw_integral_ab(density, v_new, error) 
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
           ps_implicit_env%ehartree = ehartree
        ELSE
@@ -1987,112 +1982,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE ps_implicit_compute_veps
-
-! *****************************************************************************
-!> \brief Computes the Hartree energy
-!>          E_H = \frac{1}{2} * \int \rho * v dr
-!> \param pw_pool pool of the original plane-wave grid
-!> \param dielectric dielectric environment
-!> \param v Hartree potential
-!> \param res residual
-!> \param g the right-hand side
-!> \param ehartree Hartree energy
-!> \param error cp2k error
-!> \par History
-!>       08.2014 created [Hossein Bani-Hashemian]
-!> \author Mohammad Hossein Bani-Hashemian
-! *****************************************************************************
-  SUBROUTINE compute_ehartree_periodic_bc(pw_pool, dielectric, v, res, g, ehartree, error)
-
-    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
-    TYPE(dielectric_type), INTENT(IN), &
-      POINTER                                :: dielectric
-    TYPE(pw_type), INTENT(IN), POINTER       :: v, res, g
-    REAL(dp), INTENT(OUT)                    :: ehartree
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_periodic_bc', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    REAL(dp)                                 :: eightpi
-    TYPE(pw_type), POINTER                   :: edensity, eps
-
-    CALL timeset(routineN,handle)
-
-    eightpi = 2 * fourpi
-    eps => dielectric%eps
-
-! \frac{\rho}{\eps} = \Delta(v) + P(v) = g - res
-    CALL pw_pool_create_pw(pw_pool, edensity, &
-                           use_data=REALDATA3D, in_space=REALSPACE, &
-                           error=error)
-    CALL pw_copy(g, edensity, error=error)
-    CALL pw_axpy(res, edensity, - 1.0_dp, error=error)
-! \rho = \frac{\rho}{\eps} * \eps
-    edensity%cr3d = edensity%cr3d * dielectric%eps%cr3d
-    ehartree = (1.0_dp / eightpi) * pw_integral_ab(v, edensity, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, edensity, error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE compute_ehartree_periodic_bc
-
-! *****************************************************************************
-!> \brief Computes the Hartree energy
-!>          E_H = \frac{1}{2} * \int \rho * v dr
-!> \param pw_pool pool of the original plane-wave grid
-!> \param dielectric dielectric environment
-!> \param v Hartree potential
-!> \param res residual
-!> \param g the right-hand side
-!> \param Btxlambda B^t * \lambda (\lambda is the vector of Lagrange multipliers
-!>                  and B^t is the transpose of the boundary operator
-!> \param ehartree Hartree energy
-!> \param error cp2k error
-!> \par History
-!>       08.2014 created [Hossein Bani-Hashemian]
-!> \author Mohammad Hossein Bani-Hashemian
-! *****************************************************************************
-  SUBROUTINE compute_ehartree_dirichlet_bc(pw_pool, dielectric, v, res, g, Btxlambda, ehartree, error)
-
-    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
-    TYPE(dielectric_type), INTENT(IN), &
-      POINTER                                :: dielectric
-    TYPE(pw_type), INTENT(IN), POINTER       :: v, res, g
-    REAL(dp), ALLOCATABLE, &
-      DIMENSION(:, :, :), INTENT(IN)         :: Btxlambda
-    REAL(dp), INTENT(OUT)                    :: ehartree
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'compute_ehartree_dirichlet_bc', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    REAL(dp)                                 :: eightpi
-    TYPE(pw_type), POINTER                   :: edensity, eps
-
-    CALL timeset(routineN,handle)
-
-    eightpi = 2 * fourpi
-    eps => dielectric%eps
-
-! \frac{\rho}{\eps} = \Delta(v) + P(v) = g - res - B^t \lambda
-    CALL pw_pool_create_pw(pw_pool, edensity, &
-                           use_data=REALDATA3D, in_space=REALSPACE, &
-                           error=error)
-    CALL pw_copy(g, edensity, error=error)
-    CALL pw_axpy(res, edensity, - 1.0_dp, error=error)
-    edensity%cr3d = edensity%cr3d - Btxlambda
-! \rho = \frac{\rho}{\eps} * \eps
-    edensity%cr3d = edensity%cr3d * dielectric%eps%cr3d
-    ehartree = (1.0_dp / eightpi) * pw_integral_ab(v, edensity, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, edensity, error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE compute_ehartree_dirichlet_bc
 
 ! *****************************************************************************
 !> \brief  Computes the (normalized) preconditioned residual norm error and the
