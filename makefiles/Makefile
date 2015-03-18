@@ -287,6 +287,9 @@ $(DOXIFYOBJDIR)/%.doxified: %.F
 $(DOXIFYOBJDIR)/%.doxified: %.c
 	@touch $@
 
+$(DOXIFYOBJDIR)/%.doxified: %.cpp
+	@touch $@
+
 # doxygen stuff =============================================================
 doxygen/clean:
 	-rm -rf $(DOXYGENDIR)
