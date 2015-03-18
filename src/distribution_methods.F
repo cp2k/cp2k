@@ -22,12 +22,13 @@ MODULE distribution_methods
                                              scaled_to_real
   USE cp_array_utils_i,                ONLY: cp_1d_i_p_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-  USE cp_dbcsr_interface,              ONLY: heap_fill,&
+  USE cp_dbcsr_interface,              ONLY: cp_distribution_get_num_images,&
+                                             heap_fill,&
                                              heap_get_first,&
                                              heap_new,&
                                              heap_release,&
                                              heap_reset_first,&
-                                             heap_t,cp_distribution_get_num_images
+                                             heap_t
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -1248,7 +1249,7 @@ CONTAINS
     INTEGER                                  :: nproc
 
     CHARACTER(len=*), PARAMETER :: routineN = 'assign_clusters', &
-              routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ilevel, offset, &
                                                 piv_pcost(nproc), &

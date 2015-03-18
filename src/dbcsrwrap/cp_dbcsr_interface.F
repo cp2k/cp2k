@@ -23,8 +23,10 @@ MODULE cp_dbcsr_interface
        array_data, array_hold, array_i1d_obj, array_new, array_nullify, &
        array_release, array_size, convert_csr_to_dbcsr, convert_dbcsr_to_csr, &
        convert_offsets_to_sizes, convert_sizes_to_offsets, &
-       cp_dbcsr_iterator=>dbcsr_iterator, create_bl_distribution, &
-       create_col_vec_from_matrix, create_replicated_col_vec_from_matrix, &
+       cp_dbcsr_iterator=>dbcsr_iterator, &
+       cp_distribution_get_num_images=>dbcsr_distribution_get_num_images_1d, &
+       create_bl_distribution, create_col_vec_from_matrix, &
+       create_replicated_col_vec_from_matrix, &
        create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, &
        csr_create_from_dbcsr, csr_create_new, csr_create_template, &
        csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
@@ -91,8 +93,7 @@ MODULE cp_dbcsr_interface
        heap_fill, heap_get_first, heap_new, heap_release, heap_reset_first, &
        heap_t, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
        mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
-       multrec_limit, set_arnoldi_initial_vector, setup_arnoldi_data, swap,&
-       cp_distribution_get_num_images=>dbcsr_distribution_get_num_images_1d
+       multrec_limit, set_arnoldi_initial_vector, setup_arnoldi_data, swap
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
