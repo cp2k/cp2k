@@ -1,3 +1,11 @@
+Flag /2 not mentioned in INSTALL
+Flag /2 not mentioned in cp2k_flags()
+Flag 199901L not mentioned in INSTALL
+Flag 199901L not mentioned in cp2k_flags()
+Flag 2*LIBXSTREAM_ASYNC+1 not mentioned in INSTALL
+Flag 2*LIBXSTREAM_ASYNC+1 not mentioned in cp2k_flags()
+Flag 2*LIBXSTREAM_TRACE+1 not mentioned in INSTALL
+Flag 2*LIBXSTREAM_TRACE+1 not mentioned in cp2k_flags()
 Flag DAMPING not mentioned in INSTALL
 Flag DAMPING not mentioned in cp2k_flags()
 Flag FD_DEBUG not mentioned in INSTALL
@@ -28,7 +36,123 @@ Flag STORE_FORCES not mentioned in INSTALL
 Flag STORE_FORCES not mentioned in cp2k_flags()
 Flag USE_NATIVE_64 not mentioned in INSTALL
 Flag USE_NATIVE_64 not mentioned in cp2k_flags()
+Flag LIBMICSMM_HPP not mentioned in INSTALL
+Flag LIBMICSMM_HPP not mentioned in cp2k_flags()
+Flag LIBMICSMM_USE_LIBXSMM not mentioned in INSTALL
+Flag LIBMICSMM_USE_LIBXSMM not mentioned in cp2k_flags()
+Flag LIBMICSMM_USE_LIBXSMM+1 not mentioned in INSTALL
+Flag LIBMICSMM_USE_LIBXSMM+1 not mentioned in cp2k_flags()
+Flag LIBMICSMM_USE_MKLSMM not mentioned in INSTALL
+Flag LIBMICSMM_USE_MKLSMM not mentioned in cp2k_flags()
+Flag LIBMICSMM_USE_MKLTRANS not mentioned in INSTALL
+Flag LIBMICSMM_USE_MKLTRANS not mentioned in cp2k_flags()
+Flag LIBMICSMM_USE_PRETRANSPOSE not mentioned in INSTALL
+Flag LIBMICSMM_USE_PRETRANSPOSE not mentioned in cp2k_flags()
+Flag LIBMICSMM_USE_XALIGN not mentioned in INSTALL
+Flag LIBMICSMM_USE_XALIGN not mentioned in cp2k_flags()
+Flag LIBXSMM_COL_MAJOR not mentioned in INSTALL
+Flag LIBXSMM_COL_MAJOR not mentioned in cp2k_flags()
+Flag LIBXSTREAM_ALLOC_HPP not mentioned in INSTALL
+Flag LIBXSTREAM_ALLOC_HPP not mentioned in cp2k_flags()
+Flag LIBXSTREAM_ALLOC_PINNED not mentioned in INSTALL
+Flag LIBXSTREAM_ALLOC_PINNED not mentioned in cp2k_flags()
+Flag LIBXSTREAM_ARGUMENT_HPP not mentioned in INSTALL
+Flag LIBXSTREAM_ARGUMENT_HPP not mentioned in cp2k_flags()
+Flag LIBXSTREAM_ASYNC not mentioned in INSTALL
+Flag LIBXSTREAM_ASYNC not mentioned in cp2k_flags()
+Flag LIBXSTREAM_ASYNCHOST not mentioned in INSTALL
+Flag LIBXSTREAM_ASYNCHOST not mentioned in cp2k_flags()
+Flag LIBXSTREAM_CALL_BYVALUE not mentioned in INSTALL
+Flag LIBXSTREAM_CALL_BYVALUE not mentioned in cp2k_flags()
+Flag LIBXSTREAM_CAPTURE_DEBUG not mentioned in INSTALL
+Flag LIBXSTREAM_CAPTURE_DEBUG not mentioned in cp2k_flags()
+Flag LIBXSTREAM_CAPTURE_HPP not mentioned in INSTALL
+Flag LIBXSTREAM_CAPTURE_HPP not mentioned in cp2k_flags()
+Flag LIBXSTREAM_CAPTURE_UNLOCK_LATE not mentioned in INSTALL
+Flag LIBXSTREAM_CAPTURE_UNLOCK_LATE not mentioned in cp2k_flags()
+Flag LIBXSTREAM_CHECK not mentioned in INSTALL
+Flag LIBXSTREAM_CHECK not mentioned in cp2k_flags()
+Flag LIBXSTREAM_CONFIG_EXTERNAL not mentioned in INSTALL
+Flag LIBXSTREAM_CONFIG_EXTERNAL not mentioned in cp2k_flags()
+Flag LIBXSTREAM_CONTEXT_HPP not mentioned in INSTALL
+Flag LIBXSTREAM_CONTEXT_HPP not mentioned in cp2k_flags()
+Flag LIBXSTREAM_DEBUG not mentioned in INSTALL
+Flag LIBXSTREAM_DEBUG not mentioned in cp2k_flags()
+Flag LIBXSTREAM_ERROR_CHECK not mentioned in INSTALL
+Flag LIBXSTREAM_ERROR_CHECK not mentioned in cp2k_flags()
+Flag LIBXSTREAM_ERROR_DEBUG not mentioned in INSTALL
+Flag LIBXSTREAM_ERROR_DEBUG not mentioned in cp2k_flags()
+Flag LIBXSTREAM_EVENT_HPP not mentioned in INSTALL
+Flag LIBXSTREAM_EVENT_HPP not mentioned in cp2k_flags()
+Flag LIBXSTREAM_EVENT_WAIT_PAST not mentioned in INSTALL
+Flag LIBXSTREAM_EVENT_WAIT_PAST not mentioned in cp2k_flags()
+Flag LIBXSTREAM_EXPORTED not mentioned in INSTALL
+Flag LIBXSTREAM_EXPORTED not mentioned in cp2k_flags()
+Flag LIBXSTREAM_HPP not mentioned in INSTALL
+Flag LIBXSTREAM_HPP not mentioned in cp2k_flags()
+Flag LIBXSTREAM_LOCK_RETRY not mentioned in INSTALL
+Flag LIBXSTREAM_LOCK_RETRY not mentioned in cp2k_flags()
+Flag LIBXSTREAM_MACROS_H not mentioned in INSTALL
+Flag LIBXSTREAM_MACROS_H not mentioned in cp2k_flags()
+Flag LIBXSTREAM_OFFLOAD not mentioned in INSTALL
+Flag LIBXSTREAM_OFFLOAD not mentioned in cp2k_flags()
+Flag LIBXSTREAM_OFFLOAD_HPP not mentioned in INSTALL
+Flag LIBXSTREAM_OFFLOAD_HPP not mentioned in cp2k_flags()
+Flag LIBXSTREAM_PREFER_OPENMP not mentioned in INSTALL
+Flag LIBXSTREAM_PREFER_OPENMP not mentioned in cp2k_flags()
+Flag LIBXSTREAM_PRINT not mentioned in INSTALL
+Flag LIBXSTREAM_PRINT not mentioned in cp2k_flags()
+Flag LIBXSTREAM_STDFEATURES not mentioned in INSTALL
+Flag LIBXSTREAM_STDFEATURES not mentioned in cp2k_flags()
+Flag LIBXSTREAM_STDFEATURES_THREADX not mentioned in INSTALL
+Flag LIBXSTREAM_STDFEATURES_THREADX not mentioned in cp2k_flags()
+Flag LIBXSTREAM_STREAM_HPP not mentioned in INSTALL
+Flag LIBXSTREAM_STREAM_HPP not mentioned in cp2k_flags()
+Flag LIBXSTREAM_STREAM_UNLOCK_OWNER not mentioned in INSTALL
+Flag LIBXSTREAM_STREAM_UNLOCK_OWNER not mentioned in cp2k_flags()
+Flag LIBXSTREAM_STREAM_WAIT_PAST not mentioned in INSTALL
+Flag LIBXSTREAM_STREAM_WAIT_PAST not mentioned in cp2k_flags()
+Flag LIBXSTREAM_SYNCMEM not mentioned in INSTALL
+Flag LIBXSTREAM_SYNCMEM not mentioned in cp2k_flags()
+Flag LIBXSTREAM_THREADLOCAL_SIGNALS not mentioned in INSTALL
+Flag LIBXSTREAM_THREADLOCAL_SIGNALS not mentioned in cp2k_flags()
+Flag LIBXSTREAM_TLS not mentioned in INSTALL
+Flag LIBXSTREAM_TLS not mentioned in cp2k_flags()
+Flag LIBXSTREAM_TRACE not mentioned in INSTALL
+Flag LIBXSTREAM_TRACE not mentioned in cp2k_flags()
+Flag MKL_DIRECT_CALL_SEQ not mentioned in INSTALL
+Flag MKL_DIRECT_CALL_SEQ not mentioned in cp2k_flags()
+Flag MULTI_DGEMM_TYPE_HPP not mentioned in INSTALL
+Flag MULTI_DGEMM_TYPE_HPP not mentioned in cp2k_flags()
+Flag MULTI_DGEMM_USE_CHECK not mentioned in INSTALL
+Flag MULTI_DGEMM_USE_CHECK not mentioned in cp2k_flags()
+Flag MULTI_DGEMM_USE_NESTED not mentioned in INSTALL
+Flag MULTI_DGEMM_USE_NESTED not mentioned in cp2k_flags()
+Flag MULTI_DGEMM_USE_SYNC not mentioned in INSTALL
+Flag MULTI_DGEMM_USE_SYNC not mentioned in cp2k_flags()
+Flag NDEBUG not mentioned in INSTALL
+Flag NDEBUG not mentioned in cp2k_flags()
+Flag NOMINMAX not mentioned in INSTALL
+Flag NOMINMAX not mentioned in cp2k_flags()
+Flag TEST_HPP not mentioned in INSTALL
+Flag TEST_HPP not mentioned in cp2k_flags()
+Flag WIN32_LEAN_AND_MEAN not mentioned in INSTALL
+Flag WIN32_LEAN_AND_MEAN not mentioned in cp2k_flags()
 Flag _USE_GA not mentioned in cp2k_flags()
+Flag _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES not mentioned in INSTALL
+Flag _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES not mentioned in cp2k_flags()
+Flag _CRT_SECURE_NO_DEPRECATE not mentioned in INSTALL
+Flag _CRT_SECURE_NO_DEPRECATE not mentioned in cp2k_flags()
+Flag _DEBUG not mentioned in INSTALL
+Flag _DEBUG not mentioned in cp2k_flags()
+Flag _MSC_VER not mentioned in INSTALL
+Flag _MSC_VER not mentioned in cp2k_flags()
+Flag _USE_MATH_DEFINES not mentioned in INSTALL
+Flag _USE_MATH_DEFINES not mentioned in cp2k_flags()
+Flag _WIN32 not mentioned in INSTALL
+Flag _WIN32 not mentioned in cp2k_flags()
+Flag _WINDLL not mentioned in INSTALL
+Flag _WINDLL not mentioned in cp2k_flags()
 Flag __ACC not mentioned in INSTALL
 Flag __CRAY_PM_ACCEL_ENERGY not mentioned in INSTALL
 Flag __CRAY_PM_ENERGY not mentioned in INSTALL
@@ -61,6 +185,22 @@ Flag __RELEASE_VERSION not mentioned in cp2k_flags()
 Flag __SCALAPACK2 not mentioned in INSTALL
 Flag __STATM_RESIDENT not mentioned in INSTALL
 Flag __STATM_TOTAL not mentioned in INSTALL
+Flag __ACC_MIC not mentioned in INSTALL
+Flag __ACC_MIC not mentioned in cp2k_flags()
+Flag __CYGWIN32__ not mentioned in INSTALL
+Flag __CYGWIN32__ not mentioned in cp2k_flags()
+Flag __GNUC__ not mentioned in INSTALL
+Flag __GNUC__ not mentioned in cp2k_flags()
+Flag __INTEL_OFFLOAD not mentioned in INSTALL
+Flag __INTEL_OFFLOAD not mentioned in cp2k_flags()
+Flag __LIBXSMM not mentioned in INSTALL
+Flag __LIBXSMM not mentioned in cp2k_flags()
+Flag __LIBXSTREAM not mentioned in INSTALL
+Flag __LIBXSTREAM not mentioned in cp2k_flags()
+Flag __MIC__ not mentioned in INSTALL
+Flag __MIC__ not mentioned in cp2k_flags()
+Flag __STDC_VERSION__ not mentioned in INSTALL
+Flag __STDC_VERSION__ not mentioned in cp2k_flags()
 ai_overlap3.F: Unused dummy argument 'npgfc' at (1)
 al_system_init.F: Unused dummy argument 'temp_ext' at (1)
 almo_scf.F: Unused dummy argument 'qs_env' at (1)
@@ -732,3 +872,11 @@ xyz_to_vab_optimised.F: Unused dummy argument 'lb_min_local' at (1)
 xyz_to_vab_optimised.F: Unused dummy argument 'ra' at (1)
 xyz_to_vab_optimised.F: Unused dummy argument 'rab' at (1)
 xyz_to_vab_optimised.F: Unused dummy argument 'rp' at (1)
+libmicacc.c: Copyright banner malformed
+libmicacc.h: Copyright banner malformed
+libmicsmm.h: Copyright banner malformed
+libxstream.h: Copyright banner malformed
+libxstream_begin.h: Copyright banner malformed
+libxstream_config.h: Copyright banner malformed
+libxstream_end.h: Copyright banner malformed
+libxstream_macros.h: Copyright banner malformed

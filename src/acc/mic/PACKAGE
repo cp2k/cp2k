@@ -1,0 +1,5 @@
+{
+"description": "MIC backend for accelerator API",
+"archive":"libcp2kaccmic",
+"requires": ["../include", "libxstream"]
+}

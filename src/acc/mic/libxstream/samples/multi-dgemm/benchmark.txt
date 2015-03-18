@@ -1,0 +1,217 @@
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 64.0 MB
+Running 250 batches of 1 item...
+Performance: 83.9 GFLOPS/s (synchronization)
+Duration: 4.1 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 128.0 MB
+Running 125 batches of 2 items...
+Performance: 119.2 GFLOPS/s (synchronization)
+Duration: 2.9 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 192.0 MB
+Running 84 batches of 3 items...
+Performance: 124.7 GFLOPS/s (synchronization)
+Duration: 2.8 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 256.0 MB
+Running 63 batches of 4 items...
+Performance: 126.4 GFLOPS/s (synchronization)
+Duration: 2.8 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 320.0 MB
+Running 50 batches of 5 items...
+Performance: 148.4 GFLOPS/s (synchronization)
+Duration: 2.3 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 384.0 MB
+Running 42 batches of 6 items...
+Performance: 132.8 GFLOPS/s (synchronization)
+Duration: 2.6 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 448.0 MB
+Running 36 batches of 7 items...
+Performance: 146.0 GFLOPS/s (synchronization)
+Duration: 2.4 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 512.0 MB
+Running 32 batches of 8 items...
+Performance: 145.1 GFLOPS/s (synchronization)
+Duration: 2.4 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 576.0 MB
+Running 28 batches of 9 items...
+Performance: 142.3 GFLOPS/s (synchronization)
+Duration: 2.4 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 640.0 MB
+Running 25 batches of 10 items...
+Performance: 144.7 GFLOPS/s (synchronization)
+Duration: 2.4 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 704.0 MB
+Running 23 batches of 11 items...
+Performance: 136.9 GFLOPS/s (synchronization)
+Duration: 2.5 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 768.0 MB
+Running 21 batches of 12 items...
+Performance: 140.4 GFLOPS/s (synchronization)
+Duration: 2.5 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 832.0 MB
+Running 20 batches of 13 items...
+Performance: 131.1 GFLOPS/s (synchronization)
+Duration: 2.7 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 896.0 MB
+Running 18 batches of 14 items...
+Performance: 138.0 GFLOPS/s (synchronization)
+Duration: 2.5 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 960.0 MB
+Running 17 batches of 15 items...
+Performance: 136.5 GFLOPS/s (synchronization)
+Duration: 2.6 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1024.0 MB
+Running 16 batches of 16 items...
+Performance: 130.4 GFLOPS/s (synchronization)
+Duration: 2.7 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1088.0 MB
+Running 15 batches of 17 items...
+Performance: 132.8 GFLOPS/s (synchronization)
+Duration: 2.6 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1152.0 MB
+Running 14 batches of 18 items...
+Performance: 127.2 GFLOPS/s (synchronization)
+Duration: 2.7 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1216.0 MB
+Running 14 batches of 19 items...
+Performance: 125.7 GFLOPS/s (synchronization)
+Duration: 2.8 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1280.0 MB
+Running 13 batches of 20 items...
+Performance: 128.4 GFLOPS/s (synchronization)
+Duration: 2.7 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1344.0 MB
+Running 12 batches of 21 items...
+Performance: 113.3 GFLOPS/s (synchronization)
+Duration: 3.1 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1408.0 MB
+Running 12 batches of 22 items...
+Performance: 124.4 GFLOPS/s (synchronization)
+Duration: 2.8 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1472.0 MB
+Running 11 batches of 23 items...
+Performance: 113.2 GFLOPS/s (synchronization)
+Duration: 3.1 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1536.0 MB
+Running 11 batches of 24 items...
+Performance: 115.3 GFLOPS/s (synchronization)
+Duration: 3.0 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1600.0 MB
+Running 10 batches of 25 items...
+Performance: 115.2 GFLOPS/s (synchronization)
+Duration: 3.0 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1664.0 MB
+Running 10 batches of 26 items...
+Performance: 119.2 GFLOPS/s (synchronization)
+Duration: 2.9 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1728.0 MB
+Running 10 batches of 27 items...
+Performance: 114.1 GFLOPS/s (synchronization)
+Duration: 3.1 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1792.0 MB
+Running 9 batches of 28 items...
+Performance: 117.0 GFLOPS/s (synchronization)
+Duration: 3.0 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1856.0 MB
+Running 9 batches of 29 items...
+Performance: 114.9 GFLOPS/s (synchronization)
+Duration: 3.0 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1920.0 MB
+Running 9 batches of 30 items...
+Performance: 120.1 GFLOPS/s (synchronization)
+Duration: 2.9 s
+Error: 1.13687e-13
+Finished
+Initializing 1 device and host data... 4435.7 MB
+Initializing 2 streams per device... 1984.0 MB
+Running 9 batches of 31 items...
+Performance: 117.5 GFLOPS/s (synchronization)
+Duration: 3.0 s
+Error: 1.13687e-13
+Finished

@@ -1,0 +1,4 @@
+{
+"description": "LIBXSMM Implementation",
+"requires": ["../include"]
+}
