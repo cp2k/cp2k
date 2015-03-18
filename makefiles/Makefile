@@ -267,6 +267,10 @@ $(PRETTYOBJDIR)/%.pretty: %.c
 #   TODO: call indent here?
 	@touch $@
 
+$(PRETTYOBJDIR)/%.pretty: %.cpp
+#   TODO: call indent here?
+	@touch $@
+
 # Doxyifier stuff ===========================================================
 vpath %.doxified $(DOXIFYOBJDIR)
 
