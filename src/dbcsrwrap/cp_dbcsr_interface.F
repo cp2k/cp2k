@@ -91,7 +91,8 @@ MODULE cp_dbcsr_interface
        heap_fill, heap_get_first, heap_new, heap_release, heap_reset_first, &
        heap_t, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
        mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
-       multrec_limit, set_arnoldi_initial_vector, setup_arnoldi_data, swap
+       multrec_limit, set_arnoldi_initial_vector, setup_arnoldi_data, swap,&
+       cp_distribution_get_num_images=>dbcsr_distribution_get_num_images_1d
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
@@ -119,7 +120,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_distribution_local_rows,&
             dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_get_data_p,&
-            dbcsr_mp_hold
+            dbcsr_mp_hold, cp_distribution_get_num_images
   PUBLIC :: dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_type_antisymmetric
   PUBLIC :: array_i1d_obj, array_new, array_nullify, array_release, array_data
   PUBLIC :: dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_complex_4

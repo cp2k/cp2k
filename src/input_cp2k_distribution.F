@@ -106,6 +106,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="BASIC_CLUSTER_OPTIMIZATION",&
+            description="Creates a distribution with spatial info, using recursively KMEANS clustering. ",&
+            usage="BASIC_CLUSTER_OPTIMIZATION TRUE",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="SYMMETRIC",&
             description="Take the symmetry of the distribution_2d into account.",&
             usage="SYMMETRIC TRUE",&
