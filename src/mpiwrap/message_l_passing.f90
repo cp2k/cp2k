@@ -46,7 +46,7 @@
     msglen = SIZE(msg)
     t_start = m_walltime ( )
     CALL mpi_sendrecv_replace(msg,msglen,MPI_INTEGER8,right,tag,left,tag, &
-         group,status(1),ierror)
+         group,status,ierror)
     t_end = m_walltime ( )
     IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ "//routineN )
     CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
@@ -104,7 +104,7 @@
     msglen = SIZE(msg)
     t_start = m_walltime ( )
     CALL mpi_sendrecv_replace(msg,msglen,MPI_INTEGER8,right,tag,left,&
-         tag,group,status(1),ierror)
+         tag,group,status,ierror)
     t_end = m_walltime ( )
     IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ "//routineN )
     CALL add_perf(perf_id=7,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
@@ -1718,7 +1718,7 @@
     send_tag = 0 ! cannot think of something better here, this might be dangerous
     recv_tag = 0 ! cannot think of something better here, this might be dangerous
     CALL mpi_sendrecv(msgin,msglen_in,MPI_INTEGER8,dest,send_tag,msgout,&
-         msglen_out,MPI_INTEGER8,source,recv_tag,comm,status(1),ierr)
+         msglen_out,MPI_INTEGER8,source,recv_tag,comm,status,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
     t_end = m_walltime ( )
@@ -1767,7 +1767,7 @@
     send_tag = 0 ! cannot think of something better here, this might be dangerous
     recv_tag = 0 ! cannot think of something better here, this might be dangerous
     CALL mpi_sendrecv(msgin,msglen_in,MPI_INTEGER8,dest,send_tag,msgout,&
-         msglen_out,MPI_INTEGER8,source,recv_tag,comm,status(1),ierr)
+         msglen_out,MPI_INTEGER8,source,recv_tag,comm,status,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
     t_end = m_walltime ( )
@@ -1816,7 +1816,7 @@
     send_tag = 0 ! cannot think of something better here, this might be dangerous
     recv_tag = 0 ! cannot think of something better here, this might be dangerous
     CALL mpi_sendrecv(msgin,msglen_in,MPI_INTEGER8,dest,send_tag,msgout,&
-         msglen_out,MPI_INTEGER8,source,recv_tag,comm,status(1),ierr)
+         msglen_out,MPI_INTEGER8,source,recv_tag,comm,status,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
     t_end = m_walltime ( )
