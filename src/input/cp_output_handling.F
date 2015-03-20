@@ -198,7 +198,7 @@ CONTAINS
 
        NULLIFY(keyword, subsection)
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="Level starting at which this proprety is printed",&
+            description="Level starting at which this property is printed",&
             usage="silent",&
             default_i_val=my_print_level,lone_keyword_i_val=silent_print_level,&
             enum_c_vals=s2a("on","off","silent","low","medium","high","debug"),&

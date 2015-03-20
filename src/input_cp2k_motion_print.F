@@ -28,7 +28,8 @@ MODULE input_cp2k_motion_print
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE string_utilities,                ONLY: s2a
+  USE string_utilities,                ONLY: newline,&
+                                             s2a
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -102,7 +103,12 @@ CONTAINS
     CALL section_release(print_key,error=error)
 
     CALL cp_print_key_section_create(print_key,"VELOCITIES",&
-         description="Controls the output of the velocities",&
+         description="Controls the output of the velocities."//newline//&
+         "The default unit for velocities is bohr/au_time. The au_time is derived from the "//&
+         "hbar value (1.054e-34 J*sec) and the value of the hartree unit of energy "//&
+         "(27.21 eV or 4.359e-18 J) as hbar/Ehartree = 2.42e-17 sec = 0.02042 fs. "//&
+         "Having an atom with a mass m in AMU the kinetic energy 1/2mv^2 will be obtained "//&
+         "in Hartree (i.e. au) multiplying by 911.447 .",&
          print_level=high_print_level, common_iter_levels=1,&
          filename="",unit_str="bohr*au_t^-1",error=error)
     CALL add_format_keyword(keyword, print_key, pos=.FALSE.,&
