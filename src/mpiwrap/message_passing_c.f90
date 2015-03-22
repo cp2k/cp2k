@@ -2486,6 +2486,7 @@
 #if defined(__parallel)
     t_start = m_walltime ( )
 
+#if __MPI_VERSION > 2
     len = SIZE(base)
     disp_aint = 0
     IF (PRESENT(disp)) THEN
@@ -2499,6 +2500,9 @@
        CALL mpi_rget(foo,len,MPI_COMPLEX,source,disp_aint,&
             len,MPI_COMPLEX,win,request,ierr)
     ENDIF
+#else
+    CALL mp_abort("mp_rget requires MPI-3 standard")
+#endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_rget @ "//routineN )
 
     t_end = m_walltime ( )

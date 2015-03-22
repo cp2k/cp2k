@@ -3058,8 +3058,7 @@ CONTAINS
     t_end = m_walltime ( )
     CALL add_perf(perf_id=21,count=1,time=t_end-t_start)
 #else
-    ierr=1
-    CALL mp_stop( ierr, "mp_win_free called in non parallel case" )
+    CALL mp_abort( "mp_win_free called in non parallel case" )
 #endif
   END SUBROUTINE mp_win_free
 
@@ -3080,14 +3079,17 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime ( )
 
+#if __MPI_VERSION > 2
     CALL mpi_win_lock_all(MPI_MODE_NOCHECK,win,ierr)
+#else
+    CALL mp_abort("mp_win_lock_all requires MPI-3 standard")
+#endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_win_lock_all @ "//routineN )
 
     t_end = m_walltime ( )
     CALL add_perf(perf_id=19,count=1,time=t_end-t_start)
 #else
-    ierr=1
-    CALL mp_stop( ierr, "mp_win_lock_all called in non parallel case" )
+    CALL mp_abort( "mp_win_lock_all called in non parallel case" )
 #endif
   END SUBROUTINE mp_win_lock_all
 
@@ -3108,14 +3110,17 @@ CONTAINS
 #if defined(__parallel)
     t_start = m_walltime ( )
 
+#if __MPI_VERSION > 2
     CALL mpi_win_unlock_all(win,ierr)
+#else
+    CALL mp_abort("mp_win_unlock_all requires MPI-3 standard")
+#endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_win_unlock_all @ "//routineN )
 
     t_end = m_walltime ( )
     CALL add_perf(perf_id=19,count=1,time=t_end-t_start)
 #else
-    ierr=1
-    CALL mp_stop( ierr, "mp_win_unlock_all called in non parallel case" )
+    CALL mp_abort( "mp_win_unlock_all called in non parallel case" )
 #endif
   END SUBROUTINE mp_win_unlock_all
 
