@@ -2486,12 +2486,14 @@
 #if defined(__parallel)
     t_start = m_walltime ( )
 
-#if __MPI_VERSION > 2
     len = SIZE(base)
     disp_aint = 0
     IF (PRESENT(disp)) THEN
        disp_aint = disp
     ENDIF
+    lower1=0
+
+#if __MPI_VERSION > 2
     IF (len>0) THEN
        lower1=LBOUND(base,1)
        CALL mpi_rget(base(lower1),len,MPI_DOUBLE_COMPLEX,source,disp_aint,&
