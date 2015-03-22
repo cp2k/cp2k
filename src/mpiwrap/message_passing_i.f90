@@ -2474,7 +2474,7 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr, handle
-#if defined(__parallel)
+#if defined(__parallel) && (__MPI_VERSION > 2)
     INTEGER                                  :: len, lower1
     INTEGER(kind=mpi_address_kind)           :: disp_aint
     INTEGER(KIND=int_4)                                  :: foo(1)
@@ -2486,14 +2486,12 @@
 #if defined(__parallel)
     t_start = m_walltime ( )
 
+#if __MPI_VERSION > 2
     len = SIZE(base)
     disp_aint = 0
     IF (PRESENT(disp)) THEN
        disp_aint = disp
     ENDIF
-    lower1=0
-
-#if __MPI_VERSION > 2
     IF (len>0) THEN
        lower1=LBOUND(base,1)
        CALL mpi_rget(base(lower1),len,MPI_INTEGER,source,disp_aint,&
