@@ -29,17 +29,15 @@ MODULE dbcsr_mp_operations
                                              dbcsr_mp_obj,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
+                                             dbcsr_type_int_4,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
   USE kinds,                           ONLY: real_4,&
                                              real_8
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_alltoall,&
-                                             mp_irecv,&
-                                             mp_isend,&
-                                             mp_type_descriptor_type,&
-                                             mp_type_make,&
-                                             mp_waitall
+  USE message_passing,                 ONLY: &
+       mp_address_kind, mp_allgather, mp_alltoall, mp_irecv, mp_isend, &
+       mp_rget, mp_type_descriptor_type, mp_type_make, mp_waitall, &
+       mp_win_create
 
   !$ USE OMP_LIB
 
@@ -55,6 +53,7 @@ MODULE dbcsr_mp_operations
             hybrid_alltoall_i1, hybrid_alltoall_any
   PUBLIC :: dbcsr_allgatherv
   PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
+  PUBLIC :: dbcsr_win_create_any, dbcsr_rget_any
   ! Type helpers
   PUBLIC :: dbcsr_mp_type_from_anytype
 
@@ -373,6 +372,8 @@ CONTAINS
     TYPE(mp_type_descriptor_type)            :: mp_type
 
     SELECT CASE (data_area%d%data_type)
+    CASE (dbcsr_type_int_4)
+       mp_type = mp_type_make (data_area%d%i4)
     CASE (dbcsr_type_real_4)
        mp_type = mp_type_make (data_area%d%r_sp)
     CASE (dbcsr_type_real_8)
@@ -454,6 +455,76 @@ CONTAINS
     END SELECT
   END SUBROUTINE dbcsr_irecv_any
 
+! *****************************************************************************
+!> \brief Window initialization function of encapsulated data.
+!> \param base ...
+!> \param comm ...
+!> \param win ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_win_create_any(base,comm,win,error)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: base
+    INTEGER, INTENT(IN)                      :: comm
+    INTEGER, INTENT(OUT)                     :: win
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_win_create_any', &
+      routineP = moduleN//':'//routineN
+
+    SELECT CASE (dbcsr_data_get_type (base))
+    CASE (dbcsr_type_int_4)
+       CALL mp_win_create (base%d%i4, comm, win)
+    CASE (dbcsr_type_real_4)
+       CALL mp_win_create (base%d%r_sp, comm, win)
+    CASE (dbcsr_type_real_8)
+       CALL mp_win_create (base%d%r_dp, comm, win)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_win_create (base%d%c_sp, comm, win)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_win_create (base%d%c_dp, comm, win)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Incorrect data type", __LINE__, error=error)
+    END SELECT
+  END SUBROUTINE dbcsr_win_create_any
+
+! *****************************************************************************
+!> \brief Single-sided Get function of encapsulated data.
+!> \param base ...
+!> \param source ...
+!> \param win ...
+!> \param disp ...
+!> \param request ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_rget_any(base,source,win,disp,request,error)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: base
+    INTEGER, INTENT(IN)                      :: source
+    INTEGER, INTENT(INOUT)                   :: win
+    INTEGER(kind=mp_address_kind), &
+      INTENT(IN), OPTIONAL                   :: disp
+    INTEGER, INTENT(OUT)                     :: request
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_rget_any', &
+      routineP = moduleN//':'//routineN
+
+    SELECT CASE (dbcsr_data_get_type (base))
+    CASE (dbcsr_type_int_4)
+       CALL mp_rget (base%d%i4, source, win, disp, request)
+    CASE (dbcsr_type_real_4)
+       CALL mp_rget (base%d%r_sp, source, win, disp, request)
+    CASE (dbcsr_type_real_8)
+       CALL mp_rget (base%d%r_dp, source, win, disp, request)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_rget (base%d%c_sp, source, win, disp, request)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_rget (base%d%c_dp, source, win, disp, request)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Incorrect data type", __LINE__, error=error)
+    END SELECT
+  END SUBROUTINE dbcsr_rget_any
 
 ! *****************************************************************************
 !> \brief Allgather of encapsulated data

@@ -137,6 +137,10 @@ MODULE message_passing
   ! some benchmarking code
   PUBLIC :: mpi_perf_test
 
+  ! one-sided communication
+  PUBLIC :: mp_win_create, mp_win_free, mp_win_lock_all, &
+            mp_win_unlock_all, mp_rget
+
 #ifndef __parallel
   INTEGER, PARAMETER :: MPI_COMM_SELF=0,MPI_COMM_WORLD=0, MPI_COMM_NULL=-1
 #endif
@@ -334,12 +338,12 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_isendrecv
-     MODULE PROCEDURE mp_isendrecv_im2, mp_isendrecv_iv,&
-                      mp_isendrecv_lm2, mp_isendrecv_lv,&
-                      mp_isendrecv_rm2, mp_isendrecv_rv,&
-                      mp_isendrecv_dm2, mp_isendrecv_dv,&
-                      mp_isendrecv_cm2, mp_isendrecv_cv,&
-                      mp_isendrecv_zm2, mp_isendrecv_zv
+     MODULE PROCEDURE mp_isendrecv_i, mp_isendrecv_im2, mp_isendrecv_iv,&
+                      mp_isendrecv_l, mp_isendrecv_lm2, mp_isendrecv_lv,&
+                      mp_isendrecv_r, mp_isendrecv_rm2, mp_isendrecv_rv,&
+                      mp_isendrecv_d, mp_isendrecv_dm2, mp_isendrecv_dv,&
+                      mp_isendrecv_c, mp_isendrecv_cm2, mp_isendrecv_cv,&
+                      mp_isendrecv_z, mp_isendrecv_zm2, mp_isendrecv_zv
   END INTERFACE
 
   INTERFACE mp_isend
@@ -360,6 +364,24 @@ MODULE message_passing
                       mp_irecv_cv, mp_irecv_cm2, mp_irecv_cm3,&
                       mp_irecv_zv, mp_irecv_zm2, mp_irecv_zm3
      MODULE PROCEDURE mp_irecv_custom
+  END INTERFACE
+
+  INTERFACE mp_win_create
+     MODULE PROCEDURE mp_win_create_iv,&
+                      mp_win_create_lv,&
+                      mp_win_create_rv,&
+                      mp_win_create_dv,&
+                      mp_win_create_cv,&
+                      mp_win_create_zv
+  END INTERFACE
+
+  INTERFACE mp_rget
+     MODULE PROCEDURE mp_rget_iv,&
+                      mp_rget_lv,&
+                      mp_rget_rv,&
+                      mp_rget_dv,&
+                      mp_rget_cv,&
+                      mp_rget_zv
   END INTERFACE
 
   INTERFACE mp_allocate
@@ -474,7 +496,7 @@ MODULE message_passing
     REAL (KIND=dp) :: time
   END TYPE mp_perf_type
 
-  INTEGER, PARAMETER :: MAX_PERF = 20
+  INTEGER, PARAMETER :: MAX_PERF = 21
 
 ! *****************************************************************************
   TYPE mp_perf_env_type
@@ -501,7 +523,7 @@ MODULE message_passing
      "MP_comm_split       ", "MP_ISend            ", "MP_IRecv            ", &
      "MP_Send             ", "MP_Recv             ", "MP_Memory           ", &
      "MP_Put              ", "MP_Get              ", "MP_Fence            ", &
-     "MP_Window_Lock      ", "MP_Window_Misc      "/)
+     "MP_Win_Lock         ", "MP_Win_Create       ", "MP_Win_Free         "/)
 #if defined(__parallel)
   REAL(KIND=dp) :: t_start, t_end
 #endif
@@ -1614,7 +1636,7 @@ CONTAINS
 !> \author Iain Bethune
 ! *****************************************************************************
   SUBROUTINE mp_testany(requests, completed, flag)
-    INTEGER, DIMENSION(:, :), INTENT(inout)  :: requests
+    INTEGER, DIMENSION(:), INTENT(inout)  :: requests
     INTEGER, INTENT(out), OPTIONAL           :: completed
     LOGICAL, INTENT(out), OPTIONAL           :: flag
 
@@ -3012,6 +3034,90 @@ CONTAINS
     CALL mp_abort( "mp_irecv called in non parallel case" )
 #endif
   END SUBROUTINE mp_irecv_custom
+
+! *****************************************************************************
+!> \brief Window free
+!> \param win ...
+! *****************************************************************************
+  SUBROUTINE mp_win_free(win)
+    INTEGER, INTENT(INOUT)                   :: win
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_free', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr
+
+    ierr = 0
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    
+    CALL mpi_win_free(win,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_win_free @ "//routineN )
+    
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=21,count=1,time=t_end-t_start)
+#else
+    ierr=1
+    CALL mp_stop( ierr, "mp_win_free called in non parallel case" )
+#endif
+  END SUBROUTINE mp_win_free
+
+! *****************************************************************************
+!> \brief Window lock
+!> \param win ...
+! *****************************************************************************
+  SUBROUTINE mp_win_lock_all(win)
+    INTEGER, INTENT(INOUT)                   :: win
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_lock_all', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr
+
+    ierr = 0
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+
+    CALL mpi_win_lock_all(MPI_MODE_NOCHECK,win,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_win_lock_all @ "//routineN )
+
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=19,count=1,time=t_end-t_start)
+#else
+    ierr=1
+    CALL mp_stop( ierr, "mp_win_lock_all called in non parallel case" )
+#endif
+  END SUBROUTINE mp_win_lock_all
+
+! *****************************************************************************
+!> \brief Window lock
+!> \param win ...
+! *****************************************************************************
+  SUBROUTINE mp_win_unlock_all(win)
+    INTEGER, INTENT(INOUT)                   :: win
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_unlock_all', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr
+
+    ierr = 0
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+
+    CALL mpi_win_unlock_all(win,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_win_unlock_all @ "//routineN )
+
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=19,count=1,time=t_end-t_start)
+#else
+    ierr=1
+    CALL mp_stop( ierr, "mp_win_unlock_all called in non parallel case" )
+#endif
+  END SUBROUTINE mp_win_unlock_all
 
 #include "message_passing_i.f90"
 #include "message_passing_l.f90"

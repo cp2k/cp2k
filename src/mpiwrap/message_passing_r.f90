@@ -1830,6 +1830,64 @@
   END SUBROUTINE mp_sendrecv_rm3
 
 ! *****************************************************************************
+!> \brief Non-blocking send and receieve of a scalar
+!> \param[in] msgin           Scalar data to send
+!> \param[in] dest            Which process to send to
+!> \param[out] msgout         Receive data into this pointer
+!> \param[in] source          Process to receive from
+!> \param[in] comm            Message passing environment identifier
+!> \param[out] send_request   Request handle for the send
+!> \param[out] recv_request   Request handle for the receive
+!> \param[in] tag             (optional) tag to differentiate requests
+!> \par Implementation
+!>      Calls mpi_isend and mpi_irecv.
+!> \par History
+!>      02.2005 created [Alfio Lazzaro]
+! *****************************************************************************
+  SUBROUTINE mp_isendrecv_r(msgin,dest,msgout,source,comm,send_request,&
+       recv_request,tag)
+    REAL(kind=real_4)                                  :: msgin
+    INTEGER, INTENT(IN)                      :: dest
+    REAL(kind=real_4)                                  :: msgout
+    INTEGER, INTENT(IN)                      :: source, comm
+    INTEGER, INTENT(out)                     :: send_request, recv_request
+    INTEGER, INTENT(in), OPTIONAL            :: tag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isendrecv_r', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: my_tag
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    my_tag = 0
+    IF (PRESENT(tag)) my_tag=tag
+
+    CALL mpi_irecv(msgout,1,MPI_REAL,source, my_tag,&
+         comm,recv_request,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_irecv @ "//routineN )
+
+    CALL mpi_isend(msgin,1,MPI_REAL,dest,my_tag,&
+         comm,send_request,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ "//routineN )
+
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=2*real_4_size)
+#else
+    send_request=0
+    recv_request=0
+    msgout = msgin
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_isendrecv_r
+
+! *****************************************************************************
 !> \brief Non-blocking send and receieve of a vector
 !> \param[in] msgin           Vector data to send
 !> \param[in] dest            Which process to send to
@@ -2033,7 +2091,7 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ "//routineN )
 
     t_end = m_walltime ( )
-    CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=2*msglen*real_4_size)
+    CALL add_perf(perf_id=11,count=1,time=t_end-t_start,msg_size=msglen*real_4_size)
 #else
     ierr=1
     CALL mp_stop( ierr, "mp_isend called in non parallel case" )
@@ -2216,7 +2274,7 @@
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_irecv @ "//routineN )
 
     t_end = m_walltime ( )
-    CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=2*msglen*real_4_size)
+    CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*real_4_size)
 #else
     CALL mp_abort( "mp_irecv called in non parallel case" )
 #endif
@@ -2345,6 +2403,111 @@
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_irecv_rm3
+
+! *****************************************************************************
+!> \brief Window initialization function for vector data
+!> \param base ...
+!> \param comm ...
+!> \param win ...
+!> \par History
+!>      02.2015 created [Alfio Lazzaro]
+!> \note
+!>      The argument must be a pointer to be sure that we do not get
+!>      temporaries.
+! *****************************************************************************
+  SUBROUTINE mp_win_create_rv(base,comm,win)
+    REAL(kind=real_4), DIMENSION(:), POINTER :: base
+    INTEGER, INTENT(IN)            :: comm
+    INTEGER, INTENT(INOUT)         :: win
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_create_rv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr, handle
+#if defined(__parallel)
+    INTEGER(kind=mpi_address_kind)           :: len
+    INTEGER                                  :: lower1
+    REAL(kind=real_4)                                  :: foo(1)
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+
+    len = SIZE(base)*real_4_size
+    IF (len>0) THEN
+       lower1=LBOUND(base,1)
+       CALL mpi_win_create(base(lower1),len,real_4_size,MPI_INFO_NULL,comm,win,ierr)
+    ELSE
+       CALL mpi_win_create(foo,len,real_4_size,MPI_INFO_NULL,comm,win,ierr)
+    ENDIF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_win_create @ "//routineN )
+
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=20,count=1,time=t_end-t_start)
+#else
+    CALL mp_abort( "mp_win_create called in non parallel case" )
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_win_create_rv
+
+! *****************************************************************************
+!> \brief Single-sided get function for vector data
+!> \param base ...
+!> \param comm ...
+!> \param win ...
+!> \par History
+!>      02.2015 created [Alfio Lazzaro]
+!> \note
+!>      The argument must be a pointer to be sure that we do not get
+!>      temporaries. They must point to contiguous memory.
+! *****************************************************************************
+  SUBROUTINE mp_rget_rv(base,source,win,disp,request)
+    REAL(kind=real_4), DIMENSION(:), POINTER                      :: base
+    INTEGER, INTENT(IN)                                 :: source, win
+    INTEGER(kind=mp_address_kind), INTENT(IN), OPTIONAL :: disp
+    INTEGER, INTENT(OUT)                                :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_rget_rv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr, handle
+#if defined(__parallel)
+    INTEGER                                  :: len, lower1
+    INTEGER(kind=mpi_address_kind)           :: disp_aint
+    REAL(kind=real_4)                                  :: foo(1)
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    t_start = m_walltime ( )
+
+    len = SIZE(base)
+    disp_aint = 0
+    IF (PRESENT(disp)) THEN
+       disp_aint = disp
+    ENDIF
+    IF (len>0) THEN
+       lower1=LBOUND(base,1)
+       CALL mpi_rget(base(lower1),len,MPI_REAL,source,disp_aint,&
+            len,MPI_REAL,win,request,ierr)
+    ELSE
+       CALL mpi_rget(foo,len,MPI_REAL,source,disp_aint,&
+            len,MPI_REAL,win,request,ierr)
+    ENDIF
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_rget @ "//routineN )
+
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=17,count=1,time=t_end-t_start,msg_size=SIZE(base)*real_4_size)
+#else
+    CALL mp_abort( "mp_rget called in non parallel case" )
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_rget_rv
 
 ! *****************************************************************************
 !> \brief Allocates special parallel memory

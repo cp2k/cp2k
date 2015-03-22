@@ -530,9 +530,9 @@ MODULE dbcsr_types
   INTEGER, PARAMETER          :: dbcsr_slot_coo_l = dbcsr_meta_size+10
   INTEGER, PARAMETER          :: dbcsr_num_slots  = dbcsr_meta_size+11 ! previous + 1
   
-  ! MPI message size limits (in bytes): 0, 128, 8192, 32KB, 128KB, 4MB, 16MB 
-  INTEGER(KIND=int_8), DIMENSION(7), PARAMETER :: dbcsr_mpi_size_limits = & 
-       (/ 0, 2**7, 2**13, 2**15, 2**17, 2**22, 2**24 /)
+  ! MPI message size limits (in bytes): 128, 8192, 32KB, 128KB, 4MB, 16MB 
+  INTEGER(KIND=int_8), DIMENSION(6), PARAMETER :: dbcsr_mpi_size_limits = & 
+       (/ 2**7, 2**13, 2**15, 2**17, 2**22, 2**24 /)
 
 ! *****************************************************************************
 !> \brief The BCSR sparse matrix object.
@@ -606,7 +606,8 @@ MODULE dbcsr_types
 ! *****************************************************************************
   TYPE dbcsr_mpi_statistics_type
      INTEGER                               :: col_nimages, row_nimages
-     INTEGER                               :: nexchanges
+     INTEGER                               :: nexchanged
+     INTEGER                               :: nfiltered
      INTEGER                               :: nprocs
      ! rank 1: 1=right, 2=left
      ! rank 2: 1=total, 2=min, 3=max

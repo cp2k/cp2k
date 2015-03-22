@@ -68,7 +68,7 @@ MODULE dbcsr_data_methods
             dbcsr_scalar_are_equal, dbcsr_scalar_negative,&
             dbcsr_scalar_get_type, dbcsr_scalar_set_type,&
             dbcsr_scalar_fill_all, dbcsr_scalar_get_value
-  PUBLIC :: dbcsr_data_init, dbcsr_data_new, dbcsr_data_hold,&
+  PUBLIC :: dbcsr_data_init, dbcsr_data_new, dbcsr_data_copy, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_data_get_size, dbcsr_data_get_type
   PUBLIC :: dbcsr_get_data,&
             dbcsr_data_set_pointer,&
@@ -80,6 +80,11 @@ MODULE dbcsr_data_methods
   PUBLIC :: dbcsr_get_data_p, dbcsr_get_data_p_s, dbcsr_get_data_p_c,&
             dbcsr_get_data_p_d, dbcsr_get_data_p_z
   PUBLIC :: dbcsr_data_host2dev, dbcsr_data_dev2host
+
+  INTERFACE dbcsr_data_copy
+     MODULE PROCEDURE dbcsr_data_copy_frombuffer_obj
+     MODULE PROCEDURE dbcsr_data_copy_frombuffer_i
+  END INTERFACE
 
 CONTAINS
 
@@ -258,6 +263,110 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_data_new
 
+! *****************************************************************************
+!> \brief Copy data from an input template obj
+!> \param[inout] area         data area
+!> \param[in] template_area   template data area (dbcsr_data_obj)
+!> \param[in] size_data       data area size
+!> \param[in] displ           initial position in the data area
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_copy_frombuffer_obj (area, template_area, size_data, displ)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: template_area
+    INTEGER, INTENT(IN)                      :: size_data, displ
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_data_copy_frombuffer_obj', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: displ_end, error_handler
+    TYPE(dbcsr_error_type)                   :: error
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+
+    CALL dbcsr_assert(ASSOCIATED(area%d), dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN,&
+         "area not associated", __LINE__, error=error)
+
+    CALL dbcsr_assert(ASSOCIATED(template_area%d), dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN,&
+         "template area not associated", __LINE__, error=error)
+
+    CALL dbcsr_assert(area%d%data_type, "EQ", template_area%d%data_type, &
+         dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN,&
+         "area and template area type mismatch", __LINE__, error=error)
+
+    displ_end = displ+size_data-1
+    CALL dbcsr_assert (displ_end, "LE", dbcsr_data_get_size_referenced (area),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Attempt to copy out of bounds",__LINE__,error)
+
+    IF (size_data.gt.0) THEN
+       SELECT CASE (area%d%data_type)
+       CASE (dbcsr_type_int_8)
+          area%d%i8(displ:displ_end) = template_area%d%i8(1:size_data)
+       CASE (dbcsr_type_int_4)
+          area%d%i4(displ:displ_end) = template_area%d%i4(1:size_data)
+       CASE (dbcsr_type_real_8)
+          area%d%r_dp(displ:displ_end) = template_area%d%r_dp(1:size_data)
+       CASE (dbcsr_type_real_4)
+          area%d%r_sp(displ:displ_end) = template_area%d%r_sp(1:size_data)
+       CASE (dbcsr_type_complex_8)
+          area%d%c_dp(displ:displ_end) = template_area%d%c_dp(1:size_data)
+       CASE (dbcsr_type_complex_4)
+          area%d%c_sp(displ:displ_end) = template_area%d%c_sp(1:size_data)
+       CASE default
+          CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
+               dbcsr_unimplemented_error_nr, routineN,&
+               "Invalid data type are supported",__LINE__,error)
+       END SELECT
+    ENDIF
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_data_copy_frombuffer_obj
+
+! *****************************************************************************
+!> \brief Copy data from an input template int array
+!> \param[inout] area         data area
+!> \param[in] template_area   template data area (dbcsr_data_obj)
+!> \param[in] size_data       data area size
+!> \param[in] displ           initial position in the data area
+! *****************************************************************************
+  SUBROUTINE dbcsr_data_copy_frombuffer_i (area, template_area, size_data, displ)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
+    INTEGER, DIMENSION(:), INTENT(IN)        :: template_area
+    INTEGER, INTENT(IN)                      :: size_data, displ
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copy_frombuffer_i', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: displ_end, error_handler
+    TYPE(dbcsr_error_type)                   :: error
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+
+    CALL dbcsr_assert(ASSOCIATED(area%d), dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN,&
+         "area not associated", __LINE__, error=error)
+
+    CALL dbcsr_assert(area%d%data_type, "EQ", dbcsr_type_int_4, &
+         dbcsr_fatal_level,&
+         dbcsr_wrong_args_error, routineN,&
+         "area and template area type mismatch", __LINE__, error=error)
+
+    displ_end = displ+size_data-1
+    CALL dbcsr_assert (displ_end, "LE", dbcsr_data_get_size_referenced (area),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Attempt to copy out of bounds",__LINE__,error)
+
+    area%d%i4(displ:displ_end) = template_area(1:size_data)
+
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE dbcsr_data_copy_frombuffer_i
 
 ! *****************************************************************************
 !> \brief Ensures a minimum size of a previously-setup data area.
