@@ -880,3 +880,30 @@ libxstream_begin.h: Copyright banner malformed
 libxstream_config.h: Copyright banner malformed
 libxstream_end.h: Copyright banner malformed
 libxstream_macros.h: Copyright banner malformed
+Flag __MPI_VERSION not mentioned in INSTALL
+Flag __MPI_VERSION not mentioned in cp2k_flags()
+message_passing.F: Unused dummy argument 'win' at (1)
+message_passing_c.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
+message_passing_c.f90: Unused dummy argument 'disp' at (1)
+message_passing_c.f90: Unused dummy argument 'source' at (1)
+message_passing_c.f90: Unused dummy argument 'win' at (1)
+message_passing_d.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
+message_passing_d.f90: Unused dummy argument 'disp' at (1)
+message_passing_d.f90: Unused dummy argument 'source' at (1)
+message_passing_d.f90: Unused dummy argument 'win' at (1)
+message_passing_i.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
+message_passing_i.f90: Unused dummy argument 'disp' at (1)
+message_passing_i.f90: Unused dummy argument 'source' at (1)
+message_passing_i.f90: Unused dummy argument 'win' at (1)
+message_passing_l.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
+message_passing_l.f90: Unused dummy argument 'disp' at (1)
+message_passing_l.f90: Unused dummy argument 'source' at (1)
+message_passing_l.f90: Unused dummy argument 'win' at (1)
+message_passing_r.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
+message_passing_r.f90: Unused dummy argument 'disp' at (1)
+message_passing_r.f90: Unused dummy argument 'source' at (1)
+message_passing_r.f90: Unused dummy argument 'win' at (1)
+message_passing_z.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
+message_passing_z.f90: Unused dummy argument 'disp' at (1)
+message_passing_z.f90: Unused dummy argument 'source' at (1)
+message_passing_z.f90: Unused dummy argument 'win' at (1)
