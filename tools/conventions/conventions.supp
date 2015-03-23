@@ -881,7 +881,6 @@ libxstream_config.h: Copyright banner malformed
 libxstream_end.h: Copyright banner malformed
 libxstream_macros.h: Copyright banner malformed
 Flag __MPI_VERSION not mentioned in INSTALL
-Flag __MPI_VERSION not mentioned in cp2k_flags()
 message_passing.F: Unused dummy argument 'win' at (1)
 message_passing_c.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
 message_passing_c.f90: Unused dummy argument 'disp' at (1)
