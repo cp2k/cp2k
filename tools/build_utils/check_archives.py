@@ -8,7 +8,7 @@ import subprocess
 from os import path
 from glob import glob
 
-KNOWN_EXTENSIONS = ("F", "c", "cu",)
+KNOWN_EXTENSIONS = ("F", "c", "cu", "cpp", "cxx", "cc", )
 
 #=============================================================================
 def main():
