@@ -8,20 +8,54 @@
 #if defined (__ACC)
 
 // kernel (input) parameters
+
+/*
+// Kernel optimized for CUDA on K20x running on K20c, with __ldg() and cudaFuncSetSharedMemConfig()
+// Kernel_dnt_largeDB2(m=23, n=23, k=23, tile_m=3, tile_n=2, w=8, v=12, threads=96, grouping=16, minblocks=12) , # 362.853 GFlop/s (K20x)
+// Results LIBTEST(6440):  OpenCL = 176.8 GFlops, CUDA = 209.7 GFlops
 #define m 23
 #define n 23
 #define k 23
-//#define M 2 // K20c
-//#define N 3 // K20c
-#define M 3 // K20x
-#define N 2 // K20x
-//#define w 8  // K20c
-//#define v 20 // K20c
-#define w 8  // K20x
-#define v 12 // K20x
+#define M 3
+#define N 2
+#define w 8
+#define v 12
 #define blockdim 96
 #define grouping 16
 #define minblocks 12
+*/
+
+/*
+// Kernel optimized for CUDA on K20c running on K20c, with __ldg() and cudaFuncSetSharedMemConfig()
+// Kernel_dnt_largeDB2(m=23, n=23, k=23, tile_m=2, tile_n=3, w=8, v=20, threads=96, grouping=16, minblocks=12) , # 315.641 GFlop/s (K20c)
+// Results LIBTEST(6440):  OpenCL = 162.8 GFlops, CUDA = 241.5 GFlops
+#define m 23
+#define n 23
+#define k 23
+#define M 2
+#define N 3
+#define w 8
+#define v 20
+#define blockdim 96
+#define grouping 16
+#define minblocks 12
+*/
+
+// Kernel optimized for CUDA on K20c running on K20c, w/o __ldg() and cudaFuncSetSharedMemConfig()
+// Kernel_dnt_largeDB2(m=23, n=23, k=23, tile_m=3, tile_n=3, w=4, v=22, threads=96, grouping=16, minblocks=1), # 240.196 GFlop/s
+// Results LIBTEST(6440): OpenCL = 187.8 GFlops, CUDA = 193.0 GFlops
+#define m 23
+#define n 23
+#define k 23
+#define M 3
+#define N 3
+#define w 4
+#define v 22
+#define blockdim 96
+#define grouping 16
+#define minblocks 1
+
+
 
 // kernel (input) dependent parameters
 #define mya_size ((w * m + blockdim - 1) / blockdim)

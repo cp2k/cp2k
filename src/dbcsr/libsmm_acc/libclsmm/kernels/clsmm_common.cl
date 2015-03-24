@@ -95,12 +95,10 @@ inline void load_gmem_into_smem(__global double    *from,
 {
     if (length < blockdim) { // are there enough threads to load in one step?
         if (get_local_id(0) < length)
-            //dest[get_local_id(0)] = __ldg(from + get_local_id(0));
-            dest[get_local_id(0)] = *(from + get_local_id(0));
+            dest[get_local_id(0)] = from[get_local_id(0)];
     } else {
         for (int i = get_local_id(0); i < length; i += blockdim)
-            //dest[i] = __ldg(from + i);
-            dest[i] = *(from + i);
+            dest[i] = from[i];
     }
 }
 
@@ -115,14 +113,12 @@ inline void load_gmem_into_regs(__global  double    *from,
 
     if (length < blockdim) { // are there enough threads to load in one step?
         if (get_local_id(0) < length)
-            //dest[0] = __ldg(from + get_local_id(0));
-            dest[0] = *(from + get_local_id(0));
+            dest[0] = from[get_local_id(0)];
     } else {
         int i = get_local_id(0);
         for (int ri = 0; ri < NR; ri++) {  //loop with fixed bounds
             if (i < length)
-                //dest[ri] = __ldg(from + i);
-                dest[ri] = *(from + i);
+                dest[ri] = from[i];
             i += blockdim;
         }
     }

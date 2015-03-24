@@ -10,21 +10,21 @@
 #
 
 # LIB's ################################################################
+
 LIBS     = -L${FFTW3_PATH}/lib \
-             -lfftw3 \
-           -L$(INTEL_MKL_LIB) \
-             -lmkl_gf_lp64 \
-             -lmkl_core \
-             -lmkl_sequential \
-             -lpthread \
-             -lm \
-           -L$(LIBINT_PATH)/lib \
+             -lfftw3
+LIBS    += -Wl,--start-group \
+             $(INTEL_MKL_LIB)/libmkl_intel_lp64.a \
+             $(INTEL_MKL_LIB)/libmkl_core.a \
+             $(INTEL_MKL_LIB)/libmkl_sequential.a \
+           -Wl,--end-group \
+           -lpthread -lm -ldl
+LIBS    += -L$(LIBINT_PATH)/lib \
              -lderiv \
-             -lint \
-           -L$(LIBXC_PATH)/lib \
-             -lxc \
-           -L$(CUDA_PATH)/lib64 \
-             -lOpenCL
+             -lint
+LIBS    += -L$(LIBXC_PATH)/lib \
+             -lxc
+LIBS    += -lOpenCL
 
 # PROG's ###############################################################
 CPP      =
@@ -34,17 +34,16 @@ LD       = gfortran
 AR       = ar -r
 
 # FLAG's ###############################################################
-DFLAGS   = -D__GFORTRAN \
-           -D__FFTSG -D__FFTW3 \
+DFLAGS   = -D__FFTW3 \
            -D__ACC -D__DBCSR_ACC -D__OPENCL \
            -D__LIBXC2 \
            -D__LIBINT -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5 \
            -D__USE_CP2K_TRACE \
            -D__HAS_ISO_C_BINDING
 
+
+AFLAGS   = $(DFLAGS) -O3 -mtune=native -ffast-math -funroll-loops -ftree-vectorize
 CPPFLAGS = $(DFLAGS) -traditional -C
-CFLAGS   = $(DFLAGS) -O2 -mtune=native -ffast-math -funroll-loops
-FCFLAGS  = $(DFLAGS) -O2 -mtune=native -ffast-math -funroll-loops \
-           -ftree-vectorize \
-           -ffree-form -ffree-line-length-none
+CFLAGS   = $(AFLAGS)
+FCFLAGS  = $(AFLAGS) -ffree-form -ffree-line-length-none
 LDFLAGS  = $(FCFLAGS)
