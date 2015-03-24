@@ -76,8 +76,8 @@ CONTAINS
     INTEGER                                  :: handle, i, nrow, unit_nr
     INTEGER(KIND=int_8)                      :: flop1, flop2
     LOGICAL                                  :: use_inv_guess
-    REAL(KIND=dp) :: convergence, frob_matrix, gershgorin_norm, &
-      max_ev, maxnorm_matrix, min_ev, occ_matrix, t1, t2
+    REAL(KIND=dp) :: convergence, frob_matrix, gershgorin_norm, max_ev, &
+      maxnorm_matrix, min_ev, occ_matrix, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(1)      :: mymat
     TYPE(cp_dbcsr_type), TARGET              :: tmp1, tmp2
     TYPE(cp_logger_type), POINTER            :: logger
