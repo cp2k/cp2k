@@ -27,8 +27,7 @@ MODULE qs_wf_history_methods
                                              cp_dbcsr_deallocate_matrix,&
                                              cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_init,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_set
+                                             cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_scale_and_add
@@ -78,18 +77,15 @@ MODULE qs_wf_history_methods
                                              make_basis_sm
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_rho_methods,                  ONLY: duplicate_rho_type,&
-                                             qs_rho_update_rho
+  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_set,&
                                              qs_rho_type
   USE qs_scf_types,                    ONLY: ot_method_nr,&
                                              qs_scf_env_type
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
-                                             qs_wf_snapshot_p_type,&
                                              qs_wf_snapshot_type,&
-                                             wfi_get_snapshot,&
-                                             wfs_release
+                                             wfi_get_snapshot
   USE scf_control_types,               ONLY: scf_control_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -142,130 +138,6 @@ SUBROUTINE wfs_create(snapshot, error)
      snapshot%ref_count=1
   END IF
 END SUBROUTINE wfs_create
-
-! *****************************************************************************
-!> \brief duplicates a single qs_wf_snapshot_type
-!> \param input_snapshot the snapshot to be duplicated
-!> \param output_snapshot the out coming duplicate
-!> \param qs_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      10.2005 created [TdK]
-!> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
-  SUBROUTINE wfs_duplicate_snapshot(input_snapshot, output_snapshot, qs_env, error)
-    TYPE(qs_wf_snapshot_type), POINTER       :: input_snapshot, &
-                                                output_snapshot
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'wfs_duplicate_snapshot', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, nspins, stat
-    LOGICAL                                  :: failure
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-
-    CALL timeset(routineN,handle)
-    failure = .FALSE.
-
-    NULLIFY(auxbas_pw_pool, pw_env, dft_control)
-
-    CPPrecondition(ASSOCIATED(input_snapshot), cp_failure_level, routineP, error, failure)
-    CPPrecondition(input_snapshot%ref_count>0, cp_failure_level, routineP, error, failure)
-    CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
-    CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
-
-    IF (.NOT. failure) THEN
-      CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, dft_control=dft_control, error=error)
-      CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
-
-      nspins = dft_control%nspins
-
-      IF (ASSOCIATED(output_snapshot)) THEN
-        CALL wfs_release(input_snapshot, error=error)
-      ELSE
-        CALL wfs_create(output_snapshot, error=error)
-      END IF
-
-      ! wf
-      IF (ASSOCIATED(input_snapshot%wf)) THEN
-        DO i = 1,SIZE(input_snapshot%wf)
-          ALLOCATE(output_snapshot%wf(i), stat=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          CALL cp_fm_create(matrix=output_snapshot%wf(i)%matrix, &
-                            matrix_struct=input_snapshot%wf(i)%matrix%matrix_struct, &
-                            error=error)
-          CALL cp_fm_to_fm(source=input_snapshot%wf(i)%matrix, &
-                           destination=output_snapshot%wf(i)%matrix, &
-                           error=error)
-        END DO
-      END IF
-
-      ! rho_r
-      IF (ASSOCIATED(input_snapshot%rho_r)) THEN
-        DO i = 1,SIZE(input_snapshot%rho_r)
-          ALLOCATE(output_snapshot%rho_r(nspins), stat=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          IF (.NOT. failure) THEN
-            CALL pw_pool_create_pw(auxbas_pw_pool, output_snapshot%rho_r(i)%pw, &
-                                   use_data=REALDATA3D, in_space=REALSPACE, &
-                                   error=error)
-            output_snapshot%rho_r(i)%pw%cr3d(:,:,:) = input_snapshot%rho_r(i)%pw%cr3d(:,:,:)
-          END IF
-        END DO
-      END IF
-
-      ! rho_g
-      IF (ASSOCIATED(input_snapshot%rho_g)) THEN
-        DO i = 1,SIZE(input_snapshot%rho_g)
-          ALLOCATE(output_snapshot%rho_g(nspins), stat=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          IF (.NOT. failure) THEN
-            CALL pw_pool_create_pw(auxbas_pw_pool, output_snapshot%rho_g(i)%pw, &
-                                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                                   error=error)
-            output_snapshot%rho_g(i)%pw%cc(:) = input_snapshot%rho_g(i)%pw%cc(:)
-          END IF
-        END DO
-      END IF
-
-      ! rho_ao
-      IF (ASSOCIATED(input_snapshot%rho_ao)) THEN
-        CALL cp_dbcsr_allocate_matrix_set(output_snapshot%rho_ao, SIZE(input_snapshot%rho_ao),error=error)
-        DO i = 1,SIZE(input_snapshot%rho_ao)
-           CALL cp_dbcsr_copy(output_snapshot%rho_ao(i)%matrix,input_snapshot%rho_ao(i)%matrix, &
-                name="myDensityMatrix_for_Spin_"//TRIM(ADJUSTL(cp_to_string(i))),error=error)
-           CALL cp_dbcsr_set(output_snapshot%rho_ao(i)%matrix,0.0_dp,error=error)
-        END DO
-      END IF
-
-      ! overlap
-      IF (ASSOCIATED(input_snapshot%overlap)) THEN
-         CALL cp_dbcsr_copy(output_snapshot%overlap,input_snapshot%overlap,&
-              name="myOverlapMatrix",error=error)
-         CALL cp_dbcsr_set(output_snapshot%overlap,0.0_dp,error=error)
-         !CALL replicate_matrix(source=input_snapshot%overlap, &
-         !                     TARGET=output_snapshot%overlap, &
-         !                     target_name="myOverlapMatrix", &
-         !                     allocate_blocks=.TRUE.,error=error)
-      END IF
-
-      ! rho_frozen
-      IF (ASSOCIATED(input_snapshot%rho_frozen)) THEN
-        CALL duplicate_rho_type(rho_input=input_snapshot%rho_frozen, &
-                                rho_output=output_snapshot%rho_frozen, &
-                                qs_env=qs_env, error=error)
-      END IF
-
-    END IF
-
-    CALL timestop(handle)
-
-  END SUBROUTINE wfs_duplicate_snapshot
 
 ! *****************************************************************************
 !> \brief updates the given snapshot
@@ -1145,58 +1017,6 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt, error)
   END IF
 END SUBROUTINE wfi_update
 
-! *****************************************************************************
-!> \brief chenge the memory depth stored in the history
-!> \param wf_history the wf_history to modify
-!> \param memory_depth the new memory_depth
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author fawzi
-! *****************************************************************************
-SUBROUTINE wfi_change_memory_depth(wf_history,memory_depth,error)
-    TYPE(qs_wf_history_type), POINTER        :: wf_history
-    INTEGER, INTENT(in)                      :: memory_depth
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_change_memory_depth', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, stat
-    LOGICAL                                  :: failure
-    TYPE(qs_wf_snapshot_p_type), &
-      DIMENSION(:), POINTER                  :: new_past_states
-
-  failure=.FALSE.
-
-  CALL timeset(routineN,handle)
-  CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
-  CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     IF (wf_history%memory_depth/=memory_depth)THEN
-        ALLOCATE(new_past_states(memory_depth),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        IF (.NOT. failure) THEN
-           DO i=1,memory_depth
-              NULLIFY(new_past_states(i)%snapshot)
-              IF (i<wf_history%memory_depth) THEN
-                 new_past_states(MODULO(wf_history%snapshot_count+1-i,&
-                      wf_history%memory_depth)+1)%snapshot => &
-                      wf_history%past_states(&
-                      MODULO(wf_history%snapshot_count+1-i,&
-                      wf_history%memory_depth)+1)%snapshot
-              END IF
-           END DO
-           IF (ASSOCIATED(wf_history%past_states)) THEN
-              DEALLOCATE(wf_history%past_states,stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           END IF
-           wf_history%past_states => new_past_states
-           wf_history%memory_depth = memory_depth
-        END IF
-     END IF
-  END IF
-  CALL timestop(handle)
-END SUBROUTINE wfi_change_memory_depth
 ! *****************************************************************************
 !> \brief reorthogonalizes the mos
 !> \param qs_env the qs_env in which to orthogonalize
