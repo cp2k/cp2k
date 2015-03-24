@@ -79,7 +79,7 @@ MODULE cp_dbcsr_operations
   END INTERFACE
 
   ! CP2K API emulation
-  PUBLIC :: cp_dbcsr_from_fm, copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
+  PUBLIC :: copy_fm_to_dbcsr, copy_dbcsr_to_fm,&
             copy_dbcsr_to_cfm, copy_cfm_to_dbcsr,&
             cp_dbcsr_sm_fm_multiply, cp_dbcsr_plus_fm_fm_t,&
             copy_dbcsr_to_fm_bc, copy_fm_to_dbcsr_bc, cp_fm_to_dbcsr_row_template,&

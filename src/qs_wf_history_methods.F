@@ -104,8 +104,6 @@ MODULE qs_wf_history_methods
 
   PUBLIC :: wfi_create, wfi_update,&
             wfi_extrapolate, wfi_get_method_label,&
-            wfs_duplicate_snapshot,&
-            wfi_change_memory_depth,&
             reorthogonalize_vectors
 
 CONTAINS

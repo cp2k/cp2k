@@ -33,7 +33,6 @@ MODULE ai_eri_debug
   REAL(dp), DIMENSION(0:4*lmax) :: fm, I0M
 
   PRIVATE
-  PUBLIC :: init_os, os
 
 CONTAINS
 

@@ -41,7 +41,7 @@ MODULE gamma
 ! *** Public subroutines ***
 
   PUBLIC :: deallocate_md_ftable,&
-            fgamma_0, fgamma_1,&
+            fgamma_0,&
             fgamma_ref,&
             init_md_ftable
 

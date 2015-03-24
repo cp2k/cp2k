@@ -66,9 +66,8 @@ MODULE hirshfeld_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hirshfeld_methods'
 
-   PUBLIC :: create_shape_function, comp_hirshfeld_charges, &
-             comp_hirshfeld_i_charges, write_hirshfeld_charges, &
-             hirshfeld_integration
+  PUBLIC :: create_shape_function, comp_hirshfeld_charges,&
+            comp_hirshfeld_i_charges, write_hirshfeld_charges
 
 ! *****************************************************************************
 

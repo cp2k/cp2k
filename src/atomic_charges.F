@@ -26,7 +26,7 @@ MODULE atomic_charges
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_charges'
 
-  PUBLIC :: print_atomic_charges, print_multipoles
+  PUBLIC :: print_atomic_charges
 
 CONTAINS
 

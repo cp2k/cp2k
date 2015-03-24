@@ -21,41 +21,33 @@ MODULE qs_fb_com_tasks_types
   PRIVATE
 
 ! public parameters:
-  PUBLIC :: TASK_N_RECORDS, &
-            TASK_DEST,      &
-            TASK_SRC,       &
-            TASK_PAIR,      &
+  PUBLIC :: TASK_N_RECORDS,&
+            TASK_DEST,&
+            TASK_SRC,&
+            TASK_PAIR,&
             TASK_COST
 
 ! public types
-  PUBLIC :: fb_com_tasks_obj, &
+  PUBLIC :: fb_com_tasks_obj,&
             fb_com_atom_pairs_obj
 
 ! public methods
-  PUBLIC :: fb_com_tasks_retain,             &
-            fb_com_tasks_release,            &
-            fb_com_tasks_nullify,            &
-            fb_com_tasks_has_data,           &
-            fb_com_tasks_associate,          &
-            fb_com_tasks_create,             &
-            fb_com_tasks_init,               &
-            fb_com_tasks_get,                &
-            fb_com_tasks_set,                &
-            fb_com_tasks_transpose_dest_src, &
-            fb_com_tasks_build_atom_pairs,   &
-            fb_com_tasks_encode_pair,        &
-            fb_com_tasks_decode_pair,        &
-            fb_com_atom_pairs_retain,        &
-            fb_com_atom_pairs_release,       &
-            fb_com_atom_pairs_nullify,       &
-            fb_com_atom_pairs_has_data,      &
-            fb_com_atom_pairs_associate,     &
-            fb_com_atom_pairs_create,        &
-            fb_com_atom_pairs_init,          &
-            fb_com_atom_pairs_get,           &
-            fb_com_atom_pairs_set,           &
-            fb_com_atom_pairs_encode,        &
-            fb_com_atom_pairs_decode,        &
+  PUBLIC :: fb_com_tasks_release,&
+            fb_com_tasks_nullify,&
+            fb_com_tasks_create,&
+            fb_com_tasks_get,&
+            fb_com_tasks_set,&
+            fb_com_tasks_transpose_dest_src,&
+            fb_com_tasks_build_atom_pairs,&
+            fb_com_tasks_encode_pair,&
+            fb_com_tasks_decode_pair,&
+            fb_com_atom_pairs_release,&
+            fb_com_atom_pairs_nullify,&
+            fb_com_atom_pairs_has_data,&
+            fb_com_atom_pairs_create,&
+            fb_com_atom_pairs_init,&
+            fb_com_atom_pairs_get,&
+            fb_com_atom_pairs_decode,&
             fb_com_atom_pairs_calc_buffer_sizes
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_com_tasks_types'

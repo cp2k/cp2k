@@ -55,12 +55,7 @@ MODULE qs_fb_filter_matrix_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_filter_matrix_methods'
 
-  PUBLIC ::  fb_fltrmat_build, &
-             fb_fltrmat_add_blkcol, &
-             fb_fltrmat_generate_com_pairs, &
-             fb_fltrmat_build_atomic_fltrmat, &
-             fb_fltrmat_fermi_dirac_mu, &
-             fb_fltrmat_fermi_dirac_ne
+  PUBLIC :: fb_fltrmat_build
 
 CONTAINS
 

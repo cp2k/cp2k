@@ -91,7 +91,7 @@ MODULE qs_force
 
 ! *** Public subroutines ***
 
-  PUBLIC :: qs_forces, write_forces
+  PUBLIC :: qs_forces
 
 CONTAINS
 

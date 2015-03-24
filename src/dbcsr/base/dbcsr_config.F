@@ -34,7 +34,7 @@ MODULE dbcsr_config
   PUBLIC :: dbcsr_set_conf_subcomm, dbcsr_get_conf_subcomm
   PUBLIC :: dbcsr_set_conf_mm_stacksize, dbcsr_get_conf_mm_stacksize
 
-  PUBLIC :: dbcsr_set_conf_mpi_mem, dbcsr_get_conf_mpi_mem
+  PUBLIC :: dbcsr_get_conf_mpi_mem
 
   PUBLIC :: dbcsr_set_conf_mm_driver, dbcsr_get_conf_mm_driver, dbcsr_get_conf_avg_elements_images
 

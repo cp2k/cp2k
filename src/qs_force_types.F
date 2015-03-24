@@ -52,8 +52,7 @@ MODULE qs_force_types
   PUBLIC :: allocate_qs_force,&
             add_qs_force,&
             deallocate_qs_force,&
-            zero_qs_force,&
-            duplicate_qs_force
+            zero_qs_force
 
 CONTAINS
 

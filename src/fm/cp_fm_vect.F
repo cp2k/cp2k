@@ -25,7 +25,7 @@ MODULE cp_fm_vect
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_vect'
 
   PUBLIC :: cp_fm_vect_dealloc, cp_fm_vect_copy,&
-            cp_fm_vect_set_all, cp_fm_vect_write
+            cp_fm_vect_write
 !***
 CONTAINS
 

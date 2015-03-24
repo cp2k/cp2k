@@ -29,27 +29,27 @@ MODULE cp_dbcsr_interface
        create_replicated_col_vec_from_matrix, &
        create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, &
        csr_create_from_dbcsr, csr_create_new, csr_create_template, &
-       csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
-       csr_eqrow_floor_dist, csr_print_sparsity, csr_type, dbcsr_add, &
-       dbcsr_add_on_diag, dbcsr_arnoldi_data, dbcsr_arnoldi_ev, &
-       dbcsr_binary_read, dbcsr_binary_write, dbcsr_checksum, &
-       dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, &
-       dbcsr_copy_into_existing, dbcsr_create, &
-       dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
-       dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
-       dbcsr_data_obj, dbcsr_data_release, dbcsr_desymmetrize_deep, &
-       dbcsr_distribute, dbcsr_distribution, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_has_threads, dbcsr_distribution_init, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_new, dbcsr_distribution_nlocal_cols, &
-       dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
-       dbcsr_distribution_obj, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
-       dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_dtanh, &
-       dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
-       dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_block_p, &
+       csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_floor_dist, &
+       csr_print_sparsity, csr_type, dbcsr_add, dbcsr_add_on_diag, &
+       dbcsr_arnoldi_data, dbcsr_arnoldi_ev, dbcsr_binary_read, &
+       dbcsr_binary_write, dbcsr_checksum, dbcsr_clear_mempools, &
+       dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
+       dbcsr_create, dbcsr_create_dist_block_cyclic, &
+       dbcsr_create_dist_r_unrot, dbcsr_data_clear_pointer, dbcsr_data_init, &
+       dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, &
+       dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
+       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
+       dbcsr_distribution_ncols, dbcsr_distribution_new, &
+       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
+       dbcsr_distribution_nrows, dbcsr_distribution_obj, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, dbcsr_filter, &
+       dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, &
+       dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, &
+       dbcsr_func_tanh, dbcsr_function_of_elements, dbcsr_gershgorin_norm, &
+       dbcsr_get_block_diag, dbcsr_get_block_p, &
        dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
        dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
@@ -70,7 +70,7 @@ MODULE cp_dbcsr_interface
        dbcsr_no_transpose, dbcsr_norm, dbcsr_norm_column, &
        dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
        dbcsr_obj_type_p, dbcsr_print, dbcsr_print_block_sum, dbcsr_put_block, &
-       dbcsr_release, dbcsr_repl_full, dbcsr_replicate, dbcsr_replicate_all, &
+       dbcsr_release, dbcsr_replicate, dbcsr_replicate_all, &
        dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
        dbcsr_reserve_diag_blocks, dbcsr_run_tests, dbcsr_scalar, &
        dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
@@ -79,21 +79,21 @@ MODULE cp_dbcsr_interface
        dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
        dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
        dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
-       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
-       dbcsr_set_conf_use_mpi_rma, dbcsr_set_diag, dbcsr_setname, &
-       dbcsr_sum_replicated, dbcsr_test_arnoldi, dbcsr_test_binary_io, &
-       dbcsr_test_mm, dbcsr_trace, dbcsr_triu, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
-       dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_wm_use_mutable, &
-       dbcsr_work_create, dbcsr_work_type, deallocate_arnoldi_data, &
-       get_selected_ritz_val, get_selected_ritz_vector, has_acc, has_mpi, &
-       heap_fill, heap_get_first, heap_new, heap_release, heap_reset_first, &
-       heap_t, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
-       mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
-       multrec_limit, set_arnoldi_initial_vector, setup_arnoldi_data, swap
+       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
+       dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_rma, &
+       dbcsr_set_diag, dbcsr_setname, dbcsr_sum_replicated, &
+       dbcsr_test_arnoldi, dbcsr_test_binary_io, dbcsr_test_mm, dbcsr_trace, &
+       dbcsr_triu, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+       dbcsr_type_complex_8, dbcsr_type_complex_default, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index, &
+       dbcsr_verify_matrix, dbcsr_wm_use_mutable, dbcsr_work_create, &
+       deallocate_arnoldi_data, get_selected_ritz_val, &
+       get_selected_ritz_vector, has_acc, has_mpi, heap_fill, heap_get_first, &
+       heap_new, heap_release, heap_reset_first, heap_t, mm_driver_acc, &
+       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
+       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit, &
+       set_arnoldi_initial_vector, setup_arnoldi_data, swap
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
@@ -111,16 +111,16 @@ MODULE cp_dbcsr_interface
   !
   ! Interface to libdbcsr (contains cp2k timing and error) 
   PUBLIC :: dbcsr_error_set, dbcsr_error_stop, dbcsr_get_conf_comm_thread_load,&
-            dbcsr_get_conf_avg_elements_images, &
+            dbcsr_get_conf_avg_elements_images,&
             dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks,&
-            dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_mpi_mem, &
+            dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_stacksize,&
             dbcsr_get_conf_use_mpi_rma
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver,&
             dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread,&
-            has_mpi, add_work_coordinate, create_bl_distribution, dbcsr_set_conf_use_mpi_rma
+            has_mpi, create_bl_distribution, dbcsr_set_conf_use_mpi_rma
   PUBLIC :: has_acc, dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, dbcsr_distribution_local_cols,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, dbcsr_distribution_local_rows,&
-            dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols, dbcsr_get_data_p,&
+            dbcsr_distribution_ncols, dbcsr_distribution_nlocal_cols,&
             dbcsr_mp_hold, cp_distribution_get_num_images
   PUBLIC :: dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_type_antisymmetric
   PUBLIC :: array_i1d_obj, array_new, array_nullify, array_release, array_data
@@ -129,12 +129,12 @@ MODULE cp_dbcsr_interface
   PUBLIC :: convert_offsets_to_sizes, dbcsr_distribution_obj, dbcsr_distribution_row_dist
   PUBLIC :: dbcsr_get_conf_use_comm_thread, dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
   PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols
-  PUBLIC :: dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
-  PUBLIC :: dbcsr_get_data_type, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_put_block
-  PUBLIC :: dbcsr_error_type, dbcsr_mp_obj, dbcsr_norm_frobenius, dbcsr_repl_full
+  PUBLIC :: dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
+  PUBLIC :: dbcsr_iterator_blocks_left, dbcsr_iterator_next_block
+  PUBLIC :: dbcsr_error_type, dbcsr_mp_obj, dbcsr_norm_frobenius
   PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_test_arnoldi, dbcsr_norm_maxabsnorm,&
-            dbcsr_norm_column, dbcsr_init_random, dbcsr_distribution_has_threads, dbcsr_test_binary_io
-  PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release, dbcsr_name
+            dbcsr_norm_column, dbcsr_distribution_has_threads, dbcsr_test_binary_io
+  PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release
   PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh
   PUBLIC :: dbcsr_distribution_mp
   PUBLIC :: convert_sizes_to_offsets
@@ -172,7 +172,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_release_p
   PUBLIC :: cp_dbcsr_distribute
   PUBLIC :: cp_dbcsr_replicate_all
-  PUBLIC :: cp_dbcsr_replicate
   PUBLIC :: cp_dbcsr_norm
   PUBLIC :: cp_dbcsr_get_info
   PUBLIC :: cp_dbcsr_get_block_p
@@ -236,11 +235,10 @@ MODULE cp_dbcsr_interface
             get_selected_ritz_val, get_selected_ritz_vec, cp_set_arnoldi_initial_vector
   PUBLIC :: csr_type, cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr,&
             cp_csr_create_from_dbcsr, cp_csr_destroy, cp_csr_create,&
-            csr_dbcsr_blkrow_dist, csr_eqrow_ceil_dist, csr_eqrow_floor_dist, &
+            csr_dbcsr_blkrow_dist, csr_eqrow_floor_dist,&
             cp_csr_print_sparsity
-  PUBLIC :: dbcsr_work_type
-  PUBLIC :: cp_add_work_coordinate, cp_dbcsr_get_data_p, & 
-            cp_dbcsr_row_block_sizes_data, cp_dbcsr_col_block_sizes_data, &
+  PUBLIC :: cp_add_work_coordinate, cp_dbcsr_get_data_p,&
+            cp_dbcsr_row_block_sizes_data, cp_dbcsr_col_block_sizes_data,&
             cp_dbcsr_init_random, cp_dbcsr_setname, cp_set_work_size
   TYPE cp_dbcsr_p_type
      TYPE(cp_dbcsr_type), POINTER :: matrix

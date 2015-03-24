@@ -177,12 +177,12 @@ MODULE dbcsr_csr_conversions
     LOGICAL                                  :: has_indices = .FALSE.
   ENDTYPE csr_type
 
-  PUBLIC :: csr_type,convert_csr_to_dbcsr,&
+  PUBLIC :: csr_type, convert_csr_to_dbcsr,&
             csr_create_from_dbcsr,&
             csr_destroy, csr_conversion_test,&
-            convert_dbcsr_to_csr, csr_write,&
-            csr_create, csr_create_new, csr_create_template,&
-            csr_copy, csr_print_sparsity
+            convert_dbcsr_to_csr,&
+            csr_create_new, csr_create_template,&
+            csr_print_sparsity
 
   INTERFACE csr_create
      MODULE PROCEDURE csr_create_new, csr_create_template

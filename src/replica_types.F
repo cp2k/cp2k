@@ -51,7 +51,7 @@ MODULE replica_types
   PUBLIC :: replica_env_type
   PUBLIC :: rep_env_release
   PUBLIC :: rep_env_sync, rep_env_sync_results, rep_envs_add_rep_env
-  PUBLIC :: rep_envs_get_rep_env, rep_env_local_index
+  PUBLIC :: rep_envs_get_rep_env
 
 ! *****************************************************************************
 !> \brief keeps replicated information about the replicas

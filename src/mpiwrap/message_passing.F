@@ -131,14 +131,14 @@ MODULE message_passing
 
   ! some 'advanced types' currently only used for dbcsr
   PUBLIC :: mp_type_descriptor_type
-  PUBLIC :: mp_type_make, mp_type_free
+  PUBLIC :: mp_type_make
   PUBLIC :: mp_type_size
 
   ! some benchmarking code
   PUBLIC :: mpi_perf_test
 
   ! one-sided communication
-  PUBLIC :: mp_win_create, mp_win_free, mp_win_lock_all, &
+  PUBLIC :: mp_win_create, mp_win_free, mp_win_lock_all,&
             mp_win_unlock_all, mp_rget
 
 #ifndef __parallel

@@ -28,14 +28,11 @@ MODULE qs_fb_env_types
   PUBLIC :: fb_env_obj
 
 ! public methods
-  PUBLIC :: fb_env_retain, &
-            fb_env_release, &
-            fb_env_nullify, &
-            fb_env_associate, &
-            fb_env_has_data, &
-            fb_env_create, &
-            fb_env_init, &
-            fb_env_get, &
+  PUBLIC :: fb_env_release,&
+            fb_env_nullify,&
+            fb_env_has_data,&
+            fb_env_create,&
+            fb_env_get,&
             fb_env_set
 
 

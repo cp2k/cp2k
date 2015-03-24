@@ -46,17 +46,15 @@ MODULE dbcsr_api
        dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
        dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
        dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_mpi_mem, dbcsr_set_conf_nstacks, &
-       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
-       dbcsr_set_conf_use_mpi_rma, dbcsr_set_default_config, has_acc, &
-       has_mpi, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
-       mm_driver_smm, mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, &
-       multrec_limit
+       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
+       dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_rma, &
+       dbcsr_set_default_config, has_acc, has_mpi, mm_driver_acc, &
+       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
+       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
   USE dbcsr_csr_conversions,           ONLY: &
-       convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create, &
-       csr_create_from_dbcsr, csr_create_new, csr_create_template, &
-       csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
-       csr_eqrow_floor_dist, csr_print_sparsity, csr_type, csr_write
+       convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create_from_dbcsr, &
+       csr_create_new, csr_create_template, csr_dbcsr_blkrow_dist, &
+       csr_destroy, csr_eqrow_floor_dist, csr_print_sparsity, csr_type
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
        dbcsr_data_release, dbcsr_get_data_p, dbcsr_scalar, &
@@ -91,7 +89,7 @@ MODULE dbcsr_api
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_size, &
        dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
-       dbcsr_get_nze, dbcsr_has_symmetry, dbcsr_init, dbcsr_max_col_size, &
+       dbcsr_has_symmetry, dbcsr_init, dbcsr_max_col_size, &
        dbcsr_max_row_size, dbcsr_name, dbcsr_nblkcols_local, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
@@ -130,11 +128,10 @@ MODULE dbcsr_api
        dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_iterator, &
        dbcsr_mp_obj, dbcsr_no_transpose, dbcsr_norm_column, &
        dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_obj, &
-       dbcsr_obj_type_p, dbcsr_repl_full, dbcsr_scalar_type, &
-       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_obj_type_p, dbcsr_scalar_type, dbcsr_type_antisymmetric, &
+       dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
-       dbcsr_work_type
+       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: convert_offsets_to_sizes,&
                                              convert_sizes_to_offsets,&
                                              dbcsr_checksum,&
@@ -306,7 +303,6 @@ MODULE dbcsr_api
             dbcsr_print_block_sum,&
             dbcsr_put_block,&
             dbcsr_release,&
-            dbcsr_repl_full,&
             dbcsr_replicate,&
             dbcsr_replicate_all,&
             dbcsr_reserve_all_blocks,&
@@ -319,7 +315,6 @@ MODULE dbcsr_api
             dbcsr_scalar_get_value,&
             dbcsr_scalar_set_type,&
             dbcsr_scalar_type,&
-            dbcsr_work_type,&
             dbcsr_scalar_zero,&
             dbcsr_scale,&
             dbcsr_scale_by_vector,&
@@ -329,7 +324,6 @@ MODULE dbcsr_api
             dbcsr_set_conf_max_ele_block,&
             dbcsr_set_conf_mm_driver,&
             dbcsr_set_conf_mm_stacksize,&
-            dbcsr_set_conf_mpi_mem,&
             dbcsr_set_conf_avg_elements_images,&
             dbcsr_set_conf_nstacks,&
             dbcsr_set_conf_subcomm,&
@@ -376,14 +370,10 @@ MODULE dbcsr_api
             csr_create_from_dbcsr,&
             csr_destroy,&
             csr_type,&
-            csr_create,&
             csr_create_new,&
             csr_create_template,&
-            csr_write,&
-            csr_dbcsr_blkrow_dist,& 
-            csr_eqrow_ceil_dist,&
+            csr_dbcsr_blkrow_dist,&
             csr_eqrow_floor_dist,&
             csr_print_sparsity,&
-            dbcsr_get_nze, &
             dbcsr_distribution_get_num_images_1d
 END MODULE dbcsr_api

@@ -66,8 +66,7 @@ MODULE scf_control_types
             scf_c_read_parameters,&
             scf_c_release,&
             scf_c_retain,&
-            scf_c_write_parameters,&
-            init_smear, read_smear_section
+            scf_c_write_parameters
 
 ! *****************************************************************************
 !> \brief contains the parameters needed by a scf run

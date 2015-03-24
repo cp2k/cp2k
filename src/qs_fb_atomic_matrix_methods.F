@@ -41,9 +41,8 @@ MODULE qs_fb_atomic_matrix_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_atomic_matrix_methods'
 
-  PUBLIC :: fb_atmatrix_calc_size, &
-            fb_atmatrix_construct, &
-            fb_atmatrix_generate_com_pairs
+  PUBLIC :: fb_atmatrix_calc_size,&
+            fb_atmatrix_construct
 
 
 CONTAINS

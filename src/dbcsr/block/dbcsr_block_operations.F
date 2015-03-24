@@ -44,7 +44,7 @@ MODULE dbcsr_block_operations
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_block_operations'
 
   PUBLIC :: dbcsr_block_transpose, dbcsr_block_transpose_aa, dbcsr_data_set
-  PUBLIC :: dbcsr_block_copy, dbcsr_block_copy_aa, dbcsr_block_partial_copy
+  PUBLIC :: dbcsr_block_copy_aa, dbcsr_block_partial_copy
   PUBLIC :: dbcsr_data_clear
   PUBLIC :: set_block2d_diagonal, get_block2d_diagonal
   PUBLIC :: dbcsr_block_scale, dbcsr_block_conjg, dbcsr_block_real_neg
