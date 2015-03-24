@@ -576,8 +576,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cluster_list, cluster_prices, &
                                                 nparticle_local_col, &
                                                 nparticle_local_row, work
-    INTEGER, DIMENSION(:), POINTER :: lmax_basis, molecule_list
-    INTEGER, DIMENSION(:,:), POINTER :: row_distribution, col_distribution, cluster_col_distribution, cluster_row_distribution
+    INTEGER, DIMENSION(:), POINTER           :: lmax_basis, molecule_list
+    INTEGER, DIMENSION(:, :), POINTER :: cluster_col_distribution, &
+      cluster_row_distribution, col_distribution, row_distribution
     LOGICAL :: basic_cluster_optimization, basic_optimization, &
       basic_spatial_optimization, failure, molecular_distribution, &
       skip_optimization
@@ -1191,9 +1192,9 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, DIMENSION(:), INTENT(IN)        :: costs
     INTEGER, INTENT(IN)                      :: nprows
-    INTEGER, DIMENSION(:,:), INTENT(OUT)     :: row_distribution
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: row_distribution
     INTEGER, INTENT(IN)                      :: npcols
-    INTEGER, DIMENSION(:,:), INTENT(OUT)     :: col_distribution
+    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: col_distribution
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_cluster_distribution', &

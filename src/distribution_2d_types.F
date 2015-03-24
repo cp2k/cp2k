@@ -109,7 +109,8 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       OPTIONAL                               :: n_local_rows
     TYPE(cp_1d_i_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: local_cols_ptr
-    INTEGER, DIMENSION(:,:), OPTIONAL, POINTER :: row_distribution_ptr, &
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: row_distribution_ptr, &
                                                 col_distribution_ptr
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: n_local_cols
@@ -556,7 +557,8 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
      blacs_env, id_nr,&
      error)
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    INTEGER, DIMENSION(:,:), OPTIONAL, POINTER :: row_distribution, &
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: row_distribution, &
                                                 col_distribution
     INTEGER, INTENT(out), OPTIONAL           :: n_row_distribution, &
                                                 n_col_distribution
