@@ -82,10 +82,13 @@ nprocs=`nproc --all`
 export CC=gcc
 export FC=gfortran
 export F77=gfortran
+export F90=gfortran
 export CXX=g++
 export CFLAGS="-O2 -g -Wno-error"
 export FFLAGS="-O2 -g -Wno-error"
 export FCFLAGS="-O2 -g -Wno-error"
+export F90FLAGS="-O2 -g -Wno-error"
+export F77FLAGS="-O2 -g -Wno-error"
 export CXXFLAGS="-O2 -g -Wno-error"
 
 echo "==================== Installing binutils ================="
@@ -454,6 +457,8 @@ mkdir -p ${INSTALLDIR}/arch
 WFLAGS="-Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable -Wunused-variable -Wconversion -Werror"
 DEBFLAGS="-fcheck=bounds,do,recursion,pointer -fsanitize=leak"
 BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1"
+PARAFLAGS="-D__parallel -D__SCALAPACK -D__LIBPEXSI -D__MPI_VERSION=3"
+CUDAFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA"
 OPTFLAGS="-O3 -march=native -ffast-math \$(PROFOPT)"
 DFLAGS="-D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
 CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1"
@@ -471,7 +476,7 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__parallel -D__SCALAPACK -D__LIBPEXSI
+DFLAGS   = ${DFLAGS} ${PARAFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
@@ -485,7 +490,7 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__parallel -D__SCALAPACK -D__LIBPEXSI
+DFLAGS   = ${DFLAGS} ${PARAFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
@@ -499,7 +504,7 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__parallel -D__SCALAPACK -D__LIBPEXSI
+DFLAGS   = ${DFLAGS} ${PARAFLAGS}
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
@@ -569,7 +574,7 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS}  -D__parallel -D__SCALAPACK -D__LIBPEXSI
+DFLAGS   = ${DFLAGS} ${PARAFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} -O3 \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
@@ -584,7 +589,7 @@ FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__ACC -D__DBCSR_ACC -D__PW_CUDA -D__parallel -D__SCALAPACK -D__LIBPEXSI
+DFLAGS   = ${DFLAGS} ${CUDAFLAGS} ${PARAFLAGS}
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
@@ -600,7 +605,7 @@ FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} -D__ACC -D__DBCSR_ACC -D__PW_CUDA
+DFLAGS   = ${DFLAGS} ${CUDAFLAGS}
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
