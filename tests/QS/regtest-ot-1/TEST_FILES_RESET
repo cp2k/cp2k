@@ -746,3 +746,5 @@ new defaults for preconditioner
 H2O-inverse_up.inp
 # new filtering thrsholds
 H2O-inverse_up.inp
+#improve Hotelling
+H2O-inverse_up.inp

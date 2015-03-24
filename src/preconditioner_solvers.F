@@ -104,7 +104,7 @@ CONTAINS
           occ_matrix=cp_dbcsr_get_occupation(preconditioner_env%sparse_matrix)
        END IF
        ! check whether we are in the first step and if it is a good idea to use cholesky (matrix sparsity)
-       IF(preconditioner_env%solver.NE.ot_precond_solver_update.AND.occ_matrix>0.01_dp)THEN
+       IF(preconditioner_env%solver.NE.ot_precond_solver_update.AND.occ_matrix>0.5_dp)THEN
           preconditioner_env%solver=ot_precond_solver_update
           CALL make_full_inverse_cholesky(preconditioner_env, matrix_s, my_mixed_precision, error=error)
        ELSE

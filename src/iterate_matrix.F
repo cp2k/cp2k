@@ -76,10 +76,10 @@ CONTAINS
     INTEGER                                  :: handle, i, nrow, unit_nr
     INTEGER(KIND=int_8)                      :: flop1, flop2
     LOGICAL                                  :: use_inv_guess
-    REAL(KIND=dp) :: convergence, frob_matrix, gershgorin_norm, max_abs_eig, &
+    REAL(KIND=dp) :: convergence, frob_matrix, gershgorin_norm, &
       max_ev, maxnorm_matrix, min_ev, occ_matrix, t1, t2
-    TYPE(cp_dbcsr_p_type), DIMENSION(2)      :: mymat
-    TYPE(cp_dbcsr_type)                      :: tmp1, tmp2
+    TYPE(cp_dbcsr_p_type), DIMENSION(1)      :: mymat
+    TYPE(cp_dbcsr_type), TARGET              :: tmp1, tmp2
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dbcsr_arnoldi_data)                 :: my_arnoldi
 
@@ -104,7 +104,7 @@ CONTAINS
        gershgorin_norm=cp_dbcsr_gershgorin_norm(matrix)
        frob_matrix=cp_dbcsr_frobenius_norm(matrix)
        CALL cp_dbcsr_set(matrix_inverse,0.0_dp,error=error)
-       CALL cp_dbcsr_add_on_diag(matrix_inverse,1.0_dp,error=error) 
+       CALL cp_dbcsr_add_on_diag(matrix_inverse,1.0_dp,error=error)
       ! everything commutes, therefor our all products will be symmetric 
        CALL cp_dbcsr_init(tmp1,error=error)
        CALL cp_dbcsr_create(tmp1,template=matrix_inverse,error=error)
@@ -123,28 +123,27 @@ CONTAINS
     IF (unit_nr>0) WRITE(unit_nr,*)
 
     ! scale the approximate inverse to be within the convergence radius
-    mymat(1)%matrix=>matrix
-    mymat(2)%matrix=>matrix_inverse
-    CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-2_dp,selection_crit=1, &
+    t1 = m_walltime()
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix,&
+                           0.0_dp, tmp1,flop=flop1, filter_eps=filter_eps, error=error)
+
+    mymat(1)%matrix=>tmp1
+    CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-3_dp,selection_crit=1, &
                                      nval_request=2, nrestarts=2, generalized_ev=.FALSE.,iram=.TRUE.)
     CALL cp_dbcsr_arnoldi_ev(mymat,my_arnoldi,error)
     max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
     min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
-    max_abs_eig=MAX(max_eV,ABS(min_eV))
-    IF(ABS(min_ev).GT.max_ev)max_abs_eig=min_ev
     CALL deallocate_arnoldi_data(my_arnoldi)
-    IF(max_abs_eig.gt.1.9_dp)THEN
-       occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
-       IF (unit_nr>0)WRITE(unit_nr,*)'scaling with',max_abs_eig, occ_matrix
-       CALL cp_dbcsr_scale(matrix_inverse,1.9_dp/max_abs_eig,error=error)
-    END IF
+
+    occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
+    ! 2.0 would be the correct scaling howver, we should make sure here, that we are in the convergence radius
+    CALL cp_dbcsr_scale(tmp1,1.9_dp/(min_ev+max_ev),error=error)
+    CALL cp_dbcsr_scale(matrix_inverse,1.9_dp/(min_ev+max_ev),error=error)
+    min_ev=min_ev*1.9_dp/(min_ev+max_ev)
 
     DO i=1,100
-      
-       t1 = m_walltime()
+
        ! tmp1 = S^-1 S
-       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix,&
-                              0.0_dp, tmp1,flop=flop1, filter_eps=filter_eps, error=error)
 
        ! for the convergence check
        !frob_matrix_base=cp_dbcsr_frobenius_norm(tmp1)
@@ -166,19 +165,9 @@ CONTAINS
        t2 = m_walltime()
        occ_matrix=cp_dbcsr_get_occupation(matrix_inverse)
 
-       !use the eigenvalues of the matrix to check conevrgence
-       IF(PRESENT(norm_convergence))THEN
-          mymat(1)%matrix=>matrix
-          mymat(2)%matrix=>matrix_inverse
-          CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,mymat,max_iter=30,threshold=1.0E-2_dp,selection_crit=1,&
-                                           nval_request=2,nrestarts=2,generalized_ev=.FALSE.,iram=.TRUE.)
-          CALL cp_dbcsr_arnoldi_ev(mymat,my_arnoldi,error)
-          max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
-          min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
-          max_abs_eig=MAX(max_eV-1.0_dp,ABS(min_eV-1.0_dp))
-          maxnorm_matrix=max_abs_eig
-          CALL deallocate_arnoldi_data(my_arnoldi)
-       END IF
+       ! use the scalar form of the algorithm to trace the EV
+       min_ev=min_ev*(2.0_dp-min_ev)
+       IF(PRESENT(norm_convergence))maxnorm_matrix=ABS(min_eV-1.0_dp)
 
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)')  "Hotelling iter",i,occ_matrix, &
@@ -187,12 +176,15 @@ CONTAINS
           CALL m_flush(unit_nr)
        ENDIF
 
-       IF(PRESENT(norm_convergence))THEN
-          IF( ABS(max_abs_eig) .LT. norm_convergence)EXIT
-       ELSE
-!       ! use max_norm 
-          IF (maxnorm_matrix<convergence) EXIT 
-       END IF
+       IF (maxnorm_matrix<convergence) EXIT
+
+       ! scale the matrix for improved convergence
+       min_ev=min_ev*2.0_dp/(min_ev+1.0_dp)
+       CALL cp_dbcsr_scale(matrix_inverse,2.0_dp/(min_ev+1.0_dp),error=error)
+
+       t1 = m_walltime()
+       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_inverse, matrix,&
+                              0.0_dp, tmp1,flop=flop1, filter_eps=filter_eps, error=error)
 
     ENDDO
 
