@@ -16,18 +16,16 @@
 MODULE qs_scf_block_davidson
 
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_create_bl_distribution, cp_dbcsr_add, &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_get_diag, cp_dbcsr_get_info, cp_dbcsr_init_p, &
-       cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_release_p, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale_by_vector, cp_dbcsr_type, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_norm_column, dbcsr_type_no_symmetry, dbcsr_type_real_default, &
-       dbcsr_type_symmetric
+       cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_diag, &
+       cp_dbcsr_get_info, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_norm, &
+       cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale_by_vector, cp_dbcsr_type, dbcsr_norm_column, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_default, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
+                                             cp_dbcsr_m_by_n_from_row_template,&
+                                             cp_dbcsr_m_by_n_from_template,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_scale_and_add,&
@@ -597,15 +595,12 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eig_not_conv, evals, &
                                                 ritz_coeff, vnorm
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
-                                                row_blk_size, row_dist
     TYPE(cp_dbcsr_type), POINTER :: c_out, matrix_hc, matrix_mm, matrix_pz, &
       matrix_sc, matrix_z, mo_coeff_b, mo_conv, mo_notconv, smo_conv
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER :: h_block, matrix_mm_fm, matrix_mmt_fm, &
       matrix_nm_fm, matrix_z_fm, mo_coeff, mo_conv_fm, mo_notconv_fm, &
       s_block, v_block, w_block
-    TYPE(dbcsr_distribution_obj)             :: dist
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -664,20 +659,10 @@ CONTAINS
       ritz_coeff=0.0_dp
       ! Allocate Sparse matrices: nmoxnmo
       ! matrix_mm
-      CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo, &
-            dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_b))))
-      CALL cp_create_bl_distribution (row_dist, row_blk_size, nmo, &
-            dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_b))))
-      CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_b)),&
-            row_dist,col_dist)
+
       CALL cp_dbcsr_init_p(matrix_mm,error=error)
-      CALL cp_dbcsr_create(matrix_mm,"matrix_mm",dist,dbcsr_type_no_symmetry,&
-           row_blk_size,col_blk_size,0,0,dbcsr_type_real_default,error=error)
-      CALL cp_dbcsr_distribution_release (dist)
-      CALL array_release (col_blk_size)
-      CALL array_release (col_dist)
-      CALL array_release (row_blk_size)
-      CALL array_release (row_dist)
+      CALL cp_dbcsr_m_by_n_from_template(matrix_mm,template=matrix_s,m=nmo,n=nmo,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
 
       CALL cp_dbcsr_multiply('t','n',1.0_dp,mo_coeff_b,matrix_hc,0.0_dp,matrix_mm, last_column=k, error=error)
@@ -811,21 +796,15 @@ CONTAINS
              cp_dbcsr_col_block_sizes(matrix_s),0,0,dbcsr_type_real_default,error=error)
 
         ! allocate mo_conv sparse
-        CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo_converged, &
-              dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s))))
-        CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s)),&
-              dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_s)),col_dist)
         CALL cp_dbcsr_init_p(mo_conv,error=error)
-        CALL cp_dbcsr_create(mo_conv,"mo_conv",dist,dbcsr_type_no_symmetry,&
-              cp_dbcsr_row_block_sizes(matrix_s),col_blk_size,0,0,dbcsr_type_real_default,error=error)
+        CALL cp_dbcsr_m_by_n_from_row_template(mo_conv,template=matrix_s,n=nmo_converged,&
+                                               sym=dbcsr_type_no_symmetry, error=error)
+
         CALL cp_dbcsr_init_p(smo_conv,error=error)
-        CALL cp_dbcsr_create(smo_conv,"smo_conv",dist,dbcsr_type_no_symmetry,&
-              cp_dbcsr_row_block_sizes(matrix_s),col_blk_size,0,0,dbcsr_type_real_default,error=error)
+        CALL cp_dbcsr_m_by_n_from_row_template(smo_conv,template=matrix_s,n=nmo_converged,&
+                                               sym=dbcsr_type_no_symmetry, error=error)
 
         CALL copy_fm_to_dbcsr(mo_conv_fm,mo_conv,error=error)!fm->dbcsr
-        CALL cp_dbcsr_distribution_release (dist)
-        CALL array_release (col_blk_size)
-        CALL array_release (col_dist)
 
         CALL cp_dbcsr_multiply('n','n',1.0_dp,matrix_s,mo_conv,0.0_dp,smo_conv,last_column=nmo_converged,error=error)
         CALL cp_dbcsr_multiply('n','t',1.0_dp,smo_conv,smo_conv,0.0_dp,c_out,last_column=nao,error=error)
@@ -860,31 +839,23 @@ CONTAINS
         END DO
 
         ! allocate mo_conv sparse
-        CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo_not_converged, &
-              dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s))))
-        CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s)),&
-              dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_s)),col_dist)
         CALL cp_dbcsr_init_p(mo_notconv,error=error)
-        CALL cp_dbcsr_create(mo_notconv,"mo_notconv",dist,dbcsr_type_no_symmetry,&
-              cp_dbcsr_row_block_sizes(matrix_s),col_blk_size,0,0,dbcsr_type_real_default,error=error)
+        CALL cp_dbcsr_m_by_n_from_row_template(mo_notconv,template=matrix_s,n=nmo_not_converged,&
+                                               sym=dbcsr_type_no_symmetry, error=error)
 
         CALL cp_dbcsr_init_p(matrix_hc,error=error)
-        CALL cp_dbcsr_create(matrix_hc,"matrix_hc",dist,dbcsr_type_no_symmetry,&
-              cp_dbcsr_row_block_sizes(matrix_s),col_blk_size,0,0,dbcsr_type_real_default,error=error)
+        CALL cp_dbcsr_m_by_n_from_row_template(matrix_hc,template=matrix_s,n=nmo_not_converged,&
+                                               sym=dbcsr_type_no_symmetry, error=error)
 
         CALL cp_dbcsr_init_p(matrix_sc,error=error)
-        CALL cp_dbcsr_create(matrix_sc,"matrix_sc",dist,dbcsr_type_no_symmetry,&
-              cp_dbcsr_row_block_sizes(matrix_s),col_blk_size,0,0,dbcsr_type_real_default,error=error)
+        CALL cp_dbcsr_m_by_n_from_row_template(matrix_sc,template=matrix_s,n=nmo_not_converged,&
+                                               sym=dbcsr_type_no_symmetry, error=error)
 
         CALL cp_dbcsr_init_p(matrix_z,error=error)
-        CALL cp_dbcsr_create(matrix_z,"matrix_z",dist,dbcsr_type_no_symmetry,&
-              cp_dbcsr_row_block_sizes(matrix_s),col_blk_size,0,0,dbcsr_type_real_default,error=error)
+        CALL cp_dbcsr_m_by_n_from_row_template(matrix_z,template=matrix_s,n=nmo_not_converged,&
+                                               sym=dbcsr_type_no_symmetry, error=error)
 
         CALL copy_fm_to_dbcsr(mo_notconv_fm,mo_notconv,error=error)!fm->dbcsr
-        CALL cp_dbcsr_distribution_release (dist)
-        CALL array_release (col_blk_size)
-        CALL array_release (col_dist)
-
 
         CALL cp_dbcsr_multiply('n','n',1.0_dp,c_out,mo_notconv,0.0_dp,matrix_hc,&
              last_column=nmo_not_converged,error=error)
@@ -900,20 +871,9 @@ CONTAINS
 
 
         ! matrix_mm
-        CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo_not_converged, &
-              dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s))))
-        CALL cp_create_bl_distribution (row_dist, row_blk_size, nmo_not_converged, &
-              dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s))))
-        CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s)),&
-              row_dist,col_dist)
         CALL cp_dbcsr_init_p(matrix_mm,error=error)
-        CALL cp_dbcsr_create(matrix_mm,"matrix_mm",dist,dbcsr_type_no_symmetry,&
-             row_blk_size,col_blk_size,0,0,dbcsr_type_real_default,error=error)
-        CALL cp_dbcsr_distribution_release (dist)
-        CALL array_release (col_blk_size)
-        CALL array_release (col_dist)
-        CALL array_release (row_blk_size)
-        CALL array_release (row_dist)
+        CALL cp_dbcsr_m_by_n_from_template (matrix_mm,template=matrix_s,m=nmo_not_converged,n=nmo_not_converged,&
+                                          sym=dbcsr_type_no_symmetry,error=error)       
 
         CALL cp_dbcsr_multiply('t','n',1.0_dp,mo_notconv,matrix_hc,0.0_dp,matrix_mm,&
              last_column=nmo_not_converged, error=error)

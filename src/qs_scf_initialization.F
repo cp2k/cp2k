@@ -9,15 +9,12 @@
 MODULE qs_scf_initialization
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_create_bl_distribution, &
        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_init_p, cp_dbcsr_p_type, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_default
+       cp_dbcsr_init_p, cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
+                                             cp_dbcsr_m_by_n_from_row_template,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_dbcsr_output,                 ONLY: write_fm_with_basis_info
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
@@ -466,7 +463,6 @@ CONTAINS
     INTEGER                                  :: handle, ic, ik, ikk, ispin, &
                                                 nmo, nmo_mat
     LOGICAL                                  :: failure
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -478,7 +474,6 @@ CONTAINS
       POINTER                                :: ao_mo_fm_pools, &
                                                 ao_mo_fm_pools_aux_fit
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_aux_fit
-    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -523,17 +518,9 @@ CONTAINS
           END IF
           IF(.not.ASSOCIATED(mo_coeff_b)) THEN
              CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff,ncol_global=nmo,error=error)
-             CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo, &! fm->dbcsr
-                  dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s(1,1)%matrix))))! fm->dbcsr
-             CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s(1,1)%matrix)),&! fm->dbcsr
-                  dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_s(1,1)%matrix)), col_dist)! fm->dbcsr
              CALL cp_dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b,error=error)
-             CALL cp_dbcsr_create(mos(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_no_symmetry,&! fm->dbcsr
-                  cp_dbcsr_row_block_sizes(matrix_s(1,1)%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&!fm->dbcsr
-                  error=error)! fm->dbcsr
-             CALL cp_dbcsr_distribution_release (dist)! fm->dbcsr
-             CALL array_release (col_blk_size)! fm->dbcsr
-             CALL array_release (col_dist)! fm->dbcsr
+             CALL cp_dbcsr_m_by_n_from_row_template(mos(ispin)%mo_set%mo_coeff_b,template=matrix_s(1,1)%matrix,n=nmo,&
+                                                    sym=dbcsr_type_no_symmetry, error=error)
           ENDIF
        END DO
     END IF

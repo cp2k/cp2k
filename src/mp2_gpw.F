@@ -19,19 +19,18 @@ MODULE mp2_gpw
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
        array_i1d_obj, array_new, array_nullify, array_release, &
-       cp_create_bl_distribution, cp_dbcsr_clear_mempools, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
-       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_reserve_all_blocks, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
+       cp_dbcsr_clear_mempools, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_get_info, &
+       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_all_blocks, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_obj, &
        dbcsr_type_no_symmetry, dbcsr_type_real_default, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             cp_dbcsr_dist2d_to_dist
+                                             cp_dbcsr_dist2d_to_dist,&
+                                             cp_dbcsr_m_by_n_from_row_template,&
+                                             cp_dbcsr_m_by_n_from_template
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -882,8 +881,6 @@ MODULE mp2_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C, BIb_Ex, BIb_send
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
-                                                row_blk_size, row_dist
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type)                      :: matrix_ia_jb, &
                                                 matrix_ia_jb_beta, &
@@ -892,7 +889,6 @@ MODULE mp2_gpw
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_BIb_jb
     TYPE(cp_para_env_type), POINTER          :: para_env_exchange
-    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(pw_p_type)                          :: psi_a
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: psi_i
@@ -912,20 +908,9 @@ MODULE mp2_gpw
     CALL cp_dbcsr_create(matrix_ia_jnu,template=mo_coeff_o,error=error_sub)
 
     ! Allocate Sparse matrices: (ia|jb)
-    CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo-homo, &
-          dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_v))))
-    CALL cp_create_bl_distribution (row_dist, row_blk_size, homo, &
-          dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_o))))
-    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_o)),&
-          row_dist,col_dist)
     CALL cp_dbcsr_init(matrix_ia_jb,error=error_sub)
-    CALL cp_dbcsr_create(matrix_ia_jb,"matrix_ia_jb",dist,dbcsr_type_no_symmetry,&
-         row_blk_size,col_blk_size,0,0,dbcsr_type_real_default,error=error_sub)
-    CALL cp_dbcsr_distribution_release (dist)
-    CALL array_release (col_blk_size)
-    CALL array_release (col_dist)
-    CALL array_release (row_blk_size)
-    CALL array_release (row_dist)
+    CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb,template=mo_coeff_o,m=homo,n=nmo-homo,&
+                                       sym=dbcsr_type_no_symmetry,error=error_sub)
 
     ! set all to zero in such a way that the memory is actually allocated
     CALL cp_dbcsr_set(matrix_ia_jnu,0.0_dp,error=error_sub)
@@ -971,20 +956,10 @@ MODULE mp2_gpw
       CALL cp_dbcsr_create(matrix_ia_jnu_beta,template=mo_coeff_o_beta,error=error_sub)
 
       ! Allocate Sparse matrices: (ia|jb)
-      CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo-homo_beta, &
-            dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_v_beta))))
-      CALL cp_create_bl_distribution (row_dist, row_blk_size, homo_beta, &
-            dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_o_beta))))
-      CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_o_beta)),&
-            row_dist,col_dist)
       CALL cp_dbcsr_init(matrix_ia_jb_beta,error=error_sub)
-      CALL cp_dbcsr_create(matrix_ia_jb_beta,"matrix_ia_jb_beta",dist,dbcsr_type_no_symmetry,&
-           row_blk_size,col_blk_size,0,0,dbcsr_type_real_default,error=error_sub)
-      CALL cp_dbcsr_distribution_release (dist)
-      CALL array_release (col_blk_size)
-      CALL array_release (col_dist)
-      CALL array_release (row_blk_size)
-      CALL array_release (row_dist)
+      CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb_beta,template=mo_coeff_o_beta,m=homo_beta,n=nmo-homo_beta,&
+                                         sym=dbcsr_type_no_symmetry,error=error_sub)
+
       virtual_beta=nmo-homo_beta
 
       CALL cp_dbcsr_set(matrix_ia_jnu_beta,0.0_dp,error=error_sub)
@@ -1636,10 +1611,8 @@ MODULE mp2_gpw
       DIMENSION(:, :)                        :: C, Cocc, Cvirt, rec_C
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block, local_C, &
                                                 local_C_internal
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_coeff
-    TYPE(dbcsr_distribution_obj)             :: dist
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -1798,18 +1771,11 @@ MODULE mp2_gpw
     DEALLOCATE(C)
 
     ! the occupied
-    CALL cp_create_bl_distribution (col_dist, col_blk_size, homo, &
-         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mat_munu%matrix))))
-    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(mat_munu%matrix)),&
-         dbcsr_distribution_row_dist(cp_dbcsr_distribution(mat_munu%matrix)), col_dist)
+
     NULLIFY(mo_coeff_o)
     CALL cp_dbcsr_init_p(mo_coeff_o,error=error_sub)
-    CALL cp_dbcsr_create(mo_coeff_o, "mo_coeff_o", dist, dbcsr_type_no_symmetry,&
-         cp_dbcsr_row_block_sizes(mat_munu%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&
-         error=error_sub)
-    CALL cp_dbcsr_distribution_release (dist)
-    CALL array_release (col_blk_size)
-    CALL array_release (col_dist)
+    CALL cp_dbcsr_m_by_n_from_row_template(mo_coeff_o,template=mat_munu%matrix,n=homo,&
+                                           sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_default, error=error)
     CALL cp_dbcsr_reserve_all_blocks(mo_coeff_o,error)
 
     ! accumulate data on mo_coeff_o starting from myself
@@ -1872,19 +1838,12 @@ MODULE mp2_gpw
 
     DEALLOCATE(Cocc)
 
-    ! the virtual
-    CALL cp_create_bl_distribution (col_dist, col_blk_size, virtual, &
-         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mat_munu%matrix))))
-    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(mat_munu%matrix)),&
-         dbcsr_distribution_row_dist(cp_dbcsr_distribution(mat_munu%matrix)), col_dist)
+!    ! the virtual
+
     NULLIFY(mo_coeff_v)
     CALL cp_dbcsr_init_p(mo_coeff_v,error=error_sub)
-    CALL cp_dbcsr_create(mo_coeff_v, "mo_coeff_v", dist, dbcsr_type_no_symmetry,&
-         cp_dbcsr_row_block_sizes(mat_munu%matrix), col_blk_size, 0, 0, dbcsr_type_real_default,&
-         error=error_sub)
-    CALL cp_dbcsr_distribution_release (dist)
-    CALL array_release (col_blk_size)
-    CALL array_release (col_dist)
+    CALL cp_dbcsr_m_by_n_from_row_template(mo_coeff_v,template=mat_munu%matrix,n=virtual,&
+                                           sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_default, error=error)
     CALL cp_dbcsr_reserve_all_blocks(mo_coeff_v,error)
 
     ! accumulate data on mo_coeff_v starting from myself

@@ -576,9 +576,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cluster_list, cluster_prices, &
                                                 nparticle_local_col, &
                                                 nparticle_local_row, work
-    INTEGER, DIMENSION(:), POINTER :: cluster_col_distribution, &
-      cluster_row_distribution, col_distribution, lmax_basis, molecule_list, &
-      row_distribution
+    INTEGER, DIMENSION(:), POINTER :: lmax_basis, molecule_list
+    INTEGER, DIMENSION(:,:), POINTER :: row_distribution, col_distribution, cluster_col_distribution, cluster_row_distribution
     LOGICAL :: basic_cluster_optimization, basic_optimization, &
       basic_spatial_optimization, failure, molecular_distribution, &
       skip_optimization
@@ -628,20 +627,23 @@ CONTAINS
     ! we need to generate two representations of the distribution, one as a straight array with global particles
     ! one ordered wrt to kinds and only listing the local particles
     !
-    ALLOCATE (row_distribution(natom), STAT=istat)
+    ALLOCATE (row_distribution(natom,2), STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
                                      "row_distribution", natom*int_size)
 
-    ALLOCATE (col_distribution(natom), STAT=istat)
+    ALLOCATE (col_distribution(natom,2), STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
                                      "col_distribution", natom*int_size)
-
-    ALLOCATE (local_particle_row(nparticle_kind), STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
-                                     "local_particle_row", &
-                                     nparticle_kind*int_size)
+    ! Initialize the distributions to -1, as the second dimension only gets set with cluster optimization
+    ! but the information is needed by dbcsr
+    row_distribution=-1; col_distribution=-1
 
     ALLOCATE (local_particle_col(nparticle_kind), STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
+                                     "local_particle_col", &
+                                     nparticle_kind*int_size)
+
+    ALLOCATE (local_particle_row(nparticle_kind), STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
                                      "local_particle_col", &
                                      nparticle_kind*int_size)
@@ -670,12 +672,13 @@ CONTAINS
        ALLOCATE (cluster_prices (nclusters), stat=istat)
        IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
             "cluster_prices", nclusters*int_size)
-       ALLOCATE (cluster_row_distribution (nclusters), stat=istat)
+       ALLOCATE (cluster_row_distribution (nclusters,2), stat=istat)
        IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
             "cluster_prices", nclusters*int_size)
-       ALLOCATE (cluster_col_distribution (nclusters), stat=istat)
+       ALLOCATE (cluster_col_distribution (nclusters,2), stat=istat)
        IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
             "cluster_prices", nclusters*int_size)
+       cluster_row_distribution=-1; cluster_col_distribution=-1
 
 
        ! Fill in the clusters and their prices
@@ -735,7 +738,7 @@ CONTAINS
        ! And distribute
        IF (basic_optimization) THEN
           CALL make_basic_distribution (cluster_list, cluster_prices, &
-               nprow, cluster_row_distribution, npcol, cluster_col_distribution, error=error)
+               nprow, cluster_row_distribution(:,1), npcol, cluster_col_distribution(:,1), error=error)
        ELSE
           IF(basic_cluster_optimization)THEN
           CALL cp_assert(.NOT. molecular_distribution,cp_failure_level,cp_assertion_failed,&
@@ -776,7 +779,7 @@ CONTAINS
              ENDIF
    
              CALL make_basic_spatial_distribution (pbc_scaled_coords, cluster_prices, &
-                            nprow, cluster_row_distribution, npcol, cluster_col_distribution, error)
+                            nprow, cluster_row_distribution(:,1), npcol, cluster_col_distribution(:,1), error)
    
              DEALLOCATE(pbc_scaled_coords)
           END IF
@@ -795,8 +798,8 @@ CONTAINS
                 imol = imol + 1
                 DO iatom_mol=1, natom_mol
                    iatom = molecule_set(molecule_list(imolecule))%first_atom + iatom_mol - 1
-                   row_distribution(iatom) = cluster_row_distribution(imol)
-                   col_distribution(iatom) = cluster_col_distribution(imol)
+                   row_distribution(iatom,:) = cluster_row_distribution(imol,:)
+                   col_distribution(iatom,:) = cluster_col_distribution(imol,:)
                 ENDDO
              ENDDO
           ENDDO
@@ -829,8 +832,8 @@ CONTAINS
     nparticle_local_row=0
     DO iatom=1, natom
        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, kind_number=kind_a)
-       IF (row_distribution(iatom)==myprow) nparticle_local_row(kind_a)=nparticle_local_row(kind_a)+1
-       IF (col_distribution(iatom)==mypcol) nparticle_local_col(kind_a)=nparticle_local_col(kind_a)+1
+       IF (row_distribution(iatom,1)==myprow) nparticle_local_row(kind_a)=nparticle_local_row(kind_a)+1
+       IF (col_distribution(iatom,1)==mypcol) nparticle_local_col(kind_a)=nparticle_local_col(kind_a)+1
     ENDDO
 
     ! allocate space
@@ -851,19 +854,19 @@ CONTAINS
     nparticle_local_row=0
     DO iatom=1, natom
        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, kind_number=kind_a)
-       IF (row_distribution(iatom)==myprow) THEN
+       IF (row_distribution(iatom,1)==myprow) THEN
            nparticle_local_row(kind_a)=nparticle_local_row(kind_a)+1
            local_particle_row(kind_a)%array(nparticle_local_row(kind_a)) = iatom
        ENDIF
-       IF (col_distribution(iatom)==mypcol) THEN
+       IF (col_distribution(iatom,1)==mypcol) THEN
            nparticle_local_col(kind_a)=nparticle_local_col(kind_a)+1
            local_particle_col(kind_a)%array(nparticle_local_col(kind_a)) = iatom
        ENDIF
     ENDDO
 
 !   *** Generate the 2d distribution structure  but take care of the zero offsets required
-    row_distribution = row_distribution - 1
-    col_distribution = col_distribution - 1
+    row_distribution(:,1) = row_distribution(:,1) - 1
+    col_distribution(:,1) = col_distribution(:,1) - 1
     CALL distribution_2d_create(distribution_2d, &
                                 row_distribution_ptr=row_distribution, &
                                 col_distribution_ptr=col_distribution, &
@@ -1188,9 +1191,9 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, DIMENSION(:), INTENT(IN)        :: costs
     INTEGER, INTENT(IN)                      :: nprows
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: row_distribution
+    INTEGER, DIMENSION(:,:), INTENT(OUT)     :: row_distribution
     INTEGER, INTENT(IN)                      :: npcols
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: col_distribution
+    INTEGER, DIMENSION(:,:), INTENT(OUT)     :: col_distribution
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_cluster_distribution', &
@@ -1226,8 +1229,10 @@ CONTAINS
     CALL assign_clusters(cluster_cost,piv_cost,proc_cost,cluster_to_col,npcols)
 
     DO i=1,natom
-       row_distribution(i)=cluster_to_row(atom_to_cluster(i))
-       col_distribution(i)=cluster_to_col(atom_to_cluster(i))
+       row_distribution(i,1)=cluster_to_row(atom_to_cluster(i))
+       row_distribution(i,2)=atom_to_cluster(i)
+       col_distribution(i,1)=cluster_to_col(atom_to_cluster(i))
+       col_distribution(i,2)=atom_to_cluster(i)
     END DO
 
     DEALLOCATE(atom_to_cluster,cluster_cost,cluster_to_row,cluster_to_col,sorted_cost,piv_cost,proc_cost)

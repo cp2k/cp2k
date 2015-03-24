@@ -22,13 +22,11 @@ MODULE mp2_ri_gpw
                                              cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_create_bl_distribution, &
-       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_type_no_symmetry, dbcsr_type_real_default
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+       cp_dbcsr_create, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_multiply, &
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_type_no_symmetry
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             cp_dbcsr_m_by_n_from_template
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_diag,                      ONLY: cp_fm_syevx
@@ -233,8 +231,6 @@ MODULE mp2_ri_gpw
                                                 pair_energy, wfn_size
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: my_Lrows
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
-                                                row_blk_size, row_dist
     TYPE(cp_dbcsr_type)                      :: matrix_ia_jb, &
                                                 matrix_ia_jb_beta, &
                                                 matrix_ia_jnu, &
@@ -243,7 +239,6 @@ MODULE mp2_ri_gpw
     TYPE(cp_fm_type), POINTER                :: fm_BIb_jb, fm_BIb_jb_beta, &
                                                 fm_matrix_L
     TYPE(cp_para_env_type), POINTER          :: para_env_L
-    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(pw_p_type)                          :: psi_L
 
     CALL timeset(routineN,handle)
@@ -265,20 +260,9 @@ MODULE mp2_ri_gpw
     CALL cp_dbcsr_create(matrix_ia_jnu,template=mo_coeff_o,error=error_sub)
 
     ! Allocate Sparse matrices: (K|jb)
-    CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo-homo, &
-          dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_v))))
-    CALL cp_create_bl_distribution (row_dist, row_blk_size, homo, &
-          dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_o))))
-    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_o)),&
-          row_dist,col_dist)
     CALL cp_dbcsr_init(matrix_ia_jb,error=error_sub)
-    CALL cp_dbcsr_create(matrix_ia_jb,"matrix_ia_jb",dist,dbcsr_type_no_symmetry,&
-         row_blk_size,col_blk_size,0,0,dbcsr_type_real_default,error=error_sub)
-    CALL cp_dbcsr_distribution_release (dist)
-    CALL array_release (col_blk_size)
-    CALL array_release (col_dist)
-    CALL array_release (row_blk_size)
-    CALL array_release (row_dist)
+    CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb,template=mo_coeff_o,m=homo,n=nmo-homo,&
+                                       sym=dbcsr_type_no_symmetry,error=error)
 
     ! set all to zero in such a way that the memory is actually allocated
     CALL cp_dbcsr_set(matrix_ia_jnu,0.0_dp,error=error_sub)
@@ -323,20 +307,9 @@ MODULE mp2_ri_gpw
       CALL cp_dbcsr_create(matrix_ia_jnu_beta,template=mo_coeff_o_beta,error=error_sub)
 
       ! Allocate Sparse matrices: (K|jb)
-      CALL cp_create_bl_distribution (col_dist, col_blk_size, nmo-homo_beta, &
-            dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_v_beta))))
-      CALL cp_create_bl_distribution (row_dist, row_blk_size, homo_beta, &
-            dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_o_beta))))
-      CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp(cp_dbcsr_distribution(mo_coeff_o_beta)),&
-            row_dist,col_dist)
       CALL cp_dbcsr_init(matrix_ia_jb_beta,error=error_sub)
-      CALL cp_dbcsr_create(matrix_ia_jb_beta,"matrix_ia_jb_beta",dist,dbcsr_type_no_symmetry,&
-           row_blk_size,col_blk_size,0,0,dbcsr_type_real_default,error=error_sub)
-      CALL cp_dbcsr_distribution_release (dist)
-      CALL array_release (col_blk_size)
-      CALL array_release (col_dist)
-      CALL array_release (row_blk_size)
-      CALL array_release (row_dist)
+      CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb_beta,template=mo_coeff_o,m=homo_beta,n=nmo-homo_beta,&
+                                         sym=dbcsr_type_no_symmetry,error=error)
       virtual_beta=nmo-homo_beta
 
       CALL cp_dbcsr_set(matrix_ia_jnu_beta,0.0_dp,error=error_sub)

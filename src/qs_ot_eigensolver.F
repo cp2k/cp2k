@@ -12,17 +12,13 @@ MODULE qs_ot_eigensolver
   USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                              cp_dbcsr_cholesky_invert
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_create_bl_distribution, &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_init_p, cp_dbcsr_multiply, &
-       cp_dbcsr_p_type, cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_default
+       cp_dbcsr_copy, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_release_p, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, &
+       cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                             copy_fm_to_dbcsr,&
-                                             cp_dbcsr_copy_columns_hack
+                                             cp_dbcsr_copy_columns_hack,&
+                                             cp_dbcsr_m_by_n_from_template,&
+                                             cp_fm_to_dbcsr_row_template
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
   USE kinds,                           ONLY: dp
@@ -99,14 +95,11 @@ CONTAINS
                                                 ortho_space_k, output_unit
     LOGICAL                                  :: energy_only, my_silent, ortho
     REAL(KIND=dp)                            :: delta, energy
-    TYPE(array_i1d_obj) :: col_blk_size, col_blk_size_o, col_dist, &
-      col_dist_o, row_blk_size, row_blk_size_o, row_dist, row_dist_o
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_hc
     TYPE(cp_dbcsr_type), POINTER :: matrix_buf1_ortho, matrix_buf2_ortho, &
       matrix_c, matrix_orthogonal_space, matrix_os_ortho, matrix_s_ortho
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_distribution_obj)             :: dist, dist_o_o
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
     CALL timeset(routineN,handle)
@@ -122,21 +115,11 @@ CONTAINS
 
 
     NULLIFY(matrix_c)! fm->dbcsr
+    !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXx
+
     CALL cp_fm_get_info(matrix_c_fm, nrow_global=n, ncol_global=k,error=error)! fm->dbcsr
-    CALL cp_create_bl_distribution (col_dist, col_blk_size, k, &! fm->dbcsr
-         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_h))))! fm->dbcsr
-    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_h)),&! fm->dbcsr
-         dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_h)), col_dist)! fm->dbcsr
-    CALL array_release (col_dist)! fm->dbcsr
-
-    CALL cp_dbcsr_init_p(matrix_c, error=error)! fm->dbcsr
-    CALL cp_dbcsr_create(matrix_c, "matrix_c", dist, dbcsr_type_no_symmetry,&! fm->dbcsr
-         cp_dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, error=error)! fm->dbcsr
-
-    CALL copy_fm_to_dbcsr(matrix_c_fm,matrix_c, error=error)! fm->dbcsr
-
-    CALL cp_dbcsr_distribution_release (dist)! fm->dbcsr! fm->dbcsr
-    CALL array_release (col_blk_size)
+    ALLOCATE(matrix_c)
+    CALL cp_fm_to_dbcsr_row_template(matrix_c,fm_in=matrix_c_fm,template=matrix_h,error=error)
 
     iter_total=0
 
@@ -169,23 +152,9 @@ CONTAINS
       END IF
 
       IF (ortho) THEN
+         ALLOCATE(matrix_orthogonal_space)
+         CALL cp_fm_to_dbcsr_row_template(matrix_orthogonal_space,fm_in=matrix_orthogonal_space_fm,template=matrix_h,error=error)
          CALL cp_fm_get_info(matrix_orthogonal_space_fm,ncol_global=ortho_space_k,error=error)
-
-         CALL cp_create_bl_distribution (col_dist, col_blk_size, ortho_space_k, &
-              dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_h))))
-         CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_h)),&
-              dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_h)), col_dist)
-         CALL array_release (col_dist)
-
-         CALL cp_dbcsr_init_p(matrix_orthogonal_space, error=error)
-         CALL cp_dbcsr_create(matrix_orthogonal_space, "matrix_orthogonal_space", dist, dbcsr_type_no_symmetry,&
-              cp_dbcsr_row_block_sizes(matrix_h), col_blk_size, 0, 0, dbcsr_type_real_default, error=error)
-
-         CALL copy_fm_to_dbcsr(matrix_orthogonal_space_fm,matrix_orthogonal_space, error=error)
-
-         CALL cp_dbcsr_distribution_release (dist)
-         CALL array_release (col_blk_size)
-
 
          IF (PRESENT(size_ortho_space)) ortho_space_k=size_ortho_space
          ortho_k=ortho_space_k+k
@@ -202,40 +171,17 @@ CONTAINS
          CALL cp_dbcsr_init_p(matrix_s_ortho, error=error)
          CALL cp_dbcsr_copy(matrix_s_ortho,matrix_orthogonal_space,name="matrix_s_ortho",error=error)
 
-         CALL cp_create_bl_distribution (col_dist_o, col_blk_size_o, ortho_space_k, &
-              dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_h))))
-         CALL cp_create_bl_distribution (row_dist_o, row_blk_size_o, ortho_space_k, &
-              dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_h))))
-         CALL cp_create_bl_distribution (row_dist, row_blk_size, k, &
-              dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_h))))
-         CALL cp_create_bl_distribution (col_dist, col_blk_size, k, &
-              dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_h))))
-         CALL dbcsr_distribution_new (dist_o_o, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_h)),&
-              row_dist_o, col_dist_o)
-         CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_h)),&
-              row_dist_o, col_dist)
-         CALL array_release(row_dist_o); CALL array_release(col_dist_o)
-         CALL array_release(row_dist); CALL array_release(col_dist)
-
          CALL cp_dbcsr_init_p(matrix_os_ortho, error=error)
-         CALL cp_dbcsr_create(matrix_os_ortho, "matrix_os_ortho", dist_o_o, dbcsr_type_no_symmetry,&
-              row_blk_size_o, col_blk_size_o, 0, 0, dbcsr_type_real_default,&
-              error=error)
+         CALL cp_dbcsr_m_by_n_from_template(matrix_os_ortho,template=matrix_h,m=ortho_space_k,n=ortho_space_k,&
+                                                sym=dbcsr_type_no_symmetry,error=error)
 
          CALL cp_dbcsr_init_p(matrix_buf1_ortho, error=error)
-         CALL cp_dbcsr_create(matrix_buf1_ortho, "matrix_buf1_ortho", dist, dbcsr_type_no_symmetry,&
-              row_blk_size_o, col_blk_size, 0, 0, dbcsr_type_real_default,&
-              error=error)
+         CALL cp_dbcsr_m_by_n_from_template(matrix_buf1_ortho,template=matrix_h,m=ortho_space_k,n=k,&
+                                                sym=dbcsr_type_no_symmetry,error=error)
 
          CALL cp_dbcsr_init_p(matrix_buf2_ortho, error=error)
-         CALL cp_dbcsr_create(matrix_buf2_ortho, "matrix_buf2_ortho", dist, dbcsr_type_no_symmetry,&
-              row_blk_size_o, col_blk_size, 0, 0, dbcsr_type_real_default,&
-              error=error)
-
-         CALL cp_dbcsr_distribution_release (dist_o_o)
-         CALL cp_dbcsr_distribution_release (dist)
-         CALL array_release(col_blk_size_o); CALL array_release(row_blk_size_o)
-         CALL array_release(row_blk_size); CALL array_release(col_blk_size)
+         CALL cp_dbcsr_m_by_n_from_template(matrix_buf2_ortho,template=matrix_h,m=ortho_space_k,n=k,&
+                                                sym=dbcsr_type_no_symmetry,error=error)
 
           CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_s,matrix_orthogonal_space, &
                              0.0_dp,matrix_s_ortho,error=error)

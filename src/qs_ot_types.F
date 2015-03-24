@@ -18,16 +18,12 @@ MODULE qs_ot_types
                                              cp_blacs_env_retain,&
                                              cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_create_bl_distribution, &
-       cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, &
-       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_finalize, cp_dbcsr_init_p, &
-       cp_dbcsr_p_type, cp_dbcsr_release_p, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_default
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_init_p, cp_dbcsr_p_type, cp_dbcsr_release_p, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_type_complex_default, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_4, dbcsr_type_real_default
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template,&
+                                             cp_dbcsr_m_by_n_from_template
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -316,14 +312,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, istat, k, m_diis, &
-                                                my_ortho_k, n, ncoef
+                                                my_ortho_k, n, ncoef, &
+                                                special_data_type
     LOGICAL                                  :: failure, mixed_precision
-    TYPE(array_i1d_obj) :: col_blk_size_k, col_blk_size_o, col_dist, &
-      col_dist_o, row_blk_size_k, row_blk_size_o, row_dist, row_dist_o
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_distribution_obj)             :: dist_k_k, dist_n_k, dist_n_o, &
-                                                dist_o_k, dist_o_o
 
     failure = .FALSE.
 
@@ -350,6 +343,9 @@ CONTAINS
 
     m_diis =qs_ot_env%settings%diis_m
     mixed_precision =qs_ot_env%settings%mixed_precision
+
+    special_data_type=dbcsr_type_real_default
+    IF(mixed_precision)special_data_type=dbcsr_type_real_4
 
     qs_ot_env%use_gx_old=.FALSE.
     qs_ot_env%use_dx=.FALSE.
@@ -413,180 +409,139 @@ CONTAINS
     NULLIFY(qs_ot_env%buf1_n_k_dp)
     NULLIFY(qs_ot_env%p_k_k_sym)
 
-    CALL cp_create_bl_distribution (col_dist, col_blk_size_k, k, &
-         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s))))
-    CALL cp_create_bl_distribution (col_dist_o, col_blk_size_o, my_ortho_k, &
-         dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s))))
-    CALL cp_create_bl_distribution (row_dist, row_blk_size_k, k, &
-         dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s))))
-    CALL cp_create_bl_distribution (row_dist_o, row_blk_size_o, my_ortho_k, &
-         dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_s))))
-    CALL dbcsr_distribution_new (dist_k_k, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s)),&
-         row_dist, col_dist)
-    CALL dbcsr_distribution_new (dist_o_o, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s)),&
-         row_dist_o, col_dist_o)
-    CALL dbcsr_distribution_new (dist_o_k, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s)),&
-         row_dist_o, col_dist)
-    CALL dbcsr_distribution_new (dist_n_k, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s)),&
-         dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_s)), col_dist)
-    CALL dbcsr_distribution_new (dist_n_o, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_s)),&
-         dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_s)), col_dist_o)
-    CALL array_release (row_dist); CALL array_release (col_dist)
-    CALL array_release (row_dist_o); CALL array_release (col_dist_o)
-    !
     ! COMMON MATRICES
     CALL cp_dbcsr_init_p(qs_ot_env%matrix_c0, error=error)
-    CALL cp_dbcsr_create(qs_ot_env%matrix_c0, "matrix_c0", dist_n_k, dbcsr_type_no_symmetry,&
-         cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+    CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_c0,template=matrix_s,n=k,&
+                                           sym=dbcsr_type_no_symmetry, error=error)
 
     CALL cp_dbcsr_init_p(qs_ot_env%matrix_sc0, error=error)
-    CALL cp_dbcsr_create(qs_ot_env%matrix_sc0, "matrix_sc0", dist_n_o, dbcsr_type_no_symmetry,&
-         cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_o, 0, 0, dbcsr_type_real_default, error=error)
+    CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_sc0,template=matrix_s,n=my_ortho_k,&
+                                           sym=dbcsr_type_no_symmetry, error=error)
 
     CALL cp_dbcsr_init_p(qs_ot_env%matrix_x, error=error)
-    CALL cp_dbcsr_create(qs_ot_env%matrix_x, "matrix_x", dist_n_k, dbcsr_type_no_symmetry,&
-         cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+    CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_x,template=matrix_s,n=k,&
+                                           sym=dbcsr_type_no_symmetry, error=error)
 
     CALL cp_dbcsr_init_p(qs_ot_env%matrix_sx, error=error)
-    CALL cp_dbcsr_create(qs_ot_env%matrix_sx, "matrix_sx", dist_n_k, dbcsr_type_no_symmetry,&
-         cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+    CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_sx,template=matrix_s,n=k,&
+                                           sym=dbcsr_type_no_symmetry, error=error)
 
     CALL cp_dbcsr_init_p(qs_ot_env%matrix_gx, error=error)
-    IF(mixed_precision) THEN
-       CALL cp_dbcsr_create(qs_ot_env%matrix_gx, "matrix_gx", dist_n_k, dbcsr_type_no_symmetry,&
-            cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, error=error)
-    ELSE
-       CALL cp_dbcsr_create(qs_ot_env%matrix_gx, "matrix_gx", dist_n_k, dbcsr_type_no_symmetry,&
-            cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
-    ENDIF
+    CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx,template=matrix_s,n=k,&
+                                           sym=dbcsr_type_no_symmetry, data_type=special_data_type,error=error)
 
     IF (qs_ot_env%use_dx) THEN
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_dx, error=error)
-       IF(mixed_precision) THEN
-          CALL cp_dbcsr_create(qs_ot_env%matrix_dx, "matrix_dx", dist_n_k, dbcsr_type_no_symmetry,&
-               cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, error=error)
-       ELSE
-          CALL cp_dbcsr_create(qs_ot_env%matrix_dx, "matrix_dx", dist_n_k, dbcsr_type_no_symmetry,&
-               cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
-       ENDIF
+       CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_dx,template=matrix_s,n=k,&
+                                              sym=dbcsr_type_no_symmetry, data_type=special_data_type,error=error)
     ENDIF
 
     IF (qs_ot_env%use_gx_old) THEN
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_gx_old, error=error)
-       IF(mixed_precision) THEN
-          CALL cp_dbcsr_create(qs_ot_env%matrix_gx_old, "matrix_gx_old", dist_n_k, dbcsr_type_no_symmetry,&
-               cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, error=error)
-       ELSE
-          CALL cp_dbcsr_create(qs_ot_env%matrix_gx_old, "matrix_gx_old", dist_n_k, dbcsr_type_no_symmetry,&
-               cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
-       ENDIF
+       CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx_old,template=matrix_s,n=k,&
+                                              sym=dbcsr_type_no_symmetry, data_type=special_data_type,error=error)
     ENDIF
 
     SELECT CASE(qs_ot_env%settings%ot_algorithm)
     CASE("TOD")
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_p, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_p, "qs_ot_env%matrix_p", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_p,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_r, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_r, "qs_ot_env%matrix_r", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_r,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_sinp, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_sinp, "qs_ot_env%matrix_sinp", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_sinp,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_cosp, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_cosp, "qs_ot_env%matrix_cosp", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_cosp,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_sinp_b, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_sinp_b, "qs_ot_env%matrix_sinp_b", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_sinp_b,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_cosp_b, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_cosp_b, "qs_ot_env%matrix_cosp_b", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
-       CALL cp_dbcsr_finalize(qs_ot_env%matrix_cosp_b, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_cosp_b,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_buf1, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_buf1, "qs_ot_env%matrix_buf1", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_buf1,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_buf2, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_buf2, "qs_ot_env%matrix_buf2", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_buf2,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_buf3, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_buf3, "qs_ot_env%matrix_buf3", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_buf3,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_buf4, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_buf4, "qs_ot_env%matrix_buf4", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_buf4,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_os, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_os, "qs_ot_env%matrix_os", dist_o_o, dbcsr_type_no_symmetry,&
-            row_blk_size_o, col_blk_size_o, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_os,template=matrix_s,m=my_ortho_k,n=my_ortho_k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_buf1_ortho, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_buf1_ortho, "qs_ot_env%matrix_buf1_ortho", dist_o_k, dbcsr_type_no_symmetry,&
-            row_blk_size_o, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_buf1_ortho,template=matrix_s,m=my_ortho_k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%matrix_buf2_ortho, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%matrix_buf2_ortho, "qs_ot_env%matrix_buf2_ortho", dist_o_k, dbcsr_type_no_symmetry,&
-            row_blk_size_o, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%matrix_buf2_ortho,template=matrix_s,m=my_ortho_k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
     CASE("REF")
        CALL cp_dbcsr_init_p(qs_ot_env%buf1_k_k_nosym, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%buf1_k_k_nosym, "buf1_k_k_nosym", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
-       !
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%buf1_k_k_nosym,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
+
        CALL cp_dbcsr_init_p(qs_ot_env%buf2_k_k_nosym, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%buf2_k_k_nosym, "buf2_k_k_nosym", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
-       !
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%buf2_k_k_nosym,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
+
        CALL cp_dbcsr_init_p(qs_ot_env%buf3_k_k_nosym, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%buf3_k_k_nosym, "buf3_k_k_nosym", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
-       !
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%buf3_k_k_nosym,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
+
        CALL cp_dbcsr_init_p(qs_ot_env%buf4_k_k_nosym, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%buf4_k_k_nosym, "buf4_k_k_nosym", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
-       !
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%buf4_k_k_nosym,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
+
+! It claims to be symmetric but to avoid dbcsr conusion nonsymmetric is kept
        CALL cp_dbcsr_init_p(qs_ot_env%buf1_k_k_sym, error=error)
-       !CALL cp_dbcsr_create(qs_ot_env%buf1_k_k_sym, "buf1_k_k_sym", dist_k_k, dbcsr_type_symmetric,&
-       CALL cp_dbcsr_create(qs_ot_env%buf1_k_k_sym, "buf1_k_k_sym", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
-       !
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%buf1_k_k_sym,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
+
        CALL cp_dbcsr_init_p(qs_ot_env%buf2_k_k_sym, error=error)
-       !CALL cp_dbcsr_create(qs_ot_env%buf2_k_k_sym, "buf2_k_k_sym", dist_k_k, dbcsr_type_symmetric,&
-       CALL cp_dbcsr_create(qs_ot_env%buf2_k_k_sym, "buf2_k_k_sym", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
-       !
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%buf2_k_k_sym,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
+
        CALL cp_dbcsr_init_p(qs_ot_env%buf3_k_k_sym, error=error)
-       !CALL cp_dbcsr_create(qs_ot_env%buf3_k_k_sym, "buf3_k_k_sym", dist_k_k, dbcsr_type_symmetric,&
-       CALL cp_dbcsr_create(qs_ot_env%buf3_k_k_sym, "buf3_k_k_sym", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%buf3_k_k_sym,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
        !
        CALL cp_dbcsr_init_p(qs_ot_env%buf4_k_k_sym, error=error)
-       !CALL cp_dbcsr_create(qs_ot_env%buf4_k_k_sym, "buf4_k_k_sym", dist_k_k, dbcsr_type_symmetric,&
-       CALL cp_dbcsr_create(qs_ot_env%buf4_k_k_sym, "buf4_k_k_sym", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%buf4_k_k_sym,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
        !
        CALL cp_dbcsr_init_p(qs_ot_env%p_k_k_sym, error=error)
-       !CALL cp_dbcsr_create(qs_ot_env%p_k_k_sym, "p_k_k_sym", dist_k_k, dbcsr_type_symmetric,&
-       CALL cp_dbcsr_create(qs_ot_env%p_k_k_sym, "p_k_k_sym", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%p_k_k_sym,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
        !
        CALL cp_dbcsr_init_p(qs_ot_env%buf1_n_k, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%buf1_n_k, "buf1_n_k", dist_n_k, dbcsr_type_no_symmetry,&
-            cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%buf1_n_k,template=matrix_s,n=k,&
+                                              sym=dbcsr_type_no_symmetry, error=error)
        !
        IF(mixed_precision) THEN
           CALL cp_dbcsr_init_p(qs_ot_env%buf1_n_k_dp, error=error)
-          CALL cp_dbcsr_create(qs_ot_env%buf1_n_k_dp, "buf1_n_k_dp", dist_n_k, dbcsr_type_no_symmetry,&
-               cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%buf1_n_k_dp,template=matrix_s,n=k,&
+                                                 sym=dbcsr_type_no_symmetry, error=error)
        ENDIF
        !
 
@@ -600,22 +555,12 @@ CONTAINS
        CALL cp_dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_x,m_diis,error=error)
        DO i=1,m_diis
           CALL cp_dbcsr_init_p(qs_ot_env%matrix_h_x(i)%matrix, error=error)
-          IF(mixed_precision) THEN
-             CALL cp_dbcsr_create(qs_ot_env%matrix_h_x(i)%matrix, "matrix_h_x(i)%matrix", dist_n_k, dbcsr_type_no_symmetry,&
-                  cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, error=error)
-          ELSE
-             CALL cp_dbcsr_create(qs_ot_env%matrix_h_x(i)%matrix, "matrix_h_x(i)%matrix", dist_n_k, dbcsr_type_no_symmetry,&
-                  cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
-          ENDIF
+          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_h_x(i)%matrix,template=matrix_s,n=k,&
+                                                 sym=dbcsr_type_no_symmetry, data_type=special_data_type, error=error)
 
           CALL cp_dbcsr_init_p(qs_ot_env%matrix_h_e(i)%matrix, error=error)
-          IF(mixed_precision) THEN
-             CALL cp_dbcsr_create(qs_ot_env%matrix_h_e(i)%matrix, "matrix_h_e(i)%matrix", dist_n_k, dbcsr_type_no_symmetry,&
-                  cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_4, error=error)
-          ELSE
-             CALL cp_dbcsr_create(qs_ot_env%matrix_h_e(i)%matrix, "matrix_h_e(i)%matrix", dist_n_k, dbcsr_type_no_symmetry,&
-                  cp_dbcsr_row_block_sizes(matrix_s), col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
-          ENDIF
+          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_h_e(i)%matrix,template=matrix_s,n=k,&
+                                                 sym=dbcsr_type_no_symmetry, data_type=special_data_type, error=error)
        ENDDO
     ENDIF
 
@@ -625,55 +570,55 @@ CONTAINS
 
     IF (qs_ot_env%settings%do_rotation) THEN
        CALL cp_dbcsr_init_p(qs_ot_env%rot_mat_u, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%rot_mat_u, "rot_mat_u", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_u,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%rot_mat_x, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%rot_mat_x, "rot_mat_x", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_x,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%rot_mat_dedu, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%rot_mat_dedu, "rot_mat_dedu", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_dedu,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%rot_mat_chc, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%rot_mat_chc, "rot_mat_chc", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_chc,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
           CALL cp_dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_e,m_diis,error=error)
           CALL cp_dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_x,m_diis,error=error)
           DO i=1,m_diis
              CALL cp_dbcsr_init_p(qs_ot_env%rot_mat_h_e(i)%matrix, error=error)
-             CALL cp_dbcsr_create(qs_ot_env%rot_mat_h_e(i)%matrix, "rot_mat_h_e(i)%matrix", dist_k_k, dbcsr_type_no_symmetry,&
-                  row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+             CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_h_e(i)%matrix,template=matrix_s,m=k,n=k,&
+                                                sym=dbcsr_type_no_symmetry,error=error)
 
              CALL cp_dbcsr_init_p(qs_ot_env%rot_mat_h_x(i)%matrix, error=error)
-             CALL cp_dbcsr_create(qs_ot_env%rot_mat_h_x(i)%matrix, "rot_mat_h_x(i)%matrix", dist_k_k, dbcsr_type_no_symmetry,&
-                  row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+             CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_h_x(i)%matrix,template=matrix_s,m=k,n=k,&
+                                                sym=dbcsr_type_no_symmetry,error=error)
           ENDDO
        ENDIF
 
        ALLOCATE(qs_ot_env%rot_mat_evals(k))
 
        CALL cp_dbcsr_init_p(qs_ot_env%rot_mat_evec, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%rot_mat_evec, "rot_mat_evec", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_complex_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_evec,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,data_type=dbcsr_type_complex_default,error=error)
 
        CALL cp_dbcsr_init_p(qs_ot_env%rot_mat_gx, error=error)
-       CALL cp_dbcsr_create(qs_ot_env%rot_mat_gx, "rot_mat_gx", dist_k_k, dbcsr_type_no_symmetry,&
-            row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+       CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx,template=matrix_s,m=k,n=k,&
+                                          sym=dbcsr_type_no_symmetry,error=error)
 
        IF (qs_ot_env%use_gx_old) THEN
           CALL cp_dbcsr_init_p(qs_ot_env%rot_mat_gx_old, error=error)
-          CALL cp_dbcsr_create(qs_ot_env%rot_mat_gx_old, "rot_mat_gx_old", dist_k_k, dbcsr_type_no_symmetry,&
-               row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_gx_old,template=matrix_s,m=k,n=k,&
+                                             sym=dbcsr_type_no_symmetry,error=error)
        ENDIF
 
        IF (qs_ot_env%use_dx) THEN
           CALL cp_dbcsr_init_p(qs_ot_env%rot_mat_dx, error=error)
-          CALL cp_dbcsr_create(qs_ot_env%rot_mat_dx, "rot_mat_dx", dist_k_k, dbcsr_type_no_symmetry,&
-               row_blk_size_k, col_blk_size_k, 0, 0, dbcsr_type_real_default, error=error)
+          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_dx,template=matrix_s,m=k,n=k,&
+                                             sym=dbcsr_type_no_symmetry,error=error)
        ENDIF
 
     ENDIF
@@ -704,17 +649,6 @@ CONTAINS
           qs_ot_env%ener_dx = 0.0_dp
        ENDIF
     ENDIF
-
-    CALL cp_dbcsr_distribution_release (dist_n_k)
-    CALL cp_dbcsr_distribution_release (dist_n_o)
-    CALL cp_dbcsr_distribution_release (dist_o_k)
-    CALL cp_dbcsr_distribution_release (dist_o_o)
-    CALL cp_dbcsr_distribution_release (dist_k_k)
-
-    CALL array_release (row_blk_size_k)
-    CALL array_release (col_blk_size_k)
-    CALL array_release (row_blk_size_o)
-    CALL array_release (col_blk_size_o)
 
   END SUBROUTINE qs_ot_allocate
 

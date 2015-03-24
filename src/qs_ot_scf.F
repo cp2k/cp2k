@@ -12,16 +12,12 @@
 MODULE qs_ot_scf
   USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_create_bl_distribution, &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_get_diag, cp_dbcsr_get_info, &
-       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_scale_by_vector, &
-       cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_trace, cp_dbcsr_type, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_npcols, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_default
-  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
+       cp_dbcsr_copy, cp_dbcsr_get_diag, cp_dbcsr_get_info, cp_dbcsr_init, &
+       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_scale_by_vector, cp_dbcsr_set, cp_dbcsr_set_diag, &
+       cp_dbcsr_trace, cp_dbcsr_type, dbcsr_type_no_symmetry
+  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                             cp_dbcsr_m_by_n_from_row_template
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -405,10 +401,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, k, n, nspin
     LOGICAL                                  :: failure, is_equal
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff_fm
-    TYPE(dbcsr_distribution_obj)             :: dist
 
     CALL timeset(routineN,handle)
 
@@ -418,17 +412,10 @@ CONTAINS
           CALL stop_program(routineN,moduleN,__LINE__,"Shouldn't get there")
           ! we do ot then copy fm to dbcsr
           ! allocate that somewhere else ! fm -> dbcsr
-          CALL cp_create_bl_distribution (col_dist, col_blk_size, mo_array(ispin)%mo_set%nmo, &
-               dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_ks))))
-          CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(matrix_ks)),&
-               dbcsr_distribution_row_dist(cp_dbcsr_distribution(matrix_ks)), col_dist)
           CALL cp_dbcsr_init_p(mo_array(ispin)%mo_set%mo_coeff_b, error=error)
-          CALL cp_dbcsr_create(mo_array(ispin)%mo_set%mo_coeff_b, "mo_coeff_b", dist, dbcsr_type_no_symmetry,&
-               cp_dbcsr_row_block_sizes(matrix_ks), col_blk_size, 0, 0, dbcsr_type_real_default,&
-               error=error)
-          CALL cp_dbcsr_distribution_release (dist)
-          CALL array_release (col_dist)
-          CALL array_release (col_blk_size)
+          CALL cp_dbcsr_m_by_n_from_row_template(mo_array(ispin)%mo_set%mo_coeff_b,template=matrix_ks,&
+                                                 n=mo_array(ispin)%mo_set%nmo,&
+                                                 sym=dbcsr_type_no_symmetry, error=error)
        ENDIF
     ENDDO
 

@@ -14,15 +14,12 @@ MODULE mp2_ri_grad_util
                                              cp_blacs_env_release,&
                                              cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_create_bl_distribution, &
-       cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_init, cp_dbcsr_iterator, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_init, cp_dbcsr_iterator, &
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_default
-  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
+       dbcsr_type_no_symmetry
+  USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
+                                             cp_dbcsr_m_by_n_from_template
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -1463,12 +1460,9 @@ MODULE mp2_ri_grad_util
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: part_ia
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
-                                                row_blk_size, row_dist
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_ia
-    TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(index_map), ALLOCATABLE, &
       DIMENSION(:)                           :: indeces_rec
     TYPE(integ_mat_buffer_type), &
@@ -1478,14 +1472,6 @@ MODULE mp2_ri_grad_util
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-
-    ! create the DBCSR dist according to mo_coeff_o and mo_coeff_v
-    CALL cp_create_bl_distribution (col_dist, col_blk_size, virtual, &
-          dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(mp2_env%ri_grad%mo_coeff_v))))
-    CALL cp_create_bl_distribution (row_dist, row_blk_size, homo, &
-          dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(mp2_env%ri_grad%mo_coeff_o))))
-    CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp(cp_dbcsr_distribution(mp2_env%ri_grad%mo_coeff_o)),&
-          row_dist,col_dist)
 
     ! allocate G_P_ia (DBCSR)
     NULLIFY(mp2_env%ri_grad%G_P_ia)
@@ -1770,8 +1756,8 @@ MODULE mp2_ri_grad_util
       ! now create the DBCSR matrix and copy fm_ia into it
       ALLOCATE(mp2_env%ri_grad%G_P_ia(kkB)%matrix)
       CALL cp_dbcsr_init(mp2_env%ri_grad%G_P_ia(kkB)%matrix,error=error)
-      CALL cp_dbcsr_create(mp2_env%ri_grad%G_P_ia(kkB)%matrix,"matrix_ia_K",dist,dbcsr_type_no_symmetry,&
-                           row_blk_size,col_blk_size,0,0,dbcsr_type_real_default,error=error)
+      CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia(kkB)%matrix,template=mp2_env%ri_grad%mo_coeff_o,&
+                                         m=homo,n=virtual, sym=dbcsr_type_no_symmetry,error=error)
       CALL copy_fm_to_dbcsr(fm_ia,mp2_env%ri_grad%G_P_ia(kkB)%matrix,keep_sparsity=.FALSE.,error=error)
 
     END DO
@@ -1800,13 +1786,6 @@ MODULE mp2_ri_grad_util
 
     ! release buffer matrix
     CALL cp_fm_release(fm_ia,error=error)
-
-    ! release DBCSR distribution
-    CALL cp_dbcsr_distribution_release (dist)
-    CALL array_release (col_blk_size)
-    CALL array_release (col_dist)
-    CALL array_release (row_blk_size)
-    CALL array_release (row_dist)
 
     CALL timestop(handle)
 

@@ -17,16 +17,13 @@ MODULE qs_mo_methods
   USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd,&
                                              cp_dbcsr_syevx
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_create_bl_distribution, &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_get_info, cp_dbcsr_init, &
-       cp_dbcsr_init_p, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_copy, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
+       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
        cp_dbcsr_release_p, cp_dbcsr_scale_by_vector, cp_dbcsr_set, &
-       cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_distribution_new, &
-       dbcsr_distribution_obj, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_default
+       cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
+                                             cp_dbcsr_m_by_n_from_template,&
                                              cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -686,11 +683,8 @@ CONTAINS
     LOGICAL                                  :: compute_evecs, &
                                                 do_rotation_local
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
-    TYPE(array_i1d_obj)                      :: col_blk_size, col_dist, &
-                                                row_blk_size, row_dist
     TYPE(cp_dbcsr_type), POINTER             :: e_vectors, h_block, &
                                                 weighted_vectors
-    TYPE(dbcsr_distribution_obj)             :: dist
 
     CALL timeset(routineN,handle)
 
@@ -719,32 +713,23 @@ CONTAINS
         CALL cp_dbcsr_init_p(weighted_vectors,error=error)
         CALL cp_dbcsr_copy(weighted_vectors,orbitals,name="weighted_vectors",error=error)
 
-        CALL cp_create_bl_distribution (col_dist, col_blk_size, ncol_global, &
-             dbcsr_mp_npcols(dbcsr_distribution_mp(cp_dbcsr_distribution(orbitals))))
-        CALL cp_create_bl_distribution (row_dist, row_blk_size, ncol_global, &
-             dbcsr_mp_nprows(dbcsr_distribution_mp(cp_dbcsr_distribution(orbitals))))
-        CALL dbcsr_distribution_new (dist, dbcsr_distribution_mp (cp_dbcsr_distribution(orbitals)),&
-             row_dist, col_dist)
-        CALL array_release (row_dist); CALL array_release (col_dist)
-
-        !CALL cp_fm_create(weighted_vectors,orbitals%matrix_struct,"weighted_vectors",error=error)
-        !CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
-        !                                        para_env=orbitals%matrix_struct%para_env, &
-        !                                        context=orbitals%matrix_struct%context,error=error)
         CALL cp_dbcsr_init_p(h_block,error=error)
-        CALL cp_dbcsr_create(h_block, "h_block", dist, dbcsr_type_no_symmetry,&
-             row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default, &
-             error=error)
+        CALL cp_dbcsr_m_by_n_from_template(h_block,template=orbitals,m=ncol_global,n=ncol_global,&
+                                           sym=dbcsr_type_no_symmetry,error=error)
+
+!!!!!!!!!!!!!!XXXXXXXXXXXXXXXXXXX!!!!!!!!!!!!!             
         !CALL cp_fm_create(h_block,fm_struct_tmp, name="h block",error=error)
         IF (compute_evecs) THEN
            CALL cp_dbcsr_init_p(e_vectors,error=error)
-           CALL cp_dbcsr_create(e_vectors, "e_vectors", dist, dbcsr_type_no_symmetry,&
-                row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default,&
-                error=error)
+           CALL cp_dbcsr_m_by_n_from_template(e_vectors,template=orbitals,m=ncol_global,n=ncol_global,&
+                                              sym=dbcsr_type_no_symmetry,error=error)
+!           CALL cp_dbcsr_create(e_vectors, "e_vectors", dist, dbcsr_type_no_symmetry,&
+!                row_blk_size, col_blk_size, 0, 0, dbcsr_type_real_default,&
+!                error=error)
            !CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors",error=error)
         ENDIF
-        CALL cp_dbcsr_distribution_release (dist)
-        CALL array_release (row_blk_size);CALL array_release (col_blk_size)
+!        CALL cp_dbcsr_distribution_release (dist)
+!        CALL array_release (row_blk_size);CALL array_release (col_blk_size)
         !CALL cp_fm_struct_release(fm_struct_tmp,error=error)
 
         ! h subblock and diag
