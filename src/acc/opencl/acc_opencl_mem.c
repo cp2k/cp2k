@@ -75,8 +75,8 @@ cl_error_type get_opencl_zero_kernel (cl_context opencl_ctx, cl_device_id opencl
   free(work_items);
 
   // example: "#define BLOCKDIM 1024"
-  // note: Be ensure that the string is not larger than 'max_line_length'!
-  //       However with snprintf(..max_line_length..) we are sure not touching memory
+  // note: Ensure that the string is not larger than 'max_line_length'!
+  //       However, with snprintf(..max_line_length..) we are sure not touching memory
   //       beyond the string.
   const int max_line_length = 1000;
   char *kernel_source_config = (char *) malloc(max_line_length);
@@ -283,7 +283,7 @@ int acc_host_mem_allocate (void **host_mem, size_t n, void *stream){
                          opencl_queue,                 // cl_command_queue command_queue
                          host_buffer,                  // cl_mem           buffer
                          CL_FALSE,                     // cl_bool          blocking_map
-                         (CL_MAP_READ | CL_MAP_WRITE), // cl_map_flags     map_flags
+                         CL_MAP_READ,                  // cl_map_flags     map_flags
                          (size_t) 0,                   // size_t           offset
                          n,                            // size_t           cb [bytes]
                          (cl_uint) 0,                  // cl_uint          num_events_in_wait_list
@@ -355,7 +355,7 @@ int acc_host_mem_deallocate (void *host_mem, void *stream){
                    opencl_queue,                 // cl_command_queue command_queue
                    buffer_node_ptr->host_buffer, // cl_mem           memobj
                    host_mem,                     // void             *mapped_ptr
-                   (cl_uint) 0,                  // cl_uint          num_evenets_in_wait_list
+                   (cl_uint) 0,                  // cl_uint          num_events_in_wait_list
                    NULL,                         // cl_event         *event_wait_list
                    NULL);                        // cl_event         *event
       if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
@@ -406,7 +406,7 @@ int acc_memcpy_h2d (const void *host_mem, void *dev_mem, size_t count, void *str
                (size_t) 0,         // size_t           offset
                count,              // size_t           cb
                host_mem,           // const void       *ptr
-               (cl_uint) 0,        // cl_uint          num_evenets_in_wait_list
+               (cl_uint) 0,        // cl_uint          num_events_in_wait_list
                NULL,               // cl_event         *event_wait_list
                NULL);              // cl_event         *event
   if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
@@ -449,7 +449,7 @@ int acc_memcpy_d2h (const void *dev_mem, void *host_mem, size_t count, void *str
                (size_t) 0,        // size_t           offset
                count,             // size_t           cb
                host_mem,          // void             *ptr
-               (cl_uint) 0,       // cl_uint          num_evenets_in_wait_list
+               (cl_uint) 0,       // cl_uint          num_events_in_wait_list
                NULL,              // cl_event         *event_wait_list
                NULL);             // cl_event         *event
   if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
@@ -493,7 +493,7 @@ int acc_memcpy_d2d (const void *devmem_src, void *devmem_dst, size_t count, void
                (size_t) 0,        // size_t           src_offset
                (size_t) 0,        // size_t           dst_offset
                count,             // size_t           cb
-               (cl_uint) 0,       // cl_uint          num_evenets_in_wait_list
+               (cl_uint) 0,       // cl_uint          num_events_in_wait_list
                NULL,              // cl_event         *event_wait_list
                NULL);             // cl_event         *event
   if (acc_opencl_error_check(cl_error, __LINE__)) return -1;
