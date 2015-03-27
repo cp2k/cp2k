@@ -822,7 +822,8 @@ CONTAINS
     DO icol_local=1,ncol_local
        V_mats(1)%matrix%local_data(:,icol_local)=mos_old(1)%matrix%local_data(:,icol_local)
        V_mats(1)%matrix%local_data(:,icol_local+ncol_local)=mos_old(2)%matrix%local_data(:,icol_local)
-       norm1(icol_local)=SUM(V_mats(1)%matrix%local_data(:,icol_local)**2)+SUM(V_mats(1)%matrix%local_data(:,icol_local)**2)
+       norm1(icol_local)=SUM(V_mats(1)%matrix%local_data(:,icol_local)**2)&
+                         +SUM(V_mats(1)%matrix%local_data(:,icol_local+ncol_local)**2)
     END DO
 
     CALL mp_sum(norm1,col_group)

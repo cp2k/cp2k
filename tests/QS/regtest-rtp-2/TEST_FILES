@@ -10,3 +10,4 @@ H2-rtp_restart-1.inp 1
 H2-rtp-efield.inp 1
 H2-emd-efield.inp 2               1     4e-11
 H2-rtp_ETRS_ARNOLDI.inp 1
+H2-emd_ETRS_ARNOLDI.inp 1
