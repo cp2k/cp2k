@@ -381,7 +381,7 @@ MODULE hfx_derivatives
 !$OMP                                  nspins)&
 !$OMP  PRIVATE(actual_x_data,atomic_kind_set,atomic_offset_ac,atomic_offset_ad,atomic_offset_bc,&
 !$OMP  atomic_offset_bd,atom_of_kind,basis_info,&
-!$OMP  basis_parameter,bins_left,bintime_start,bintime_stop,bits_max_val,buffer_left,buffer_overflow,buffer_size,&
+!$OMP  basis_parameter,bin,bins_left,bintime_start,bintime_stop,bits_max_val,buffer_left,buffer_overflow,buffer_size,&
 !$OMP  buffer_start,cache_size,cartesian_estimate,cartesian_estimate_virial,&
 !$OMP  coeffs_kind_max0,compression_factor,counter,current_counter,&
 !$OMP  distribution_forces,do_dynamic_load_balancing,do_it,do_periodic,ede_buffer1,ede_buffer2,&
