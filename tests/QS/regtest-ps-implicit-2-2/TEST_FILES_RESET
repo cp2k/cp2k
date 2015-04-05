@@ -1,2 +1,7 @@
+# improved accuracy in computing the Hartree energy.
+H2O_mixed_periodic_aa_planar.inp   
+H2O_mixed_periodic_planar.inp      
+
+# properly include the dielectric contribution to the Hamiltonian, v_eps.
 H2O_mixed_periodic_aa_planar.inp   
 H2O_mixed_periodic_planar.inp      

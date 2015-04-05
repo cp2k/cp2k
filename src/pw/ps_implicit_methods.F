@@ -175,8 +175,7 @@ CONTAINS
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
-    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
-    TYPE(pw_type), INTENT(OUT), POINTER      :: v_eps
+    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new, v_eps
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -222,7 +221,6 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
        CALL pw_zero(v0, error=error)
@@ -286,9 +284,8 @@ CONTAINS
        CALL pw_copy(v_new, ps_implicit_env%initial_guess, error)
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
+! compute the extra contribution to the Hamiltonian due to the presence of dielectric
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
-! functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
-    CALL pw_axpy(v_eps, v_new, error=error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
     CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
@@ -322,8 +319,7 @@ CONTAINS
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
-    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
-    TYPE(pw_type), INTENT(OUT), POINTER      :: v_eps
+    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new, v_eps
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -374,7 +370,6 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
        CALL pw_zero(v0, error=error)
@@ -446,9 +441,8 @@ CONTAINS
        CALL pw_copy(v_new, ps_implicit_env%initial_guess, error)
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
+! compute the extra contribution to the Hamiltonian due to the presence of dielectric
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
-! functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
-    CALL pw_axpy(v_eps, v_new, error=error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
     CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
@@ -483,8 +477,7 @@ CONTAINS
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
-    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
-    TYPE(pw_type), INTENT(OUT), POINTER      :: v_eps
+    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new, v_eps
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -593,7 +586,6 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, QAinvxres_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, Axvbar, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
        CALL pw_zero(v0, error=error)
@@ -719,9 +711,8 @@ CONTAINS
     END IF
        
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
+! compute the extra contribution to the Hamiltonian due to the presence of dielectric
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
-! functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
-    CALL pw_axpy(v_eps, v_new, error=error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
     CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
@@ -755,8 +746,7 @@ CONTAINS
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
-    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
-    TYPE(pw_type), INTENT(OUT), POINTER      :: v_eps
+    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new, v_eps
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -870,7 +860,6 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, QAinvxres_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, QAinvxres_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, Axvbar, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
        CALL pw_zero(v0, error=error)
@@ -1004,9 +993,8 @@ CONTAINS
     END IF
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
+! compute the extra contribution to the Hamiltonian due to the presence of dielectric
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
-! functional derivative of the Hartree energy wrt the density: \frac{\delta E_{H}}{\delta \rho} = v + v_{\eps}
-    CALL pw_axpy(v_eps, v_new, error=error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
     CALL pw_pool_give_back_pw(pw_pool, v0, error=error)

@@ -1,3 +1,9 @@
+# improved accuracy in computing the Hartree energy.
+Ar_mixed_aa_planar.inp           
+Ar_mixed_planar.inp              
+Ar_mixed_aa_planar-ns_cell.inp   
+
+# properly include the dielectric contribution to the Hamiltonian, v_eps.
 Ar_mixed_aa_planar.inp           
 Ar_mixed_planar.inp              
 Ar_mixed_aa_planar-ns_cell.inp   

@@ -1,1 +1,5 @@
+# improved accuracy in computing the Hartree energy.
+H2O_periodic.inp        
+
+# properly include the dielectric contribution to the Hamiltonian, v_eps.
 H2O_periodic.inp        

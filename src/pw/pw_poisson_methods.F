@@ -363,6 +363,7 @@ CONTAINS
 
              CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE, error=error)
              CALL pw_pool_create_pw(pw_pool, vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+             CALL pw_pool_create_pw(pw_pool, v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
              CALL pw_transfer(density, rhor, error=error)
 
              SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
@@ -381,9 +382,10 @@ CONTAINS
              END SELECT
 
              IF (PRESENT(vhartree)) THEN
-                CALL pw_axpy(v_eps, vhartree_rs, - 1.0_dp, error=error)
+                ! functional derivative of the Hartree energy wrt the density 
+                ! in the presence of dielectric (= vhartree + v_eps)
+                CALL pw_axpy(v_eps, vhartree_rs, error=error)
                 CALL pw_transfer(vhartree_rs, vhartree, error=error)
-                CALL pw_pool_give_back_pw(pw_pool, v_eps, error=error)
              END IF
 
              IF (PRESENT(dvhartree)) CALL pw_transfer(rhor,rhog,error=error)
@@ -394,6 +396,7 @@ CONTAINS
 
              CALL pw_pool_give_back_pw(pw_pool, rhor, error=error)
              CALL pw_pool_give_back_pw(pw_pool, vhartree_rs, error=error)
+             CALL pw_pool_give_back_pw(pw_pool, v_eps, error=error)
 
           CASE DEFAULT
              CALL cp_unimplemented_error(routineP,"unknown poisson method "//&

@@ -1,3 +1,10 @@
+# improved accuracy in computing the Hartree energy.
+Ar_periodic.inp                   
+Ar_mixed_periodic_aa_planar.inp   
+Ar_mixed_cuboidal.inp             
+Ar_mixed_cylindrical.inp          
+
+# properly include the dielectric contribution to the Hamiltonian, v_eps.
 Ar_periodic.inp                   
 Ar_mixed_periodic_aa_planar.inp   
 Ar_mixed_cuboidal.inp             
