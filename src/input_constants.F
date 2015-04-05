@@ -690,6 +690,15 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: do_diag_sl=1,&
                                               do_diag_sl2=2,&
                                               do_diag_elpa=3
+  ! ELPA kernel
+  INTEGER, PARAMETER, PUBLIC               :: elpa_gen=1,&
+                                              elpa_gen_sim=2,&
+                                              elpa_bgp=3,&
+                                              elpa_bgq=4,&
+                                              elpa_sse=5,&
+                                              elpa_avx_b2=6,&
+                                              elpa_avx_b4=7,&
+                                              elpa_avx_b6=8
 
   ! FFT library
   ! these might need sync with fft_lib.F

@@ -63,6 +63,7 @@ MODULE cp_fm_diag
 
   ! these saved variables are DIAGONALIZATION global
    INTEGER, SAVE :: diag_type = 0
+   INTEGER, SAVE :: kernel_type = 0
 
   ! Public subroutines
 
@@ -86,9 +87,10 @@ CONTAINS
 !> \param error ...
 !> \author  MI 11.2013       
 ! *****************************************************************************
-  SUBROUTINE diag_init(diag_lib,switched,error)
+  SUBROUTINE diag_init(diag_lib,switched,k_elpa,error)
     CHARACTER(LEN=*), INTENT(IN)             :: diag_lib
     LOGICAL, INTENT(INOUT)                   :: switched
+    INTEGER, INTENT(IN)                      :: k_elpa
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'diag_init', &
@@ -125,6 +127,10 @@ CONTAINS
              switched = .TRUE.
 #endif
          END IF
+    END IF
+
+    IF(diag_type == 3) THEN
+       kernel_type = k_elpa
     END IF
 
     ! Check that one of the diagonalization type is set
@@ -954,6 +960,7 @@ CONTAINS
                                                 myprow, n, n_rows, nblk, neig
     INTEGER, DIMENSION(9)                    :: descm, descv
     LOGICAL                                  :: failure
+    LOGICAL                                  :: success
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eval
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, m1, v
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -964,6 +971,7 @@ CONTAINS
 #if defined(__SCALAPACK)
 
     failure = .FALSE.
+    success = .TRUE.
 
     n = matrix%matrix_struct%nrow_global
     m => matrix%local_data
@@ -999,7 +1007,12 @@ CONTAINS
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 #if defined (__ELPA)
     ! Calculate eigenvalues/eigenvectors
-    CALL solve_evp_real_2stage(n,neig,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group)
+!    CALL solve_evp_real_2stage(n,neig,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group)
+    success = solve_evp_real_2stage(n,neig,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group,&
+              THIS_REAL_ELPA_KERNEL_API=kernel_type,useQR=.FALSE.)
+ 
+    CPPrecondition(success,cp_failure_level,routineP,error,failure)
+
 #else
     CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif

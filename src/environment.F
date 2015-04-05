@@ -549,6 +549,7 @@ CONTAINS
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
     CALL section_vals_val_get(global_section,"BLACS_REPEATABLE",l_val=globenv%blacs_repeatable,error=error)
     CALL section_vals_val_get(global_section,"PREFERRED_DIAG_LIBRARY",i_val=i_diag,error=error)
+    CALL section_vals_val_get(global_section,"ELPA_KERNEL",i_val=globenv%k_elpa,error=error)
     CALL section_vals_val_get(global_section,"PREFERRED_FFT_LIBRARY",i_val=i_fft,error=error)
 
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=print_level,error=error)
@@ -1025,7 +1026,7 @@ CONTAINS
 
     switched = .FALSE.
   
-    CALL diag_init(diag_lib=TRIM(globenv%diag_library), switched=switched,error=error)
+    CALL diag_init(diag_lib=TRIM(globenv%diag_library), switched=switched,k_elpa=globenv%k_elpa,error=error)
   
     IF(switched) THEN
   
