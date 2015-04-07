@@ -48,7 +48,7 @@ MODULE cp_fm_diag
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-#if defined (__ELPA)
+#if defined (__ELPA)  || defined(__ELPA2)
   USE ELPA1
   USE ELPA2
 #endif
@@ -111,7 +111,7 @@ CONTAINS
     IF(try_library) THEN
         IF(diag_lib.EQ."ELPA") THEN
 
-#if defined (__ELPA)
+#if defined (__ELPA)  || defined (__ELPA2)
             diag_type = 3
 #else
           ! ELPA library not linked, switch to SL
@@ -1006,11 +1006,18 @@ CONTAINS
     ! the full eigenvalues vector is needed
     ALLOCATE(eval(n),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-#if defined (__ELPA)
+
     ! Calculate eigenvalues/eigenvectors
-!    CALL solve_evp_real_2stage(n,neig,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group)
+#if defined (__ELPA) || defined (__ELPA2)
+
+
+#if defined (__ELPA)
+    CALL solve_evp_real_2stage(n,neig,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group)
+#else
     success = solve_evp_real_2stage(n,neig,m,n_rows, eval,v,n_rows,nblk,comm_row,comm_col,group,&
               THIS_REAL_ELPA_KERNEL_API=kernel_type,useQR=.FALSE.)
+#endif
+
  
     CPPrecondition(success,cp_failure_level,routineP,error,failure)
 
