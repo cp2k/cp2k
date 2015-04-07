@@ -55,10 +55,10 @@ def main():
                 if(line[0] != "#"): continue
                 if(line.split()[0] not in ("#if","#ifdef","#ifndef","#elif")): continue
                 line = line.split("//",1)[0]
-                line = re.sub("[|()!&><=]", " ", line)
+                line = re.sub("[|()!&><=*/+-]", " ", line)
                 line = line.replace("defined", " ")
                 for m in line.split()[1:]:
-                    if m.isdigit(): continue
+                    if re.match("[0-9]+[ulUL]*", m): continue # skip numbers
                     if(fn_ext=="h" and fn.upper().replace(".", "_") == m): continue
                     flags.add(m)
 

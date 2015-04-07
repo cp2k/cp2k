@@ -1,11 +1,3 @@
-Flag /2 not mentioned in INSTALL
-Flag /2 not mentioned in cp2k_flags()
-Flag 199901L not mentioned in INSTALL
-Flag 199901L not mentioned in cp2k_flags()
-Flag 2*LIBXSTREAM_ASYNC+1 not mentioned in INSTALL
-Flag 2*LIBXSTREAM_ASYNC+1 not mentioned in cp2k_flags()
-Flag 2*LIBXSTREAM_TRACE+1 not mentioned in INSTALL
-Flag 2*LIBXSTREAM_TRACE+1 not mentioned in cp2k_flags()
 Flag DAMPING not mentioned in INSTALL
 Flag DAMPING not mentioned in cp2k_flags()
 Flag FD_DEBUG not mentioned in INSTALL
