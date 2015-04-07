@@ -2683,11 +2683,11 @@ CONTAINS
                extension=".cube",middle_name="v_hartree",file_position=my_pos_cube,error=error)
           udvol = 1.0_dp/v_hartree_rspace%pw_grid%dvol
 
-          IF (poisson_env%green_fft%method .EQ. PS_IMPLICIT) THEN
-             CALL pw_axpy(poisson_env%implicit_env%v_eps, v_hartree_rspace, - 1.0_dp, error=error)
-          END IF
           CALL pw_copy(v_hartree_rspace,aux_r%pw, error=error)
           CALL pw_scale(aux_r%pw,udvol,error=error)
+          IF (poisson_env%green_fft%method .EQ. PS_IMPLICIT) THEN
+             CALL pw_axpy(poisson_env%implicit_env%v_eps, aux_r%pw, - 1.0_dp, error=error)
+          END IF
 
           CALL cp_pw_to_cube(aux_r%pw,unit_nr,"HARTREE POTENTIAL",particles=particles,&
                stride=section_get_ivals(dft_section,&
