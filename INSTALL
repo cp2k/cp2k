@@ -165,7 +165,9 @@ Library ELPA for the solution of the eigenvalue problem
     http://elpa.rzg.mpg.de/elpa-tar-archive ) and installed.
     During the installation the libelpa.a (or libelpa_mt.a if omp active) is created.
     We tested the version of November 2013, with generic kernel and with/without omp
-  * Add -D__ELPA to  DFLAGS and -L$(ELPA_DIR) -lelpa to LIBS
+  * Add -D__ELPA to  DFLAGS for versions of the library released before June 2014
+  * Add -D__ELPA2 to  DFLAGS for versions of the library released from June 2014  on
+  * Add -L$(ELPA_DIR) -lelpa to LIBS
   * ELPA replaces the ScaLapack SYEVD to improve the performance of the diagonalization
   * For specific architectures it can be better to install specifically
     optimized kernels (see BG) and/or employ a higher optimization level to compile it.
