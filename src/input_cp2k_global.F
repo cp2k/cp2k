@@ -39,12 +39,12 @@ MODULE input_cp2k_global
        do_diag_elpa, do_diag_sl, do_diag_sl2, do_farming, do_fft_fftw3, &
        do_fft_sg, do_opt_basis, do_optimize_input, do_pdgemm, do_swarm, &
        do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
-       electronic_spectra_run, energy_force_run, energy_run, &
-       elpa_gen,elpa_gen_sim,elpa_bgp,elpa_bgq,elpa_sse,elpa_avx_b2,elpa_avx_b4,elpa_avx_b6,&
-       fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, &
-       fftw_plan_patient, gaussian, geo_opt_run, linear_response_run, &
-       mol_dyn_run, mon_car_run, none_run, pint_run, real_time_propagation, &
-       tree_mc_run, vib_anal
+       electronic_spectra_run, elpa_avx_b2, elpa_avx_b4, elpa_avx_b6, &
+       elpa_bgp, elpa_bgq, elpa_gen, elpa_gen_sim, elpa_sse, &
+       energy_force_run, energy_run, fftw_plan_estimate, &
+       fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, &
+       geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, none_run, &
+       pint_run, real_time_propagation, tree_mc_run, vib_anal
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
