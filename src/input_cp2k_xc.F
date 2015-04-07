@@ -1114,7 +1114,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"xc",&
-            description="parameters needed calculate the xc potential",&
+            description="Parameters needed for the calculation of the eXchange and Correlation potential",&
             n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
