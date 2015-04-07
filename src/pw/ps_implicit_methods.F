@@ -137,6 +137,9 @@ CONTAINS
        CALL dielectric_create(ps_implicit_env%dielectric, pw_pool, poisson_params%dielectric_params, error)
 
        NULLIFY(ps_implicit_env%initial_guess)
+       NULLIFY(ps_implicit_env%v_eps)
+       CALL pw_pool_create_pw(pw_pool, ps_implicit_env%v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+       CALL pw_zero(ps_implicit_env%v_eps, error)
 
        ps_implicit_env%ehartree = 0.0_dp
        ps_implicit_env%times_called = 0
@@ -162,8 +165,6 @@ CONTAINS
 !> \param density electron density 
 !> \param v_new functional derivative of the hartree energy wrt to rho 
 !>              (= electrostatic potential + v_eps) 
-!> \param v_eps extra contribution to the functional derivative of the Hartree
-!>     energy attributed to the dependency of the dielectric constant to the charge density                        
 !> \param ehartree Hartree energy
 !> \param error cp2k error
 !>
@@ -171,11 +172,11 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_periodic(poisson_env, density, v_new, v_eps, ehartree, error)
+  SUBROUTINE implicit_poisson_solver_periodic(poisson_env, density, v_new, ehartree, error)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
-    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new, v_eps
+    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -285,7 +286,7 @@ CONTAINS
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
-    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
+    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
     CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
@@ -306,8 +307,6 @@ CONTAINS
 !> \param density electron density
 !> \param v_new functional derivative of the hartree energy wrt to rho
 !>              (= electrostatic potential + v_eps)
-!> \param v_eps extra contribution to the functional derivative of the Hartree
-!>     energy attributed to the dependency of the dielectric constant to the charge density
 !> \param ehartree Hartree energy
 !> \param error cp2k error
 !>
@@ -315,11 +314,11 @@ CONTAINS
 !>       02.2015 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_neumann(poisson_env, density, v_new, v_eps, ehartree, error)
+  SUBROUTINE implicit_poisson_solver_neumann(poisson_env, density, v_new, ehartree, error)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
-    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new, v_eps
+    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -442,7 +441,7 @@ CONTAINS
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
-    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
+    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
     CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
@@ -464,8 +463,6 @@ CONTAINS
 !> \param density electron density 
 !> \param v_new functional derivative of the hartree energy wrt to rho 
 !>              (= electrostatic potential + v_eps) 
-!> \param v_eps extra contribution to the functional derivative of the Hartree
-!>     energy attributed to the dependency of the dielectric constant to the charge density                        
 !> \param ehartree Hartree energy
 !> \param error cp2k error
 !>
@@ -473,11 +470,11 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_mixed_periodic(poisson_env, density, v_new, v_eps, ehartree, error)
+  SUBROUTINE implicit_poisson_solver_mixed_periodic(poisson_env, density, v_new, ehartree, error)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
-    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new, v_eps
+    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -712,7 +709,7 @@ CONTAINS
        
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
-    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
+    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
     CALL pw_pool_give_back_pw(pw_pool, v0, error=error)
@@ -733,8 +730,6 @@ CONTAINS
 !> \param density electron density 
 !> \param v_new functional derivative of the hartree energy wrt to rho 
 !>             (= electrostatic potential + v_eps) 
-!> \param v_eps extra contribution to the functional derivative of the Hartree
-!>     energy attributed to the dependency of the dielectric constant to the charge density                        
 !> \param ehartree Hartree energy
 !> \param error cp2k error
 !>
@@ -742,11 +737,11 @@ CONTAINS
 !>       10.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE implicit_poisson_solver_mixed(poisson_env, density, v_new, v_eps, ehartree, error)
+  SUBROUTINE implicit_poisson_solver_mixed(poisson_env, density, v_new, ehartree, error)
 
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_type), INTENT(IN), POINTER       :: density
-    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new, v_eps
+    TYPE(pw_type), INTENT(INOUT), POINTER    :: v_new
     REAL(dp), INTENT(OUT), OPTIONAL          :: ehartree
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -994,7 +989,7 @@ CONTAINS
 
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
-    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, v_eps, error)
+    CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
 
     CALL pw_pool_give_back_pw(pw_pool, g, error=error)
     CALL pw_pool_give_back_pw(pw_pool, v0, error=error)

@@ -293,8 +293,7 @@ CONTAINS
     TYPE(pw_p_type)                          :: dvg( 3 )
     TYPE(pw_poisson_parameter_type), POINTER :: poisson_params
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(pw_type), POINTER                   :: rhog, rhor, tmpg, v_eps, &
-                                                vhartree_rs
+    TYPE(pw_type), POINTER                   :: rhog, rhor, tmpg, vhartree_rs
 
     CALL timeset(routineN,handle)
 
@@ -363,28 +362,27 @@ CONTAINS
 
              CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE, error=error)
              CALL pw_pool_create_pw(pw_pool, vhartree_rs, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-             CALL pw_pool_create_pw(pw_pool, v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
              CALL pw_transfer(density, rhor, error=error)
 
              SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
                 CASE (PERIODIC_BC)
                    CALL implicit_poisson_solver_periodic(poisson_env, rhor, vhartree_rs, &
-                                                      v_eps, ehartree=ehartree, error=error)
+                                                         ehartree=ehartree, error=error)
                 CASE (NEUMANN_BC)
                    CALL implicit_poisson_solver_neumann(poisson_env, rhor, vhartree_rs, &
-                                                      v_eps, ehartree=ehartree, error=error)
+                                                         ehartree=ehartree, error=error)
                 CASE (MIXED_PERIODIC_BC)
                    CALL implicit_poisson_solver_mixed_periodic(poisson_env, rhor, vhartree_rs, &
-                                                      v_eps, ehartree=ehartree, error=error)
+                                                         ehartree=ehartree, error=error)
                 CASE (MIXED_BC)
                    CALL implicit_poisson_solver_mixed(poisson_env, rhor, vhartree_rs, &
-                                                      v_eps, ehartree=ehartree, error=error)
+                                                         ehartree=ehartree, error=error)
              END SELECT
 
              IF (PRESENT(vhartree)) THEN
                 ! functional derivative of the Hartree energy wrt the density 
                 ! in the presence of dielectric (= vhartree + v_eps)
-                CALL pw_axpy(v_eps, vhartree_rs, error=error)
+                CALL pw_axpy(poisson_env%implicit_env%v_eps, vhartree_rs, error=error)
                 CALL pw_transfer(vhartree_rs, vhartree, error=error)
              END IF
 
@@ -396,7 +394,6 @@ CONTAINS
 
              CALL pw_pool_give_back_pw(pw_pool, rhor, error=error)
              CALL pw_pool_give_back_pw(pw_pool, vhartree_rs, error=error)
-             CALL pw_pool_give_back_pw(pw_pool, v_eps, error=error)
 
           CASE DEFAULT
              CALL cp_unimplemented_error(routineP,"unknown poisson method "//&
