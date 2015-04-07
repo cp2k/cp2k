@@ -32,8 +32,6 @@ Flag LIBMICSMM_HPP not mentioned in INSTALL
 Flag LIBMICSMM_HPP not mentioned in cp2k_flags()
 Flag LIBMICSMM_USE_LIBXSMM not mentioned in INSTALL
 Flag LIBMICSMM_USE_LIBXSMM not mentioned in cp2k_flags()
-Flag LIBMICSMM_USE_LIBXSMM+1 not mentioned in INSTALL
-Flag LIBMICSMM_USE_LIBXSMM+1 not mentioned in cp2k_flags()
 Flag LIBMICSMM_USE_MKLSMM not mentioned in INSTALL
 Flag LIBMICSMM_USE_MKLSMM not mentioned in cp2k_flags()
 Flag LIBMICSMM_USE_MKLTRANS not mentioned in INSTALL
@@ -890,29 +888,3 @@ multi-dgemm-type.hpp: Copyright banner malformed
 multi-dgemm.cpp: Copyright banner malformed
 test.cpp: Copyright banner malformed
 test.hpp: Copyright banner malformed
-Flag __MPI_VERSION not mentioned in INSTALL
-message_passing.F: Unused dummy argument 'win' at (1)
-message_passing_c.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
-message_passing_c.f90: Unused dummy argument 'disp' at (1)
-message_passing_c.f90: Unused dummy argument 'source' at (1)
-message_passing_c.f90: Unused dummy argument 'win' at (1)
-message_passing_d.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
-message_passing_d.f90: Unused dummy argument 'disp' at (1)
-message_passing_d.f90: Unused dummy argument 'source' at (1)
-message_passing_d.f90: Unused dummy argument 'win' at (1)
-message_passing_i.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
-message_passing_i.f90: Unused dummy argument 'disp' at (1)
-message_passing_i.f90: Unused dummy argument 'source' at (1)
-message_passing_i.f90: Unused dummy argument 'win' at (1)
-message_passing_l.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
-message_passing_l.f90: Unused dummy argument 'disp' at (1)
-message_passing_l.f90: Unused dummy argument 'source' at (1)
-message_passing_l.f90: Unused dummy argument 'win' at (1)
-message_passing_r.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
-message_passing_r.f90: Unused dummy argument 'disp' at (1)
-message_passing_r.f90: Unused dummy argument 'source' at (1)
-message_passing_r.f90: Unused dummy argument 'win' at (1)
-message_passing_z.f90: Dummy argument 'request' at (1) was declared INTENT(OUT) but was not set
-message_passing_z.f90: Unused dummy argument 'disp' at (1)
-message_passing_z.f90: Unused dummy argument 'source' at (1)
-message_passing_z.f90: Unused dummy argument 'win' at (1)

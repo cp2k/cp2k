@@ -77,6 +77,9 @@ available alternatives:
     that makes installing ScaLAPACK easier:
     http://www.netlib.org/scalapack/scalapack_installer.tgz
 
+For some experimental features MPI version 3 is required.
+To enable these you have to compile with -D__MPI_VERSION=3 .
+
 ==== 2e. FFTW ====
 FFTW can be used to improve FFT speed on a wide range of architectures.
 It is strongly recommended to install and use FFTW3. The current version

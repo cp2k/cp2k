@@ -111,6 +111,9 @@ CONTAINS
 #if defined(__ELPA)
     flags=TRIM(flags)//" elpa"
 #endif
+#if defined(__ELPA2)
+    flags=TRIM(flags)//" elpa2"
+#endif
 #if defined(__parallel)
     flags=TRIM(flags)//" parallel"
 #if __MPI_VERSION > 2
