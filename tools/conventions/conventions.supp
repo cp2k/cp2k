@@ -10,24 +10,6 @@ Flag FMG_INTEGRATE_FULL not mentioned in INSTALL
 Flag FMG_INTEGRATE_FULL not mentioned in cp2k_flags()
 Flag FM_FLAT_GRID not mentioned in INSTALL
 Flag FM_FLAT_GRID not mentioned in cp2k_flags()
-Flag PARAMS_IN_SMEM_OPT not mentioned in INSTALL
-Flag PARAMS_IN_SMEM_OPT not mentioned in cp2k_flags()
-Flag PURE_COULOMB not mentioned in INSTALL
-Flag PURE_COULOMB not mentioned in cp2k_flags()
-Flag PURE_COULOMB_GAUSS not mentioned in INSTALL
-Flag PURE_COULOMB_GAUSS not mentioned in cp2k_flags()
-Flag SCREENED_COULOMB_ERF not mentioned in INSTALL
-Flag SCREENED_COULOMB_ERF not mentioned in cp2k_flags()
-Flag SCREENED_COULOMB_ERFC not mentioned in INSTALL
-Flag SCREENED_COULOMB_ERFC not mentioned in cp2k_flags()
-Flag SCREENED_COULOMB_GAUSS not mentioned in INSTALL
-Flag SCREENED_COULOMB_GAUSS not mentioned in cp2k_flags()
-Flag STORE_ENERGY not mentioned in INSTALL
-Flag STORE_ENERGY not mentioned in cp2k_flags()
-Flag STORE_FORCES not mentioned in INSTALL
-Flag STORE_FORCES not mentioned in cp2k_flags()
-Flag USE_NATIVE_64 not mentioned in INSTALL
-Flag USE_NATIVE_64 not mentioned in cp2k_flags()
 Flag LIBMICSMM_HPP not mentioned in INSTALL
 Flag LIBMICSMM_HPP not mentioned in cp2k_flags()
 Flag LIBMICSMM_USE_LIBXSMM not mentioned in INSTALL
@@ -124,11 +106,28 @@ Flag NDEBUG not mentioned in INSTALL
 Flag NDEBUG not mentioned in cp2k_flags()
 Flag NOMINMAX not mentioned in INSTALL
 Flag NOMINMAX not mentioned in cp2k_flags()
+Flag PARAMS_IN_SMEM_OPT not mentioned in INSTALL
+Flag PARAMS_IN_SMEM_OPT not mentioned in cp2k_flags()
+Flag PURE_COULOMB not mentioned in INSTALL
+Flag PURE_COULOMB not mentioned in cp2k_flags()
+Flag PURE_COULOMB_GAUSS not mentioned in INSTALL
+Flag PURE_COULOMB_GAUSS not mentioned in cp2k_flags()
+Flag SCREENED_COULOMB_ERF not mentioned in INSTALL
+Flag SCREENED_COULOMB_ERF not mentioned in cp2k_flags()
+Flag SCREENED_COULOMB_ERFC not mentioned in INSTALL
+Flag SCREENED_COULOMB_ERFC not mentioned in cp2k_flags()
+Flag SCREENED_COULOMB_GAUSS not mentioned in INSTALL
+Flag SCREENED_COULOMB_GAUSS not mentioned in cp2k_flags()
+Flag STORE_ENERGY not mentioned in INSTALL
+Flag STORE_ENERGY not mentioned in cp2k_flags()
+Flag STORE_FORCES not mentioned in INSTALL
+Flag STORE_FORCES not mentioned in cp2k_flags()
 Flag TEST_HPP not mentioned in INSTALL
 Flag TEST_HPP not mentioned in cp2k_flags()
+Flag USE_NATIVE_64 not mentioned in INSTALL
+Flag USE_NATIVE_64 not mentioned in cp2k_flags()
 Flag WIN32_LEAN_AND_MEAN not mentioned in INSTALL
 Flag WIN32_LEAN_AND_MEAN not mentioned in cp2k_flags()
-Flag _USE_GA not mentioned in cp2k_flags()
 Flag _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES not mentioned in INSTALL
 Flag _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES not mentioned in cp2k_flags()
 Flag _CRT_SECURE_NO_DEPRECATE not mentioned in INSTALL
@@ -144,11 +143,17 @@ Flag _WIN32 not mentioned in cp2k_flags()
 Flag _WINDLL not mentioned in INSTALL
 Flag _WINDLL not mentioned in cp2k_flags()
 Flag __ACC not mentioned in INSTALL
+Flag __ACC_MIC not mentioned in INSTALL
+Flag __ACC_MIC not mentioned in cp2k_flags()
 Flag __CRAY_PM_ACCEL_ENERGY not mentioned in INSTALL
 Flag __CRAY_PM_ENERGY not mentioned in INSTALL
 Flag __CRAY_PM_FAKE_ENERGY not mentioned in INSTALL
+Flag __CYGWIN32__ not mentioned in INSTALL
+Flag __CYGWIN32__ not mentioned in cp2k_flags()
 Flag __DATA_DIR not mentioned in cp2k_flags()
 Flag __FFTW3_UNALIGNED not mentioned in cp2k_flags()
+Flag __GNUC__ not mentioned in INSTALL
+Flag __GNUC__ not mentioned in cp2k_flags()
 Flag __GRID_CORE not mentioned in cp2k_flags()
 Flag __HAS_smm_cnt not mentioned in INSTALL
 Flag __HAS_smm_ctn not mentioned in INSTALL
@@ -162,10 +167,18 @@ Flag __HAS_smm_stt not mentioned in INSTALL
 Flag __HAS_smm_znt not mentioned in INSTALL
 Flag __HAS_smm_ztn not mentioned in INSTALL
 Flag __HAS_smm_ztt not mentioned in INSTALL
+Flag __INTEL_OFFLOAD not mentioned in INSTALL
+Flag __INTEL_OFFLOAD not mentioned in cp2k_flags()
 Flag __LIBDERIV_MAX_AM1 not mentioned in INSTALL
 Flag __LIBINT_MAX_AM not mentioned in INSTALL
+Flag __LIBXSMM not mentioned in INSTALL
+Flag __LIBXSMM not mentioned in cp2k_flags()
+Flag __LIBXSTREAM not mentioned in INSTALL
+Flag __LIBXSTREAM not mentioned in cp2k_flags()
 Flag __LINUMA not mentioned in INSTALL
 Flag __MAX_CONTR not mentioned in INSTALL
+Flag __MIC__ not mentioned in INSTALL
+Flag __MIC__ not mentioned in cp2k_flags()
 Flag __MKL not mentioned in cp2k_flags()
 Flag __PILAENV_BLOCKSIZE not mentioned in cp2k_flags()
 Flag __PW_CUDA_NO_HOSTALLOC not mentioned in INSTALL
@@ -175,20 +188,6 @@ Flag __RELEASE_VERSION not mentioned in cp2k_flags()
 Flag __SCALAPACK2 not mentioned in INSTALL
 Flag __STATM_RESIDENT not mentioned in INSTALL
 Flag __STATM_TOTAL not mentioned in INSTALL
-Flag __ACC_MIC not mentioned in INSTALL
-Flag __ACC_MIC not mentioned in cp2k_flags()
-Flag __CYGWIN32__ not mentioned in INSTALL
-Flag __CYGWIN32__ not mentioned in cp2k_flags()
-Flag __GNUC__ not mentioned in INSTALL
-Flag __GNUC__ not mentioned in cp2k_flags()
-Flag __INTEL_OFFLOAD not mentioned in INSTALL
-Flag __INTEL_OFFLOAD not mentioned in cp2k_flags()
-Flag __LIBXSMM not mentioned in INSTALL
-Flag __LIBXSMM not mentioned in cp2k_flags()
-Flag __LIBXSTREAM not mentioned in INSTALL
-Flag __LIBXSTREAM not mentioned in cp2k_flags()
-Flag __MIC__ not mentioned in INSTALL
-Flag __MIC__ not mentioned in cp2k_flags()
 Flag __STDC_VERSION__ not mentioned in INSTALL
 Flag __STDC_VERSION__ not mentioned in cp2k_flags()
 ai_overlap3.F: Unused dummy argument 'npgfc' at (1)
@@ -386,22 +385,6 @@ force_fields_input.F: Unused dummy argument 'ftd' at (1)
 force_fields_input.F: Unused dummy argument 'mm_section' at (1)
 force_fields_input.F: Unused dummy argument 'para_env' at (1)
 fparser.F: Copyright banner malformed
-ga_environment_types.F: Unused dummy argument 'g_atoms' at (1)
-ga_environment_types.F: Unused dummy argument 'g_cellnum' at (1)
-ga_environment_types.F: Unused dummy argument 'g_cnt' at (1)
-ga_environment_types.F: Unused dummy argument 'g_count' at (1)
-ga_environment_types.F: Unused dummy argument 'g_d_info' at (1)
-ga_environment_types.F: Unused dummy argument 'g_ks' at (1)
-ga_environment_types.F: Unused dummy argument 'g_offset' at (1)
-ga_environment_types.F: Unused dummy argument 'g_pair_list' at (1)
-ga_environment_types.F: Unused dummy argument 'ga_env' at (1)
-ga_environment_types.F: Unused dummy argument 'ncells' at (1)
-ga_environment_types.F: Unused dummy argument 'npairs' at (1)
-ga_environment_types.F: Unused dummy argument 'pdx' at (1)
-ga_environment_types.F: Unused dummy argument 'pdy' at (1)
-ga_environment_types.F: Unused dummy argument 'pdz' at (1)
-ga_environment_types.F: Unused dummy argument 'rcoul' at (1)
-ga_environment_types.F: Unused dummy argument 'se_dims' at (1)
 gauss_colloc.F: Found GOTO statement in procedure "collocgauss"
 gauss_colloc.F: Found GOTO statement in procedure "collocgaussflat"
 gauss_colloc.F: Found GOTO statement in procedure "integrategauss"
@@ -439,6 +422,27 @@ kg_tnadd_mat.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
 library_tests.F: Routine PILAENV called with an implicit interface.
 library_tests.F: Unused dummy argument 'blacs_grid_layout' at (1)
 library_tests.F: Unused dummy argument 'blacs_repeatable' at (1)
+libxstream.cpp: Copyright banner malformed
+libxstream.h: Copyright banner malformed
+libxstream.hpp: Copyright banner malformed
+libxstream_alloc.cpp: Copyright banner malformed
+libxstream_alloc.hpp: Copyright banner malformed
+libxstream_argument.cpp: Copyright banner malformed
+libxstream_argument.hpp: Copyright banner malformed
+libxstream_begin.h: Copyright banner malformed
+libxstream_capture.cpp: Copyright banner malformed
+libxstream_capture.hpp: Copyright banner malformed
+libxstream_config.h: Copyright banner malformed
+libxstream_context.cpp: Copyright banner malformed
+libxstream_context.hpp: Copyright banner malformed
+libxstream_end.h: Copyright banner malformed
+libxstream_event.cpp: Copyright banner malformed
+libxstream_event.hpp: Copyright banner malformed
+libxstream_macros.h: Copyright banner malformed
+libxstream_offload.cpp: Copyright banner malformed
+libxstream_offload.hpp: Copyright banner malformed
+libxstream_stream.cpp: Copyright banner malformed
+libxstream_stream.hpp: Copyright banner malformed
 lri_environment_types.F: Unused dummy argument 'atomic_kind_set' at (1)
 lri_ks_methods.F: Unused dummy argument 'para_env' at (1)
 lri_optimize_ri_basis.F: Unused dummy argument 'lri_env' at (1)
@@ -493,7 +497,6 @@ manybody_siepmann.F: Unused dummy argument 'loc_cell_v' at (1)
 manybody_siepmann.F: Unused dummy argument 'pv_nonbond' at (1)
 manybody_siepmann.F: Unused dummy argument 'siepmann' at (1)
 manybody_tersoff.F: Unused dummy argument 'r' at (1)
-mc_moves.F: Unused dummy argument 'iw' at (1)
 message_passing.F: Dummy argument 'flag' at (1) was declared INTENT(OUT) but was not set
 message_passing.F: Dummy argument 'ierr' at (1) was declared INTENT(OUT) but was not set
 message_passing.F: Dummy argument 'index' at (1) was declared INTENT(OUT) but was not set
@@ -577,6 +580,9 @@ mp2_ri_libint.F: Unused dummy argument 'particle_set' at (1)
 mp2_ri_libint.F: Unused dummy argument 'unit_nr' at (1)
 mp2_ri_libint.F: Unused parameter 'due' declared at (1)
 mp2_ri_libint.F: Unused parameter 'zero' declared at (1)
+multi-dgemm-type.cpp: Copyright banner malformed
+multi-dgemm-type.hpp: Copyright banner malformed
+multi-dgemm.cpp: Copyright banner malformed
 neb_opt_utils.F: Unused dummy argument 'output_unit' at (1)
 optbas_fenv_manipulation.F: Unused dummy argument 'set_id' at (1)
 optimize_basis_utils.F: Unused dummy argument 'output_file' at (1)
@@ -697,27 +703,7 @@ rpa_ri_gpw.F: Unused dummy argument 'virtual' at (1)
 rpa_ri_gpw.F: Unused parameter 'use_gemm' declared at (1)
 scptb_ks_matrix.F: Unused dummy argument 'dmcharge' at (1)
 se_core_matrix.F: Unused parameter 'ix' declared at (1)
-se_fock_matrix_coulomb_ga.F: Unused dummy argument 'g_a' at (1)
-se_fock_matrix_coulomb_ga.F: Unused dummy argument 'matrix_p' at (1)
-se_fock_matrix_coulomb_ga.F: Unused dummy argument 'store_int_env' at (1)
 se_fock_matrix_integrals.F: Unused dummy argument 'pi_tot' at (1)
-se_ga_tools.F: Unused dummy argument 'buff' at (1)
-se_ga_tools.F: Unused dummy argument 'dens_i_info' at (1)
-se_ga_tools.F: Unused dummy argument 'dens_j_info' at (1)
-se_ga_tools.F: Unused dummy argument 'ga_env' at (1)
-se_ga_tools.F: Unused dummy argument 'ga_handle' at (1)
-se_ga_tools.F: Unused dummy argument 'ibin' at (1)
-se_ga_tools.F: Unused dummy argument 'ioff' at (1)
-se_ga_tools.F: Unused dummy argument 'isize' at (1)
-se_ga_tools.F: Unused dummy argument 'jbin' at (1)
-se_ga_tools.F: Unused dummy argument 'joff' at (1)
-se_ga_tools.F: Unused dummy argument 'jsize' at (1)
-se_ga_tools.F: Unused dummy argument 'ks_i' at (1)
-se_ga_tools.F: Unused dummy argument 'ks_j' at (1)
-se_ga_tools.F: Unused dummy argument 'lzero' at (1)
-se_ga_tools.F: Unused dummy argument 'matrix' at (1)
-se_ga_tools.F: Unused dummy argument 'max_rows' at (1)
-se_ga_tools.F: Unused dummy argument 'qs_env' at (1)
 semi_empirical_int3_utils.F: Routine EVAL called with an implicit interface.
 semi_empirical_int3_utils.F: Unused dummy argument 'r' at (1)
 semi_empirical_int_args.h: Copyright banner malformed
@@ -744,6 +730,8 @@ t_c_g0.F: Copyright banner malformed
 t_sh_p_s_c.F: Copyright banner malformed
 task_list_methods.F: Unused dummy argument 'cell' at (1)
 termination.F: Unused dummy argument 'line_number' at (1)
+test.cpp: Copyright banner malformed
+test.hpp: Copyright banner malformed
 thermostat_utils.F: Unused dummy argument 'cell' at (1)
 tmc_messages.F: Unused dummy argument 'msg_type' at (1)
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
@@ -762,13 +750,6 @@ xc_ke_gga.F: Unused dummy argument 'grho' at (1)
 xc_libxc.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_lyp.F: Unused dummy argument 'epsilon_drho' at (1)
 xc_lyp.F: Unused dummy argument 'epsilon_norm_drho' at (1)
-xc_lyp.F: Unused parameter 'small' declared at (1)
-xc_lyp.F: Unused parameter 't_1_9' declared at (1)
-xc_lyp.F: Unused parameter 't_2_3' declared at (1)
-xc_lyp.F: Unused parameter 't_4_27' declared at (1)
-xc_lyp.F: Unused parameter 't_4_3' declared at (1)
-xc_lyp.F: Unused parameter 't_4_9' declared at (1)
-xc_lyp.F: Unused parameter 't_8_27' declared at (1)
 xc_lyp_adiabatic.F: Unused dummy argument 'e_ndrho_ndrho' at (1)
 xc_lyp_adiabatic.F: Unused dummy argument 'e_ndrho_ndrho_rho' at (1)
 xc_lyp_adiabatic.F: Unused dummy argument 'e_ndrho_rho' at (1)
@@ -782,13 +763,6 @@ xc_pade.F: Unused dummy argument 'derivative_set' at (1)
 xc_pbe.F: Unused dummy argument 'epsilon_drho' at (1)
 xc_pbe.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_pbe.F: Unused dummy argument 'rho_1_3' at (1)
-xc_pbe.F: Unused parameter 'small' declared at (1)
-xc_pbe.F: Unused parameter 't_1_9' declared at (1)
-xc_pbe.F: Unused parameter 't_2_3' declared at (1)
-xc_pbe.F: Unused parameter 't_4_27' declared at (1)
-xc_pbe.F: Unused parameter 't_4_3' declared at (1)
-xc_pbe.F: Unused parameter 't_4_9' declared at (1)
-xc_pbe.F: Unused parameter 't_8_27' declared at (1)
 xc_perdew_zunger.F: Unused dummy argument 'eb' at (1)
 xc_pot_saop.F: Unused parameter 'ob3' declared at (1)
 xc_tfw.F: Unused dummy argument 'grhoa' at (1)
@@ -796,11 +770,6 @@ xc_tpss.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_write_output.F: Routine XC_F90_VERSION called with an implicit interface.
 xc_xbecke88.F: Unused dummy argument 'epsilon_drho' at (1)
 xc_xbecke88.F: Unused dummy argument 'epsilon_norm_drho' at (1)
-xc_xbecke88.F: Unused parameter 't_1_9' declared at (1)
-xc_xbecke88.F: Unused parameter 't_2_3' declared at (1)
-xc_xbecke88.F: Unused parameter 't_2_9' declared at (1)
-xc_xbecke88.F: Unused parameter 't_4_27' declared at (1)
-xc_xbecke88.F: Unused parameter 't_4_3' declared at (1)
 xc_xbecke_roussel.F: Unused dummy argument 'br_params' at (1)
 xc_xbecke_roussel.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_xbecke_roussel.F: Unused dummy argument 'r' at (1)
@@ -862,29 +831,3 @@ xyz_to_vab_optimised.F: Unused dummy argument 'lb_min_local' at (1)
 xyz_to_vab_optimised.F: Unused dummy argument 'ra' at (1)
 xyz_to_vab_optimised.F: Unused dummy argument 'rab' at (1)
 xyz_to_vab_optimised.F: Unused dummy argument 'rp' at (1)
-libxstream.h: Copyright banner malformed
-libxstream_begin.h: Copyright banner malformed
-libxstream_config.h: Copyright banner malformed
-libxstream_end.h: Copyright banner malformed
-libxstream_macros.h: Copyright banner malformed
-libxstream.cpp: Copyright banner malformed
-libxstream.hpp: Copyright banner malformed
-libxstream_alloc.cpp: Copyright banner malformed
-libxstream_alloc.hpp: Copyright banner malformed
-libxstream_argument.cpp: Copyright banner malformed
-libxstream_argument.hpp: Copyright banner malformed
-libxstream_capture.cpp: Copyright banner malformed
-libxstream_capture.hpp: Copyright banner malformed
-libxstream_context.cpp: Copyright banner malformed
-libxstream_context.hpp: Copyright banner malformed
-libxstream_event.cpp: Copyright banner malformed
-libxstream_event.hpp: Copyright banner malformed
-libxstream_offload.cpp: Copyright banner malformed
-libxstream_offload.hpp: Copyright banner malformed
-libxstream_stream.cpp: Copyright banner malformed
-libxstream_stream.hpp: Copyright banner malformed
-multi-dgemm-type.cpp: Copyright banner malformed
-multi-dgemm-type.hpp: Copyright banner malformed
-multi-dgemm.cpp: Copyright banner malformed
-test.cpp: Copyright banner malformed
-test.hpp: Copyright banner malformed
