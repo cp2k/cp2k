@@ -1610,9 +1610,6 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pbe_lsd_calc', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER :: small = 1.0e-20, t_1_9 = 1.0_dp/9.0_dp, &
-      t_2_3 = 2.0_dp/3.0_dp, t_4_27 = 4.0_dp/27.0_dp, t_4_3 = 4.0_dp/3.0_dp, &
-      t_4_9 = 4.0_dp/9.0_dp, t_8_27 = 8.0_dp/27.0_dp
 
     INTEGER                                  :: ii
     LOGICAL                                  :: failure

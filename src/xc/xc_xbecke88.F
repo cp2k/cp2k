@@ -308,8 +308,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lda_calc', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER :: t_1_9 = 1.0_dp/9.0_dp, t_2_3 = 2.0_dp/3.0_dp, &
-      t_2_9 = 2.0_dp/9.0_dp, t_4_27 = 4.0_dp/27.0_dp, t_4_3 = 4.0_dp/3.0_dp
 
     INTEGER                                  :: ii
     LOGICAL                                  :: failure
