@@ -51,22 +51,18 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sw_test', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER :: bf1 = 0.8378_dp, c1(6) = (/ 0.000000_dp, &
-      0.221157_dp,-0.147981_dp,-2.071190_dp,4.434685_dp, -2.706056_dp /), c2(6&
-      ) = (/ 0.000000_dp,0.042981_dp,-0.293762_dp,-1.752461_dp,5.682633_dp, &
+    REAL(KIND=dp), PARAMETER :: c1(6) = (/ 0.000000_dp, 0.221157_dp,&
+      -0.147981_dp,-2.071190_dp,4.434685_dp, -2.706056_dp /), c2(6) = (/ &
+      0.000000_dp,0.042981_dp,-0.293762_dp,-1.752461_dp,5.682633_dp, &
       -3.582633_dp /), &
       c3(4) = (/ 0.544000_dp,-0.399780_dp,0.025054_dp,-0.6714E-3_dp /), &
       c4(4) = (/ 1.3822_dp, -0.77857_dp, 0.062767_dp, -0.0020322_dp /), &
       c5(4) = (/ -1.5861_dp, -0.31082_dp, -0.083751_dp, 0.0038915_dp /), &
       c6(3) = (/ -0.4803_dp, -0.082676_dp, 0.0030302_dp /), &
-      c7(2) = (/ 0.164_dp, 0.533_dp /), c8(2) = (/ 0.1736_dp, 0.315_dp /), &
-      c9(2) = (/ 0.256_dp, -0.00635_dp /)
-    REAL(KIND=dp), PARAMETER :: g(2) = (/ -2.273_dp, 0.459_dp /), &
-      one = 1.0_dp, pi6 = 1.909859_dp, qtr = 0.25_dp, &
-      small = EPSILON(0.0_dp), sqrth = 0.70711_dp, stqr = 1.047198_dp, &
-      th = 0.375_dp, three = 3.0_dp, two = 2.0_dp, xx90 = 0.556_dp, &
-      xx95 = 0.622_dp, z90 = 1.2816_dp, z95 = 1.6449_dp, z99 = 2.3263_dp, &
-      zero = 0.0_dp, zm = 1.7509_dp, zss = 0.56268_dp
+      g(2) = (/ -2.273_dp, 0.459_dp /), one = 1.0_dp, pi6 = 1.909859_dp, &
+      qtr = 0.25_dp, small = EPSILON(0.0_dp), sqrth = 0.70711_dp
+    REAL(KIND=dp), PARAMETER :: stqr = 1.047198_dp, th = 0.375_dp, &
+      two = 2.0_dp, zero = 0.0_dp
 
     INTEGER                                  :: i, i1, j, n2, output_unit, &
                                                 stat
