@@ -554,6 +554,7 @@ CONTAINS
       ! Tr(F) = Tr(XX*tmp_gx) Tr(G) is equivalent
       CALL cp_dbcsr_trace(matrix_xsq, matrix_xidsq, trace_gx,  error=error)
       CALL cp_dbcsr_trace(matrix_xsq, tmp_gx, trace_fx, error=error)
+      IF(trace_gx==0.0_dp) trace_gx=trace_gx+EPSILON(0.0_dp) ! trace_gx is XX(1-X)*(1-X) which is 0 for an idempotent X
       gam = (nelectron - trace_fx)/trace_gx 
       gamma_values(i) = gam
 
