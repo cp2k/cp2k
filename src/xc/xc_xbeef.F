@@ -158,10 +158,9 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, &
                                                 epsilon_rho, sx
-    REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
-      e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
-      e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, &
-      rho_1_3
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: dummy, e_0, e_ndrho, e_rho, &
+                                                norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
@@ -194,13 +193,6 @@ CONTAINS
        e_0 => dummy
        e_rho => dummy
        e_ndrho => dummy
-       e_rho_rho => dummy
-       e_ndrho_rho => dummy
-       e_ndrho_ndrho => dummy
-       e_rho_rho_rho => dummy
-       e_ndrho_rho_rho => dummy
-       e_ndrho_ndrho_rho => dummy
-       e_ndrho_ndrho_ndrho => dummy
 
        IF (grad_deriv>=0) THEN
           deriv => xc_dset_get_derivative(deriv_set,"",&
@@ -223,17 +215,12 @@ CONTAINS
 
        !$omp parallel default(none) &
        !$omp          shared(rho, rho_1_3, norm_drho, e_0, e_rho) &
-       !$omp          shared(e_ndrho, e_rho_rho, e_ndrho_rho) &
-       !$omp          shared(e_ndrho_ndrho, e_rho_rho_rho) &
-       !$omp          shared(e_ndrho_rho_rho, e_ndrho_ndrho_rho) &
-       !$omp          shared(e_ndrho_ndrho_ndrho, grad_deriv, npoints) &
+       !$omp          shared(e_ndrho) &
+       !$omp          shared( grad_deriv, npoints) &
        !$omp          shared(epsilon_rho, epsilon_norm_drho, sx, error)
        CALL xbeef_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
-            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
-            e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
-            e_rho_rho_rho=e_rho_rho_rho, e_ndrho_rho_rho=e_ndrho_rho_rho,&
-            e_ndrho_ndrho_rho=e_ndrho_ndrho_rho,&
-            e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,grad_deriv=grad_deriv,&
+            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
+            grad_deriv=grad_deriv,&
             npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
             sx=sx,error=error)
        !$omp end parallel
@@ -256,13 +243,6 @@ CONTAINS
 !> \param e_0 ...
 !> \param e_rho ...
 !> \param e_ndrho ...
-!> \param e_rho_rho ...
-!> \param e_ndrho_rho ...
-!> \param e_ndrho_ndrho ...
-!> \param e_rho_rho_rho ...
-!> \param e_ndrho_rho_rho ...
-!> \param e_ndrho_ndrho_rho ...
-!> \param e_ndrho_ndrho_ndrho ...
 !> \param grad_deriv degree of the derivative that should be evalated,
 !>        if positive all the derivatives up to the given degree are evaluated,
 !>        if negative only the given degree is calculated
@@ -277,13 +257,11 @@ CONTAINS
 !> \author rkoitz
 ! *****************************************************************************
 SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
-       e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-       e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-       e_ndrho_ndrho_ndrho,grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,sx,error)
+       e_0,e_rho,e_ndrho,&
+       grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,sx,error)
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
-    REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: &
-      e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho_rho, e_rho_rho_rho, &
-      e_ndrho_ndrho, e_ndrho_rho, e_rho_rho, e_ndrho, e_rho, e_0
+    REAL(kind=dp), DIMENSION(1:npoints), &
+      INTENT(inout)                          :: e_ndrho, e_rho, e_0
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: norm_drho, rho_1_3, rho
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
@@ -400,9 +378,8 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0
-    TYPE(cp_3d_r_p_type), DIMENSION(2) :: e_ndrho, e_ndrho_ndrho, &
-      e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, &
-      e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
+    TYPE(cp_3d_r_p_type), DIMENSION(2)       :: e_ndrho, e_rho, norm_drho, &
+                                                rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
@@ -441,13 +418,6 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
        DO i=1,2
           e_rho(i)%array => dummy
           e_ndrho(i)%array => dummy
-          e_rho_rho(i)%array => dummy
-          e_ndrho_rho(i)%array => dummy
-          e_ndrho_ndrho(i)%array => dummy
-          e_rho_rho_rho(i)%array => dummy
-          e_ndrho_rho_rho(i)%array => dummy
-          e_ndrho_ndrho_rho(i)%array => dummy
-          e_ndrho_ndrho_ndrho(i)%array => dummy
        END DO
 
       IF (grad_deriv>=0) THEN
@@ -479,10 +449,8 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
 
           !$omp parallel default(none) &
           !$omp          shared(rho, ispin, rho_1_3, norm_drho, e_0) &
-          !$omp          shared(e_rho, e_ndrho, e_rho_rho, e_ndrho_rho) &
-          !$omp          shared(e_ndrho_ndrho, e_rho_rho_rho) &
-          !$omp          shared(e_ndrho_rho_rho, e_ndrho_ndrho_rho) &
-          !$omp          shared(e_ndrho_ndrho_ndrho, grad_deriv, npoints) &
+          !$omp          shared(e_rho, e_ndrho) &
+          !$omp          shared(grad_deriv, npoints) &
           !$omp          shared(epsilon_rho, epsilon_drho, sx, error)
 
           CALL xbeef_lsd_calc(&
@@ -492,13 +460,6 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
                e_0=e_0,&
                e_rho_spin=e_rho(ispin)%array,&
                e_ndrho_spin=e_ndrho(ispin)%array,&
-               e_rho_rho_spin=e_rho_rho(ispin)%array,&
-               e_ndrho_rho_spin=e_ndrho_rho(ispin)%array,&
-               e_ndrho_ndrho_spin=e_ndrho_ndrho(ispin)%array,&
-               e_rho_rho_rho_spin=e_rho_rho_rho(ispin)%array,&
-               e_ndrho_rho_rho_spin=e_ndrho_rho_rho(ispin)%array,&
-               e_ndrho_ndrho_rho_spin=e_ndrho_ndrho_rho(ispin)%array,&
-               e_ndrho_ndrho_ndrho_spin=e_ndrho_ndrho_ndrho(ispin)%array,&
                grad_deriv=grad_deriv, npoints=npoints,&
                epsilon_rho=epsilon_rho, epsilon_drho=epsilon_drho,&
                sx=sx,&
@@ -527,13 +488,6 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
 !> \param e_rho_spin e_*_spin: derivative of the functional wrt. to the variables
 !>        named where the * is. Everything wrt. to the spin of the arguments.
 !> \param e_ndrho_spin ...
-!> \param e_rho_rho_spin ...
-!> \param e_ndrho_rho_spin ...
-!> \param e_ndrho_ndrho_spin ...
-!> \param e_rho_rho_rho_spin ...
-!> \param e_ndrho_rho_rho_spin ...
-!> \param e_ndrho_ndrho_rho_spin ...
-!> \param e_ndrho_ndrho_ndrho_spin ...
 !> \param grad_deriv ...
 !> \param npoints ...
 !> \param epsilon_rho ...
@@ -546,17 +500,13 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
 !> \author rkoitz
 ! *****************************************************************************
 SUBROUTINE xbeef_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
-       e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
-       e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-       e_ndrho_ndrho_rho_spin,&
-       e_ndrho_ndrho_ndrho_spin,grad_deriv,npoints,epsilon_rho, epsilon_drho,sx,&
+       e_rho_spin,e_ndrho_spin,&
+       grad_deriv,npoints,epsilon_rho, epsilon_drho,sx,&
        error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rho_spin, rho_1_3_spin, &
                                                 norm_drho_spin
-    REAL(kind=dp), DIMENSION(*), INTENT(inout) :: e_0, e_rho_spin, &
-      e_ndrho_spin, e_rho_rho_spin, e_ndrho_rho_spin, e_ndrho_ndrho_spin, &
-      e_rho_rho_rho_spin, e_ndrho_rho_rho_spin, e_ndrho_ndrho_rho_spin, &
-      e_ndrho_ndrho_ndrho_spin
+    REAL(kind=dp), DIMENSION(*), &
+      INTENT(inout)                          :: e_0, e_rho_spin, e_ndrho_spin
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
     REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho, sx
     TYPE(cp_error_type), INTENT(inout)       :: error
