@@ -86,6 +86,7 @@ MODULE ps_implicit_methods
   END INTERFACE ps_implicit_compute_error
 
   LOGICAL, PRIVATE, PARAMETER          :: adjust_local_bounds = .FALSE.
+  REAL(dp), PRIVATE, PARAMETER         :: large_error = 1.0E4_dp
 
 CONTAINS
 
@@ -271,6 +272,8 @@ CONTAINS
        iter = iter + 1
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
+       IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
+                                                    routineP, "Poisson solver did not converge.", error) 
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
@@ -426,6 +429,8 @@ CONTAINS
        iter = iter + 1
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
+       IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
+                                                    routineP, "Poisson solver did not converge.", error) 
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
@@ -691,6 +696,8 @@ CONTAINS
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
+       IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
+                                                    routineP, "Poisson solver did not converge.", error) 
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
 ! update
@@ -971,6 +978,8 @@ CONTAINS
        reached_max_iter = iter .GT. max_iter
        reached_tol = pres_error .LE. tol
        ps_implicit_env%times_called = ps_implicit_env%times_called + 1
+       IF (pres_error .GT. large_error) CALL cp_assert( .FALSE. , cp_failure_level, cp_assertion_failed, &
+                                                    routineP, "Poisson solver did not converge.", error) 
        IF (reached_max_iter .OR. reached_tol)  EXIT
 
 ! update
