@@ -45,6 +45,9 @@ MODULE core_ppnl
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
+
+  !$ USE OMP_LIB
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -138,8 +141,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(sap_int_type), DIMENSION(:), &
       POINTER                                :: sap_int
-
-!$  INTEGER :: omp_get_thread_num, omp_get_max_threads
 
     failure = .FALSE.
     IF (calculate_forces) THEN

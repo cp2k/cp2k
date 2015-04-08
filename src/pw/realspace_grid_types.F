@@ -37,6 +37,9 @@ MODULE realspace_grid_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+
+  !$ USE OMP_LIB
+
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -1098,8 +1101,6 @@ CONTAINS
                                                 send_buf_3d_up
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_bufs, send_bufs
-
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     num_threads = 1
     my_id = 0

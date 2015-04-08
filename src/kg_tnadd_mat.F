@@ -46,6 +46,9 @@ MODULE kg_tnadd_mat
                                              timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
+
+  !$ USE OMP_LIB
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -139,8 +142,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: ap_iterator, nl_iterator
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sac_kin
-
-!$  INTEGER :: omp_get_thread_num, omp_get_max_threads
 
     NULLIFY(matrix_kg)
 

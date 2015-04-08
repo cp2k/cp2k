@@ -333,12 +333,9 @@ f77_int.h: Copyright banner malformed
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
 fft_lib.F: Unused parameter 'dp' which has been explicitly imported at (1)
-fft_tools.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
-fft_tools.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
 fft_tools.F: Unused dummy argument 'group' at (1)
 fft_tools.F: Unused parameter 'cudahostallocmapped' declared at (1)
 fft_tools.F: Unused parameter 'cudahostallocportable' declared at (1)
-fftw3_lib.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
 force_field_kind_types.F: Unused dummy argument 'impr_kind' at (1)
 force_fields_all.F: Unused dummy argument 'amb_info' at (1)
 force_fields_all.F: Unused dummy argument 'iw2' at (1)
@@ -370,19 +367,12 @@ hartree_local_methods.F: Unused dummy argument 'iatom' at (1)
 helium_methods.F: Unused dummy argument 'pint_env' at (1)
 hfx_admm_utils.F: Unused dummy argument 'ks_env' at (1)
 hfx_communication.F: Unused dummy argument 'natom' at (1)
-hfx_derivatives.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
-hfx_derivatives.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
-hfx_energy_potential.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
-hfx_energy_potential.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
 hfx_energy_potential.F: Unused dummy argument 'anti_symmetric' at (1)
-hfx_types.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
 input_cp2k_restarts.F: Unused dummy argument 'motion_section' at (1)
 k290.F: Found GOTO statement in procedure "mesh"
 k290.F: Found GOTO statement in procedure "sppt2"
 k290.F: Unused dummy argument 'iout' at (1)
 k290.F: Unused dummy argument 'nsp' at (1)
-kg_tnadd_mat.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
-kg_tnadd_mat.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
 library_tests.F: Routine PILAENV called with an implicit interface.
 library_tests.F: Unused dummy argument 'blacs_grid_layout' at (1)
 library_tests.F: Unused dummy argument 'blacs_repeatable' at (1)
@@ -478,11 +468,9 @@ mol_force.F: Unused dummy argument 'ism' at (1)
 mol_force.F: Unused dummy argument 'isn' at (1)
 mol_force.F: Unused dummy argument 't32' at (1)
 mol_force.F: Unused dummy argument 'tn' at (1)
-mp2.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
 mp2.F: Unused dummy argument 'basis_parameter' at (1)
 mp2.F: Unused dummy argument 'kind_of' at (1)
 mp2.F: Unused dummy argument 'matrix_ks' at (1)
-mp2_cphf.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
 mp2_cphf.F: Unused dummy argument 'cell' at (1)
 mp2_cphf.F: Unused dummy argument 'dft_control' at (1)
 mp2_cphf.F: Unused dummy argument 'mp2_env' at (1)
@@ -605,8 +593,6 @@ qmmm_se_energy.F: Unused dummy argument 'mm_el_pot_radius' at (1)
 qmmm_se_energy.F: Unused dummy argument 'num_mm_atoms' at (1)
 qmmm_se_forces.F: Unused dummy argument 'mm_el_pot_radius' at (1)
 qmmm_se_forces.F: Unused dummy argument 'num_mm_atoms' at (1)
-qs_collocate_density.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
-qs_collocate_density.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
 qs_collocate_density.F: Unused dummy argument 'lri_env' at (1)
 qs_collocate_density.F: ‘atomic_kind_set.dim[0].lbound’ is used uninitialized in this function [-Wuninitialized]
 qs_collocate_density.F: ‘atomic_kind_set.dim[0].ubound’ is used uninitialized in this function [-Wuninitialized]
@@ -628,8 +614,6 @@ qs_integrate_potential_low.F: Routine INTEGRATE_CORE_7 called with an implicit i
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_8 called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_9 called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_DEFAULT called with an implicit interface.
-qs_integrate_potential_product.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
-qs_integrate_potential_product.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
 qs_kpp1_env_methods.F: Unused dummy argument 'kpp1_env' at (1)
 qs_linres_op.F: Routine INDXL2G called with an implicit interface.
 qs_loc_methods.F: Unused dummy argument 'loc_section' at (1)
@@ -648,8 +632,6 @@ qs_scf_loop_utils.F: Unused dummy argument 'scf_control' at (1)
 qs_scf_output.F: Unused dummy argument 'last' at (1)
 qs_vxc_atom.F: Unused dummy argument 'drho_h' at (1)
 qs_vxc_atom.F: Unused dummy argument 'drho_s' at (1)
-realspace_grid_types.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
-realspace_grid_types.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
 rpa_communication.F: Unused dummy argument 'number_of_rec' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'dimen_ia' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'dimen_ri' at (1)

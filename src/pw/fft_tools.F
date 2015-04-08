@@ -44,6 +44,9 @@ MODULE fft_tools
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
+  !$ USE OMP_LIB
+
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -2246,8 +2249,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
 
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
-
     CALL timeset(routineN,handle)
 
     sub_group = fft_scratch%cart_sub_comm(1)
@@ -2357,8 +2358,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
     INTEGER, DIMENSION(:, :), POINTER        :: pgrid
 
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
-
     CALL timeset(routineN,handle)
 
     sub_group = fft_scratch%cart_sub_comm(1)
@@ -2461,8 +2460,6 @@ CONTAINS
                                                 num_threads, nx, ny, nz, ub
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
 
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
-
     CALL timeset(routineN,handle)
 
     np     =  fft_scratch%sizes%numtask
@@ -2562,8 +2559,6 @@ CONTAINS
                                                 mip, my, my_id, np, &
                                                 num_threads, nx, ny, nz, ub
     INTEGER, DIMENSION(:), POINTER           :: rcount, rdispl, scount, sdispl
-
-!$  INTEGER :: omp_get_max_threads, omp_get_thread_num
 
     CALL timeset(routineN,handle)
 

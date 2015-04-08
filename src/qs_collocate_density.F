@@ -137,6 +137,9 @@ MODULE qs_collocate_density
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
+  !$ USE OMP_LIB
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -1742,8 +1745,6 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
-
-!$  INTEGER :: omp_get_thread_num, omp_get_max_threads
 
     failure=.FALSE.
     NULLIFY(qs_kind, cell, dft_control, orb_basis_set, deltap, &

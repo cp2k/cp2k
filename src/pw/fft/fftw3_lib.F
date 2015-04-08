@@ -78,8 +78,6 @@ SUBROUTINE fftw3_do_init(wisdom_file)
 
 !$  LOGICAL                                  :: mkl_is_safe
 
-!$  INTEGER :: omp_get_max_threads
-
 ! If using the Intel compiler then we need to declare
 ! a C interface to a global variable in MKL that sets
 ! the number of threads which can concurrently execute

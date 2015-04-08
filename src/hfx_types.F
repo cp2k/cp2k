@@ -66,6 +66,9 @@ MODULE hfx_types
   USE t_c_g0,                          ONLY: free_C0
   USE timings,                         ONLY: timeset,&
                                              timestop
+
+  !$ USE OMP_LIB
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -488,8 +491,6 @@ MODULE hfx_types
     REAL(dp)                                 :: real_val
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
-
-!$  INTEGER                                  :: omp_get_max_threads
 
     CALL timeset(routineN,handle)
 
@@ -1237,9 +1238,6 @@ MODULE hfx_types
                                                 n_threads, stat
     LOGICAL                                  :: failure
     TYPE(hfx_type), POINTER                  :: actual_x_data
-
-!$  INTEGER                                  :: omp_get_max_threads
-
 
     failure = .FALSE.
     !! There might be 2 hf sections

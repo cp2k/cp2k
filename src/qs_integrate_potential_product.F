@@ -74,6 +74,9 @@ MODULE qs_integrate_potential_product
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
+
+  !$ USE OMP_LIB
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -204,9 +207,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
     TYPE(virial_type), POINTER               :: virial
-
-!$  INTEGER                                  :: omp_get_max_threads, &
-!$                                              omp_get_thread_num
 
     CALL timeset(routineN,handle)
 

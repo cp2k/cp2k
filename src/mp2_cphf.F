@@ -91,6 +91,9 @@ MODULE mp2_cphf
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
+
+  !$ USE OMP_LIB
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -190,8 +193,6 @@ MODULE mp2_cphf
     TYPE(qs_rho_type), POINTER               :: rho, rho_work
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
     TYPE(virial_type), POINTER               :: virial
-
-!$  INTEGER :: omp_get_max_threads
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -336,7 +337,7 @@ MODULE mp2_cphf
           IF(.NOT. actual_x_data%memory_parameter%do_all_on_the_fly) THEN
            !  CALL dealloc_containers(actual_x_data, hfx_do_eval_energy, error)
             CALL alloc_containers(actual_x_data, my_bin_size, hfx_do_eval_energy, error)
-           
+
             DO bin=1, my_bin_size
               maxval_container => actual_x_data%maxval_container(bin)
               integral_containers => actual_x_data%integral_containers(:,bin)

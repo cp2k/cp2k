@@ -87,6 +87,9 @@ MODULE mp2
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
+
+  !$ USE OMP_LIB
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -166,8 +169,6 @@ MODULE mp2
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
     TYPE(virial_type), POINTER               :: virial
-
-!$  INTEGER :: omp_get_max_threads
 
     NULLIFY(virial, dft_control, blacs_env)
     CALL timeset(routineN,handle)

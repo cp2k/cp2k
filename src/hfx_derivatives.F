@@ -74,6 +74,9 @@ MODULE hfx_derivatives
                                              timestop
   USE util,                            ONLY: sort
   USE virial_types,                    ONLY: virial_type
+
+  !$ USE OMP_LIB
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -123,151 +126,124 @@ MODULE hfx_derivatives
     CHARACTER(LEN=*), PARAMETER :: routineN = 'derivatives_four_center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bin, coord, forces_map(4,2), handle, handle_bin, handle_getP, &
-      handle_load, handle_main, i, i_atom, i_thread, iatom, ikind, iset, &
-      j_atom, jatom, jkind, jset, k_atom, katom, kkind, kset, l_atom, latom, &
-      lkind, lset, max_am, max_set, my_bin_size, n_threads, natom, ncob, &
-      ncos_max, nseta, nsetb, nspins, sgfb, stat
-    INTEGER(int_8)                           :: my_current_counter, &
-                                                my_istart, n_processes, ncpu
+    INTEGER :: atomic_offset_ac, atomic_offset_ad, atomic_offset_bc, &
+      atomic_offset_bd, bin, bits_max_val, buffer_left, buffer_size, &
+      buffer_start, cache_size, coord, current_counter, forces_map(4,2), &
+      handle, handle_bin, handle_getP, handle_load, handle_main, i, i_atom, &
+      i_list_ij, i_list_kl, i_set_list_ij, i_set_list_ij_start, &
+      i_set_list_ij_stop, i_set_list_kl, i_set_list_kl_start, &
+      i_set_list_kl_stop, i_thread, iatom, iatom_block, iatom_end, &
+      iatom_start, ikind, iset, iw, j, j_atom, jatom, jatom_block, jatom_end, &
+      jatom_start, jkind, jset, k, k_atom, katom, katom_block, katom_end, &
+      katom_start
+    INTEGER :: kind_kind_idx, kkind, kset, l_atom, l_max, latom, latom_block, &
+      latom_end, latom_start, lkind, lset, max_am, max_pgf, max_set, &
+      my_bin_id, my_bin_size, my_thread_id, n_threads, natom, nbits, ncob, &
+      ncos_max, nints, nkind, nneighbors, nseta, nsetb, nsgf_max, nspins, &
+      sgfb, shm_task_counter, shm_total_bins, sphi_a_u1, sphi_a_u2, &
+      sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, &
+      sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, stat, swap_id, unit_id
+    INTEGER(int_8) :: atom_block, counter, estimate_to_store_int, &
+      max_val_memory, mem_compression_counter, mem_eris, mem_max_val, &
+      my_current_counter, my_istart, n_processes, nblocks, ncpu, &
+      neris_incore, neris_onthefly, neris_tmp, neris_total, nprim_ints, &
+      shm_neris_incore, shm_neris_onthefly, shm_neris_total, shm_nprim_ints, &
+      shm_stor_count_max_val, shm_storage_counter_integrals, &
+      stor_count_max_val, storage_counter_integrals, tmp_block, tmp_i8(6)
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: tmp_task_list_cost
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
-                                                last_sgf_global
+                                                last_sgf_global, nimages, &
+                                                tmp_index
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, lc_max, &
       lc_min, ld_max, ld_min, npgfa, npgfb, npgfc, npgfd, nsgfa, nsgfb, &
-      nsgfc, nsgfd
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
-    LOGICAL                                  :: do_periodic, failure, &
-                                                screen_pmat_forces
+      nsgfc, nsgfd, shm_block_offset
+    INTEGER, DIMENSION(:, :), POINTER :: first_sgfb, nsgfl_a, nsgfl_b, &
+      nsgfl_c, nsgfl_d, offset_ac_set, offset_ad_set, offset_bc_set, &
+      offset_bd_set, shm_atomic_block_offset
+    INTEGER, DIMENSION(:, :), POINTER, SAVE  :: shm_is_assoc_atomic_block
+    INTEGER, DIMENSION(:, :, :, :), POINTER  :: shm_set_offset
+    INTEGER, SAVE                            :: shm_number_of_p_entries
+    LOGICAL :: bins_left, buffer_overflow, do_dynamic_load_balancing, do_it, &
+      do_periodic, do_print_load_balance_info, failure, is_anti_symmetric, &
+      screen_pmat_forces, treat_forces_in_core, use_disk_storage, &
+      with_mp2_density
+    LOGICAL, DIMENSION(:, :), POINTER        :: shm_atomic_pair_list
     REAL(dp) :: bintime_start, bintime_stop, cartesian_estimate, &
-      cartesian_estimate_virial, eps_schwarz, fac, hf_fraction, &
-      max_contraction_val, max_val1, max_val2, my_adiabatic_rescale_factor, &
-      pmax_entry, ra(3), rb(3), rc(3), rd(3), spherical_estimate_virial, &
-      symm_fac
+      cartesian_estimate_virial, compression_factor, eps_schwarz, &
+      eps_storage, fac, hf_fraction, ln_10, log10_eps_schwarz, log10_pmax, &
+      log_2, max_contraction_val, max_val1, max_val2, max_val2_set, &
+      my_adiabatic_rescale_factor, pmax_atom, pmax_blocks, pmax_entry, &
+      pmax_tmp, ra(3), rab2, rb(3), rc(3), rcd2, rd(3), spherical_estimate, &
+      spherical_estimate_virial, symm_fac, tmp_virial(3,3)
+    REAL(dp), ALLOCATABLE, DIMENSION(:) :: ede_buffer1, ede_buffer2, &
+      ede_primitives_tmp, ede_primitives_tmp_virial, ede_work, ede_work2, &
+      ede_work2_virial, ede_work_forces, ede_work_virial, pac_buf, &
+      pac_buf_beta, pac_buf_mp2, pad_buf, pad_buf_beta, pad_buf_mp2, pbc_buf, &
+      pbc_buf_beta, pbc_buf_mp2, pbd_buf, pbd_buf_beta, pbd_buf_mp2
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
-      TARGET                                 :: primitive_forces
+      TARGET                                 :: primitive_forces, &
+                                                primitive_forces_virial
     REAL(dp), DIMENSION(:), POINTER          :: full_density, &
                                                 full_density_beta, &
                                                 full_density_mp2, T2
-    REAL(dp), DIMENSION(:, :), POINTER       :: max_contraction, sphi_b, &
-                                                zeta, zetb, zetc, zetd
+    REAL(dp), DIMENSION(:, :), POINTER :: max_contraction, ptr_p_1, ptr_p_2, &
+      ptr_p_3, ptr_p_4, shm_pmax_atom, shm_pmax_block, sphi_b, zeta, zetb, &
+      zetc, zetd
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: sphi_a_ext_set, &
+                                                sphi_b_ext_set, &
+                                                sphi_c_ext_set, sphi_d_ext_set
+    REAL(dp), DIMENSION(:, :, :, :), POINTER :: sphi_a_ext, sphi_b_ext, &
+                                                sphi_c_ext, sphi_d_ext
+    REAL(KIND=dp)                            :: coeffs_kind_max0
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: rho_ao_mp2
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(hfx_basis_info_type), POINTER       :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    TYPE(hfx_general_type)                   :: general_parameter
-    TYPE(hfx_load_balance_type), POINTER     :: load_balance_parameter
-    TYPE(hfx_potential_type)                 :: potential_parameter
-    TYPE(hfx_screening_type)                 :: screening_parameter
-    TYPE(hfx_type), POINTER                  :: actual_x_data
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
-
-!$  INTEGER :: omp_get_max_threads,omp_get_thread_num
-    INTEGER, SAVE                            :: shm_number_of_p_entries
-    INTEGER, DIMENSION(:,:), POINTER, SAVE   :: shm_is_assoc_atomic_block
-    INTEGER                                  :: nkind, l_max
-    TYPE(cell_type), POINTER                 :: cell
-    INTEGER                                  :: unit_id
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:,:,:,:,:,:), POINTER        :: screen_coeffs_pgf, radii_pgf
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:,:,:,:), POINTER            :: screen_coeffs_set
-    TYPE(hfx_screen_coeff_type), &
-      DIMENSION(:,:), POINTER                :: screen_coeffs_kind, tmp_R_1, tmp_R_2, tmp_screen_pgf1, tmp_screen_pgf2
-    REAL(dp)                                 :: ln_10, rab2, rcd2, log10_eps_schwarz,&
-                                                log10_pmax, max_val2_set, log_2
-    INTEGER                                  :: nsgf_max
-    REAL(dp), DIMENSION(:), ALLOCATABLE      :: pbd_buf, pbc_buf, pad_buf, pac_buf, &
-                                                pbd_buf_mp2, pbc_buf_mp2, pad_buf_mp2, pac_buf_mp2, &
-                                                pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta
-    INTEGER(int_8)                           :: atom_block, tmp_block, nblocks
-    INTEGER                                  :: iatom_block, jatom_block, katom_block, latom_block
-    INTEGER                                  :: i_list_ij,i_list_kl, &
-                                                i_set_list_ij, i_set_list_ij_start, i_set_list_ij_stop,&
-                                                i_set_list_kl, i_set_list_kl_start, i_set_list_kl_stop
-    TYPE(pair_list_type)                     :: list_ij, list_kl
-    REAL(KIND=dp)                            :: coeffs_kind_max0
-    TYPE(pair_set_list_type), DIMENSION(:), ALLOCATABLE :: set_list_ij, set_list_kl
-    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: shm_initial_p
-    REAL(dp)                                 :: pmax_tmp
-    INTEGER                                  :: kind_kind_idx, swap_id
-    REAL(dp), DIMENSION(:,:), POINTER        :: ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, shm_pmax_block
-    INTEGER, DIMENSION(:), POINTER           :: shm_block_offset
-    INTEGER, DIMENSION(:,:), POINTER         :: shm_atomic_block_offset
-    INTEGER, DIMENSION(:,:,:,:), POINTER     :: shm_set_offset
-    INTEGER                                  :: atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, &
-                                                atomic_offset_ac, nneighbors, max_pgf
-    INTEGER, DIMENSION(:,:), POINTER         :: offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set
-    TYPE(hfx_pgf_list), DIMENSION(:), &
-                            ALLOCATABLE      :: pgf_list_ij, pgf_list_kl
-    TYPE(hfx_pgf_product_list), DIMENSION(:), &
-                        ALLOCATABLE          :: pgf_product_list
-    REAL(dp), DIMENSION(:,:,:,:), POINTER &
-                                             :: sphi_a_ext, sphi_b_ext, sphi_c_ext, sphi_d_ext
-    REAL(dp), DIMENSION(:,:,:), POINTER &
-                                             :: sphi_a_ext_set, sphi_b_ext_set, sphi_c_ext_set, sphi_d_ext_set
-    INTEGER, DIMENSION(:, :), POINTER        :: nsgfl_a, nsgfl_b, &
-                                                nsgfl_c, nsgfl_d
-    REAL(dp), DIMENSION(:), ALLOCATABLE      :: ede_work, ede_work2, ede_work_forces,  &
-                                                ede_buffer1, ede_buffer2, &
-                                                ede_primitives_tmp
-    TYPE(lib_deriv)                          :: private_deriv
-    LOGICAL                                  :: do_dynamic_load_balancing, bins_left, do_it
-    TYPE(hfx_distribution), POINTER          :: distribution_forces
-    INTEGER                                  :: shm_total_bins, shm_task_counter, my_thread_id, my_bin_id
-    TYPE(hfx_task_list_type), DIMENSION(:), &
-                              POINTER        :: shm_task_list, tmp_task_list
-    INTEGER(int_8), DIMENSION(:), &
-                    ALLOCATABLE              :: tmp_task_list_cost
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: tmp_index
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: nimages
-    INTEGER                                  :: sphi_d_u1,sphi_d_u2,sphi_d_u3
-    INTEGER                                  :: sphi_c_u1,sphi_c_u2,sphi_c_u3
-    INTEGER                                  :: sphi_b_u1,sphi_b_u2,sphi_b_u3
-    INTEGER                                  :: sphi_a_u1,sphi_a_u2,sphi_a_u3
-    INTEGER                                  :: iatom_start, iatom_end, jatom_start, jatom_end, katom_start,&
-                                                katom_end, latom_start, latom_end
     TYPE(hfx_cache_type), DIMENSION(:), &
       POINTER                                :: integral_caches
     TYPE(hfx_cache_type), POINTER            :: maxval_cache
     TYPE(hfx_container_type), DIMENSION(:), &
       POINTER                                :: integral_containers
     TYPE(hfx_container_type), POINTER        :: maxval_container
-    INTEGER                                  :: cache_size, bits_max_val, current_counter, nints, &
-                                                nbits, buffer_left, buffer_start, buffer_size, iw
+    TYPE(hfx_distribution), POINTER          :: distribution_forces
+    TYPE(hfx_general_type)                   :: general_parameter
+    TYPE(hfx_load_balance_type), POINTER     :: load_balance_parameter
     TYPE(hfx_memory_type), POINTER           :: memory_parameter
-    INTEGER(int_8)                           :: mem_compression_counter, counter, neris_onthefly, &
-                                                estimate_to_store_int, neris_total, nprim_ints, neris_tmp,&
-                                                max_val_memory, neris_incore
-    LOGICAL                                  :: buffer_overflow, use_disk_storage
-    REAL(dp)                                 :: spherical_estimate, eps_storage
-    INTEGER(int_8)                           :: shm_neris_total, shm_neris_onthefly, &
-                                                shm_storage_counter_integrals, shm_neris_incore, &
-                                                shm_stor_count_max_val,&
-                                                tmp_i8(6), mem_eris, mem_max_val, shm_nprim_ints, stor_count_max_val,&
-                                                storage_counter_integrals
-    REAL(dp)                                 :: compression_factor
-    TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL                                  :: treat_forces_in_core
-    REAL(dp), DIMENSION(:,:), POINTER        :: shm_pmax_atom
-
-    TYPE(cp_dbcsr_p_type), POINTER, DIMENSION(:) :: rho_ao_mp2
-    REAL(dp), DIMENSION(:), ALLOCATABLE      :: ede_work_virial, ede_work2_virial,&
-                                                ede_primitives_tmp_virial
-    REAL(dp), ALLOCATABLE, DIMENSION(:), &
-      TARGET                                 :: primitive_forces_virial
+    TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: shm_initial_p
+    TYPE(hfx_pgf_list), ALLOCATABLE, &
+      DIMENSION(:)                           :: pgf_list_ij, pgf_list_kl
+    TYPE(hfx_pgf_product_list), &
+      ALLOCATABLE, DIMENSION(:)              :: pgf_product_list
+    TYPE(hfx_potential_type)                 :: potential_parameter
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :), POINTER               :: screen_coeffs_kind, tmp_R_1, &
+                                                tmp_R_2, tmp_screen_pgf1, &
+                                                tmp_screen_pgf2
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :, :, :), POINTER         :: screen_coeffs_set
+    TYPE(hfx_screen_coeff_type), &
+      DIMENSION(:, :, :, :, :, :), POINTER   :: radii_pgf, screen_coeffs_pgf
+    TYPE(hfx_screening_type)                 :: screening_parameter
+    TYPE(hfx_task_list_type), DIMENSION(:), &
+      POINTER                                :: shm_task_list, tmp_task_list
+    TYPE(hfx_type), POINTER                  :: actual_x_data
+    TYPE(lib_deriv)                          :: private_deriv
+    TYPE(pair_list_type)                     :: list_ij, list_kl
+    TYPE(pair_set_list_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: set_list_ij, set_list_kl
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
     TYPE(virial_type), POINTER               :: virial
-    REAL(dp)                                 :: tmp_virial(3,3), pmax_blocks, pmax_atom
-    INTEGER                                  :: k,j
-    LOGICAL, DIMENSION(:,:), POINTER         :: shm_atomic_pair_list
-    LOGICAL                                  :: do_print_load_balance_info
-    LOGICAL                                  :: with_mp2_density, is_anti_symmetric
-    TYPE(dft_control_type), &
-      POINTER                                :: dft_control
-    TYPE(admm_type), POINTER                 :: admm_env 
 
     NULLIFY(dft_control, admm_env) 
 
