@@ -44,12 +44,14 @@ def check_warnings(fn):
     content = open(fn).read()
 
     lines = content.split("\n")
-    loc = loc_short = None
+    loc = loc_short = ""
     for i, line in enumerate(lines):
         if(len(line)==0): continue
         if(line[0]=="/" and line[-1]==":"):
             loc = line.rsplit(":", 2)[0].strip()
             loc_short = path.basename(loc)
+
+        if(loc.endswith("include/fftw3.f")): continue # an external file
 
         m = warning_re.match(line)
         if(not m): continue # we are only looking for warnings
