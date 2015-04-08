@@ -31,7 +31,7 @@
 #ifndef TEST_HPP
 #define TEST_HPP
 
-#include <libxstream.h>
+#include "../../include/libxstream.h"
 
 
 class test_type {

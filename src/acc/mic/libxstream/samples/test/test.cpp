@@ -29,7 +29,7 @@
 /* Hans Pabst (Intel Corp.)
 ******************************************************************************/
 #include "test.hpp"
-#include <libxstream_begin.h>
+#include "../../include/libxstream_begin.h"
 #include <stdexcept>
 #include <algorithm>
 #include <complex>
@@ -40,7 +40,7 @@
 #if defined(_OPENMP)
 # include <omp.h>
 #endif
-#include <libxstream_end.h>
+#include "../../include/libxstream_end.h"
 
 
 namespace test_internal {

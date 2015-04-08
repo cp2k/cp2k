@@ -1,4 +1,4 @@
 {
 "description": "LIBXSMM Sample Code",
-"requires": []
+"requires": ["../../include"]
 }

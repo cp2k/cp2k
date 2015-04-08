@@ -30,7 +30,7 @@
 ******************************************************************************/
 #include "multi-dgemm-type.hpp"
 
-#include <libxstream_begin.h>
+#include "../../include/libxstream_begin.h"
 #include <stdexcept>
 #include <algorithm>
 #include <cstdlib>
@@ -41,7 +41,7 @@
 #if defined(_OPENMP)
 # include <omp.h>
 #endif
-#include <libxstream_end.h>
+#include "../../include/libxstream_end.h"
 
 //#define MULTI_DGEMM_USE_NESTED
 #define MULTI_DGEMM_USE_SYNC 1

@@ -28,7 +28,9 @@
 ******************************************************************************/
 /* Hans Pabst (Intel Corp.)
 ******************************************************************************/
-#include "libxstream.h"
+#ifndef LIBXSTREAM_H
+# include "libxstream.h"
+#endif
 
 #if defined(LIBXSTREAM_OFFLOAD)
 # pragma offload_attribute(push,target(mic))
