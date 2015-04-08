@@ -515,6 +515,12 @@ fi
 
 # from here failures are likely to be bugs in cp2k
 if [[ ${nobuild} != "nobuild" ]]; then
+   echo "--------------- -------------Settings-------------------------------------"
+   echo "maxtasks         = ${maxtasks}"
+   echo "numprocs         = ${numprocs}"
+   echo "OMP_NUM_THREADS  = ${OMP_NUM_THREADS}"
+   echo "cp2k_run_prefix  = ${cp2k_run_prefix}"
+   echo "cp2k_run_postfix = ${cp2k_run_postfix}"
    echo "----------------------------ARCH-file-------------------------------------"
    cat ${dir_base}/${cp2k_dir}/arch/${ARCH}.${cp2k_version}
    echo "---------------------------Build-Tools------------------------------------"
