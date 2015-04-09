@@ -871,7 +871,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, nelectron=nelectron)
 
           CALL calculate_mopac_dm(p_rmpv(ispin)%matrix,s_sparse(1)%matrix, has_unit_metric, dft_control,&
-                                  particle_set, atomic_kind_set, qs_kind_set, ispin, nspin, nelectron, para_env, error)
+                                  particle_set, atomic_kind_set, qs_kind_set, nspin, nelectron, para_env, error)
 
           ! The orbital transformation method (OT) requires not only an
           ! initial density matrix, but also an initial wavefunction (MO set)
@@ -1102,7 +1102,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 !> \param particle_set ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
-!> \param ispin ...
 !> \param nspin ...
 !> \param nelectron_spin ...
 !> \param para_env ...
@@ -1110,7 +1109,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 ! *****************************************************************************
   SUBROUTINE calculate_mopac_dm(matrix_p,matrix_s, has_unit_metric, &
                                 dft_control, particle_set, atomic_kind_set, qs_kind_set, &
-                                ispin, nspin, nelectron_spin, para_env, error)
+                                nspin, nelectron_spin, para_env, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p, matrix_s
     LOGICAL                                  :: has_unit_metric
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1120,7 +1119,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
       POINTER                                :: atomic_kind_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    INTEGER, INTENT(IN)                      :: ispin, nspin, nelectron_spin
+    INTEGER, INTENT(IN)                      :: nspin, nelectron_spin
     TYPE(cp_para_env_type)                   :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 

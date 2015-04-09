@@ -360,7 +360,7 @@ CONTAINS
             qs_kind => qs_kind_set(ikind)
             IF (gradient_f) THEN
               CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,qs_kind,&
-                              rho_atom,drho_h,drho_s,nspins,error=error)
+                              rho_atom,nspins,error=error)
             ELSE
               CALL gaVxcgb_noGC(vxc_h,vxc_s,qs_kind,rho_atom,nspins,error=error)
             END IF
@@ -718,7 +718,7 @@ CONTAINS
 
          IF(gradient_functional) THEN
             CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,qs_kind_set(ikind),&
-                            rho1_atom, drho_h, drho_s, nspins,error=error)
+                            rho1_atom, nspins,error=error)
          ELSE
             CALL gaVxcgb_noGC(vxc_h, vxc_s, qs_kind_set(ikind), &
                               rho1_atom, nspins,error=error)
@@ -1160,19 +1160,16 @@ CONTAINS
 !> \param vxg_s ...
 !> \param qs_kind ...
 !> \param rho_atom ...
-!> \param drho_h ...
-!> \param drho_s ...
 !> \param nspins ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE  gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,qs_kind,rho_atom,drho_h,&
-                         drho_s,nspins,error)
+  SUBROUTINE  gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,qs_kind,rho_atom,&
+                         nspins,error)
 
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc_h, vxc_s
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg_h, vxg_s
     TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: drho_h, drho_s
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 

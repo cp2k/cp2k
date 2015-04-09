@@ -70,7 +70,9 @@ CONTAINS
 ! *****************************************************************************
 
 ! *****************************************************************************
-!> \brief ...
+!> \brief Calculation of three-center overlap integrals <a|c|b> over
+!>        Cartesian Gaussian functions. The Gaussian-type functions a and b
+!>        may be contracted and c is a primitive Gaussian-type function.
 !> \param la_max ...
 !> \param npgfa ...
 !> \param zeta ...
@@ -82,7 +84,6 @@ CONTAINS
 !> \param rpgfb ...
 !> \param lb_min ...
 !> \param lc_max ...
-!> \param npgfc ...
 !> \param zetc ...
 !> \param rpgfc ...
 !> \param lc_min ...
@@ -96,12 +97,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE overlap3_old(la_max,npgfa,zeta,rpgfa,la_min,&
                       lb_max,npgfb,zetb,rpgfb,lb_min,&
-                      lc_max,npgfc,zetc,rpgfc,lc_min,&
+                      lc_max,zetc,rpgfc,lc_min,&
                       rab,dab,rac,dac,rbc,dbc,sabc)
-
-!   Purpose: Calculation of three-center overlap integrals <a|c|b> over
-!            Cartesian Gaussian functions. The Gaussian-type functions a and b
-!            may be contracted and c is a primitive Gaussian-type function.
 
 !   History: - Creation (26.06.2001, Matthias Krack)
 
@@ -111,7 +108,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
     INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    INTEGER, INTENT(IN)                      :: lb_min, lc_max, npgfc
+    INTEGER, INTENT(IN)                      :: lb_min, lc_max
     REAL(KIND=dp), INTENT(IN)                :: zetc, rpgfc
     INTEGER, INTENT(IN)                      :: lc_min
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab

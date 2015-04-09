@@ -121,7 +121,7 @@ CONTAINS
     !CALL almo_return_to_qs(qs_env,almo_scf_env,error)
 
     ! do post scf processing
-    CALL almo_scf_clean_up(qs_env,almo_scf_env,error)
+    CALL almo_scf_clean_up(almo_scf_env,error)
 
     CALL timestop(handle)
 
@@ -200,7 +200,7 @@ CONTAINS
     natoms=almo_scf_env%natoms
     
     ! parse the almo_scf section and set appropriate quantities
-    CALL almo_scf_init_read_write_input(input,almo_scf_env,unit_nr,error)
+    CALL almo_scf_init_read_write_input(input,almo_scf_env,error)
    
     ! Define groups: either atomic or molecular
     IF (almo_scf_env%domain_layout_mos==almo_domain_layout_molecular) THEN
@@ -391,16 +391,14 @@ CONTAINS
 !> \brief Parses the ALMO input section
 !> \param input ...
 !> \param almo_scf_env ...
-!> \param unit_nr ...
 !> \param error ...
 !> \par History
 !>       2011.05 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_init_read_write_input(input,almo_scf_env,unit_nr,error)
+  SUBROUTINE almo_scf_init_read_write_input(input,almo_scf_env,error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(almo_scf_env_type), INTENT(INOUT)   :: almo_scf_env
-    INTEGER, INTENT(IN)                      :: unit_nr
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -1833,16 +1831,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief clean up procedures for almo scf
-!> \param qs_env ...
 !> \param almo_scf_env ...
 !> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_clean_up(qs_env,almo_scf_env,error)
+  SUBROUTINE almo_scf_clean_up(almo_scf_env,error)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(almo_scf_env_type)                  :: almo_scf_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

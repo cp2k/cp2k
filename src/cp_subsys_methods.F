@@ -87,13 +87,12 @@ CONTAINS
 !> \param qmmm ...
 !> \param qmmm_env ...
 !> \param exclusions ...
-!> \param cell ...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE cp_subsys_create(subsys, para_env, &
                               root_section, force_env_section, subsys_section,&
-                              use_motion_section, qmmm, qmmm_env, exclusions, cell, error)
+                              use_motion_section, qmmm, qmmm_env, exclusions, error)
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: root_section
@@ -106,7 +105,6 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(exclusion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: exclusions
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_subsys_create', &

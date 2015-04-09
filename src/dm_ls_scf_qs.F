@@ -464,7 +464,7 @@ CONTAINS
        IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%semi_empirical) THEN
           CALL calculate_mopac_dm(rho_ao(ispin)%matrix,matrix_s(1)%matrix, has_unit_metric, &
                                   dft_control,particle_set, atomic_kind_set, qs_kind_set,&
-                                  ispin, nspin, nelectron_spin(ispin),&
+                                  nspin, nelectron_spin(ispin),&
                                   para_env, error)
        ELSE
           CALL calculate_atomic_block_dm(rho_ao(ispin)%matrix,matrix_s(1)%matrix, &

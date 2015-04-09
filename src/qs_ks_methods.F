@@ -448,7 +448,7 @@ CONTAINS
        ! In case decouple periodic images and/or apply restraints to charges
        IF (do_ddapc) THEN
           CALL qs_ks_ddapc(qs_env, auxbas_pw_pool, rho_tot_gspace, v_hartree_gspace,&
-               v_spin_ddapc_rest_r, energy, calculate_forces, ks_env, ks_matrix,    &
+               v_spin_ddapc_rest_r, energy, calculate_forces, ks_matrix,    &
                just_energy, error)
        ELSE
           dft_control%qs_control%ddapc_explicit_potential = .FALSE.

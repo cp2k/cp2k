@@ -533,7 +533,7 @@ CONTAINS
             e_ndra_ndra=e_ndra_ndra, e_ndrb_ndrb=e_ndrb_ndrb,&
             e_ndra_ndrb=e_ndra_ndrb,&
             grad_deriv=grad_deriv, npoints=npoints, &
-            epsilon_rho=epsilon_rho,epsilon_drho=epsilon_drho,&
+            epsilon_rho=epsilon_rho,&
             param=param,scale_c_in=scale_c,scale_x_in=scale_x,error=error)
 
        !$omp end parallel
@@ -599,7 +599,6 @@ CONTAINS
 !> \param grad_deriv ...
 !> \param npoints ...
 !> \param epsilon_rho ...
-!> \param epsilon_drho ...
 !> \param param ...
 !> \param scale_c_in derivative of the functional with respect to c_in
 !> \param scale_x_in derivative of the functional with respect to x_in
@@ -612,7 +611,7 @@ CONTAINS
        e_ra_ndra,e_ra_ndrb, e_rb_ndra, e_rb_ndrb,&
        e_ndra_ndra, e_ndrb_ndrb, e_ndra_ndrb, &
        e_ra_ra, e_ra_rb, e_rb_rb,&
-       grad_deriv,npoints,epsilon_rho,epsilon_drho, &
+       grad_deriv,npoints,epsilon_rho, &
        param, scale_c_in, scale_x_in, error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drhoa, &
                                                 norm_drhob
@@ -620,14 +619,13 @@ CONTAINS
       e_ndrb, e_ra_ndra, e_ra_ndrb, e_rb_ndra, e_rb_ndrb, e_ndra_ndra, &
       e_ndrb_ndrb, e_ndra_ndrb, e_ra_ra, e_ra_rb, e_rb_rb
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho
     INTEGER, INTENT(in)                      :: param
     REAL(kind=dp), INTENT(in)                :: scale_c_in, scale_x_in
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_lsd_calc', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER                 :: small = 1.0e-20
 
     INTEGER                                  :: ii
     LOGICAL                                  :: failure
@@ -1672,7 +1670,6 @@ SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'b97_lda_calc', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER                 :: small = 1.0e-20
 
     INTEGER                                  :: ii
     LOGICAL                                  :: failure

@@ -944,7 +944,7 @@ CONTAINS
           END IF
        END IF
 
-       CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs,dft_control,cube_info,gridlevel_info,cell,&
+       CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs,dft_control,cube_info,gridlevel_info,&
                                  iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
                                  la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nseta,nsetb,error)
 

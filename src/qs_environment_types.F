@@ -924,7 +924,6 @@ CONTAINS
 !> \param rho_external ...
 !> \param external_vxc ...
 !> \param mask ...
-!> \param kinetic ...
 !> \param scf_control ...
 !> \param rel_control ...
 !> \param qs_charges ...
@@ -980,7 +979,7 @@ CONTAINS
        mos,mos_aux_fit,qmmm,qmmm_periodic,&
        ewald_env,ewald_pw,mpools,mpools_aux_fit,&
        rho_external,external_vxc,mask,&
-       kinetic,scf_control,rel_control,qs_charges,ks_env,&
+       scf_control,rel_control,qs_charges,ks_env,&
        ks_qmmm_env,wf_history,scf_env,&
        input,oce,rho_atom_set,rho0_atom_set,rho0_mpole,run_rtp,rtp,&
        rhoz_set,rhoz_tot,ecoul_1c,has_unit_metric,requires_mo_derivs,mo_derivs,&
@@ -1003,8 +1002,6 @@ CONTAINS
       POINTER                                :: mpools, mpools_aux_fit
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho_external
     TYPE(pw_p_type), OPTIONAL, POINTER       :: external_vxc, mask
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: kinetic
     TYPE(scf_control_type), OPTIONAL, &
       POINTER                                :: scf_control
     TYPE(rel_control_type), OPTIONAL, &

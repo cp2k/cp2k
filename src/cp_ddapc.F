@@ -51,7 +51,6 @@ MODULE cp_ddapc
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -76,7 +75,6 @@ CONTAINS
 !> \param v_spin_ddapc_rest_r ...
 !> \param energy ...
 !> \param calculate_forces ...
-!> \param ks_env ...
 !> \param ks_matrix ...
 !> \param just_energy ...
 !> \param error ...
@@ -85,7 +83,7 @@ CONTAINS
 !>      08.2008 extended to restraint/constraint DDAPC charges [fschiff]
 ! *****************************************************************************
   SUBROUTINE qs_ks_ddapc(qs_env,auxbas_pw_pool,rho_tot_gspace,v_hartree_gspace,&
-       v_spin_ddapc_rest_r,energy,calculate_forces, ks_env, ks_matrix,just_energy,&
+       v_spin_ddapc_rest_r,energy,calculate_forces,  ks_matrix,just_energy,&
        error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -95,7 +93,6 @@ CONTAINS
                                                 v_spin_ddapc_rest_r
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix
     LOGICAL, INTENT(in)                      :: just_energy
@@ -169,8 +166,8 @@ CONTAINS
           NULLIFY(ddapc_restraint_control)
           ddapc_restraint_control=>dft_control%qs_control%ddapc_restraint_control(i)%ddapc_restraint_control
 
-          CALL cp_ddapc_apply_RS(qs_env, energy%hartree, energy%ddapc_restraint(i), v_hartree_gspace,&
-               v_spin_ddapc_rest_g, i,ddapc_restraint_control,calculate_forces, error)
+          CALL cp_ddapc_apply_RS(qs_env, energy%ddapc_restraint(i), v_hartree_gspace,&
+               v_spin_ddapc_rest_g, ddapc_restraint_control,calculate_forces, error)
        END DO
     END IF
     CALL cp_ddapc_apply_RF(qs_env, rho_tot_gspace, energy%hartree, v_hartree_gspace,&
@@ -378,11 +375,9 @@ CONTAINS
 !> \brief Routine to apply RESTRAINT/CONSTRAINTS to the density
 !>      with the Bloechl scheme
 !> \param qs_env ...
-!> \param energy ...
 !> \param energy_res ...
 !> \param v_hartree_gspace ...
 !> \param v_spin_ddapc_rest_g ...
-!> \param section_id ...
 !> \param ddapc_restraint_control ...
 !> \param calculate_forces ...
 !> \param error ...
@@ -390,15 +385,13 @@ CONTAINS
 !>      08.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE cp_ddapc_apply_RS(qs_env, energy, energy_res,v_hartree_gspace,&
-       v_spin_ddapc_rest_g,section_id,ddapc_restraint_control,calculate_forces,&
+  SUBROUTINE cp_ddapc_apply_RS(qs_env, energy_res,v_hartree_gspace,&
+       v_spin_ddapc_rest_g,ddapc_restraint_control,calculate_forces,&
        error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(KIND=dp), INTENT(INOUT)             :: energy
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: energy_res
     TYPE(pw_p_type)                          :: v_hartree_gspace, &
                                                 v_spin_ddapc_rest_g
-    INTEGER                                  :: section_id
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error

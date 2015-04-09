@@ -288,7 +288,7 @@ CONTAINS
        zetb         =>  basis_set_b%zet
 
        CALL task_list_inner_loop(task_list%tasks, task_list%dist_ab, task_list%ntasks, curr_tasks, &
-                rs_descs,dft_control,cube_info,gridlevel_info,cell,&
+                rs_descs,dft_control,cube_info,gridlevel_info,&
                 iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
                 la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb,error)
 
@@ -411,7 +411,6 @@ CONTAINS
 !> \param dft_control ...
 !> \param cube_info ...
 !> \param gridlevel_info ...
-!> \param cell ...
 !> \param iatom ...
 !> \param jatom ...
 !> \param rpgfa ...
@@ -438,7 +437,7 @@ CONTAINS
 !> \par History
 !>      Joost VandeVondele: 10.2008 refactored
 ! *****************************************************************************
-  SUBROUTINE task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs,dft_control,cube_info,gridlevel_info,cell,&
+  SUBROUTINE task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs,dft_control,cube_info,gridlevel_info,&
                                   iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
                                   la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb,error)
 
@@ -452,7 +451,6 @@ CONTAINS
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
-    TYPE(cell_type), POINTER                 :: cell
     INTEGER                                  :: iatom, jatom
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, zeta, zetb
     REAL(KIND=dp)                            :: kind_radius_b

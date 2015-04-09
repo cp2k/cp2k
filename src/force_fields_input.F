@@ -49,8 +49,8 @@ MODULE force_fields_input
   USE memory_utilities,                ONLY: reallocate
   USE pair_potential_types,            ONLY: &
        b4_type, bm_type, do_potential_single_allocation, ea_type, &
-       eam_pot_type, ft_pot_type, ft_type, ftd_pot_type, ftd_type, gp_type, &
-       gw_type, ip_type, ipbv_pot_type, lj_charmm_type, &
+       eam_pot_type, ft_pot_type, ft_type, ftd_type, gp_type, gw_type, &
+       ip_type, ipbv_pot_type, lj_charmm_type, &
        no_potential_single_allocation, pair_potential_p_type, &
        pair_potential_reallocate, potential_single_allocation, quip_type, &
        siepmann_type, tersoff_type, wl_type
@@ -546,15 +546,10 @@ CPSourceFileRef,&
 
 ! *****************************************************************************
 !> \brief Set up of the BMHFTD force fields
-!> \param at1 ...
-!> \param at2 ...
-!> \param ftd ...
 !> \param error ...
 !> \author Mathieu Salanne 05.2010
 ! *****************************************************************************
-  SUBROUTINE set_BMHFTD_ff(at1, at2, ftd, error)
-    CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
-    TYPE(ftd_pot_type), POINTER              :: ftd
+  SUBROUTINE set_BMHFTD_ff(error)
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_BMHFTD_ff', &
@@ -977,8 +972,7 @@ CPSourceFileRef,&
           map_atoms = atm_names
           CALL uppercase(map_atoms(1))
           CALL uppercase(map_atoms(2))
-          CALL set_BMHFTD_ff(map_atoms(1), map_atoms(2), nonbonded%pot(start+isec)%pot%set(1)%ftd,&
-                            error=error)
+          CALL set_BMHFTD_ff(error=error)
        END IF
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
        nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2

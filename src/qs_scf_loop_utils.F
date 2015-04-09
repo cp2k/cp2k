@@ -80,7 +80,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief computes properties for a given hamiltonian using the current wfn
-!> \param scf_control ...
 !> \param scf_env ...
 !> \param diis_step ...
 !> \param energy_only ...
@@ -88,10 +87,9 @@ CONTAINS
 !> \param exit_inner_loop ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scf_set_loop_flags(scf_control,scf_env,diis_step,&
+  SUBROUTINE qs_scf_set_loop_flags(scf_env,diis_step,&
                       energy_only,just_energy,exit_inner_loop,error)
 
-    TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     LOGICAL                                  :: diis_step, energy_only, &
                                                 just_energy, exit_inner_loop

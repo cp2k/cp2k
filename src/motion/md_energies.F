@@ -481,7 +481,7 @@ CONTAINS
        CALL write_simulation_cell(cell, motion_section, itimes, time*femtoseconds, my_pos, my_act, error)
 
        ! Print Thermostats status
-       CALL print_thermostats_status(thermostats, para_env, my_pos, my_act, cell, itimes, time, error)
+       CALL print_thermostats_status(thermostats, para_env, my_pos, my_act, itimes, time, error)
 
        ! Print Barostat status
        CALL print_barostat_status(barostat, simpar, my_pos, my_act, cell, itimes, time, error)

@@ -76,7 +76,7 @@ CONTAINS
     CALL restart_al( al, al_section, restart, error)
 
     IF (.NOT. restart) THEN
-      CALL init_al_variables(al, simpar%temp_ext, error=error)
+      CALL init_al_variables(al, error=error)
     ENDIF
 
   END SUBROUTINE initialize_al_part
@@ -84,12 +84,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param al ...
-!> \param temp_ext ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE init_al_variables(al, temp_ext, error)
+  SUBROUTINE init_al_variables(al,error)
     TYPE(al_system_type), POINTER            :: al
-    REAL(KIND=dp), INTENT(IN)                :: temp_ext
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_al_variables', &
