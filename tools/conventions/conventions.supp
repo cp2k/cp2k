@@ -60,6 +60,8 @@ Flag LIBXSTREAM_EVENT_WAIT_PAST not mentioned in INSTALL
 Flag LIBXSTREAM_EVENT_WAIT_PAST not mentioned in cp2k_flags()
 Flag LIBXSTREAM_EXPORTED not mentioned in INSTALL
 Flag LIBXSTREAM_EXPORTED not mentioned in cp2k_flags()
+Flag LIBXSTREAM_H not mentioned in INSTALL
+Flag LIBXSTREAM_H not mentioned in cp2k_flags()
 Flag LIBXSTREAM_HPP not mentioned in INSTALL
 Flag LIBXSTREAM_HPP not mentioned in cp2k_flags()
 Flag LIBXSTREAM_LOCK_RETRY not mentioned in INSTALL
