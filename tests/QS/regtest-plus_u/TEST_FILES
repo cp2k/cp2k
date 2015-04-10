@@ -3,7 +3,7 @@ H2O-rks-otcg.inp                 24     2e-07
 H2O-uks-diag.inp                 24     3e-12
 H2O-uks-otcg.inp                 24     1e-07
 H2O-rks-diag-mulliken.inp        24     2e-12
-H2O-rks-otcg-mulliken.inp        24     3e-08
+H2O-rks-otcg-mulliken.inp        24     4e-08
 H2O-uks-diag-mulliken.inp        24     5e-13
 H2O-uks-otcg-mulliken.inp        24     1e-08
 H2O-rks-diag-lowdin.inp 24 1E-12
