@@ -330,10 +330,10 @@ RECURSIVE SUBROUTINE cp_calc_energy_force(env_id,calc_force,ierr) BIND(C,name="c
 
   INTEGER(c_int)                       :: calc_force, env_id, ierr
   LOGICAL(c_bool)                      :: cf
-  LOGICAL(kind=4)                      :: fortran_cf
+  LOGICAL                              :: fortran_cf
 
   cf=(calc_force/=0)
-  fortran_cf = LOGICAL(cf,kind=4)
+  fortran_cf = cf
   CALL cef(env_id,fortran_cf,ierr)
 END SUBROUTINE cp_calc_energy_force
 

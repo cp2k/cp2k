@@ -1153,10 +1153,10 @@ CONTAINS
     END SELECT
     CALL dbcsr_data_init (dblk)
     CALL dbcsr_data_new (dblk, data_type)
-    dblk%d%r_dp => rdp
-    dblk%d%r_sp => rsp
-    dblk%d%c_dp => cdp
-    dblk%d%c_sp => csp
+    IF (ALLOCATED(rdp)) dblk%d%r_dp => rdp
+    IF (ALLOCATED(rsp)) dblk%d%r_sp => rsp
+    IF (ALLOCATED(cdp)) dblk%d%c_dp => cdp
+    IF (ALLOCATED(csp)) dblk%d%c_sp => csp
 
     CALL mp_file_close(thefile)
 

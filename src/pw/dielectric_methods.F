@@ -314,7 +314,7 @@ CONTAINS
 
     TYPE(pw_type), POINTER                   :: f
     TYPE(pw_p_type), DIMENSION(3), &
-      INTENT(OUT)                            :: df
+      INTENT(INOUT)                          :: df
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout)       :: error
 

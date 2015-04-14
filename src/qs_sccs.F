@@ -992,7 +992,7 @@ CONTAINS
 
     TYPE(pw_type), POINTER                   :: f
     TYPE(pw_p_type), DIMENSION(3), &
-      INTENT(OUT)                            :: df
+      INTENT(INOUT)                          :: df
     INTEGER, INTENT(IN)                      :: method
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(section_vals_type), POINTER         :: input
