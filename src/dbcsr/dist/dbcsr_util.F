@@ -54,6 +54,7 @@ MODULE dbcsr_util
        dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8
   USE kinds,                           ONLY: dp,&
                                              int_4,&
+                                             int_8,&
                                              real_4,&
                                              real_8
   USE message_passing,                 ONLY: mp_sum
@@ -700,8 +701,8 @@ CONTAINS
       r = moduleN//':'//routineN
 
     INTEGER :: bc, blk, blk_p, br, data_size_referenced, dbg, error_handler, &
-      i, mb, mn, n, n_full_blocks_total, n_have_blocks_local, &
-      n_have_blocks_total, prev_br
+      i, mb, mn, n, n_have_blocks_local, n_have_blocks_total, prev_br
+    INTEGER(KIND=int_8)                      :: n_full_blocks_total
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: nocomm
     REAL(KIND=dp)                            :: sparsity_total
@@ -728,12 +729,12 @@ CONTAINS
     col_blk_size => array_data (m%m%col_blk_size)
     !
     IF(.NOT.dbcsr_has_symmetry (m)) THEN
-       n_full_blocks_total = m%m%nblkrows_total * m%m%nblkcols_total
+       n_full_blocks_total = INT(m%m%nblkrows_total,KIND=int_8) * INT(m%m%nblkcols_total,KIND=int_8)
     ELSE
        CALL dbcsr_assert(m%m%nblkrows_total, "EQ", m%m%nblkcols_total,&
             dbcsr_fatal_level, dbcsr_internal_error, r,&
             'Symmetric matrix is not square',__LINE__,error)
-       n_full_blocks_total = m%m%nblkrows_total * (m%m%nblkrows_total+1)/2
+       n_full_blocks_total = INT(m%m%nblkrows_total,KIND=int_8) * (m%m%nblkrows_total+1)/2
     ENDIF
     n_have_blocks_local = m%m%nblks
 2045 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
