@@ -1352,8 +1352,8 @@ CONTAINS
 ! *****************************************************************************
  SUBROUTINE rebuild_ks_matrix(qs_env,calculate_forces,just_energy,print_active,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN)                      :: calculate_forces, &
-                                                just_energy, print_active
+    LOGICAL, INTENT(IN)                      :: calculate_forces, just_energy
+    LOGICAL, INTENT(IN), OPTIONAL            :: print_active
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rebuild_ks_matrix', &
