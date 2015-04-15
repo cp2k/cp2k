@@ -1,0 +1,29 @@
+# Configuration for Haswell Linux Supercluster
+# Haswell is the codename for the Intel processor
+# successor to the Ivy Bridge microarchitecture.
+# See http://ark.intel.com/products/codename/42174/Haswell
+# Intel Composer v.15 or later - BullMPI/OpenMPI + OMP 3.0 (or later)
+# Processor Intel Haswell 12-Core E5-2690
+# Cluster IB 4x FDR Fat Tree / 9 blades socket
+# (University of Strasbourg-University of Tokyo, 2015).
+#### Version OpenMPI (+OMP)
+CC       = mpicc
+CPP      = /lib/cpp
+FC       = mpif90 -FR
+FC_fixed = mpif90 -FI
+LD       = mpif90
+#AR       = /usr/bin/ar -r
+# Use of xiar instead of ar eliminates several errors/warnings 
+AR       = xiar -r
+#Better with mkl (intel lapack/blas) only
+#DFLAGS   = -D__INTEL -D__FFTSG -D__parallel
+#If you want to use BLACS and SCALAPACK use the flags below
+DFLAGS   = -D__INTEL -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK
+CPPFLAGS = -C $(DFLAGS) -P -traditional
+FCFLAGS  = -O3 -xHost -pc64 -funroll-loops -openmp
+LDFLAGS  = $(FCFLAGS) -L$(HOME)/lib 
+#If you want to use BLACS and SCALAPACK use the libraries below
+LIBS     = -mkl=parallel -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_intel_lp64 \
+           -lmkl_intel_thread -lmkl_core -lm -lpthread -liomp5 -openmp
+
+OBJECTS_ARCHITECTURE = machine_intel.o
