@@ -1,0 +1,14 @@
+#  
+H2O-32-dftb-trs4-dyn.inp
+#  
+H2O-dft-ecube.inp
+#  
+H2O-restart-write.inp
+#  
+H2O-restart-read.inp
+#  
+H2O-restart-read-curvy.inp
+#  
+ch4_DIIS-TRS4.inp
+#  
+cho_DIIS-TRS4.inp

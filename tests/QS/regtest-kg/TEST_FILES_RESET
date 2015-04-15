@@ -31,3 +31,15 @@ H2_MD-3.inp
 H2_MD.inp 
 H2_MD-2.inp 
 H2_MD-3.inp
+#  
+H2-libxc.inp
+#  
+H2_H2O-xcLC.inp
+#  
+H2_H2O-xcLLP.inp
+#  
+H2_H2O-xcPW86.inp
+#  
+H2_H2O-xcPW91.inp
+#  
+H2_H2O-xcT92.inp

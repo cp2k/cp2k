@@ -554,10 +554,19 @@ CONTAINS
       ! Tr(F) = Tr(XX*tmp_gx) Tr(G) is equivalent
       CALL cp_dbcsr_trace(matrix_xsq, matrix_xidsq, trace_gx,  error=error)
       CALL cp_dbcsr_trace(matrix_xsq, tmp_gx, trace_fx, error=error)
-      IF(trace_gx==0.0_dp) trace_gx=trace_gx+EPSILON(0.0_dp) ! trace_gx is XX(1-X)*(1-X) which is 0 for an idempotent X
-      gam = (nelectron - trace_fx)/trace_gx 
+
+      ! if converged, and gam becomes noisy, fix it to 3, which results in a final McWeeny step.
+      ! maybe tune if the current criterion is not good enough
+      IF (ABS(frob_id/frob_x) < SQRT(threshold)) THEN
+         gam = 3.0_dp
+      ELSE
+         gam = (nelectron - trace_fx)/trace_gx 
+      ENDIF
       gamma_values(i) = gam
 
+      IF (unit_nr>0 .AND. .FALSE.) THEN
+         WRITE(unit_nr,*) "trace_fx",trace_fx,"trace_gx",trace_gx,"gam",gam,"frob_id",frob_id,"conv",ABS(frob_id/frob_x)
+      ENDIF
 
       ! quantities used for dynamic thresholding, when the estimated gap is larger than zero
       xi = (scaled_homo_bound-scaled_lumo_bound)
