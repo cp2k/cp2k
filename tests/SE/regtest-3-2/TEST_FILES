@@ -1,6 +1,6 @@
 H2_check.inp       11
 O2.inp             11
-H2O-3.inp          11
+H2O-3.inp                        11     3e-14
 N3-rp_colvar.inp                 11     2e-08
 Periclase.inp                    11     2e-13
 # dumped KDSO

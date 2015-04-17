@@ -33,7 +33,7 @@ hcn_pm6.inp                       3     1e-09
 md.inp                           11     4e-14
 # d-orbitals analytical der
 O2-ROKS-PM6.inp        3
-Pt-cis-2xpet3Cl2.inp   3
+Pt-cis-2xpet3Cl2.inp              3     3e-14
 hcl.inp                3
 hcl_ot.inp             3 1E-12
 hcl_z.inp              3
@@ -49,7 +49,7 @@ FeH_7cat.inp           3
 FeH_8cat.inp           3
 FeH_9cat.inp          29
 Pt-cis-2xpet3Cl2-si.inp     3
-Pt-cis-2xpet3Cl2-si-noc.inp 3
+Pt-cis-2xpet3Cl2-si-noc.inp       3     3e-14
 #covering all special core-core PM6 interactions
 CH3Cl2.inp             3
 c2h5cl.inp             3
