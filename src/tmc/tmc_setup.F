@@ -301,6 +301,7 @@ CONTAINS
         DO i=1, tmc_env%params%nr_temp
           CALL tmc_ana_env_release(tmc_ana_env_list(i)%temp, error)
         END DO
+        DEALLOCATE(tmc_ana_env_list)
         IF (bcast_output_unit .NE. output_unit) THEN
           CALL close_file(unit_number=tmc_env%m_env%io_unit)
         ENDIF

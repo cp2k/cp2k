@@ -633,6 +633,7 @@ CONTAINS
     END IF
     IF(ASSOCIATED(conf)) &
       CALL deallocate_sub_tree_node(tree_elem=conf, error=error)
+    IF(ASSOCIATED(ana_restart_conf)) DEALLOCATE(ana_restart_conf)
 
     ! end the timing
     CALL timestop(handle)
