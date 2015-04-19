@@ -632,7 +632,8 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER             :: filter_mat
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(fb_com_atom_pairs_obj), INTENT(OUT) :: atom_pairs_send, &
+    TYPE(fb_com_atom_pairs_obj), &
+      INTENT(INOUT)                          :: atom_pairs_send, &
                                                 atom_pairs_recv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
