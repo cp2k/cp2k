@@ -13,10 +13,7 @@
 !> - 2010-02-18 Moved from dbcsr_util
 ! *****************************************************************************
 MODULE dbcsr_io
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_release
+  USE array_types,                     ONLY: array_data
   USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
                                              dbcsr_data_get_size_referenced,&
                                              dbcsr_data_init,&
@@ -894,14 +891,14 @@ CONTAINS
     CHARACTER(LEN=80)                     :: matrix_name_v_1_0
     CHARACTER(LEN=version_len), PARAMETER :: version_v_1_0="DBCSRv_1.0"
 
-    INTEGER, DIMENSION(:), POINTER        :: row_p, col_i, blk_p, ginfo,&
+    INTEGER, DIMENSION(:), POINTER        :: row_p, col_i, blk_p, &
                                              proc_nblks, proc_darea_sizes
     INTEGER, DIMENSION(4)                 :: values
     INTEGER, ALLOCATABLE, DIMENSION(:)    :: linfo_lens, bdata_lens
     INTEGER, ALLOCATABLE, DIMENSION(:), TARGET     :: ginfo_vec, linfo_vec, &
                                                       rowp, coli, blkp
     INTEGER, ALLOCATABLE, DIMENSION(:,:), TARGET   :: val_data
-    TYPE(array_i1d_obj)                            :: row_blk_size, col_blk_size
+    INTEGER, DIMENSION(:), POINTER                 :: row_blk_size, col_blk_size
     TYPE(dbcsr_mp_obj)                             :: mp_env
     TYPE(dbcsr_data_obj)                           :: dblk
     REAL(sp)                                       :: rsp_dummy(1)
@@ -955,10 +952,8 @@ CONTAINS
     globalinfo_size = nblkrows_total+nblkcols_total
     ALLOCATE(ginfo_vec(globalinfo_size))
     CALL mp_file_read_at_all(thefile, BOF+char_count*mpi_character_size+4*mpi_integer_size, ginfo_vec)
-    ginfo => ginfo_vec(1:nblkrows_total)
-    CALL array_new (row_blk_size, ginfo)
-    ginfo => ginfo_vec(nblkrows_total+1:globalinfo_size)
-    CALL array_new (col_blk_size, ginfo)
+    row_blk_size => ginfo_vec(1:nblkrows_total)
+    col_blk_size => ginfo_vec(nblkrows_total+1:globalinfo_size)
 
 !> compute the offsets where sub-header2 and sub-header3 start 
     subh2_start = (4+globalinfo_size)*mpi_integer_size+char_count*mpi_character_size
@@ -1176,8 +1171,6 @@ CONTAINS
     IF (ALLOCATED(csp)) DEALLOCATE(csp)
     CALL dbcsr_data_clear_pointer (dblk) 
     DEALLOCATE (dblk%d)
-    CALL array_release(row_blk_size)
-    CALL array_release(col_blk_size)
 
     CALL dbcsr_error_stop(error_handler, error)
     CONTAINS

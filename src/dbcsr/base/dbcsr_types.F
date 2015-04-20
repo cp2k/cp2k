@@ -170,8 +170,9 @@ MODULE dbcsr_types
 !> \var refcount              reference counter
 ! *****************************************************************************
   TYPE dbcsr_distribution_type
-     TYPE(array_i1d_obj)               :: row_dist, col_dist
+     TYPE(array_i1d_obj)               :: row_dist_block, col_dist_block
      TYPE(array_i1d_obj)               :: local_rows, local_cols
+     TYPE(array_i1d_obj)               :: row_dist_cluster, col_dist_cluster
      TYPE(array_i1d_obj), DIMENSION(:), POINTER :: other_l_rows => Null(),&
                                                    other_l_cols => Null()
      LOGICAL                           :: has_other_l_rows, has_other_l_cols

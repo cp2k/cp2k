@@ -12,17 +12,16 @@
 MODULE domain_submatrix_methods
 
   USE cp_dbcsr_interface,              ONLY: &
-       array_data, cp_dbcsr_col_block_sizes, cp_dbcsr_distribution, &
-       cp_dbcsr_filter, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_get_stored_coordinates, &
-       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_nblkcols_total, &
-       cp_dbcsr_nblkrows_total, cp_dbcsr_reserve_block2d, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_type, cp_dbcsr_work_create, &
-       dbcsr_distribution_mp, dbcsr_mp_group, dbcsr_mp_mynode, &
-       dbcsr_mp_numnodes, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-       dbcsr_type_symmetric
+       cp_dbcsr_col_block_sizes, cp_dbcsr_distribution, cp_dbcsr_filter, &
+       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, &
+       cp_dbcsr_get_stored_coordinates, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
+       cp_dbcsr_nblkcols_total, cp_dbcsr_nblkrows_total, &
+       cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
+       cp_dbcsr_work_create, dbcsr_distribution_mp, dbcsr_mp_group, &
+       dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_type_antisymmetric, &
+       dbcsr_type_no_symmetry, dbcsr_type_symmetric
   USE domain_submatrix_types,          ONLY: domain_map_type,&
                                              domain_submatrix_type,&
                                              select_row,&
@@ -1222,8 +1221,8 @@ CONTAINS
     DEALLOCATE(offset2_block)
     
     ! copy blocks into submatrices
-    col_blk_size => array_data(cp_dbcsr_col_block_sizes(matrix))
-    row_blk_size => array_data(cp_dbcsr_row_block_sizes(matrix))
+    col_blk_size => cp_dbcsr_col_block_sizes(matrix)
+    row_blk_size => cp_dbcsr_row_block_sizes(matrix)
 !    ALLOCATE(subm_row_size(ndomains),subm_col_size(ndomains))
 !    subm_row_size(:)=0
 !    subm_col_size(:)=0
@@ -1646,8 +1645,8 @@ CONTAINS
     DEALLOCATE(offset2_block)
     
     ! copy recieved data into dbcsr matrix
-    col_blk_size => array_data(cp_dbcsr_col_block_sizes(matrix))
-    row_blk_size => array_data(cp_dbcsr_row_block_sizes(matrix))
+    col_blk_size => cp_dbcsr_col_block_sizes(matrix)
+    row_blk_size => cp_dbcsr_row_block_sizes(matrix)
     DO iNode=1, nNodes
        block_offset=0
        DO iBlock=1, recv_size2_cpu(iNode)/2

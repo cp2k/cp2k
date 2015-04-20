@@ -28,6 +28,7 @@ MODULE dbcsr_mm_cannon
                                              array_exists,&
                                              array_hold,&
                                              array_i1d_obj,&
+                                             array_nullify,&
                                              array_release
   USE dbcsr_acc_operations,            ONLY: dbcsr_acc_transpose
   USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
@@ -502,6 +503,9 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_scalar_type)                  :: eps_any
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL array_nullify(dense_k_sizes)
+    CALL array_nullify(dense_col_sizes)
+    CALL array_nullify(dense_row_sizes)
 
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM ()
@@ -819,12 +823,12 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_create_image_dist (rdist_right, matrix_right%m%dist,&
          match_row_nbins = dbcsr_mp_npcols (dbcsr_distribution_mp (matrix_left%m%dist)),&
          match_col_nbins = dbcsr_mp_npcols (dbcsr_distribution_mp (matrix_c%m%dist)),&
-         match_col_pdist = array_data (dbcsr_distribution_col_dist (matrix_c%m%dist)),&
+         match_col_pdist = dbcsr_distribution_col_dist (matrix_c%m%dist),&
          mult_images=mult_images)
     CALL dbcsr_create_image_dist (rdist_left, matrix_left%m%dist,&
-         match_row_pdist = array_data (dbcsr_distribution_row_dist (matrix_c%m%dist)),&
+         match_row_pdist = dbcsr_distribution_row_dist (matrix_c%m%dist),&
          match_row_nbins = dbcsr_mp_nprows (dbcsr_distribution_mp (matrix_c%m%dist)),&
-         match_col_pdist = array_data (dbcsr_distribution_row_dist (rdist_right%i%main)),&
+         match_col_pdist = dbcsr_distribution_row_dist (rdist_right%i%main),&
          match_col_idist = array_data (rdist_right%i%row_image),&
          match_col_nbins = dbcsr_mp_nprows (dbcsr_distribution_mp(matrix_right%m%dist)),&
          mult_images=mult_images)
@@ -915,7 +919,6 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_data_set_size_referenced(product_matrix%m%data_area, 0)
     product_matrix%m%nblks = 0
     product_matrix%m%valid = .FALSE.
-
     !
     ! Right images
     CALL make_m2s(matrix_right,m2s_right,rdist_right,dense_rdist_right,&
@@ -1169,7 +1172,7 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_init (dense_template)
        CALL dbcsr_create (dense_template, template=matrix,&
             dist=dense_rdist%i%main,&
-            row_blk_size=row_blk_size, col_blk_size=col_blk_size,&
+            row_blk_size=array_data(row_blk_size), col_blk_size=array_data(col_blk_size),&
             error=error)
        CALL dbcsr_make_images_dense (m2s, dense_rdist, &
             row_map = row_map, col_map = col_map,&
@@ -1361,8 +1364,8 @@ MODULE dbcsr_mm_cannon
     col_blk_size => array_data (sm%col_blk_size)
     old_dist = dbcsr_distribution (ism)
     target_dist = target_imgdist%i%main
-    row_dist => array_data (dbcsr_distribution_row_dist (target_dist))
-    col_dist => array_data (dbcsr_distribution_col_dist (target_dist))
+    row_dist => dbcsr_distribution_row_dist (target_dist)
+    col_dist => dbcsr_distribution_col_dist (target_dist)
     IF (sm%symmetry) THEN
        CALL dbcsr_assert(SIZE(row_dist),'EQ', SIZE(col_dist), dbcsr_warning_level,&
             dbcsr_wrong_args_error, routineN,&
@@ -1428,7 +1431,7 @@ MODULE dbcsr_mm_cannon
           CALL dbcsr_init (ums%mats(row_img, col_img))
           CALL dbcsr_create(ums%mats(row_img, col_img), "imaged "//sm%name,&
                target_dist,&
-               dbcsr_type_no_symmetry, sm%row_blk_size, sm%col_blk_size,&
+               dbcsr_type_no_symmetry, array_data(sm%row_blk_size), array_data(sm%col_blk_size),&
                0,0, data_type,&
                data_memory_type=data_memory_type,&
                index_memory_type=index_memory_type,&

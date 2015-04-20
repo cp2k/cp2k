@@ -13,12 +13,6 @@
 !> - Created 2010-02-08
 ! *****************************************************************************
 MODULE dbcsr_test_methods
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release,&
-                                             array_size
   USE dbcsr_blas_operations,           ONLY: dbcsr_lapack_larnv
   USE dbcsr_block_access,              ONLY: dbcsr_put_block
   USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
@@ -340,23 +334,17 @@ CONTAINS
 !> \param nbins ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_random_dist (dist_array, dist_size, nbins)
-    TYPE(array_i1d_obj), INTENT(out)         :: dist_array
+    INTEGER, DIMENSION(:), INTENT(out), &
+      POINTER                                :: dist_array
     INTEGER, INTENT(in)                      :: dist_size, nbins
 
     INTEGER                                  :: i
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: grid_dist
 
-!REAL, ALLOCATABLE, DIMENSION(:)          :: grid_dist
-!
-
-    ALLOCATE (grid_dist(dist_size))
-    CALL array_nullify (dist_array)
-    !CALL RANDOM_NUMBER (grid_dist)
+    ALLOCATE (dist_array(dist_size))
+    !CALL RANDOM_NUMBER (dist_array)
     DO i = 1 , dist_size
-       grid_dist(i) = MODULO (nbins-i, nbins)
+       dist_array(i) = MODULO (nbins-i, nbins)
     END DO
-    !CALL array_new (dist_array, INT(grid_dist*REAL(nbins)), lb=1)
-    CALL array_new (dist_array, grid_dist, lb=1)
   END SUBROUTINE dbcsr_random_dist
 
 
@@ -375,7 +363,8 @@ CONTAINS
   SUBROUTINE dbcsr_make_random_matrix (matrix, row_blk_sizes, col_blk_sizes,&
        name, sparsity, mp_group, data_type, symmetry, dist, error)
     TYPE(dbcsr_obj), INTENT(out)             :: matrix
-    TYPE(array_i1d_obj), INTENT(in)          :: row_blk_sizes, col_blk_sizes
+    INTEGER, DIMENSION(:), INTENT(in), &
+      POINTER                                :: row_blk_sizes, col_blk_sizes
     CHARACTER(len=*), INTENT(in)             :: name
     REAL(kind=real_8), INTENT(in)            :: sparsity
     INTEGER, INTENT(in)                      :: mp_group
@@ -395,7 +384,6 @@ CONTAINS
                                                 s_col, s_row
     INTEGER(KIND=int_8)                      :: counter, ele, increment, nmax
     INTEGER, DIMENSION(4)                    :: iseed, jseed
-    INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     INTEGER, SAVE                            :: imat_counter = 12341313
     LOGICAL                                  :: tr
     REAL(kind=real_8)                        :: my_sparsity
@@ -413,8 +401,8 @@ CONTAINS
        new_dist = dist
        CALL dbcsr_distribution_hold (new_dist)
     ELSE
-       CALL dbcsr_make_null_dist (new_dist, array_size (row_blk_sizes),&
-            array_size (col_blk_sizes), group=mp_group)
+       CALL dbcsr_make_null_dist (new_dist, SIZE(row_blk_sizes),&
+            SIZE(col_blk_sizes), group=mp_group)
     ENDIF
     CALL dbcsr_init (matrix)
     my_data_type = dbcsr_type_real_default
@@ -427,8 +415,6 @@ CONTAINS
          col_blk_sizes,&
          data_type=my_data_type,&
          error=error)
-    rbs => array_data (row_blk_sizes)
-    cbs => array_data (col_blk_sizes)
     numproc = dbcsr_mp_numnodes (dbcsr_distribution_mp (new_dist))
     my_proc = dbcsr_mp_mynode (dbcsr_distribution_mp (new_dist))
     !
@@ -487,32 +473,32 @@ CONTAINS
 
           ! fill based on a block based seed, makes this the same values in parallel
           iseed=(/imat_counter,row,42,col/)
-          nze = rbs(s_row) * cbs(s_col)
+          nze = row_blk_sizes(s_row) * col_blk_sizes(s_col)
           CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
           CALL dbcsr_put_block (matrix, s_row, s_col, data_values)
           IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.s_col.EQ.s_row) THEN
              SELECT CASE(my_symmetry)
              CASE(dbcsr_type_symmetric)
                 CALL dbcsr_block_transpose (data_values_tr, data_values, &
-                     row_size=rbs(s_row), col_size=cbs(s_col), lb=1, source_lb=1, &
+                     row_size=row_blk_sizes(s_row), col_size=col_blk_sizes(s_col), lb=1, source_lb=1, &
                      error=error)
              CASE(dbcsr_type_antisymmetric)
                 CALL dbcsr_block_transpose (data_values_tr, data_values, &
-                     row_size=rbs(s_row), col_size=cbs(s_col), lb=1, source_lb=1, &
+                     row_size=row_blk_sizes(s_row), col_size=col_blk_sizes(s_col), lb=1, source_lb=1, &
                      scale=dbcsr_scalar_negative(dbcsr_scalar_one(my_data_type)), &
                      error=error)
              CASE(dbcsr_type_hermitian)
                 CALL dbcsr_block_transpose (data_values_tr, data_values, &
-                     row_size=rbs(s_row), col_size=cbs(s_col), lb=1, source_lb=1, &
+                     row_size=row_blk_sizes(s_row), col_size=col_blk_sizes(s_col), lb=1, source_lb=1, &
                      error=error)
-                CALL dbcsr_block_conjg (data_values_tr, row_size=cbs(s_col), col_size=rbs(s_row), &
+                CALL dbcsr_block_conjg (data_values_tr, row_size=col_blk_sizes(s_col), col_size=row_blk_sizes(s_row), &
                      lb=1, error=error)
              CASE(dbcsr_type_antihermitian)
                 CALL dbcsr_block_transpose (data_values_tr, data_values, &
-                     row_size=rbs(s_row), col_size=cbs(s_col), lb=1, source_lb=1, &
+                     row_size=row_blk_sizes(s_row), col_size=col_blk_sizes(s_col), lb=1, source_lb=1, &
                      scale=dbcsr_scalar_negative(dbcsr_scalar_one(my_data_type)), &
                      error=error)
-                CALL dbcsr_block_conjg (data_values_tr, row_size=cbs(s_col), col_size=rbs(s_row), &
+                CALL dbcsr_block_conjg (data_values_tr, row_size=col_blk_sizes(s_col), col_size=row_blk_sizes(s_row), &
                      lb=1, error=error)
              CASE DEFAULT
                 CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, &
@@ -540,7 +526,8 @@ CONTAINS
 !> \param size_mix ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_random_block_sizes(block_sizes, size_sum, size_mix)
-    TYPE(array_i1d_obj), INTENT(out)         :: block_sizes
+    INTEGER, DIMENSION(:), INTENT(out), &
+      POINTER                                :: block_sizes
     INTEGER, INTENT(in)                      :: size_sum
     INTEGER, DIMENSION(:), INTENT(in)        :: size_mix
 
@@ -585,8 +572,9 @@ CONTAINS
           selector = MOD (selector, nsize_mix)+1
        ENDIF
     ENDDO
-    CALL array_new (block_sizes, sizes(1:nblocks), lb=1)
-    current_sum = SUM (array_data (block_sizes))
+    ALLOCATE(block_sizes(nblocks))
+    block_sizes = sizes(1:nblocks)
+    current_sum = SUM (block_sizes)
     CALL dbcsr_assert (current_sum, "EQ", size_sum, dbcsr_fatal_level,&
          dbcsr_internal_error, routineN, "Incorrect block sizes",__LINE__,error)
     DEALLOCATE(mixer, sizes, STAT=istat)
@@ -632,17 +620,15 @@ CONTAINS
     INTEGER, INTENT(in)                      :: nblkrows, nblkcols
     INTEGER, INTENT(in), OPTIONAL            :: group
 
-    INTEGER                                  :: i
-    TYPE(array_i1d_obj)                      :: col_dist, row_dist
+    INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist
     TYPE(dbcsr_mp_obj)                       :: mp_env
 
     CALL dbcsr_make_null_mp (mp_env, group=group)
-    CALL array_new (row_dist, (/ (0, i = 1, nblkrows) /), lb=1)
-    CALL array_new (col_dist, (/ (0, i = 1, nblkcols) /), lb=1)
+    ALLOCATE(row_dist(nblkrows),col_dist(nblkcols))
+    row_dist = 0
+    col_dist = 0
     CALL dbcsr_distribution_new (distribution, mp_env,&
-         row_dist, col_dist)
-    CALL array_release (row_dist)
-    CALL array_release (col_dist)
+         row_dist, col_dist, reuse_arrays=.TRUE.)
     CALL dbcsr_mp_release (mp_env)
   END SUBROUTINE dbcsr_make_null_dist
 

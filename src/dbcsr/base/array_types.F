@@ -64,6 +64,7 @@ MODULE array_types
   END INTERFACE
 
   INTERFACE array_equality
+     MODULE PROCEDURE array_equality_i1
      MODULE PROCEDURE array_equality_i1d, array_equality_i2d,&
                       array_equality_d1d, array_equality_d2d
   END INTERFACE
@@ -71,6 +72,7 @@ MODULE array_types
   INTERFACE array_get
      MODULE PROCEDURE array_get_i1d,&
                       array_get_d1d
+     MODULE PROCEDURE array_get_i1
   END INTERFACE
 
 
@@ -132,6 +134,7 @@ CONTAINS
     IF (PRESENT (gift)) g = gift
     IF (g) THEN
        array%low%data => DATA
+       NULLIFY(DATA)
     ELSE
        lb = LBOUND(DATA, 1)
        ub = UBOUND(DATA, 1)
@@ -178,6 +181,7 @@ CONTAINS
     IF (PRESENT (gift)) g = gift
     IF (g) THEN
        array%low%data => DATA
+       NULLIFY(DATA)
     ELSE
        lb = LBOUND(DATA)
        ub = UBOUND(DATA)
@@ -225,6 +229,7 @@ CONTAINS
     IF (PRESENT (gift)) g = gift
     IF (g) THEN
        array%low%data => DATA
+       NULLIFY(DATA)
     ELSE
        lb = LBOUND(DATA, 1)
        ub = UBOUND(DATA, 1)
@@ -271,6 +276,7 @@ CONTAINS
     IF (PRESENT (gift)) g = gift
     IF (g) THEN
        array%low%data => DATA
+       NULLIFY(DATA)
     ELSE
        lb = LBOUND(DATA)
        ub = UBOUND(DATA)
@@ -633,6 +639,23 @@ CONTAINS
 !> \param array2 ...
 !> \retval are_equal ...
 ! *****************************************************************************
+  PURE FUNCTION array_equality_i1(array1, array2) RESULT (are_equal)
+    INTEGER, DIMENSION(:), POINTER           :: array1, array2
+    LOGICAL                                  :: are_equal
+
+    are_equal = .FALSE.
+    IF (ASSOCIATED (array1) .AND. ASSOCIATED (array2)) THEN
+       IF (SIZE(array1) .NE. SIZE(array2)) RETURN
+       are_equal = ALL(array1 .EQ. array2)
+    ENDIF
+  END FUNCTION array_equality_i1
+
+! *****************************************************************************
+!> \brief ...
+!> \param array1 ...
+!> \param array2 ...
+!> \retval are_equal ...
+! *****************************************************************************
   PURE FUNCTION array_equality_i1d(array1, array2) RESULT (are_equal)
     TYPE(array_i1d_obj), INTENT(IN)          :: array1, array2
     LOGICAL                                  :: are_equal
@@ -720,5 +743,20 @@ CONTAINS
 
     value = array%low%data(index1)
   END FUNCTION array_get_d1d
+
+! *****************************************************************************
+!> \brief ...
+!> \param array ...
+!> \param index1 ...
+!> \retval value ...
+! *****************************************************************************
+  PURE FUNCTION array_get_i1(array, index1) RESULT (value)
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      POINTER                                :: array
+    INTEGER, INTENT(IN)                      :: index1
+    INTEGER                                  :: value
+
+    value = array(index1)
+  END FUNCTION array_get_i1
 
 END MODULE array_types

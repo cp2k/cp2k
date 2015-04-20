@@ -13,9 +13,6 @@
 !> - Created 2010
 ! *****************************************************************************
 MODULE dbcsr_test_multiply
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_release
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_sizes,&
                                              dbcsr_data_init,&
                                              dbcsr_data_new,&
@@ -255,11 +252,10 @@ CONTAINS
                                                 b_tr, c_c, c_r, &
                                                 error_handler, isymm, itype, &
                                                 mynode, numnodes, TYPE
-    INTEGER, DIMENSION(:), POINTER           :: blk_sizes
-    LOGICAL                                  :: do_complex
-    TYPE(array_i1d_obj)                      :: my_sizes_k, my_sizes_m, &
+    INTEGER, DIMENSION(:), POINTER           :: my_sizes_k, my_sizes_m, &
                                                 my_sizes_n, sizes_k, sizes_m, &
                                                 sizes_n
+    LOGICAL                                  :: do_complex
     TYPE(dbcsr_data_obj)                     :: data_a, data_b, data_c, &
                                                 data_c_dbcsr
     TYPE(dbcsr_obj)                          :: matrix_a, matrix_b, matrix_c
@@ -268,7 +264,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handler, error)
-
+    NULLIFY(my_sizes_k, my_sizes_m, my_sizes_n,&
+            sizes_k, sizes_m, sizes_n)
     !
     ! print
     CALL mp_environ (numnodes, mynode, mp_group)
@@ -352,53 +349,50 @@ CONTAINS
              ! if we have symmetry the row and column block sizes hae to match
              IF (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
                  b_symm.NE.dbcsr_type_no_symmetry) THEN
-                my_sizes_m = sizes_m
-                my_sizes_n = sizes_m
-                my_sizes_k = sizes_m
+                my_sizes_m => sizes_m
+                my_sizes_n => sizes_m
+                my_sizes_k => sizes_m
              ELSE IF ((c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
                        b_symm.NE.dbcsr_type_no_symmetry).OR.&
                       (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
                        b_symm.NE.dbcsr_type_no_symmetry).OR.&
                       (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
                        b_symm.EQ.dbcsr_type_no_symmetry)) THEN
-                my_sizes_m = sizes_m
-                my_sizes_n = sizes_m
-                my_sizes_k = sizes_m
+                my_sizes_m => sizes_m
+                my_sizes_n => sizes_m
+                my_sizes_k => sizes_m
              ELSE IF (c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
                       b_symm.NE.dbcsr_type_no_symmetry) THEN
-                my_sizes_m = sizes_m
-                my_sizes_n = sizes_n
-                my_sizes_k = sizes_n
+                my_sizes_m => sizes_m
+                my_sizes_n => sizes_n
+                my_sizes_k => sizes_n
              ELSE IF (c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
                       b_symm.EQ.dbcsr_type_no_symmetry) THEN
-                my_sizes_m = sizes_m
-                my_sizes_n = sizes_n
-                my_sizes_k = sizes_m
+                my_sizes_m => sizes_m
+                my_sizes_n => sizes_n
+                my_sizes_k => sizes_m
              ELSE IF (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
                       b_symm.EQ.dbcsr_type_no_symmetry) THEN
-                my_sizes_m = sizes_m
-                my_sizes_n = sizes_m
-                my_sizes_k = sizes_k
+                my_sizes_m => sizes_m
+                my_sizes_n => sizes_m
+                my_sizes_k => sizes_k
              ELSE IF (c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
                       b_symm.EQ.dbcsr_type_no_symmetry)THEN
-                my_sizes_m = sizes_m
-                my_sizes_n = sizes_n
-                my_sizes_k = sizes_k
+                my_sizes_m => sizes_m
+                my_sizes_n => sizes_n
+                my_sizes_k => sizes_k
              ELSE
                 CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
                      routineN, " something wrong here... ", __LINE__, error)
              END IF
 
              IF (.FALSE.) THEN
-                blk_sizes => array_data(my_sizes_m)
-                WRITE(*,*) 'sizes_m',blk_sizes
-                WRITE(*,*) 'sum(sizes_m)',SUM(blk_sizes),' matrix_sizes(1)',matrix_sizes(1)
-                blk_sizes => array_data(my_sizes_n)
-                WRITE(*,*) 'sizes_n',blk_sizes
-                WRITE(*,*) 'sum(sizes_n)',SUM(blk_sizes),' matrix_sizes(2)',matrix_sizes(2)
-                blk_sizes => array_data(my_sizes_k)
-                WRITE(*,*) 'sizes_k',blk_sizes
-                WRITE(*,*) 'sum(sizes_k)',SUM(blk_sizes),' matrix_sizes(3)',matrix_sizes(3)
+                WRITE(*,*) 'sizes_m',my_sizes_m
+                WRITE(*,*) 'sum(sizes_m)',SUM(my_sizes_m),' matrix_sizes(1)',matrix_sizes(1)
+                WRITE(*,*) 'sizes_n',my_sizes_n
+                WRITE(*,*) 'sum(sizes_n)',SUM(my_sizes_n),' matrix_sizes(2)',matrix_sizes(2)
+                WRITE(*,*) 'sizes_k',my_sizes_k
+                WRITE(*,*) 'sum(sizes_k)',SUM(my_sizes_k),' matrix_sizes(3)',matrix_sizes(3)
              END IF
 
              !
@@ -426,9 +420,8 @@ CONTAINS
                      mp_group, data_type=TYPE, symmetry=b_symm, error=error)
              END IF
 
-             CALL array_release (sizes_m)
-             CALL array_release (sizes_n)
-             CALL array_release (sizes_k)
+             DEALLOCATE(sizes_m, sizes_n, sizes_k)
+             NULLIFY(sizes_m, sizes_n, sizes_k)
 
              !
              ! if C has a symmetry, we build it accordingly, i.e. C=A*A and C=A*(-A)
@@ -540,19 +533,22 @@ CONTAINS
 
     INTEGER                                  :: c_a, c_b, c_c, error_handler, &
                                                 r_a, r_b, r_c
-    INTEGER, DIMENSION(:), POINTER           :: blk_offsets
+    INTEGER, DIMENSION(:), POINTER           :: blk_offsets, col_dist_a, &
+                                                col_dist_b, col_dist_c, &
+                                                row_dist_a, row_dist_b, &
+                                                row_dist_c
     LOGICAL                                  :: success
     REAL(real_8)                             :: occ_a, occ_b, occ_c_in, &
                                                 occ_c_out
-    TYPE(array_i1d_obj)                      :: col_dist_a, col_dist_b, &
-                                                col_dist_c, row_dist_a, &
-                                                row_dist_b, row_dist_c
     TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b, dist_c
     TYPE(dbcsr_obj)                          :: m_a, m_b, m_c
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handler, error)
+    NULLIFY(row_dist_a,col_dist_a,&
+            row_dist_b,col_dist_b,&
+            row_dist_c,col_dist_c)
 
     IF (debug_mod .AND. io_unit .GT. 0) THEN
        WRITE(io_unit, *) REPEAT("*",70)
@@ -576,15 +572,9 @@ CONTAINS
     CALL dbcsr_random_dist (col_dist_b, dbcsr_nblkcols_total(matrix_b), npdims(2))
     CALL dbcsr_random_dist (row_dist_c, dbcsr_nblkrows_total(matrix_c), npdims(1))
     CALL dbcsr_random_dist (col_dist_c, dbcsr_nblkcols_total(matrix_c), npdims(2))
-    CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
-    CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
-    CALL dbcsr_distribution_new (dist_c, mp_env, row_dist_c, col_dist_c)
-    CALL array_release (row_dist_a)
-    CALL array_release (col_dist_a)
-    CALL array_release (row_dist_b)
-    CALL array_release (col_dist_b)
-    CALL array_release (row_dist_c)
-    CALL array_release (col_dist_c)
+    CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a, reuse_arrays=.TRUE.)
+    CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b, reuse_arrays=.TRUE.)
+    CALL dbcsr_distribution_new (dist_c, mp_env, row_dist_c, col_dist_c, reuse_arrays=.TRUE.)
     ! Redistribute the matrices
     ! A
     CALL dbcsr_create (m_a, "Test for "//TRIM(dbcsr_name(matrix_a)),&
@@ -615,9 +605,9 @@ CONTAINS
     CALL dbcsr_redistribute (matrix_c, m_c, error=error)
 
     IF (.FALSE.) THEN
-       blk_offsets => array_data(dbcsr_row_block_offsets(matrix_c))
+       blk_offsets => dbcsr_row_block_offsets(matrix_c)
        WRITE(*,*) 'row_block_offsets(matrix_c)',blk_offsets
-       blk_offsets => array_data(dbcsr_col_block_offsets(matrix_c))
+       blk_offsets => dbcsr_col_block_offsets(matrix_c)
        WRITE(*,*) 'col_block_offsets(matrix_c)',blk_offsets
     END IF
 

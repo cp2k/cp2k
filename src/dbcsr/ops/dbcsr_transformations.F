@@ -215,8 +215,8 @@ CONTAINS
          template = normal, &
          dist = new_dist,&
          matrix_type = dbcsr_get_matrix_type(normal),&
-         row_blk_size = normal%m%col_blk_size,&
-         col_blk_size = normal%m%row_blk_size,&
+         row_blk_size = array_data(normal%m%col_blk_size),&
+         col_blk_size = array_data(normal%m%row_blk_size),&
          error=error)
     CALL dbcsr_distribution_release (new_dist)
     ! Reserve the space for the new indices.
@@ -373,8 +373,8 @@ CONTAINS
     row_blk_size => array_data (sm%m%row_blk_size)
     col_blk_size => array_data (sm%m%col_blk_size)
     target_dist = sm%m%dist
-    row_dist => array_data (dbcsr_distribution_row_dist (target_dist))
-    col_dist => array_data (dbcsr_distribution_col_dist (target_dist))
+    row_dist => dbcsr_distribution_row_dist (target_dist)
+    col_dist => dbcsr_distribution_col_dist (target_dist)
     mp_obj = dbcsr_distribution_mp (target_dist)
     blacs2mpi => dbcsr_mp_pgrid (mp_obj)
     numproc = dbcsr_mp_numnodes (mp_obj)
@@ -721,8 +721,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
-    rbs => array_data (dbcsr_row_block_sizes (matrix))
-    cbs => array_data (dbcsr_col_block_sizes (matrix))
+    rbs => dbcsr_row_block_sizes (matrix)
+    cbs => dbcsr_col_block_sizes (matrix)
     sym_negation = matrix%m%negate_real
 
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(block_data,iter,row,col,tr,blk,row_size,col_size) &
@@ -802,7 +802,7 @@ CONTAINS
     CALL dbcsr_init (dense_matrix)
     CALL dbcsr_create (dense_matrix, template=matrix,&
          dist = dense_dist,&
-         row_blk_size=dense_row_sizes, col_blk_size=dense_col_sizes,&
+         row_blk_size=array_data(dense_row_sizes), col_blk_size=array_data(dense_col_sizes),&
          error=error)
     !
     IF (dbg) THEN
@@ -817,8 +817,8 @@ CONTAINS
          dense_matrix%m%index(dbcsr_slot_home_pcol), error=error)
     !
     CALL dbcsr_make_dense_low (matrix, dense_matrix,&
-         array_data(dbcsr_distribution_local_rows (old_distribution)),&
-         array_data(dbcsr_distribution_local_cols (old_distribution)),&
+         dbcsr_distribution_local_rows (old_distribution),&
+         dbcsr_distribution_local_cols (old_distribution),&
          array_data(matrix%m%row_blk_offset),&
          array_data(matrix%m%col_blk_offset),&
          array_data(dense_local_rows), array_data(dense_local_cols),&
@@ -1058,12 +1058,12 @@ CONTAINS
     nblkcols_local = dbcsr_distribution_nlocal_cols (distribution)
     nblkrows_total = dbcsr_distribution_nrows (distribution)
     nblkcols_total = dbcsr_distribution_ncols (distribution)
-    local_rows => array_data (dbcsr_distribution_local_rows (distribution))
-    local_cols => array_data (dbcsr_distribution_local_cols (distribution))
+    local_rows => dbcsr_distribution_local_rows (distribution)
+    local_cols => dbcsr_distribution_local_cols (distribution)
     CALL dbcsr_create (undense_matrix, template=matrix,&
          dist = distribution,&
-         row_blk_size = row_blk_sizes,&
-         col_blk_size = col_blk_sizes,&
+         row_blk_size = array_data(row_blk_sizes),&
+         col_blk_size = array_data(col_blk_sizes),&
          error=error)
     ! Restore previous offsets, just to try to keep the same memory.
     CALL array_release (undense_matrix%m%row_blk_offset)
@@ -1108,10 +1108,10 @@ CONTAINS
     ALLOCATE (dense_local_row_blk_offsets (1+dbcsr_distribution_nrows (dense_distribution)))
     ALLOCATE (dense_local_col_blk_offsets (1+dbcsr_distribution_ncols (dense_distribution)))
     CALL global_offsets_to_local (array_data(matrix%m%row_blk_offset),&
-         array_data(dbcsr_distribution_local_rows (dense_distribution)),&
+         dbcsr_distribution_local_rows (dense_distribution),&
          dense_local_row_blk_offsets)
     CALL global_offsets_to_local (array_data(matrix%m%col_blk_offset),&
-         array_data(dbcsr_distribution_local_cols (dense_distribution)),&
+         dbcsr_distribution_local_cols (dense_distribution),&
          dense_local_col_blk_offsets)
     ! Find the offset of blocks within dense rows/columns.  This is needed
     ! since the blocked rows/columns are not necessarily in the same order.
@@ -1466,8 +1466,8 @@ CONTAINS
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
     target_dist = matrix%m%dist
-    row_dist => array_data (dbcsr_distribution_row_dist (target_dist))
-    col_dist => array_data (dbcsr_distribution_col_dist (target_dist))
+    row_dist => dbcsr_distribution_row_dist (target_dist)
+    col_dist => dbcsr_distribution_col_dist (target_dist)
     mp_obj = dbcsr_distribution_mp (target_dist)
     blacs2mpi => dbcsr_mp_pgrid (mp_obj)
     numnodes = dbcsr_mp_numnodes (mp_obj)
@@ -1770,8 +1770,8 @@ CONTAINS
          row_start_new, row_end_new)
     CALL convert_sizes_to_offsets (col_blk_size_new,&
          col_start_new, col_end_new)
-    row_dist_new => array_data (dbcsr_distribution_row_dist (dist_new))
-    col_dist_new => array_data (dbcsr_distribution_col_dist (dist_new))
+    row_dist_new => dbcsr_distribution_row_dist (dist_new)
+    col_dist_new => dbcsr_distribution_col_dist (dist_new)
     ! Create mappings
     i = dbcsr_nfullrows_total (redist)
     ALLOCATE (row_reblocks (4,i))
@@ -2153,8 +2153,8 @@ CONTAINS
     dist_new = dbcsr_distribution (redist)
     row_blk_size_new => array_data (redist%m%row_blk_size)
     col_blk_size_new => array_data (redist%m%col_blk_size)
-    row_dist_new => array_data (dbcsr_distribution_row_dist (dist_new))
-    col_dist_new => array_data (dbcsr_distribution_col_dist (dist_new))
+    row_dist_new => dbcsr_distribution_row_dist (dist_new)
+    col_dist_new => dbcsr_distribution_col_dist (dist_new)
     !
     mp_obj_new = dbcsr_distribution_mp (dist_new)
     pgrid => dbcsr_mp_pgrid (mp_obj_new)

@@ -27,7 +27,6 @@ MODULE qs_overlap
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_new, array_nullify, array_release, &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, cp_dbcsr_filter, &
        cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_init, &
        cp_dbcsr_p_type, cp_dbcsr_type, dbcsr_distribution_obj, &
@@ -688,9 +687,8 @@ CONTAINS
     CHARACTER(LEN=32)                        :: symmetry_string
     CHARACTER(LEN=default_string_length)     :: mname, name
     INTEGER                                  :: i, istat, maxs, natom
-    INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
     LOGICAL                                  :: failure
-    TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -712,19 +710,15 @@ CONTAINS
 
      maxs = SIZE(matrix_s)
 
-     ALLOCATE (rbs(natom),cbs(natom), STAT=istat)
+     ALLOCATE (row_blk_sizes(natom),col_blk_sizes(natom), STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-     CALL get_particle_set(particle_set, qs_kind_set, nsgf=rbs,&
+     CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes,&
                            basis_set_id=basis_set_id_a,error=error)
-     CALL get_particle_set(particle_set, qs_kind_set, nsgf=cbs,&
+     CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes,&
                            basis_set_id=basis_set_id_b,error=error)
 
      ! prepare for allocation
-     CALL array_nullify (row_blk_sizes)
-     CALL array_nullify (col_blk_sizes)
-     CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
-     CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
      IF (symmetric) THEN
         symmetry_string = dbcsr_type_symmetric
      ELSE
@@ -761,9 +755,8 @@ CONTAINS
             nblks=0, nze=0, error=error)
        CALL cp_dbcsr_alloc_block_from_nbl(matrix_s(i)%matrix,sab_nl,error)
      END DO
-
-     CALL array_release (row_blk_sizes)
-     CALL array_release (col_blk_sizes)
+     
+     DEALLOCATE(row_blk_sizes,col_blk_sizes)
 
   END SUBROUTINE create_sab_matrix_1d
 ! *****************************************************************************
@@ -801,9 +794,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: mname, name
     INTEGER                                  :: i1, i2, istat, maxs1, maxs2, &
                                                 natom
-    INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
     LOGICAL                                  :: failure
-    TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -826,19 +818,15 @@ CONTAINS
     maxs1 = SIZE(matrix_s,1)
     maxs2 = SIZE(matrix_s,2)
 
-    ALLOCATE (rbs(natom),cbs(natom), STAT=istat)
+    ALLOCATE (row_blk_sizes(natom),col_blk_sizes(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_particle_set(particle_set, qs_kind_set, nsgf=rbs,&
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes,&
                           basis_set_id=basis_set_id_a,error=error)
-    CALL get_particle_set(particle_set, qs_kind_set, nsgf=cbs,&
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes,&
                           basis_set_id=basis_set_id_b,error=error)
 
     ! prepare for allocation
-    CALL array_nullify (row_blk_sizes)
-    CALL array_nullify (col_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
-    CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
     IF (symmetric) THEN
        symmetry_string = dbcsr_type_symmetric
     ELSE
@@ -878,8 +866,7 @@ CONTAINS
        END DO
     END DO
 
-    CALL array_release (row_blk_sizes)
-    CALL array_release (col_blk_sizes)
+    DEALLOCATE(row_blk_sizes,col_blk_sizes)
 
   END SUBROUTINE create_sab_matrix_2d
 ! *****************************************************************************

@@ -22,7 +22,6 @@ MODULE qs_linres_issc_utils
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_new, array_nullify, array_release, &
        convert_offsets_to_sizes, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, cp_dbcsr_init, &
        cp_dbcsr_p_type, cp_dbcsr_set, dbcsr_distribution_obj, &
@@ -827,9 +826,8 @@ CONTAINS
                                                 nao, natom, nspins, &
                                                 output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
-    INTEGER, DIMENSION(:), POINTER           :: list, rbs
+    INTEGER, DIMENSION(:), POINTER           :: list, row_blk_sizes
     LOGICAL                                  :: failure, gapw
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -993,11 +991,9 @@ CONTAINS
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
-    ALLOCATE (rbs(natom), STAT=istat)
+    ALLOCATE (row_blk_sizes(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
-    CALL array_nullify (row_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
     DEALLOCATE (first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (last_sgf,STAT=istat)
@@ -1089,7 +1085,7 @@ CONTAINS
                    'fc',error=error)
     CALL cp_dbcsr_set(issc_env%matrix_fc(1)%matrix,0.0_dp,error=error)
 
-    CALL array_release (row_blk_sizes)
+    DEALLOCATE(row_blk_sizes)
     !
     ! Conversion factors
     IF(output_unit>0) THEN

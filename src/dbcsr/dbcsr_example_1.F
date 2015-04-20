@@ -15,8 +15,7 @@
 ! *****************************************************************************
 PROGRAM dbcsr_example_1
   USE dbcsr_api,                       ONLY: &
-       array_i1d_obj, array_new, array_nullify, array_release, dbcsr_create, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_error_type, dbcsr_finalize, &
        dbcsr_finalize_lib, dbcsr_init, dbcsr_init_lib, dbcsr_mp_new, &
        dbcsr_mp_obj, dbcsr_mp_release, dbcsr_obj, dbcsr_print, dbcsr_release, &
@@ -36,13 +35,12 @@ PROGRAM dbcsr_example_1
   TYPE(dbcsr_obj)                          :: matrix_a
   TYPE(dbcsr_error_type)                   :: error
 
-  TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
-  INTEGER, DIMENSION(:), POINTER           :: rbs, cbs
+  INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
        prow, pcol, nblkrows_total, nblkcols_total, io_unit
   INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
-  TYPE(array_i1d_obj)                      :: col_dist, row_dist
+  INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist
   TYPE(dbcsr_distribution_obj)             :: dist
   TYPE(dbcsr_mp_obj)                       :: mp_env
 
@@ -100,16 +98,9 @@ PROGRAM dbcsr_example_1
 
   !
   ! set the block size for each row and column
-  ALLOCATE (rbs(nblkrows_total), cbs(nblkcols_total))
-  rbs(:) = 2
-  cbs(:) = 3
-
-  !
-  ! set up the block size arrays
-  CALL array_nullify (row_blk_sizes)
-  CALL array_nullify (col_blk_sizes)
-  CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
-  CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
+  ALLOCATE (row_blk_sizes(nblkrows_total), col_blk_sizes(nblkcols_total))
+  row_blk_sizes(:) = 2
+  col_blk_sizes(:) = 3
 
   !
   ! set the row and column distributions (here the distribution is set randomly)
@@ -118,7 +109,7 @@ PROGRAM dbcsr_example_1
 
   !
   ! set the dbcsr distribution object
-  CALL dbcsr_distribution_new (dist, mp_env, row_dist, col_dist)
+  CALL dbcsr_distribution_new (dist, mp_env, row_dist, col_dist, reuse_arrays=.TRUE.)
 
   !
   ! initialize the dbcsr matrix
@@ -136,6 +127,7 @@ PROGRAM dbcsr_example_1
        row_blk_size=row_blk_sizes,&
        col_blk_size=col_blk_sizes,&
        data_type=dbcsr_type_real_8,&
+       reuse_arrays=.TRUE.,&
        error=error)
 
   !
@@ -157,17 +149,6 @@ PROGRAM dbcsr_example_1
   !
   ! release the message passing environement
   CALL dbcsr_mp_release (mp_env)
-
-  !
-  ! release the block distributions
-  CALL array_release (row_dist)
-  CALL array_release (col_dist)
-
-  !
-  ! release the block size arrays
-  CALL array_release (row_blk_sizes)
-  CALL array_release (col_blk_sizes)
-
 
   !***************************************************************************************
   !
@@ -192,21 +173,16 @@ CONTAINS
 !> \param nbins ...
 ! *****************************************************************************
   SUBROUTINE random_dist (dist_array, dist_size, nbins)
-    TYPE(array_i1d_obj), INTENT(out)         :: dist_array
+    INTEGER, DIMENSION(:), INTENT(out), &
+      POINTER                                :: dist_array
     INTEGER, INTENT(in)                      :: dist_size, nbins
 
     INTEGER                                  :: i
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: grid_dist
 
-    ALLOCATE (grid_dist(dist_size))
-    CALL array_nullify (dist_array)
-
+    ALLOCATE (dist_array(dist_size))
     DO i = 1 , dist_size
-       grid_dist(i) = MODULO (nbins-i, nbins)
+       dist_array(i) = MODULO (nbins-i, nbins)
     END DO
-
-    CALL array_new (dist_array, grid_dist, lb=1)
-    DEALLOCATE (grid_dist)
 
   END SUBROUTINE random_dist
 

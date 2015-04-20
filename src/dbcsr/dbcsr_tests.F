@@ -13,10 +13,6 @@
 !> - Created 2010-02-08
 ! *****************************************************************************
 MODULE dbcsr_tests
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_release,&
-                                             array_size
   USE dbcsr_arnoldi,                   ONLY: dbcsr_arnoldi_ev
   USE dbcsr_arnoldi_data_methods,      ONLY: dbcsr_arnoldi_data,&
                                              deallocate_arnoldi_data,&
@@ -134,9 +130,9 @@ CONTAINS
                                                 error_handle, mynode, numnodes
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: group_sizes
     INTEGER, DIMENSION(2)                    :: npdims
+    INTEGER, DIMENSION(:), POINTER :: col_dist_a, col_dist_b, col_dist_c, &
+      row_dist_a, row_dist_b, row_dist_c, sizes_k, sizes_m, sizes_n
     LOGICAL                                  :: pgiven
-    TYPE(array_i1d_obj) :: col_dist_a, col_dist_b, col_dist_c, row_dist_a, &
-      row_dist_b, row_dist_c, sizes_k, sizes_m, sizes_n
     TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b, dist_c
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_mp_obj)                       :: mp_env
@@ -177,10 +173,10 @@ CONTAINS
     CALL dbcsr_mp_make_env (mp_env, cart_group, mp_group, error=dbcsr_error)
     npdims(1) = dbcsr_mp_nprows (mp_env)
     npdims(2) = dbcsr_mp_npcols (mp_env)
-    CALL dbcsr_dist_bin (row_dist_c, array_size(sizes_m), npdims(1),&
-         array_data(sizes_m), error=dbcsr_error)
-    CALL dbcsr_dist_bin (col_dist_c, array_size(sizes_n), npdims(2),&
-         array_data(sizes_n), error=dbcsr_error)
+    CALL dbcsr_dist_bin (row_dist_c, SIZE(sizes_m), npdims(1),&
+         sizes_m, error=dbcsr_error)
+    CALL dbcsr_dist_bin (col_dist_c, SIZE(sizes_n), npdims(2),&
+         sizes_n, error=dbcsr_error)
     CALL dbcsr_distribution_new (dist_c, mp_env, row_dist_c, col_dist_c)
     CALL dbcsr_make_random_matrix (matrix_c, sizes_m, sizes_n, "Matrix C",&
          REAL(sparsities(3), real_8),&
@@ -188,57 +184,52 @@ CONTAINS
          error=dbcsr_error)
     CALL dbcsr_distribution_release (dist_c)
     IF (trs(1)) THEN
-       CALL dbcsr_dist_bin (row_dist_a, array_size(sizes_k), npdims(1),&
-            array_data(sizes_k), error=dbcsr_error)
-       CALL dbcsr_dist_bin (col_dist_a, array_size(sizes_m), npdims(2),&
-            array_data(sizes_m), error=dbcsr_error)
+       CALL dbcsr_dist_bin (row_dist_a, SIZE(sizes_k), npdims(1),&
+            sizes_k, error=dbcsr_error)
+       CALL dbcsr_dist_bin (col_dist_a, SIZE(sizes_m), npdims(2),&
+            sizes_m, error=dbcsr_error)
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_k, sizes_m, "Matrix A",&
             REAL(sparsities(1), real_8),&
             mp_group, data_type=data_type, dist=dist_a, &
             error=dbcsr_error)
-       CALL array_release (row_dist_a)
-       CALL array_release (col_dist_a)
+       DEALLOCATE(row_dist_a,col_dist_a)
     ELSE
-       CALL dbcsr_dist_bin (col_dist_a, array_size(sizes_k), npdims(2),&
-            array_data(sizes_k), error=dbcsr_error)
+       CALL dbcsr_dist_bin (col_dist_a, SIZE(sizes_k), npdims(2),&
+            sizes_k, error=dbcsr_error)
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_c, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_m, sizes_k, "Matrix A",&
             REAL(sparsities(1), real_8),&
             mp_group, data_type=data_type, dist=dist_a, &
             error=dbcsr_error)
-       CALL array_release (col_dist_a)
+       DEALLOCATE(col_dist_a)
     ENDIF
     CALL dbcsr_distribution_release (dist_a)
     IF (trs(2)) THEN
-       CALL dbcsr_dist_bin (row_dist_b, array_size(sizes_n), npdims(1),&
-            array_data(sizes_n), error=dbcsr_error)
-       CALL dbcsr_dist_bin (col_dist_b, array_size(sizes_k), npdims(2),&
-            array_data(sizes_k), error=dbcsr_error)
+       CALL dbcsr_dist_bin (row_dist_b, SIZE(sizes_n), npdims(1),&
+            sizes_n, error=dbcsr_error)
+       CALL dbcsr_dist_bin (col_dist_b, SIZE(sizes_k), npdims(2),&
+            sizes_k, error=dbcsr_error)
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_n, sizes_k, "Matrix B",&
             REAL(sparsities(2), real_8),&
             mp_group, data_type=data_type, dist=dist_b, &
             error=dbcsr_error)
-       CALL array_release (row_dist_b)
-       CALL array_release (col_dist_b)
+       DEALLOCATE(row_dist_b,col_dist_b)
     ELSE
-       CALL dbcsr_dist_bin (row_dist_b, array_size(sizes_k), npdims(1),&
-            array_data(sizes_k), error=dbcsr_error)
+       CALL dbcsr_dist_bin (row_dist_b, SIZE(sizes_k), npdims(1),&
+            sizes_k, error=dbcsr_error)
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_c)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_k, sizes_n, "Matrix B",&
             REAL(sparsities(2), real_8),&
             mp_group, data_type=data_type, dist=dist_b, &
             error=dbcsr_error)
-       CALL array_release (row_dist_b)
+       DEALLOCATE(row_dist_b)
     ENDIF
     CALL dbcsr_mp_release (mp_env)
     CALL dbcsr_distribution_release (dist_b)
-    CALL array_release (row_dist_c)
-    CALL array_release (col_dist_c)
-    CALL array_release (sizes_m)
-    CALL array_release (sizes_n)
-    CALL array_release (sizes_k)
+    DEALLOCATE(row_dist_c,col_dist_c)
+    DEALLOCATE(sizes_m,sizes_n,sizes_k)
     ! Prepare test parameters
     IF (io_unit .GT. 0) THEN
        WRITE(io_unit, fmt_desc)"Testing with sizes",matrix_sizes(1:3),&
@@ -423,11 +414,11 @@ CONTAINS
                                                 numnodes, test
     INTEGER(kind=int_8)                      :: flop, flop_sum
     INTEGER, DIMENSION(2)                    :: npdims
-    LOGICAL                                  :: i_am_alive
-    REAL(kind=real_8)                        :: cs, cs_pos, flops_all, t1, t2
-    TYPE(array_i1d_obj)                      :: col_dist_a, col_dist_b, &
+    INTEGER, DIMENSION(:), POINTER           :: col_dist_a, col_dist_b, &
                                                 col_dist_c, row_dist_a, &
                                                 row_dist_b, row_dist_c
+    LOGICAL                                  :: i_am_alive
+    REAL(kind=real_8)                        :: cs, cs_pos, flops_all, t1, t2
     TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b, dist_c
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_mp_obj)                       :: mp_env
@@ -468,34 +459,28 @@ CONTAINS
           ! Row & column distributions
           CALL dbcsr_dist_bin (row_dist_a,&
                dbcsr_nblkrows_total (matrix_a), npdims(1),&
-               array_data(dbcsr_row_block_sizes(matrix_a)), error=dbcsr_error)
+               dbcsr_row_block_sizes(matrix_a), error=dbcsr_error)
           CALL dbcsr_dist_bin (col_dist_a,&
                dbcsr_nblkcols_total (matrix_a), npdims(2),&
-               array_data(dbcsr_col_block_sizes(matrix_a)), error=dbcsr_error)
+               dbcsr_col_block_sizes(matrix_a), error=dbcsr_error)
           CALL dbcsr_dist_bin (row_dist_b,&
                dbcsr_nblkrows_total (matrix_b), npdims(1),&
-               array_data(dbcsr_row_block_sizes(matrix_b)), error=dbcsr_error)
+               dbcsr_row_block_sizes(matrix_b), error=dbcsr_error)
           CALL dbcsr_dist_bin (col_dist_b,&
                dbcsr_nblkcols_total (matrix_b), npdims(2),&
-               array_data(dbcsr_col_block_sizes(matrix_b)), error=dbcsr_error)
+               dbcsr_col_block_sizes(matrix_b), error=dbcsr_error)
           CALL dbcsr_dist_bin (row_dist_c,&
                dbcsr_nblkrows_total (matrix_c), npdims(1),&
-               array_data(dbcsr_row_block_sizes(matrix_c)), error=dbcsr_error)
+               dbcsr_row_block_sizes(matrix_c), error=dbcsr_error)
           CALL dbcsr_dist_bin (col_dist_c,&
                dbcsr_nblkcols_total (matrix_c), npdims(2),&
-               array_data(dbcsr_col_block_sizes(matrix_c)), error=dbcsr_error)
+               dbcsr_col_block_sizes(matrix_c), error=dbcsr_error)
           CALL dbcsr_distribution_new (dist_a,&
-               mp_env, row_dist_a, col_dist_a)
+               mp_env, row_dist_a, col_dist_a, reuse_arrays=.TRUE.)
           CALL dbcsr_distribution_new (dist_b,&
-               mp_env, row_dist_b, col_dist_b)
+               mp_env, row_dist_b, col_dist_b, reuse_arrays=.TRUE.)
           CALL dbcsr_distribution_new (dist_c,&
-               mp_env, row_dist_c, col_dist_c)
-          CALL array_release (row_dist_a)
-          CALL array_release (col_dist_a)
-          CALL array_release (row_dist_b)
-          CALL array_release (col_dist_b)
-          CALL array_release (row_dist_c)
-          CALL array_release (col_dist_c)
+               mp_env, row_dist_c, col_dist_c, reuse_arrays=.TRUE.)
           ! Redistribute the matrices
           ! A
           CALL dbcsr_create (m_a, "Test for "//TRIM(dbcsr_name (matrix_a)),&

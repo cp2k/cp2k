@@ -18,7 +18,6 @@ MODULE mp2_gpw
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_new, array_nullify, array_release, &
        cp_dbcsr_clear_mempools, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_get_info, &
        cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, &
@@ -170,7 +169,7 @@ MODULE mp2_gpw
       ends_B_virtual_beta, sizes_array, sizes_B_virtual, &
       sizes_B_virtual_beta, starts_array, starts_B_virtual, &
       starts_B_virtual_beta
-    INTEGER, DIMENSION(:), POINTER           :: rbs
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
     LOGICAL :: blacs_repeatable, failure, my_do_ri_mp2, my_do_ri_rpa, &
       my_do_ri_sos_laplace_mp2, skip_load_balance_distributed
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present
@@ -184,7 +183,6 @@ MODULE mp2_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C, BIb_C_beta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -356,11 +354,9 @@ MODULE mp2_gpw
 
     ! build a dbcsr matrix the hard way
     natom = SIZE(particle_set)
-    ALLOCATE (rbs(natom), STAT=stat)
+    ALLOCATE (row_blk_sizes(natom), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL get_particle_set(particle_set, qs_kind_set, nsgf=rbs,error=error)
-    CALL array_nullify (row_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes,error=error)
     ALLOCATE(mat_munu%matrix, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_dbcsr_init(mat_munu%matrix,error=error_sub)
@@ -370,7 +366,7 @@ MODULE mp2_gpw
                row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
                nblks=0, nze=0, error=error_sub)
     CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix,sab_orb_sub,error_sub)
-    CALL array_release (row_blk_sizes)
+    DEALLOCATE(row_blk_sizes)
 
     ! and the array of mos
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)

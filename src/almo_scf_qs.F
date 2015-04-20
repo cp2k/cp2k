@@ -26,20 +26,19 @@ MODULE almo_scf_qs
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       array_data, array_i1d_obj, array_new, array_release, &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_complete_redistribute, &
        cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
        cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_release, cp_dbcsr_filter, cp_dbcsr_finalize, &
-       cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_get_num_blocks, &
+       cp_dbcsr_distribution_new, cp_dbcsr_distribution_release, &
+       cp_dbcsr_filter, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
+       cp_dbcsr_get_info, cp_dbcsr_get_num_blocks, &
        cp_dbcsr_get_stored_coordinates, cp_dbcsr_init, &
        cp_dbcsr_nblkcols_total, cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, &
        cp_dbcsr_release, cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, &
        cp_dbcsr_set, cp_dbcsr_type, cp_dbcsr_work_create, &
        dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_row_dist, dbcsr_mp_group, dbcsr_mp_mynode, &
-       dbcsr_mp_numnodes, dbcsr_type_no_symmetry
+       dbcsr_distribution_obj, dbcsr_distribution_row_dist, dbcsr_mp_group, &
+       dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_type_no_symmetry
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants,                 ONLY: &
@@ -124,13 +123,11 @@ CONTAINS
 
     INTEGER :: dimen, handle, hold, iatom, iblock_col, iblock_row, imol, &
       mynode, natoms, nblkrows_tot, nlength, nmols, row
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: block_sizes_new, &
-                                                distr_new_array
-    INTEGER, DIMENSION(:), POINTER           :: blk_distr, blk_sizes
+    INTEGER, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, &
+      col_distr_new, col_sizes_new, distr_new_array, row_distr_new, &
+      row_sizes_new
     LOGICAL                                  :: active, failure, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_new_block
-    TYPE(array_i1d_obj)                      :: col_distr_new, col_sizes_new, &
-                                                row_distr_new, row_sizes_new
     TYPE(dbcsr_distribution_obj)             :: dist_new, dist_qs
 
 ! dimension size: AO, MO, etc
@@ -165,133 +162,118 @@ CONTAINS
     
     DO dimen=1,2 ! 1 - row, 2 - column dimension
     
-     ! distribution pattern is the same for all matrix types (ao, occ, virt)
-     IF (dimen==1) THEN !rows
-      blk_distr => array_data(dbcsr_distribution_row_dist(dist_qs))
-     ELSE !columns
-      blk_distr => array_data(dbcsr_distribution_col_dist(dist_qs))
-     ENDIF
-
-     IF (size_keys(dimen)==almo_mat_dim_aobasis) THEN ! this dimension is AO
-    
-      ! structure of an AO dimension can be copied from matrix_qs
-      blk_sizes => array_data(cp_dbcsr_row_block_sizes(matrix_qs))
-    
-      ! atomic clustering of AOs 
-      IF (almo_scf_env%mat_distr_aos==almo_mat_distr_atomic) THEN 
-       ALLOCATE(block_sizes_new(natoms),distr_new_array(natoms))
-       block_sizes_new(:)=blk_sizes(:)
-       distr_new_array(:)=blk_distr(:)
-      ! molecular clustering of AOs
-      ELSE IF (almo_scf_env%mat_distr_aos==almo_mat_distr_molecular) THEN
-       ALLOCATE(block_sizes_new(nmols),distr_new_array(nmols))
-       block_sizes_new(:)=0
-       DO iatom=1,natoms
-        block_sizes_new(almo_scf_env%domain_index_of_atom(iatom)) = &
-          block_sizes_new(almo_scf_env%domain_index_of_atom(iatom)) + &
-          blk_sizes(iatom)
-       ENDDO
-       DO imol=1,nmols
-        distr_new_array(imol) = &
-                  blk_distr(almo_scf_env%first_atom_of_domain(imol))
-       ENDDO
-      ELSE
-       CPErrorMessage(cp_failure_level,routineP,"Illegal distribution",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-      ENDIF
-    
-     ELSE ! this dimension is not AO
-     
-      IF (size_keys(dimen)==almo_mat_dim_occ .OR.&
-          size_keys(dimen)==almo_mat_dim_virt .OR. &
-          size_keys(dimen)==almo_mat_dim_virt_disc .OR. &
-          size_keys(dimen)==almo_mat_dim_virt_full) THEN ! this dim is MO
-    
-       ! atomic clustering of MOs
-       IF (almo_scf_env%mat_distr_mos==almo_mat_distr_atomic) THEN
-        nlength=natoms
-        ALLOCATE(block_sizes_new(nlength))
-        IF (size_keys(dimen)==almo_mat_dim_occ) THEN
-         ! currently distributing atomic distr of mos is not allowed
-         ! RZK-warning define nocc_of_atom and nvirt_atom to implement it
-         !block_sizes_new(:)=almo_scf_env%nocc_of_atom(:,spin_key)
-        ELSE IF (size_keys(dimen)==almo_mat_dim_virt) THEN
-         !block_sizes_new(:)=almo_scf_env%nvirt_of_atom(:,spin_key)
-        ENDIF
-       ! molecular clustering of MOs
-       ELSE IF (almo_scf_env%mat_distr_mos==almo_mat_distr_molecular) THEN
-        nlength=nmols
-        ALLOCATE(block_sizes_new(nlength))
-        IF (size_keys(dimen)==almo_mat_dim_occ) THEN
-         block_sizes_new(:)=almo_scf_env%nocc_of_domain(:,spin_key)
-        ELSE IF (size_keys(dimen)==almo_mat_dim_virt_disc) THEN
-         block_sizes_new(:)=almo_scf_env%nvirt_disc_of_domain(:,spin_key)
-        ELSE IF (size_keys(dimen)==almo_mat_dim_virt_full) THEN
-         block_sizes_new(:)=almo_scf_env%nvirt_full_of_domain(:,spin_key)
-        ELSE IF (size_keys(dimen)==almo_mat_dim_virt) THEN
-         block_sizes_new(:)=almo_scf_env%nvirt_of_domain(:,spin_key)
-        ENDIF
-       ELSE
-        CPErrorMessage(cp_failure_level,routineP,"Illegal distribution",error)
-        CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       ! distribution pattern is the same for all matrix types (ao, occ, virt)
+       IF (dimen==1) THEN !rows
+          blk_distr => dbcsr_distribution_row_dist(dist_qs)
+       ELSE !columns
+          blk_distr => dbcsr_distribution_col_dist(dist_qs)
        ENDIF
-      
-      ELSE
- 
-       CPErrorMessage(cp_failure_level,routineP,"Illegal dimension",error)
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
 
-      ENDIF ! end choosing dim size (occ, virt)
+       IF (size_keys(dimen)==almo_mat_dim_aobasis) THEN ! this dimension is AO
+    
+          ! structure of an AO dimension can be copied from matrix_qs
+          blk_sizes => cp_dbcsr_row_block_sizes(matrix_qs)
+          
+          ! atomic clustering of AOs 
+          IF (almo_scf_env%mat_distr_aos==almo_mat_distr_atomic) THEN 
+             ALLOCATE(block_sizes_new(natoms),distr_new_array(natoms))
+             block_sizes_new(:)=blk_sizes(:)
+             distr_new_array(:)=blk_distr(:)
+             ! molecular clustering of AOs
+          ELSE IF (almo_scf_env%mat_distr_aos==almo_mat_distr_molecular) THEN
+             ALLOCATE(block_sizes_new(nmols),distr_new_array(nmols))
+             block_sizes_new(:)=0
+             DO iatom=1,natoms
+                block_sizes_new(almo_scf_env%domain_index_of_atom(iatom)) = &
+                     block_sizes_new(almo_scf_env%domain_index_of_atom(iatom)) + &
+                     blk_sizes(iatom)
+             ENDDO
+             DO imol=1,nmols
+                distr_new_array(imol) = &
+                     blk_distr(almo_scf_env%first_atom_of_domain(imol))
+             ENDDO
+          ELSE
+             CPErrorMessage(cp_failure_level,routineP,"Illegal distribution",error)
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          ENDIF
+          
+       ELSE ! this dimension is not AO
+          
+          IF (size_keys(dimen)==almo_mat_dim_occ .OR.&
+               size_keys(dimen)==almo_mat_dim_virt .OR. &
+               size_keys(dimen)==almo_mat_dim_virt_disc .OR. &
+               size_keys(dimen)==almo_mat_dim_virt_full) THEN ! this dim is MO
+             
+             ! atomic clustering of MOs
+             IF (almo_scf_env%mat_distr_mos==almo_mat_distr_atomic) THEN
+                nlength=natoms
+                ALLOCATE(block_sizes_new(nlength))
+                block_sizes_new(:)=0
+                IF (size_keys(dimen)==almo_mat_dim_occ) THEN
+                   ! currently distributing atomic distr of mos is not allowed
+                   ! RZK-warning define nocc_of_atom and nvirt_atom to implement it
+                   !block_sizes_new(:)=almo_scf_env%nocc_of_atom(:,spin_key)
+                ELSE IF (size_keys(dimen)==almo_mat_dim_virt) THEN
+                   !block_sizes_new(:)=almo_scf_env%nvirt_of_atom(:,spin_key)
+                ENDIF
+                ! molecular clustering of MOs
+             ELSE IF (almo_scf_env%mat_distr_mos==almo_mat_distr_molecular) THEN
+                nlength=nmols
+                ALLOCATE(block_sizes_new(nlength))
+                IF (size_keys(dimen)==almo_mat_dim_occ) THEN
+                   block_sizes_new(:)=almo_scf_env%nocc_of_domain(:,spin_key)
+                ELSE IF (size_keys(dimen)==almo_mat_dim_virt_disc) THEN
+                   block_sizes_new(:)=almo_scf_env%nvirt_disc_of_domain(:,spin_key)
+                ELSE IF (size_keys(dimen)==almo_mat_dim_virt_full) THEN
+                   block_sizes_new(:)=almo_scf_env%nvirt_full_of_domain(:,spin_key)
+                ELSE IF (size_keys(dimen)==almo_mat_dim_virt) THEN
+                   block_sizes_new(:)=almo_scf_env%nvirt_of_domain(:,spin_key)
+                ENDIF
+             ELSE
+                CPErrorMessage(cp_failure_level,routineP,"Illegal distribution",error)
+                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             ENDIF
+             
+          ELSE
+ 
+             CPErrorMessage(cp_failure_level,routineP,"Illegal dimension",error)
+             CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             
+          ENDIF ! end choosing dim size (occ, virt)
       
-      ! distribution for MOs is copied from AOs
-      ALLOCATE(distr_new_array(nlength))
-      ! atomic clustering  
-      IF (almo_scf_env%mat_distr_mos==almo_mat_distr_atomic) THEN 
-       distr_new_array(:)=blk_distr(:)
-      ! molecular clustering
-      ELSE IF (almo_scf_env%mat_distr_mos==almo_mat_distr_molecular) THEN
-       DO imol=1,nmols
-        distr_new_array(imol) = &
-                  blk_distr(almo_scf_env%first_atom_of_domain(imol))
-       ENDDO
-      ENDIF
-      ! old distribution - removed because it might fail for direct diag
-      !allocate(distr_new_array(nlength))
-      !if (dimen==1) then !rows
-      ! nprocesses = dbcsr_mp_nprows(dbcsr_distribution_mp(dist_qs))
-      ! distr_new_array=(/ (mod(i-1,nprocesses), i=1,nlength) /)
-      !else !columns
-      ! nprocesses = dbcsr_mp_npcols(dbcsr_distribution_mp(dist_qs))
-      ! distr_new_array=(/ (mod(i-1,nprocesses), i=1,nlength) /)
-      !endif
-    
-     ENDIF ! end choosing dimension size (AOs vs .NOT.AOs)
-     
-     ! create final arrays
-     IF (dimen==1) THEN !rows
-      CALL array_new(row_sizes_new, block_sizes_new, lb=1)
-      CALL array_new(row_distr_new, distr_new_array, lb=1)
-     ELSE !columns
-      CALL array_new(col_sizes_new, block_sizes_new, lb=1)
-      CALL array_new(col_distr_new, distr_new_array, lb=1)
-     ENDIF
-     DEALLOCATE(block_sizes_new,distr_new_array)
-    
+          ! distribution for MOs is copied from AOs
+          ALLOCATE(distr_new_array(nlength))
+          ! atomic clustering  
+          IF (almo_scf_env%mat_distr_mos==almo_mat_distr_atomic) THEN 
+             distr_new_array(:)=blk_distr(:)
+             ! molecular clustering
+          ELSE IF (almo_scf_env%mat_distr_mos==almo_mat_distr_molecular) THEN
+             DO imol=1,nmols
+                distr_new_array(imol) = &
+                     blk_distr(almo_scf_env%first_atom_of_domain(imol))
+             ENDDO
+          ENDIF
+       ENDIF ! end choosing dimension size (AOs vs .NOT.AOs)
+       
+       ! create final arrays
+       IF (dimen==1) THEN !rows
+          row_sizes_new => block_sizes_new
+          row_distr_new => distr_new_array
+       ELSE !columns
+          col_sizes_new => block_sizes_new
+          col_distr_new => distr_new_array
+       ENDIF
     ENDDO ! both rows and columns are done
 
     ! Create the distribution
-    CALL dbcsr_distribution_new(dist_new,&
-     dbcsr_distribution_mp(dist_qs),row_distr_new,col_distr_new)
-    CALL array_release(col_distr_new)
-    CALL array_release(row_distr_new)
+    CALL cp_dbcsr_distribution_new(dist_new,&
+         dbcsr_distribution_mp(dist_qs),row_distr_new,col_distr_new,reuse_arrays=.TRUE.)
     
     ! Create the matrix
     CALL cp_dbcsr_init(matrix_new,error=error)
     CALL cp_dbcsr_create (matrix_new, name_new,&
-     dist_new, symmetry_new,&
-     row_sizes_new, col_sizes_new, error=error)
-    CALL array_release(col_sizes_new)
-    CALL array_release(row_sizes_new)
+         dist_new, symmetry_new,&
+         row_sizes_new, col_sizes_new, reuse_arrays=.TRUE., error=error)
     CALL cp_dbcsr_distribution_release(dist_new)
 
     ! fill out reqired blocks with 1.0_dp to tell the dbcsr library

@@ -12,21 +12,20 @@
 MODULE almo_scf_methods
   USE almo_scf_types,                  ONLY: almo_scf_env_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_data, cp_dbcsr_add, cp_dbcsr_add_on_diag, &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_filter, &
-       cp_dbcsr_finalize, cp_dbcsr_frobenius_norm, cp_dbcsr_get_block_p, &
-       cp_dbcsr_get_diag, cp_dbcsr_get_info, cp_dbcsr_init, &
-       cp_dbcsr_init_random, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_nblkcols_total, cp_dbcsr_nblkrows_total, cp_dbcsr_norm, &
-       cp_dbcsr_print, cp_dbcsr_release, cp_dbcsr_reserve_block2d, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, &
-       cp_dbcsr_set_diag, cp_dbcsr_transposed, cp_dbcsr_type, &
-       cp_dbcsr_work_create, dbcsr_distribution_mp, dbcsr_error_type, &
-       dbcsr_mp_group, dbcsr_mp_numnodes, dbcsr_norm_maxabsnorm, &
-       dbcsr_type_no_symmetry, dbcsr_type_symmetric
+       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_finalize, &
+       cp_dbcsr_frobenius_norm, cp_dbcsr_get_block_p, cp_dbcsr_get_diag, &
+       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_random, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_nblkcols_total, &
+       cp_dbcsr_nblkrows_total, cp_dbcsr_norm, cp_dbcsr_print, &
+       cp_dbcsr_release, cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_transposed, &
+       cp_dbcsr_type, cp_dbcsr_work_create, dbcsr_distribution_mp, &
+       dbcsr_error_type, dbcsr_mp_group, dbcsr_mp_numnodes, &
+       dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, dbcsr_type_symmetric
   USE domain_submatrix_methods,        ONLY: &
        add_submatrices, construct_dbcsr_from_submatrices, &
        construct_submatrices, copy_submatrices, copy_submatrix_data, &
@@ -2407,7 +2406,7 @@ CONTAINS
 
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
     nblkrows_tot = cp_dbcsr_nblkrows_total(dpattern)
-    nmos => array_data(cp_dbcsr_col_block_sizes(dpattern))
+    nmos => cp_dbcsr_col_block_sizes(dpattern)
 
     ALLOCATE(subm_main(ndomains))
     CALL init_submatrices(subm_main,error)
@@ -3364,8 +3363,8 @@ CONTAINS
     nblkrows_tot = cp_dbcsr_nblkrows_total(quench_t)
     nblkcols_tot = cp_dbcsr_nblkcols_total(quench_t)
     CPPostcondition(nblkrows_tot==nblkcols_tot,cp_failure_level,routineP,error,failure)
-    mo_blk_sizes => array_data(cp_dbcsr_col_block_sizes(quench_t))
-    ao_blk_sizes => array_data(cp_dbcsr_row_block_sizes(quench_t))
+    mo_blk_sizes => cp_dbcsr_col_block_sizes(quench_t)
+    ao_blk_sizes => cp_dbcsr_row_block_sizes(quench_t)
     ALLOCATE(mo_block_sizes(nblkcols_tot),ao_block_sizes(nblkcols_tot))
     ALLOCATE(ao_domain_sizes(nblkcols_tot))
     mo_block_sizes(:)=mo_blk_sizes(:)

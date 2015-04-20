@@ -1023,8 +1023,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    local_cols => array_data (dbcsr_distribution_local_cols (distribution))
-    local_rows => array_data (dbcsr_distribution_local_rows (distribution))
+    local_cols => dbcsr_distribution_local_cols (distribution)
+    local_rows => dbcsr_distribution_local_rows (distribution)
     meta(dbcsr_slot_nblkrows_total) = dbcsr_distribution_nrows (distribution)
     meta(dbcsr_slot_nblkcols_total) = dbcsr_distribution_ncols (distribution)
     meta(dbcsr_slot_nblkrows_local) = dbcsr_distribution_nlocal_rows (distribution)

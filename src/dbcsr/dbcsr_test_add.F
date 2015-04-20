@@ -13,9 +13,6 @@
 !> - Created 2010
 ! *****************************************************************************
 MODULE dbcsr_test_add
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_release
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_sizes,&
                                              dbcsr_data_init,&
                                              dbcsr_data_new,&
@@ -220,10 +217,9 @@ CONTAINS
     INTEGER                                  :: a_c, a_r, b_c, b_r, &
                                                 error_handler, isymm, itype, &
                                                 mynode, numnodes, TYPE
-    INTEGER, DIMENSION(:), POINTER           :: blk_sizes
-    LOGICAL                                  :: do_complex
-    TYPE(array_i1d_obj)                      :: my_sizes_m, my_sizes_n, &
+    INTEGER, DIMENSION(:), POINTER           :: my_sizes_m, my_sizes_n, &
                                                 sizes_m, sizes_n
+    LOGICAL                                  :: do_complex
     TYPE(dbcsr_data_obj)                     :: data_a, data_a_dbcsr, data_b
     TYPE(dbcsr_obj)                          :: matrix_a, matrix_b
     TYPE(dbcsr_scalar_type)                  :: alpha, beta
@@ -231,6 +227,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+    NULLIFY(my_sizes_m, my_sizes_n, sizes_m, sizes_n)
 
     !
     ! print
@@ -294,22 +291,20 @@ CONTAINS
 
           !
           ! If A/B has symmetry we need the same row/col blocking
-          my_sizes_m = sizes_m
-          my_sizes_n = sizes_n
+          my_sizes_m => sizes_m
+          my_sizes_n => sizes_n
           IF(a_symm.NE.dbcsr_type_no_symmetry) THEN
-             my_sizes_n = sizes_m
+             my_sizes_n => sizes_m
           ENDIF
           IF(b_symm.NE.dbcsr_type_no_symmetry) THEN
-             my_sizes_n = sizes_m
+             my_sizes_n => sizes_m
           ENDIF
 
           IF(.FALSE.) THEN
-             blk_sizes => array_data(my_sizes_m)
-             WRITE(*,*) 'sizes_m',blk_sizes
-             WRITE(*,*) 'sum(sizes_m)',SUM(blk_sizes),' matrix_sizes(1)',matrix_sizes(1)
-             blk_sizes => array_data(my_sizes_n)
-             WRITE(*,*) 'sizes_n',blk_sizes
-             WRITE(*,*) 'sum(sizes_n)',SUM(blk_sizes),' matrix_sizes(2)',matrix_sizes(2)
+             WRITE(*,*) 'sizes_m',my_sizes_m
+             WRITE(*,*) 'sum(sizes_m)',SUM(my_sizes_m),' matrix_sizes(1)',matrix_sizes(1)
+             WRITE(*,*) 'sizes_n',my_sizes_n
+             WRITE(*,*) 'sum(sizes_n)',SUM(my_sizes_n),' matrix_sizes(2)',matrix_sizes(2)
           ENDIF
 
           !
@@ -322,8 +317,8 @@ CONTAINS
                sparsities(2),&
                mp_group, data_type=TYPE, symmetry=b_symm, error=error)
 
-          CALL array_release (sizes_m)
-          CALL array_release (sizes_n)
+          DEALLOCATE (sizes_m, sizes_n)
+          NULLIFY(sizes_m,sizes_n)
 
           !
           ! convert the dbcsr matrices to denses
@@ -404,10 +399,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: c, error_handler, r
+    INTEGER, DIMENSION(:), POINTER           :: col_dist_a, col_dist_b, &
+                                                row_dist_a, row_dist_b
     LOGICAL                                  :: success
     REAL(real_8)                             :: occ_a_in, occ_a_out, occ_b
-    TYPE(array_i1d_obj)                      :: col_dist_a, col_dist_b, &
-                                                row_dist_a, row_dist_b
     TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b
     TYPE(dbcsr_obj)                          :: m_a, m_b
 
@@ -423,12 +418,9 @@ CONTAINS
     CALL dbcsr_random_dist (col_dist_a, dbcsr_nblkcols_total (matrix_a), npdims(2))
     CALL dbcsr_random_dist (row_dist_b, dbcsr_nblkrows_total (matrix_b), npdims(1))
     CALL dbcsr_random_dist (col_dist_b, dbcsr_nblkcols_total (matrix_b), npdims(2))
-    CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
-    CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
-    CALL array_release (row_dist_a)
-    CALL array_release (col_dist_a)
-    CALL array_release (row_dist_b)
-    CALL array_release (col_dist_b)
+
+    CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a, reuse_arrays=.TRUE.)
+    CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b, reuse_arrays=.TRUE.)
 
     ! Redistribute the matrices
     ! A

@@ -18,10 +18,9 @@ MODULE task_list_methods
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_data, convert_sizes_to_offsets, cp_dbcsr_col_block_sizes, &
-       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_info, &
-       cp_dbcsr_put_block, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
-       cp_dbcsr_work_create
+       convert_sizes_to_offsets, cp_dbcsr_col_block_sizes, cp_dbcsr_finalize, &
+       cp_dbcsr_get_block_p, cp_dbcsr_get_info, cp_dbcsr_put_block, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_type, cp_dbcsr_work_create
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
@@ -2346,8 +2345,8 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmat, atom_pair_send, atom_pair_recv,
        nblkcols_total=nblkcols_total)
   ALLOCATE (first_row(nblkrows_total), last_row(nblkrows_total),&
             first_col(nblkcols_total), last_col(nblkcols_total))
-  CALL convert_sizes_to_offsets (array_data (cp_dbcsr_row_block_sizes (pmat)), first_row, last_row)
-  CALL convert_sizes_to_offsets (array_data (cp_dbcsr_col_block_sizes (pmat)), first_col, last_col)
+  CALL convert_sizes_to_offsets (cp_dbcsr_row_block_sizes(pmat), first_row, last_row)
+  CALL convert_sizes_to_offsets (cp_dbcsr_col_block_sizes(pmat), first_col, last_col)
   ! set up send buffer sizes
   natom8=natoms
 

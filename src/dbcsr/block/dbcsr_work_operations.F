@@ -15,8 +15,6 @@
 MODULE dbcsr_work_operations
 
   USE array_types,                     ONLY: array_data,&
-                                             array_hold,&
-                                             array_i1d_obj,&
                                              array_new,&
                                              array_nullify,&
                                              array_release,&
@@ -151,6 +149,7 @@ CONTAINS
 !>                            special memory
 !> \param[in] reuse           (optional) reuses an existing matrix, default
 !>                            is to create a fresh one
+!> \param reuse_arrays ...
 !> \param[in] mutable_work    uses the mutable data for working and not the
 !>                            append-only data; default is append-only
 !> \param[in] replication_type     replication to be used for this matrix;
@@ -164,17 +163,19 @@ CONTAINS
   SUBROUTINE dbcsr_create_new(matrix, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type,&
        data_memory_type, index_memory_type, reuse,&
-       mutable_work, replication_type, error)
+       reuse_arrays, mutable_work, replication_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     CHARACTER(len=*), INTENT(IN)             :: name
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     CHARACTER, INTENT(IN)                    :: matrix_type
-    TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      POINTER                                :: row_blk_size, col_blk_size
     INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
     TYPE(dbcsr_memtype_type), INTENT(IN), &
       OPTIONAL                               :: data_memory_type, &
                                                 index_memory_type
-    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, mutable_work
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reuse_arrays, &
+                                                mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -267,27 +268,25 @@ CONTAINS
     ! These are always invalidated.
     NULLIFY(matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, matrix%m%thr_c,&
          matrix%m%coo_l)
-    matrix%m%row_blk_size = row_blk_size
-    CALL array_hold (matrix%m%row_blk_size)
+    CALL array_new(matrix%m%row_blk_size, row_blk_size, gift=reuse_arrays)
     IF (array_size (matrix%m%row_blk_size) .GT. 0) THEN
        matrix%m%max_rbs = MAXVAL (array_data (matrix%m%row_blk_size))
     ELSE
        matrix%m%max_rbs = 0
     ENDIF
-    matrix%m%col_blk_size = col_blk_size
-    CALL array_hold (matrix%m%col_blk_size)
+    CALL array_new(matrix%m%col_blk_size, col_blk_size, gift=reuse_arrays)
     IF (array_size (matrix%m%col_blk_size) .GT. 0) THEN
        matrix%m%max_cbs = MAXVAL (array_data (matrix%m%col_blk_size))
     ELSE
        matrix%m%max_cbs = 0
     ENDIF
     !
-    CALL dbcsr_assert (array_size (row_blk_size), "EQ",&
+    CALL dbcsr_assert (array_size (matrix%m%row_blk_size), "EQ",&
          dbcsr_distribution_nrows (dist),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Number of blocked rows does match blocked row distribution.",&
          __LINE__, error=error)
-    CALL dbcsr_assert (array_size (col_blk_size), "EQ",&
+    CALL dbcsr_assert (array_size (matrix%m%col_blk_size), "EQ",&
          dbcsr_distribution_ncols (dist),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Number of blocked columns does match blocked column distribution.",&
@@ -307,7 +306,8 @@ CONTAINS
 !$          array_data(matrix%m%row_blk_size))
 !$  ENDIF
     ! Set up some data.
-    CALL meta_from_dist (new_meta, dist, row_blk_size, col_blk_size)
+    CALL meta_from_dist (new_meta, dist, array_data(matrix%m%row_blk_size), &
+                         array_data(matrix%m%col_blk_size))
     matrix%m%nblkrows_total  = new_meta(dbcsr_slot_nblkrows_total )
     matrix%m%nblkcols_total  = new_meta(dbcsr_slot_nblkcols_total )
     matrix%m%nfullrows_total = new_meta(dbcsr_slot_nfullrows_total)
@@ -420,6 +420,7 @@ CONTAINS
 !> \param data_memory_type ...
 !> \param index_memory_type ...
 !> \param reuse ...
+!> \param reuse_arrays ...
 !> \param mutable_work ...
 !> \param replication_type ...
 !> \param error ...
@@ -427,20 +428,21 @@ CONTAINS
   SUBROUTINE dbcsr_create_template(matrix, template, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type,&
        data_memory_type, index_memory_type, reuse,&
-       mutable_work, replication_type, error)
+       reuse_arrays, mutable_work, replication_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_obj), INTENT(IN)              :: template
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: name
     TYPE(dbcsr_distribution_obj), &
       INTENT(IN), OPTIONAL                   :: dist
     CHARACTER, INTENT(IN), OPTIONAL          :: matrix_type
-    TYPE(array_i1d_obj), INTENT(IN), &
-      OPTIONAL                               :: row_blk_size, col_blk_size
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL, POINTER                      :: row_blk_size, col_blk_size
     INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
     TYPE(dbcsr_memtype_type), INTENT(IN), &
       OPTIONAL                               :: data_memory_type, &
                                                 index_memory_type
-    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, mutable_work
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reuse_arrays, &
+                                                mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -451,9 +453,9 @@ CONTAINS
                                                 new_replication_type
     CHARACTER(len=default_string_length)     :: new_name
     INTEGER                                  :: new_data_type
-    LOGICAL                                  :: new_mutable_work
-    TYPE(array_i1d_obj)                      :: new_col_blk_size, &
+    INTEGER, DIMENSION(:), POINTER           :: new_col_blk_size, &
                                                 new_row_blk_size
+    LOGICAL                                  :: new_mutable_work
     TYPE(dbcsr_distribution_obj)             :: new_dist
     TYPE(dbcsr_memtype_type)                 :: new_data_memory_type, &
                                                 new_index_memory_type
@@ -476,14 +478,14 @@ CONTAINS
        new_matrix_type = dbcsr_get_matrix_type (template)
     ENDIF
     IF (PRESENT (row_blk_size)) THEN
-       new_row_blk_size = row_blk_size
+       new_row_blk_size => row_blk_size
     ELSE
-       new_row_blk_size = dbcsr_row_block_sizes (template)
+       new_row_blk_size => dbcsr_row_block_sizes (template)
     ENDIF
     IF (PRESENT (col_blk_size)) THEN
-       new_col_blk_size = col_blk_size
+       new_col_blk_size => col_blk_size
     ELSE
-       new_col_blk_size = dbcsr_col_block_sizes (template)
+       new_col_blk_size => dbcsr_col_block_sizes (template)
     ENDIF
     IF (PRESENT (data_type)) THEN
        new_data_type = data_type
@@ -518,6 +520,7 @@ CONTAINS
          data_type = new_data_type,&
          data_memory_type = new_data_memory_type,&
          index_memory_type = new_index_memory_type,&
+         reuse_arrays = reuse_arrays,&
          mutable_work = new_mutable_work,&
          replication_type = new_replication_type,&
          error=error)

@@ -15,8 +15,7 @@
 
 MODULE dbcsr_operations
   USE array_types,                     ONLY: array_data,&
-                                             array_get,&
-                                             array_i1d_obj
+                                             array_get
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
                                              dbcsr_put_block,&
                                              dbcsr_remove_block,&
@@ -1174,7 +1173,7 @@ CONTAINS
     IF(PRESENT(last_row)) my_last_row = last_row
 
     mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
-    row_blk_offsets => array_data(dbcsr_col_block_offsets(matrix))
+    row_blk_offsets => dbcsr_col_block_offsets(matrix)
 
     CALL dbcsr_work_create(matrix, work_mutable=.TRUE., error=error)
     CALL dbcsr_data_init (buff)
@@ -2082,7 +2081,7 @@ CONTAINS
        ELSE
           CALL find_block_of_element (full_row_bounds(1), block_row_bounds(1),&
                dbcsr_nblkrows_total (matrix_a),&
-               array_data (dbcsr_row_block_offsets (matrix_a)),&
+               dbcsr_row_block_offsets (matrix_a),&
                hint = 0, error=error)
           part_f_row = array_get (dbcsr_row_block_offsets (matrix_a), block_row_bounds(1))&
                .NE. full_row_bounds(1)
@@ -2099,7 +2098,7 @@ CONTAINS
        ELSE
           CALL find_block_of_element (full_row_bounds(2), block_row_bounds(2),&
                dbcsr_nblkrows_total (matrix_a),&
-               array_data (dbcsr_row_block_offsets (matrix_a)),&
+               dbcsr_row_block_offsets (matrix_a),&
                hint = 0, error=error)
           part_l_row = array_get (dbcsr_row_block_offsets (matrix_a), block_row_bounds(2)+1)-1&
                .NE. full_row_bounds(2)
@@ -2132,7 +2131,7 @@ CONTAINS
        ELSE
           CALL find_block_of_element (full_column_bounds(1), block_col_bounds(1),&
                dbcsr_nblkcols_total (matrix_a),&
-               array_data (dbcsr_col_block_offsets (matrix_a)),&
+               dbcsr_col_block_offsets (matrix_a),&
                hint=0, error=error)
           part_f_col = array_get (dbcsr_col_block_offsets (matrix_a), block_col_bounds(1))&
                .NE. full_column_bounds(1)
@@ -2149,7 +2148,7 @@ CONTAINS
        ELSE
           CALL find_block_of_element (full_column_bounds(2), block_col_bounds(2),&
                dbcsr_nblkcols_total (matrix_a),&
-               array_data (dbcsr_col_block_offsets (matrix_a)),&
+               dbcsr_col_block_offsets (matrix_a),&
                hint=0, error=error)
           part_l_col = array_get (dbcsr_col_block_offsets (matrix_a), block_col_bounds(2)+1)-1&
                .NE. full_column_bounds(2)
@@ -3079,10 +3078,8 @@ CONTAINS
       nfullrows_total, nfullcols_total, nblkrows_local, nblkcols_local, &
       nfullrows_local, nfullcols_local, my_prow, my_pcol
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_rows, local_cols, &
-                                                proc_row_dist, proc_col_dist
-    TYPE(array_i1d_obj), INTENT(OUT), &
-      OPTIONAL                               :: row_blk_size, col_blk_size, &
-                                                row_blk_offset, col_blk_offset
+      proc_row_dist, proc_col_dist, row_blk_size, col_blk_size, &
+      row_blk_offset, col_blk_offset
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT), OPTIONAL                  :: distribution
     CHARACTER(len=*), INTENT(OUT), OPTIONAL  :: name
@@ -3112,10 +3109,10 @@ CONTAINS
     IF (PRESENT (nblkcols_local)) nblkcols_local = matrix%m%nblkcols_local
     IF (PRESENT (nfullrows_local)) nfullrows_local = matrix%m%nfullrows_local
     IF (PRESENT (nfullcols_local)) nfullcols_local = matrix%m%nfullcols_local
-    IF (PRESENT (row_blk_size)) row_blk_size = matrix%m%row_blk_size
-    IF (PRESENT (col_blk_size)) col_blk_size = matrix%m%col_blk_size
-    IF (PRESENT (row_blk_offset)) row_blk_offset = matrix%m%row_blk_offset
-    IF (PRESENT (col_blk_offset)) col_blk_offset = matrix%m%col_blk_offset
+    IF (PRESENT (row_blk_size)) row_blk_size => array_data(matrix%m%row_blk_size)
+    IF (PRESENT (col_blk_size)) col_blk_size => array_data(matrix%m%col_blk_size)
+    IF (PRESENT (row_blk_offset)) row_blk_offset => array_data(matrix%m%row_blk_offset)
+    IF (PRESENT (col_blk_offset)) col_blk_offset => array_data(matrix%m%col_blk_offset)
     IF (PRESENT (distribution)) distribution = matrix%m%dist
     IF (PRESENT (name)) name = matrix%m%name
     IF (PRESENT (data_area)) data_area = matrix%m%data_area
@@ -3126,13 +3123,13 @@ CONTAINS
     ENDIF
     IF (PRESENT (data_type)) data_type = matrix%m%data_type
     IF (PRESENT (local_rows)) &
-         local_rows => array_data (dbcsr_distribution_local_rows (matrix%m%dist))
+         local_rows => dbcsr_distribution_local_rows (matrix%m%dist)
     IF (PRESENT (local_cols)) &
-         local_cols => array_data (dbcsr_distribution_local_cols (matrix%m%dist))
+         local_cols => dbcsr_distribution_local_cols (matrix%m%dist)
     IF (PRESENT (proc_row_dist)) &
-         proc_row_dist => array_data (dbcsr_distribution_row_dist (matrix%m%dist))
+         proc_row_dist => dbcsr_distribution_row_dist (matrix%m%dist)
     IF (PRESENT (proc_col_dist)) &
-         proc_col_dist => array_data (dbcsr_distribution_col_dist (matrix%m%dist))
+         proc_col_dist => dbcsr_distribution_col_dist (matrix%m%dist)
     IF (PRESENT (my_prow)) &
        my_prow = dbcsr_mp_myprow (dbcsr_distribution_mp (matrix%m%dist))
     IF (PRESENT (my_pcol)) &

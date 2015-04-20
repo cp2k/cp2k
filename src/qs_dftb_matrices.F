@@ -20,7 +20,6 @@ MODULE qs_dftb_matrices
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_new, array_nullify, array_release, &
        convert_offsets_to_sizes, cp_dbcsr_add, cp_dbcsr_add_block_node, &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_finalize, &
@@ -152,7 +151,7 @@ CONTAINS
       m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, nderivatives, &
       neighbor_list_id, ngrd, ngrdcut, nkind, nmat, nrow, spdim
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem, &
-                                                rbs
+                                                row_blk_sizes
     LOGICAL                                  :: defined, failure, found, &
                                                 hb_sr_damp, new_atom_b, &
                                                 use_virial
@@ -168,7 +167,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: dfblock, dsblock, fblock, &
       fmatij, fmatji, gblock, pblock, sblock, scoeff, smatij, smatji, spxr, &
       wblock
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atprop_type), POINTER               :: atprop
@@ -269,12 +267,9 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
                       gamma_matrix=gamma_matrix,error=error)
 
-      ALLOCATE (rbs(natom), STAT=istat)
+      ALLOCATE (row_blk_sizes(natom), STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      CALL convert_offsets_to_sizes (felem, rbs, lelem)
-      CALL array_nullify (row_blk_sizes)
-      CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
-
+      CALL convert_offsets_to_sizes (felem, row_blk_sizes, lelem)
 
       CALL cp_dbcsr_allocate_matrix_set(gamma_matrix,nmat,error=error)
       ALLOCATE(gamma_matrix(1)%matrix)
@@ -299,7 +294,7 @@ CONTAINS
               error=error)
       END DO
 
-      CALL array_release (row_blk_sizes)
+      DEALLOCATE(row_blk_sizes)
 
       DEALLOCATE (felem,lelem,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -2338,9 +2333,8 @@ CONTAINS
                                                 neighbor_list_id, nkind, &
                                                 nmat, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
-    INTEGER, DIMENSION(:), POINTER           :: rbs
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
     LOGICAL                                  :: failure
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
@@ -2381,11 +2375,9 @@ CONTAINS
     IF(nderivative==2)nmat=10
 
 
-    ALLOCATE (rbs(natom), STAT=istat)
+    ALLOCATE (row_blk_sizes(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
-    CALL array_nullify (row_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
 
     CALL cp_dbcsr_allocate_matrix_set(matrices,nmat,error=error)
 
@@ -2414,7 +2406,7 @@ CONTAINS
     DEALLOCATE (last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL array_release (row_blk_sizes)
+    DEALLOCATE(row_blk_sizes)
 
   END SUBROUTINE setup_matrices
 

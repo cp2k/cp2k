@@ -12,11 +12,6 @@
 
 MODULE dbcsr_csr_conversions
 
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release
   USE dbcsr_block_access,              ONLY: dbcsr_put_block
   USE dbcsr_data_methods,              ONLY: dbcsr_data_clear_pointer,&
                                              dbcsr_data_init,&
@@ -536,7 +531,6 @@ CONTAINS
       nfullrows, nfullrows_total, nze_local
     INTEGER(KIND=int_8)                      :: nze_total
     INTEGER, DIMENSION(:), POINTER           :: cdist, csr_index, dbcsr_index
-    TYPE(array_i1d_obj)                      :: col_dist
     TYPE(dbcsr_distribution_obj)             :: dist_current
 
     CALL dbcsr_error_set(routineN, error_handler, error)
@@ -545,8 +539,7 @@ CONTAINS
     dist_current = dbcsr_distribution(brd_mat)
 
     mp_group = dbcsr_mp_group(dbcsr_distribution_mp(dist_current))
-    col_dist = dbcsr_distribution_col_dist(dist_current)
-    cdist => array_data(col_dist)
+    cdist => dbcsr_distribution_col_dist(dist_current)
 
     CALL dbcsr_assert(ALL(cdist .EQ. 0), dbcsr_fatal_level,dbcsr_wrong_args_error,&
       routineN, "DBCSR matrix not block-row distributed.",__LINE__, error)
@@ -1058,8 +1051,8 @@ CONTAINS
     ALLOCATE(csr_mat%dbcsr_mapping%dbcsr_row_blk_size(nblkrows_total))
     ALLOCATE(csr_mat%dbcsr_mapping%dbcsr_col_blk_size(nblkcols_total))
 
-    csr_mat%dbcsr_mapping%dbcsr_row_blk_size = array_data(dbcsr_row_block_sizes(dbcsr_mat_nosym))
-    csr_mat%dbcsr_mapping%dbcsr_col_blk_size = array_data(dbcsr_col_block_sizes(dbcsr_mat_nosym))
+    csr_mat%dbcsr_mapping%dbcsr_row_blk_size = dbcsr_row_block_sizes(dbcsr_mat_nosym)
+    csr_mat%dbcsr_mapping%dbcsr_col_blk_size = dbcsr_col_block_sizes(dbcsr_mat_nosym)
 
     csr_mat%dbcsr_mapping%has_dbcsr_block_data = .TRUE.
 
@@ -1091,10 +1084,10 @@ CONTAINS
     IF ((matrix_a%m%nblks) .NE. (matrix_b%m%nblks)) is_equal = .FALSE.
     IF (ANY(matrix_a%m%row_p .NE. matrix_b%m%row_p)) is_equal = .FALSE.
     IF (ANY(matrix_a%m%col_i .NE. matrix_b%m%col_i)) is_equal = .FALSE.
-    IF (ANY(array_data(dbcsr_row_block_sizes(matrix_a)) .NE.&
-      array_data(dbcsr_row_block_sizes(matrix_b)))) is_equal = .FALSE.
-    IF (ANY(array_data(dbcsr_row_block_sizes(matrix_a)) .NE.&
-      array_data(dbcsr_row_block_sizes(matrix_b)))) is_equal = .FALSE.
+    IF (ANY(dbcsr_row_block_sizes(matrix_a) .NE.&
+      dbcsr_row_block_sizes(matrix_b))) is_equal = .FALSE.
+    IF (ANY(dbcsr_row_block_sizes(matrix_a) .NE.&
+      dbcsr_row_block_sizes(matrix_b))) is_equal = .FALSE.
 
   END FUNCTION dbcsr_has_same_block_structure
 
@@ -1146,12 +1139,12 @@ CONTAINS
         "field dbcsr_col_i of DBCSR matrix not consistent with CSR matrix",&
         __LINE__, error=error)
       CALL dbcsr_assert((ALL(map%dbcsr_row_blk_size .EQ.&
-        array_data(dbcsr_row_block_sizes(dbcsr_mat)))),&
+        dbcsr_row_block_sizes(dbcsr_mat))),&
         dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
         "field row_blk_size of DBCSR matrix not consistent with CSR matrix",&
         __LINE__, error=error)
       CALL dbcsr_assert((ALL(map%dbcsr_col_blk_size .EQ. &
-        array_data(dbcsr_col_block_sizes(dbcsr_mat)))),&
+        dbcsr_col_block_sizes(dbcsr_mat))),&
         dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
         "field col_blk_size of DBCSR matrix not consistent with CSR matrix",&
         __LINE__, error=error)
@@ -1653,18 +1646,14 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rdist_tmp, &
                                                 row_blk_size_new_tmp
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
-    INTEGER, DIMENSION(:), POINTER           :: cdist, rdist, &
-                                                row_blk_size_data, &
-                                                row_blk_size_new_data
-    TYPE(array_i1d_obj)                      :: brd_col_dist, brd_row_dist, &
-                                                col_blk_size, row_blk_size, &
-                                                row_blk_size_new
+    INTEGER, DIMENSION(:), POINTER           :: cdist, col_blk_size, rdist, &
+                                                row_blk_size, row_blk_size_new
     TYPE(dbcsr_distribution_obj)             :: dist_current, dist_new
     TYPE(dbcsr_mp_obj)                       :: mp_obj_current, mp_obj_new
 
     CALL dbcsr_error_set(routineN, error_handler, error)
  
-    NULLIFY(row_blk_size_data, rdist, row_blk_size_new_data)
+    NULLIFY(row_blk_size, rdist, row_blk_size_new)
     CALL dbcsr_get_info(dbcsr_mat,&
                         nblkrows_total=nblkrows_total,&
                         nblkcols_total=nblkcols_total,&
@@ -1679,9 +1668,6 @@ CONTAINS
     ALLOCATE (cdist(nblkcols_total))
     cdist = 0
 
-    CALL array_nullify (brd_row_dist)
-    CALL array_nullify (brd_col_dist)
-
     dist_current = dbcsr_distribution(dbcsr_mat)
     mp_obj_current = dbcsr_distribution_mp(dist_current)
     mp_group = dbcsr_mp_group(mp_obj_current)
@@ -1691,8 +1677,6 @@ CONTAINS
     ALLOCATE (pgrid(numnodes_total,1))
 
     IF (equal_dist) THEN ! Equally distribute rows over processors -> cut blocks
-
-      row_blk_size_data => array_data(row_blk_size)
 
       ! Calculate the number of rows a processor can hold
       IF (floor_dist) THEN
@@ -1710,7 +1694,7 @@ CONTAINS
       node_size = nfullrows_local ! space available on current node in number of rows
       IF (node_size .GT. 0) THEN
         DO l=1,nblkrows_total
-          split_row = row_blk_size_data(l) ! size of current block row (number of rows)
+          split_row = row_blk_size(l) ! size of current block row (number of rows)
           DO WHILE(split_row .GE. node_size) ! cut block row and send it to two nodes
             k = k + 1
             m = m + 1
@@ -1731,14 +1715,13 @@ CONTAINS
         ENDDO
       ELSE ! send everything to last node if node_size = 0 
         rdist_tmp(1:nblkrows_total) = numnodes-1
-        row_blk_size_new_tmp(1:nblkrows_total) = row_blk_size_data ! row blocks unchanged
+        row_blk_size_new_tmp(1:nblkrows_total) = row_blk_size ! row blocks unchanged
         k = nblkrows_total
       ENDIF
 
       ! Copy data to correctly allocated variables
-      ALLOCATE(row_blk_size_new_data(k))
-      row_blk_size_new_data = row_blk_size_new_tmp(1:k)
-      CALL array_new(row_blk_size_new,row_blk_size_new_data, gift = .TRUE.)
+      ALLOCATE(row_blk_size_new(k))
+      row_blk_size_new = row_blk_size_new_tmp(1:k)
       ALLOCATE(rdist(k))
       rdist = rdist_tmp(1:k)
 
@@ -1757,16 +1740,13 @@ CONTAINS
         END DO
         IF (remainder .GT. 0) rdist(chunk_size*numnodes+1:nblkrows_total) = row_index-1
       END IF
-      row_blk_size_new = row_blk_size
+      row_blk_size_new => row_blk_size
     ENDIF
-
-    CALL array_new (brd_row_dist, rdist, gift = .TRUE.)
-    CALL array_new (brd_col_dist, cdist, gift = .TRUE.)
 
     pgrid(:,:) = RESHAPE((/(i, i = 0, numnodes_total-1)/),(/numnodes_total,1/)) 
     CALL dbcsr_mp_new(mp_obj_new, pgrid, mp_group, mynode, numnodes=numnodes_total)
     CALL dbcsr_distribution_init(dist_new)
-    CALL dbcsr_distribution_new(dist_new,mp_obj_new,brd_row_dist,brd_col_dist)
+    CALL dbcsr_distribution_new(dist_new,mp_obj_new,rdist,cdist,reuse_arrays=.TRUE.)
 
     CALL dbcsr_init(brd_mat)
     CALL dbcsr_create (brd_mat, TRIM(matrix_name)//" row-block distributed",& 
@@ -1775,10 +1755,7 @@ CONTAINS
  
     DEALLOCATE (pgrid)
 
-    CALL array_release(brd_row_dist)
-    CALL array_release(brd_col_dist)
-    
-    IF(equal_dist) CALL array_release(row_blk_size_new)   
+    IF(equal_dist) DEALLOCATE(row_blk_size_new)   
  
     CALL dbcsr_distribution_release(dist_new)
     CALL dbcsr_mp_release(mp_obj_new)

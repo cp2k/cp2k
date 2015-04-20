@@ -24,7 +24,9 @@ MODULE dbcsr_mm_multrec
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
                                              dbcsr_distribution_has_threads,&
                                              dbcsr_distribution_local_cols,&
+                                             dbcsr_distribution_local_cols_obj,&
                                              dbcsr_distribution_local_rows,&
+                                             dbcsr_distribution_local_rows_obj,&
                                              dbcsr_distribution_row_dist,&
                                              dbcsr_distribution_thread_dist
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
@@ -290,19 +292,19 @@ MODULE dbcsr_mm_multrec
     ENDIF
     IF (dbg) WRITE(*,*)"setting up for product", product%name
     IF (careful_mod) THEN
-       IF (.NOT. array_equality (dbcsr_distribution_local_rows (product%dist),&
+       IF (.NOT. array_equality (dbcsr_distribution_local_rows_obj (product%dist),&
                                  product%local_rows)) THEN
-          WRITE(*,*)"row dist", array_data(dbcsr_distribution_row_dist(product%dist))
-          WRITE(*,*)"dist local rows", array_data(dbcsr_distribution_local_rows (product%dist))
+          WRITE(*,*)"row dist", dbcsr_distribution_row_dist(product%dist)
+          WRITE(*,*)"dist local rows", dbcsr_distribution_local_rows (product%dist)
           WRITE(*,*)" mat local rows", array_data(product%local_rows)
           CALL dbcsr_assert (.FALSE., &
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Array mismatch.", __LINE__, error=error)
        ENDIF
-       IF (.NOT. array_equality (dbcsr_distribution_local_cols (product%dist),&
+       IF (.NOT. array_equality (dbcsr_distribution_local_cols_obj (product%dist),&
                                  product%local_cols)) THEN
-          WRITE(*,*)"col dist", array_data(dbcsr_distribution_col_dist(product%dist))
-          WRITE(*,*)"dist local cols", array_data(dbcsr_distribution_local_cols (product%dist))
+          WRITE(*,*)"col dist", dbcsr_distribution_col_dist(product%dist)
+          WRITE(*,*)"dist local cols", dbcsr_distribution_local_cols (product%dist)
           WRITE(*,*)" mat local cols", array_data(product%local_cols)
           CALL dbcsr_assert (.FALSE., &
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&

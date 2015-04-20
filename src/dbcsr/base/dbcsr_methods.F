@@ -15,7 +15,6 @@
 MODULE dbcsr_methods
   USE array_types,                     ONLY: array_data,&
                                              array_exists,&
-                                             array_i1d_obj,&
                                              array_nullify,&
                                              array_release
   USE btree_I8_k_cp2d_v,               ONLY: btree_destroy_c => btree_delete,&
@@ -331,8 +330,8 @@ CONTAINS
     IF (ASSOCIATED (dist%d)) THEN
        dist%d%refcount = dist%d%refcount - 1
        IF (dist%d%refcount .EQ. 0) THEN
-          CALL array_release (dist%d%row_dist)
-          CALL array_release (dist%d%col_dist)
+          CALL array_release (dist%d%row_dist_block)
+          CALL array_release (dist%d%col_dist_block)
           CALL array_release (dist%d%local_rows)
           CALL array_release (dist%d%local_cols)
           CALL dbcsr_mp_release (dist%d%mp_env)
@@ -652,9 +651,9 @@ CONTAINS
 ! *****************************************************************************
   FUNCTION dbcsr_row_block_sizes (matrix) RESULT (row_blk_sizes)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
 
-    row_blk_sizes = matrix%m%row_blk_size
+    row_blk_sizes => array_data(matrix%m%row_blk_size)
   END FUNCTION dbcsr_row_block_sizes
 
 ! *****************************************************************************
@@ -664,9 +663,9 @@ CONTAINS
 ! *****************************************************************************
   FUNCTION dbcsr_col_block_sizes (matrix) RESULT (col_blk_sizes)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(array_i1d_obj)                      :: col_blk_sizes
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes
 
-    col_blk_sizes = matrix%m%col_blk_size
+    col_blk_sizes => array_data(matrix%m%col_blk_size)
   END FUNCTION dbcsr_col_block_sizes
 
 ! *****************************************************************************
@@ -676,9 +675,9 @@ CONTAINS
 ! *****************************************************************************
   FUNCTION dbcsr_col_block_offsets (matrix) RESULT (col_blk_offsets)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(array_i1d_obj)                      :: col_blk_offsets
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_offsets
 
-    col_blk_offsets = matrix%m%col_blk_offset
+    col_blk_offsets => array_data(matrix%m%col_blk_offset)
   END FUNCTION dbcsr_col_block_offsets
 
 ! *****************************************************************************
@@ -688,9 +687,9 @@ CONTAINS
 ! *****************************************************************************
   FUNCTION dbcsr_row_block_offsets (matrix) RESULT (row_blk_offsets)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(array_i1d_obj)                      :: row_blk_offsets
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_offsets
 
-    row_blk_offsets = matrix%m%row_blk_offset
+    row_blk_offsets => array_data(matrix%m%row_blk_offset)
   END FUNCTION dbcsr_row_block_offsets
 
 ! *****************************************************************************
@@ -977,8 +976,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handle, error)
-    row_blk_sizes => array_data (dbcsr_row_block_sizes (matrix))
-    col_blk_sizes => array_data (dbcsr_col_block_sizes (matrix))
+    row_blk_sizes => dbcsr_row_block_sizes (matrix)
+    col_blk_sizes => dbcsr_col_block_sizes (matrix)
     data_size = 0
     !$OMP DO
     DO row = 1, matrix%m%nblkrows_total

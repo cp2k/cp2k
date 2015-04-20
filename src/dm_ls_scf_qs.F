@@ -15,15 +15,14 @@ MODULE dm_ls_scf_qs
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       array_data, array_i1d_obj, array_new, array_release, &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_complete_redistribute, &
        cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
-       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_finalize, &
-       cp_dbcsr_init, cp_dbcsr_name, cp_dbcsr_nblkrows_total, &
-       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_init, dbcsr_distribution_mp, &
-       dbcsr_distribution_new, dbcsr_distribution_obj, &
+       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
+       cp_dbcsr_distribution_new, cp_dbcsr_finalize, cp_dbcsr_init, &
+       cp_dbcsr_name, cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_distribution_col_dist, dbcsr_distribution_init, &
+       dbcsr_distribution_mp, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_distribution_row_dist, &
        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
        dbcsr_type_symmetric
@@ -110,10 +109,9 @@ CONTAINS
                                                 imol, jatom, natom, nmol
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_to_cluster, &
                                                 atom_to_cluster_primus, &
-                                                cl_dist, cluster_sizes, &
                                                 primus_of_mol
-    INTEGER, DIMENSION(:), POINTER           :: blk_dist, blk_sizes
-    TYPE(array_i1d_obj)                      :: clustered_blk_sizes, &
+    INTEGER, DIMENSION(:), POINTER           :: blk_dist, blk_sizes, &
+                                                clustered_blk_sizes, &
                                                 clustered_col_dist, &
                                                 clustered_row_dist
     TYPE(dbcsr_distribution_obj)             :: block_distribution, &
@@ -159,35 +157,31 @@ CONTAINS
 
        block_distribution = cp_dbcsr_distribution (matrix_qs)
        CALL dbcsr_distribution_init (clustered_distribution)
-       ALLOCATE(cl_dist(nmol))
        ! row
-       blk_dist => array_data(dbcsr_distribution_row_dist(block_distribution))
+       ALLOCATE(clustered_row_dist(nmol))
+       blk_dist => dbcsr_distribution_row_dist(block_distribution)
        DO imol = 1, nmol
-         cl_dist(imol) = blk_dist(primus_of_mol(imol))
+         clustered_row_dist(imol) = blk_dist(primus_of_mol(imol))
        ENDDO
-       CALL array_new (clustered_row_dist, cl_dist, lb=1)
        ! col
-       blk_dist => array_data(dbcsr_distribution_col_dist(block_distribution))
+       ALLOCATE(clustered_col_dist(nmol))
+       blk_dist => dbcsr_distribution_col_dist(block_distribution)
        DO imol = 1, nmol
-         cl_dist(imol) = blk_dist(primus_of_mol(imol))
+         clustered_col_dist(imol) = blk_dist(primus_of_mol(imol))
        ENDDO
-       CALL array_new (clustered_col_dist, cl_dist, lb=1)
 
-       blk_sizes => array_data(cp_dbcsr_row_block_sizes(matrix_qs))
-       ALLOCATE(cluster_sizes(nmol))
-       cluster_sizes=0
+       blk_sizes => cp_dbcsr_row_block_sizes(matrix_qs)
+       ALLOCATE(clustered_blk_sizes(nmol))
+       clustered_blk_sizes=0
        DO iatom = 1, natom
-          cluster_sizes(atom_to_cluster(iatom))=cluster_sizes(atom_to_cluster(iatom))+&
+          clustered_blk_sizes(atom_to_cluster(iatom))=clustered_blk_sizes(atom_to_cluster(iatom))+&
              blk_sizes(iatom)
        ENDDO
 
        ! the parallel distribution
-       CALL array_new(clustered_blk_sizes, cluster_sizes, lb=1)
-       CALL dbcsr_distribution_new(clustered_distribution,&
+       CALL cp_dbcsr_distribution_new(clustered_distribution,&
             dbcsr_distribution_mp(block_distribution),&
-            clustered_row_dist, clustered_col_dist)
-       CALL array_release (clustered_row_dist)
-       CALL array_release (clustered_col_dist)
+            clustered_row_dist, clustered_col_dist, reuse_arrays=.TRUE.)
 
        ! the matrix
        CALL cp_dbcsr_init (matrix_ls, error=error)
@@ -197,7 +191,7 @@ CONTAINS
             clustered_blk_sizes, clustered_blk_sizes,&
             data_type=data_type,&
             error=error)
-       CALL array_release (clustered_blk_sizes)
+       DEALLOCATE(clustered_blk_sizes)
        CALL dbcsr_distribution_release (clustered_distribution)
        CALL cp_dbcsr_finalize (matrix_ls, error=error)
     CASE DEFAULT

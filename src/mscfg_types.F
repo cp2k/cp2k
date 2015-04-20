@@ -11,16 +11,17 @@
 ! *****************************************************************************
 MODULE mscfg_types
   USE cp_dbcsr_interface,              ONLY: &
-       array_data, array_i1d_obj, array_new, array_release, cp_dbcsr_add, &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_complete_redistribute, &
-       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_distribution_release, &
-       cp_dbcsr_finalize, cp_dbcsr_init, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
-       cp_dbcsr_nfullcols_total, cp_dbcsr_nfullrows_total, cp_dbcsr_release, &
-       cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
-       cp_dbcsr_type, cp_dbcsr_work_create, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
+       cp_dbcsr_add, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_complete_redistribute, cp_dbcsr_create, &
+       cp_dbcsr_distribution, cp_dbcsr_distribution_new, &
+       cp_dbcsr_distribution_release, cp_dbcsr_finalize, cp_dbcsr_init, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_nfullcols_total, &
+       cp_dbcsr_nfullrows_total, cp_dbcsr_release, cp_dbcsr_reserve_block2d, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
+       cp_dbcsr_work_create, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_mp, dbcsr_distribution_obj, &
        dbcsr_distribution_row_dist, dbcsr_type_no_symmetry
 !cp_dbcsr_copy, & 
 !cp_dbcsr_filter, &
@@ -234,14 +235,12 @@ CONTAINS
 
     INTEGER :: add_blocks_after, dimen, iblock_col, iblock_row, iblock_size, &
       nblocks, nblocks_new, start_index, trailing_size
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: block_sizes_new, &
-                                                distr_new_array
     INTEGER, DIMENSION(2)                    :: add_blocks_before
-    INTEGER, DIMENSION(:), POINTER           :: blk_distr, blk_sizes
+    INTEGER, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, &
+      col_distr_new, col_sizes_new, distr_new_array, row_distr_new, &
+      row_sizes_new
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_p, p_new_block
-    TYPE(array_i1d_obj)                      :: col_distr_new, col_sizes_new, &
-                                                row_distr_new, row_sizes_new
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type)                      :: matrix_new
     TYPE(dbcsr_distribution_obj)             :: dist_new, dist_qs
@@ -265,11 +264,11 @@ CONTAINS
      ENDIF
 
      IF (dimen==1) THEN !rows
-      blk_distr => array_data(dbcsr_distribution_row_dist(dist_qs))
-      blk_sizes => array_data(cp_dbcsr_row_block_sizes(submatrix_in))
+      blk_distr => dbcsr_distribution_row_dist(dist_qs)
+      blk_sizes => cp_dbcsr_row_block_sizes(submatrix_in)
      ELSE !columns
-      blk_distr => array_data(dbcsr_distribution_col_dist(dist_qs))
-      blk_sizes => array_data(cp_dbcsr_col_block_sizes(submatrix_in))
+      blk_distr => dbcsr_distribution_col_dist(dist_qs)
+      blk_sizes => cp_dbcsr_col_block_sizes(submatrix_in)
      ENDIF
      nblocks=SIZE(blk_sizes) ! number of blocks in the small matrix
 
@@ -289,30 +288,24 @@ CONTAINS
      
      ! create final arrays
      IF (dimen==1) THEN !rows
-      CALL array_new(row_sizes_new, block_sizes_new, lb=1)
-      CALL array_new(row_distr_new, distr_new_array, lb=1)
+        row_sizes_new => block_sizes_new
+        row_distr_new => distr_new_array
      ELSE !columns
-      CALL array_new(col_sizes_new, block_sizes_new, lb=1)
-      CALL array_new(col_distr_new, distr_new_array, lb=1)
+        col_sizes_new => block_sizes_new
+        col_distr_new => distr_new_array
      ENDIF
-     DEALLOCATE(block_sizes_new,distr_new_array)
-    
     ENDDO ! both rows and columns are done
     
     ! Create the distribution
-    CALL dbcsr_distribution_new(dist_new,&
-     dbcsr_distribution_mp(dist_qs),row_distr_new,col_distr_new)
-    CALL array_release(col_distr_new)
-    CALL array_release(row_distr_new)
-    
+    CALL cp_dbcsr_distribution_new(dist_new,&
+     dbcsr_distribution_mp(dist_qs),row_distr_new,col_distr_new,reuse_arrays=.TRUE.)
+
     ! Create big the matrix
     CALL cp_dbcsr_init(matrix_new,error=error)
     CALL cp_dbcsr_create(matrix_new, "BIG_AND_FAKE",&
             dist_new, dbcsr_type_no_symmetry,&
             row_sizes_new, col_sizes_new,&
-            error=error)
-    CALL array_release(col_sizes_new)
-    CALL array_release(row_sizes_new)
+            reuse_arrays=.TRUE., error=error)
     CALL cp_dbcsr_distribution_release(dist_new)
     
     !CALL cp_dbcsr_finalize(matrix_new,error=error)

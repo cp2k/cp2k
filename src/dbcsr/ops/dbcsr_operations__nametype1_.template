@@ -39,8 +39,8 @@
     dist = dbcsr_distribution (matrix_a)
     mynode = dbcsr_mp_mynode (dbcsr_distribution_mp (dist))
     pgrid => dbcsr_mp_pgrid (dbcsr_distribution_mp (dist))
-    row_dist => array_data (dbcsr_distribution_row_dist (dist))
-    col_dist => array_data (dbcsr_distribution_col_dist (dist))
+    row_dist => dbcsr_distribution_row_dist (dist)
+    col_dist => dbcsr_distribution_col_dist (dist)
     !
     ! let's go
     trace = REAL(0.0,[kind1])

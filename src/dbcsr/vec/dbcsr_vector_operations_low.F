@@ -11,10 +11,6 @@
 ! *****************************************************************************
 
 MODULE dbcsr_vector_operations_low
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_release
   USE dbcsr_block_access,              ONLY: dbcsr_reserve_all_blocks
   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_col_dist,&
@@ -155,7 +151,6 @@ CONTAINS
 
     INTEGER                                  :: npcol
     INTEGER, DIMENSION(:), POINTER           :: col_sizes, dist_col
-    TYPE(array_i1d_obj)                      :: bin_dist, col_size
     TYPE(dbcsr_distribution_obj)             :: dist_col_vec, distri
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
@@ -163,24 +158,19 @@ CONTAINS
     ALLOCATE(dist_col(1));  ALLOCATE(col_sizes(1))
     dist_col=0; col_sizes=ncol
 
-    CALL array_new (bin_dist, dist_col, gift=.FALSE.)
-    CALL array_new (col_size, col_sizes, gift=.FALSE.)
-
     CALL dbcsr_distribution_new (dist_col_vec,&
          dbcsr_distribution_mp (dbcsr_distribution(matrix)),&
          dbcsr_distribution_row_dist (dbcsr_distribution(matrix)),&
-         bin_dist)
+         dist_col)
     CALL dbcsr_init(dbcsr_vec)
     CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, dbcsr_type_no_symmetry, &
-            dbcsr_row_block_sizes(matrix), col_size,&
+            dbcsr_row_block_sizes(matrix), col_sizes,&
             0, 0, data_type=matrix%m%data_type, error=error)    
 
     CALL dbcsr_reserve_all_blocks(dbcsr_vec,error)    
 
     CALL dbcsr_distribution_release(dist_col_vec)
     DEALLOCATE(dist_col,col_sizes)
-    CALL array_release(bin_dist)
-    CALL array_release(col_size)
 
   END SUBROUTINE create_col_vec_from_matrix
 
@@ -204,32 +194,27 @@ CONTAINS
 
     INTEGER                                  :: nprow
     INTEGER, DIMENSION(:), POINTER           :: dist_row, row_sizes
-    TYPE(array_i1d_obj)                      :: bin_dist, row_size
     TYPE(dbcsr_distribution_obj)             :: dist_row_vec, distri
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     nprow=SIZE(distri%d%mp_env%mp%pgrid,1)
     ALLOCATE(dist_row(1)); ALLOCATE(row_sizes(1))
     dist_row=0; row_sizes=nrow
-    CALL array_new (bin_dist, dist_row, gift=.FALSE.)
-    CALL array_new (row_size, row_sizes, gift=.FALSE.)
 
     CALL dbcsr_distribution_new (dist_row_vec,&
          dbcsr_distribution_mp (dbcsr_distribution(matrix)),&
-         bin_dist,&
+         dist_row,&
          dbcsr_distribution_col_dist (dbcsr_distribution(matrix)))
     
     CALL dbcsr_init(dbcsr_vec)
     CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
-            row_size, dbcsr_col_block_sizes(matrix), &
+            row_sizes, dbcsr_col_block_sizes(matrix), &
             0, 0, data_type=matrix%m%data_type, error=error)    
 
     CALL dbcsr_reserve_all_blocks(dbcsr_vec,error) 
 
     CALL dbcsr_distribution_release(dist_row_vec)
     DEALLOCATE(dist_row,row_sizes)
-    CALL array_release(bin_dist)
-    CALL array_release(row_size)
 
   END SUBROUTINE create_row_vec_from_matrix
 
@@ -254,7 +239,6 @@ CONTAINS
 
     INTEGER                                  :: i, npcol
     INTEGER, DIMENSION(:), POINTER           :: col_sizes, dist_col
-    TYPE(array_i1d_obj)                      :: bin_dist, col_size
     TYPE(dbcsr_distribution_obj)             :: dist_col_vec, distri
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
@@ -265,25 +249,20 @@ CONTAINS
       dist_col(i+1)=i
     END DO
 
-    CALL array_new (bin_dist, dist_col, gift=.FALSE.)
-    CALL array_new (col_size, col_sizes, gift=.FALSE.)
-
     CALL dbcsr_distribution_new (dist_col_vec,&
          dbcsr_distribution_mp (dbcsr_distribution(matrix)),&
          dbcsr_distribution_row_dist (dbcsr_distribution(matrix)),&
-         bin_dist)
+         dist_col)
 
     CALL dbcsr_init(dbcsr_vec)
     CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, dbcsr_type_no_symmetry, &
-            dbcsr_row_block_sizes(matrix), col_size,&
+            dbcsr_row_block_sizes(matrix), col_sizes,&
             0, 0, data_type=matrix%m%data_type, error=error)
 
     CALL dbcsr_reserve_all_blocks(dbcsr_vec,error)
 
     CALL dbcsr_distribution_release(dist_col_vec)
     DEALLOCATE(dist_col,col_sizes)
-    CALL array_release(bin_dist)
-    CALL array_release(col_size)
 
   END SUBROUTINE create_replicated_col_vec_from_matrix
 
@@ -308,7 +287,6 @@ CONTAINS
 
     INTEGER                                  :: i, nprow
     INTEGER, DIMENSION(:), POINTER           :: dist_row, row_sizes
-    TYPE(array_i1d_obj)                      :: bin_dist, row_size
     TYPE(dbcsr_distribution_obj)             :: dist_row_vec, distri
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
@@ -319,25 +297,20 @@ CONTAINS
       dist_row(i+1)=i
     END DO
  
-    CALL array_new (bin_dist, dist_row, gift=.FALSE.)
-    CALL array_new (row_size, row_sizes, gift=.FALSE.)
-
     CALL dbcsr_distribution_new (dist_row_vec,&
          dbcsr_distribution_mp (dbcsr_distribution(matrix)),&
-         bin_dist,&
+         dist_row,&
          dbcsr_distribution_col_dist (dbcsr_distribution(matrix)))
    
     CALL dbcsr_init(dbcsr_vec)
     CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
-            row_size, dbcsr_col_block_sizes(matrix), &
+            row_sizes, dbcsr_col_block_sizes(matrix), &
             0, 0, data_type=matrix%m%data_type, error=error)   
 
     CALL dbcsr_reserve_all_blocks(dbcsr_vec,error)
 
     CALL dbcsr_distribution_release(dist_row_vec)
     DEALLOCATE(dist_row,row_sizes)
-    CALL array_release(bin_dist)
-    CALL array_release(row_size)
 
   END SUBROUTINE create_replicated_row_vec_from_matrix
 

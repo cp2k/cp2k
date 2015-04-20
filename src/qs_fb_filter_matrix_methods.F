@@ -8,7 +8,6 @@ MODULE qs_fb_filter_matrix_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cp_dbcsr_interface,              ONLY: &
-       array_data, array_i1d_obj, array_new, array_nullify, array_release, &
        cp_dbcsr_create, cp_dbcsr_finalize, cp_dbcsr_get_info, &
        cp_dbcsr_get_stored_coordinates, cp_dbcsr_init, cp_dbcsr_put_block, &
        cp_dbcsr_row_block_sizes, cp_dbcsr_type, dbcsr_distribution_obj, &
@@ -112,10 +111,10 @@ CONTAINS
     INTEGER                                  :: handle, iblkcol, ihalo, &
                                                 ikind, max_nhalos, &
                                                 nblkcols_total, nhalos, stat
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size_data, &
-                                                dummy_halo_atoms, ntfns
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, &
+                                                dummy_halo_atoms, ntfns, &
+                                                row_blk_size
     LOGICAL                                  :: failure, send_data_only
-    TYPE(array_i1d_obj)                      :: col_blk_size, row_blk_size
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(fb_atomic_halo_obj)                 :: dummy_atomic_halo
@@ -126,10 +125,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(halos, atomic_kind, col_blk_size_data, ntfns, &
-            dummy_halo_atoms)
-    CALL array_nullify(row_blk_size)
-    CALL array_nullify(col_blk_size)
+    NULLIFY(halos, atomic_kind, ntfns, dummy_halo_atoms, row_blk_size)
     CALL fb_atomic_halo_nullify(dummy_atomic_halo)
 
     ! filter_mat must be of a dissassociated status (i.e. brand new)
@@ -147,17 +143,16 @@ CONTAINS
                            nblkcols_total=nblkcols_total, &
                            row_blk_size=row_blk_size, &
                            distribution=dbcsr_dist)
-    ALLOCATE(col_blk_size_data(nblkcols_total), STAT=stat)
+    ALLOCATE(col_blk_size(nblkcols_total), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    col_blk_size_data = 0
+    col_blk_size = 0
     DO iblkcol = 1, nblkcols_total
        atomic_kind => particle_set(iblkcol)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind, &
                             kind_number=ikind)
-       col_blk_size_data(iblkcol) = ntfns(ikind)
+       col_blk_size(iblkcol) = ntfns(ikind)
     END DO
     ! DO NOT deallocate cbs if gift=.TRUE. as col_blk_sizes will only point to cbs
-    CALL array_new(col_blk_size, col_blk_size_data, gift=.TRUE.)
     name_string = name
     CALL compress(name_string)
     CALL uppercase(name_string)
@@ -179,7 +174,7 @@ CONTAINS
     ! col_blk_size is created as a tmp array here, so needs to be
     ! released. Note that it is retained during cp_dbcsr_create, so
     ! this temperary version shall be released.
-    CALL array_release(col_blk_size)
+    DEALLOCATE(col_blk_size)
 
     CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
                                  nhalos=nhalos, &
@@ -349,7 +344,7 @@ CONTAINS
                           error=error)
 
     ! obtain row and col block size data for filter matrix
-    row_block_size_data => array_data(cp_dbcsr_row_block_sizes(H_mat))
+    row_block_size_data => cp_dbcsr_row_block_sizes(H_mat)
     natoms_global = SIZE(particle_set)
     ALLOCATE(col_block_size_data(natoms_global), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)

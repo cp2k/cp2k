@@ -16,8 +16,7 @@ MODULE kg_tnadd_mat
                                              gto_basis_set_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_new, array_nullify, array_release, cp_dbcsr_add, &
-       cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, &
+       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_create, &
        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_finalize, &
        cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, &
        dbcsr_distribution_obj, dbcsr_type_symmetric
@@ -110,10 +109,9 @@ CONTAINS
       maxnset, maxpol, maxsgf, mepos, natom, ncoa, ncob, nder, ngau, nkind, &
       npol, nseta, nsetb, nthread, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    INTEGER, DIMENSION(:), POINTER           :: atom_to_molecule, cbs, &
-                                                la_max, la_min, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb, rbs
+    INTEGER, DIMENSION(:), POINTER :: atom_to_molecule, col_blk_sizes, &
+      la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, &
+      row_blk_sizes
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     INTEGER, DIMENSION(nexp_max)             :: nct
     LOGICAL                                  :: failure, found, new_atom_pair
@@ -131,7 +129,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ccval, cval, h_block, &
                                                 p_block, rpgfa, rpgfb, &
                                                 sphi_a, sphi_b, zeta, zetb
-    TYPE(array_i1d_obj)                      :: col_blk_sizes, row_blk_sizes
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_kg
     TYPE(gto_basis_set_p_type), &
@@ -200,20 +197,15 @@ CONTAINS
     END DO
 
     ! build the matrix
-    ALLOCATE (rbs(natom),cbs(natom), STAT=istat)
+    ALLOCATE (row_blk_sizes(natom),col_blk_sizes(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_particle_set(particle_set, qs_kind_set, nsgf=rbs,&
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes,&
                           basis_set_id=use_orb_basis_set,error=error)
-    CALL get_particle_set(particle_set, qs_kind_set, nsgf=cbs,&
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes,&
                           basis_set_id=use_orb_basis_set,error=error)
 
     CALL cp_dbcsr_allocate_matrix_set(matrix_kg,1,error=error)
-    ! prepare for allocation
-    CALL array_nullify (row_blk_sizes)
-    CALL array_nullify (col_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
-    CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
 
     ALLOCATE(matrix_kg(1)%matrix, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -222,12 +214,8 @@ CONTAINS
              name="Nonadditive kinetic energy potential", &
              dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
              row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-             nblks=0, nze=0, error=error)
+             nblks=0, nze=0, reuse_arrays=.TRUE., error=error)
     CALL cp_dbcsr_alloc_block_from_nbl(matrix_kg(1)%matrix,sab_orb,error)
-
-    CALL array_release (row_blk_sizes)
-    CALL array_release (col_blk_sizes)
-
     CALL cp_dbcsr_set(matrix_kg(1)%matrix,0.0_dp,error=error)
 
     nthread=1

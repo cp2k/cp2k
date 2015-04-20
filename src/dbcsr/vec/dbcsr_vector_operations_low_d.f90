@@ -287,7 +287,7 @@
     myprow=distri%d%mp_env%mp%myprow
 
 ! Get the vector which tells us which blocks are local to which processor row in the col vec
-    row_dist=>array_data(dbcsr_distribution_row_dist (dbcsr_distribution(rep_col_vec)))
+    row_dist=> dbcsr_distribution_row_dist (dbcsr_distribution(rep_col_vec))
 
 ! Copy the local vector to the replicated on the first processor column (this is where vec_in lives)
     CALL dbcsr_get_info(matrix=rep_col_vec, nfullrows_local=nrows, nfullcols_local=ncols)
@@ -359,7 +359,7 @@
     mypcol=distri%d%mp_env%mp%mypcol
     myprow=distri%d%mp_env%mp%myprow
 ! Get the vector which tells us which blocks are local to which processor col in the row vec
-    col_dist=>array_data(dbcsr_distribution_col_dist (dbcsr_distribution(rep_row_vec)))
+    col_dist=> dbcsr_distribution_col_dist (dbcsr_distribution(rep_row_vec))
 
 ! The same trick as described above with opposite direction
     CALL dbcsr_set(rep_col_vec, 0.0_real_8, error=error)

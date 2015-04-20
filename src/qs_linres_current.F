@@ -23,7 +23,6 @@ MODULE qs_linres_current
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_new, array_nullify, array_release, &
        convert_offsets_to_sizes, cp_dbcsr_add_block_node, &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
@@ -190,14 +189,13 @@ CONTAINS
     INTEGER :: handle, idir, iiB, iiiB, ispin, istat, istate, j, jstate, nao, &
       natom, nmo, nspins, nstates(2), output_unit, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
-    INTEGER, DIMENSION(:), POINTER           :: rbs
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
     LOGICAL                                  :: append_cube, failure, gapw
     REAL(dp)                                 :: dk(3), jrho_tot_G(3,3), &
                                                 jrho_tot_R(3,3), maxocc, &
                                                 scale_fac
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ddk
     REAL(dp), EXTERNAL                       :: DDOT
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_i_p_type), DIMENSION(:), &
       POINTER                                :: center_list
@@ -302,11 +300,9 @@ CONTAINS
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
-    ALLOCATE (rbs(natom), STAT=istat)
+    ALLOCATE (row_blk_sizes(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
-    CALL array_nullify (row_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
     DEALLOCATE (first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (last_sgf,STAT=istat)
@@ -345,7 +341,7 @@ CONTAINS
             name="density_matrix_iii",error=error)
     ENDDO
     !
-    CALL array_release (row_blk_sizes)
+    DEALLOCATE(row_blk_sizes)
     !
     !
     current_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES%CURRENT",error=error)
@@ -2247,13 +2243,12 @@ CONTAINS
       istat, istate, j, jstate, max_states, nao, natom, nbr_center(2), nmo, &
       nspins, nstate_loc, nstates(2), output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
-    INTEGER, DIMENSION(:), POINTER           :: rbs
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
     LOGICAL                                  :: chi_pbc, failure, gapw
     REAL(dp)                                 :: chi(3), chi_tmp, contrib, &
                                                 contrib2, dk(3), &
                                                 int_current(3), &
                                                 int_current_tmp, maxocc
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_i_p_type), DIMENSION(:), &
       POINTER                                :: center_list
@@ -2347,11 +2342,9 @@ CONTAINS
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
-    ALLOCATE (rbs(natom), STAT=istat)
+    ALLOCATE (row_blk_sizes(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
-    CALL array_nullify (row_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
     DEALLOCATE (first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (last_sgf,STAT=istat)
@@ -2407,7 +2400,7 @@ CONTAINS
     ENDDO
     !
     !
-    CALL array_release (row_blk_sizes)
+    DEALLOCATE(row_blk_sizes)
     !
     !
     ! Allocate full matrices for only one vector
@@ -2716,11 +2709,10 @@ CONTAINS
       kdir, max_states, nao, natom, nbr_center(2), nmo, nspins, nstates(2), &
       output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
-    INTEGER, DIMENSION(:), POINTER           :: rbs
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
     LOGICAL                                  :: chi_pbc, failure, gapw
     REAL(dp)                                 :: chi(3), contrib, dk(3), &
                                                 int_current(3), maxocc
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_i_p_type), DIMENSION(:), &
       POINTER                                :: center_list
@@ -2804,11 +2796,9 @@ CONTAINS
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
-    ALLOCATE (rbs(natom), STAT=istat)
+    ALLOCATE (row_blk_sizes(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
-    CALL array_nullify (row_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+    CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
     DEALLOCATE (first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE (last_sgf,STAT=istat)
@@ -2864,7 +2854,7 @@ CONTAINS
     ENDDO
     !
     !
-    CALL array_release (row_blk_sizes)
+    DEALLOCATE(row_blk_sizes)
     !
     !
     ! Allocate full matrices for only one vector

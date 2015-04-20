@@ -16,8 +16,8 @@ MODULE  rt_propagation_forces
                                              rtp_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_release, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, &
+       cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, &
        cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
        cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_iterator, &
        cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
@@ -107,9 +107,9 @@ MODULE  rt_propagation_forces
     INTEGER                                  :: handle, i, im, ispin, nao, &
                                                 natom, nmo, re, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha
-    TYPE(array_i1d_obj)                      :: col_blk_size
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -164,6 +164,7 @@ MODULE  rt_propagation_forces
 
        CALL get_mo_set(mos(ispin)%mo_set, nao=nao,nmo=nmo)
        
+       NULLIFY(col_blk_size)
        CALL dbcsr_create_dist_r_unrot (dist, cp_dbcsr_distribution(SinvB(ispin)%matrix), nmo, col_blk_size)
 
        CALL cp_dbcsr_init(db_mos_re, error)
@@ -197,7 +198,7 @@ MODULE  rt_propagation_forces
        CALL cp_dbcsr_release(db_mo_tmp1,error)     
        CALL cp_dbcsr_release(db_mo_tmp2,error)     
        
-       CALL array_release(col_blk_size)
+       DEALLOCATE(col_blk_size)
        CALL dbcsr_distribution_release(dist) 
 
     END DO     

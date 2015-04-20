@@ -19,14 +19,15 @@ MODULE dbcsr_dist_operations
        array_new, array_nullify, array_release, array_size
   USE dbcsr_config,                    ONLY: max_elements_per_block
   USE dbcsr_dist_methods,              ONLY: &
-       dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
-       dbcsr_distribution_hold, dbcsr_distribution_init, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_new, &
-       dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
-       dbcsr_distribution_processor, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist, dbcsr_distribution_thread_dist
+       dbcsr_distribution_col_dist, dbcsr_distribution_col_dist_obj, &
+       dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
+       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_make_threads, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_new, dbcsr_distribution_no_threads, &
+       dbcsr_distribution_nrows, dbcsr_distribution_processor, &
+       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_distribution_row_dist_obj, dbcsr_distribution_thread_dist
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -465,10 +466,10 @@ CONTAINS
     mp = dbcsr_distribution_mp (dist)
     WRITE(*,'(1X,A,I5,"x",I5,1X,I5)')"Distribution process grid size, threads",&
          dbcsr_mp_nprows (mp), dbcsr_mp_npcols (mp), dist%d%num_threads
-    IF (array_size(dist%d%row_dist).gt.0) &
-         WRITE(*,*)"Distribution: Row dist", array_data(dist%d%row_dist)
-    IF (array_size(dist%d%col_dist).gt.0) &
-         WRITE(*,*)"Distribution: Col dist", array_data(dist%d%col_dist)
+    IF (array_size(dist%d%row_dist_block).gt.0) &
+         WRITE(*,*)"Distribution: Row dist", array_data(dist%d%row_dist_block)
+    IF (array_size(dist%d%col_dist_block).gt.0) &
+         WRITE(*,*)"Distribution: Col dist", array_data(dist%d%col_dist_block)
     IF (array_size(dist%d%local_rows).gt.0) &
          WRITE(*,*)"Distribution: Local rows", array_data(dist%d%local_rows)
     IF (array_size(dist%d%local_cols).gt.0) &
@@ -488,18 +489,17 @@ CONTAINS
       INTENT(OUT)                            :: dist_tr
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_normal
 
-    TYPE(array_i1d_obj)                      :: cd, lc, lr, rd
     TYPE(dbcsr_mp_obj)                       :: mp_env_tr
 
 !   ---------------------------------------------------------------------------
 
-    rd = dbcsr_distribution_col_dist (dist_normal)
-    cd = dbcsr_distribution_row_dist (dist_normal)
-    lr = dbcsr_distribution_local_cols (dist_normal)
-    lc = dbcsr_distribution_local_rows (dist_normal)
     CALL dbcsr_mp_new_transposed (mp_env_tr, dbcsr_distribution_mp (&
          dist_normal))
-    CALL dbcsr_distribution_new(dist_tr, mp_env_tr, rd, cd, lr, lc)
+    CALL dbcsr_distribution_new(dist_tr, mp_env_tr, &
+         dbcsr_distribution_col_dist (dist_normal), &
+         dbcsr_distribution_row_dist (dist_normal), &
+         dbcsr_distribution_local_cols (dist_normal), &
+         dbcsr_distribution_local_rows (dist_normal))
     CALL dbcsr_mp_release (mp_env_tr)
   END SUBROUTINE dbcsr_transpose_distribution
 
@@ -514,26 +514,18 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_normal
 
     INTEGER, DIMENSION(:), POINTER           :: cda, rda
-    TYPE(array_i1d_obj)                      :: cd, new_cd, new_rd, rd
     TYPE(dbcsr_mp_obj)                       :: mp
 
 !   ---------------------------------------------------------------------------
 
     mp = dbcsr_distribution_mp (dist_normal)
-    rd = dbcsr_distribution_row_dist (dist_normal)
-    cd = dbcsr_distribution_col_dist (dist_normal)
-    ALLOCATE (rda (array_size (cd)))
+    ALLOCATE (rda (dbcsr_distribution_ncols (dist_normal)))
     CALL evenly_bin (rda, dbcsr_mp_nprows (mp))
-    CALL array_new (new_rd, rda, gift=.TRUE.)
 
-    ALLOCATE (cda (array_size (rd)))
+    ALLOCATE (cda (dbcsr_distribution_nrows (dist_normal)))
     CALL evenly_bin (cda, dbcsr_mp_npcols (mp))
-    CALL array_new (new_cd, cda, gift=.TRUE.)
 
-    CALL dbcsr_distribution_new(dist_tr,&
-         mp, new_rd, new_cd)
-    CALL array_release (new_rd)
-    CALL array_release (new_cd)
+    CALL dbcsr_distribution_new(dist_tr,mp,rda,cda,reuse_arrays=.TRUE.)
   END SUBROUTINE dbcsr_transpose_dims
 
 
@@ -874,9 +866,9 @@ CONTAINS
 
     INTEGER                                  :: factor_mult_images, ncols, &
                                                 npcols, nprows, nrows
-    INTEGER, DIMENSION(:), POINTER           :: col_dist_data, col_img_data, &
-                                                col_vdist, row_dist_data, &
-                                                row_img_data, row_vdist
+    INTEGER, DIMENSION(:), POINTER :: col_dist_data, col_img_data, &
+      col_img_data_tmp, col_vdist, row_dist_data, row_img_data, &
+      row_img_data_tmp, row_vdist
     LOGICAL                                  :: do_mult_images_rows_or_cols
     TYPE(array_i1d_obj)                      :: col_dist, col_image, &
                                                 row_dist, row_image
@@ -920,15 +912,15 @@ CONTAINS
     IF (debug_mod) WRITE (*,*)routineN//'row decimation, multiplicity',&
          imgdist%i%row_decimation, imgdist%i%row_multiplicity
     IF (debug_mod) WRITE(*,*)routineN//" nprows, match prows", nprows, match_row_nbins
+    ALLOCATE (row_img_data (nrows))
+    row_img_data_tmp => row_img_data
     IF (imgdist%i%row_decimation.EQ.1 .AND. imgdist%i%row_multiplicity.EQ.1 .AND. &
          .NOT. PRESENT (match_row_pdist)) THEN
-       row_dist = dbcsr_distribution_row_dist (dist)
+       row_dist = dbcsr_distribution_row_dist_obj (dist)
        CALL array_hold (row_dist)
-       ALLOCATE (row_img_data (nrows))
        row_img_data(:) = 1
        CALL array_new (row_image, row_img_data, gift=.TRUE.)
     ELSE
-       ALLOCATE (row_img_data (nrows))
        IF (PRESENT (match_row_pdist)) THEN
           ALLOCATE (row_dist_data (nrows))
           IF (PRESENT (match_row_idist)) THEN
@@ -944,7 +936,7 @@ CONTAINS
           ENDIF
           CALL array_new (row_dist, row_dist_data, gift=.TRUE.)
        ELSE
-          row_dist = dbcsr_distribution_row_dist (dist)
+          row_dist = dbcsr_distribution_row_dist_obj (dist)
           CALL array_hold (row_dist)
           CALL reimage_distribution (row_img_data,&
                array_data (row_dist),&
@@ -956,7 +948,7 @@ CONTAINS
     !
     ALLOCATE (row_vdist (nrows))
     CALL make_vdistribution (nrows, row_vdist, array_data (row_dist),&
-         imgdist%i%row_decimation, row_img_data)
+         imgdist%i%row_decimation, row_img_data_tmp)
     CALL array_new (imgdist%i%vrow_dist, row_vdist, gift=.TRUE.)
     !
     ! Create the new column distribution and column image distribution
@@ -976,15 +968,15 @@ CONTAINS
     IF (debug_mod) WRITE (*,*)routineN//'col decimation, multiplicity',&
          imgdist%i%col_decimation, imgdist%i%col_multiplicity
     IF (debug_mod) WRITE(*,*)routineN//" npcols, match pcols", npcols, match_col_nbins
+    ALLOCATE (col_img_data (ncols))
+    col_img_data_tmp => col_img_data
     IF (imgdist%i%col_decimation.EQ.1 .AND. imgdist%i%col_multiplicity.EQ.1 .AND. &
          .NOT. PRESENT (match_col_pdist)) THEN
-       col_dist = dbcsr_distribution_col_dist (dist)
+       col_dist = dbcsr_distribution_col_dist_obj (dist)
        CALL array_hold (col_dist)
-       ALLOCATE (col_img_data (ncols))
        col_img_data(:) = 1
        CALL array_new (col_image, col_img_data, gift=.TRUE.)
     ELSE
-       ALLOCATE (col_img_data (ncols))
        IF (PRESENT (match_col_pdist)) THEN
           ALLOCATE (col_dist_data (ncols))
           IF (PRESENT (match_col_idist)) THEN
@@ -1000,7 +992,7 @@ CONTAINS
           ENDIF
           CALL array_new (col_dist, col_dist_data, gift=.TRUE.)
        ELSE
-          col_dist = dbcsr_distribution_col_dist (dist)
+          col_dist = dbcsr_distribution_col_dist_obj (dist)
           CALL array_hold (col_dist)
           CALL reimage_distribution (col_img_data,&
                array_data (col_dist),&
@@ -1012,13 +1004,13 @@ CONTAINS
     !
     ALLOCATE (col_vdist (ncols))
     CALL make_vdistribution (ncols, col_vdist, array_data(col_dist),&
-         imgdist%i%col_decimation, col_img_data)
+         imgdist%i%col_decimation, col_img_data_tmp)
     CALL array_new (imgdist%i%vcol_dist, col_vdist, gift=.TRUE.)
     !
     ! Copy the row & column distribution from old distribution
     CALL dbcsr_distribution_new(new_dist,&
          mp_env,&
-         row_dist, col_dist)
+         array_data(row_dist), array_data(col_dist))
     CALL array_release (row_dist)
     CALL array_release (col_dist)
     ! Now setup the list of distributions, ... .
@@ -1159,8 +1151,8 @@ CONTAINS
     INTEGER, PARAMETER                       :: rpt = 10
 
     INTEGER                                  :: bins, elements, i
+    INTEGER, DIMENSION(:), POINTER           :: block_distribution, block_size
     REAL                                     :: rn
-    TYPE(array_i1d_obj)                      :: block_distribution, block_size
 
     DO i = 1, rpt
        CALL RANDOM_NUMBER (rn)
@@ -1170,8 +1162,7 @@ CONTAINS
        bins = MAX(1, INT(rn*8))
        CALL create_bl_distribution (block_distribution,&
             block_size, elements, bins)
-       CALL array_release (block_distribution)
-       CALL array_release (block_size)
+       DEALLOCATE(block_distribution,block_size)
     ENDDO
   END SUBROUTINE test_create_bl_distribution
 
@@ -1187,7 +1178,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE create_bl_distribution (block_distribution,&
        block_size, nelements, nbins)
-    TYPE(array_i1d_obj), INTENT(OUT)         :: block_distribution, block_size
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      POINTER                                :: block_distribution, block_size
     INTEGER, INTENT(IN)                      :: nelements, nbins
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_bl_distribution', &
@@ -1200,8 +1192,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL array_nullify (block_distribution)
-    CALL array_nullify (block_size)
+    NULLIFY (block_distribution)
+    NULLIFY (block_size)
     ! Define the sizes on which we build the distribution.
     IF (nelements .GT. 0) THEN
 
@@ -1245,32 +1237,38 @@ CONTAINS
        ENDDO
        ! Create the output arrays.
        IF (nblks .EQ. estimated_blocks) THEN
-          CALL array_new (block_distribution, blk_dist, gift=.TRUE.)
-          CALL array_new (block_size, blk_sizes, gift=.TRUE.)
+          block_distribution => blk_dist
+          block_size => blk_sizes
        ELSE
-          CALL array_new (block_distribution, blk_dist(1:nblks), lb=1)
-          CALL array_new (block_size, blk_sizes(1:nblks), lb=1)
+          ALLOCATE (block_distribution (nblks), stat=stat)
+          CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, &
+               dbcsr_caller_error, routineN,&
+               "blk_dist",__LINE__,error)
+          block_distribution(:)=blk_dist(1:nblks)
           DEALLOCATE (blk_dist)
-          DEALLOCATE (blk_sizes)
+          ALLOCATE (block_size (nblks), stat=stat)
+          CALL dbcsr_assert (stat == 0,dbcsr_fatal_level, &
+               dbcsr_caller_error, routineN,&
+               "blk_sizes",__LINE__,error)
+          block_size(:)=blk_sizes(1:nblks)
+          DEALLOCATE(blk_sizes)
        ENDIF
     ELSE
-       ALLOCATE (blk_dist (0), stat=stat)
+       ALLOCATE (block_distribution (0), stat=stat)
        CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
             dbcsr_caller_error, routineN,&
             "blk_dist",__LINE__,error)
-       ALLOCATE (blk_sizes (0), stat=stat)
+       ALLOCATE (block_size (0), stat=stat)
        CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
             dbcsr_caller_error, routineN,&
             "blk_sizes",__LINE__,error)
-       CALL array_new (block_distribution, blk_dist, gift=.TRUE.)
-       CALL array_new (block_size, blk_sizes, gift=.TRUE.)
     ENDIF
 1579 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
     IF (debug_mod) THEN
        WRITE(*,'(1X,A,A)')routineP//" Distribution"
-       WRITE(*,1579)array_data (block_distribution)
+       WRITE(*,1579) block_distribution(:)
        WRITE(*,'(1X,A,A)')routineP//" Sizes"
-       WRITE(*,1579)array_data (block_size)
+       WRITE(*,1579) block_size(:)
     ENDIF
   END SUBROUTINE create_bl_distribution
 
@@ -1291,7 +1289,8 @@ CONTAINS
       INTENT(OUT)                            :: dist_right
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_left
     INTEGER, INTENT(IN)                      :: ncolumns
-    TYPE(array_i1d_obj), INTENT(OUT)         :: right_col_blk_sizes
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      POINTER                                :: right_col_blk_sizes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_r_unrot', &
       routineP = moduleN//':'//routineN
@@ -1299,9 +1298,7 @@ CONTAINS
     INTEGER                                  :: multiplicity, new_npcols, &
                                                 new_nprows, nimages
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_images
-    INTEGER, DIMENSION(:), POINTER           :: right_rd
-    TYPE(array_i1d_obj)                      :: left_col_dist, &
-                                                right_col_dist, right_row_dist
+    INTEGER, DIMENSION(:), POINTER           :: right_col_dist, right_row_dist
     TYPE(dbcsr_mp_obj)                       :: right_mp_env
 
 !   ---------------------------------------------------------------------------
@@ -1311,21 +1308,18 @@ CONTAINS
     CALL create_bl_distribution (right_col_dist,&
          right_col_blk_sizes, ncolumns, dbcsr_mp_npcols (right_mp_env))
     ! Create an even row distribution.
-    left_col_dist = dbcsr_distribution_col_dist (dist_left)
-    CALL array_nullify (right_row_dist)
-    ALLOCATE (right_rd(array_size (left_col_dist)))
-    ALLOCATE (tmp_images(array_size (left_col_dist)))
+    ALLOCATE (right_row_dist(dbcsr_distribution_ncols (dist_left)))
+    ALLOCATE (tmp_images(dbcsr_distribution_ncols (dist_left)))
     new_nprows = dbcsr_mp_nprows (right_mp_env)
     new_npcols = dbcsr_mp_npcols (right_mp_env)
     nimages = lcm (new_nprows, new_npcols) / new_nprows
     multiplicity = new_nprows / gcd (new_nprows, new_npcols)
-    CALL rebin_distribution (right_rd, tmp_images, array_data (left_col_dist),&
+    CALL rebin_distribution (right_row_dist, tmp_images,& 
+         dbcsr_distribution_col_dist (dist_left),&
          new_nprows, multiplicity, nimages)
-    CALL array_new (right_row_dist, right_rd, gift=.TRUE.)
     CALL dbcsr_distribution_new (dist_right, right_mp_env,&
-         right_row_dist, right_col_dist)
-    CALL array_release (right_col_dist)
-    CALL array_release (right_row_dist)
+         right_row_dist, right_col_dist, reuse_arrays=.TRUE.)
+    DEALLOCATE(tmp_images)
   END SUBROUTINE dbcsr_create_dist_r_unrot
 
 ! *****************************************************************************
@@ -1345,12 +1339,13 @@ CONTAINS
       INTENT(OUT)                            :: dist_right
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_left
     INTEGER, INTENT(IN)                      :: ncolumns
-    TYPE(array_i1d_obj), INTENT(OUT)         :: right_col_blk_sizes
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      POINTER                                :: right_col_blk_sizes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_r_rot', &
       routineP = moduleN//':'//routineN
 
-    TYPE(array_i1d_obj)                      :: right_col_dist
+    INTEGER, DIMENSION(:), POINTER           :: right_col_dist
     TYPE(dbcsr_mp_obj)                       :: right_mp_env
 
 !   ---------------------------------------------------------------------------
@@ -1364,7 +1359,7 @@ CONTAINS
          dbcsr_distribution_col_dist (dist_left), right_col_dist,&
          local_rows=dbcsr_distribution_local_cols (dist_left))
     CALL dbcsr_mp_release (right_mp_env)
-    CALL array_release (right_col_dist)
+    DEALLOCATE(right_col_dist)
   END SUBROUTINE dbcsr_create_dist_r_rot
 
 ! *****************************************************************************
@@ -1384,12 +1379,13 @@ CONTAINS
       INTENT(OUT)                            :: dist_left
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_right
     INTEGER, INTENT(IN)                      :: nrows
-    TYPE(array_i1d_obj), INTENT(OUT)         :: left_row_blk_sizes
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      POINTER                                :: left_row_blk_sizes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_l_unrot', &
       routineP = moduleN//':'//routineN
 
-    TYPE(array_i1d_obj)                      :: left_row_dist
+    INTEGER, DIMENSION(:), POINTER           :: left_row_dist
     TYPE(dbcsr_mp_obj)                       :: left_mp_env
 
 !   ---------------------------------------------------------------------------
@@ -1400,7 +1396,7 @@ CONTAINS
     CALL dbcsr_distribution_new (dist_left, left_mp_env,&
          left_row_dist, dbcsr_distribution_col_dist (dist_right),&
          local_cols=dbcsr_distribution_local_cols (dist_right))
-    CALL array_release (left_row_dist)
+    DEALLOCATE(left_row_dist)
   END SUBROUTINE dbcsr_create_dist_l_unrot
 
 ! *****************************************************************************
@@ -1420,12 +1416,13 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT)                            :: dist_left
     INTEGER, INTENT(IN)                      :: nrows
-    TYPE(array_i1d_obj), INTENT(OUT)         :: left_row_blk_sizes
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      POINTER                                :: left_row_blk_sizes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_l_rot', &
       routineP = moduleN//':'//routineN
 
-    TYPE(array_i1d_obj)                      :: left_row_dist
+    INTEGER, DIMENSION(:), POINTER           :: left_row_dist
     TYPE(dbcsr_mp_obj)                       :: left_mp_env
 
 !   ---------------------------------------------------------------------------
@@ -1438,7 +1435,7 @@ CONTAINS
          left_row_dist, dbcsr_distribution_row_dist (dist_right),&
          local_cols=dbcsr_distribution_local_rows (dist_right))
     CALL dbcsr_mp_release (left_mp_env)
-    CALL array_release (left_row_dist)
+    DEALLOCATE (left_row_dist)
   END SUBROUTINE dbcsr_create_dist_l_rot
 
 ! *****************************************************************************
@@ -1456,8 +1453,8 @@ CONTAINS
       INTENT(OUT)                            :: dist
     INTEGER, INTENT(IN)                      :: nrows, ncolumns
     TYPE(dbcsr_mp_obj)                       :: mp_env
-    TYPE(array_i1d_obj), INTENT(OUT), &
-      OPTIONAL                               :: row_blk_sizes, col_blk_sizes
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL, POINTER                      :: row_blk_sizes, col_blk_sizes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_elemental', &
       routineP = moduleN//':'//routineN
@@ -1465,15 +1462,12 @@ CONTAINS
     INTEGER                                  :: npdims, pdim, sz
     INTEGER, DIMENSION(:), POINTER           :: cbs_data, cd_data, rbs_data, &
                                                 rd_data
-    TYPE(array_i1d_obj)                      :: cbs, col_dist, rbs, row_dist
 
 !   ---------------------------------------------------------------------------
 
     ALLOCATE (rbs_data(nrows), cbs_data(ncolumns))
     rbs_data(:) = 1
     cbs_data(:) = 1
-    CALL array_new (rbs, rbs_data, gift=.TRUE.)
-    CALL array_new (cbs, cbs_data, gift=.TRUE.)
     ALLOCATE (rd_data(nrows), cd_data(ncolumns))
     ! Calclate process row distribution
     npdims = dbcsr_mp_nprows (mp_env)
@@ -1481,28 +1475,23 @@ CONTAINS
     DO pdim = 0 , npdims-1
        rd_data(pdim*sz+1 : MIN((pdim+1)*sz, nrows)) = pdim
     END DO
-    CALL array_new (row_dist, rd_data, gift=.TRUE.)
     ! Calclate process column distribution
     npdims = dbcsr_mp_npcols (mp_env)
     sz = CEILING (REAL(ncolumns) / REAL(npdims))
     DO pdim = 0 , npdims-1
        cd_data(pdim*sz+1 : MIN((pdim+1)*sz, ncolumns)) = pdim
     END DO
-    CALL array_new (col_dist, cd_data, gift=.TRUE.)
     !
-    CALL dbcsr_distribution_new (dist, mp_env,&
-         row_dist, col_dist)
-    CALL array_release (row_dist)
-    CALL array_release (col_dist)
+    CALL dbcsr_distribution_new (dist,mp_env,rd_data,cd_data,reuse_arrays=.TRUE.)
     IF (PRESENT (row_blk_sizes)) THEN
-       row_blk_sizes = rbs
+       row_blk_sizes => rbs_data
     ELSE
-       CALL array_release (rbs)
+       DEALLOCATE(rbs_data)
     ENDIF
     IF (PRESENT (col_blk_sizes)) THEN
-       col_blk_sizes = cbs
+       col_blk_sizes => cbs_data
     ELSE
-       CALL array_release (cbs)
+       DEALLOCATE(cbs_data)
     ENDIF
   END SUBROUTINE dbcsr_create_dist_elemental
 
@@ -1523,12 +1512,13 @@ CONTAINS
       INTENT(OUT)                            :: dist
     INTEGER, INTENT(IN)                      :: nrows, ncolumns
     TYPE(dbcsr_mp_obj)                       :: mp_env
-    TYPE(array_i1d_obj), INTENT(OUT)         :: row_blk_sizes, col_blk_sizes
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      POINTER                                :: row_blk_sizes, col_blk_sizes
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_fullest', &
       routineP = moduleN//':'//routineN
 
-    TYPE(array_i1d_obj)                      :: col_dist, row_dist
+    INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist
 
 !   ---------------------------------------------------------------------------
 
@@ -1538,10 +1528,8 @@ CONTAINS
          ncolumns, dbcsr_mp_npcols (mp_env))
     !
     CALL dbcsr_distribution_new (dist, mp_env,&
-         row_dist, col_dist)
+         row_dist, col_dist, reuse_arrays=.TRUE.)
     !
-    CALL array_release (row_dist)
-    CALL array_release (col_dist)
   END SUBROUTINE dbcsr_create_dist_fullest
 
 ! *****************************************************************************
@@ -1565,7 +1553,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nrows, ncolumns, nrow_block, &
                                                 ncol_block
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
-    TYPE(array_i1d_obj), INTENT(OUT)         :: row_blk_sizes, col_blk_sizes
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      POINTER                                :: row_blk_sizes, col_blk_sizes
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'dbcsr_create_dist_block_cyclic', &
@@ -1573,9 +1562,7 @@ CONTAINS
 
     INTEGER                                  :: nblkcols, nblkrows, npcols, &
                                                 nprows, pdim, sz
-    INTEGER, DIMENSION(:), POINTER           :: cbs_data, cd_data, rbs_data, &
-                                                rd_data
-    TYPE(array_i1d_obj)                      :: col_dist, row_dist
+    INTEGER, DIMENSION(:), POINTER           :: cd_data, rd_data
 
 !   ---------------------------------------------------------------------------
 ! Row sizes
@@ -1588,9 +1575,9 @@ CONTAINS
        sz = MOD(nrows, nrow_block)
     ENDIF
     IF (sz .GT. 0) nblkrows = nblkrows + 1
-    ALLOCATE (rbs_data(nblkrows), rd_data(nblkrows))
-    rbs_data(1:nblkrows) = nrow_block
-    IF (sz .NE. 0) rbs_data(nblkrows) = sz
+    ALLOCATE (row_blk_sizes(nblkrows), rd_data(nblkrows))
+    row_blk_sizes = nrow_block
+    IF (sz .NE. 0) row_blk_sizes(nblkrows) = sz
 
     ! Column sizes
     IF(ncol_block.EQ.0) THEN
@@ -1601,13 +1588,9 @@ CONTAINS
        sz = MOD(ncolumns, ncol_block)
     ENDIF
     IF (sz .GT. 0) nblkcols = nblkcols + 1
-    ALLOCATE (cbs_data(nblkcols), cd_data(nblkcols))
-    cbs_data(1:nblkcols) = ncol_block
-    IF (sz .NE. 0) cbs_data(nblkcols) = sz
-    CALL array_nullify (row_blk_sizes)
-    CALL array_nullify (col_blk_sizes)
-    CALL array_new (row_blk_sizes, rbs_data, gift=.TRUE.)
-    CALL array_new (col_blk_sizes, cbs_data, gift=.TRUE.)
+    ALLOCATE (col_blk_sizes(nblkcols), cd_data(nblkcols))
+    col_blk_sizes = ncol_block
+    IF (sz .NE. 0) col_blk_sizes(nblkcols) = sz
     !
     IF(debug_mod) THEN
        WRITE(*,*)routineN//" nrows,nrow_block,nblkrows=",&
@@ -1620,13 +1603,11 @@ CONTAINS
     DO pdim = 0 , MIN(nprows-1,nblkrows-1)
        rd_data(1+pdim:nblkrows:nprows) = pdim
     END DO
-    CALL array_new (row_dist, rd_data, gift=.TRUE.)
     ! Calculate process column distribution
     npcols = dbcsr_mp_npcols (mp_env)
     DO pdim = 0 , MIN(npcols-1, nblkcols-1)
        cd_data(1+pdim:nblkcols:npcols) = pdim
     END DO
-    CALL array_new (col_dist, cd_data, gift=.TRUE.)
     !
     IF(debug_mod) THEN
        WRITE(*,*)routineN//" row_dist",&
@@ -1636,10 +1617,8 @@ CONTAINS
     ENDIF
     !
     CALL dbcsr_distribution_new (dist, mp_env,&
-         row_dist, col_dist)
+         rd_data, cd_data, reuse_arrays=.TRUE.)
     !
-    CALL array_release (row_dist)
-    CALL array_release (col_dist)
   END SUBROUTINE dbcsr_create_dist_block_cyclic
 
 
@@ -1716,7 +1695,8 @@ CONTAINS
        old_image_dist, old_col_idist, old_col_nimages)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: new_distribution, &
                                                 old_distribution
-    TYPE(array_i1d_obj), INTENT(INOUT)       :: row_blk_sizes, col_blk_sizes, &
+    INTEGER, DIMENSION(:), INTENT(INOUT), &
+      POINTER                                :: row_blk_sizes, col_blk_sizes, &
                                                 row_blk_offsets, &
                                                 col_blk_offsets
     TYPE(dbcsr_imagedistribution_obj), &
@@ -1727,14 +1707,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nvpcols, nvprows
-    INTEGER, DIMENSION(:), POINTER :: cbo, cbs, new_pcol_dist, new_prow_dist, &
-      old_cbo, old_icol_dist, old_irow_dist, old_pcol_dist, old_prow_dist, &
-      old_rbo, rbo, rbs
+    INTEGER, DIMENSION(:), POINTER :: new_pcol_dist, new_prow_dist, &
+      old_col_blk_offsets, old_col_blk_sizes, old_icol_dist, old_irow_dist, &
+      old_pcol_dist, old_prow_dist, old_row_blk_offsets, old_row_blk_sizes
     LOGICAL                                  :: images
-    TYPE(array_i1d_obj)                      :: old_col_blk_offsets, &
-                                                old_col_blk_sizes, &
-                                                old_row_blk_offsets, &
-                                                old_row_blk_sizes
     TYPE(dbcsr_mp_obj)                       :: mp, old_mp
 
 !   ---------------------------------------------------------------------------
@@ -1743,49 +1719,41 @@ CONTAINS
     mp = dbcsr_distribution_mp (new_distribution)
     old_mp = dbcsr_distribution_mp (old_distribution)
     ! Save old data
-    old_prow_dist => array_data (dbcsr_distribution_row_dist (old_distribution))
-    old_pcol_dist => array_data (dbcsr_distribution_col_dist (old_distribution))
-    old_row_blk_sizes = row_blk_sizes
-    old_col_blk_sizes = col_blk_sizes
-    old_row_blk_offsets = row_blk_offsets
-    old_col_blk_offsets = col_blk_offsets
-    old_rbo => array_data (row_blk_offsets)
-    old_cbo => array_data (col_blk_offsets)
-    CALL array_nullify (row_blk_sizes)
-    CALL array_nullify (col_blk_sizes)
-    CALL array_nullify (row_blk_offsets)
-    CALL array_nullify (col_blk_offsets)
-    new_prow_dist => array_data (dbcsr_distribution_row_dist (new_distribution))
-    new_pcol_dist => array_data (dbcsr_distribution_col_dist (new_distribution))
+    old_prow_dist => dbcsr_distribution_row_dist (old_distribution)
+    old_pcol_dist => dbcsr_distribution_col_dist (old_distribution)
+    old_row_blk_sizes => row_blk_sizes
+    old_col_blk_sizes => col_blk_sizes
+    old_row_blk_offsets => row_blk_offsets
+    old_col_blk_offsets => col_blk_offsets
+    NULLIFY(row_blk_sizes,col_blk_sizes)
+    NULLIFY(row_blk_offsets,col_blk_offsets)
+    new_prow_dist => dbcsr_distribution_row_dist (new_distribution)
+    new_pcol_dist => dbcsr_distribution_col_dist (new_distribution)
     IF (images) THEN
        nvprows = dbcsr_mp_nprows(mp)*old_image_dist%i%row_decimation
        nvpcols = dbcsr_mp_npcols(mp)*old_image_dist%i%col_decimation
-       ALLOCATE (rbs(nvprows), cbs(nvpcols), rbo(nvprows+1), cbo(nvpcols+1))
+       ALLOCATE (row_blk_sizes(nvprows), col_blk_sizes(nvpcols), &
+                 row_blk_offsets(nvprows+1), col_blk_offsets(nvpcols+1))
        old_irow_dist => array_data (old_image_dist%i%row_image)
        old_icol_dist => array_data (old_image_dist%i%col_image)
-       CALL match_sizes_to_el_dist(rbs, old_rbo, new_prow_dist,&
+       CALL match_sizes_to_el_dist(row_blk_sizes, old_row_blk_offsets, new_prow_dist,&
             old_prow_dist, old_irow_dist, old_image_dist%i%row_decimation)
-       CALL match_sizes_to_el_dist(cbs, old_cbo, new_pcol_dist,&
+       CALL match_sizes_to_el_dist(col_blk_sizes, old_col_blk_offsets, new_pcol_dist,&
             old_pcol_dist, old_icol_dist, old_image_dist%i%col_decimation)
     ELSE
        nvprows = dbcsr_mp_nprows (mp)
        nvpcols = dbcsr_mp_npcols (mp)
-       ALLOCATE (rbs(nvprows), cbs(nvpcols), rbo(nvprows+1), cbo(nvpcols+1))
-       CALL match_sizes_to_el_dist (rbs, old_rbo, new_prow_dist,&
+       ALLOCATE (row_blk_sizes(nvprows), col_blk_sizes(nvpcols), &
+                 row_blk_offsets(nvprows+1), col_blk_offsets(nvpcols+1))
+       CALL match_sizes_to_el_dist (row_blk_sizes, old_row_blk_offsets, new_prow_dist,&
             old_prow_dist)
-       CALL match_sizes_to_el_dist (cbs, old_cbo, new_pcol_dist,&
+       CALL match_sizes_to_el_dist (col_blk_sizes, old_col_blk_offsets, new_pcol_dist,&
             old_pcol_dist)
     ENDIF
-    CALL convert_sizes_to_offsets (rbs, rbo)
-    CALL convert_sizes_to_offsets (cbs, cbo)
-    CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
-    CALL array_new (col_blk_sizes, cbs, gift=.TRUE.)
-    CALL array_new (row_blk_offsets, rbo, gift=.TRUE.)
-    CALL array_new (col_blk_offsets, cbo, gift=.TRUE.)
-    CALL array_release (old_row_blk_sizes)
-    CALL array_release (old_col_blk_sizes)
-    CALL array_release (old_row_blk_offsets)
-    CALL array_release (old_col_blk_offsets)
+    CALL convert_sizes_to_offsets (row_blk_sizes, row_blk_offsets)
+    CALL convert_sizes_to_offsets (col_blk_sizes, col_blk_offsets)
+    DEALLOCATE(old_row_blk_sizes,old_col_blk_sizes)
+    DEALLOCATE(old_row_blk_offsets,old_col_blk_offsets)
   END SUBROUTINE match_sizes_to_dist
 
 
@@ -1965,8 +1933,8 @@ CONTAINS
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Product distribution must have threads.", __LINE__, error=error)
     tdist => array_data (dbcsr_distribution_thread_dist (product_dist))
-    old_m_dist = product_dist%d%row_dist
-    old_n_dist = product_dist%d%col_dist
+    old_m_dist = product_dist%d%row_dist_block
+    old_n_dist = product_dist%d%col_dist_block
     old_k_vdist = right_rdist%i%vrow_dist
     m_nbins = dbcsr_mp_nprows (product_dist%d%mp_env)
     n_nbins = dbcsr_mp_npcols (product_dist%d%mp_env)
@@ -1990,7 +1958,7 @@ CONTAINS
             nthreads, tdist)
        CALL dbcsr_make_1dist_dense (n_nbins, old_n_dist, new_n_dist, n_map, 0)
        CALL dbcsr_distribution_new (dense_product_dist, product_dist%d%mp_env,&
-            new_m_dist, new_n_dist)
+            array_data(new_m_dist), array_data(new_n_dist))
        CALL make_sizes_dense (old_m_sizes, m_map, array_size(new_m_dist), new_m_sizes, error=error)
        CALL dbcsr_distribution_make_threads (dense_product_dist,&
             array_data(new_m_sizes))
@@ -2007,7 +1975,7 @@ CONTAINS
          left_rdist%i%col_decimation, new_k_pdist, new_k_idist)
     ! Left
     CALL dbcsr_distribution_new (dense_left_dist, left_rdist%i%main%d%mp_env,&
-         new_m_dist, new_k_pdist)
+         array_data(new_m_dist), array_data(new_k_pdist))
     CALL dbcsr_distribution_no_threads (dense_left_dist)
     dense_left_dist%d%thread_dist = dbcsr_distribution_thread_dist (dense_product_dist)
     CALL array_hold (dense_left_dist%d%thread_dist)
@@ -2029,7 +1997,7 @@ CONTAINS
     CALL v_to_p_i_dist_o (new_k_vdist,&
          right_rdist%i%row_decimation, new_k_pdist, new_k_idist)
     CALL dbcsr_distribution_new (dense_right_dist, right_rdist%i%main%d%mp_env,&
-         new_k_pdist, new_n_dist)
+         array_data(new_k_pdist), array_data(new_n_dist))
     CALL dbcsr_new_image_dist (dense_right_rdist, dense_right_dist, right_rdist, error)
     CALL dbcsr_distribution_release (dense_right_dist)
     CALL array_new (dense_right_rdist%i%col_image,&
@@ -2172,8 +2140,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: el, error_handle, nprows, prow
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp, nle
-    INTEGER, DIMENSION(:), POINTER           :: row_dist
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
+    INTEGER, DIMENSION(:), POINTER           :: itmp, row_dist
 
     CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local row mappings do not exist, create them.
@@ -2182,7 +2150,7 @@ CONTAINS
        nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (dist))
        ALLOCATE (dist%d%other_l_rows(0:dbcsr_mp_nprows (dist%d%mp_env)-1))
        ALLOCATE (nle (0:nprows-1))
-       row_dist => array_data (dbcsr_distribution_row_dist (dist))
+       row_dist => dbcsr_distribution_row_dist (dist)
        ! Count the number of local elements per row.
        nle(:) = 0
        DO el = 1, SIZE (row_dist)
@@ -2227,8 +2195,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: el, error_handle, npcols, pcol
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp, nle
-    INTEGER, DIMENSION(:), POINTER           :: col_dist
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
+    INTEGER, DIMENSION(:), POINTER           :: col_dist, itmp
 
     CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local col mappings do not exist, create them.
@@ -2237,7 +2205,7 @@ CONTAINS
        npcols = dbcsr_mp_npcols (dbcsr_distribution_mp (dist))
        ALLOCATE (dist%d%other_l_cols(0:dbcsr_mp_npcols (dist%d%mp_env)-1))
        ALLOCATE (nle (0:npcols-1))
-       col_dist => array_data (dbcsr_distribution_col_dist (dist))
+       col_dist => dbcsr_distribution_col_dist (dist)
        ! Count the number of local elements per col.
        nle(:) = 0
        DO el = 1, SIZE (col_dist)
@@ -2286,7 +2254,7 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local row mappings do not exist, create them.
     IF (.NOT. dist%d%has_global_row_map) THEN
-       row_dist => array_data (dbcsr_distribution_row_dist (dist))
+       row_dist => dbcsr_distribution_row_dist (dist)
        ALLOCATE (rmap (SIZE (row_dist)))
        nprows = dbcsr_mp_nprows (dbcsr_distribution_mp (dist))
        CALL map_all_local_elements (rmap, row_dist, nprows)
@@ -2325,7 +2293,7 @@ CONTAINS
     CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local col mappings do not exist, create them.
     IF (.NOT. dist%d%has_global_col_map) THEN
-       col_dist => array_data (dbcsr_distribution_col_dist (dist))
+       col_dist => dbcsr_distribution_col_dist (dist)
        ALLOCATE (cmap (SIZE (col_dist)))
        npcols = dbcsr_mp_npcols (dbcsr_distribution_mp (dist))
        CALL map_all_local_elements (cmap, col_dist, npcols)
@@ -2467,8 +2435,8 @@ CONTAINS
 
     INTEGER                                  :: el, error_handle, nvpcols, &
                                                 vpcol
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp, nle
-    INTEGER, DIMENSION(:), POINTER           :: vcol_dist
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
+    INTEGER, DIMENSION(:), POINTER           :: itmp, vcol_dist
 
     IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle, error)
     ! If the current local col mappings do not exist, create them.
@@ -2863,7 +2831,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_dist_bin (bin_dist, nelements, nbins, element_sizes,&
        error)
-    TYPE(array_i1d_obj), INTENT(OUT)         :: bin_dist
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      POINTER                                :: bin_dist
     INTEGER, INTENT(IN)                      :: nelements, nbins
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: element_sizes
@@ -2873,7 +2842,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: bin, bin_cnt, error_handle, i
-    INTEGER, DIMENSION(:), POINTER           :: dist
     LOGICAL                                  :: found, heap_error
     REAL(kind=sp)                            :: rn
     TYPE(heap_t)                             :: bin_heap
@@ -2881,7 +2849,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set (routineN, error_handle, error)
-    ALLOCATE (dist (nelements))
+    ALLOCATE (bin_dist (nelements))
     IF (PRESENT (element_sizes)) THEN
        CALL dbcsr_assert (SIZE(element_sizes), "EQ", nelements,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
@@ -2892,7 +2860,7 @@ CONTAINS
                                  (/ (0,   bin = 0, nbins-1) /), heap_error)
        DO i = 1, nelements
           CALL heap_get_first (bin_heap, bin, bin_cnt, found, heap_error)
-          dist(i) = bin
+          bin_dist(i) = bin
           bin_cnt = bin_cnt + element_sizes(i)
           CALL heap_reset_first (bin_heap, bin_cnt, heap_error)
        ENDDO
@@ -2900,10 +2868,9 @@ CONTAINS
     ELSE
        DO i = 1, nelements
           CALL RANDOM_NUMBER(rn)
-          dist(i) = MOD (INT (rn*REAL (nbins, kind=sp)), nbins)
+          bin_dist(i) = MOD (INT (rn*REAL (nbins, kind=sp)), nbins)
        ENDDO
     ENDIF
-    CALL array_new (bin_dist, dist, gift=.TRUE.)
     CALL dbcsr_error_stop (error_handle, error)
   END SUBROUTINE dbcsr_dist_bin
 

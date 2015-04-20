@@ -13,10 +13,6 @@
 !> - Created 2010
 ! *****************************************************************************
 MODULE dbcsr_performance_multiply
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj,&
-                                             array_release,&
-                                             array_size
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_negative,&
                                              dbcsr_scalar_one
@@ -254,11 +250,11 @@ CONTAINS
                                                 transa, transb
     INTEGER                                  :: error_handler, mynode, &
                                                 numnodes
+    INTEGER, DIMENSION(:), POINTER :: col_dist_a, col_dist_b, col_dist_c, &
+      my_sizes_k, my_sizes_m, my_sizes_n, row_dist_a, row_dist_b, row_dist_c, &
+      sizes_k, sizes_m, sizes_n
     LOGICAL                                  :: do_complex
     LOGICAL, DIMENSION(2)                    :: trs
-    TYPE(array_i1d_obj) :: col_dist_a, col_dist_b, col_dist_c, my_sizes_k, &
-      my_sizes_m, my_sizes_n, row_dist_a, row_dist_b, row_dist_c, sizes_k, &
-      sizes_m, sizes_n
     TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b, dist_c
     TYPE(dbcsr_obj)                          :: matrix_a, matrix_b, matrix_c
     TYPE(dbcsr_scalar_type)                  :: alpha, beta
@@ -266,6 +262,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_error_set(routineN, error_handler, error)
+    NULLIFY(my_sizes_k, my_sizes_m, my_sizes_n,&
+            sizes_k, sizes_m, sizes_n)
 
     !
     ! print
@@ -343,26 +341,26 @@ CONTAINS
     ! if we have symmetry the row and column block sizes hae to match
     IF  (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
          b_symm.NE.dbcsr_type_no_symmetry) THEN
-       my_sizes_m = sizes_m; my_sizes_n = sizes_m; my_sizes_k = sizes_m
+       my_sizes_m => sizes_m; my_sizes_n => sizes_m; my_sizes_k => sizes_m
     ELSEIF((c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
          b_symm.NE.dbcsr_type_no_symmetry).OR.&
          (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
          b_symm.NE.dbcsr_type_no_symmetry).OR.&
          (c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
          b_symm.EQ.dbcsr_type_no_symmetry)) THEN
-       my_sizes_m = sizes_m; my_sizes_n = sizes_m; my_sizes_k = sizes_m
+       my_sizes_m => sizes_m; my_sizes_n => sizes_m; my_sizes_k => sizes_m
     ELSEIF(c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
          b_symm.NE.dbcsr_type_no_symmetry) THEN
-       my_sizes_m = sizes_m; my_sizes_n = sizes_n; my_sizes_k = sizes_n
+       my_sizes_m => sizes_m; my_sizes_n => sizes_n; my_sizes_k => sizes_n
     ELSEIF(c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.NE.dbcsr_type_no_symmetry.AND.&
          b_symm.EQ.dbcsr_type_no_symmetry) THEN
-       my_sizes_m = sizes_m; my_sizes_n = sizes_n; my_sizes_k = sizes_m
+       my_sizes_m => sizes_m; my_sizes_n => sizes_n; my_sizes_k => sizes_m
     ELSEIF(c_symm.NE.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
          b_symm.EQ.dbcsr_type_no_symmetry) THEN
-       my_sizes_m = sizes_m; my_sizes_n = sizes_m; my_sizes_k = sizes_k
+       my_sizes_m => sizes_m; my_sizes_n => sizes_m; my_sizes_k => sizes_k
     ELSEIF(c_symm.EQ.dbcsr_type_no_symmetry.AND.a_symm.EQ.dbcsr_type_no_symmetry.AND.&
          b_symm.EQ.dbcsr_type_no_symmetry)THEN
-       my_sizes_m = sizes_m; my_sizes_n = sizes_n; my_sizes_k = sizes_k
+       my_sizes_m => sizes_m; my_sizes_n => sizes_n; my_sizes_k => sizes_k
     ELSE
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
             routineN, " something wrong here... ",__LINE__,error)
@@ -371,10 +369,10 @@ CONTAINS
     ! Create the random matrices.
     trs(1) = transa .EQ. dbcsr_no_transpose
     trs(2) = transb .EQ. dbcsr_no_transpose
-    CALL dbcsr_dist_bin (row_dist_c, array_size(sizes_m), npdims(1),&
-         array_data(sizes_m), error=error)
-    CALL dbcsr_dist_bin (col_dist_c, array_size(sizes_n), npdims(2),&
-         array_data(sizes_n), error=error)
+    CALL dbcsr_dist_bin (row_dist_c, SIZE(sizes_m), npdims(1),&
+         sizes_m, error=error)
+    CALL dbcsr_dist_bin (col_dist_c, SIZE(sizes_n), npdims(2),&
+         sizes_n, error=error)
     CALL dbcsr_distribution_new (dist_c, mp_env, row_dist_c, col_dist_c)
     CALL dbcsr_make_random_matrix (matrix_c, sizes_m, sizes_n, "Matrix C",&
          REAL(sparsities(3), real_8),&
@@ -382,56 +380,50 @@ CONTAINS
          error=error)
     CALL dbcsr_distribution_release (dist_c)
     IF (trs(1)) THEN
-       CALL dbcsr_dist_bin (row_dist_a, array_size(sizes_k), npdims(1),&
-            array_data(sizes_k), error=error)
-       CALL dbcsr_dist_bin (col_dist_a, array_size(sizes_m), npdims(2),&
-            array_data(sizes_m), error=error)
+       CALL dbcsr_dist_bin (row_dist_a, SIZE(sizes_k), npdims(1),&
+            sizes_k, error=error)
+       CALL dbcsr_dist_bin (col_dist_a, SIZE(sizes_m), npdims(2),&
+            sizes_m, error=error)
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_k, sizes_m, "Matrix A",&
             REAL(sparsities(1), real_8),&
             mp_group, data_type=data_type, dist=dist_a, &
             error=error)
-       CALL array_release (row_dist_a)
-       CALL array_release (col_dist_a)
+       DEALLOCATE(row_dist_a,col_dist_a)
     ELSE
-       CALL dbcsr_dist_bin (col_dist_a, array_size(sizes_k), npdims(2),&
-            array_data(sizes_k), error=error)
+       CALL dbcsr_dist_bin (col_dist_a, SIZE(sizes_k), npdims(2),&
+            sizes_k, error=error)
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_c, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_m, sizes_k, "Matrix A",&
             REAL(sparsities(1), real_8),&
             mp_group, data_type=data_type, dist=dist_a, &
             error=error)
-       CALL array_release (col_dist_a)
+       DEALLOCATE(col_dist_a)
     ENDIF
     CALL dbcsr_distribution_release (dist_a)
     IF (trs(2)) THEN
-       CALL dbcsr_dist_bin (row_dist_b, array_size(sizes_n), npdims(1),&
-            array_data(sizes_n), error=error)
-       CALL dbcsr_dist_bin (col_dist_b, array_size(sizes_k), npdims(2),&
-            array_data(sizes_k), error=error)
+       CALL dbcsr_dist_bin (row_dist_b, SIZE(sizes_n), npdims(1),&
+            sizes_n, error=error)
+       CALL dbcsr_dist_bin (col_dist_b, SIZE(sizes_k), npdims(2),&
+            sizes_k, error=error)
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_n, sizes_k, "Matrix B",&
             REAL(sparsities(2), real_8),&
             mp_group, data_type=data_type, dist=dist_b, &
             error=error)
-       CALL array_release (row_dist_b)
-       CALL array_release (col_dist_b)
+       DEALLOCATE(row_dist_b, col_dist_b)
     ELSE
-       CALL dbcsr_dist_bin (row_dist_b, array_size(sizes_k), npdims(1),&
-            array_data(sizes_k), error=error)
+       CALL dbcsr_dist_bin (row_dist_b, SIZE(sizes_k), npdims(1),&
+            sizes_k, error=error)
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_c)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_k, sizes_n, "Matrix B",&
             REAL(sparsities(2), real_8),&
             mp_group, data_type=data_type, dist=dist_b, &
             error=error)
-       CALL array_release (row_dist_b)
+       DEALLOCATE(row_dist_b)
     ENDIF
     CALL dbcsr_distribution_release (dist_b)
-    CALL array_release (row_dist_c)
-    CALL array_release (col_dist_c)
-    CALL array_release (sizes_m)
-    CALL array_release (sizes_n)
-    CALL array_release (sizes_k)
+    DEALLOCATE(row_dist_c,col_dist_c,sizes_m,sizes_n,sizes_k)
 
     !
     ! if C has a symmetry, we build it accordingly, i.e. C=A*A and C=A*(-A)
@@ -512,7 +504,10 @@ CONTAINS
       DIMENSION(:)                           :: flop_sum
     INTEGER(int_8), ALLOCATABLE, &
       DIMENSION(:, :)                        :: flops
-    INTEGER, DIMENSION(:), POINTER           :: blk_offsets
+    INTEGER, DIMENSION(:), POINTER           :: blk_offsets, col_dist_a, &
+                                                col_dist_b, col_dist_c, &
+                                                row_dist_a, row_dist_b, &
+                                                row_dist_c
     REAL(real_8)                             :: chksum_a, chksum_b, &
                                                 chksum_c_in, chksum_c_out, &
                                                 std_all, std_t, t1, t2
@@ -521,9 +516,6 @@ CONTAINS
                                                 t_max, t_min
     REAL(real_8), ALLOCATABLE, &
       DIMENSION(:, :)                        :: times
-    TYPE(array_i1d_obj)                      :: col_dist_a, col_dist_b, &
-                                                col_dist_c, row_dist_a, &
-                                                row_dist_b, row_dist_c
     TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b, dist_c
     TYPE(dbcsr_obj)                          :: m_a, m_b, m_c, m_c_orig
 
@@ -558,12 +550,12 @@ CONTAINS
     CALL dbcsr_init (m_c_orig)
 
     ! Row & column distributions
-    row_dist_c = dbcsr_distribution_row_dist (dbcsr_distribution (matrix_c))
-    col_dist_c = dbcsr_distribution_col_dist (dbcsr_distribution (matrix_c))
-    row_dist_a = row_dist_c
-    col_dist_a = dbcsr_distribution_col_dist (dbcsr_distribution (matrix_a))
-    row_dist_b = dbcsr_distribution_row_dist (dbcsr_distribution (matrix_b))
-    col_dist_b = col_dist_c
+    row_dist_c => dbcsr_distribution_row_dist (dbcsr_distribution (matrix_c))
+    col_dist_c => dbcsr_distribution_col_dist (dbcsr_distribution (matrix_c))
+    row_dist_a => row_dist_c
+    col_dist_a => dbcsr_distribution_col_dist (dbcsr_distribution (matrix_a))
+    row_dist_b => dbcsr_distribution_row_dist (dbcsr_distribution (matrix_b))
+    col_dist_b => col_dist_c
 
     CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
     CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
@@ -606,9 +598,9 @@ CONTAINS
     CALL dbcsr_finalize(m_c, error=error)
 
     IF(.FALSE.) THEN
-       blk_offsets => array_data(dbcsr_row_block_offsets(matrix_c))
+       blk_offsets => dbcsr_row_block_offsets(matrix_c)
        WRITE(*,*) 'row_block_offsets(matrix_c)',blk_offsets
-       blk_offsets => array_data(dbcsr_col_block_offsets(matrix_c))
+       blk_offsets => dbcsr_col_block_offsets(matrix_c)
        WRITE(*,*) 'col_block_offsets(matrix_c)',blk_offsets
     ENDIF
 

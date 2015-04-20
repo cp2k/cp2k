@@ -27,7 +27,6 @@ MODULE xas_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       array_i1d_obj, array_new, array_nullify, array_release, &
        convert_offsets_to_sizes, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_set, &
        cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_type_antisymmetric
@@ -616,12 +615,12 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, kind_type_tmp, &
                                                 kind_z_tmp, last_sgf
     INTEGER, DIMENSION(4, 7)                 :: ne
-    INTEGER, DIMENSION(:), POINTER           :: bounds, list, lq, nq, rbs
+    INTEGER, DIMENSION(:), POINTER           :: bounds, list, lq, nq, &
+                                                row_blk_sizes
     LOGICAL                                  :: failure, ihavethis
     REAL(dp)                                 :: nele, occ_estate, occ_homo, &
                                                 occ_homo_plus, zatom
     REAL(dp), DIMENSION(:), POINTER          :: sto_zet
-    TYPE(array_i1d_obj)                      :: row_blk_sizes
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -907,11 +906,9 @@ CONTAINS
          CALL get_particle_set(particle_set, qs_kind_set,&
               first_sgf=first_sgf,&
               last_sgf=last_sgf,error=error)
-         ALLOCATE (rbs(natom), STAT=istat)
+         ALLOCATE (row_blk_sizes(natom), STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         CALL convert_offsets_to_sizes (first_sgf, rbs, last_sgf)
-         CALL array_nullify (row_blk_sizes)
-         CALL array_new (row_blk_sizes, rbs, gift=.TRUE.)
+         CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
          DEALLOCATE (first_sgf,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          DEALLOCATE (last_sgf,STAT=istat)
@@ -937,7 +934,7 @@ CONTAINS
            CALL cp_dbcsr_set(xas_env%ostrength_sm(i)%matrix,0.0_dp,error=error)
          END DO
 
-         CALL array_release (row_blk_sizes)
+         DEALLOCATE(row_blk_sizes)
       END IF
 
    !Define the qs_loc_env : to find centers, spread and possibly localize them

@@ -14,8 +14,7 @@
 ! *****************************************************************************
 MODULE dbcsr_util
 
-  USE array_types,                     ONLY: array_data,&
-                                             array_i1d_obj
+  USE array_types,                     ONLY: array_data
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size,&
                                              dbcsr_data_get_size_referenced,&
                                              dbcsr_get_data
@@ -399,7 +398,8 @@ CONTAINS
     INTEGER, DIMENSION(dbcsr_meta_size), &
       INTENT(OUT)                            :: meta
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
-    TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_size, col_blk_size
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      POINTER                                :: row_blk_size, col_blk_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'meta_from_dist', &
       routineP = moduleN//':'//routineN
@@ -408,24 +408,21 @@ CONTAINS
                                                 nfullcols_total, &
                                                 nfullrows_local, &
                                                 nfullrows_total
-    INTEGER, DIMENSION(:), POINTER           :: blkcols_local, blkrows_local, &
-                                                cbs, rbs
+    INTEGER, DIMENSION(:), POINTER           :: blkcols_local, blkrows_local
 
 !   ---------------------------------------------------------------------------
 
-    blkrows_local => array_data (dbcsr_distribution_local_rows (dist))
-    blkcols_local => array_data (dbcsr_distribution_local_cols (dist))
-    rbs => array_data (row_blk_size)
-    cbs => array_data (col_blk_size)
-    nfullrows_total = SUM (rbs)
-    nfullcols_total = SUM (cbs)
+    blkrows_local => dbcsr_distribution_local_rows (dist)
+    blkcols_local => dbcsr_distribution_local_cols (dist)
+    nfullrows_total = SUM (row_blk_size)
+    nfullcols_total = SUM (col_blk_size)
     nfullrows_local = 0
     nfullcols_local = 0
     DO i = 1, dbcsr_distribution_nlocal_rows (dist)
-       nfullrows_local = nfullrows_local + rbs(blkrows_local(i))
+       nfullrows_local = nfullrows_local + row_blk_size(blkrows_local(i))
     ENDDO
     DO i = 1, dbcsr_distribution_nlocal_cols (dist)
-       nfullcols_local = nfullcols_local + cbs(blkcols_local(i))
+       nfullcols_local = nfullcols_local + col_blk_size(blkcols_local(i))
     ENDDO
     meta(:) = 0
     meta(5)  = dbcsr_distribution_nrows (dist)
