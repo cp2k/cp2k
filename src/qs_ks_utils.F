@@ -65,7 +65,8 @@ MODULE qs_ks_utils
                                              pw_transfer,&
                                              pw_zero
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
-  USE pw_poisson_types,                ONLY: pw_poisson_type
+  USE pw_poisson_types,                ONLY: pw_poisson_implicit,&
+                                             pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
@@ -1215,6 +1216,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspins, stat
     LOGICAL                                  :: do_ppl, failure, gapw, gapw_xc
+    REAL(dp)                                 :: dvol
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks_aux_fit, &
                                                 matrix_ks_aux_fit_dft, &
@@ -1223,6 +1225,7 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: v_rspace
     TYPE(pw_p_type), POINTER                 :: vee
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_aux_fit
 
@@ -1245,7 +1248,7 @@ CONTAINS
 
     CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
     CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux, error=error)
-    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+    CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
     gapw=dft_control%qs_control%gapw
     gapw_xc=dft_control%qs_control%gapw_xc
     do_ppl = dft_control%qs_control%do_ppl_method == do_ppl_grid
@@ -1300,6 +1303,14 @@ CONTAINS
           IF (dft_control%apply_efield_field) THEN
              v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d +&
                                            v_efield_rspace%pw%cr3d
+          END IF
+          ! functional derivative of the Hartree energy wrt the density in the presence of dielectric 
+          ! (vhartree + v_eps); v_eps is nonzero only if the dielectric constant is defind as a function 
+          ! of the charge density
+          IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
+             dvol = poisson_env%implicit_env%v_eps%pw_grid%dvol
+             v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
+                                           poisson_env%implicit_env%v_eps%cr3d * dvol
           END IF
           ! Add SCCS contribution
           IF (dft_control%do_sccs) THEN
@@ -1358,6 +1369,11 @@ CONTAINS
           ! the efield contribution
           IF (dft_control%apply_efield_field) THEN
              v_rspace%pw%cr3d = v_rspace%pw%cr3d + v_efield_rspace%pw%cr3d
+          END IF
+          ! extra contribution attributed to the dependecy of the dielectric constant to the charge density
+          IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
+             dvol = poisson_env%implicit_env%v_eps%pw_grid%dvol
+             v_rspace%pw%cr3d = v_rspace%pw%cr3d + poisson_env%implicit_env%v_eps%cr3d * dvol
           END IF
           ! Add SCCS contribution
           IF (dft_control%do_sccs) THEN

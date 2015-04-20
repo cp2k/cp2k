@@ -38,8 +38,7 @@ MODULE pw_poisson_methods
   USE pw_grids,                        ONLY: pw_grid_compare,&
                                              pw_grid_release,&
                                              pw_grid_retain
-  USE pw_methods,                      ONLY: pw_axpy,&
-                                             pw_copy,&
+  USE pw_methods,                      ONLY: pw_copy,&
                                              pw_derive,&
                                              pw_integral_ab,&
                                              pw_transfer
@@ -379,14 +378,8 @@ CONTAINS
                                                          ehartree=ehartree, error=error)
              END SELECT
 
-             IF (PRESENT(vhartree)) THEN
-                ! functional derivative of the Hartree energy wrt the density 
-                ! in the presence of dielectric (= vhartree + v_eps)
-                CALL pw_axpy(poisson_env%implicit_env%v_eps, vhartree_rs, error=error)
-                CALL pw_transfer(vhartree_rs, vhartree, error=error)
-             END IF
-
-             IF (PRESENT(dvhartree)) CALL pw_transfer(rhor,rhog,error=error)
+             IF (PRESENT(vhartree)) CALL pw_transfer(vhartree_rs, vhartree, error=error)
+             IF (PRESENT(dvhartree)) CALL pw_transfer(rhor, rhog, error=error)
              IF (PRESENT(h_stress)) THEN
                 CALL cp_unimplemented_error(routineP, &
                      "No stress tensor is implemented for the implicit Poisson solver.",error)

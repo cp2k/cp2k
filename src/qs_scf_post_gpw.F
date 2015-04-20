@@ -106,8 +106,7 @@ MODULE qs_scf_post_gpw
                                              pw_scale,&
                                              pw_transfer,&
                                              pw_zero
-  USE pw_poisson_types,                ONLY: PS_IMPLICIT,&
-                                             pw_poisson_type
+  USE pw_poisson_types,                ONLY: pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
@@ -2672,7 +2671,7 @@ CONTAINS
             "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN
 
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool,aux_r%pw,&
                                   use_data = REALDATA3D,&
                                   in_space = REALSPACE, error=error)
@@ -2690,9 +2689,6 @@ CONTAINS
 
           CALL pw_copy(v_hartree_rspace,aux_r%pw, error=error)
           CALL pw_scale(aux_r%pw,udvol,error=error)
-          IF (poisson_env%green_fft%method .EQ. PS_IMPLICIT) THEN
-             CALL pw_axpy(poisson_env%implicit_env%v_eps, aux_r%pw, - 1.0_dp, error=error)
-          END IF
 
           CALL cp_pw_to_cube(aux_r%pw,unit_nr,"HARTREE POTENTIAL",particles=particles,&
                stride=section_get_ivals(dft_section,&

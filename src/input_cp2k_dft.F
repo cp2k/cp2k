@@ -1482,16 +1482,19 @@ CONTAINS
 
        ! dielectric constant function
        CALL cp_print_key_section_create(print_key,"dielectric_cube",&
-            description="", &
+            description="Controls the printing of a cube file with dielectric constant from "//&
+            "the implicit Poisson solver.", &
             print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
             usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="APPEND",&
-            description="",&
+            description="append the cube files when they already exist",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1501,16 +1504,19 @@ CONTAINS
 
        ! dirichlet type constraints
        CALL cp_print_key_section_create(print_key,"dirichlet_bc_cube",&
-            description="", &
+            description="Controls the printing of cube files with Dirichlet type (boundary) regions "//&
+            "defined in the implicit Poisson solver section.", &
             print_level=high_print_level,filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
-            description="",&
+            description="The stride (X,Y,Z) used to write the cube file "//&
+            "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+            " 1 number valid for all components.",&
             usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="APPEND",&
-            description="",&
+            description="append the cube files when they already exist",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)

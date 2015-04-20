@@ -89,8 +89,7 @@ MODULE qs_ks_methods
                                              pw_transfer,&
                                              pw_zero
   USE pw_poisson_methods,              ONLY: pw_poisson_solve
-  USE pw_poisson_types,                ONLY: PS_IMPLICIT,&
-                                             pw_poisson_implicit,&
+  USE pw_poisson_types,                ONLY: pw_poisson_implicit,&
                                              pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
@@ -437,13 +436,11 @@ CONTAINS
           END IF
        END IF
 
-       IF (ASSOCIATED(poisson_env%green_fft)) THEN
-         IF (poisson_env%green_fft%method .EQ. PS_IMPLICIT .AND. calculate_forces) THEN
-            CALL cp_assert(.FALSE., cp_warning_level, cp_assertion_failed, routineP,&
-               "The implicit Poisson solver might have inaccurate forces (dielectric deriv).", &
-               error, failure)
-         END IF
-       END IF 
+       IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit .AND. calculate_forces) THEN
+          CALL cp_assert(.FALSE., cp_warning_level, cp_assertion_failed, routineP,&
+             "The implicit Poisson solver might have inaccurate forces (dielectric deriv).", &
+             error, failure)
+       END IF
 
        ! In case decouple periodic images and/or apply restraints to charges
        IF (do_ddapc) THEN
