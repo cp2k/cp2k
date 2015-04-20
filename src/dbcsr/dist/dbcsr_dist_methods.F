@@ -84,8 +84,6 @@ CONTAINS
 !> \param row_dist_cluster ...
 !> \param col_dist_cluster ...
 !> \param reuse_arrays ...
-!> \param col_dist column distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param row_dist row distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_distribution_new(dist, mp_env, row_dist_block, col_dist_block, &
        local_rows, local_cols, &
@@ -117,6 +115,22 @@ CONTAINS
     col_dist_tmp => col_dist_block
     CALL array_new(dist%d%row_dist_block, row_dist_tmp, gift=reuse_arrays)
     CALL array_new(dist%d%col_dist_block, col_dist_tmp, gift=reuse_arrays)
+
+    CALL array_nullify(dist%d%row_dist_cluster)
+    IF (PRESENT(row_dist_cluster)) THEN
+       IF (ASSOCIATED(row_dist_cluster)) THEN
+          row_dist_tmp => row_dist_cluster
+          CALL array_new(dist%d%row_dist_cluster, row_dist_tmp, gift=reuse_arrays)
+       ENDIF
+    ENDIF
+    CALL array_nullify(dist%d%col_dist_cluster)
+    IF (PRESENT(col_dist_cluster)) THEN
+       IF (ASSOCIATED(col_dist_cluster)) THEN
+          col_dist_tmp => col_dist_cluster
+          CALL array_new(dist%d%col_dist_cluster, col_dist_tmp, gift=reuse_arrays)
+       ENDIF
+    ENDIF
+
     dist%d%mp_env = mp_env
     CALL dbcsr_mp_hold (dist%d%mp_env)
     ! Verify given process row distribution.
@@ -270,7 +284,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param dist ...
-!> \retval row_dist ...
+!> \retval col_dist ...
 ! *****************************************************************************
   FUNCTION dbcsr_distribution_col_dist_obj(dist) RESULT (col_dist)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
