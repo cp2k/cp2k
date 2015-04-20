@@ -63,7 +63,8 @@ MODULE ps_implicit_methods
          implicit_poisson_solver_periodic, &
          implicit_poisson_solver_neumann, &
          implicit_poisson_solver_mixed_periodic, &
-         implicit_poisson_solver_mixed
+         implicit_poisson_solver_mixed, &
+         pw_mollifier
 
   INTERFACE apply_inv_laplace_operator
      MODULE PROCEDURE apply_inv_laplace_operator_fft, &
