@@ -5,7 +5,7 @@
 #      46 compares final value of Powell optimization
 #      for details see cp2k/tools/do_regtest
 # LRIGPW
-H2He_tz2p_lri.inp                 1     6e-12
+H2He_tz2p_lri.inp                 1     1e-11
 H2_tz2p_lri_diag.inp              1     8e-12
 H2_tz2p_lri_ot.inp                1     9e-12
 O2_opt_lribas.inp                 46
