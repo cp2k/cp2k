@@ -1088,7 +1088,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     INTEGER, DIMENSION(2, 3)                 :: bounds, bounds_local
     INTEGER, DIMENSION(3)                    :: npts, npts_local
-    LOGICAL                                  :: smooth
+    LOGICAL                                  :: done_preparing, smooth
     REAL(dp)                                 :: smooth_tile_npts, zeta
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: Bxunit_vec, test_vec, &
                                                 work_arr, x_glbl, x_locl, &
@@ -1256,6 +1256,12 @@ CONTAINS
        CALL pw_pool_release(pw_pool_xpndd, error=error)
        CALL pw_pool_release(aux_pw_pool_xpndd, error=error)
 
+       done_preparing = .TRUE.
+       CALL mp_sum(done_preparing, pw_grid_orig%para%group)
+       IF ((unit_nr .GT. 0) .AND. done_preparing) THEN
+          WRITE(unit_nr,"(T3,A,/,T3,A,/,A)") "POISSON| ... Done. ", REPEAT('-', 78)
+       END IF
+
     CASE (MIXED_PERIODIC_BC)
 
        ALLOCATE(ps_implicit_env%idx_3dto1d(data_size))
@@ -1362,6 +1368,12 @@ CONTAINS
                         "Inversion of R failed!", error)
 
        DEALLOCATE(QAinvxBt, Bxunit_vec, R, work_arr, ipiv)
+
+       done_preparing = .TRUE.
+       CALL mp_sum(done_preparing, pw_grid_orig%para%group)
+       IF ((unit_nr .GT. 0) .AND. done_preparing) THEN
+          WRITE(unit_nr,"(T3,A,/,T3,A,/,A)") "POISSON| ... Done. ", REPEAT('-', 78)
+       END IF
 
     CASE (PERIODIC_BC, NEUMANN_BC)
 

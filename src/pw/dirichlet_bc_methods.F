@@ -30,6 +30,7 @@ MODULE dirichlet_bc_methods
   USE physcon,                         ONLY: angstrom
   USE ps_implicit_types,               ONLY: MIXED_BC,&
                                              MIXED_PERIODIC_BC,&
+                                             NEUMANN_BC,&
                                              PERIODIC_BC
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_methods,                      ONLY: pw_zero
@@ -80,7 +81,7 @@ CONTAINS
       n_aa_cuboidal, n_aa_planar, n_dbcs, n_planar, n_xaa_cylindrical, unit_nr
     INTEGER, DIMENSION(3)                    :: n_prtn
     INTEGER, DIMENSION(:), POINTER           :: xaa_cylindrical_nsides
-    LOGICAL                                  :: done_setting_up, smooth
+    LOGICAL                                  :: smooth
     REAL(dp)                                 :: base_radius, v_D, zeta
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: x_glbl, x_locl, y_glbl, &
                                                 y_locl, z_glbl, z_locl
@@ -217,13 +218,7 @@ CONTAINS
          l = l + xaa_cylindrical_nsides(j)
       END DO
 
-      done_setting_up = .TRUE.
-      CALL mp_sum(done_setting_up, pw_pool%pw_grid%para%group)
-      IF ((unit_nr .GT. 0) .AND. done_setting_up) THEN
-         WRITE(unit_nr,"(T3,A,/,T3,A,/,A)") "POISSON| ... Done. ", REPEAT('-', 78)
-      END IF
-
-    CASE (PERIODIC_BC)
+    CASE (PERIODIC_BC, NEUMANN_BC)
        ! do nothing
     END SELECT
 
