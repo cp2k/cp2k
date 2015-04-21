@@ -26,7 +26,8 @@ MODULE cp_files
   PUBLIC :: close_file,&
             init_preconnection_list,&
             open_file,&
-            get_unit_number
+            get_unit_number,&
+            file_exists
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_files'
 
@@ -480,6 +481,22 @@ CONTAINS
     END IF
 
   END SUBROUTINE open_file
+
+! *****************************************************************************
+!> \brief Checks if file exists, considering also the file discovery mechanism.
+!> \param file_name ...
+!> \retval exist
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION file_exists(file_name) RESULT(exist)
+    CHARACTER(LEN=*), INTENT(IN)             :: file_name
+    LOGICAL                                  :: exist
+
+    CHARACTER(LEN=default_path_length)       :: real_file_name
+
+    real_file_name = discover_file(file_name)
+    INQUIRE(FILE=TRIM(real_file_name), exist=exist)
+  END FUNCTION file_exists
 
 ! *****************************************************************************
 !> \brief Checks various locations for a file name.

@@ -24,6 +24,7 @@ MODULE hfx_types
                                              scaled_to_real
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: close_file,&
+                                             file_exists,&
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -487,7 +488,7 @@ MODULE hfx_types
       max_set, n_rep_hf, n_threads, natom_a, natom_b, nkind, nseta, nsetb, &
       pbc_shells, stat, storage_id
     INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
-    LOGICAL                                  :: exist, failure, logic_val
+    LOGICAL                                  :: failure, logic_val
     REAL(dp)                                 :: real_val
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
@@ -566,8 +567,7 @@ MODULE hfx_types
           CALL section_vals_val_get(hf_sub_section, "T_C_G_DATA", c_val=char_val, error=error)
           CALL compress(char_val,.TRUE.)
           ! ** Check if file is there
-          INQUIRE(FILE=char_val,exist=exist)
-          IF ( .NOT. exist ) THEN
+          IF ( .NOT. file_exists(char_val) ) THEN
             WRITE(error_msg,'(A,A,A)') "Truncated hfx calculation requested. The file containing "//&
                  "the data could not be found at ", TRIM(char_val), " Please check T_C_G_DATA "//&
                  "in the INTERCATION_POTENTIAL section"
