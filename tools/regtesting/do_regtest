@@ -864,8 +864,15 @@ for dir in ${dirs}; do
            grep -i "${leak_error_string}" ${output_file} >>${memory_description_file}
         fi
      fi
-     printf "    %-50s %20s %s\n" "${input_file}" "${this_test}" "${leak_marker}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+
+     # get the numeric test value from output again
+     grep_file="${test_col[test_type]}"
+     grep_string="${test_grep[test_type]}"
+     test_value=`grep -a "${grep_string}" ${output_file} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
+
+     printf "    %-50s %20s %20s %s\n" "${input_file}" "${test_value}" "${this_test}" "${leak_marker}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
   done
+
   t2=`date +%s`
   timing_all=`echo "1+($t2)-($t1)" | bc -l`
   printf "%s %0.2f %s\n" "<<< ${dir_out}/tests/${dir} (${idir} of ${ndir}) done in" ${timing_all} "sec"  >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
