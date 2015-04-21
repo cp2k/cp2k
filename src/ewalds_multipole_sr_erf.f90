@@ -13,7 +13,7 @@
                 ir    = 1.0_dp/r
 
                 ! Compute the radial function
-#ifdef SCREENED_COULOMB_ERFC
+#if 0
                 ! code for point multipole with screening
                 IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
                    f(0)  = ir
@@ -28,7 +28,7 @@
                    f(i) = irab2*(f(i-1)+ tmp*((2.0_dp*alpha**2)**i)/(fac*alpha))
                 END DO
 #endif
-#ifdef SCREENED_COULOMB_GAUSS
+#if 0
                 ! code for gaussian multipole with screening
                 IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
                    f(0)  = ir
@@ -45,7 +45,7 @@
                    f(i) = irab2*(f(i-1) + tmp1*((2.0_dp*alpha**2)**i)/(fac*alpha) - tmp2*((2.0_dp*beta**2)**i)/(fac*beta))
                 END DO
 #endif
-#ifdef SCREENED_COULOMB_ERF
+#if 1
                 IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
                    f(0)  = ir
                    tmp   = 0.0_dp
@@ -59,14 +59,14 @@
                    f(i) = irab2*(f(i-1) - tmp*((2.0_dp*alpha**2)**i)/(fac*alpha))
                 END DO
 #endif
-#ifdef PURE_COULOMB
+#if 0
                 ! code for point multipole without screening
                 f(0)  = ir
                 DO i = 1, 5
                    f(i) = irab2*f(i-1)
                 END DO
 #endif
-#ifdef PURE_COULOMB_GAUSS
+#if 0
                 ! code for gaussian multipole without screening
                 IF (debug_this_module.AND.debug_r_space.AND.(.NOT.debug_g_space)) THEN
                    f(0)  = ir
@@ -76,7 +76,7 @@
                    tmp   = EXP(-beta**2*rab2)*oorootpi
                 END IF
                 fac = 1.0_dp
-                print *, "CHECK", f(0)
+                PRINT *, "CHECK", f(0)
                 DO i = 1, 5
                    fac  = fac*REAL(2*i-1,KIND=dp)
                    f(i) = irab2*(f(i-1) - tmp*((2.0_dp*beta**2)**i)/(fac*beta))
@@ -221,7 +221,7 @@
                 ef2_j = 0.0_dp
                 ef2_i = 0.0_dp
 
-#ifdef DAMPING
+#if 0
 
                 ! Initialize the damping function.
                 IF (kind_a==ikind) THEN
@@ -371,7 +371,7 @@
                          ef1_j(2) = ef1_j(2) + tij_a(2) * ch_i
                          ef1_j(3) = ef1_j(3) + tij_a(3) * ch_i
 
-#ifdef DAMPING
+#if 0
                          ef1_i(1) = ef1_i(1) + damptij_a(1) * ch_j
                          ef1_i(2) = ef1_i(2) + damptij_a(2) * ch_j
                          ef1_i(3) = ef1_i(3) + damptij_a(3) * ch_j
@@ -534,7 +534,7 @@
                         - ch_i*(tij_a(1)*dp_j(1)+&
                                 tij_a(2)*dp_j(2)+&
                                 tij_a(3)*dp_j(3))
-#ifdef DAMPING
+#if 0
                    tmp=  tmp- ch_j*(damptij_a(1)*dp_i(1)+&
                                 damptij_a(2)*dp_i(2)+&
                                 damptij_a(3)*dp_i(3))&
@@ -552,7 +552,7 @@
                                        +  ch_i *(tij_ab(1,k)*dp_j(1)+&
                                                  tij_ab(2,k)*dp_j(2)+&
                                                  tij_ab(3,k)*dp_j(3))
-#ifdef DAMPING
+#if 0
                          fr(k) = fr(k) +  ch_j *(damptij_ab(1,k)*dp_i(1)+&
                                                  damptij_ab(2,k)*dp_i(2)+&
                                                  damptij_ab(3,k)*dp_i(3))&
@@ -1092,10 +1092,10 @@
                       END DO
                    END IF
                 END IF
-#ifdef STORE_ENERGY
+#if 1
                 energy = energy + eloc
 #endif
-#ifdef STORE_FORCES
+#if 1
                 IF (do_forces) THEN
                    forces(1,atom_a) = forces(1,atom_a) - fr(1)
                    forces(2,atom_a) = forces(2,atom_a) - fr(2)

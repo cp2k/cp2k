@@ -1232,9 +1232,8 @@ CONTAINS
 
     fac_ij = 1.0_dp
     IF (atom_a==atom_b) fac_ij = 0.5_dp
-#define PURE_COULOMB
-#include "ewalds_multipole_sr.f90"
-#undef PURE_COULOMB
+
+#include "ewalds_multipole_sr_pure.f90"
 
     IF (PRESENT(integral_value)) THEN
        integral_value = eloc
