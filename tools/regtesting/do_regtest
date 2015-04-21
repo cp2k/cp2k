@@ -743,7 +743,7 @@ for dir in ${dirs}; do
           rm -f ${dir_last}/${dir}/${reset_file}.out
        done
      else
-	echo " Missing file TEST_FILES_RESET in $dir ? "
+       echo " Missing file TEST_FILES_RESET in $dir ? "
      fi
   fi
   #
@@ -759,8 +759,7 @@ for dir in ${dirs}; do
      n_tests=$((n_tests+1))
      this_test=""
      input_file=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $1}'`
-     # just one test right now, but this should generalize
-     test_types=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
+     test_type=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
      # third field allows numerical tolerances to be read from the TEST_FILES
      # if value does not exist set to the default of 1.0E-14
      test_tolerance=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest -v def_err_tol=$default_err_tolerance '{c=c+1;if (c==itest) if (NF == 3) { print $3 } else { print def_err_tol } }'`
@@ -774,7 +773,7 @@ for dir in ${dirs}; do
      if (( $? == 0 )); then
         grep -a "^==[0-9][0-9]*== ERROR SUMMARY: 0 errors from 0 contexts" ${output_file} &> /dev/null
         # nonzero error count
-	if (( $? )); then
+        if (( $? )); then
            cp2k_exit_status=42
         fi
      fi
@@ -815,19 +814,14 @@ for dir in ${dirs}; do
            # see if we manage to pass the testing
            # but only if we can compare
            if [ -f ${output_last} ]; then
-              for test_type in ${test_types};
-              do
-                 do_test ${test_type} ${test_tolerance} ${output_file} ${output_last} ${error_description_file}
-                 if (( $? )); then
-                    this_test="WRONG RESULT TEST ${test_type}"
-                    n_wrong_results=$((n_wrong_results+1))
-                    # No further testing
-                    break;
-                 else
-                    n_correct=$((n_correct+1))
-                    this_test="OK"
-                 fi
-              done
+              do_test ${test_type} ${test_tolerance} ${output_file} ${output_last} ${error_description_file}
+              if (( $? )); then
+                 this_test="WRONG RESULT TEST ${test_type}"
+                 n_wrong_results=$((n_wrong_results+1))
+              else
+                 this_test="OK"
+                 n_correct=$((n_correct+1))
+              fi
            else
               this_test="NEW"
               n_new=$((n_new+1))
@@ -865,12 +859,15 @@ for dir in ${dirs}; do
         fi
      fi
 
-     # get the numeric test value from output again
-     grep_file="${test_col[test_type]}"
-     grep_string="${test_grep[test_type]}"
-     test_value=`grep -a "${grep_string}" ${output_file} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
+     # grep numeric test value from output again
+     test_value="-"
+     if [[ ${test_type} != 0 ]]; then
+       grep_string="${test_grep[test_type]}"
+       grep_field="${test_col[test_type]}"
+       test_value=`grep -a "${grep_string}" ${output_file} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
+     fi
 
-     printf "    %-50s %20s %20s %s\n" "${input_file}" "${test_value}" "${this_test}" "${leak_marker}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+     printf "    %-50s %25s %20s %s\n" "${input_file}" "${test_value}" "${this_test}" "${leak_marker}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
   done
 
   t2=`date +%s`
