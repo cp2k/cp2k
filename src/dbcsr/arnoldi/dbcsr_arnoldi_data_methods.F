@@ -142,25 +142,26 @@ CONTAINS
                        dbcsr_get_matrix_type(matrix(1)%matrix)==dbcsr_type_symmetric
 
 ! Set the control parameters
-    control%max_iter=max_iter                
-    control%current_step=0                   
+    control%max_iter=max_iter
+    control%current_step=0
     control%selection_crit=selection_crit
     control%nval_req=nval_request
     control%threshold=threshold
     control%converged=.FALSE.
     control%has_initial_vector=.FALSE.
     control%iram=iram
+    control%nrestart=nrestarts
+    control%generalized_ev=generalized_ev
+
     IF(control%nval_req>1.AND.control%nrestart>0.AND..NOT.control%iram)&
      STOP 'with more than one eigenvalue requested internal restarting with a previous EVEC is a bad idea, set IRAM or nrestsart=0'
 
-    control%nrestart=nrestarts
-    control%generalized_ev=generalized_ev
 ! some checks for the generalized EV mode
     IF(control%generalized_ev.AND.selection_crit==1)STOP 'generalized ev can only highest OR lowest EV'
     IF(control%generalized_ev.AND.nval_request.NE.1)STOP 'generalized ev can only compute one EV at the time'
     IF(control%generalized_ev.AND.control%nrestart==0)STOP 'outer loops are mandatory for generalized EV, set nrestart appropriatly'
     IF(SIZE(matrix).NE.2.AND.control%generalized_ev)STOP 'generalized ev needs exactly two matrices as input (2nd is the metric)'
-    
+
     ALLOCATE(control%selected_ind(max_iter))
     CALL set_control(arnoldi_data,control)
 
