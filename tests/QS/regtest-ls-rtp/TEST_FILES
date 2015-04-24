@@ -14,3 +14,4 @@ H2O-ls-emd-mcweeny-rt-restart.inp    1     1e-11
 emd-KG.inp                        1     2e-10
 H2plus-ls-rtp.inp 1
 H2O-ls-ortho-emd.inp 1
+H2O-ls-emd-mixing.inp 1

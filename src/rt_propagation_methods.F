@@ -112,17 +112,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'propagation_step', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: aspc_order, handle, i
+    INTEGER                                  :: aspc_order, handle, i, im, re, unit_nr
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: delta_P, matrix_ks, &
+      POINTER                                :: delta_P, H_last_iter, ks_mix, &
+                                                ks_mix_im, matrix_ks, &
                                                 matrix_ks_im, matrix_s, &
                                                 rho_new
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, mos_new
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
+
+    logger   => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
     NULLIFY(rho,ks_env,delta_P, rho_new,delta_mos, mos_new)
     ! get everything needed and set some values
     CALL get_qs_env(qs_env,&
@@ -143,7 +153,6 @@ CONTAINS
        ENDIF
        CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
     END IF
-
 
     IF(rtp%linear_scaling) THEN
        ! keep temporary copy of the starting density matrix to check for convergence  
@@ -172,7 +181,53 @@ CONTAINS
                     matrix_ks=matrix_ks,&
                     matrix_ks_im=matrix_ks_im,&
                     error=error)
-    CALL calc_SinvH(rtp,matrix_ks,matrix_ks_im,rtp_control,error)
+
+    CALL get_rtp(rtp=rtp,H_last_iter=H_last_iter,error=error)
+    IF(rtp%mixing) THEN
+       IF (unit_nr>0) THEN
+          write(unit_nr,'(t3,a,2f16.8)') "Mixing the Hamiltonians to improve robustness, mixing factor: ", rtp%mixing_factor
+       ENDIF
+       CALL cp_dbcsr_allocate_matrix_set(ks_mix,SIZE(matrix_ks),error=error)
+       CALL cp_dbcsr_allocate_matrix_set(ks_mix_im,SIZE(matrix_ks),error=error)
+       DO i=1,SIZE(matrix_ks)
+          CALL cp_dbcsr_init_p(ks_mix(i)%matrix,error=error)
+          CALL cp_dbcsr_create(ks_mix(i)%matrix,template=matrix_ks(1)%matrix,error=error)
+          CALL cp_dbcsr_init_p(ks_mix_im(i)%matrix,error=error)
+          CALL cp_dbcsr_create(ks_mix_im(i)%matrix,template=matrix_ks(1)%matrix,error=error)
+       ENDDO
+       DO i=1,SIZE(matrix_ks)
+          re=2*i-1
+          im=2*i
+          CALL cp_dbcsr_add(ks_mix(i)%matrix,matrix_ks(i)%matrix,0.0_dp,rtp%mixing_factor,error=error)
+          CALL cp_dbcsr_add(ks_mix(i)%matrix,H_last_iter(re)%matrix,1.0_dp,1.0_dp-rtp%mixing_factor,error=error)
+          IF(rtp%do_hfx)THEN
+             CALL cp_dbcsr_add(ks_mix_im(i)%matrix,matrix_ks_im(i)%matrix,0.0_dp,rtp%mixing_factor,error=error)
+             CALL cp_dbcsr_add(ks_mix_im(i)%matrix,H_last_iter(im)%matrix,1.0_dp,1.0_dp-rtp%mixing_factor,error=error)
+          ENDIF
+       ENDDO
+       CALL calc_SinvH(rtp,ks_mix,ks_mix_im,rtp_control,error)
+       DO i=1,SIZE(matrix_ks)
+          re=2*i-1
+          im=2*i
+          CALL cp_dbcsr_copy(H_last_iter(re)%matrix,ks_mix(i)%matrix,error=error)
+          IF(rtp%do_hfx)THEN
+             CALL cp_dbcsr_copy(H_last_iter(im)%matrix,ks_mix_im(i)%matrix,error=error)
+          ENDIF
+       ENDDO
+       CALL cp_dbcsr_deallocate_matrix_set(ks_mix,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set(ks_mix_im,error=error)
+    ELSE
+       CALL calc_SinvH(rtp,matrix_ks,matrix_ks_im,rtp_control,error)
+       DO i=1,SIZE(matrix_ks)
+          re=2*i-1
+          im=2*i
+          CALL cp_dbcsr_copy(H_last_iter(re)%matrix,matrix_ks(i)%matrix,error=error)
+          IF(rtp%do_hfx)THEN
+             CALL cp_dbcsr_copy(H_last_iter(im)%matrix,matrix_ks_im(i)%matrix,error=error)
+          ENDIF
+       ENDDO
+    ENDIF
+
     CALL compute_propagator_matrix(rtp,rtp_control%propagator,error)
 
     SELECT CASE(rtp_control%mat_exp)
@@ -231,11 +286,9 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
                                                 matrix_ks, matrix_ks_im, &
-                                                rho_last_iter, rho_new, &
-                                                rho_old, s_mat
+                                                rho_new, rho_old, s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mos_Last_iter, mos_new, &
-                                                mos_old
+      POINTER                                :: mos_new, mos_old
     TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL timeset(routineN,handle)
@@ -250,26 +303,16 @@ CONTAINS
         ELSE
            CALL rt_convergence(rtp,s_mat(1)%matrix,delta_mos,rtp%delta_iter,error)
         END IF
-        !Apply mixing of scf loop is not converging
-        IF(rtp_control%sc_check_start.LT.rtp%iter+1) THEN
-           CALL rt_mixing(rtp,error=error)
-           IF(rtp%linear_scaling) THEN
-              CALL calc_update_rho_sparse(qs_env,error)
-           ELSE
-              CALL calc_update_rho(qs_env,error)
-           ENDIF
-        ENDIF
         rtp%converged=(rtp%delta_iter.LT.rtp_control%eps_ener)
-        IF(rtp%linear_scaling) THEN
-           CALL get_rtp(rtp=rtp,rho_new=rho_new,rho_last_iter=rho_last_iter,error=error)
-           DO i=1,SIZE(rho_new)
-             CALL cp_dbcsr_copy(rho_last_iter(i)%matrix,rho_new(i)%matrix,error=error)
-           ENDDO
-        ELSE
-           CALL get_rtp(rtp=rtp,mos_new=mos_new,mos_last_iter=mos_last_iter,error=error)
-           DO i=1,SIZE(mos_new)
-              CALL cp_fm_to_fm(mos_new(i)%matrix,mos_last_iter(i)%matrix,error)
-           END DO
+        !Apply mixing if scf loop is not converging
+
+        !It would be better to redo the current step with mixixng,
+        !but currently the decision is made to use mixing from the next step on
+        IF(rtp_control%sc_check_start.LT.rtp%iter+1) THEN
+           IF(rtp%delta_iter/rtp%delta_iter_old>0.9) THEN
+              rtp%mixing_factor=MAX(rtp%mixing_factor/2.0_dp,0.125_dp)
+              rtp%mixing=.TRUE. 
+           ENDIF
         ENDIF
     END IF
 
@@ -457,7 +500,7 @@ CONTAINS
   END SUBROUTINE calc_SinvH
 
 ! *****************************************************************************
-!> \brief calculates the needed overlaplike matrices
+!> \brief calculates the needed overlap-like matrices
 !>        depending on the way the exponential is calculated, only S^-1 is needed
 !> \param s_mat ...
 !> \param rtp ...
@@ -501,7 +544,7 @@ CONTAINS
   END SUBROUTINE s_matrices_create
 
 ! *****************************************************************************
-!> \brief Calculates the frobenius norm of a omplex matrix represented by two real matrices
+!> \brief Calculates the frobenius norm of a complex matrix represented by two real matrices
 !> \param frob_norm ...
 !> \param mat_re ...
 !> \param mat_im ...
@@ -1165,53 +1208,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE put_data_to_history
-
-! *****************************************************************************
-!> \brief Checks if the self copnsistent loop is not converging.
-!>        If the convergence is bad, then some mixing between the last and the
-!>        current iteration is applied to achieve to improve the convergence.
-!> \param rtp ...
-!> \param error ...
-!> \author Samuel Andermatt (11.14)
-! *****************************************************************************
-  SUBROUTINE rt_mixing(rtp,error)
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rt_mixing', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i
-    LOGICAL                                  :: mixing
-    REAL(KIND=dp)                            :: mixing_factor
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: rho_last_iter, rho_new
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mos_last_iter, mos_new
-
-    CALL timeset(routineN,handle)
-    CALL get_rtp(rtp=rtp,mixing=mixing,mixing_factor=mixing_factor,error=error)
-    IF(rtp%delta_iter>rtp%delta_iter_old) THEN
-       mixing_factor=mixing_factor/2.0_dp
-       mixing_factor=MAX(mixing_factor,0.125_dp)
-       mixing=.TRUE.
-    ENDIF
-    IF(mixing) THEN
-       IF(rtp%linear_scaling) THEN
-          CALL get_rtp(rtp=rtp,rho_new=rho_new,rho_last_iter=rho_last_iter,error=error)
-          DO i=1,SIZE(rho_new)
-             CALL cp_dbcsr_add(rho_new(i)%matrix,rho_last_iter(i)%matrix,mixing_factor,1.0_dp-mixing_factor,error)
-          ENDDO
-       ELSE
-          CALL get_rtp(rtp=rtp,mos_new=mos_new,mos_last_iter=mos_last_iter,error=error)
-          DO i=1,SIZE(rho_new)
-             CALL cp_fm_scale_and_add(mixing_factor,mos_new(i)%matrix,1.0_dp-mixing_factor,mos_last_iter(i)%matrix,error)
-          ENDDO
-       ENDIF
-    ENDIF
-
-    CALL timestop(handle)
-
-  END SUBROUTINE rt_mixing
 
 END MODULE rt_propagation_methods
