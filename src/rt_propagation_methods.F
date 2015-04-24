@@ -112,7 +112,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'propagation_step', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: aspc_order, handle, i, im, re, unit_nr
+    INTEGER                                  :: aspc_order, handle, i, im, &
+                                                re, unit_nr
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: delta_P, H_last_iter, ks_mix, &
                                                 ks_mix_im, matrix_ks, &
@@ -120,9 +121,9 @@ CONTAINS
                                                 rho_new
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, mos_new
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
@@ -185,7 +186,7 @@ CONTAINS
     CALL get_rtp(rtp=rtp,H_last_iter=H_last_iter,error=error)
     IF(rtp%mixing) THEN
        IF (unit_nr>0) THEN
-          write(unit_nr,'(t3,a,2f16.8)') "Mixing the Hamiltonians to improve robustness, mixing factor: ", rtp%mixing_factor
+          WRITE(unit_nr,'(t3,a,2f16.8)') "Mixing the Hamiltonians to improve robustness, mixing factor: ", rtp%mixing_factor
        ENDIF
        CALL cp_dbcsr_allocate_matrix_set(ks_mix,SIZE(matrix_ks),error=error)
        CALL cp_dbcsr_allocate_matrix_set(ks_mix_im,SIZE(matrix_ks),error=error)
