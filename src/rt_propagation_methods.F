@@ -135,6 +135,7 @@ CONTAINS
     ENDIF
 
     NULLIFY(rho,ks_env,delta_P, rho_new,delta_mos, mos_new)
+    NULLIFY(ks_mix,ks_mix_im)
     ! get everything needed and set some values
     CALL get_qs_env(qs_env,&
          rho=rho,&
