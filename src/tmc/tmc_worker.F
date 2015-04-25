@@ -783,6 +783,8 @@ CONTAINS
                temperature=tmc_env%params%Temp(conf%temp_created), &
                diff_pot_check=.FALSE.,&
                accept=accept, approx_ener=.TRUE., rnd_nr=rnd_nr, error=error)
+      ELSE
+        accept=.FALSE.
       END IF
       ! update the NMC accpetance per move
       CALL prob_update(move_types=tmc_env%params%nmc_move_types, elem=conf, &
