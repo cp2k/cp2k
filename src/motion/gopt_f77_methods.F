@@ -66,6 +66,7 @@
                                                section_vals_type,&
                                                section_vals_val_get
     USE md_run,                          ONLY: qs_mol_dyn
+    USE message_passing,                 ONLY: mp_bcast
     USE kinds,                           ONLY: dp,&
                                                default_string_length
     USE particle_list_types,             ONLY: particle_list_type
@@ -222,6 +223,9 @@ CPSourceFileRef,&
                                pres_int=gopt_env%cell_env%pres_int,&
                                error=error)
              END IF
+             ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank. 
+             ! Assume at least master==0
+             CALL mp_bcast(gopt_env%cell_env%pres_int,0,para_env%group)
           END IF
           CALL virial_release(virial_avg,error=error)
        CASE (default_cell_geo_opt_id,default_cell_md_id)
@@ -306,6 +310,9 @@ CPSourceFileRef,&
                                pres_int=gopt_env%cell_env%pres_int,&
                                error=error)
              END IF
+             ! some callers expect pres_int to be available on all ranks. Also, here master is not necessarily a single rank. 
+             ! Assume at least master==0
+             CALL mp_bcast(gopt_env%cell_env%pres_int,0,para_env%group)
           END IF
           CALL virial_release(virial_avg,error=error)
        CASE DEFAULT
