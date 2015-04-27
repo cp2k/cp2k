@@ -97,6 +97,7 @@ MODULE qs_core_hamiltonian
                                              rel_trans_atom,&
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
+  USE input_section_types,             ONLY: section_vals_val_get
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kg_tnadd_mat,                    ONLY: build_tnadd_mat
   USE kinds,                           ONLY: dp
@@ -543,7 +544,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_info_core_hamiltonian', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iw, output_unit
+    INTEGER                                  :: after, handle, i, iw, &
+                                                output_unit
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_s, matrix_t, &
                                                 matrix_v
@@ -552,78 +554,85 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(logger, matrix_v, matrix_s, matrix_t, matrix_h, para_env)
+    NULLIFY (logger, matrix_v, matrix_s, matrix_t, matrix_h, para_env)
     logger => cp_error_get_logger(error)
     CALL get_qs_env(qs_env, para_env=para_env, error=error)
 
-    ! *** Print the distribution of the overlap matrix blocks ***
-    ! *** this duplicates causes duplicate printing at the force calc ***
-    IF (.NOT. calculate_forces) THEN
+    ! Print the distribution of the overlap matrix blocks
+    ! this duplicates causes duplicate printing at the force calc
+    IF (.NOT.calculate_forces) THEN
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"PRINT%DISTRIBUTION",error=error),cp_p_file)) THEN
-           CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
-           output_unit = cp_print_key_unit_nr(logger,qs_env%input,"PRINT%DISTRIBUTION",&
-                                              extension=".distribution",error=error)
-           CALL cp_dbcsr_write_matrix_dist(matrix_s(1)%matrix,output_unit,para_env,error)
-           CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,"PRINT%DISTRIBUTION",&
-                error=error)
-       ENDIF
-    ENDIF
+                 qs_env%input,"PRINT%DISTRIBUTION",error=error),cp_p_file)) THEN
+          CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+          output_unit = cp_print_key_unit_nr(logger,qs_env%input,"PRINT%DISTRIBUTION",&
+                                             extension=".distribution",error=error)
+          CALL cp_dbcsr_write_matrix_dist(matrix_s(1)%matrix,output_unit,para_env,error)
+          CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,"PRINT%DISTRIBUTION",&
+                                            error=error)
+       END IF
+    END IF
 
-    ! *** Print the overlap integral matrix, if requested ***
+    ! Print the overlap integral matrix, if requested
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
+              qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
-            extension=".Log",error=error)
+                                 extension=".Log",error=error)
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+       after = MIN(MAX(after,1),16)
        CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
           DO i=2,SIZE(matrix_s)
-             CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+             CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
           END DO
        END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-           "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
+            "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
     END IF
 
-    ! *** Print the kinetic energy integral matrix, if requested ***
+    ! Print the kinetic energy integral matrix, if requested
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error),cp_p_file)) THEN
+              qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",&
             extension=".Log",error=error)
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+       after = MIN(MAX(after,1),16)
        CALL get_qs_env(qs_env, kinetic=matrix_t, error=error)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_t(1)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/KINETIC_ENERGY", error=error)
     END IF
 
-    ! *** Print the potential energy matrix, if requested ***
+    ! Print the potential energy matrix, if requested
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file)) THEN
+              qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",&
             extension=".Log",error=error)
-       CALL get_qs_env(qs_env, kinetic=matrix_t, error=error)
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+       after = MIN(MAX(after,1),16)
+       CALL get_qs_env(qs_env,matrix_h=matrix_h,kinetic=matrix_t,error=error)
        CALL cp_dbcsr_allocate_matrix_set(matrix_v,1,error=error)
-       ALLOCATE(matrix_v(1)%matrix)
+       ALLOCATE (matrix_v(1)%matrix)
        CALL cp_dbcsr_init(matrix_v(1)%matrix, error=error)
-       CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrix_h(1)%matrix,&
-            name="POTENTIAL ENERGY MATRIX",error=error)
+       CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrix_h(1)%matrix,name="POTENTIAL ENERGY MATRIX",error=error)
        CALL cp_dbcsr_add(matrix_v(1)%matrix,matrix_t(1)%matrix,&
             alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_dbcsr_deallocate_matrix_set(matrix_v,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY", error=error)
     END IF
 
-    ! *** Print the core Hamiltonian matrix, if requested ***
+    ! Print the core Hamiltonian matrix, if requested
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
+              qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+       after = MIN(MAX(after,1),16)
        CALL get_qs_env(qs_env, matrix_h=matrix_h, error=error)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
     END IF

@@ -29,6 +29,7 @@ MODULE se_core_matrix
        do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
        do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
        use_orb_basis_set
+  USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt
@@ -87,9 +88,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, DIMENSION(4), PARAMETER         :: ix = (/1,3,4,2/)
 
-    INTEGER :: atom_a, atom_b, handle, i, iatom, icol, icor, ikind, inode, &
-      irow, istat, itype, iw, j, jatom, jkind, natom, natorb_a, nkind, nr_a, &
-      nra, nrb
+    INTEGER :: after, atom_a, atom_b, handle, i, iatom, icol, icor, ikind, &
+      inode, irow, istat, itype, iw, j, jatom, jkind, natom, natorb_a, nkind, &
+      nr_a, nra, nrb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nrt
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure, found, &
@@ -419,8 +420,10 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
-             scale=evolt,output_unit=iw,error=error)
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+       after = MIN(MAX(after,1),16)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,after,qs_env,para_env,&
+                                         scale=evolt,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
      END IF

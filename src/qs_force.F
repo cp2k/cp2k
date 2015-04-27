@@ -111,9 +111,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_forces', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dir, handle, i, iatom, ikind, &
-                                                ispin, istat, iw, natom, &
-                                                nkind, nspin, output_unit
+    INTEGER                                  :: after, dir, handle, i, iatom, &
+                                                ikind, ispin, istat, iw, &
+                                                natom, nkind, nspin, &
+                                                output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 natom_of_kind
     LOGICAL                                  :: failure, gapw, &
@@ -251,10 +252,13 @@ CONTAINS
        nspin = SIZE(matrix_w)
        DO ispin=1,nspin
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-               qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
+              qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
              iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
                   extension=".Log",error=error)
-             CALL cp_dbcsr_write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+             CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+             after = MIN(MAX(after,1),16)
+             CALL cp_dbcsr_write_sparse_matrix(matrix_w(ispin)%matrix,4,after,qs_env,para_env,output_unit=iw,&
+                                               error=error)
              CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                   "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
           END IF

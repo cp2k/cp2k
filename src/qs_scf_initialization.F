@@ -885,8 +885,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_run', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, iw, nao, ndep, &
-                                                output_unit
+    INTEGER                                  :: after, handle, ikind, iw, &
+                                                nao, ndep, output_unit
     LOGICAL :: dft_plus_u_atom, do_kpoints, failure, init_u_ramping_each_scf, &
       s_minus_half_available
     REAL(KIND=dp)                            :: u_ramping
@@ -959,12 +959,14 @@ CONTAINS
        END IF
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-              qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN
-            iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",&
-                 extension=".Log",error=error)
-            CALL write_fm_with_basis_info(scf_env%ortho,4,6,qs_env,para_env,output_unit=iw,error=error)
-            CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-                 "DFT%PRINT%AO_MATRICES/ORTHO", error=error)
+           qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN
+          iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",&
+               extension=".Log",error=error)
+          CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+          after = MIN(MAX(after,1),16)
+          CALL write_fm_with_basis_info(scf_env%ortho,4,after,qs_env,para_env,output_unit=iw,error=error)
+          CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+               "DFT%PRINT%AO_MATRICES/ORTHO", error=error)
        END IF
     END IF
 

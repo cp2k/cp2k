@@ -46,7 +46,8 @@ MODULE qs_dftb_matrices
                                              ewald_pw_type
   USE input_constants,                 ONLY: do_fist_pol_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE message_passing,                 ONLY: mp_sum
@@ -146,10 +147,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dftb_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, i, iatom, icol, ikind, inode, irow, &
-      istat, iw, jatom, jkind, l1, l2, la, last_jatom, lb, llm, lmaxi, lmaxj, &
-      m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, nderivatives, &
-      neighbor_list_id, ngrd, ngrdcut, nkind, nmat, nrow, spdim
+    INTEGER :: after, atom_a, atom_b, handle, i, iatom, icol, ikind, inode, &
+      irow, istat, iw, jatom, jkind, l1, l2, la, last_jatom, lb, llm, lmaxi, &
+      lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, &
+      nderivatives, neighbor_list_id, ngrd, ngrdcut, nkind, nmat, nrow, spdim
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem, &
                                                 row_blk_sizes
     LOGICAL                                  :: defined, failure, found, &
@@ -593,16 +594,18 @@ CONTAINS
      energy%repulsive = erep
 
      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
+               qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+       after = MIN(MAX(after,1),16)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,after,qs_env,para_env,&
             output_unit=iw,error=error)
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
              qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
          DO i=2,SIZE(matrix_h)
-           CALL cp_dbcsr_write_sparse_matrix(matrix_h(i)%matrix,4,6,qs_env,para_env,&
+           CALL cp_dbcsr_write_sparse_matrix(matrix_h(i)%matrix,4,after,qs_env,para_env,&
                 output_unit=iw,error=error)
          END DO
        END IF
@@ -612,16 +615,18 @@ CONTAINS
      END IF
 
      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
+               qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,&
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+       after = MIN(MAX(after,1),16)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,after,qs_env,para_env,&
              output_unit=iw,error=error)
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-            qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
+                 qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
          DO i=2,SIZE(matrix_s)
-           CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,&
+           CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,after,qs_env,para_env,&
                 output_unit=iw,error=error)
          END DO
        END IF
@@ -630,7 +635,7 @@ CONTAINS
             "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
      END IF
 
-     IF(calculate_forces) THEN
+     IF (calculate_forces) THEN
        IF (SIZE(matrix_p) == 2) THEN
           CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,&
                beta_scalar=-1.0_dp,error=error)

@@ -87,7 +87,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_scptb_mo_free_results', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, iw, &
+    INTEGER                                  :: after, handle, ispin, iw, &
                                                 output_unit, print_level, &
                                                 unit_nr
     LOGICAL                                  :: explicit, failure, print_it
@@ -182,9 +182,11 @@ CONTAINS
                  "AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
           iw = cp_print_key_unit_nr(logger,input,"AO_MATRICES/DENSITY",&
                                     extension=".Log",error=error)
+          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+          after = MIN(MAX(after,1),16)
           CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,6,qs_env,&
+             CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,after,qs_env,&
                                             para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,"AO_MATRICES/DENSITY",error=error)

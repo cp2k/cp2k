@@ -24,6 +24,7 @@ MODULE qs_fermi_contact
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -83,8 +84,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_fermi_contact_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, icol, ikind, inode, irow, iset, istat, iw, &
-      jatom, jkind, jset, last_jatom, ldai, ldfc, maxco, maxlgto, maxsgf, &
+    INTEGER :: after, handle, iatom, icol, ikind, inode, irow, iset, istat, &
+      iw, jatom, jkind, jset, last_jatom, ldai, ldfc, maxco, maxlgto, maxsgf, &
       natom, ncoa, ncob, nkind, nseta, nsetb, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -309,7 +310,9 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/FERMI_CONTACT",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/FERMI_CONTACT",&
             extension=".Log",error=error)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_fc(1)%matrix,4,6,qs_env,para_env,output_unit=iw,error=error)
+       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+       after = MIN(MAX(after,1),16)
+       CALL cp_dbcsr_write_sparse_matrix(matrix_fc(1)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/FERMI_CONTACT", error=error)
     END IF

@@ -1174,6 +1174,11 @@ CONTAINS
             description="Controls the printing of the ao (i.e. contracted gaussian) matrices (debug).", &
             print_level=debug_print_level,filename="__STD_OUT__",&
             error=error)
+       CALL keyword_create(keyword=keyword, name="NDIGITS",&
+            description="Specify the number of digits used to print the AO matrices",&
+            default_i_val=6, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CORE_HAMILTONIAN",&
             description="If the printkey is activated controls the printing of the hamiltonian matrix",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)

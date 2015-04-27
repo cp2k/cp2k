@@ -37,6 +37,12 @@
     &MGRID
       CUTOFF 200
     &END MGRID
+    &PRINT
+     &AO_MATRICES
+      NDIGITS 12
+      W_MATRIX
+     &END AO_MATRICES
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-8
       EXTRAPOLATION use_prev_p

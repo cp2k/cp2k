@@ -2233,7 +2233,7 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER :: handle, i, iat, id, ikind, iso, ispin, istat, iw, j, l, &
+    INTEGER :: after, handle, i, iat, id, ikind, iso, ispin, istat, iw, j, l, &
       n_cstr, n_tiles, nd(3), ngto, niso, nkind, np, nr, output_unit, &
       print_level, tile_npts, unit_nr
     LOGICAL :: append_cube, do_dielectric_cube, do_dirichlet_bc_cube, &
@@ -2878,8 +2878,10 @@ CONTAINS
                  "DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
                                     extension=".Log",error=error)
+          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+          after = MIN(MAX(after,1),16)
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,6,qs_env,&
+             CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,after,qs_env,&
                                             para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
@@ -2888,25 +2890,27 @@ CONTAINS
        END IF
 
        ! Write the Kohn-Sham matrices
-       write_ks=BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)
-       write_xc=BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/MATRIX_VXC",error=error),cp_p_file)
+       write_ks = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                        "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)
+       write_xc = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                        "DFT%PRINT%AO_MATRICES/MATRIX_VXC",error=error),cp_p_file)
        ! we need to update stuff before writing, potentially computing the matrix_vxc
-       IF (write_ks .OR. write_xc) THEN
-          IF (write_xc) qs_env%requires_matrix_vxc=.TRUE.
+       IF (write_ks.OR.write_xc) THEN
+          IF (write_xc) qs_env%requires_matrix_vxc = .TRUE.
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
           CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.,&
                                    just_energy=.FALSE., error=error)
-          IF (write_xc) qs_env%requires_matrix_vxc=.FALSE.
+          IF (write_xc) qs_env%requires_matrix_vxc = .FALSE.
        END IF
 
        ! Write the Kohn-Sham matrices
        IF (write_ks) THEN
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                                     extension=".Log",error=error)
+          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+          after = MIN(MAX(after,1),16)
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(ispin)%matrix,4,6,qs_env,&
+             CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(ispin)%matrix,4,after,qs_env,&
                                             para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
@@ -2916,11 +2920,14 @@ CONTAINS
 
        ! Write the xc matrix
        IF (write_xc) THEN
+          CPPrecondition(ASSOCIATED(matrix_vxc),cp_failure_level,routineP,error,failure)
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/MATRIX_VXC",&
                                     extension=".Log",error=error)
+          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
+          after = MIN(MAX(after,1),16)
           DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(matrix_vxc(ispin)%matrix,4,6,qs_env,&
-                                            para_env,output_unit=iw,error=error)
+             CALL cp_dbcsr_write_sparse_matrix(matrix_vxc(ispin)%matrix,4,after,qs_env,&
+                                               para_env,output_unit=iw,error=error)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
                                             "DFT%PRINT%AO_MATRICES/MATRIX_VXC",&
