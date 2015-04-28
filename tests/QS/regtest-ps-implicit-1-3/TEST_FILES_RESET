@@ -7,3 +7,6 @@ Ar_mixed_aa_planar-ns_cell.inp
 Ar_mixed_aa_planar.inp           
 Ar_mixed_planar.inp              
 Ar_mixed_aa_planar-ns_cell.inp   
+
+# bugfix in constructing arbitrary planar regions and improve tiling of such regions.
+Ar_mixed_planar.inp              

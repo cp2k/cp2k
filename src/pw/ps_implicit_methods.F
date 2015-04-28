@@ -34,6 +34,7 @@ MODULE ps_implicit_methods
                                              pw_copy,&
                                              pw_derive,&
                                              pw_integral_ab,&
+                                             pw_integrate_function,&
                                              pw_scale,&
                                              pw_transfer,&
                                              pw_zero
@@ -2279,14 +2280,18 @@ CONTAINS
       END DO
     END DO
     CALL pw_scale(G, (1.0_dp/zeta)**3, error)
-    normfact = SUM ( G%cr3d ( :, :, : ) )
-    CALL mp_sum(normfact, pw_pool%pw_grid%para%group)
+    normfact = pw_integrate_function(G,error=error)
     CALL pw_scale(G, 1.0_dp/normfact, error)
 
     CALL pw_transfer(G, G_gs, error=error)
     CALL pw_transfer(pw_in, pw_in_gs, error=error)
     pw_out_gs%cc = G_gs%cc * pw_in_gs%cc
     CALL pw_transfer(pw_out_gs, pw_out, error=error)
+
+    ! multiply by the reciprocal of the forward Fourier transform normalization prefactor (here 1/N, by convention)
+    CALL pw_scale(pw_out, REAL(pw_grid%ngpts,KIND=dp), error=error)
+    ! from discrete convolution to continuous convolution
+    CALL pw_scale(pw_out, pw_grid%dvol, error=error)
 
     DO k = lb3, ub3
       DO j = lb2, ub2

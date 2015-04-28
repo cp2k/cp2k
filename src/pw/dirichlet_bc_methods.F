@@ -279,7 +279,7 @@ CONTAINS
     REAL(dp)                                 :: phi1, phi2
     REAL(dp), DIMENSION(3)                   :: rot_axis1, rot_axis2
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cs_rectangle), POINTER              :: rectangle_aa
+    TYPE(cs_rectangle), POINTER              :: rectangle_aa, rectangle_tmp
     TYPE(tile_p_type), DIMENSION(:), POINTER :: tiles
 
     CALL timeset(routineN,handle)
@@ -315,7 +315,10 @@ CONTAINS
       DO k = 1, n_tiles
          ALLOCATE(dirichlet_bc%tiles(k)%tile)
          ALLOCATE(dirichlet_bc%tiles(k)%tile%rectangle)
-         CALL rotate_rectangle(tiles(k)%tile%rectangle, phi1, rot_axis1, BWROT, &
+         ALLOCATE(rectangle_tmp)
+         CALL rotate_rectangle(tiles(k)%tile%rectangle, phi2, rot_axis2, BWROT, &
+                               rectangle_tmp, error)
+         CALL rotate_rectangle(rectangle_tmp, phi1, rot_axis1, BWROT, &
                                dirichlet_bc%tiles(k)%tile%rectangle, error)
   
          dirichlet_bc%tiles(k)%tile%tile_id = 8000 + k
@@ -341,6 +344,7 @@ CONTAINS
          tile_npts = NINT(SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d),KIND=KIND(tile_npts))
          CALL mp_sum(tile_npts, pw_pool%pw_grid%para%group)
          dirichlet_bc%tiles(k)%tile%npts = tile_npts
+         CALL cs_rectangle_release(rectangle_tmp, error)
       END DO
   
       IF ((unit_nr .GT. 0) .AND. debug) WRITE(unit_nr, '(T3,A)') REPEAT('=', 78) 

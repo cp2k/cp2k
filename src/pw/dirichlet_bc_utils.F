@@ -878,9 +878,10 @@ CONTAINS
                                                 yprtn_ubind
     INTEGER, DIMENSION(n_prtn(3))            :: zprtn_lbind, zprtn_npts, &
                                                 zprtn_ubind
-    REAL(dp)                                 :: step
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xglbl_sym, yglbl_sym, &
-                                                zglbl_sym
+    REAL(dp)                                 :: dx, dy, dz, step
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: xglbl_dbl, xglbl_sym, &
+                                                yglbl_dbl, yglbl_sym, &
+                                                zglbl_dbl, zglbl_sym
     REAL(dp), DIMENSION(2)                   :: x_xtnt, y_xtnt, z_xtnt
     REAL(dp), DIMENSION(3)                   :: A, B, C, D
     REAL(dp), DIMENSION(n_prtn(1))           :: xprtn_lb, xprtn_ub
@@ -889,12 +890,20 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    ALLOCATE(xglbl_sym(2*SIZE(x_glbl)-1), yglbl_sym(2*SIZE(y_glbl)-1), zglbl_sym(2*SIZE(z_glbl)-1))
+    ALLOCATE(xglbl_dbl(2*SIZE(x_glbl)), yglbl_dbl(2*SIZE(y_glbl)), zglbl_dbl(2*SIZE(z_glbl)))
+    ALLOCATE(xglbl_sym(2*SIZE(xglbl_dbl)-1), yglbl_sym(2*SIZE(yglbl_dbl)-1), zglbl_sym(2*SIZE(zglbl_dbl)-1))
 
 ! extend the global axes and make them symmetric
-    xglbl_sym(:) = (/ (- x_glbl(i), i = UBOUND(x_glbl,1), LBOUND(x_glbl,1)+1, -1), x_glbl /)
-    yglbl_sym(:) = (/ (- y_glbl(i), i = UBOUND(y_glbl,1), LBOUND(y_glbl,1)+1, -1), y_glbl /)
-    zglbl_sym(:) = (/ (- z_glbl(i), i = UBOUND(z_glbl,1), LBOUND(z_glbl,1)+1, -1), z_glbl /)
+    dx = x_glbl(LBOUND(x_glbl,1)+1) - x_glbl(LBOUND(x_glbl,1))
+    dy = y_glbl(LBOUND(y_glbl,1)+1) - y_glbl(LBOUND(y_glbl,1))
+    dz = z_glbl(LBOUND(z_glbl,1)+1) - z_glbl(LBOUND(z_glbl,1))
+
+    xglbl_dbl(:) = (/ x_glbl, x_glbl+SIZE(x_glbl)*dx /)
+    yglbl_dbl(:) = (/ y_glbl, y_glbl+SIZE(y_glbl)*dy /)
+    zglbl_dbl(:) = (/ z_glbl, z_glbl+SIZE(z_glbl)*dz /)
+    xglbl_sym(:) = (/ (- xglbl_dbl(i), i = UBOUND(xglbl_dbl,1), LBOUND(xglbl_dbl,1)+1, -1), xglbl_dbl /)
+    yglbl_sym(:) = (/ (- yglbl_dbl(i), i = UBOUND(yglbl_dbl,1), LBOUND(yglbl_dbl,1)+1, -1), yglbl_dbl /)
+    zglbl_sym(:) = (/ (- zglbl_dbl(i), i = UBOUND(zglbl_dbl,1), LBOUND(zglbl_dbl,1)+1, -1), zglbl_dbl /)
 
 ! find the extents of the rectangle in all three directions
     x_xtnt(1) = MINVAL(rectangle%vertices(1,:));    x_xtnt(2) = MAXVAL(rectangle%vertices(1,:))

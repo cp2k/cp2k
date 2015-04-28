@@ -5,3 +5,6 @@ H2O_mixed_periodic_planar.inp
 # properly include the dielectric contribution to the Hamiltonian, v_eps.
 H2O_mixed_periodic_aa_planar.inp   
 H2O_mixed_periodic_planar.inp      
+
+# bugfix in constructing arbitrary planar regions and improve tiling of such regions.
+H2O_mixed_periodic_planar.inp      
