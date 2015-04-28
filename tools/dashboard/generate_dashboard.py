@@ -61,6 +61,8 @@ def main():
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
     output += '<th>Revision</th><th>Summary</th><th>Last OK</th><th>Tickets</th></tr>\n\n'
 
+    list_full=""; list_recent=""
+
     def get_sortkey(s):
         return config.getint(s, "sortkey")
 
@@ -94,7 +96,6 @@ def main():
                 # store only useful and fresh reports, prevents overwriting archive
                 fn = outdir+"archive/%s/rev_%d.txt.gz"%(s,report['revision'])
                 write_file(fn, report_txt, gz=True)
-                check_output("cd %s/archive; tar -cf %s/%s_reports.tar %s/*.txt.gz"%(outdir,s,s,s), shell=True)
 
         output += '<tr align="center">'
         output += '<td align="left"><a href="archive/%s/index.html">%s</a></td>'%(s, name)
@@ -122,7 +123,6 @@ def main():
         archive_output += '<p>Go back to <a href="../../index.html">main page</a></p>'
         if(info_url):
             archive_output += '<p>Get <a href="%s">more information</a></p>'%info_url
-        archive_output += '<p>Download <a href="%s_reports.tar">all reports</a></p>'%s
         archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
         archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
 
@@ -144,6 +144,10 @@ def main():
                 report = archive_reports[r]
                 archive_output += status_cell(report['status'], report['url'])
                 archive_output += '<td align="left">%s</td>'%report['summary']
+                report_url = "http://dashboard.cp2k.org/archive/%s/%s.gz\n"%(s, report['url'])
+                list_full += report_url
+                if(r > trunk_revision-100):
+                   list_recent += report_url
             else:
                 archive_output += 2*'<td></td>'
             svn_rev = log_index[r]
@@ -156,6 +160,8 @@ def main():
     output += '</table></center>\n' + html_footer(now)
     write_file(status_fn, pformat(status))
     write_file(outdir+"index.html", output)
+    write_file(outdir+"archive/list_full.txt", list_full)
+    write_file(outdir+"archive/list_recent.txt", list_recent)
 
 #===============================================================================
 def retrieve_report(report_url):
@@ -194,7 +200,7 @@ def send_notification(report, addressbook, last_ok, svn_log, name, s):
     msg_txt += "   report summary: %s\n"%report['summary']
     msg_txt += "   last OK rev:    %d\n\n"%last_ok
     msg_txt += "For more information visit:\n"
-    msg_txt += "   http://www.cp2k.org/static/dashboard/archive/%s/index.html \n\n"%s
+    msg_txt += "   http://dashboard.cp2k.org/archive/%s/index.html \n\n"%s
     msg_txt += "Sincerely,\n"
     msg_txt += "  your CP2K Dashboard ;-)\n"
 
@@ -220,7 +226,8 @@ def html_header(title):
 
 #===============================================================================
 def html_footer(now):
-    output  = '<p><small>Page last updated: %s</small></p>\n'%now.isoformat()
+    output  = '<p>Need <a href="http://cp2k.org/dev:dashboard">help</a>?</p>\n'
+    output += '<p><small>Page last updated: %s</small></p>\n'%now.isoformat()
     output += '</body></html>'
     return(output)
 
