@@ -20,6 +20,7 @@ MODULE ps_implicit_methods
   USE dielectric_types,                ONLY: dielectric_type
   USE dirichlet_bc_methods,            ONLY: dirichlet_boundary_region_setup
   USE dirichlet_bc_utils,              ONLY: setup_grid_axes
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants,                   ONLY: fourpi
@@ -600,7 +601,7 @@ CONTAINS
     END IF
 
     g%cr3d = fourpi * density%cr3d / dielectric%eps%cr3d
-    g_avg = SUM(g%cr3d) / ngpts
+    g_avg = accurate_sum(g%cr3d) / ngpts
 
     CALL pw_copy(v0, v_old, error=error)
     lambda_old(:)= lambda0
@@ -628,7 +629,7 @@ CONTAINS
 
 ! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
        CALL apply_poisson_operator(pw_pool, green, dielectric, v_new, Axvbar, error)
-       Axvbar_avg = SUM(Axvbar%cr3d) / ngpts
+       Axvbar_avg = accurate_sum(Axvbar%cr3d) / ngpts
        gminusAxvbar_avg = g_avg - Axvbar_avg
        CALL mp_sum(gminusAxvbar_avg, pw_grid%para%group)
 
@@ -874,7 +875,7 @@ CONTAINS
     END IF
 
     g%cr3d = fourpi * density%cr3d / dielectric%eps%cr3d
-    g_avg = SUM(g%cr3d) / ngpts
+    g_avg = accurate_sum(g%cr3d) / ngpts
 
     CALL pw_copy(v0, v_old, error=error)
     lambda_old(:)= lambda0
@@ -909,7 +910,7 @@ CONTAINS
 ! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
        CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
                                    adjust_local_bounds, v_new, Axvbar, error)
-       Axvbar_avg = SUM(Axvbar%cr3d) / ngpts
+       Axvbar_avg = accurate_sum(Axvbar%cr3d) / ngpts
        gminusAxvbar_avg = g_avg - Axvbar_avg
        CALL mp_sum(gminusAxvbar_avg, pw_grid%para%group)
 
@@ -1185,7 +1186,7 @@ CONTAINS
                 tile_pw => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
                 CALL pw_pool_create_pw(pw_pool_orig, pw_in, use_data=REALDATA3D, in_space=REALSPACE, error=error)
                 CALL pw_mollifier(pw_pool_orig, zeta, x_glbl, y_glbl, z_glbl, tile_pw, pw_in, error)
-                smooth_tile_npts = SUM(pw_in%cr3d)
+                smooth_tile_npts = accurate_sum(pw_in%cr3d)
                 CALL mp_sum(smooth_tile_npts, pw_grid_orig%para%group)
                 CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts, error)     ! normalize tile_pw
                 ps_implicit_env%Bt(ps_implicit_env%idx_3dto1d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
@@ -1310,7 +1311,7 @@ CONTAINS
                 tile_pw => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
                 CALL pw_pool_create_pw(pw_pool_orig, pw_in, use_data=REALDATA3D, in_space=REALSPACE, error=error)
                 CALL pw_mollifier(pw_pool_orig, zeta, x_glbl, y_glbl, z_glbl, tile_pw, pw_in, error)
-                smooth_tile_npts = SUM(pw_in%cr3d)
+                smooth_tile_npts = accurate_sum(pw_in%cr3d)
                 CALL mp_sum(smooth_tile_npts, pw_grid_orig%para%group)
                 CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts, error)     ! normalize tile_pw
                 ps_implicit_env%Bt(ps_implicit_env%idx_3dto1d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
@@ -2029,13 +2030,13 @@ CONTAINS
 ! evaluate \Delta^-1(res) = \Delta^-1 (g - \Delta(v_new) - P(v_new) - Bt \lambda)
     CALL apply_inv_laplace_operator(pw_pool, green, res_new, QAinvxres_new, error)
 ! (normalized) preconditioned residual norm error :
-    pres_error = SUM(QAinvxres_new%cr3d(:,:,:)**2)
+    pres_error = accurate_sum(QAinvxres_new%cr3d(:,:,:)**2)
     CALL mp_sum(pres_error, pw_pool%pw_grid%para%group)
     pres_error = SQRT(pres_error) / vol
 
 ! normalized absolute error :
 ! nabs_error := \frac{\| v_old - v_new \|}{volume}
-    nabs_error = SUM(ABS(v_old%cr3d - v_new%cr3d) ** 2)
+    nabs_error = accurate_sum(ABS(v_old%cr3d - v_new%cr3d) ** 2)
     CALL mp_sum(nabs_error, pw_pool%pw_grid%para%group)
     nabs_error = SQRT(nabs_error) / vol
 
@@ -2097,13 +2098,13 @@ CONTAINS
                                     dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
                                     adjust_local_bounds, res_new, QAinvxres_new, error)
 ! (normalized) preconditioned residual norm error :
-    pres_error = SUM(QAinvxres_new%cr3d(:,:,:)**2)
+    pres_error = accurate_sum(QAinvxres_new%cr3d(:,:,:)**2)
     CALL mp_sum(pres_error, pw_pool%pw_grid%para%group)
     pres_error = SQRT(pres_error) / vol
 
 ! normalized absolute error :
 ! nabs_error := \frac{\| v_old - v_new \|}{volume}
-    nabs_error = SUM(ABS(v_old%cr3d - v_new%cr3d) ** 2)
+    nabs_error = accurate_sum(ABS(v_old%cr3d - v_new%cr3d) ** 2)
     CALL mp_sum(nabs_error, pw_pool%pw_grid%para%group)
     nabs_error = SQRT(nabs_error) / vol
 
