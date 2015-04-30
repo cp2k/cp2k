@@ -977,7 +977,6 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     CALL fb_atmatrix_construct_2(H_mat_data, &
                                  atomic_halo, &
-                                 para_env, &
                                  atomic_H, &
                                  atomic_H_blk_row_start, &
                                  atomic_H_blk_col_start, &
@@ -999,7 +998,6 @@ CONTAINS
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     CALL fb_atmatrix_construct_2(S_mat_data, &
                                  atomic_halo, &
-                                 para_env, &
                                  atomic_S, &
                                  atomic_S_blk_row_start, &
                                  atomic_S_blk_col_start, &

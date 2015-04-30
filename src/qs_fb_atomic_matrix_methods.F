@@ -381,7 +381,6 @@ CONTAINS
 !>                         needed for constructing the atomic matrix
 !> \param atomic_halo : the atomic halo conrresponding to this atomic
 !>                      matrix
-!> \param para_env : cp2k parallel environment
 !> \param atomic_matrix : the atomic matrix to be constructed, it should
 !>                        have already been allocated prior entering
 !>                        this subroutine
@@ -394,14 +393,12 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE fb_atmatrix_construct_2(matrix_storage, &
                                      atomic_halo, &
-                                     para_env, &
                                      atomic_matrix, &
                                      blk_row_start, &
                                      blk_col_start, &
                                      error)
     TYPE(fb_matrix_data_obj), INTENT(IN)     :: matrix_storage
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
-    TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: atomic_matrix
     INTEGER, DIMENSION(:), INTENT(IN)        :: blk_row_start, blk_col_start
