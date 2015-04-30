@@ -208,7 +208,7 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_hash_table_get(hash_table, key, val, found, error)
-    TYPE(fb_hash_table_obj), INTENT(INOUT)   :: hash_table
+    TYPE(fb_hash_table_obj), INTENT(IN)      :: hash_table
     INTEGER(KIND=int_8), INTENT(IN)          :: key
     INTEGER, INTENT(OUT)                     :: val
     LOGICAL, INTENT(OUT)                     :: found
