@@ -451,7 +451,6 @@ CONTAINS
                                     S_mat_data, &
                                     halos(ihalo), &
                                     trial_fns, &
-                                    para_env, &
                                     particle_set, &
                                     fermi_level, &
                                     filter_temp, &
@@ -873,7 +872,6 @@ CONTAINS
 !> \param atomic_halo :  the halo that contributes to the blk
 !>                       col of the filter matrix
 !> \param trial_fns   :  trial functions data
-!> \param para_env    : cp2k parallel environment
 !> \param particle_set : set of all particles in the system
 !> \param fermi_level : the fermi level used for defining the filter
 !>                      function, which is a Fermi-Dirac distribution
@@ -891,7 +889,6 @@ CONTAINS
                                      S_mat_data, &
                                      atomic_halo, &
                                      trial_fns, &
-                                     para_env, &
                                      particle_set, &
                                      fermi_level, &
                                      filter_temp, &
@@ -901,7 +898,6 @@ CONTAINS
     TYPE(fb_matrix_data_obj), INTENT(IN)     :: H_mat_data, S_mat_data
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     TYPE(fb_trial_fns_obj), INTENT(IN)       :: trial_fns
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), INTENT(IN)                :: fermi_level, filter_temp
