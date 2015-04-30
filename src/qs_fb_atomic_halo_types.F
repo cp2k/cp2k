@@ -31,9 +31,13 @@ MODULE qs_fb_atomic_halo_types
             fb_atomic_halo_list_obj
 
 ! public methods
-  PUBLIC :: fb_atomic_halo_release,&
+  PUBLIC :: fb_atomic_halo_retain,&
+            fb_atomic_halo_release,&
             fb_atomic_halo_nullify,&
+            fb_atomic_halo_associate,&
+            fb_atomic_halo_has_data,&
             fb_atomic_halo_create,&
+            fb_atomic_halo_init,&
             fb_atomic_halo_get,&
             fb_atomic_halo_set,&
             fb_atomic_halo_sort,&
@@ -45,8 +49,10 @@ MODULE qs_fb_atomic_halo_types
             fb_atomic_halo_list_has_data,&
             fb_atomic_halo_list_associate,&
             fb_atomic_halo_list_create,&
+            fb_atomic_halo_list_init,&
             fb_atomic_halo_list_get,&
-            fb_atomic_halo_list_set
+            fb_atomic_halo_list_set,&
+            fb_atomic_halo_list_write
 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_atomic_halo_types'

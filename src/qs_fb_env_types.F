@@ -28,10 +28,13 @@ MODULE qs_fb_env_types
   PUBLIC :: fb_env_obj
 
 ! public methods
-  PUBLIC :: fb_env_release,&
+  PUBLIC :: fb_env_retain,&
+            fb_env_release,&
             fb_env_nullify,&
+            fb_env_associate,&
             fb_env_has_data,&
             fb_env_create,&
+            fb_env_init,&
             fb_env_get,&
             fb_env_set
 
@@ -52,9 +55,15 @@ MODULE qs_fb_env_types
 !> \param filter_temperature : parameter controlling the smoothness of
 !>                             the filter function during the construction
 !>                             of the filter matrix
-!> \param auto_cutoff_scale : scale multiplied to max atomic orbital
-!>                            radii used for automatic construction of
-!>                            rcut
+!> \param auto_cutoff_scale  : scale multiplied to max atomic orbital
+!>                             radii used for automatic construction of
+!>                             rcut
+!> \param collective_com     : whether the MPI communications are
+!>                             to be done collectively together
+!>                             at the start and end of each
+!>                             filter matrix calculation. This makes
+!>                             communication more efficient in the
+!>                             expense of larger memory usage
 !> \param id_nr : unique id of this object
 !> \param ref_count : reference counter of this object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -66,6 +75,7 @@ MODULE qs_fb_env_types
      TYPE(fb_trial_fns_obj) :: trial_fns
      REAL(KIND=dp) :: filter_temperature
      REAL(KIND=dp) :: auto_cutoff_scale
+     LOGICAL :: collective_com
   END TYPE fb_env_data
 
 
@@ -169,8 +179,8 @@ CONTAINS
 
 ! **********************************************************************
 !> \brief Associates one fb_env object to another
-!> \param a the fb_env object to be associated  
-!> \param b the fb_env object that a is to be associated to  
+!> \param a the fb_env object to be associated
+!> \param b the fb_env object that a is to be associated to
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_associate(a, b)
@@ -187,7 +197,7 @@ CONTAINS
 ! **********************************************************************
 !> \brief Checks if a fb_env object is associated with an actual
 !>        data content or not
-!> \param fb_env the fb_env object  
+!> \param fb_env the fb_env object
 !> \retval res ...
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
@@ -230,6 +240,7 @@ CONTAINS
        CALL fb_trial_fns_nullify(fb_env%obj%trial_fns)
        fb_env%obj%filter_temperature = 0.0_dp
        fb_env%obj%auto_cutoff_scale = 1.0_dp
+       fb_env%obj%collective_com = .TRUE.
        fb_env%obj%ref_count = 1
        fb_env%obj%id_nr = last_fb_env_id + 1
        last_fb_env_id = fb_env%obj%id_nr
@@ -268,6 +279,7 @@ CONTAINS
        CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
        fb_env%obj%filter_temperature = 0.0_dp
        fb_env%obj%auto_cutoff_scale = 1.0_dp
+       fb_env%obj%collective_com = .TRUE.
     END IF
   END SUBROUTINE fb_env_init
 
@@ -285,6 +297,7 @@ CONTAINS
 !>                             attribute of fb_env (optional)
 !> \param trial_fns          : outputs pointer to trial_fns
 !>                             attribute of fb_env (optional)
+!> \param collective_com     : outputs pointer to trial_fns
 !> \param error  : variable to control error logging, stopping, ...
 !>                 see module cp_error_handling
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -295,6 +308,7 @@ CONTAINS
                         auto_cutoff_scale, &
                         atomic_halos, &
                         trial_fns, &
+                        collective_com, &
                         error)
     TYPE(fb_env_obj), INTENT(IN)             :: fb_env
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
@@ -305,6 +319,7 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: atomic_halos
     TYPE(fb_trial_fns_obj), INTENT(OUT), &
       OPTIONAL                               :: trial_fns
+    LOGICAL, INTENT(OUT), OPTIONAL           :: collective_com
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_get', &
@@ -316,13 +331,18 @@ CONTAINS
     CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
     CPPrecondition(fb_env%obj%ref_count>0, cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
-       IF (PRESENT(rcut)) rcut => fb_env%obj%rcut
-       IF (PRESENT(filter_temperature)) filter_temperature = fb_env%obj%filter_temperature
-       IF (PRESENT(auto_cutoff_scale)) auto_cutoff_scale = fb_env%obj%auto_cutoff_scale
+       IF (PRESENT(rcut)) &
+            rcut => fb_env%obj%rcut
+       IF (PRESENT(filter_temperature)) &
+            filter_temperature = fb_env%obj%filter_temperature
+       IF (PRESENT(auto_cutoff_scale)) &
+            auto_cutoff_scale = fb_env%obj%auto_cutoff_scale
        IF (PRESENT(atomic_halos)) &
             CALL fb_atomic_halo_list_associate(atomic_halos, fb_env%obj%atomic_halos)
        IF (PRESENT(trial_fns)) &
             CALL fb_trial_fns_associate(trial_fns, fb_env%obj%trial_fns)
+       IF (PRESENT(collective_com)) &
+            collective_com = fb_env%obj%collective_com
     END IF
   END SUBROUTINE fb_env_get
 
@@ -336,6 +356,7 @@ CONTAINS
 !> \param auto_cutoff_scale  : sets auto_cutoff_scale attribute of fb_env (optional)
 !> \param atomic_halos       : sets atomic_halos attribute of fb_env (optional)
 !> \param trial_fns          : sets trial_fns attribute of fb_env (optional)
+!> \param collective_com     : sets collective_com attribute of fb_env (optional)
 !> \param error  : variable to control error logging, stopping, ...
 !>                 see module cp_error_handling
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
@@ -346,6 +367,7 @@ CONTAINS
                         auto_cutoff_scale, &
                         atomic_halos, &
                         trial_fns, &
+                        collective_com, &
                         error)
     TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
@@ -356,6 +378,7 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: atomic_halos
     TYPE(fb_trial_fns_obj), INTENT(IN), &
       OPTIONAL                               :: trial_fns
+    LOGICAL, INTENT(IN), OPTIONAL            :: collective_com
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_set', &
@@ -390,6 +413,8 @@ CONTAINS
           CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
           CALL fb_trial_fns_associate(fb_env%obj%trial_fns, trial_fns)
        END IF
+       IF (PRESENT(collective_com)) &
+            fb_env%obj%collective_com = collective_com
     END IF
   END SUBROUTINE fb_env_set
 

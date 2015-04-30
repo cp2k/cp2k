@@ -66,7 +66,8 @@ MODULE qs_fb_env_methods
                                              fb_env_has_data,&
                                              fb_env_obj,&
                                              fb_env_set
-  USE qs_fb_filter_matrix_methods,     ONLY: fb_fltrmat_build
+  USE qs_fb_filter_matrix_methods,     ONLY: fb_fltrmat_build,&
+                                             fb_fltrmat_build_2
   USE qs_fb_trial_fns_types,           ONLY: fb_trial_fns_create,&
                                              fb_trial_fns_nullify,&
                                              fb_trial_fns_obj,&
@@ -107,6 +108,8 @@ MODULE qs_fb_env_methods
             fb_env_read_input,&
             fb_env_build_rcut_auto,&
             fb_env_build_atomic_halos,&
+            fb_env_build_trial_fns_auto,&
+            fb_dbcsr_copy_sparse_struct,&
             fb_env_write_info
 
 
@@ -149,7 +152,8 @@ CONTAINS
       original_nfullrowsORcols_total, stat
     INTEGER, DIMENSION(:), POINTER           :: filtered_rowORcol_block_sizes,&
                                                 original_rowORcol_block_sizes
-    LOGICAL                                  :: failure, use_jacobi
+    LOGICAL                                  :: collective_com, failure, &
+                                                use_jacobi
     REAL(kind=dp) :: diis_error, eps_diis, fermi_level, filter_temp, &
       flexible_electron_count, KTS_filtered, maxocc, mu_filtered
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
@@ -334,17 +338,34 @@ CONTAINS
        !                       error=error)
 !END:ORIG:LT:2015/01/2
 !BEG:REPL:LT:2015/01/2
-       CALL fb_fltrmat_build(H_mat=matrix_ks_desymm%matrix, &
-                             S_mat=matrix_s_desymm%matrix, &
-                             atomic_halos=atomic_halos, &
-                             trial_fns=trial_fns, &
-                             para_env=para_env, &
-                             particle_set=particle_set, &
-                             fermi_level=fermi_level, &
-                             filter_temp=filter_temp, &
-                             name=name, &
-                             filter_mat=matrix_filter(ispin)%matrix, &
-                             error=error)
+       CALL fb_env_get(fb_env=fb_env, &
+                       collective_com=collective_com, &
+                       error=error)
+       IF (collective_com) THEN
+          CALL fb_fltrmat_build_2(H_mat=matrix_ks_desymm%matrix, &
+                                  S_mat=matrix_s_desymm%matrix, &
+                                  atomic_halos=atomic_halos, &
+                                  trial_fns=trial_fns, &
+                                  para_env=para_env, &
+                                  particle_set=particle_set, &
+                                  fermi_level=fermi_level, &
+                                  filter_temp=filter_temp, &
+                                  name=name, &
+                                  filter_mat=matrix_filter(ispin)%matrix, &
+                                  error=error)
+       ELSE
+          CALL fb_fltrmat_build(H_mat=matrix_ks_desymm%matrix, &
+                                S_mat=matrix_s_desymm%matrix, &
+                                atomic_halos=atomic_halos, &
+                                trial_fns=trial_fns, &
+                                para_env=para_env, &
+                                particle_set=particle_set, &
+                                fermi_level=fermi_level, &
+                                filter_temp=filter_temp, &
+                                name=name, &
+                                filter_mat=matrix_filter(ispin)%matrix, &
+                                error=error)
+       END IF
 !END:REPL:LT:2015/01/2
 
        ! ----------------------------------------------------------------------
@@ -712,7 +733,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, l_val
     REAL(KIND=dp)                            :: r_val
     TYPE(section_vals_type), POINTER         :: fb_section
 
@@ -737,6 +758,13 @@ CONTAINS
                               error=error)
     CALL fb_env_set(fb_env=fb_env, &
                     auto_cutoff_scale=r_val, &
+                    error=error)
+    ! communication model
+    CALL section_vals_val_get(fb_section, "COLLECTIVE_COMMUNICATION", &
+                              l_val=l_val, &
+                              error=error)
+    CALL fb_env_set(fb_env=fb_env, &
+                    collective_com=l_val, &
                     error=error)
 
     CALL timestop(handle)
@@ -1288,7 +1316,7 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: handle, ikind, nkinds, unit_nr
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: collective_com, failure
     REAL(KIND=dp)                            :: auto_cutoff_scale, &
                                                 filter_temperature
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut
@@ -1308,6 +1336,7 @@ CONTAINS
                     filter_temperature=filter_temperature, &
                     auto_cutoff_scale=auto_cutoff_scale, &
                     rcut=rcut, &
+                    collective_com=collective_com, &
                     error=error)
 
     nkinds = SIZE(atomic_kind_set)
@@ -1318,7 +1347,16 @@ CONTAINS
                                    extension="", &
                                    error=error)
     IF (unit_nr > 0) THEN
-       WRITE (UNIT=unit_nr, FMT="(/,A,T71,g10.4)") &
+       IF (collective_com) THEN
+          WRITE (UNIT=unit_nr, FMT="(/,A,T71,A)") &
+               "FILTER_MAT_DIAG| MPI communication method:", &
+               "Collective"
+       ELSE
+          WRITE (UNIT=unit_nr, FMT="(/,A,T71,A)") &
+               "FILTER_MAT_DIAG| MPI communication method:", &
+               "At each step"
+       END IF
+       WRITE (UNIT=unit_nr, FMT="(A,T71,g10.4)") &
              "FILTER_MAT_DIAG| Filter temperature [K]:", &
              cp_unit_from_cp2k(filter_temperature, "K", error=error)
        WRITE (UNIT=unit_nr, FMT="(A,T71,f10.4)") &
