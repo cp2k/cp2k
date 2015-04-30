@@ -67,7 +67,7 @@ def main():
         print("\nSummary: Something went wrong")
         print("Status: FAILED")
     else:
-        print("\nSummary: Runtime varied at most by %.1f%% (threshold: %.1f%%)"%(max_diff_rel, threshold))
+        print("\nSummary: Runtime varied by %.1f%% (threshold: %.1f%%)"%(max_diff_rel, threshold))
         print("Status: OK" if(max_diff_rel<threshold) else "Status: FAILED")
 
 
