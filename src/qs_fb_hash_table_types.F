@@ -1,3 +1,8 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
 ! *****************************************************************************
 !> \brief A simple hash table of integer keys, using hash function:
 !>          H(k) = (k*p) mod n + 1
