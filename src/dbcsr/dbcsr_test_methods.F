@@ -23,7 +23,7 @@ MODULE dbcsr_test_methods
                                              dbcsr_data_set
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_get_sizes, dbcsr_data_get_type, &
-       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
+       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, dbcsr_scalar, &
        dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_type_1d_to_2d, &
        dbcsr_type_2d_to_1d
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_hold,&
@@ -57,9 +57,10 @@ MODULE dbcsr_test_methods
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, dbcsr_mp_obj, &
-       dbcsr_obj, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
-       dbcsr_type_hermitian, dbcsr_type_no_symmetry, dbcsr_type_real_default, &
-       dbcsr_type_symmetric
+       dbcsr_obj, dbcsr_scalar_type, dbcsr_type_antihermitian, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_4, dbcsr_type_complex_8, &
+       dbcsr_type_hermitian, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
+       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric
   USE dbcsr_util,                      ONLY: dbcsr_verify_matrix
   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
                                              dbcsr_finalize,&
@@ -67,6 +68,7 @@ MODULE dbcsr_test_methods
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_8,&
+                                             real_4,&
                                              real_8
   USE message_passing,                 ONLY: mp_comm_null,&
                                              mp_environ
@@ -79,12 +81,37 @@ MODULE dbcsr_test_methods
 
   PUBLIC :: dbcsr_to_dense_local, dbcsr_impose_sparsity
   PUBLIC :: dbcsr_random_dist, dbcsr_make_random_matrix,&
-            dbcsr_make_random_block_sizes, dbcsr_test_read_args,&
-            atoi, atol, ator
+            dbcsr_make_random_block_sizes, compx_to_dbcsr_scalar,&
+            dbcsr_test_read_args, atoi, atol, ator
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_test_methods'
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief ...
+!> \param z ...
+!> \param data_type ...
+!> \retval res ...
+! *****************************************************************************
+  FUNCTION compx_to_dbcsr_scalar(z, data_type) RESULT(res)
+    COMPLEX(real_8)                          :: z
+    INTEGER                                  :: data_type
+    TYPE(dbcsr_scalar_type)                  :: res
+
+     SELECT CASE (data_type)
+          CASE (dbcsr_type_real_4)
+             res = dbcsr_scalar(REAL(z, kind=real_4))
+          CASE (dbcsr_type_real_8)
+             res = dbcsr_scalar(REAL(z, kind=real_8))
+          CASE (dbcsr_type_complex_4)
+             res = dbcsr_scalar(CMPLX(z, kind=real_4))
+          CASE (dbcsr_type_complex_8)
+             res = dbcsr_scalar(z)
+          END SELECT
+
+   END FUNCTION compx_to_dbcsr_scalar
+
 
 ! *****************************************************************************
 !> \brief ...

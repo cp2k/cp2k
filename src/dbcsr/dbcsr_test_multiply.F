@@ -17,7 +17,6 @@ MODULE dbcsr_test_multiply
                                              dbcsr_data_init,&
                                              dbcsr_data_new,&
                                              dbcsr_data_release,&
-                                             dbcsr_scalar,&
                                              dbcsr_scalar_negative,&
                                              dbcsr_scalar_one,&
                                              dbcsr_type_1d_to_2d
@@ -29,8 +28,7 @@ MODULE dbcsr_test_multiply
                                              dbcsr_error_stop,&
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
-                                             dbcsr_internal_error,&
-                                             dbcsr_wrong_args_error
+                                             dbcsr_internal_error
   USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_get_data_type, &
@@ -41,9 +39,7 @@ MODULE dbcsr_test_multiply
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
                                              dbcsr_get_occupation,&
                                              dbcsr_scale
-  USE dbcsr_test_methods,              ONLY: atoi,&
-                                             atol,&
-                                             ator,&
+  USE dbcsr_test_methods,              ONLY: compx_to_dbcsr_scalar,&
                                              dbcsr_impose_sparsity,&
                                              dbcsr_make_random_block_sizes,&
                                              dbcsr_make_random_matrix,&
@@ -79,120 +75,11 @@ MODULE dbcsr_test_multiply
 
 CONTAINS
 
-! *****************************************************************************
-!> \brief ...
-!> \param group ...
-!> \param mp_env ...
-!> \param npdims ...
-!> \param io_unit ...
-!> \param narg ...
-!> \param args ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_test_multiplies (group, mp_env, npdims, io_unit, narg, args, error)
-
-    INTEGER                                  :: group
-    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
-    INTEGER, DIMENSION(2), INTENT(in)        :: npdims
-    INTEGER                                  :: io_unit, narg
-    CHARACTER(len=*), DIMENSION(:), &
-      INTENT(IN)                             :: args
-    TYPE(dbcsr_error_type)                   :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_test_multiplies', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, iblk, istat, kblk_to_read, &
-                                                limits(6), matrix_sizes(3), &
-                                                mblk_to_read, nblk_to_read
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: bs_k, bs_m, bs_n
-    LOGICAL                                  :: retain_sparsity
-    REAL(real_8)                             :: alpha(2), beta(2), &
-                                                sparsities(3)
-
-!
-! parsing
-
-    CALL dbcsr_assert (narg.GE.21 , dbcsr_fatal_level, dbcsr_wrong_args_error, &
-         routineN, "narg not correct", __LINE__, error)
-
-     matrix_sizes(1) = atoi(args(2))
-     matrix_sizes(2) = atoi(args(3))
-     matrix_sizes(3) = atoi(args(4))
-     sparsities(1)   = ator(args(5))
-     sparsities(2)   = ator(args(6))
-     sparsities(3)   = ator(args(7))
-     alpha(1)        = ator(args(8))
-     alpha(2)        = ator(args(9))
-     beta(1)         = ator(args(10))
-     beta(2)         = ator(args(11))
-     limits(1)       = atoi(args(12))
-     limits(2)       = atoi(args(13))
-     limits(3)       = atoi(args(14))
-     limits(4)       = atoi(args(15))
-     limits(5)       = atoi(args(16))
-     limits(6)       = atoi(args(17))
-     retain_sparsity = atol(args(18))
-     mblk_to_read    = atoi(args(19))
-     nblk_to_read    = atoi(args(20))
-     kblk_to_read    = atoi(args(21))
-
-     CALL dbcsr_assert (narg.GE.21+2*(mblk_to_read+nblk_to_read+kblk_to_read) , &
-          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "narg not correct", &
-          __LINE__, error)
-
-     ALLOCATE(bs_m(2*mblk_to_read), bs_n(2*nblk_to_read), bs_k(2*kblk_to_read), STAT=istat)
-     CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-          routineN, "allocattion problem", __LINE__, error)
-
-     i = 21
-     DO iblk = 1,mblk_to_read
-        i = i + 1
-        bs_m(2*(iblk-1)+1) = atoi(args(i))
-        i = i + 1
-        bs_m(2*(iblk-1)+2) = atoi(args(i))
-     END DO
-     DO iblk = 1,nblk_to_read
-        i = i + 1
-        bs_n(2*(iblk-1)+1) = atoi(args(i))
-        i = i + 1
-        bs_n(2*(iblk-1)+2) = atoi(args(i))
-     END DO
-     DO iblk = 1,kblk_to_read
-        i = i + 1
-        bs_k(2*(iblk-1)+1) = atoi(args(i))
-        i = i + 1
-        bs_k(2*(iblk-1)+2) = atoi(args(i))
-     END DO
-
-     !
-     ! do checks here
-
-     !
-     ! if the limits are not specified (i.e 0), we set them here
-     IF (limits(1).EQ.0) limits(1) = 1
-     IF (limits(2).EQ.0) limits(2) = matrix_sizes(1)
-     IF (limits(3).EQ.0) limits(3) = 1
-     IF (limits(4).EQ.0) limits(4) = matrix_sizes(2)
-     IF (limits(5).EQ.0) limits(5) = 1
-     IF (limits(6).EQ.0) limits(6) = matrix_sizes(3)
-
-     !
-     ! lets go !
-     CALL dbcsr_test_multiply_low (group, mp_env, npdims, io_unit, matrix_sizes, &
-          bs_m, bs_n, bs_k, sparsities, &
-          alpha, beta, limits, retain_sparsity, error=error)
-
-     DEALLOCATE(bs_m, bs_n, bs_k, STAT=istat)
-     CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-          routineN, "deallocattion problem",__LINE__,error)
-
-   END SUBROUTINE dbcsr_test_multiplies
-
 
 ! *****************************************************************************
 !> \brief Performs a variety of matrix multiplies of same matrices on different
 !>        processor grids
+!> \param test_name ...
 !> \param[in] mp_group          MPI communicator
 !> \param mp_env ...
 !> \param npdims ...
@@ -202,29 +89,30 @@ CONTAINS
 !> \param bs_n block sizes of the 3 dimension
 !> \param bs_k block sizes of the 3 dimension
 !> \param[in] sparsities        sparsities of matrices to create
-!> \param alpha_in alpha value to use in multiply
-!> \param beta_in beta value to use in multiply
+!> \param alpha alpha value to use in multiply
+!> \param beta beta value to use in multiply
 !> \param limits ...
 !> \param retain_sparsity ...
 !> \param[in,out] error         cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_test_multiply_low (mp_group, mp_env, npdims, io_unit, &
+  SUBROUTINE dbcsr_test_multiplies(test_name, mp_group, mp_env, npdims, io_unit, &
        matrix_sizes, bs_m, bs_n, bs_k, sparsities, &
-       alpha_in, beta_in, limits, retain_sparsity, error)
+       alpha, beta, limits, retain_sparsity, error)
+    CHARACTER(len=*), INTENT(IN)             :: test_name
     INTEGER, INTENT(IN)                      :: mp_group
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER, DIMENSION(2), INTENT(in)        :: npdims
     INTEGER, INTENT(IN)                      :: io_unit
     INTEGER, DIMENSION(:), INTENT(in)        :: matrix_sizes, bs_m, bs_n, bs_k
     REAL(real_8), DIMENSION(3), INTENT(in)   :: sparsities
-    REAL(real_8), DIMENSION(2), INTENT(in)   :: alpha_in, beta_in
+    COMPLEX(real_8), INTENT(in)              :: alpha, beta
     INTEGER, DIMENSION(6), INTENT(in)        :: limits
     LOGICAL, INTENT(in)                      :: retain_sparsity
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: &
       fmt_desc = '(A,3(1X,I6),1X,A,2(1X,I5),1X,A,2(1X,L1))', &
-      routineN = 'dbcsr_test_multiply_low', routineP = moduleN//':'//routineN
+      routineN = 'dbcsr_test_multiplies', routineP = moduleN//':'//routineN
     CHARACTER, DIMENSION(3), PARAMETER :: trans = (/dbcsr_no_transpose, &
       dbcsr_transpose, dbcsr_conjugate_transpose/)
     CHARACTER, DIMENSION(3, 12), PARAMETER :: symmetries = RESHAPE((/&
@@ -259,7 +147,7 @@ CONTAINS
     TYPE(dbcsr_data_obj)                     :: data_a, data_b, data_c, &
                                                 data_c_dbcsr
     TYPE(dbcsr_obj)                          :: matrix_a, matrix_b, matrix_c
-    TYPE(dbcsr_scalar_type)                  :: alpha, beta
+    TYPE(dbcsr_scalar_type)                  :: alpha_obj, beta_obj
 
 !   ---------------------------------------------------------------------------
 
@@ -270,11 +158,12 @@ CONTAINS
     ! print
     CALL mp_environ (numnodes, mynode, mp_group)
     IF (io_unit .GT. 0) THEN
+       WRITE(io_unit,*) 'test_name ',test_name
        WRITE(io_unit,*) 'numnodes',numnodes
        WRITE(io_unit,*) 'matrix_sizes',matrix_sizes
        WRITE(io_unit,*) 'sparsities',sparsities
-       WRITE(io_unit,*) 'alpha_in',alpha_in
-       WRITE(io_unit,*) 'beta_in',beta_in
+       WRITE(io_unit,*) 'alpha',alpha
+       WRITE(io_unit,*) 'beta',beta
        WRITE(io_unit,*) 'limits',limits
        WRITE(io_unit,*) 'retain_sparsity',retain_sparsity
        WRITE(io_unit,*) 'bs_m',bs_m
@@ -300,20 +189,8 @@ CONTAINS
 
           do_complex = TYPE.EQ.dbcsr_type_complex_4.OR.TYPE.EQ.dbcsr_type_complex_8
 
-          SELECT CASE (TYPE)
-          CASE (dbcsr_type_real_4)
-             alpha = dbcsr_scalar(REAL(alpha_in(1), real_4))
-             beta  = dbcsr_scalar(REAL(beta_in(1), real_4))
-          CASE (dbcsr_type_real_8)
-             alpha = dbcsr_scalar(REAL(alpha_in(1), real_8))
-             beta  = dbcsr_scalar(REAL(beta_in(1), real_8))
-          CASE (dbcsr_type_complex_4)
-             alpha = dbcsr_scalar(CMPLX(alpha_in(1), alpha_in(2), real_4))
-             beta  = dbcsr_scalar(CMPLX(beta_in(1),  beta_in(2), real_4))
-          CASE (dbcsr_type_complex_8)
-             alpha = dbcsr_scalar(CMPLX(alpha_in(1), alpha_in(2), real_8))
-             beta  = dbcsr_scalar(CMPLX(beta_in(1),  beta_in(2), real_8))
-          END SELECT
+          alpha_obj = compx_to_dbcsr_scalar(alpha, TYPE)
+          beta_obj  = compx_to_dbcsr_scalar(beta,  TYPE)
 
           !
           ! loop over transpositions
@@ -429,7 +306,7 @@ CONTAINS
                 CALL dbcsr_copy (matrix_b, matrix_a, error=error)
                 !print*, a_symm,b_symm,dbcsr_get_matrix_type(matrix_a),dbcsr_get_matrix_type(matrix_b)
                 IF (c_symm.EQ.dbcsr_type_antisymmetric) THEN
-                   CALL dbcsr_scale (matrix_b, &
+                   CALL dbcsr_scale(matrix_b, &
                         alpha_scalar=dbcsr_scalar_negative(&
                                 dbcsr_scalar_one(TYPE)), error=error)
                 END IF
@@ -457,11 +334,11 @@ CONTAINS
 
              !
              ! Prepare test parameters
-             CALL test_multiply (mp_group, mp_env, npdims, io_unit,&
+             CALL test_multiply (test_name, mp_group, mp_env, npdims, io_unit,&
                   matrix_a, matrix_b, matrix_c, &
                   data_a, data_b, data_c, data_c_dbcsr, &
                   transa, transb,&
-                  alpha, beta,&
+                  alpha_obj, beta_obj,&
                   limits, retain_sparsity, &
                   error=error)
              !
@@ -483,11 +360,12 @@ CONTAINS
 
     CALL dbcsr_error_stop (error_handler, error)
 
-  END SUBROUTINE dbcsr_test_multiply_low
+  END SUBROUTINE dbcsr_test_multiplies
 
 ! *****************************************************************************
 !> \brief Performs a variety of matrix multiplies of same matrices on different
 !>        processor grids
+!> \param test_name ...
 !> \param[in] mp_group          MPI communicator
 !> \param mp_env ...
 !> \param npdims ...
@@ -507,11 +385,12 @@ CONTAINS
 !> \param retain_sparsity ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE test_multiply (mp_group, mp_env, npdims, io_unit,&
+  SUBROUTINE test_multiply (test_name, mp_group, mp_env, npdims, io_unit,&
        matrix_a, matrix_b, matrix_c,&
        data_a, data_b, data_c, data_c_dbcsr, &
        transa, transb, alpha, beta, limits, retain_sparsity,&
        error)
+    CHARACTER(len=*), INTENT(IN)             :: test_name
     INTEGER, INTENT(IN)                      :: mp_group
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER, DIMENSION(2), INTENT(in)        :: npdims
@@ -650,7 +529,7 @@ CONTAINS
 
     CALL dbcsr_replicate_all (m_c, error=error)
     CALL dbcsr_to_dense_local (m_c, data_c_dbcsr, error=error)
-    CALL dbcsr_check_multiply (m_c, data_c_dbcsr, data_a, data_b, data_c, &
+    CALL dbcsr_check_multiply (test_name, m_c, data_c_dbcsr, data_a, data_b, data_c, &
          transa, transb, alpha, beta, limits, retain_sparsity, io_unit, mp_group, &
          success, error=error)
 
@@ -679,8 +558,8 @@ CONTAINS
                ", ",dbcsr_get_matrix_type(m_c),&
                ") ... FAILED !"
           WRITE(io_unit, *) REPEAT("*",70)
-          !CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-          !     routineN, 'for the moment, we stop', __LINE__, error)
+          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
+               routineN, 'Test failed', __LINE__, error)
        END IF
     END IF
 
@@ -695,6 +574,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Performs a check of matrix multiplies
+!> \param test_name ...
 !> \param matrix_c ...
 !> \param[in] dense_c_dbcsr             dense result of the dbcsr_multiply
 !> \param dense_a input dense matrices
@@ -712,10 +592,10 @@ CONTAINS
 !> \param[inout] error                  dbcsr error
 !>
 ! *****************************************************************************
-  SUBROUTINE dbcsr_check_multiply (matrix_c, dense_c_dbcsr, dense_a, dense_b, dense_c,&
+  SUBROUTINE dbcsr_check_multiply (test_name, matrix_c, dense_c_dbcsr, dense_a, dense_b, dense_c,&
        transa, transb, alpha, beta, limits, retain_sparsity, io_unit, mp_group, &
        success, error)
-
+    CHARACTER(len=*), INTENT(IN)             :: test_name
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_c
     TYPE(dbcsr_data_obj), INTENT(inout)      :: dense_c_dbcsr, dense_a, &
                                                 dense_b, dense_c
@@ -951,6 +831,7 @@ CONTAINS
     !
     ! printing
     IF (io_unit .GT. 0) THEN
+       WRITE(io_unit,*) 'test_name ', test_name
        WRITE(io_unit,'(3(A,E12.5))') ' residual ',residual,', a_norm ',a_norm,', b_norm ',b_norm
        WRITE(io_unit,'(3(A,E12.5))') ' c_norm_in ',c_norm_in,', c_norm_out ',c_norm_out,&
             ', c_norm_dbcsr ',c_norm_dbcsr
