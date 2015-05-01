@@ -52,10 +52,9 @@ MODULE force_env_methods
   USE eip_silicon,                     ONLY: eip_bazant,&
                                              eip_lenosky
   USE external_potential_methods,      ONLY: add_external_potential
-  USE fist_environment_types,          ONLY: fist_env_get,&
-                                             fist_env_retain,&
+  USE fist_environment_types,          ONLY: fist_env_retain,&
                                              fist_environment_type
-  USE fist_force,                      ONLY: fist_force_control
+  USE fist_force,                      ONLY: fist_calc_energy_force
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_get_natom, force_env_p_type, force_env_set, &
        force_env_type, use_eip_force, use_fist_force, use_mixed_force, &
@@ -235,10 +234,7 @@ CONTAINS
        IF (eval_ef) THEN
           SELECT CASE ( force_env%in_use )
           CASE ( use_fist_force )
-             CALL fist_force_control( force_env%fist_env, virial, atprop_env,&
-                  force_env%para_env, force_env_section=force_env%force_env_section,&
-                  error=error)
-             CALL fist_env_get(fist_env=force_env%fist_env,error=error)
+             CALL fist_calc_energy_force(force_env%fist_env, error=error)
           CASE ( use_qs_force )
              CALL set_qs_env(qs_env=force_env%qs_env,error=error)
              force_env%qs_env%linres_run = linres_run

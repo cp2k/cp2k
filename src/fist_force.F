@@ -26,6 +26,8 @@ MODULE fist_force
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
   USE cp_result_types,                 ONLY: cp_result_type
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -79,7 +81,7 @@ MODULE fist_force
 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: fist_force_control
+  PUBLIC :: fist_calc_energy_force
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_force'
 
 ! *****************************************************************************
@@ -98,15 +100,12 @@ MODULE fist_force
 
 CONTAINS
 
+
 ! *****************************************************************************
 !> \brief Calculates the total potential energy, total force, and the
 !>      total pressure tensor from the potentials
 !> \param fist_env ...
-!> \param virial ...
-!> \param atprop_env ...
-!> \param para_env ...
 !> \param debug ...
-!> \param force_env_section ...
 !> \param error ...
 !> \par History
 !>      Harald Forbert(Dec-2000): Changes for multiple linked lists
@@ -118,18 +117,13 @@ CONTAINS
 !>      cjm, 28-Feb-2006: box_change is gone
 !> \author CJM & JGH
 ! *****************************************************************************
-  SUBROUTINE fist_force_control(fist_env, virial, atprop_env, &
-       para_env, debug, force_env_section, error)
+  SUBROUTINE fist_calc_energy_force(fist_env, debug, error)
     TYPE(fist_environment_type), POINTER     :: fist_env
-    TYPE(virial_type), POINTER               :: virial
-    TYPE(atprop_type), POINTER               :: atprop_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(debug_variables_type), &
       INTENT(INOUT), OPTIONAL                :: debug
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fist_force_control', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'fist_calc_energy_force', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: do_ipol, ewald_type, fg_coulomb_size, handle, i, ii, ikind, &
@@ -152,8 +146,11 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(atprop_type), POINTER               :: atprop_env
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -171,13 +168,28 @@ CONTAINS
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
-    TYPE(section_vals_type), POINTER         :: mm_section, print_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                mm_section, print_section
     TYPE(shell_kind_type), POINTER           :: shell
+    TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(logger)
+    NULLIFY(subsys,virial,atprop_env,para_env,force_env_section)
     logger => cp_error_get_logger(error)
+
+    CALL fist_env_get(fist_env,&
+                      subsys=subsys,&
+                      para_env=para_env,&
+                      input=force_env_section,&
+                      error=error)
+
+    CALL cp_subsys_get(subsys,&
+                       virial=virial,&
+                       atprop=atprop_env,&
+                       error=error)
+
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     NULLIFY(atomic_kind,atomic_kind_set,cell,ewald_pw,ewald_env,&
          fist_nonbond_env,mm_section,local_molecules,local_particles,&
@@ -915,7 +927,7 @@ CONTAINS
     CALL cp_print_key_finished_output(iw2,logger,mm_section,"PRINT%EWALD_INFO",error=error)
     CALL timestop(handle)
 
-END SUBROUTINE fist_force_control
+END SUBROUTINE fist_calc_energy_force
 
 ! *****************************************************************************
 !> \brief Print properties number according the requests in input file
