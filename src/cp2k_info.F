@@ -44,8 +44,8 @@ MODULE cp2k_info
   CHARACTER(LEN=*), PARAMETER :: compile_revision = "unknown"
 #endif
 
-  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.6"
-  CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2014"
+  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.6.1"
+  CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2015"
   CHARACTER(LEN=*), PARAMETER :: cp2k_version    = "CP2K version "//TRIM(version_nr)
   CHARACTER(LEN=*), PARAMETER :: cp2k_home       = "http://www.cp2k.org/"
 
@@ -90,7 +90,7 @@ CONTAINS
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2000, 2001, 2002, 2003  CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2004, 2005, 2006, 2007  CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!   Copyright (C) 2008, 2009, 2010, 2011  CP2K developers group               !'
-     WRITE(iunit,'(T2,A)') '!   Copyright (C) 2012, 2013, 2014        CP2K developers group               !'
+     WRITE(iunit,'(T2,A)') '!   Copyright (C) 2012, 2013, 2014, 2015  CP2K developers group               !'
      WRITE(iunit,'(T2,A)') '!                                                                             !'
      WRITE(iunit,'(T2,A)') '!   This program is free software; you can redistribute it and/or modify      !'
      WRITE(iunit,'(T2,A)') '!   it under the terms of the GNU General Public License as published by      !'
