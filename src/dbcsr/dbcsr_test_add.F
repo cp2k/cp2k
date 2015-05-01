@@ -86,8 +86,6 @@ CONTAINS
 !> \param limits ...
 !> \param retain_sparsity ...
 !> \param[in,out] error         cp2k error
-!> \param[in] alpha_in alpha value to use in multiply UNMATCHED_PROCEDURE_ARGUMENT: please check 
-!> \param[in] beta_in alpha value to use in multiply UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
   SUBROUTINE dbcsr_test_adds(test_name, mp_group, mp_env, npdims, io_unit, &
        matrix_sizes, bs_m, bs_n, sparsities, &
