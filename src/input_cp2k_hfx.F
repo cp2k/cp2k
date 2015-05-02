@@ -325,7 +325,7 @@ CONTAINS
             description="Location of the file t_c_g.dat that contains the data for the "//&
                         "evaluation of the truncated gamma function ",&
             usage="T_C_G_DATA /data/t_c_g.dat",&
-            default_c_val="../../t_c_g.dat",&  ! this is tests/QS i.e. regtests are possible
+            default_c_val="t_c_g.dat",&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

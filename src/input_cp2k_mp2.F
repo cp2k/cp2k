@@ -747,8 +747,8 @@ CONTAINS
             name="TShPSC_DATA",&
             description="Location of the file TShPSC.dat that contains the data for the "//&
                         "evaluation of the TShPSC G0 ",&
-            usage="TShPSC_DATA /data/t_sh_p_s_c.dat",&
-            default_c_val="../../t_sh_p_s_c.dat",&  ! this is tests/QS i.e. regtests are possible
+            usage="TShPSC_DATA t_sh_p_s_c.dat",&
+            default_c_val="t_sh_p_s_c.dat",&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
