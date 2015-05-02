@@ -516,10 +516,10 @@ CONTAINS
 
     CALL GET_ENVIRONMENT_VARIABLE("CP2K_DATA_DIR", data_path, status=stat)
     IF(stat == 0) &
-        candidates(2) = TRIM(data_path) // TRIM(file_name)
+        candidates(2) = join_paths(data_path, file_name)
 
 #if defined(__DATA_DIR)
-     candidates(3) = __DATA_DIR // TRIM(file_name)
+     candidates(3) = join_paths(__DATA_DIR, file_name)
 #endif
 
     real_file_name = file_name !fall back in case file not found
@@ -533,6 +533,29 @@ CONTAINS
     ENDDO
 
   END FUNCTION discover_file
+
+! *****************************************************************************
+!> \brief Joins two file-paths, inserting '/' as needed.
+!> \param path1 ...
+!> \param path2 ...
+!> \retval joined_path ...
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION join_paths(path1, path2) RESULT(joined_path)
+    CHARACTER(LEN=*), INTENT(IN)             :: path1, path2
+    CHARACTER(LEN=default_path_length)       :: joined_path
+
+    INTEGER                                  :: n
+
+    n = LEN_TRIM(path1)
+    IF(path2(1:1)=='/') THEN
+        joined_path = path2
+    ELSE IF(n==0 .OR. path1(n:n)=='/') THEN
+        joined_path = TRIM(path1) // path2
+    ELSE
+        joined_path = TRIM(path1) // '/' // path2
+    ENDIF
+  END FUNCTION join_paths
 
 ! *****************************************************************************
 !> \brief Print the list of preconnected units
