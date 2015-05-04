@@ -60,7 +60,8 @@ MODULE pexsi_methods
 
   LOGICAL, PARAMETER, PRIVATE          :: careful_mod = .FALSE.
 
-  PUBLIC :: density_matrix_pexsi, pexsi_init_read_input, pexsi_to_qs, pexsi_init_scf, pexsi_finalize_scf
+  PUBLIC :: density_matrix_pexsi, pexsi_init_read_input, pexsi_to_qs, pexsi_init_scf, pexsi_finalize_scf, &
+            pexsi_set_convergence_tolerance
 
 CONTAINS
 
@@ -85,8 +86,9 @@ CONTAINS
     INTEGER :: isInertiaCount_int, maxPEXSIIter, min_ranks_per_pole, &
       npSymbFact, numPole, ordering, verbosity
     LOGICAL                                  :: csr_screening, isInertiaCount
-    REAL(KIND=dp) :: gap, mu0, muInertiaExpansion, muInertiaTolerance, &
-      muMax0, muMin0, muPEXSISafeGuard, numElectronPEXSITolerance, temperature
+    REAL(KIND=dp) :: gap, muInertiaExpansion, muInertiaTolerance, muMax0, &
+      muMin0, muPEXSISafeGuard, numElectronInitialTolerance, &
+      numElectronTargetTolerance, temperature
 
 ! Note: omitting the following PEXSI options: deltaE (estimated by Arnoldi 
 ! before invoking PEXSI), mu0 (taken from previous SCF step), matrixType 
@@ -113,8 +115,10 @@ CONTAINS
       r_val=muInertiaExpansion,error=error)
     CALL section_vals_val_get(pexsi_section,"MU_PEXSI_SAFE_GUARD",&
       r_val=muPEXSISafeGuard,error=error)
+    CALL section_vals_val_get(pexsi_section,"NUM_ELECTRON_INITIAL_TOLERANCE",&
+      r_val=numElectronInitialTolerance,error=error)
     CALL section_vals_val_get(pexsi_section,"NUM_ELECTRON_PEXSI_TOLERANCE",&
-      r_val=numElectronPEXSITolerance,error=error)
+      r_val=numElectronTargetTolerance,error=error)
     CALL section_vals_val_get(pexsi_section,"ORDERING",&
       i_val=ordering,error=error)
     CALL section_vals_val_get(pexsi_section,"NP_SYMB_FACT",&
@@ -134,13 +138,18 @@ CONTAINS
     ! Pass CP2K input to PEXSI options
     CALL cp_pexsi_set_options(pexsi_env%options, temperature = temperature, gap = gap,&
       numPole = numPole, isInertiaCount = isInertiaCount_int, maxPEXSIIter = maxPEXSIIter, &
-      muMin0 = muMin0, muMax0 = muMax0, mu0 = mu0, muInertiaTolerance = muInertiaTolerance,&
+      muMin0 = muMin0, muMax0 = muMax0, muInertiaTolerance = muInertiaTolerance,&
       muInertiaExpansion = muInertiaExpansion, muPEXSISafeGuard = muPEXSISafeGuard,&
-      numElectronPEXSITolerance = numElectronPEXSITolerance, ordering = ordering,& 
-      npSymbFact = npSymbFact, verbosity = verbosity, error = error)
+      ordering = ordering, npSymbFact = npSymbFact, verbosity = verbosity, error = error)
 
     pexsi_env%num_ranks_per_pole = min_ranks_per_pole ! not a PEXSI option
     pexsi_env%csr_screening = csr_screening
+  
+    IF (numElectronInitialTolerance .LT. numElectronTargetTolerance) &
+      numElectronInitialTolerance = numElectronTargetTolerance
+
+    pexsi_env%tol_nel_initial = numElectronInitialTolerance
+    pexsi_env%tol_nel_target = numElectronTargetTolerance
 
   END SUBROUTINE pexsi_init_read_input
 
@@ -221,6 +230,8 @@ CONTAINS
         template = template_matrix, matrix_type=dbcsr_type_no_symmetry, error = error)
     ENDDO
 
+    CALL cp_pexsi_set_options(pexsi_env%options, numElectronPEXSITolerance = pexsi_env%tol_nel_initial, error=error)
+
     CALL timestop(handle)
 
   END SUBROUTINE pexsi_init_scf
@@ -228,17 +239,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Deallocations and post-processing after SCF
 !> \param pexsi_env ...
+!> \param mu_spin ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE pexsi_finalize_scf(pexsi_env,error)
+  SUBROUTINE pexsi_finalize_scf(pexsi_env,mu_spin,error)
     TYPE(lib_pexsi_env), INTENT(INOUT)       :: pexsi_env
+    REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: mu_spin
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pexsi_finalize_scf', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, unit_nr
-    REAL(KIND=dp)                            :: kTS_total
+    REAL(KIND=dp)                            :: kTS_total, mu_total
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -250,10 +263,16 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
+    mu_total = SUM(mu_spin(1:pexsi_env%nspin))/REAL(pexsi_env%nspin,KIND=dp)
     kTS_total = SUM(pexsi_env%kTS)
     IF (pexsi_env%nspin.EQ.1) kTS_total = kTS_total*2.0_dp
-    IF (unit_nr>0) WRITE (unit_nr,"(/A,T55,F26.15)") &
-                           " PEXSI| Electronic entropic energy (a.u.):", kTS_total
+
+    IF (unit_nr>0) THEN
+      WRITE (unit_nr,"(/A,T55,F26.15)") &
+                     " PEXSI| Electronic entropic energy (a.u.):", kTS_total
+      WRITE (unit_nr,"(A,T55,F26.15)") &
+                     " PEXSI| Chemical potential (a.u.):", mu_total
+    ENDIF
 
     CALL cp_dbcsr_release(pexsi_env%dbcsr_template_matrix_sym, error)
     CALL cp_dbcsr_release(pexsi_env%dbcsr_template_matrix_nonsym, error)
@@ -268,6 +287,7 @@ CONTAINS
       CALL cp_dbcsr_release(pexsi_env%matrix_w(ispin)%matrix, error)
     ENDDO
     CALL timestop(handle)
+    pexsi_env%tol_nel_initial = pexsi_env%tol_nel_target ! Turn off adaptive threshold for subsequent SCF cycles
   END SUBROUTINE pexsi_finalize_scf
 
 ! *****************************************************************************
@@ -280,9 +300,9 @@ CONTAINS
 !> \param[in] matrix_ks         Kohn-Sham matrix from linear scaling QS environment
 !> \param[in] matrix_s          overlap matrix from linear scaling QS environment
 !> \param[in] nelectron_exact   exact number of electrons
-!> \param[in,out] mu            chemical potential calculated by PEXSI
-!> \param iscf ...
-!> \param ispin ...
+!> \param[out] mu               chemical potential calculated by PEXSI
+!> \param[in] iscf              SCF step
+!> \param[in] ispin             Number of spin
 !> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
@@ -296,7 +316,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: kTS
     TYPE(cp_dbcsr_type), INTENT(IN), TARGET  :: matrix_ks, matrix_s
     INTEGER, INTENT(IN)                      :: nelectron_exact
-    REAL(KIND=dp), INTENT(INOUT)             :: mu
+    REAL(KIND=dp), INTENT(OUT)               :: mu
     INTEGER, INTENT(IN)                      :: iscf, ispin
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -388,6 +408,9 @@ CONTAINS
                                pexsi_env%max_ev_vector(ispin),error)
     CALL deallocate_arnoldi_data(my_arnoldi)
     DEALLOCATE(arnoldi_matrices)
+
+    nelectron_exact_pexsi = nelectron_exact
+
     CALL cp_pexsi_set_options(pexsi_env%options, deltaE=delta_E, error=error)
 
     ! Set PEXSI options appropriately for first SCF iteration
@@ -401,18 +424,20 @@ CONTAINS
     ! Write PEXSI options to output
     CALL cp_pexsi_get_options(pexsi_env%options, isInertiaCount = isInertiaCount_out, &
                               isSymbolicFactorize = is_symbolic_factorize, &
-                              muMin0 = mu_min_in, muMax0 = mu_max_in, error = error)
+                              muMin0 = mu_min_in, muMax0 = mu_max_in, &
+                              NumElectronPEXSITolerance=nel_tol, error = error)
 
 
 !    IF(unit_nr>0) WRITE(unit_nr,'(/A,I4,A,I4)') " PEXSI| SCF", iscf, &
-!                                                ", spin component", ispinIF(unit_nr>0) 
+!                                                ", spin component", ispin 
    
     IF(unit_nr>0) WRITE(unit_nr,'(/A,T41,L20)') " PEXSI| Do inertia counting?", & 
                                                isInertiaCount_out.EQ.1
-    IF (iscf.EQ.1) THEN
-      IF(unit_nr>0) WRITE(unit_nr,'(A,T50,F5.2,T56,F5.2)') &
+    IF(unit_nr>0) WRITE(unit_nr,'(A,T50,F5.2,T56,F5.2)') &
                     " PEXSI| Guess for min mu, max mu", mu_min_in, mu_max_in
-    ENDIF
+
+    IF(unit_nr>0) WRITE(unit_nr,'(A,T41,E20.3)') &
+                  " PEXSI| Tolerance in number of electrons", nel_tol
 
 !    IF(unit_nr>0) WRITE(unit_nr,'(A,T41,L20)') &
 !                  " PEXSI|   Do symbolic factorization?", is_symbolic_factorize.EQ.1
@@ -436,7 +461,6 @@ CONTAINS
       error)
 
     ! convert to spin restricted before passing number of electrons to PEXSI
-    nelectron_exact_pexsi = nelectron_exact
     CALL convert_nspin_cp2k_pexsi(cp2k_to_pexsi, pexsi_env%nspin, &
                     numElectron=nelectron_exact_pexsi, error=error)
 
@@ -447,9 +471,7 @@ CONTAINS
        error)
 
     ! Check convergence 
-    CALL cp_pexsi_get_options(pexsi_env%options, numElectronPEXSITolerance = nel_tol, &
-                              error = error)
-    nelectron_diff = nelectron_out - REAL(nelectron_exact_pexsi, dp)
+    nelectron_diff = nelectron_out - nelectron_exact_pexsi
     pexsi_convergence = ABS(nelectron_diff) .LT. nel_tol
 
     IF(unit_nr>0) THEN
@@ -462,8 +484,7 @@ CONTAINS
 !      WRITE(unit_nr,'(A,T41,F20.10,T61,F20.10)') " PEXSI|   Number of electrons", &
 !                      nelectron_out/pexsi_env%nspin, nelectron_diff/pexsi_env%nspin
 
-      WRITE(unit_nr,'(A,T36,F20.5,T64,F8.5,T73,F8.5)') &
-                    " PEXSI|   Mu, min mu, max mu", mu, mu_min_out, mu_max_out
+      WRITE(unit_nr,'(A,T41,F20.6)') " PEXSI|   Chemical potential", mu
 
       WRITE(unit_nr,'(A,T41,I20)') " PEXSI|   PEXSI iterations", n_total_pexsi_iter
       WRITE(unit_nr,'(A,T41,I20/)') " PEXSI|   Inertia counting iterations", &
@@ -520,6 +541,63 @@ CONTAINS
 
     CALL timestop(handle)
   END SUBROUTINE density_matrix_pexsi
+
+! *****************************************************************************
+!> \brief Set PEXSI convergence tolerance (numElectronPEXSITolerance), adapted 
+!>        to the convergence error of the previous SCF step. The tolerance is 
+!>        calculated using an initial convergence threshold (tol_nel_initial) 
+!>        and a target convergence threshold (tol_nel_target):
+!>        numElectronPEXSITolerance(delta_scf) = alpha*delta_scf+beta 
+!>        where alpha and beta are chosen such that
+!>        numElectronPEXSITolerance(delta_scf_0) = tol_nel_initial
+!>        numElectronPEXSITolerance(eps_scf) = tol_nel_target
+!>        and delta_scf_0 is the initial SCF convergence error.
+!> \param pexsi_env ...
+!> \param delta_scf convergence error of previous SCF step 
+!> \param eps_scf SCF convergence criterion
+!> \param initialize whether or not adaptive thresholing should be initialized 
+!>        with delta_scf as initial convergence error
+!> \param check_convergence is set to .FALSE. if convergence in number of electrons
+!>        will not be achieved in next SCF step
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE pexsi_set_convergence_tolerance(pexsi_env, delta_scf, eps_scf, initialize, &
+                                             check_convergence, error)
+    TYPE(lib_pexsi_env), INTENT(INOUT)       :: pexsi_env
+    REAL(KIND=dp), INTENT(IN)                :: delta_scf, eps_scf
+    LOGICAL, INTENT(IN)                      :: initialize
+    LOGICAL, INTENT(OUT)                     :: check_convergence
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'pexsi_set_convergence_tolerance', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    REAL(KIND=dp)                            :: tol_nel
+
+    CALL timeset(routineN,handle)
+
+    tol_nel = pexsi_env%tol_nel_initial
+
+    IF (initialize) THEN
+      pexsi_env%adaptive_nel_alpha = &
+        (pexsi_env%tol_nel_initial-pexsi_env%tol_nel_target)/(ABS(delta_scf)-eps_scf)
+      pexsi_env%adaptive_nel_beta = &
+        pexsi_env%tol_nel_initial-pexsi_env%adaptive_nel_alpha*ABS(delta_scf)
+      pexsi_env%do_adaptive_tol_nel = .TRUE.
+    ENDIF
+    IF (pexsi_env%do_adaptive_tol_nel) THEN
+      tol_nel = pexsi_env%adaptive_nel_alpha*ABS(delta_scf)+pexsi_env%adaptive_nel_beta
+      tol_nel = MAX(tol_nel, pexsi_env%tol_nel_target)
+      tol_nel = MIN(tol_nel, pexsi_env%tol_nel_initial)
+    ENDIF
+
+    check_convergence = (tol_nel.LE.pexsi_env%tol_nel_target)
+
+    CALL cp_pexsi_set_options(pexsi_env%options, numElectronPEXSITolerance = tol_nel, error=error)
+    CALL timestop(handle)
+  END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief Pass energy weighted density matrix and entropic energy contribution 

@@ -474,23 +474,19 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-! Most of the default values exactly the same as in PEXSI but in Hartree atomic units.
-! Following options not PEXSI default:
-! Verbosity=0: PEXSI log file not needed
-! isInertiaCount=.FALSE.: note that inertia counting is still done in the first SCF
-
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
       CALL section_create(section,"PEXSI",&
-           description="Specifies the parameters required by PEXSI library. Provided "//&
-           "parameters, their defaults and their documentation is nearly identical to "//& 
-           "the options of the PEXSI library. For CP2K-PEXSI calculations, the value of "//& 
-           "EPS_PGF_ORB (in QS input section) defines the sparsity of the matrices sent to "//&
-           "PEXSI and EPS_FILTER is always set to 0.",&
-           n_keywords=15, repeats=.FALSE.,required=.FALSE.,citations=(/Lin2009,Lin2013/),error=error)
+           description="Specifies the parameters of the PEXSI library. The density matrix is calculated "//&
+           "with PEXSI if PURIFICATION_METHOD (in LS_SCF section) is set to PEXSI. "//&
+           "The computational cost of PEXSI is at most quadratically scaling w.r.t. the system size "//& 
+           "and PEXSI is applicable to insulating and metallic systems. The value of EPS_PGF_ORB "//&
+           "(in QS input section) defines the sparsity of the matrices sent to PEXSI and EPS_FILTER "//&
+           "is overwritten with 0.",&
+           n_keywords=17, repeats=.FALSE.,required=.FALSE.,citations=(/Lin2009,Lin2013/),error=error)
        NULLIFY (keyword)
 
        CALL keyword_create(keyword, name="TEMPERATURE",&
@@ -522,7 +518,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="MAX_PEXSI_ITER",&
             description="Maximum number of PEXSI iterations after each inertia counting procedure.",&
-            default_i_val=3,error=error)
+            default_i_val=5,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -541,7 +537,7 @@ CONTAINS
        CALL keyword_create(keyword, name="MU_INERTIA_TOLERANCE",&
             description="Stopping criterion in terms of the chemical potential for the "//&
             "inertia counting procedure.",&
-            default_r_val=0.025_dp,unit_str="hartree",error=error)
+            default_r_val=0.01_dp,unit_str="hartree",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -555,14 +551,26 @@ CONTAINS
        CALL keyword_create(keyword, name="MU_PEXSI_SAFE_GUARD",&
             description="Safe guard criterion in terms of the chemical potential to "//& 
             "reinvoke the inertia counting procedure.",&
-            default_r_val=0.025_dp,unit_str="hartree",error=error)
+            default_r_val=0.01_dp,unit_str="hartree",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NUM_ELECTRON_PEXSI_TOLERANCE",&
             description="Stopping criterion of the PEXSI iteration in terms of "//&
-            "the number of electrons compared to the exact number of electrons.",&
-            default_r_val=0.01_dp,error=error)
+            "The number of electrons compared to the exact number of electrons. "//&
+            "This threshold is the target tolerance applied at convergence of SCF.",&
+            default_r_val=0.1_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NUM_ELECTRON_INITIAL_TOLERANCE",&
+            description="The same as NUM_ELECTRON_PEXSI_TOLERANCE but applied in the first SCF steps. "//&
+                        "If set to a value smaller than NUM_ELECTRON_PEXSI_TOLERANCE, it is overwritten with "//&
+                        "NUM_ELECTRON_PEXSI_TOLERANCE (default). If set to a value larger than "//&
+                        "NUM_ELECTRON_PEXSI_TOLERANCE, the PEXSI tolerance in number of electrons is set adaptively "//&
+                        "according to the SCF convergence error of the previous SCF step. This reduces the number "//&
+                        "of PEXSI iterations in the first SCF steps but leads to at least one more SCF step.",&
+            default_r_val=0.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -588,17 +596,16 @@ CONTAINS
        CALL keyword_create(keyword, name="VERBOSITY",&
             description="The level of output information.",&
             enum_c_vals=s2a("SILENT","BASIC","DETAILED"),&
-            enum_i_vals=(/0,1,2/), default_i_val=0, error=error)
+            enum_i_vals=(/0,1,2/), default_i_val=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MIN_RANKS_PER_POLE",&
             description="The minimum number of processors used for each pole. The real "//&
             "number of processors per pole is the smallest number greater or equal to "//&
-            "MIN_RANKS_PER_POLE that divides MPI size without remainder. If 0 (default), the number "//&
-            "of processors per pole will be set equal to MPI size. For efficiency, MIN_RANKS_PER_POLE "//&
+            "MIN_RANKS_PER_POLE that divides MPI size without remainder. For efficiency, MIN_RANKS_PER_POLE "//&
             "should be a small numbers (limited by the available memory).", &
-            default_i_val=0,error=error)
+            default_i_val=64,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

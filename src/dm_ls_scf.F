@@ -82,6 +82,7 @@ MODULE dm_ls_scf
                                              pexsi_finalize_scf,&
                                              pexsi_init_read_input,&
                                              pexsi_init_scf,&
+                                             pexsi_set_convergence_tolerance,&
                                              pexsi_to_qs
   USE pexsi_types,                     ONLY: lib_pexsi_init
   USE qs_density_mixing_types,         ONLY: create_mixing_section,&
@@ -1188,6 +1189,14 @@ CONTAINS
                                  ls_scf_env%eps_filter,error)               
       ENDIF
 
+      IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+        CALL pexsi_set_convergence_tolerance(ls_scf_env%pexsi, energy_diff, &
+                                             ls_scf_env%eps_scf*ls_scf_env%nelectron_total, &
+                                             ! initialize in second scf step of first SCF cycle:
+                                             (iscf.EQ.2).AND.(ls_scf_env%scf_history%istore.EQ.0), &
+                                             check_convergence, error)
+      ENDIF
+
     ENDDO
 
     ! free storage
@@ -1300,7 +1309,7 @@ CONTAINS
     DEALLOCATE(ls_scf_env%matrix_ks)
 
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) &
-      CALL pexsi_finalize_scf(ls_scf_env%pexsi, error)
+      CALL pexsi_finalize_scf(ls_scf_env%pexsi, ls_scf_env%mu_spin, error)
 
     CALL timestop(handle)
 

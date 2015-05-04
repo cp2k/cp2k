@@ -71,6 +71,12 @@ MODULE pexsi_types
 !>                                      returned by the Arnoldi method used to 
 !>                                      determine the spectral radius deltaE
 !> \param nspin                         number of spins
+!> \param do_adaptive_tol_nel           Whether or not to use adaptive threshold
+!>                                      for PEXSI convergence
+!> \param adaptive_nel_alpha            constants for adaptive thresholding
+!> \param adaptive_nel_beta             
+!> \param tol_nel_initial               Initial convergence threshold (in number of electrons)
+!> \param tol_nel_target                Target convergence threshold (in number of electrons)
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
@@ -94,7 +100,9 @@ MODULE pexsi_types
     TYPE(cp_dbcsr_type)                      :: csr_sparsity
     INTEGER, DIMENSION(2)                    :: mp_dims
 
-    LOGICAL                                  :: csr_screening
+    LOGICAL                                  :: csr_screening, do_adaptive_tol_nel
+    REAL(KIND=dp)                            :: adaptive_nel_alpha, adaptive_nel_beta, &
+                                                tol_nel_initial, tol_nel_target
   END TYPE lib_pexsi_env
 
 CONTAINS
@@ -173,6 +181,8 @@ CONTAINS
     ! Initialize PEXSI
     pexsi_env%plan = cp_pexsi_plan_initialize(pexsi_env%mp_group,pexsi_env%mp_dims(1),&
                                               pexsi_env%mp_dims(2),mynode,error)
+    
+    pexsi_env%do_adaptive_tol_nel = .FALSE.
 
     ! Print PEXSI infos
     IF(unit_nr>0) CALL print_pexsi_info(pexsi_env, unit_nr, error)
@@ -270,23 +280,22 @@ CONTAINS
     INTEGER                                  :: mynode, npSymbFact, numnodes, &
                                                 numPole, ordering
     REAL(KIND=dp) :: gap, muInertiaExpansion, muInertiaTolerance, muMax0, &
-      muMin0, muPEXSISafeGuard, numElectronPEXSITolerance, temperature
+      muMin0, muPEXSISafeGuard, temperature
 
     CALL mp_environ(numnodes, mynode, pexsi_env%mp_group)
 
     CALL cp_pexsi_get_options(pexsi_env%options, temperature=temperature, gap=gap, &
            numPole=numPole, muMin0=muMin0, muMax0=muMax0, muInertiaTolerance=&
            muInertiaTolerance, muInertiaExpansion=muInertiaExpansion, &
-           muPEXSISafeGuard=muPEXSISafeGuard, numElectronPEXSITolerance =&
-           numElectronPEXSITolerance, ordering=ordering, npSymbFact=npSymbFact, &
+           muPEXSISafeGuard=muPEXSISafeGuard, ordering=ordering, npSymbFact=npSymbFact, &
            error = error)
 
     WRITE(unit_nr,'(/A)') " PEXSI| Initialized with parameters"
     WRITE(unit_nr,'(A,T61,E20.3)') " PEXSI|   Electronic temperature", temperature
     WRITE(unit_nr,'(A,T61,E20.3)') " PEXSI|   Spectral gap", gap
     WRITE(unit_nr,'(A,T61,I20)') " PEXSI|   Number of poles", numPole
-    WRITE(unit_nr,'(A,T61,E20.3)') " PEXSI|   Convergence tolerance in number of electrons", &
-                                   numElectronPEXSITolerance
+    WRITE(unit_nr,'(A,T61,E20.3)') " PEXSI|   Target tolerance in number of electrons", &
+                                   pexsi_env%tol_nel_target
     WRITE(unit_nr,'(A,T61,E20.3)') " PEXSI|   Convergence tolerance for inertia counting in mu", &
                                    muInertiaTolerance
     WRITE(unit_nr,'(A,T61,E20.3)') " PEXSI|   Restart tolerance for inertia counting in mu", &
