@@ -279,8 +279,9 @@ Some options controlling MPI behavior and capabilities:
   * -D__HAS_NO_SHARED_GLIBC should be defined on systems where a shared glibc is
     not available at runtime for some reason e.g. on HPC systems
     where some file systems are not available on the compute nodes
-  * -D__DATA_DIR='"<path>"' optional flag which points at a central parameter file directory (/.../cp2k/data/).
-    The double quotes are necessary, and the path must be absolute and end with a slash.
+  * The Makefile automatically compiles in the path to the data directory via
+    the flag -D__DATA_DIR. If you want to compile in a different path,
+    set the variable DATA_DIR in your arch-file.
 
 ==== 3c. Compiler tweaks ====
 CP2K currently assumes Fortran2003 compliance, even though few features are used.

@@ -17,6 +17,7 @@ export VERSION=sopt
 
 MAKEFILE     := $(CP2KHOME)/makefiles/Makefile
 DOXYGENDIR   := $(CP2KHOME)/doc/doxygen
+DATA_DIR     := $(CP2KHOME)/data
 MAINEXEDIR   := $(CP2KHOME)/exe
 MAINLIBDIR   := $(CP2KHOME)/lib
 MAINOBJDIR   := $(CP2KHOME)/obj
@@ -379,7 +380,8 @@ ifeq ($(CPPSHELL),)
 CPPSHELL := -D__COMPILE_ARCH="\"$(ARCH)\""\
             -D__COMPILE_DATE="\"$(shell date)\""\
             -D__COMPILE_HOST="\"$(shell hostname)\""\
-            -D__COMPILE_REVISION="\"$(strip $(REVISION))\""
+            -D__COMPILE_REVISION="\"$(strip $(REVISION))\""\
+            -D__DATA_DIR="\"$(DATA_DIR)\""
 endif
 
 ifneq ($(CPP),)
