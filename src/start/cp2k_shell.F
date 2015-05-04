@@ -81,7 +81,7 @@ PROGRAM cp2k_shell
   INTEGER, SAVE                            :: eof_stat
   TYPE(section_type), POINTER              :: input_declaration
 
-  CHARACTER(LEN=default_string_length), DIMENSION(41) :: helpMsg
+  CHARACTER(LEN=default_string_length), DIMENSION(42) :: helpMsg
 
   helpMsg=(/ &
   ll('Commands'),&
@@ -91,6 +91,7 @@ PROGRAM cp2k_shell
   ll(' All commands are case insensitive.'),&
   ll(' '),&
   ll(' INFO: returns some information about cp2k.'),&
+  ll(' VERSION: returns shell version. (queried by ASE to assert features & bugfixes)'),&
   ll(' LOAD inp-filename [out-filename]: loads the filename, returns the env_id, or -1 in case of error'),&
   ll('   out-filename is optional and defaults to <inp-filename>.out'),&
   ll('   use "__STD_OUT__" for printing to the screen'),&
@@ -208,6 +209,12 @@ PROGRAM cp2k_shell
         IF (para_env%source==para_env%mepos) THEN
             CALL print_v_info(sout)
             CALL print_cp2k_license(sout)
+        END IF
+     CASE('VERSION')
+       ! Queried by ASE. Increase version after bug-fixing or behavior changes.
+        IF (para_env%source==para_env%mepos) THEN
+            WRITE(sout,'(a)',iostat=iostat) "CP2K Shell Version: 1.0"
+            IF (iostat/=0) CALL mp_abort('writing version')
         END IF
      CASE('LAST_ENV_ID')
         IF (para_env%source==para_env%mepos) THEN
@@ -338,6 +345,7 @@ PROGRAM cp2k_shell
         IF (para_env%mepos==para_env%source) THEN
            READ (*,*,iostat=iostat) cell
            IF (iostat/=0) CALL mp_abort('setcell read')
+           cell(:,:) = cell(:,:)/pos_fact
         END IF
         CALL mp_bcast(cell,para_env%source,para_env%group)
         CALL set_cell(env_id, new_cell=cell, ierr=ierr)
@@ -347,6 +355,7 @@ PROGRAM cp2k_shell
         CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
         CALL get_cell(env_id,cell=cell,ierr=ierr)
         CALL my_assert(ierr==0,cmd//' failed get_cell',failure)
+        cell(:,:) = cell(:,:)*pos_fact
         IF (para_env%mepos==para_env%source) THEN
            WRITE (sout,'(9ES22.13)',iostat=iostat) cell
            IF (iostat/=0) CALL mp_abort(cmd//' write get_cell')
@@ -357,6 +366,7 @@ PROGRAM cp2k_shell
         CALL my_assert(env_id>0,cmd//' invalid env_id',failure)
         CALL get_stress_tensor(env_id,stress_tensor=stress_tensor,ierr=ierr)
         CALL my_assert(ierr==0,cmd//' failed get_stress_tensor',failure)
+        stress_tensor(:,:) = stress_tensor(:,:)*(e_fact/pos_fact**3)
         IF (para_env%mepos==para_env%source) THEN
            WRITE (sout,'(9ES22.13)',iostat=iostat) stress_tensor
            IF (iostat/=0) CALL mp_abort(cmd//' write get_stress')
