@@ -22,6 +22,9 @@ MODULE  qmmm_image_charge
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_constants,                 ONLY: calc_always,&
+                                             calc_once,&
+                                             calc_once_done
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -75,7 +78,7 @@ MODULE  qmmm_image_charge
 
   PUBLIC :: calculate_image_pot,&
             integrate_potential_devga_rspace,&
-            calculate_image_matrix,&
+            conditional_calc_image_matrix,&
             add_image_pot_to_hartree_pot,&
             print_image_coefficients
 
@@ -629,6 +632,53 @@ CONTAINS
 
 
   END SUBROUTINE integrate_potential_devga_rspace
+
+!****************************************************************************
+!> \brief calculate image matrix T depending on constraints on image atoms
+!>        in case coefficients are estimated not iteratively
+!> \param qs_env qs environment
+!> \param qmmm_env qmmm environment
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+  SUBROUTINE conditional_calc_image_matrix(qs_env,qmmm_env,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'conditional_calc_image_matrix', &
+      routineP = moduleN//':'//routineN
+
+    IF(.NOT.qmmm_env%image_charge_pot%coeff_iterative) THEN
+      SELECT CASE(qmmm_env%image_charge_pot%state_image_matrix)
+      CASE(calc_always)
+          CALL calculate_image_matrix(image_matrix=qs_env%image_matrix,&
+          ipiv=qs_env%ipiv,qs_env=qs_env,qmmm_env=qmmm_env,&
+          error=error)
+      CASE(calc_once)
+          !if all image atoms are fully constrained, calculate image matrix
+          !only for the first MD or GEO_OPT step
+          CALL calculate_image_matrix(image_matrix=qs_env%image_matrix,&
+          ipiv=qs_env%ipiv,qs_env=qs_env,qmmm_env=qmmm_env,&
+          error=error)
+          qmmm_env%image_charge_pot%state_image_matrix = calc_once_done
+          CALL cp_assert(.NOT.qmmm_env%center_qm_subsys0,cp_warning_level,&
+               cp_assertion_failed,routineP,"The image atoms are fully "//&
+               "constrained and the image matrix is only calculated once. "//&
+               "To be safe, set CENTER to NEVER " //&
+               CPSourceFileRef,only_ionode=.TRUE.)
+      CASE(calc_once_done)
+          ! do nothing image matrix is stored
+      CASE DEFAULT
+         CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
+                   routineP,"No initialization for image charges available?",&
+                   only_ionode=.TRUE.)
+      END SELECT
+    ENDIF
+
+  END SUBROUTINE conditional_calc_image_matrix
 
 !****************************************************************************
 !> \brief calculate image matrix T

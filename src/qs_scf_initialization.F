@@ -51,7 +51,7 @@ MODULE qs_scf_initialization
   USE kpoint_types,                    ONLY: kpoint_type
   USE lri_optimize_ri_basis,           ONLY: optimize_lri_basis
   USE pw_types,                        ONLY: pw_p_type
-  USE qmmm_image_charge,               ONLY: calculate_image_matrix
+  USE qmmm_image_charge,               ONLY: conditional_calc_image_matrix
   USE qs_block_davidson_types,         ONLY: block_davidson_allocate,&
                                              block_davidson_env_create
   USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
@@ -1040,13 +1040,11 @@ CONTAINS
       END IF
     END IF
 
-   !image charge method, calculate image_matrix
+   !image charge method, calculate image_matrix if required
    IF(qs_env%qmmm) THEN
-     IF(qs_env%qmmm_env_qm%image_charge) THEN
-       IF(.NOT.qs_env%qmmm_env_qm%image_charge_pot%coeff_iterative) &
-          CALL calculate_image_matrix(image_matrix=qs_env%image_matrix,&
-               ipiv=qs_env%ipiv,qs_env=qs_env,qmmm_env=qs_env%qmmm_env_qm,&
-               error=error)
+     IF(qs_env%qmmm.AND.qs_env%qmmm_env_qm%image_charge) THEN
+       CALL conditional_calc_image_matrix(qs_env=qs_env,&
+            qmmm_env=qs_env%qmmm_env_qm,error=error)
      ENDIF
    ENDIF
 

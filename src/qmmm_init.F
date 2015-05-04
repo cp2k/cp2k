@@ -15,7 +15,8 @@ MODULE qmmm_init
                                              get_atomic_kind,&
                                              set_atomic_kind
   USE cell_methods,                    ONLY: read_cell
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             use_perd_xyz
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -33,15 +34,16 @@ MODULE qmmm_init
                                              read_lj_section,&
                                              read_wl_section
   USE input_constants,                 ONLY: &
-       RADIUS_QMMM_DEFAULT, do_qmmm_gauss, do_qmmm_image_calcmatrix, &
-       do_qmmm_image_iter, do_qmmm_link_gho, do_qmmm_link_imomm, &
-       do_qmmm_link_pseudo, do_qmmm_pcharge, do_qmmm_swave
+       RADIUS_QMMM_DEFAULT, calc_always, calc_once, do_qmmm_gauss, &
+       do_qmmm_image_calcmatrix, do_qmmm_image_iter, do_qmmm_link_gho, &
+       do_qmmm_link_imomm, do_qmmm_link_pseudo, do_qmmm_pcharge, do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE molecule_kind_types,             ONLY: molecule_kind_type
   USE pair_potential_types,            ONLY: pair_potential_reallocate
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
@@ -1480,13 +1482,17 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_image_atom_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, atom_b, i, j, &
+    INTEGER                                  :: atom_a, atom_b, i, j, k, &
                                                 max_index, n_var, &
+                                                num_const_atom, &
                                                 num_image_mm_atom, stat
     INTEGER, DIMENSION(:), POINTER           :: mm_indexes
-    LOGICAL                                  :: failure, imageind_in_range
+    LOGICAL                                  :: failure, fix_xyz, &
+                                                imageind_in_range
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind
 
-    NULLIFY(mm_indexes)
+    NULLIFY(mm_indexes,molecule_kind)
     failure=.FALSE.
     imageind_in_range=.FALSE.
     num_image_mm_atom=0
@@ -1538,7 +1544,40 @@ CPSourceFileRef,&
       ENDDO
    ENDDO
 
+   ! check if molecules in list carry constraints
+   num_const_atom = 0
+   fix_xyz = .TRUE.
+   IF(ASSOCIATED(subsys_mm%molecule_kinds_new)) THEN 
+     IF(ASSOCIATED(subsys_mm%molecule_kinds_new%els)) THEN 
+       molecule_kind => subsys_mm%molecule_kinds_new%els
+       DO i=1,SIZE(molecule_kind)
+          IF(.NOT.ASSOCIATED(molecule_kind(i)%fixd_list)) EXIT
+          IF(.NOT.fix_xyz) EXIT
+          DO j=1,SIZE(molecule_kind(i)%fixd_list)
+             IF(.NOT.fix_xyz) EXIT
+             DO k=1,num_image_mm_atom
+                atom_a=qmmm_env%image_charge_pot%image_mm_list(k)
+                IF(atom_a == molecule_kind(i)%fixd_list(j)%fixd) THEN
+                   num_const_atom = num_const_atom + 1
+                   IF(molecule_kind(i)%fixd_list(j)%itype /= use_perd_xyz) THEN
+                      fix_xyz = .FALSE.
+                      EXIT
+                   ENDIF
+                ENDIF
+             ENDDO
+          ENDDO
+       ENDDO
+     ENDIF
+   ENDIF
 
+   ! if all image atoms are constrained, calculate image matrix only
+   ! once for the first MD or GEO_OPT step (for non-iterative case)
+   IF(num_const_atom == num_image_mm_atom.AND.fix_xyz) THEN
+     qmmm_env%image_charge_pot%state_image_matrix = calc_once
+   ELSE
+     qmmm_env%image_charge_pot%state_image_matrix = calc_always
+   ENDIF
+      
    END SUBROUTINE setup_image_atom_list
 
 ! *****************************************************************************

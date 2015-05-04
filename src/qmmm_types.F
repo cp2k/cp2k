@@ -162,6 +162,7 @@ MODULE qmmm_types
      LOGICAL                                    :: all_mm
      LOGICAL                                    :: coeff_iterative
      LOGICAL                                    :: image_restart
+     INTEGER                                    :: state_image_matrix
      INTEGER, DIMENSION(:), POINTER             :: image_mm_list
      TYPE(particle_type), DIMENSION(:), POINTER :: particles_all
      REAL(KIND=dp),DIMENSION(:,:),POINTER       :: image_forcesMM

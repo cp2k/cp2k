@@ -316,6 +316,10 @@ MODULE input_constants
                                               do_qmmm_image_calcmatrix=0,&
                                               do_qmmm_image_iter=1
 
+  INTEGER, PARAMETER, PUBLIC               :: calc_always=0,&
+                                              calc_once=1,&
+                                              calc_once_done=2
+
   INTEGER, PARAMETER, PUBLIC               :: do_fm_mom_conserv_none=0, &
                                               do_fm_mom_conserv_equal_f=1, &
                                               do_fm_mom_conserv_equal_a=2
