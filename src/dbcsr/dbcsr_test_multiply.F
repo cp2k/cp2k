@@ -192,6 +192,8 @@ CONTAINS
           alpha_obj = compx_to_dbcsr_scalar(alpha, TYPE)
           beta_obj  = compx_to_dbcsr_scalar(beta,  TYPE)
 
+          IF(do_complex .AND. c_symm==dbcsr_type_symmetric) CYCLE
+
           !
           ! loop over transpositions
           DO a_tr = 1,SIZE(trans)

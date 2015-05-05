@@ -226,7 +226,7 @@ PROGRAM dbcsr_selftest
        group, mp_env, npdims, io_unit, matrix_sizes=(/25, 50, 75/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 1.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
-       bs_m=(/1, 2, 1, 2/), bs_n=(/1, 3, 1, 3, 1, 2/), bs_k=(/1, 0/),&
+       bs_m=(/1, 2/), bs_n=(/1, 2, 1, 3/), bs_k=(/1, 3, 1, 2, 1, 0/),&
        limits=(/11, 20, 11, 20, 6, 10/), error=error)
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_ROW_1",&
@@ -271,12 +271,6 @@ PROGRAM dbcsr_selftest
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
        limits=(/1, 50, 1, 50, 1, 50/), error=error)
 
-  CALL dbcsr_test_multiplies("multiply_ALPHA",&
-       group, mp_env, npdims, io_unit, matrix_sizes=(/20, 20, 20/),&
-       sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
-       alpha=CMPLX(-3.0_dp, -4.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
-       bs_m=(/1, 4/), bs_n=(/1, 4/), bs_k=(/1, 4/),&
-       limits=(/2, 6, 3, 7, 6, 7/), error=error)
 
   ! multiply-ghost ------------------------------------------------------------
 
@@ -291,28 +285,28 @@ PROGRAM dbcsr_selftest
        group, mp_env, npdims, io_unit, matrix_sizes=(/20, 20, 20/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
-       bs_m=(/1, 4/), bs_n=(/1, 4, 1, 4/), bs_k=(/1, 0/),&
+       bs_m=(/1, 4/), bs_n=(/1, 4/), bs_k=(/1, 4, 1, 0/),&
        limits=(/2, 6, 3, 7, 2, 7/), error=error)
 
   CALL dbcsr_test_multiplies("ub-m-ghost",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/20, 20, 20/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
-       bs_m=(/1, 4/), bs_n=(/1, 0/), bs_k=(/1, 4/),&
+       bs_m=(/1, 4, 1, 0/), bs_n=(/1, 4/), bs_k=(/1, 4/),&
        limits=(/2, 6, 3, 7, 2, 7/), error=error)
 
   CALL dbcsr_test_multiplies("ub-mnk-ghost",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/20, 20, 20/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
-       bs_m=(/1, 4, 1, 0/), bs_n=(/1, 4, 1, 0/), bs_k=(/1, 4/),&
+       bs_m=(/1, 4, 1, 0/), bs_n=(/1, 4, 1, 0/), bs_k=(/1, 4, 1, 0/),&
        limits=(/2, 6, 3, 7, 2, 7/), error=error)
 
   CALL dbcsr_test_multiplies("ub-n-ghost",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/20, 20, 20/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
-       bs_m=(/1, 4, 1, 4/), bs_n=(/1, 0/), bs_k=(/1, 4/),&
+       bs_m=(/1, 4/), bs_n=(/1, 4, 1, 0/), bs_k=(/1, 4/),&
        limits=(/2, 6, 3, 7, 2, 7/), error=error)
 
   CALL dbcsr_test_multiplies("ub",&
@@ -321,7 +315,6 @@ PROGRAM dbcsr_selftest
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
        limits=(/1, 20, 1, 20, 9, 18/), error=error)
-
 
   ! end of test cases ---------------------------------------------------------
 
