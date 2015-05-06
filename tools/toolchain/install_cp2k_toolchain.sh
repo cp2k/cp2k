@@ -596,7 +596,7 @@ LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefbl
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.psmp
-NVCC     = nvcc -D__GNUC_MINOR__=6
+NVCC     = nvcc -D__GNUC_MINOR__=6  -D__GNUC__=4
 CC       = gcc
 CPP      =
 FC       = mpif90 
@@ -612,7 +612,7 @@ LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefbl
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.ssmp
-NVCC     = nvcc -D__GNUC_MINOR__=6
+NVCC     = nvcc -D__GNUC_MINOR__=6  -D__GNUC__=4
 CC       = gcc
 CPP      =
 FC       = gfortran 
