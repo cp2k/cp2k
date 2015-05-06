@@ -15,7 +15,7 @@ FCFLAGS  = $(DFLAGS) -O2 -pad -opt-prefetch -mavx -funroll-loops -fpp -free \
 	   -I${MKLROOT}/include -I${MKLROOT}/include/fftw
 LDFLAGS  = $(FCFLAGS)
 MKL_LIB  = ${MKLROOT}/lib/intel64
-LIBS     = /project/cray/alazzaro/libsmm/affinity/sandybridge_gcc_4.9.0/lib/libsmm_dnn_cray.gnu.a
+LIBS     = /project/ch5/alazzaro/libsmm/affinity/sandybridge_gcc_4.9.0/lib/libsmm_dnn_cray.gnu.a
 LIBS    += $(MKL_LIB)/libmkl_scalapack_lp64.a -Wl,--start-group \
            $(MKL_LIB)/libmkl_intel_lp64.a ${MKL_LIB}/libmkl_sequential.a \
            $(MKL_LIB)/libmkl_core.a -Wl,--end-group \

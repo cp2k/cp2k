@@ -14,4 +14,4 @@ FCFLAGS  = $(DFLAGS) -O3 -mavx -funroll-loops -ffast-math -ftree-vectorize \
 	   -ffree-form -ffree-line-length-512 
 LDFLAGS  = $(FCFLAGS)
 LIBS     = -lfftw3
-LIBS    += /project/cray/alazzaro/libsmm/affinity/sandybridge_gcc_4.9.0/lib/libsmm_dnn_cray.gnu.a
+LIBS    += /project/ch5/alazzaro/libsmm/affinity/sandybridge_gcc_4.9.0/lib/libsmm_dnn_cray.gnu.a

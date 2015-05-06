@@ -15,7 +15,7 @@ FCFLAGS  = $(DFLAGS) -O2 -hfp2 -e0 -ez -emf -ffree -hnocaf -hnodwarf -M 7206,720
 FCFLAGS	+= -hnomodinline -Ovector1 -Oscalar1
 LDFLAGS  = $(FCFLAGS)
 LIBS	 = -lfftw3 -lfftw3_threads 
-LIBS    += /project/cray/alazzaro/libsmm/affinity/sandybridge_gcc_4.9.0/lib/libsmm_dnn_cray.gnu.a
+LIBS    += /project/ch5/alazzaro/libsmm/affinity/sandybridge_gcc_4.9.0/lib/libsmm_dnn_cray.gnu.a
 
 ###########
 qs_grid_atom.o: qs_grid_atom.F
