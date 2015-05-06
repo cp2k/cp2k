@@ -18,10 +18,12 @@ MODULE hfx_libint_wrapper
                                              lib_deriv,&
                                              prim_data,&
                                              build_eri_size,&
-                                             build_deriv1_eri_size
+                                             build_deriv1_eri_size,&
+                                             libint_max_am,&
+                                             libderiv_max_am1
   USE orbital_pointers,                ONLY: nco
 
-  
+
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -38,7 +40,7 @@ MODULE hfx_libint_wrapper
                             0:build_deriv1_eri_size,0:build_deriv1_eri_size), BIND(C) :: build_deriv1_eri
 
   INTERFACE
-    FUNCTION build(lib, np) BIND(C) 
+    FUNCTION build(lib, np) BIND(C)
       IMPORT
       TYPE(C_PTR)                    :: build
       TYPE(lib_int)                  :: lib
@@ -52,6 +54,13 @@ MODULE hfx_libint_wrapper
       INTEGER(KIND=C_INT), VALUE     :: max_am
       INTEGER(KIND=C_INT), VALUE     :: np
     END FUNCTION init_lib
+
+    FUNCTION storage_required(max_am, np) BIND(C, name="libint_storage_required")
+      IMPORT
+      INTEGER(KIND=C_INT)            :: storage_required
+      INTEGER(KIND=C_INT), VALUE     :: max_am
+      INTEGER(KIND=C_INT), VALUE     :: np
+    END FUNCTION storage_required
 
     SUBROUTINE init_base() BIND(C, name="init_libint_base")
     END SUBROUTINE init_base
@@ -72,6 +81,14 @@ MODULE hfx_libint_wrapper
       INTEGER(KIND=C_INT), VALUE     :: np
       INTEGER(KIND=C_INT), VALUE     :: ccs
     END FUNCTION init_deriv1
+
+    FUNCTION storage_required_deriv1(max_am, np, ccs) BIND(C, name="libderiv1_storage_required")
+      IMPORT
+      INTEGER(KIND=C_INT)            :: storage_required_deriv1
+      INTEGER(KIND=C_INT), VALUE     :: max_am
+      INTEGER(KIND=C_INT), VALUE     :: np
+      INTEGER(KIND=C_INT), VALUE     :: ccs
+    END FUNCTION storage_required_deriv1
 
     SUBROUTINE build_deriv1(deriv, np) BIND(C)
       IMPORT
@@ -101,6 +118,7 @@ MODULE hfx_libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libint', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
     INTEGER(KIND=C_INT)                      :: lib_storage, max_am_local, &
                                                 max_prim
     LOGICAL                                  :: failure
@@ -109,6 +127,14 @@ MODULE hfx_libint_wrapper
     max_am_local= max_am
     max_prim = 1
     CALL init_base()
+
+    !check if libint was compiled with right MAX_AM
+    DO i=1, 100
+       IF(storage_required(i,0) < 0) EXIT
+    ENDDO
+    CALL cp_assert(libint_max_am==i, cp_failure_level,cp_assertion_failed,routineP,&
+                    "CP2K and libint were compiled with different LIBINT_MAX_AM.", error,failure)
+
     lib_storage = init_lib(lib, max_am_local, max_prim)
     IF (lib_storage<0) THEN
       CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
@@ -131,6 +157,7 @@ MODULE hfx_libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libderiv', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
     INTEGER(KIND=C_INT)                      :: lib_deriv_storage, &
                                                 max_am_local, max_classes, &
                                                 max_prim
@@ -140,8 +167,15 @@ MODULE hfx_libint_wrapper
     max_am_local= max_am
     max_prim = 1
     max_classes = nco(max_am)**4
-
     CALL init_deriv_base()
+
+    !check if libderiv1 was compiled with right MAX_AM1
+    DO i=1, 100
+       IF(storage_required_deriv1(i,0,0) < 0) EXIT
+    ENDDO
+    CALL cp_assert(libderiv_max_am1==i, cp_failure_level,cp_assertion_failed,routineP,&
+                    "CP2K and libderiv were compiled with different LIBDERIV_MAX_AM1.", error,failure)
+
     lib_deriv_storage = init_deriv1(deriv, max_am_local, max_prim, max_classes)
     IF (lib_deriv_storage<0) THEN
       CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&

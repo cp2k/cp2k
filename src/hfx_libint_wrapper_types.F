@@ -21,7 +21,9 @@ MODULE hfx_libint_wrapper_types
          prim_data,&
          prim_data_f_size,&
          build_eri_size,&
-         build_deriv1_eri_size
+         build_deriv1_eri_size,&
+         libint_max_am,&
+         libderiv_max_am1
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_libint_wrapper_types'
 
