@@ -27,7 +27,8 @@ MODULE cp_files
             init_preconnection_list,&
             open_file,&
             get_unit_number,&
-            file_exists
+            file_exists,&
+            get_data_dir
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_files'
 
@@ -508,31 +509,55 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: file_name
     CHARACTER(LEN=default_path_length)       :: real_file_name
 
-    CHARACTER(LEN=default_path_length)       :: candidates(3), data_path
-    INTEGER                                  :: i, stat
+    CHARACTER(LEN=default_path_length)       :: candidate, data_dir
+    INTEGER                                  :: stat
     LOGICAL                                  :: exists
 
-    candidates(:) = file_name
+    real_file_name = TRIM(file_name)
 
-    CALL GET_ENVIRONMENT_VARIABLE("CP2K_DATA_DIR", data_path, status=stat)
-    IF(stat == 0) &
-        candidates(2) = join_paths(data_path, file_name)
+    ! first try file-name directly
+    INQUIRE(file=TRIM(file_name), exist=exists, iostat=stat)
+    IF(stat==0 .AND. exists) THEN
+       real_file_name = file_name
+       RETURN
+    ENDIF
 
-#if defined(__DATA_DIR)
-     candidates(3) = join_paths(__DATA_DIR, file_name)
-#endif
-
-    real_file_name = file_name !fall back in case file not found
-
-    DO i=1, SIZE(candidates)
-       INQUIRE(file=TRIM(candidates(i)), exist=exists, iostat=stat)
+    ! then try the data-dir
+    data_dir = get_data_dir()
+    IF(LEN_TRIM(data_dir)>0) THEN
+       candidate = join_paths(data_dir, file_name)
+       INQUIRE(file=TRIM(candidate), exist=exists, iostat=stat)
        IF(stat==0 .AND. exists) THEN
-           real_file_name = candidates(i)
-           EXIT
+          real_file_name = candidate
+          RETURN
        ENDIF
-    ENDDO
+    ENDIF
+
+   ! fall back in case file not found
+   real_file_name = file_name
 
   END FUNCTION discover_file
+
+! *****************************************************************************
+!> \brief Returns path of data directory if set, otherwise an empty string
+!> \retval data_dir_path ...
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION get_data_dir() RESULT(data_dir_path)
+    CHARACTER(LEN=default_path_length)       :: data_dir_path
+
+    INTEGER                                  :: stat
+
+    CALL GET_ENVIRONMENT_VARIABLE("CP2K_DATA_DIR", data_dir_path, status=stat)
+    IF(stat == 0) RETURN
+
+#if defined(__DATA_DIR)
+    data_dir_path = __DATA_DIR
+#else
+    data_dir_path = ""  !data-dir not set
+#endif
+
+  END FUNCTION get_data_dir
 
 ! *****************************************************************************
 !> \brief Joins two file-paths, inserting '/' as needed.

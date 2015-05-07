@@ -19,6 +19,7 @@ MODULE environment
        cp2k_flags, cp2k_home, cp2k_version, cp2k_year, get_runtime_info, &
        id_cp2k_version, r_host_name, r_pid, r_user_name
   USE cp_files,                        ONLY: close_file,&
+                                             get_data_dir,&
                                              open_file
   USE cp_fm_diag,                      ONLY: diag_init
   USE cp_fm_struct,                    ONLY: cp_fm_struct_config
@@ -207,6 +208,9 @@ CONTAINS
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
             "CP2K| Program compiled for",&
             ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
+       WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
+            "CP2K| Data directory path",&
+            ADJUSTR(TRIM(get_data_dir()))
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
             "CP2K| Input file name",&
             ADJUSTR(TRIM(input_file_name))
