@@ -249,7 +249,7 @@ CONTAINS
                        "Runs N independent jobs in a single run",&
                        "Do some benchmarking and testing",&
                        "Runs one of the CP2K package",&
-                       "A tool do optimize parameters in a CP2K input", &
+                       "A tool to optimize parameters in a CP2K input", &
                        "A tool to create a MOLOPT or ADMM basis for a given set"//&
                        " of training structures",&
                        "Runs Tree Monte Carlo algorithm using additional input file(s)", &
