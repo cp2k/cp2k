@@ -219,15 +219,37 @@ def html_header(title):
     output += '<html><head>\n'
     output += '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">\n'
     output += '<meta http-equiv="refresh" content="200">\n'
+    output += '<style type="text/css">\n'
+    output += '.ribbon {\n'
+    output += '  background-color: #a00;\n'
+    output += '  overflow: hidden;\n'
+    output += '  white-space: nowrap;\n'
+    output += '  position: absolute;\n'
+    output += '  right: -55px;\n'
+    output += '  top: 45px;\n'
+    output += '  transform: rotate(45deg);\n'
+    output += '  box-shadow: 0 0 10px #888;\n'
+    output += '}\n'
+    output += '.ribbon a {\n'
+    output += '  border: 1px solid #faa;\n'
+    output += '  color: #fff;\n'
+    output += '  display: block;\n'
+    output += '  font: bold 11pt sans-serif;\n'
+    output += '  margin: 1px 0;\n'
+    output += '  padding: 7px 70px;\n'
+    output += '  text-align: center;\n'
+    output += '  text-decoration: none;\n'
+    output += '}\n'
+    output += '</style>\n'
     output += '<title>%s</title>\n'%title
     output += '</head><body>\n'
+    output += '<div class="ribbon"><a href="http://cp2k.org/dev:dashboard">Need Help?</a></div>\n'
     output += '<center><h1>%s</h1></center>\n'%title.upper()
     return(output)
 
 #===============================================================================
 def html_footer(now):
-    output  = '<p>Need <a href="http://cp2k.org/dev:dashboard">help</a>?</p>\n'
-    output += '<p><small>Page last updated: %s</small></p>\n'%now.isoformat()
+    output  = '<p><small>Page last updated: %s</small></p>\n'%now.isoformat()
     output += '</body></html>'
     return(output)
 
