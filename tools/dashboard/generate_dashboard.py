@@ -321,7 +321,7 @@ def ticket_cell(label):
             output += '<a href="%s" title="%s">#%d</a>, '%(link, title, tid)
     except:
         print traceback.print_exc()
-        output += "??? "
+        output += "N/A "
     output += '<a href="%s"'%new_url
     output += ' style="text-decoration:none;font-weight:bold;font-size:larger;"'
     output += ' title="Create a new Ticket">+</a></td>'
