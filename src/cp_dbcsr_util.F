@@ -195,7 +195,7 @@ CONTAINS
       CALL mp_bcast(beta,0,mp_group)
       CALL mp_bcast(eval,0,mp_group)
       
-      IF (ABS(MAXVAL(eval(1:i))-max_ev) < threshold .AND. ABS(MINVAL(eval(1:i))-min_ev) < threshold) THEN
+      IF (ABS(MAXVAL(eval(1:i))-max_ev) < threshold .AND. ABS(MINVAL(eval(1:i))-min_ev) < threshold .AND. i>=MIN(3,n)) THEN
         max_ev = MAXVAL(eval(1:i))
         min_ev = MINVAL(eval(1:i))
         converged = .TRUE.
@@ -341,7 +341,7 @@ CONTAINS
       CALL mp_bcast(beta,0,mp_group)
       CALL mp_bcast(eval,0,mp_group)
 
-      IF (ABS(MAXVAL(eval(1:i))-max_ev) < threshold .AND. ABS(MINVAL(eval(1:i))-min_ev) < threshold) THEN
+      IF (ABS(MAXVAL(eval(1:i))-max_ev) < threshold .AND. ABS(MINVAL(eval(1:i))-min_ev) < threshold .AND. i>=MIN(3,n)) THEN
         max_ev = MAXVAL(eval(1:i))
         min_ev = MINVAL(eval(1:i))
         converged = .TRUE.

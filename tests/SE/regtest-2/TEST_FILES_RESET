@@ -621,3 +621,9 @@ stp2.inp
 stp3.inp
 scan_zn_1w_cp2k.inp
 zn_1w_debug.inp
+#  
+Pt-cis-2xpet3Cl2.inp
+#  
+Pt-cis-2xpet3Cl2-si.inp
+#  
+Pt-cis-2xpet3Cl2-si-noc.inp

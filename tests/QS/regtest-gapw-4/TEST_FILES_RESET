@@ -328,3 +328,5 @@ new defaults for preconditioner
 H2O_allnopaw.inp
 H2O_Hnopaw_pp.inp
 H2O_Onopaw_gop.inp
+#  
+H2O_Onopaw_gop.inp
