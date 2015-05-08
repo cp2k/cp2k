@@ -455,9 +455,10 @@
                   matrix%m%wms(iw)%mutable%m%btree_d,&
                   make_coordinate_tuple(stored_row, stored_col),&
                   data_block, found, data_block2, replace=.FALSE.)
-             IF (found .AND. nze .GT. 0) THEN
-                CALL daxpy (nze, 1.0_real_8, block(1), 1,&
-                     data_block2%p(1,1), 1)
+             IF (found) THEN
+                IF(nze > 0) &
+                   CALL daxpy (nze, 1.0_real_8, block(1), 1,&
+                        data_block2%p(1,1), 1)
                 CALL dbcsr_assert (ASSOCIATED (data_block%p), dbcsr_warning_level,&
                      dbcsr_internal_error, routineN,&
                      "Data was not present in block",__LINE__,error)
