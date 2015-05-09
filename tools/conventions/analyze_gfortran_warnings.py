@@ -76,7 +76,7 @@ def check_warnings(fn):
             if(may_call_implicit(loc, routine)): continue
             print "%s: Routine %s called with an implicit interface."%(loc_short, routine)
         else:
-            print "%s: %s"%(loc_short, warning) # unkown warning, just output
+            print "%s: %s"%(loc_short, warning) # unknown warning, just output
 
 #===============================================================================
 def may_call_implicit(loc, routine):

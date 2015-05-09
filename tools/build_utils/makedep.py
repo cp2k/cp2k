@@ -213,7 +213,7 @@ def mod2modfile(m, mod_format):
         return(m.lower() + ".mod")
     if(mod_format == 'upper'):
         return(m.upper() + ".mod")
-    assert(False) # modeps unkown
+    assert(False) # modeps unknown
 
 
 #=============================================================================

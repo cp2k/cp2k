@@ -87,7 +87,7 @@ MODULE swarm_worker
          CALL glbopt_worker_init(worker%glbopt, input_declaration, para_env,&
                       root_section, input_path, worker_id, worker%iw, error)
       CASE DEFAULT
-         STOP "swarm_worker_init: got unkown behavior"
+         STOP "swarm_worker_init: got unknown behavior"
     END SELECT
 
   END SUBROUTINE swarm_worker_init
@@ -122,7 +122,7 @@ MODULE swarm_worker
            CASE(swarm_do_glbopt)
              CALL glbopt_worker_execute(worker%glbopt, cmd, report)
            CASE DEFAULT
-              STOP "swarm_worker_execute: got unkown behavior"
+              STOP "swarm_worker_execute: got unknown behavior"
         END SELECT
      ENDIF
 
@@ -145,7 +145,7 @@ MODULE swarm_worker
          CALL glbopt_worker_finalize(worker%glbopt)
          DEALLOCATE(worker%glbopt)
       CASE DEFAULT
-         STOP "swarm_worker_finalize: got unkown behavior"
+         STOP "swarm_worker_finalize: got unknown behavior"
     END SELECT
 
    END SUBROUTINE swarm_worker_finalize

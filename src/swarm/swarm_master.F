@@ -125,7 +125,7 @@ MODULE swarm_master
          ALLOCATE(master%glbopt)
          CALL glbopt_master_init(master%glbopt, para_env, root_section, input_path, n_workers, master%iw, error)
       CASE DEFAULT
-         STOP "swarm_master_init: got unkown behavior"
+         STOP "swarm_master_init: got unknown behavior"
     END SELECT
 
     CALL replay_comlog(master)
@@ -291,7 +291,7 @@ MODULE swarm_master
          CASE(swarm_do_glbopt)
             CALL glbopt_master_steer(master%glbopt, report, cmd, should_stop)
          CASE DEFAULT
-            STOP "swarm_master_steer: got unkown behavior"
+            STOP "swarm_master_steer: got unknown behavior"
        END SELECT
 
        IF(should_stop) THEN
@@ -344,7 +344,7 @@ MODULE swarm_master
          CALL glbopt_master_finalize(master%glbopt)
          DEALLOCATE(master%glbopt)
       CASE DEFAULT
-         STOP "swarm_master_finalize: got unkown behavior"
+         STOP "swarm_master_finalize: got unknown behavior"
     END SELECT
 
     DEALLOCATE(master%queued_commands)

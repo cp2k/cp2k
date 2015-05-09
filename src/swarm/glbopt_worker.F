@@ -161,7 +161,7 @@ MODULE glbopt_worker
        IF(TRIM(command) == "md_and_gopt") THEN
            CALL run_mdgopt(worker, cmd, report)
        ELSE
-          STOP "Worker: received unkown command"
+          STOP "Worker: received unknown command"
        END IF
 
    END SUBROUTINE glbopt_worker_execute

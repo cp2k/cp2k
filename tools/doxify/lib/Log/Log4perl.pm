@@ -451,7 +451,7 @@ sub appender_thresholds_adjust {  # Readjust appender thresholds
     if(defined $appenders) {
             # Map names to objects
         $appenders = [map { 
-                       die "Unkown appender: '$_'" unless exists
+                       die "Unknown appender: '$_'" unless exists
                           $Log::Log4perl::Logger::APPENDER_BY_NAME{
                             $_};
                        $Log::Log4perl::Logger::APPENDER_BY_NAME{

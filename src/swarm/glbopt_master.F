@@ -132,7 +132,7 @@ MODULE glbopt_master
          ALLOCATE(this%mincrawl)
          CALL mincrawl_init(this%mincrawl, this%glbopt_section, n_walkers, iw, this%particle_set, error)
        CASE DEFAULT
-        STOP "Unkown glbopt_method"
+        STOP "Unknown glbopt_method"
     END SELECT
  END SUBROUTINE glbopt_master_init
 
@@ -223,7 +223,7 @@ MODULE glbopt_master
       CASE(glbopt_do_mincrawl)
           CALL mincrawl_steer(this%mincrawl, report, cmd)
       CASE DEFAULT
-       STOP "Unkown glbopt_method"
+       STOP "Unknown glbopt_method"
     END SELECT
 
     IF(this%E_lowest<this%E_target) THEN
@@ -345,7 +345,7 @@ MODULE glbopt_master
          CALL mincrawl_finalize(this%mincrawl)
          DEALLOCATE(this%mincrawl)
        CASE DEFAULT
-        STOP "Unkown glbopt_method"
+        STOP "Unknown glbopt_method"
     END SELECT
 
     logger => cp_error_get_logger(this%error)

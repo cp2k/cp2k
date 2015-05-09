@@ -575,7 +575,7 @@ MODULE swarm_message
        CALL mp_recv(value_str_arr, src, tag, group)
        entry%value_str = iarr2str(value_str_arr)
     CASE DEFAULT
-       STOP "swarm_message_entry_mpi_recv: unkown datatype"
+       STOP "swarm_message_entry_mpi_recv: unknown datatype"
     END SELECT
   END SUBROUTINE swarm_message_entry_mpi_recv
 
@@ -665,7 +665,7 @@ MODULE swarm_message
           entry%value_str = iarr2str(value_str_arr)
        END IF
     CASE DEFAULT
-       STOP "swarm_message_entry_mpi_bcast: unkown datatype"
+       STOP "swarm_message_entry_mpi_bcast: unknown datatype"
     END SELECT
 
   END SUBROUTINE swarm_message_entry_mpi_bcast
@@ -813,7 +813,7 @@ MODULE swarm_message
       CASE("1d_r8")
         ALLOCATE(entry%value_1d_r8(arr_size))
       CASE DEFAULT
-       STOP "swarm_message_entry_file_read: unkown datatype"
+       STOP "swarm_message_entry_file_read: unknown datatype"
     END SELECT
 
     DO i=1, arr_size
@@ -832,7 +832,7 @@ MODULE swarm_message
         CASE("1d_r8")
           READ (parser%input_line(1:31),*) entry%value_1d_r8(i)
         CASE DEFAULT
-          STOP "swarm_message_entry_file_read: unkown datatype"
+          STOP "swarm_message_entry_file_read: unknown datatype"
       END SELECT
     END DO
 
