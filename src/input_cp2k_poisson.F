@@ -751,10 +751,10 @@ END SUBROUTINE create_ewald_section
                          "FFT based deriv of epsilon, with correction using gradient of epsilon (high cutoff needed).",&
                          "FFT based deriv of epsilon, with correction using gradient of rho (high cutoff needed).",&
                          "3-point central difference derivative.",&
-                         "5-point central difference derivative (recommended).",&
-                         "7-point central difference derivative."),&
+                         "5-point central difference derivative.",&
+                         "7-point central difference derivative (recommended)."),&
             description="Preferred method for evaluating the gradient of ln(eps).", &
-            usage="DERIVATIVE_METHOD  <method>", default_i_val=derivative_cd5, error=error)
+            usage="DERIVATIVE_METHOD  <method>", default_i_val=derivative_cd7, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
     END IF
