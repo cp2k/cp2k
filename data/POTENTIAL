@@ -3524,6 +3524,10 @@ O GTH-HF-q6 GTH-HF
 #            quantum number l
 # hprj_ppnl: Coefficients of the non-local projector functions
 #
+# Calculation of c_core from values given in A. Willand et al.
+#
+# c_core(CP2K) = 4Pi * (Z-Zion)/(SQRT(2Pi)*r_core)^3
+#
 ################################################################################
 #
 # PBE functional
