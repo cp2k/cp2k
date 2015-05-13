@@ -62,3 +62,5 @@ Li2-3-nSCF-EV93.inp 52
 Li2-4-nSCF-EV93.inp 48
 # debug
 Ne_debug.inp                      1     1e-13
+# ghost md
+ghost_md.inp                      1     

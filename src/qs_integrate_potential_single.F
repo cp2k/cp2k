@@ -733,7 +733,9 @@ CONTAINS
 
     failure = .FALSE.
     IF(.NOT. skip_fcore) THEN
-        NULLIFY(pw_env,auxbas_rs_desc,hab,pab,cores)
+        NULLIFY(pw_env,auxbas_rs_desc)
+        ALLOCATE (cores(1),STAT=stat)
+        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE (hab(1,1),STAT=stat)
         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE (pab(1,1),STAT=stat)
