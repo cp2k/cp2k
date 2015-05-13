@@ -252,6 +252,8 @@ CONTAINS
     ! parsing DIELECTRIC subsection
     dielectric_section => section_vals_get_subs_vals(ps_implicit_section, "DIELECTRIC", error=error)
     CALL section_vals_get(dielectric_section, explicit=has_dielectric, error=error)
+    CALL section_vals_val_get(dielectric_section, "DIELECTRIC_CORE_CORRECTION", &
+                              l_val=params%dielectric_params%dielec_core_correction, error=error)
     CALL section_vals_val_get(dielectric_section, "epsilon", r_val=params%dielectric_params%eps0, error=error)
     CALL section_vals_val_get(dielectric_section, "rho_min", r_val=params%dielectric_params%rho_min, error=error)
     CALL section_vals_val_get(dielectric_section, "rho_max", r_val=params%dielectric_params%rho_max, error=error)

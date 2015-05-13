@@ -720,10 +720,18 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="DIELECTRIC", &
             description="Parameters for the dielectric constant function as proposed in the SCCS model.", &
-            n_keywords=4, n_subsections=0, repeats=.FALSE., required=.FALSE., &
+            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE., &
             error=error)
 
        NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="DIELECTRIC_CORE_CORRECTION", &
+            description="Avoid spurious values of the dielectric constant at the ionic core for pseudopotentials "// &
+                        "where the electron density goes to zero at the core (e.g. GTH). "// &
+                        "The correction is based on rho_core.", &
+            usage="DIELECTRIC_CORE_CORRECTION <logical>", default_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="dielectric_constant", variants=s2a('epsilon'), &
             description="Dielectric constant in the bulk of the solvent.", &

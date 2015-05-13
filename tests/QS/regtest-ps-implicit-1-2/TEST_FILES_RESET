@@ -12,3 +12,8 @@ Ar_neumann.inp
 
 # bugfix in constructing arbitrary planar regions and improve tiling of such regions.
 Ar_mixed_periodic_planar.inp       
+
+# use rho_elec - rho_core to evaluate the dielectric constant
+Ar_mixed_periodic_planar.inp
+Ar_mixed_periodic_cuboidal.inp
+Ar_mixed_periodic_cylindrical.inp

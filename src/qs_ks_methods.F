@@ -236,7 +236,8 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type) :: rho_tot_gspace, v_efield_rspace, v_hartree_gspace, &
-      v_hartree_rspace, v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r
+      v_hartree_rspace, v_minus_veps, v_sccs_rspace, v_sic_rspace, &
+      v_spin_ddapc_rest_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r, v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
@@ -434,12 +435,6 @@ CONTAINS
              CALL pw_poisson_solve(poisson_env, rho_tot_gspace%pw,energy%hartree, &
                               v_hartree_gspace%pw, rho_core=rho_core, error=error)
           END IF
-       END IF
-
-       IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit .AND. calculate_forces) THEN
-          CALL cp_assert(.FALSE., cp_warning_level, cp_assertion_failed, routineP,&
-             "The implicit Poisson solver might have inaccurate forces (dielectric deriv).", &
-             error, failure)
        END IF
 
        ! In case decouple periodic images and/or apply restraints to charges
@@ -641,7 +636,16 @@ CONTAINS
        IF (.NOT.just_energy) THEN
           IF (calculate_forces) THEN
              ! Getting nuclear force contribution from the core charge density
-             CALL integrate_v_core_rspace(v_hartree_rspace,qs_env,error=error)
+             IF ((poisson_env%parameters%solver .EQ. pw_poisson_implicit) .AND. & 
+                 (poisson_env%parameters%dielectric_params%dielec_core_correction)) THEN
+                CALL pw_pool_create_pw(auxbas_pw_pool, v_minus_veps%pw, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+                CALL pw_copy(v_hartree_rspace%pw, v_minus_veps%pw, error=error)
+                CALL pw_axpy(poisson_env%implicit_env%v_eps, v_minus_veps%pw, - v_hartree_rspace%pw%pw_grid%dvol, error=error)
+                CALL integrate_v_core_rspace(v_minus_veps, qs_env, error=error)
+                CALL pw_pool_give_back_pw(auxbas_pw_pool, v_minus_veps%pw, error=error)
+             ELSE
+                CALL integrate_v_core_rspace(v_hartree_rspace,qs_env,error=error)
+             END IF
           END IF
 
           IF (.NOT.do_hfx) THEN

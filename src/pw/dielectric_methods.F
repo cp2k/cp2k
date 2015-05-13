@@ -158,7 +158,13 @@ CONTAINS
                               use_data=REALDATA3D, in_space=REALSPACE, &
                               error=error) 
        CALL pw_transfer(rho_core, rho_core_rs, error=error)
-       CALL pw_axpy(rho_core_rs, rho_elec_rs, - 1.0_dp , error=error)
+       IF (dielectric%params%dielec_core_correction) THEN
+          ! use (rho_elec - rho_core) to compute dielectric to avoid obtaining spurious 
+          ! epsilon in the core region   
+          CALL pw_axpy(rho_core_rs, rho_elec_rs, - 2.0_dp , error=error)
+       ELSE
+          CALL pw_axpy(rho_core_rs, rho_elec_rs, - 1.0_dp , error=error)
+       END IF
        CALL pw_pool_give_back_pw(pw_pool, rho_core_rs, error=error)
     ELSE 
        CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &

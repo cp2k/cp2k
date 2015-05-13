@@ -28,6 +28,7 @@ MODULE dielectric_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dielectric_types'
  
   TYPE dielectric_parameters
+    LOGICAL                            :: dielec_core_correction
     REAL(KIND=dp)                      :: eps0
     REAL(KIND=dp)                      :: rho_min
     REAL(KIND=dp)                      :: rho_max
