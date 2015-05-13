@@ -359,6 +359,11 @@ CONTAINS
                        pw_pools=pw_pools, poisson_env=poisson_env,error=error)
     END IF
 
+    IF (gapw .AND. (poisson_env%parameters%solver .EQ. pw_poisson_implicit)) THEN
+        CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP,&
+             "The implicit Poisson solver cannot be used in conjunction with GAPW.", error, failure)
+    END IF
+
     ! ***  Prepare densities for gapw ***
     IF(gapw .OR. gapw_xc) THEN
        CALL prepare_gapw_den(qs_env,do_rho0=(.NOT.gapw_xc),error=error)
