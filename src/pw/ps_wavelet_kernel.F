@@ -404,8 +404,10 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
      cossinarr(1,i3-1)= COS(x)
      cossinarr(2,i3-1)=-SIN(x)
   END DO
-  !kernel=0._dp
-  !kernel_mpi=0._dp
+
+  ! satisfy valgrind, init arrays to large value, even if the offending bit is (likely?) padding
+  kernel=HUGE(0._dp)
+  kernel_mpi=HUGE(0._dp)
 
   !calculate the limits of the FFT calculations
   !that can be performed in a row remaining inside the cache
