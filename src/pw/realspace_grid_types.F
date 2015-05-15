@@ -1372,7 +1372,6 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE ( recv_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       send_tasks = 0
        send_tasks(:,1)=1
        send_tasks(:,2)=0
        send_tasks(:,3)=1
@@ -1380,17 +1379,7 @@ CONTAINS
        send_tasks(:,5)=1
        send_tasks(:,6)=0
        send_sizes = 0
-       recv_tasks = 0
-       recv_tasks(:,1)=1
-       recv_tasks(:,2)=0
-       send_tasks(:,3)=1
-       send_tasks(:,4)=0
-       send_tasks(:,5)=1
-       send_tasks(:,6)=0
        recv_sizes = 0
-
-       send_disps = 0
-       recv_disps = 0
 
        my_rs_rank = rs % desc % my_pos
        my_pw_rank = pw % pw_grid % para % rs_mpo
