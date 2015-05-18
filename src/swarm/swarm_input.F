@@ -68,7 +68,9 @@ MODULE swarm_input
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="NUMBER_OF_WORKERS",&
-        description="Number of workers used for swarm.",&
+        description="Number of workers used for swarm. "//&
+        "Of the total number of processors one is used for the master, "//&
+        "the remaining processors should be divisible by the number of workers.",&
         type_of_var=integer_t,required=.TRUE.,error=error)
     CALL section_add_keyword(swarm_section, keyword, error=error)
     CALL keyword_release(keyword, error=error)
