@@ -1,0 +1,48 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ../../../data/BASIS_MOLOPT
+    POTENTIAL_FILE_NAME ../../../data/GTH_POTENTIALS
+    LSD
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+      LS_SCF
+    &END QS
+    &LS_SCF
+     MAX_SCF     100
+     EPS_SCF     1.0E-5
+     MU         -0.1
+     S_PRECONDITIONER  NONE
+     REPORT_ALL_SPARSITIES OFF
+     PURIFICATION_METHOD TRS4
+     MIXING_FRACTION 0.3
+    &END
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.0 4.0 4.0
+    &END CELL
+    &COORD
+       C     0.0 0.0 0.0
+    &END COORD
+    # test that in a minimal basis we still get the proper trace 
+    &KIND C
+      BASIS_SET SZV-MOLOPT-GTH
+      POTENTIAL GTH-PBE
+    &END KIND
+    &TOPOLOGY
+       &CENTER_COORDINATES
+       &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT C_TRS4
+  RUN_TYPE ENERGY
+&END GLOBAL

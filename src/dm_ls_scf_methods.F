@@ -435,11 +435,11 @@ CONTAINS
                                                 handle, i, j, unit_nr
     INTEGER(kind=int_8)                      :: flop1, flop2
     LOGICAL                                  :: converged, do_dyn_threshold
-    REAL(KIND=dp) :: current_threshold, eps_max, eps_min, est_threshold, &
-      frob_id, frob_x, gam, homo, lumo, max_eig, max_threshold, maxdev, &
-      maxev, min_eig, minev, mmin, mu, mu_a, mu_b, mu_c, mu_fa, mu_fc, &
-      occ_matrix, scaled_homo_bound, scaled_lumo_bound, t1, t2, trace_fx, &
-      trace_gx, xi
+    REAL(KIND=dp) :: current_threshold, delta_n, eps_max, eps_min, &
+      est_threshold, frob_id, frob_x, gam, homo, lumo, max_eig, &
+      max_threshold, maxdev, maxev, min_eig, minev, mmin, mu, mu_a, mu_b, &
+      mu_c, mu_fa, mu_fc, occ_matrix, scaled_homo_bound, scaled_lumo_bound, &
+      t1, t2, trace_fx, trace_gx, xi
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: gamma_values
     TYPE(cp_dbcsr_type)                      :: matrix_k0, matrix_x, &
                                                 matrix_x_nosym, matrix_xidsq, &
@@ -468,7 +468,7 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_x,error=error)
     CALL cp_dbcsr_create(matrix_x, template=matrix_ks, matrix_type="S", error=error)
 
-    ! at some points the non-symmetric version of x is rewuired
+    ! at some points the non-symmetric version of x is required
     CALL cp_dbcsr_init(matrix_x_nosym,error=error)
     CALL cp_dbcsr_create(matrix_x_nosym, template=matrix_ks, matrix_type=dbcsr_type_no_symmetry, error=error)
 
@@ -556,11 +556,14 @@ CONTAINS
       CALL cp_dbcsr_trace(matrix_xsq, tmp_gx, trace_fx, error=error)
 
       ! if converged, and gam becomes noisy, fix it to 3, which results in a final McWeeny step.
+      ! do this only if the electron count is reasonable.
       ! maybe tune if the current criterion is not good enough
-      IF (ABS(frob_id/frob_x) < SQRT(threshold)) THEN
+      delta_n = nelectron - trace_fx
+      IF ((ABS(frob_id/frob_x) < SQRT(threshold)) .AND. (ABS(delta_n) < 0.5_dp) ) THEN
          gam = 3.0_dp
       ELSE
-         gam = (nelectron - trace_fx)/trace_gx 
+         ! make sure, we don't divide by zero, as soon as gam is outside the interval gam_min,gam_max, it doesn't matter
+         gam = delta_n/MAX(trace_gx,ABS(delta_n)/100)
       ENDIF
       gamma_values(i) = gam
 
@@ -616,7 +619,7 @@ CONTAINS
 
       ! a branch of 1 or 2 appears to lead to a less accurate electron number count and premature exit
       ! if it turns out this does not exit because we get stuck in branch 1/2 for a reason we need to refine further
-      IF (ABS(frob_id/frob_x) < SQRT(threshold) .AND. branch==3) EXIT
+      IF (ABS(frob_id/frob_x) < SQRT(threshold) .AND. branch==3  .AND. (ABS(delta_n) < 0.5_dp) ) EXIT
 
     END DO
 
