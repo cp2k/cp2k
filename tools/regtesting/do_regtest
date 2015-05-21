@@ -558,9 +558,6 @@ cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || ( \
 
 printf "done!\n"
 
-# set path to data-dir in case binary was compiled somewhere else
-export CP2K_DATA_DIR=${dir_base}/${cp2k_dir}/data
-
 #
 # preprocess the restrict directories if the retest is enabled
 #
