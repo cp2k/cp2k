@@ -388,8 +388,7 @@ echo "--------------------------- SVN ------------------------------------------
 
 if [[ ${nosvn} != "nosvn" ]]; then
 
-  # SVN update src
-  cd ${dir_base}/${cp2k_dir}/src
+  cd ${dir_base}/${cp2k_dir}
 
   # If ChangeLog does not exist for the first time, it is created
   if [[ ! -s ${changelog} ]]; then
@@ -397,23 +396,25 @@ if [[ ${nosvn} != "nosvn" ]]; then
      ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${changelog}
   fi
 
-  svn update -r {${svndate}} &>${svn_out}
-  if (( $? )); then
-     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-     cat ${svn_out} >>${error_description_file}
-     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-     echo "ERROR: svn update of cp2k/src failed ... bailing out" >>${error_description_file}
-     cat "${error_description_file}"
-     end_test 1 ${lockfile}
-  fi
-
-  echo "--- svn update src ---"
-  cat ${svn_out}
-  echo "svn update src went fine"
+  for d in src data makefiles tests tools
+  do
+      echo "Updating $d ..."
+      svn update -r {${svndate}} $d &>${svn_out}
+      if (( $? )); then
+         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+         cat ${svn_out} >>${error_description_file}
+         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+         echo "ERROR: svn update $d failed ... bailing out" >>${error_description_file}
+         cat "${error_description_file}"
+         end_test 1 ${lockfile}
+      fi
+      cat ${svn_out}
+  done
 
   #  cp2k_lines=`wc *.F | tail -1 |  ${awk} '{print $1}'`
   #  echo "cp2k is now ${cp2k_lines} lines .F"
 
+  echo "--------------------------- ChangeLog diff -------------------------------"
   # Using svn2cl.pl to generate GNU like ChangeLog
   ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_new} >>${error_description_file} 2>&1
 
@@ -424,53 +425,8 @@ if [[ ${nosvn} != "nosvn" ]]; then
   cat ${changelog_old} >>${changelog}
 
   diff ${changelog} ${changelog_old} >${changelog_diff}
-  echo "------- differences --------" >>${changelog_diff}
-
-  rm ${changelog_new} ${changelog_old}
-
-  echo "---  ChangeLog diff src  ---"
   cat ${changelog_diff}
-  echo "----------------------------"
-
-  # SVN update tests
-  cd ${dir_base}/${cp2k_dir}/tests
-
-  if [[ ! -s ${changelog_tests} ]]; then
-     echo "Creating ChangeLog-tests file for the first time. This may take a while ..."
-     ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh -i -o ${changelog_tests}
-  fi
-
-  svn update -r {${svndate}} &>${svn_out}
-  if (( $? )); then
-     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-     cat ${svn_out} >>${error_description_file}
-     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-     echo "ERROR: svn update of cp2k/tests failed ... bailing out" >>${error_description_file}
-     cat "${error_description_file}"
-     end_test 1 ${lockfile}
-  fi
-
-  echo "--- svn update tests ---"
-  cat ${svn_out}
-  echo "svn update tests went fine"
-
-  # Using svn2cl.pl to generate GNU like ChangeLog
-  ${dir_base}/${cp2k_dir}/tools/svn2cl/svn2cl.sh --limit 100 -i -o ${changelog_tests_new} >>${error_description_file} 2>&1
-
-  line1="$(head -n 1 ${changelog_tests})"
-  nline=$(grep -n "${line1}" ${changelog_tests_new} | head -n 1 | cut -f 1 -d:)
-  mv ${changelog_tests} ${changelog_tests_old}
-  head -n $((nline - 1)) ${changelog_tests_new} >${changelog_tests}
-  cat ${changelog_tests_old} >> ${changelog_tests}
-
-  diff ${changelog_tests} ${changelog_tests_old} > ${changelog_tests_diff}
-  echo "------- differences --------" >>${changelog_tests_diff}
-
-  rm ${changelog_tests_new} ${changelog_tests_old}
-
-  echo "---  ChangeLog diff tests  ---"
-  cat ${changelog_tests_diff}
-  echo "----------------------------"
+  rm ${changelog_new} ${changelog_old}
 
 else
 
@@ -478,13 +434,14 @@ else
 
 fi
 
+echo "--------------------------- Preparations ---------------------------------"
+
 # Check if there is any update or difference that thus requires a rerun
 # one day, this requires improvement for speed.
 if [[ ${emptycheck} == "YES" ]]; then
-   isempty_1=`nl ${changelog_diff} | awk '{print $1}'`
-   isempty_2=`nl ${changelog_tests_diff} | awk '{print $1}'`
+   isempty=`nl ${changelog_diff} | awk '{print $1}'`
 
-   if [[ ${isempty_1} == "1" && ${isempty_2} == "1" ]]; then
+   if [[ ${isempty} == "1" ]]; then
       echo "No changes since last run -- clean exit without testing"
 
       # cleanup of empty directories
