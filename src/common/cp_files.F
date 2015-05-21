@@ -396,7 +396,8 @@ CONTAINS
        IF (.NOT.exists) THEN
           WRITE (UNIT=message,FMT="(A)")&
             "The specified OLD file <"//TRIM(ADJUSTL(real_file_name))//&
-            "> cannot be opened. It does not exist."
+            "> cannot be opened. It does not exist. "//&
+            "Data directory path: "//TRIM(get_data_dir())
           CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        END IF
     END IF
