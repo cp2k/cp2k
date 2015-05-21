@@ -11,8 +11,8 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME  ../../../data/HFX_BASIS
-    POTENTIAL_FILE_NAME  ../../../data/POTENTIAL
+    BASIS_SET_FILE_NAME  HFX_BASIS
+    POTENTIAL_FILE_NAME  POTENTIAL
     &MGRID
       CUTOFF     150
       REL_CUTOFF  30
@@ -39,7 +39,7 @@
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
           CUTOFF_RADIUS 2.4999999999
-          T_C_G_DATA ../../../data/t_c_g.dat
+          T_C_G_DATA t_c_g.dat
         &END
       &END HF
       &WF_CORRELATION

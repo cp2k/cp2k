@@ -1,9 +1,9 @@
-#CPQA INCLUDE ../../../data/DFTB/scc/scc_parameter
+#CPQA INCLUDE DFTB/scc/scc_parameter
 #CPQA INCLUDE ../uff_table
-#CPQA INCLUDE ../../../data/DFTB/scc/oo.spl
-#CPQA INCLUDE ../../../data/DFTB/scc/oh.spl
-#CPQA INCLUDE ../../../data/DFTB/scc/ho.spl
-#CPQA INCLUDE ../../../data/DFTB/scc/hh.spl
+#CPQA INCLUDE DFTB/scc/oo.spl
+#CPQA INCLUDE DFTB/scc/oh.spl
+#CPQA INCLUDE DFTB/scc/ho.spl
+#CPQA INCLUDE DFTB/scc/hh.spl
 &FORCE_EVAL
   STRESS_TENSOR ANALYTICAL
   &DFT
@@ -17,11 +17,11 @@
          DISPERSION         T
          HB_SR_GAMMA        T
          &PARAMETER
-            PARAM_FILE_PATH  ../../../data/DFTB/scc
+            PARAM_FILE_PATH  DFTB/scc
             PARAM_FILE_NAME  scc_parameter
             HB_SR_PARAM       4.85
             DISPERSION_TYPE  D3
-            DISPERSION_PARAMETER_FILE ../../../data/dftd3.dat
+            DISPERSION_PARAMETER_FILE dftd3.dat
             D3_SCALING  1.0 1.5 1.5
          &END PARAMETER
       &END DFTB

@@ -601,16 +601,6 @@ cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || ( \
 
 printf "done!\n"
 
-printf "Copying data into working directory ... "
-cp -al ${dir_base}/${cp2k_dir}/data ${dir_out}/data || \
-cp -rpl ${dir_base}/${cp2k_dir}/data ${dir_out}/data || ( \
-  echo "Could not copy data directory as hard link"
-  echo "Using normal copy instead."
-  sleep 10
-  cp -rp ${dir_base}/${cp2k_dir}/data/* ${dir_out}/data
-)
-printf "done!\n"
-
 #
 # preprocess the restrict directories if the retest is enabled
 #

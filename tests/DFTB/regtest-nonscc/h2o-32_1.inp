@@ -1,8 +1,8 @@
-#CPQA INCLUDE ../../../data/DFTB/nonscc/nonscc_parameter
-#CPQA INCLUDE ../../../data/uff_table
-#CPQA INCLUDE ../../../data/DFTB/nonscc/oo
-#CPQA INCLUDE ../../../data/DFTB/nonscc/oh
-#CPQA INCLUDE ../../../data/DFTB/nonscc/hh
+#CPQA INCLUDE DFTB/nonscc/nonscc_parameter
+#CPQA INCLUDE uff_table
+#CPQA INCLUDE DFTB/nonscc/oo
+#CPQA INCLUDE DFTB/nonscc/oh
+#CPQA INCLUDE DFTB/nonscc/hh
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
@@ -11,7 +11,7 @@
       &DFTB
         SELF_CONSISTENT    F
         &PARAMETER
-          PARAM_FILE_PATH  ../../../data/DFTB/nonscc
+          PARAM_FILE_PATH  DFTB/nonscc
           PARAM_FILE_NAME  nonscc_parameter
         &END PARAMETER
       &END DFTB

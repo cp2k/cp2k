@@ -7,8 +7,8 @@
   METHOD QS
   STRESS_TENSOR ANALYTICAL
   &DFT
-    BASIS_SET_FILE_NAME ../../../data/BASIS_MOLOPT
-    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 180
     &END MGRID
@@ -32,7 +32,7 @@
            TYPE RVV10
            PARAMETERS 6.3 0.0093
            VERBOSE_OUTPUT
-           KERNEL_FILE_NAME ../../../data/rVV10_kernel_table.dat
+           KERNEL_FILE_NAME rVV10_kernel_table.dat
            CUTOFF  80
          &END NON_LOCAL
       &END vdW_POTENTIAL

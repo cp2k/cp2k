@@ -1,4 +1,3 @@
-@SET DPATH ../../../data
 @SET PROJECT hbn3_1h2o_ff_pyz
 @SET RESFILE hbn3_1h2o_ff_pyz
 @SET XYZ hbn3x_1h2o_pyz.xyz
@@ -38,8 +37,8 @@
     &END
   &END
   &DFT
-    BASIS_SET_FILE_NAME   ${DPATH}/BASIS_MOLOPT
-    POTENTIAL_FILE_NAME   ${DPATH}/GTH_POTENTIALS
+    BASIS_SET_FILE_NAME   BASIS_MOLOPT
+    POTENTIAL_FILE_NAME   GTH_POTENTIALS
     RESTART_FILE_NAME     ${RESFILE}-RESTART.wfn
     &MGRID
       NGRIDS 5
@@ -93,7 +92,7 @@
 #        &NON_LOCAL
 #          TYPE RVV10
 #          VERBOSE_OUTPUT
-#          KERNEL_FILE_NAME ${DPATH}/rVV10_kernel_table.dat
+#          KERNEL_FILE_NAME rVV10_kernel_table.dat
 #        &END NON_LOCAL
 #      &END VDW_POTENTIAL
     &END XC

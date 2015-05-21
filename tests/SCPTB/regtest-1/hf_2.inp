@@ -4,10 +4,10 @@
       METHOD SCPTB
       &SCPTB
         DISPERSION .TRUE.
-        DISPERSION_PARAMETER_FILE ../../../data/dftd3.dat
+        DISPERSION_PARAMETER_FILE dftd3.dat
         DO_EWALD .FALSE.
         DO_SCP   .FALSE.
-        PARAMETER_FILE_NAME ../../../data/nm12_parameters.xml
+        PARAMETER_FILE_NAME nm12_parameters.xml
       &END SCPTB
     &END QS
     &SCF

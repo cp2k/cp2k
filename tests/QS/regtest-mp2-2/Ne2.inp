@@ -6,8 +6,8 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME ../../../data/EMSL_BASIS_SETS
-    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 300
       REL_CUTOFF 40
@@ -41,7 +41,7 @@
         &INTERACTION_POTENTIAL
            POTENTIAL_TYPE TShPSC
            TRUNCATION_RADIUS [angstrom] 3.0
-           TShPSC_DATA ../../../data/t_sh_p_s_c.dat
+           TShPSC_DATA t_sh_p_s_c.dat
         &END
       &END
     &END XC

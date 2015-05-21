@@ -1,6 +1,6 @@
-#CPQA INCLUDE ../../../data/DFTB/nonscc/nonscc_parameter
-#CPQA INCLUDE ../../../data/uff_table
-#CPQA INCLUDE ../../../data/DFTB/nonscc/hh
+#CPQA INCLUDE DFTB/nonscc/nonscc_parameter
+#CPQA INCLUDE uff_table
+#CPQA INCLUDE DFTB/nonscc/hh
 &FORCE_EVAL
   &DFT
     &QS
@@ -8,7 +8,7 @@
       &DFTB
         SELF_CONSISTENT    F
         &PARAMETER
-          PARAM_FILE_PATH  ../../../data/DFTB/nonscc
+          PARAM_FILE_PATH  DFTB/nonscc
           SK_FILE   O O   oo
           SK_FILE   C C   cc
           SK_FILE   C O   co

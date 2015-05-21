@@ -8,7 +8,7 @@
         DO_EWALD           F
         DISPERSION         F
         &PARAMETER
-           PARAM_FILE_PATH  ../../../../data/DFTB/scc
+           PARAM_FILE_PATH  DFTB/scc
            PARAM_FILE_NAME  scc_parameter
         &END PARAMETER
       &END DFTB

@@ -16,13 +16,13 @@
         DIAGONAL_DFTB3     T
         HB_SR_GAMMA        T
         &PARAMETER
-          PARAM_FILE_PATH  ../../../data/DFTB/scc
+          PARAM_FILE_PATH  DFTB/scc
           PARAM_FILE_NAME  scc_parameter
           DISPERSION_TYPE  D3
           DISPERSION_RADIUS           15.
           COORDINATION_CUTOFF         1.e-4
           D3_SCALING                  1.0 1.0 1.5
-          DISPERSION_PARAMETER_FILE   ../../../data/dftd3.dat
+          DISPERSION_PARAMETER_FILE   dftd3.dat
         &END PARAMETER
       &END DFTB
     &END QS

@@ -8,7 +8,7 @@
         DO_EWALD           F
         DISPERSION         F
         &PARAMETER
-           PARAM_FILE_PATH  ../../../../data/DFTB/nonscc
+           PARAM_FILE_PATH  DFTB/nonscc
            PARAM_FILE_NAME  nonscc_parameter
         &END PARAMETER
       &END

@@ -7,8 +7,8 @@
   METHOD QS
   STRESS_TENSOR ANALYTICAL
   &DFT
-    BASIS_SET_FILE_NAME ../../../data/BASIS_MOLOPT
-    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 180
     &END MGRID
@@ -34,7 +34,7 @@
          &NON_LOCAL
            TYPE DRSLL
            VERBOSE_OUTPUT
-           KERNEL_FILE_NAME ../../../data/vdW_kernel_table.dat
+           KERNEL_FILE_NAME vdW_kernel_table.dat
            CUTOFF  80
          &END NON_LOCAL
       &END vdW_POTENTIAL

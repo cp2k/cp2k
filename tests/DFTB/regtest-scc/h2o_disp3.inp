@@ -1,8 +1,8 @@
-#CPQA INCLUDE ../../../data/DFTB/scc/scc_parameter
-#CPQA INCLUDE ../../../data/DFTB/scc/oo.spl
-#CPQA INCLUDE ../../../data/DFTB/scc/oh.spl
-#CPQA INCLUDE ../../../data/DFTB/scc/ho.spl
-#CPQA INCLUDE ../../../data/DFTB/scc/hh.spl
+#CPQA INCLUDE DFTB/scc/scc_parameter
+#CPQA INCLUDE DFTB/scc/oo.spl
+#CPQA INCLUDE DFTB/scc/oh.spl
+#CPQA INCLUDE DFTB/scc/ho.spl
+#CPQA INCLUDE DFTB/scc/hh.spl
 &FORCE_EVAL
   &DFT
     &QS
@@ -12,13 +12,13 @@
         DO_EWALD           T
         DISPERSION         T
         &PARAMETER
-          PARAM_FILE_PATH  ../../../data/DFTB/scc
+          PARAM_FILE_PATH  DFTB/scc
           PARAM_FILE_NAME  scc_parameter
           DISPERSION_TYPE  D3 
           DISPERSION_RADIUS           15.
           COORDINATION_CUTOFF         1.e-4
           D3_SCALING                  1.0 1.0 1.5
-          DISPERSION_PARAMETER_FILE   ../../../data/dftd3.dat
+          DISPERSION_PARAMETER_FILE   dftd3.dat
         &END PARAMETER
       &END DFTB
     &END QS

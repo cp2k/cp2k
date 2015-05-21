@@ -1,8 +1,8 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME ../../../data/EMSL_BASIS_SETS
-    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
     &MGRID
       CUTOFF 200 
       REL_CUTOFF 50
@@ -50,7 +50,7 @@
          SCALE_COULOMB 0.18352
          ! should be cell L/2 but large enough for the erf to decay
          CUTOFF_RADIUS 2.5
-         T_C_G_DATA ../../../data/t_c_g.dat
+         T_C_G_DATA t_c_g.dat
        &END
       &END
     &END XC

@@ -1,8 +1,8 @@
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
-    BASIS_SET_FILE_NAME ../../../data/GTH_BASIS_SETS
-    POTENTIAL_FILE_NAME ../../../data/GTH_POTENTIALS
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
     &MGRID
       CUTOFF 300
       REL_CUTOFF 30
@@ -26,7 +26,7 @@
         &INTERACTION_POTENTIAL
           POTENTIAL_TYPE TRUNCATED
           CUTOFF_RADIUS 0.5
-          T_C_G_DATA ../../../data/t_c_g.dat
+          T_C_G_DATA t_c_g.dat
         &END
         &MEMORY
           MAX_MEMORY 10

@@ -1,7 +1,5 @@
-@SET DPATH /users/mmi
 @SET WRKDIR /scratch/daint/mmi/SL12X12_4L_AR/NM_PBED3
 @SET INPDIR /scratch/daint/mmi/SL12X12_4L_AR
-##@SET DPATH /home/pci/marcella/data
 @SET PROJECT  nm_pbed3_gop
 @SET RESFILE  nm_pbed3_gop
 @SET XYZ ${INPDIR}/nm_pbed3_init.xyz
@@ -99,8 +97,8 @@ LIST 270 271 272 277 278 279 280 285 286 287 288
     &END
   &END
   &DFT
-    BASIS_SET_FILE_NAME   ${DPATH}/BASIS_MOLOPT
-    POTENTIAL_FILE_NAME   ${DPATH}/GTH_POTENTIALS
+    BASIS_SET_FILE_NAME   BASIS_MOLOPT
+    POTENTIAL_FILE_NAME   GTH_POTENTIALS
     RESTART_FILE_NAME  ${WRKDIR}/${RESFILE}-RESTART.wfn
     &MGRID
       NGRIDS ${NG}
@@ -157,7 +155,7 @@ LIST 270 271 272 277 278 279 280 285 286 287 288
         &NON_LOCAL
           TYPE RVV10
           VERBOSE_OUTPUT
-          KERNEL_FILE_NAME ${DPATH}/rVV10_kernel_table.dat
+          KERNEL_FILE_NAME rVV10_kernel_table.dat
         &END NON_LOCAL
 @endif
 @if ${D3} == 1
@@ -166,7 +164,7 @@ LIST 270 271 272 277 278 279 280 285 286 287 288
           TYPE DFTD3
           CALCULATE_C9_TERM .TRUE.
           REFERENCE_C9_TERM .TRUE.
-          PARAMETER_FILE_NAME ${DPATH}/dftd3.dat
+          PARAMETER_FILE_NAME dftd3.dat
 !          VERBOSE_OUTPUT .TRUE.
           REFERENCE_FUNCTIONAL PBE
           R_CUTOFF [angstrom] 16.

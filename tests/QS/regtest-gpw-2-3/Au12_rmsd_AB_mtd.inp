@@ -4,7 +4,6 @@
 !
 ! dinamica di una particella di Au 13
 !
-@SET PPATH ../../../data 
 ! **** Global settings
 &GLOBAL
   PROJECT Au12_rmsd_AB_mtd
@@ -18,8 +17,8 @@
   METHOD      Quickstep
   &DFT
     ! ** PATH for potentials
-    POTENTIAL_FILE_NAME ${PPATH}/GTH_POTENTIALS
-    BASIS_SET_FILE_NAME ${PPATH}/BASIS_MOLOPT
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
     !UKS
     CHARGE 0
     !MULTIPLICITY 2

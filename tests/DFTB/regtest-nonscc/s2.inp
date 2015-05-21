@@ -1,6 +1,6 @@
-#CPQA INCLUDE ../../../data/DFTB/nonscc/nonscc_parameter
-#CPQA INCLUDE ../../../data/uff_table
-#CPQA INCLUDE ../../../data/DFTB/nonscc/ss
+#CPQA INCLUDE DFTB/nonscc/nonscc_parameter
+#CPQA INCLUDE uff_table
+#CPQA INCLUDE DFTB/nonscc/ss
 &FORCE_EVAL
   &DFT
     &QS
@@ -10,7 +10,7 @@
         ORTHOGONAL_BASIS   F   
         DO_EWALD           F
         &PARAMETER
-          PARAM_FILE_PATH  ../../../data/DFTB/nonscc
+          PARAM_FILE_PATH  DFTB/nonscc
           SK_FILE   S S   ss
         &END PARAMETER
       &END DFTB
