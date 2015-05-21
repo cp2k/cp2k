@@ -743,8 +743,6 @@ xc_xpbe_hole_t_c_lr.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_xpbe_hole_t_c_lr.F: Unused dummy argument 'ndrho' at (1)
 xc_xwpbe.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xml_parser.F: Copyright banner malformed
-xml_parser.F: Found CLOSE statement in procedure "xml_close"
-xml_parser.F: Found OPEN statement in procedure "xml_open"
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_0_0 called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_0_1 called with an implicit interface.

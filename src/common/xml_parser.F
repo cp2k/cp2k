@@ -45,6 +45,9 @@
 !   - simple checking via a table: parent, tag, id, min, max
 !
 MODULE xml_parser
+  USE cp_files,                        ONLY: close_file,&
+                                             file_exists,&
+                                             open_file
 
    IMPLICIT NONE
 
@@ -266,8 +269,7 @@ SUBROUTINE xml_open( info, fname, mustread )
     CHARACTER(len=*), INTENT(in)             :: fname
     LOGICAL, INTENT(in)                      :: mustread
 
-    INTEGER                                  :: i, ierr, k, kend
-    LOGICAL                                  :: exists, opend
+    INTEGER                                  :: ierr, k, kend
 
    info%lun = 10
    info%ignore_whitespace  = .FALSE.
@@ -279,23 +281,16 @@ SUBROUTINE xml_open( info, fname, mustread )
    info%level              = -1
    info%lineno             =  0
 
-   DO i = 10,99
-      INQUIRE( unit = i, opened = opend )
-      IF ( .NOT. opend ) THEN
-         info%lun = i
-         INQUIRE( file = fname, exist = exists )
-         IF ( .NOT. exists .AND. mustread ) THEN
-            CALL xml_report_errors( 'XML_OPEN: file does not exist:', TRIM(fname))
-            info%lun   = -1
-            info%error = .TRUE.
-         ELSE
-            OPEN( unit = info%lun, file = fname )
-            CALL xml_report_details( 'XML_OPEN: opened file ', TRIM(fname) )
-            CALL xml_report_details( 'at LU-number: ', info%lun )
-         ENDIF
-         EXIT
-      ENDIF
-   ENDDO
+   IF ( .NOT. file_exists(fname) .AND. mustread ) THEN
+      CALL xml_report_errors( 'XML_OPEN: file does not exist:', TRIM(fname))
+      info%lun   = -1
+      info%error = .TRUE.
+   ELSE
+      CALL open_file(file_name=fname, unit_number=info%lun)
+      CALL xml_report_details( 'XML_OPEN: opened file ', TRIM(fname) )
+      CALL xml_report_details( 'at LU-number: ', info%lun )
+   ENDIF
+
    IF ( .NOT. info%error .AND. mustread ) THEN
       k = 1
       DO WHILE ( k .GE. 1 )
@@ -341,7 +336,7 @@ END SUBROUTINE xml_open
 SUBROUTINE xml_close( info )
     TYPE(XML_PARSE), INTENT(inout)           :: info
 
-   CLOSE( info%lun )
+   CALL close_file(info%lun)
 
    !
    ! Only clean up the LU-number, so that the calling program
