@@ -120,7 +120,7 @@ MODULE swarm
     TYPE(swarm_message_type)                 :: cmd, report
     TYPE(swarm_worker_type)                  :: worker
 
-      CALL swarm_master_init(master, para_env, globenv, root_section, input_path, n_workers=1, error=error)
+      CALL swarm_master_init(master, para_env, globenv, root_section, n_workers=1, error=error)
       CALL swarm_worker_init(worker, para_env, input_declaration, root_section, &
                              input_path, worker_id=1, error=error)
 
@@ -174,7 +174,7 @@ MODULE swarm
      IF(ASSOCIATED(swarm_mpi%worker)) THEN
         CALL swarm_parallel_worker_driver(swarm_mpi, input_declaration, worker_id, root_section, input_path, error)
      ELSE
-        CALL swarm_parallel_master_driver(swarm_mpi, n_workers, root_section, input_path, globenv, error)
+        CALL swarm_parallel_master_driver(swarm_mpi, n_workers, root_section, globenv, error)
      END IF
 
      CALL swarm_mpi_finalize(swarm_mpi, root_section, error)
@@ -233,16 +233,14 @@ MODULE swarm
 !> \param swarm_mpi ...
 !> \param n_workers ...
 !> \param root_section ...
-!> \param input_path ...
 !> \param globenv ...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-   SUBROUTINE swarm_parallel_master_driver(swarm_mpi, n_workers, root_section, input_path, globenv, error)
+   SUBROUTINE swarm_parallel_master_driver(swarm_mpi, n_workers, root_section, globenv, error)
     TYPE(swarm_mpi_type), INTENT(IN)         :: swarm_mpi
     INTEGER, INTENT(IN)                      :: n_workers
     TYPE(section_vals_type), POINTER         :: root_section
-    CHARACTER(LEN=*), INTENT(IN)             :: input_path
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -254,8 +252,7 @@ MODULE swarm
 
      is_waiting(:) = .FALSE.
 
-     CALL swarm_master_init(master, swarm_mpi%master, globenv, root_section,&
-             input_path, n_workers, error)
+     CALL swarm_master_init(master, swarm_mpi%master, globenv, root_section, n_workers, error)
 
      i_shutdowns = 0
      j = 0
