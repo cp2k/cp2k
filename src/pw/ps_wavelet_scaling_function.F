@@ -64,7 +64,7 @@ SUBROUTINE scaling_function(itype,nd,nrange,a,x)
   loop1: DO
      nt=2*nt
 
-     CALL back_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
+     CALL back_trans(nd,nt,x,y,m,ch,cg)
      CALL dcopy(nt,y,1,x,1)
      IF (nt.EQ.nd) THEN
         EXIT loop1
@@ -124,7 +124,7 @@ SUBROUTINE wavelet_function(itype,nd,a,x)
   loop3: DO
      nt=2*nt
      !WRITE(*,*) 'nd,nt',nd,nt
-     CALL back_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
+     CALL back_trans(nd,nt,x,y,m,ch,cg)
      CALL dcopy(nd,y,1,x,1)
      IF (nt.EQ.nd) THEN
         EXIT loop3
@@ -166,7 +166,7 @@ SUBROUTINE scf_recursion(itype,n_iter,n_range,kernel_scf,kern_1_scf)
   kern_1_scf = 0.0_dp
   m=itype+2
   CALL lazy_arrays(itype,m,ch,cg,cgt,cht)
-  CALL scf_recurs(n_iter,n_range,kernel_scf,kern_1_scf,m,ch,cg,cgt,cht)
+  CALL scf_recurs(n_iter,n_range,kernel_scf,kern_1_scf,m,ch)
   DEALLOCATE(ch,cg,cgt,cht)
 
 END SUBROUTINE scf_recursion
@@ -250,10 +250,8 @@ END SUBROUTINE for_trans
 !> \param m ...
 !> \param ch ...
 !> \param cg ...
-!> \param cgt ...
-!> \param cht ...
 ! *****************************************************************************
-SUBROUTINE back_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
+SUBROUTINE back_trans(nd,nt,x,y,m,ch,cg)
   ! backward wavelet transform
   ! nd: length of data set
   ! nt length of data in data set to be transformed
@@ -263,7 +261,7 @@ SUBROUTINE back_trans(nd,nt,x,y,m,ch,cg,cgt,cht)
     REAL(KIND=dp), INTENT(in)                :: x(0:nd-1)
     REAL(KIND=dp), INTENT(out)               :: y(0:nd-1)
     INTEGER                                  :: m
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ch, cg, cgt, cht
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ch, cg
 
     INTEGER                                  :: i, ind, j
 
@@ -361,16 +359,13 @@ END SUBROUTINE ftest
 !> \param kern_1_scf ...
 !> \param m ...
 !> \param ch ...
-!> \param cg ...
-!> \param cgt ...
-!> \param cht ...
 ! *****************************************************************************
-SUBROUTINE scf_recurs(n_iter,n_range,kernel_scf,kern_1_scf,m,ch,cg,cgt,cht)
+SUBROUTINE scf_recurs(n_iter,n_range,kernel_scf,kern_1_scf,m,ch)
     INTEGER, INTENT(in)                      :: n_iter, n_range
     REAL(KIND=dp), INTENT(inout)             :: kernel_scf(-n_range:n_range)
     REAL(KIND=dp), INTENT(out)               :: kern_1_scf(-n_range:n_range)
     INTEGER                                  :: m
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: ch, cg, cgt, cht
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ch
 
     INTEGER                                  :: i, i_iter, ind, j
     REAL(KIND=dp)                            :: kern, kern_tot

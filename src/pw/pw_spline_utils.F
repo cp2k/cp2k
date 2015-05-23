@@ -3428,7 +3428,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r_no_pbc', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER                 :: w_border = 0.0_dp
 
     INTEGER                                  :: first_index, i, j, jw, k, kw, &
                                                 last_index, myj, myk, n_els, &

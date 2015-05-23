@@ -237,7 +237,7 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
      !$omp          shared(e_rho_rho, e_ndrho_rho, e_ndrho_ndrho) &
      !$omp          shared(e_rho_rho_rho, e_ndrho_rho_rho) &
      !$omp          shared(e_ndrho_ndrho_rho, grad_deriv, npoints) &
-     !$omp          shared(epsilon_rho, epsilon_norm_drho, sc, error)
+     !$omp          shared(epsilon_rho,  sc, error)
 
      CALL lyp_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
           e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
@@ -245,7 +245,7 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
           e_rho_rho_rho=e_rho_rho_rho, e_ndrho_rho_rho=e_ndrho_rho_rho,&
           e_ndrho_ndrho_rho=e_ndrho_ndrho_rho,&
           grad_deriv=grad_deriv,&
-          npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,sc=sc,&
+          npoints=npoints,epsilon_rho=epsilon_rho,sc=sc,&
           error=error)
 
      !$omp end parallel
@@ -279,7 +279,6 @@ END SUBROUTINE lyp_lda_eval
 !>        if negative only the given degree is calculated
 !> \param npoints ...
 !> \param epsilon_rho ...
-!> \param epsilon_norm_drho ...
 !> \param sc scaling-parameter for correlation
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -291,15 +290,14 @@ END SUBROUTINE lyp_lda_eval
 SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
      e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
      e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-     grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,sc,error)
+     grad_deriv,npoints,epsilon_rho,sc,error)
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: e_ndrho_ndrho_rho, &
       e_ndrho_rho_rho, e_rho_rho_rho, e_ndrho_ndrho, e_ndrho_rho, e_rho_rho, &
       e_ndrho, e_rho, e_0
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: norm_drho, rho_1_3, rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, sc
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lda_calc', &
@@ -903,7 +901,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
      !$omp          shared(e_ndrb_rb, e_ndr_ndr, e_ndra_ndra, e_ndrb_ndrb) &
      !$omp          shared(e_ndr, e_ndra, e_ndrb, e_ra_ra, e_ra_rb, e_rb_rb) &
      !$omp          shared(e_ndr_ra, e_ndr_rb, grad_deriv) &
-     !$omp          shared(npoints, epsilon_rho, epsilon_drho, sc, error)
+     !$omp          shared(npoints, epsilon_rho, sc, error)
 
      CALL lyp_lsd_calc(&
           rhoa=rhoa, rhob=rhob, norm_drho=norm_drho, norm_drhoa=norm_drhoa,&
@@ -915,7 +913,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_params,error)
           e_ra_rb=e_ra_rb, e_rb_rb=e_rb_rb, e_ndr_ra=e_ndr_ra,&
           e_ndr_rb=e_ndr_rb,&
           grad_deriv=grad_deriv, npoints=npoints, &
-          epsilon_rho=epsilon_rho,epsilon_drho=epsilon_drho,sc=sc,error=error)
+          epsilon_rho=epsilon_rho,sc=sc,error=error)
 
      !$omp end parallel
 
@@ -958,7 +956,6 @@ END SUBROUTINE lyp_lsd_eval
 !> \param grad_deriv ...
 !> \param npoints ...
 !> \param epsilon_rho ...
-!> \param epsilon_drho ...
 !> \param sc scaling parameter for correlation
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -970,14 +967,14 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
      e_0, e_ra, e_rb, e_ndra_ra, e_ndra_rb, e_ndrb_ra, e_ndrb_rb, e_ndr_ndr,&
      e_ndra_ndra, e_ndrb_ndrb, e_ndr,&
      e_ndra, e_ndrb, e_ra_ra, e_ra_rb, e_rb_rb, e_ndr_ra, e_ndr_rb,&
-     grad_deriv,npoints,epsilon_rho,epsilon_drho,sc,error)
+     grad_deriv,npoints,epsilon_rho,sc,error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drho, &
                                                 norm_drhoa, norm_drhob
     REAL(kind=dp), DIMENSION(*), INTENT(inout) :: e_0, e_ra, e_rb, e_ndra_ra, &
       e_ndra_rb, e_ndrb_ra, e_ndrb_rb, e_ndr_ndr, e_ndra_ndra, e_ndrb_ndrb, &
       e_ndr, e_ndra, e_ndrb, e_ra_ra, e_ra_rb, e_rb_rb, e_ndr_ra, e_ndr_rb
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho, sc
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sc
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lsd_calc', &

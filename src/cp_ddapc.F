@@ -595,7 +595,7 @@ CONTAINS
        ! Modify the Hartree potential due to the reaction field
        energy = 0.5_dp * pw_integral_ab ( rho_tot_gspace%pw, v_hartree_gspace%pw, error=error)
        IF (need_f) THEN
-          CALL solvation_ddapc_force(qs_env, cell, solvation_section, particle_set,&
+          CALL solvation_ddapc_force(qs_env, solvation_section, particle_set,&
                radii, dq, charges, error)
        END IF
        ! Clean the allocated arrays

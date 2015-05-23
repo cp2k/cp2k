@@ -844,7 +844,7 @@ CONTAINS
 
     IF (has_ma) THEN
       CALL cp_ma_mpi_sched()
-      CALL cp_ma_run_on(para_env, error, output_unit)
+      CALL cp_ma_run_on(error, output_unit)
 
 
 !$omp parallel default(none) private(nid) shared(error)

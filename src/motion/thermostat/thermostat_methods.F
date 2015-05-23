@@ -276,7 +276,7 @@ CPSourceFileRef,&
              ! Initialize or possibly restart GLE thermostat on Particles
              work_section => section_vals_get_subs_vals(thermo_part_section,"GLE",error=error)
              CALL initialize_gle_part(thermostats%thermostat_info_part,simpar,local_molecules,&
-                  molecules_new%els, molecule_kinds_new%els, particles%els, para_env, &
+                  molecules_new%els, molecule_kinds_new%els, para_env, &
                   thermostats%thermostat_part%gle, gle_section=work_section,&
                   gci=gci,save_mem=save_mem, error=error)
           END IF

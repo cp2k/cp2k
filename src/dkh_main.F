@@ -384,28 +384,17 @@ CONTAINS
   END SUBROUTINE kintegral
 
 ! *****************************************************************************
-!> \brief ...
-!> \param matrix_ev1 ...
-!> \param matrix_v ...
-!> \param matrix_pvp ...
-!> \param aa ...
-!> \param rr ...
+!> \brief 1st order DKH-approximation
+!> \param matrix_ev1 even1 output matrix  
+!> \param matrix_v potential matrix v in T-space
+!> \param matrix_pvp pvp matrix in T-space
+!> \param aa A-factors (diagonal)
+!> \param rr R-factors (diagonal)
 !> \param matrix_aux ...
 !> \param matrix_aux2 ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE even1(matrix_ev1,matrix_v,matrix_pvp,aa,rr,matrix_aux,matrix_aux2,error)
-    !-----------------------------------------------------------------------
-    !                                                                      -
-    !     1st order DKH-approximation                                      -
-    !                                                                      -
-    !     ev1  out  even1 output matrix                                    -
-    !     v    in   potential matrix v in T-space                          -
-    !     pvp  in   pvp matrix in T-space                                  -
-    !     aa   in   A-factors (diagonal)                                   -
-    !     rr   in   R-factors (diagonal)                                   -
-    !                                                                      -
-    !-----------------------------------------------------------------------
     TYPE(cp_fm_type), POINTER                :: matrix_ev1, matrix_v, &
                                                 matrix_pVp
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: aa, rr
@@ -430,33 +419,19 @@ CONTAINS
   END SUBROUTINE even1
 
 ! *****************************************************************************
-!> \brief ...
-!> \param n ...
-!> \param matrix_pe1p ...
-!> \param matrix_v ...
-!> \param matrix_pvp ...
+!> \brief 1st order DKH-approximation 
+!> \param n dimension of matrices 
+!> \param matrix_pe1p peven1p output matrix 
+!> \param matrix_v potential matrix v in T-space 
+!> \param matrix_pvp pvp matrix in T-space 
 !> \param matrix_aux ...
 !> \param matrix_aux2 ...
-!> \param aa ...
-!> \param rr ...
+!> \param aa A-factors (diagonal)
+!> \param rr R-factors (diagonal)
 !> \param tt ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE peven1p(n,matrix_pe1p,matrix_v,matrix_pvp,matrix_aux,matrix_aux2,aa,rr,tt,error)
-
-    !-----------------------------------------------------------------------
-    !                                                                      -
-    !     1st order DKH-approximation                                      -
-    !                                                                      -
-    !     n      in   dimension of matrices                                -
-    !     pev1tp out  peven1p output matrix                                -
-    !     vt     in   potential matrix v in T-space                        -
-    !     pvpt   in   pvp matrix in T-space                                -
-    !     aa     in   A-factors (diagonal)                                 -
-    !     rr     in   R-factors (diagonal)                                 -
-    !                                                                      -
-    !-----------------------------------------------------------------------
-
 
     INTEGER, INTENT(IN)                      :: n
     TYPE(cp_fm_type), POINTER                :: matrix_pe1p, matrix_v, &

@@ -316,12 +316,10 @@ END SUBROUTINE cp_ma_net_affinity
 ! *****************************************************************************
 !> \brief Prints where the process is running - Also print the memory policy
 !> \brief associated with the process
-!> \param para_env ...
 !> \param error ...
 !> \param unit_nr ...
 ! *****************************************************************************
-  SUBROUTINE cp_ma_run_on(para_env, error, unit_nr)
-    TYPE(cp_para_env_type), POINTER          :: para_env
+  SUBROUTINE cp_ma_run_on(error, unit_nr)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
     INTEGER, OPTIONAL                        :: unit_nr
 

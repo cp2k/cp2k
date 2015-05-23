@@ -103,8 +103,6 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER, PARAMETER                       :: nordgr = 4
-
     INTEGER :: i1, i2, i3, i_all, i_stat, iend, istart, j2, m1, m2, m3, md1, &
       md2, md3, n1, n2, n3, nd1, nd2, nd3, nlim, nwb, nwbl, nwbr, nxc, nxcl, &
       nxcr, nxt
@@ -174,8 +172,7 @@ CONTAINS
 
     IF (istart+1 <= m2) THEN
        red_fact=1._dp
-       CALL  scale_and_distribute(geocode,m1,m2,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,nxcl,nxcr,&
-            hx,hy,hz,rhopot,zf,iproc,nproc,red_fact)
+       CALL  scale_and_distribute(m1,m3,md1,md2,md3,nxc,rhopot,zf,nproc,red_fact)
     ELSE IF (istart+1 <= nlim) THEN !this condition assures that we have perform good zero padding
        DO i2=istart+1,MIN(nlim,istart+md2/nproc)
           j2=i2-istart
@@ -197,7 +194,7 @@ CONTAINS
        !only one power of hgrid
        scal=hy/REAL(n1*n2*n3,KIND=dp)
        CALL S_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,karray,zf,&
-            scal,hx,hy,hz,pw_grid%para%rs_group,error)
+            scal,pw_grid%para%rs_group,error)
     ELSE IF (geocode == 'F') THEN
        hgrid=MAX(hx,hy,hz)
        scal=hgrid**3/REAL(n1*n2*n3,KIND=dp)
@@ -215,8 +212,7 @@ CONTAINS
        red_fact=-fourpi
     END IF
 
-    CALL scale_and_distribute(geocode,m1,m2,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,nxcl,nxcr,&
-         hx,hy,hz,zf,rhopot,iproc,nproc,red_fact)
+    CALL scale_and_distribute(m1,m3,md1,md2,md3,nxc,zf,rhopot,nproc,red_fact)
 
     DEALLOCATE(zf,stat=i_all)
     IF (i_all+i_stat /= 0) THEN
@@ -531,39 +527,23 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param geocode ...
 !> \param m1 ...
-!> \param m2 ...
 !> \param m3 ...
 !> \param md1 ...
 !> \param md2 ...
 !> \param md3 ...
 !> \param nxc ...
-!> \param nwb ...
-!> \param nxt ...
-!> \param nwbl ...
-!> \param nwbr ...
-!> \param nxcl ...
-!> \param nxcr ...
-!> \param hx ...
-!> \param hy ...
-!> \param hz ...
 !> \param rhopot ...
 !> \param zf ...
-!> \param iproc ...
 !> \param nproc ...
 !> \param factor ...
 ! *****************************************************************************
-  SUBROUTINE  scale_and_distribute(geocode,m1,m2,m3,md1,md2,md3,nxc,nwb,nxt,nwbl,nwbr,&
-       nxcl,nxcr,hx,hy,hz,rhopot,zf,iproc,nproc,factor)
+  SUBROUTINE  scale_and_distribute(m1,m3,md1,md2,md3,nxc,&
+       rhopot,zf,nproc,factor)
 
     !Arguments----------------------
-    CHARACTER(len=1), INTENT(in)             :: geocode
-    INTEGER, INTENT(in)                      :: m1, m2, m3, md1, md2, md3, &
-                                                nxc, nwb, nxt, nwbl, nwbr, &
-                                                nxcl, nxcr
-    REAL(KIND=dp), INTENT(in)                :: hx, hy, hz
-    INTEGER, INTENT(in)                      :: nproc, iproc
+    INTEGER, INTENT(in)                      :: m1, m3, md1, md2, md3, nxc, &
+                                                nproc
     REAL(KIND=dp), &
       DIMENSION(md1, md3, md2/nproc), &
       INTENT(inout)                          :: zf, rhopot

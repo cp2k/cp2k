@@ -399,7 +399,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Computes the self interaction per atom
 !> \param ewald_env ...
-!> \param cell ...
 !> \param atomic_kind_set ...
 !> \param local_particles ...
 !> \param e_self ...
@@ -409,11 +408,10 @@ CONTAINS
 !>      none
 !> \author JHU from ewald_self
 ! *****************************************************************************
-  SUBROUTINE ewald_self_atom ( ewald_env, cell, atomic_kind_set, local_particles, e_self,&
+  SUBROUTINE ewald_self_atom ( ewald_env, atomic_kind_set, local_particles, e_self,&
        charges, error)
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles

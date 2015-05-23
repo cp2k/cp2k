@@ -382,7 +382,7 @@ CONTAINS
           CALL ewald_self(ewald_env, cell, atomic_kind_set, local_particles, &
                thermo%e_self, thermo%e_neut, fist_nonbond_env%charges, error=error)
           IF(atprop_env%energy) THEN
-            CALL ewald_self_atom(ewald_env, cell, atomic_kind_set, local_particles, &
+            CALL ewald_self_atom(ewald_env, atomic_kind_set, local_particles, &
                atprop_env%atener, fist_nonbond_env%charges, error=error)
             atprop_env%atener = atprop_env%atener + thermo%e_neut/SIZE(atprop_env%atener)
           END IF

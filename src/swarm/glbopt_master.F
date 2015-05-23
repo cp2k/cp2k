@@ -89,17 +89,15 @@ MODULE glbopt_master
 !> \param this ...
 !> \param para_env ...
 !> \param root_section ...
-!> \param input_path ...
 !> \param n_walkers ...
 !> \param iw ...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
- SUBROUTINE glbopt_master_init(this, para_env, root_section, input_path, n_walkers, iw, error)
+ SUBROUTINE glbopt_master_init(this, para_env, root_section,  n_walkers, iw, error)
     TYPE(glbopt_master_type), INTENT(INOUT)  :: this
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: root_section
-    CHARACTER(LEN=*), INTENT(IN)             :: input_path
     INTEGER, INTENT(IN)                      :: n_walkers, iw
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -116,7 +114,7 @@ MODULE glbopt_master
     CALL section_vals_val_get(this%glbopt_section,"E_TARGET", r_val=this%E_target, error=error)
     CALL section_vals_val_get(this%glbopt_section,"METHOD", i_val=this%method, error=error)
 
-    CALL glbopt_read_particle_set(this, para_env, root_section, iw, error)
+    CALL glbopt_read_particle_set(this, para_env, root_section, error)
 
     logger => cp_error_get_logger(error)
     this%progress_traj_unit = cp_print_key_unit_nr(logger, &
@@ -142,15 +140,13 @@ MODULE glbopt_master
 !> \param this ...
 !> \param para_env ...
 !> \param root_section ...
-!> \param iw ...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
- SUBROUTINE glbopt_read_particle_set(this, para_env, root_section, iw, error)
+ SUBROUTINE glbopt_read_particle_set(this, para_env, root_section, error)
     TYPE(glbopt_master_type), INTENT(INOUT)  :: this
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: root_section
-    INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     TYPE(atomic_kind_type), DIMENSION(:), &

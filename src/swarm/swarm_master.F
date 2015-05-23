@@ -123,7 +123,7 @@ MODULE swarm_master
     SELECT CASE(master%behavior)
       CASE(swarm_do_glbopt)
          ALLOCATE(master%glbopt)
-         CALL glbopt_master_init(master%glbopt, para_env, root_section, input_path, n_workers, master%iw, error)
+         CALL glbopt_master_init(master%glbopt, para_env, root_section, n_workers, master%iw, error)
       CASE DEFAULT
          STOP "swarm_master_init: got unknown behavior"
     END SELECT

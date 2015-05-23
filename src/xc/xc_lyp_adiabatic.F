@@ -145,9 +145,9 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, &
                                                 epsilon_rho, lambda
-    REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
-      e_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, e_ndrho_rho_rho, e_rho, &
-      e_rho_rho, e_rho_rho_rho, norm_drho, rho, rho_1_3
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: dummy, e_0, e_ndrho, e_rho, &
+                                                norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
@@ -180,12 +180,6 @@ CONTAINS
       e_0 => dummy
       e_rho => dummy
       e_ndrho => dummy
-      e_rho_rho => dummy
-      e_ndrho_rho => dummy
-      e_ndrho_ndrho => dummy
-      e_rho_rho_rho => dummy
-      e_ndrho_rho_rho => dummy
-      e_ndrho_ndrho_rho => dummy
 
       IF (grad_deriv>=0) THEN
         deriv => xc_dset_get_derivative(deriv_set,"",&
@@ -207,19 +201,14 @@ CONTAINS
       END IF
 
       !$omp parallel default(none) &
-      !$omp          shared(rho, rho_1_3, norm_drho, e_0, e_rho, e_ndrho) &
-      !$omp          shared(e_rho_rho, e_ndrho_rho, e_ndrho_ndrho) &
-      !$omp          shared(e_rho_rho_rho, e_ndrho_rho_rho) &
-      !$omp          shared(e_ndrho_ndrho_rho, grad_deriv, npoints) &
-      !$omp          shared(epsilon_rho, epsilon_norm_drho, lambda, error)
+      !$omp          shared(rho, norm_drho, e_0, e_rho, e_ndrho) &
+      !$omp          shared(grad_deriv, npoints) &
+      !$omp          shared(epsilon_rho, lambda, error)
 
-      CALL lyp_adiabatic_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
-           e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
-           e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
-           e_rho_rho_rho=e_rho_rho_rho, e_ndrho_rho_rho=e_ndrho_rho_rho,&
-           e_ndrho_ndrho_rho=e_ndrho_ndrho_rho,&
+      CALL lyp_adiabatic_lda_calc(rho=rho, norm_drho=norm_drho,&
+           e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
            grad_deriv=grad_deriv,&
-           npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,lambda=lambda,&
+           npoints=npoints,epsilon_rho=epsilon_rho,lambda=lambda,&
            error=error)
 
       !$omp end parallel
@@ -237,39 +226,28 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rho ...
-!> \param rho_1_3 ...
 !> \param norm_drho ...
 !> \param e_0 ...
 !> \param e_rho ...
 !> \param e_ndrho ...
-!> \param e_rho_rho ...
-!> \param e_ndrho_rho ...
-!> \param e_ndrho_ndrho ...
-!> \param e_rho_rho_rho ...
-!> \param e_ndrho_rho_rho ...
-!> \param e_ndrho_ndrho_rho ...
 !> \param grad_deriv ...
 !> \param npoints ...
 !> \param epsilon_rho ...
-!> \param epsilon_norm_drho ...
 !> \param lambda ...
 !> \param error ...
 !> \par History
 !>      01.2008 created [mguidon]
 !> \author Manuel Guidon
 ! *****************************************************************************
-  SUBROUTINE lyp_adiabatic_lda_calc(rho, rho_1_3, norm_drho,&
-     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-     grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,lambda,error)
+  SUBROUTINE lyp_adiabatic_lda_calc(rho, norm_drho,&
+     e_0,e_rho,e_ndrho, &
+     grad_deriv,npoints,epsilon_rho, lambda,error)
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
-    REAL(kind=dp), DIMENSION(1:npoints), INTENT(inout) :: e_ndrho_ndrho_rho, &
-      e_ndrho_rho_rho, e_rho_rho_rho, e_ndrho_ndrho, e_ndrho_rho, e_rho_rho, &
-      e_ndrho, e_rho, e_0
     REAL(kind=dp), DIMENSION(1:npoints), &
-      INTENT(in)                             :: norm_drho, rho_1_3, rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, lambda
+      INTENT(inout)                          :: e_ndrho, e_rho, e_0
+    REAL(kind=dp), DIMENSION(1:npoints), &
+      INTENT(in)                             :: norm_drho, rho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, lambda
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lda_calc', &
@@ -403,8 +381,7 @@ CONTAINS
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, &
-                                                lambda
+    REAL(kind=dp)                            :: epsilon_rho, lambda
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndr, &
       e_ndr_ndr, e_ndr_ra, e_ndr_rb, e_ndra, e_ndra_ndra, e_ndra_ra, &
       e_ndra_rb, e_ndrb, e_ndrb_ndrb, e_ndrb_ra, e_ndrb_rb, e_ra, e_ra_ra, &
@@ -427,7 +404,7 @@ CONTAINS
            rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
            norm_drhob=norm_drhob, norm_drho=norm_drho, &
            rho_cutoff=epsilon_rho,&
-           drho_cutoff=epsilon_drho, local_bounds=bo, error=error)
+           local_bounds=bo, error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
       ! meaningful default for the arrays we don't need: let us make compiler
@@ -489,7 +466,7 @@ CONTAINS
       !$omp          shared(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob) &
       !$omp          shared(e_0, e_ra, e_rb, e_ndr, e_ndra, e_ndrb) &
       !$omp          shared(grad_deriv, npoints) &
-      !$omp          shared(epsilon_rho, epsilon_drho, lambda, error)
+      !$omp          shared(epsilon_rho, lambda, error)
 
       CALL lyp_adiabatic_lsd_calc(&
            rhoa=rhoa, rhob=rhob, norm_drho=norm_drho, norm_drhoa=norm_drhoa,&
@@ -497,7 +474,7 @@ CONTAINS
            e_ndr=e_ndr,&
            e_ndra=e_ndra, e_ndrb=e_ndrb,&
            grad_deriv=grad_deriv, npoints=npoints, &
-           epsilon_rho=epsilon_rho,epsilon_drho=epsilon_drho,lambda=lambda,error=error)
+           epsilon_rho=epsilon_rho,lambda=lambda,error=error)
 
       !$omp end parallel
 
@@ -527,7 +504,6 @@ CONTAINS
 !> \param grad_deriv ...
 !> \param npoints ...
 !> \param epsilon_rho ...
-!> \param epsilon_drho ...
 !> \param lambda ...
 !> \param error ...
 !> \par History
@@ -538,15 +514,14 @@ CONTAINS
      e_0, e_ra, e_rb,&
      e_ndr,&
      e_ndra, e_ndrb, &
-     grad_deriv,npoints,epsilon_rho,epsilon_drho,lambda,error)
+     grad_deriv,npoints,epsilon_rho,lambda,error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drho, &
                                                 norm_drhoa, norm_drhob
     REAL(kind=dp), DIMENSION(*), &
       INTENT(inout)                          :: e_0, e_ra, e_rb, e_ndr, &
                                                 e_ndra, e_ndrb
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho, &
-                                                lambda
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, lambda
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_adiabatic_lsd_calc', &

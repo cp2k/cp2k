@@ -439,7 +439,7 @@ CONTAINS
             END IF
 
             CALL Vh_1c_atom_potential(rho_atom,vrrad_0,&
-                 grid_atom,iatom,core_charge,vrrad_z,Vh1_h,Vh1_s,&
+                 grid_atom,core_charge,vrrad_z,Vh1_h,Vh1_s,&
                  nchan_0,nspins,max_iso_not0,factor,error)
 
             CALL Vh_1c_atom_energy(energy_hartree_1c,ecoul_1c,rho_atom,rrad_0,&
@@ -490,7 +490,6 @@ CONTAINS
 !> \param rho_atom ...
 !> \param vrrad_0 ...
 !> \param grid_atom ...
-!> \param iatom ...
 !> \param core_charge ...
 !> \param vrrad_z ...
 !> \param Vh1_h ...
@@ -502,13 +501,12 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE Vh_1c_atom_potential(rho_atom,vrrad_0,&
-             grid_atom,iatom,core_charge,vrrad_z,Vh1_h,Vh1_s,&
+             grid_atom,core_charge,vrrad_z,Vh1_h,Vh1_s,&
              nchan_0,nspins,max_iso_not0,bfactor,error)
 
     TYPE(rho_atom_type), POINTER             :: rho_atom
     REAL(dp), DIMENSION(:, :), POINTER       :: vrrad_0
     TYPE(grid_atom_type), POINTER            :: grid_atom
-    INTEGER, INTENT(IN)                      :: iatom
     LOGICAL, INTENT(IN)                      :: core_charge
     REAL(dp), DIMENSION(:), POINTER          :: vrrad_z
     REAL(dp), DIMENSION(:, :), POINTER       :: Vh1_h, Vh1_s

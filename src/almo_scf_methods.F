@@ -3936,7 +3936,6 @@ WRITE(*,*) "NEWTOV step error: ", MAXVAL(ABS(tmp))
 ! *****************************************************************************
 !> \brief Tests construction and release of domain submatrices 
 !> \param matrix_no ...
-!> \param matrix_nn ...
 !> \param dpattern ...
 !> \param map ...
 !> \param node_of_domain ...
@@ -3945,9 +3944,9 @@ WRITE(*,*) "NEWTOV step error: ", MAXVAL(ABS(tmp))
 !>       2013.01 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! *****************************************************************************
-  SUBROUTINE construct_test(matrix_no,matrix_nn,dpattern,map,node_of_domain,error)
+  SUBROUTINE construct_test(matrix_no,dpattern,map,node_of_domain,error)
     
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_no, matrix_nn, dpattern
+    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_no, dpattern
     TYPE(domain_map_type), INTENT(IN)        :: map
     INTEGER, DIMENSION(:), INTENT(IN)        :: node_of_domain
     TYPE(cp_error_type), INTENT(INOUT)       :: error

@@ -524,7 +524,6 @@ CONTAINS
 !> \brief Evaluates the electrostatic potential due to a simple solvation model
 !>      Spherical cavity in a dieletric medium
 !> \param qs_env ...
-!> \param cell ...
 !> \param solvation_section ...
 !> \param particle_set ...
 !> \param radii ...
@@ -535,10 +534,9 @@ CONTAINS
 !>      08.2006 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE solvation_ddapc_force(qs_env, cell, solvation_section, particle_set,&
+  SUBROUTINE solvation_ddapc_force(qs_env, solvation_section, particle_set,&
        radii, dq, charges, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: solvation_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set

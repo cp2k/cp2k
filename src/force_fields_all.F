@@ -2718,13 +2718,11 @@ CPSourceFileRef,&
 !> \param amb_info ...
 !> \param potparm_nonbond14 ...
 !> \param ewald_env ...
-!> \param iw2 ...
-!> \param iw3 ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE force_field_pack_nonbond14(atomic_kind_set, ff_type, qmmm_env, iw, &
        Ainfo, chm_info, inp_info, gro_info, amb_info, potparm_nonbond14, ewald_env, &
-       iw2, iw3, error)
+       error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -2739,7 +2737,6 @@ CPSourceFileRef,&
     TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(pair_potential_pp_type), POINTER    :: potparm_nonbond14
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    INTEGER                                  :: iw2, iw3
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_nonbond14', &

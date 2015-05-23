@@ -307,7 +307,7 @@ CONTAINS
        ! Move the data from the info structures to potparm_nonbond
        CALL force_field_pack_nonbond14(atomic_kind_set, ff_type, qmmm_env, iw, Ainfo,&
             chm_info, inp_info, gro_info, amb_info, potparm_nonbond14, ewald_env, &
-            iw2, iw3, error)
+            error)
        ! Give information if any 1-4 is missing.. continue calculation..
        CALL release_FF_missing_par(fatal,ignore_fatal,AInfo,output_unit,iw,error)
        ! Create the spline data

@@ -193,7 +193,6 @@ CONTAINS
 !> \param local_molecules ...
 !> \param molecule ...
 !> \param molecule_kind_set ...
-!> \param particle_set ...
 !> \param para_env ...
 !> \param gle ...
 !> \param gle_section ...
@@ -203,7 +202,7 @@ CONTAINS
 !> \author
 ! *****************************************************************************
   SUBROUTINE initialize_gle_part ( thermostat_info, simpar, local_molecules,&
-       molecule, molecule_kind_set, particle_set, para_env,  gle, gle_section,&
+       molecule, molecule_kind_set, para_env,  gle, gle_section,&
        gci, save_mem, error)
 
     TYPE(thermostat_info_type), POINTER      :: thermostat_info
@@ -211,7 +210,6 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(gle_type), POINTER                  :: gle
     TYPE(section_vals_type), POINTER         :: gle_section
