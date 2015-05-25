@@ -11,9 +11,9 @@
 !>
 !> <b>Modification history:</b>
 !> - Created 2010
-!> - 2015 Rewrote into standalone selftest (Ole Schuett)
+!> - 2015 Rewrote into standalone unittest (Ole Schuett)
 ! *****************************************************************************
-PROGRAM dbcsr_selftest
+PROGRAM dbcsr_unittest
 
   USE acc_device,                      ONLY: acc_get_ndevices,&
                                              acc_set_active_device
@@ -334,4 +334,4 @@ PROGRAM dbcsr_selftest
   ! finalize libdbcsr errors
   CALL dbcsr_error_stop (error_handler, error)
 
-END PROGRAM dbcsr_selftest
+END PROGRAM dbcsr_unittest
