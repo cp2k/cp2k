@@ -333,6 +333,269 @@ function do_test() {
  esac
 }
 
+###################################################################################
+#
+# function to run an entire regtest dir
+#
+###################################################################################
+function run_regtest_dir() {
+  dir=$1
+  task=${dir//\//-}
+  touch ${dir_out}/status/REGTEST_RUNNING-$task
+  n_runtime_error=0
+  n_wrong_results=0
+  n_correct=0
+  n_tests=0
+  n_new=0
+
+  cd ${dir_out}/tests/${dir}
+  mkdir -p ${dir_out}/${dir}
+  mkdir -p ${dir_last}/${dir}
+  touch ${dir_last}/${dir}/TEST_FILES_RESET
+
+  #
+  # first reset reference outputs that have become out-dated since the last run
+  #
+  if [[ ${noreset} != "noreset" ]]; then
+     if [[ -f TEST_FILES_RESET ]] ; then
+       diff TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET > ${dir_out}/${dir}/TEST_FILES_RESET.diff
+       cp TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET
+       nreset=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' |  ${awk} '{c=c+1}END{print c}'`
+       for ((itest=1;itest<=nreset;itest++));
+       do
+          reset_file=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
+          rm -f ${dir_last}/${dir}/${reset_file}.out
+       done
+     else
+       echo " Missing file TEST_FILES_RESET in $dir ? "
+     fi
+  fi
+  #
+  # run the tests now
+  #
+  echo "Starting regression tests in ${dir_out}/tests/${dir} (${idir} of ${ndir})"
+  echo ">>> ${dir_out}/tests/${dir}" > ${dir_out}/status/REGTEST_TASK_TESTS-$task
+  ntest=`grep -v "#" TEST_FILES | ${awk} '{c=c+1}END{print c}'`
+  t1=`date +%s`
+  for ((itest=1;itest<=ntest;itest++));
+  do
+     touch ${lockfile}
+     n_tests=$((n_tests+1))
+     this_test=""
+     input_file=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $1}'`
+     test_type=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
+     # third field allows numerical tolerances to be read from the TEST_FILES
+     # if value does not exist set to the default of 1.0E-14
+     test_tolerance=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest -v def_err_tol=$default_err_tolerance '{c=c+1;if (c==itest) if (NF == 3) { print $3 } else { print def_err_tol } }'`
+
+     output_file=${dir_out}/${dir}/${input_file}.out
+     output_last=${dir_last}/${dir}/${input_file}.out
+     ( ulimit -t ${job_max_time} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} ) >& /dev/null
+     (( cp2k_exit_status = $? ))
+     # check if this was a valgrinded run, and adjust exit status as needed
+     grep -a "^==[0-9][0-9]*== ERROR SUMMARY" ${output_file} &> /dev/null
+     if (( $? == 0 )); then
+        grep -a "^==[0-9][0-9]*== ERROR SUMMARY: 0 errors from 0 contexts" ${output_file} &> /dev/null
+        # nonzero error count
+        if (( $? )); then
+           cp2k_exit_status=42
+        fi
+     fi
+     if (( cp2k_exit_status )); then
+        # CP2K failed obviously
+        if (( cp2k_exit_status == 137 )); then
+           # SIGKILL = 9 ... exit code 9+128
+           # usually caused by time-out
+           this_test="KILLED"
+        else
+           this_test="RUNTIME FAIL"
+        fi 
+        #
+        echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+        echo ${output_file} >>${error_description_file}
+        tail -40 ${output_file} >>${error_description_file}
+        # append an eventual valgrind report to the file
+        grep "^==[0-9][0-9]*== " ${output_file} | head -n 20 >> ${error_description_file}
+        echo "EXIT CODE: " $cp2k_exit_status " MEANING: " $this_test >>${error_description_file}
+        echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+        n_runtime_error=$((n_runtime_error+1))
+        failed_tests="${failed_tests} ${output_file}"
+     else
+        # ran but did not end !?
+        grep -a "ENDED" ${output_file} &> /dev/null
+        if (( $? )); then
+           echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+           echo ${output_file} >>${error_description_file}
+           tail -n 40 ${output_file} >>${error_description_file}
+           # append an eventual valgrind report to the file
+           grep "^==[0-9][0-9]*== " ${output_file} | head -n 20 >> ${error_description_file}
+           echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+           this_test="RUNTIME FAIL"
+           n_runtime_error=$((n_runtime_error+1))
+           failed_tests="${failed_tests} ${output_file}"
+        else
+           # Still running, you must be joking...
+           # see if we manage to pass the testing
+           # but only if we can compare
+           if [ -f ${output_last} ]; then
+              do_test ${test_type} ${test_tolerance} ${output_file} ${output_last} ${error_description_file}
+              if (( $? )); then
+                 this_test="WRONG RESULT TEST ${test_type}"
+                 n_wrong_results=$((n_wrong_results+1))
+              else
+                 this_test="OK"
+                 n_correct=$((n_correct+1))
+              fi
+           else
+              this_test="NEW"
+              n_new=$((n_new+1))
+           fi
+        fi
+     fi
+     # Keep the output up-to-date
+     timing=0
+     case ${this_test} in
+     "NEW" )
+        cp ${output_file} ${output_last}
+        timing=`grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%7.2f",$NF)}'`
+        this_test="${this_test} (${timing} sec)" ;;
+     "OK" )
+        timing=`grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%7.2f",$NF)}'`
+        this_test="${this_test} (${timing} sec)" ;;
+     esac
+     leak_marker=""
+     if [[ ${leakcheck} == "YES" ]]; then
+        if [[ -n $(echo ${cp2k_prefix} | grep "valgrind") ]]; then
+           leak_error_string="ERROR SUMMARY:"
+           nerror=$(grep -i "${leak_error_string}" ${output_file} | awk '{print $4}')
+           dum=""
+           (( nerror > 0 )) && dum=${nerror}
+        else
+           case ${FORT_C_NAME} in
+              gfortran*) leak_error_string="SUMMARY: LeakSanitizer:";;
+           esac
+           dum=`grep -l "${leak_error_string}" ${output_file}`
+        fi
+        if [[ ${dum} != "" ]]; then
+           leak_marker="!"
+           echo "XXXXXXXX  ${output_file} XXXXXXX" >>${memory_description_file}
+           grep -i "${leak_error_string}" ${output_file} >>${memory_description_file}
+        fi
+     fi
+
+     # grep numeric test value from output again
+     test_value="-"
+     if [[ ${test_type} != 0 ]]; then
+       grep_string="${test_grep[test_type]}"
+       grep_field="${test_col[test_type]}"
+       test_value=`grep -a "${grep_string}" ${output_file} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
+     fi
+
+     printf "    %-50s %25s %20s %s\n" "${input_file}" "${test_value}" "${this_test}" "${leak_marker}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+  done
+
+  t2=`date +%s`
+  timing_all=`echo "1+($t2)-($t1)" | bc -l`
+  printf "%s %0.2f %s\n" "<<< ${dir_out}/tests/${dir} (${idir} of ${ndir}) done in" ${timing_all} "sec"  >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+  echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests}" > ${dir_out}/status/REGTEST_TASK_RESULT-$task
+  cat ${dir_out}/status/REGTEST_TASK_TESTS-$task
+  rm -f ${dir_out}/status/REGTEST_TASK_TESTS-$task ${dir_out}/status/REGTEST_RUNNING-$task
+}
+
+
+###################################################################################
+#
+# function to run a unit test
+#
+###################################################################################
+function run_unittest() {
+  dir=$1
+  task=${dir//\//-}
+  touch ${dir_out}/status/REGTEST_RUNNING-$task
+  n_runtime_error=0
+  n_correct=0
+
+  mkdir -p ${dir_out}/UNIT
+  mkdir -p ${dir_out}/tests/${dir}
+  cd ${dir_out}/tests/${dir}
+
+  echo "Starting unit test in ${dir_out}/test/${dir} (${idir} of ${ndir})"
+  echo ">>> ${dir_out}/${dir}" > ${dir_out}/status/REGTEST_TASK_TESTS-$task
+
+  t1=`date +%s`
+  output_file=${dir_out}/${dir}.out
+  unittest=${dir##*/}
+  testcmd="${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/${unittest}.${cp2k_version}"
+  ( ulimit -t ${job_max_time} ; ${testcmd} &> ${output_file} ) >& /dev/null
+  (( cp2k_exit_status = $? ))
+  t2=`date +%s`
+  timing=`echo "1+($t2)-($t1)" | bc -l`
+
+  # check if this was a valgrinded run, and adjust exit status as needed
+  grep -a "^==[0-9][0-9]*== ERROR SUMMARY" ${output_file} &> /dev/null
+  if (( $? == 0 )); then
+     grep -a "^==[0-9][0-9]*== ERROR SUMMARY: 0 errors from 0 contexts" ${output_file} &> /dev/null
+     # nonzero error count
+     if (( $? )); then
+        cp2k_exit_status=42
+     fi
+  fi
+
+  if (( cp2k_exit_status == 0)); then
+     this_test=`printf "OK (%7.2f sec)" ${timing}`
+     n_correct=$((n_correct+1))
+  else
+     # CP2K failed obviously
+     if (( cp2k_exit_status == 137 )); then
+        # SIGKILL = 9 ... exit code 9+128
+        # usually caused by time-out
+        this_test="KILLED"
+     else
+        this_test="RUNTIME FAIL"
+     fi
+     #
+     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+     echo ${output_file} >>${error_description_file}
+     tail -40 ${output_file} >>${error_description_file}
+     # append an eventual valgrind report to the file
+     grep "^==[0-9][0-9]*== " ${output_file} | head -n 20 >> ${error_description_file}
+     echo "EXIT CODE: " $cp2k_exit_status " MEANING: " $this_test >>${error_description_file}
+     echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+     n_runtime_error=$((n_runtime_error+1))
+     failed_tests="${failed_tests} ${output_file}"
+  fi
+
+  leak_marker=""
+  if [[ ${leakcheck} == "YES" ]]; then
+     if [[ -n $(echo ${cp2k_prefix} | grep "valgrind") ]]; then
+        leak_error_string="ERROR SUMMARY:"
+        nerror=$(grep -i "${leak_error_string}" ${output_file} | awk '{print $4}')
+        dum=""
+        (( nerror > 0 )) && dum=${nerror}
+     else
+        case ${FORT_C_NAME} in
+           gfortran*) leak_error_string="SUMMARY: LeakSanitizer:";;
+        esac
+        dum=`grep -l "${leak_error_string}" ${output_file}`
+     fi
+     if [[ ${dum} != "" ]]; then
+        leak_marker="!"
+        echo "XXXXXXXX  ${output_file} XXXXXXX" >>${memory_description_file}
+        grep -i "${leak_error_string}" ${output_file} >>${memory_description_file}
+     fi
+  fi
+
+  printf "    %-50s %25s %20s %s\n" "${dir##*/}" "-" "${this_test}" "${leak_marker}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+  printf "%s %0.2f %s\n" "<<< ${dir_out}/tests/${dir} (${idir} of ${ndir}) done in" ${timing} "sec"  >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
+  echo "${n_runtime_error} 0 ${n_correct} 0  1" > ${dir_out}/status/REGTEST_TASK_RESULT-$task
+  cat ${dir_out}/status/REGTEST_TASK_TESTS-$task
+  rm -f ${dir_out}/status/REGTEST_TASK_TESTS-$task ${dir_out}/status/REGTEST_RUNNING-$task
+}
+
+###################################################################################
+###################################################################################
+
+
 # Check for lockfile
 lockfile=${dir_last}/LOCKFILE
 
@@ -594,10 +857,17 @@ fi
 cp2kflags=`${cp2k_prefix} --version ${cp2k_postfix} 2>&1 | grep cp2kflags `
 echo "CP2K supports: $cp2kflags"
 
-#
-# get a list of directories to be tested, taking care of the exclusions
-#
+# get a list of regtest directories
 dirs=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk '{print $1}'`
+
+# prepend list of unit-tests to dirs, use a special "UNIT/" prefix
+for unittest in ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/*_unittest.${cp2k_version}
+do
+ t=${unittest##*/}
+ dirs="UNIT/${t%.*} $dirs "
+done
+
+# filter out test-dir that should be skipped
 newdirs=""
 for dir in ${dirs}
 do
@@ -659,170 +929,13 @@ rm -f ${dir_out}/status/REGTEST_RUNNING-* \
 (( idir = 0 ))
 for dir in ${dirs}; do
  (( idir++ ))
- #
  # tests in different dirs can run in parallel. We spawn processes up to a given maximum
- #
- task=${dir//\//-}
  (
-  touch ${dir_out}/status/REGTEST_RUNNING-$task
-  n_runtime_error=0
-  n_wrong_results=0
-  n_correct=0
-  n_tests=0
-  n_new=0
-
-  cd ${dir_out}/tests/${dir}
-  mkdir -p ${dir_out}/${dir}
-  mkdir -p ${dir_last}/${dir}
-  touch ${dir_last}/${dir}/TEST_FILES_RESET
-
-  #
-  # first reset reference outputs that have become out-dated since the last run
-  #
-  if [[ ${noreset} != "noreset" ]]; then
-     if [[ -f TEST_FILES_RESET ]] ; then
-       diff TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET > ${dir_out}/${dir}/TEST_FILES_RESET.diff
-       cp TEST_FILES_RESET ${dir_last}/${dir}/TEST_FILES_RESET
-       nreset=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' |  ${awk} '{c=c+1}END{print c}'`
-       for ((itest=1;itest<=nreset;itest++));
-       do
-          reset_file=`grep '<' ${dir_out}/${dir}/TEST_FILES_RESET.diff | grep -v '#' | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
-          rm -f ${dir_last}/${dir}/${reset_file}.out
-       done
-     else
-       echo " Missing file TEST_FILES_RESET in $dir ? "
-     fi
+  if [[ $dir == UNIT/* ]]; then
+      run_unittest $dir
+  else
+      run_regtest_dir $dir
   fi
-  #
-  # run the tests now
-  #
-  echo "Starting tests in ${dir_out}/tests/${dir} (${idir} of ${ndir})"
-  echo ">>> ${dir_out}/tests/${dir}" > ${dir_out}/status/REGTEST_TASK_TESTS-$task
-  ntest=`grep -v "#" TEST_FILES | ${awk} '{c=c+1}END{print c}'`
-  t1=`date +%s`
-  for ((itest=1;itest<=ntest;itest++));
-  do
-     touch ${lockfile}
-     n_tests=$((n_tests+1))
-     this_test=""
-     input_file=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $1}'`
-     test_type=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
-     # third field allows numerical tolerances to be read from the TEST_FILES
-     # if value does not exist set to the default of 1.0E-14
-     test_tolerance=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest -v def_err_tol=$default_err_tolerance '{c=c+1;if (c==itest) if (NF == 3) { print $3 } else { print def_err_tol } }'`
-
-     output_file=${dir_out}/${dir}/${input_file}.out
-     output_last=${dir_last}/${dir}/${input_file}.out
-     ( ulimit -t ${job_max_time} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} ) >& /dev/null
-     (( cp2k_exit_status = $? ))
-     # check if this was a valgrinded run, and adjust exit status as needed
-     grep -a "^==[0-9][0-9]*== ERROR SUMMARY" ${output_file} &> /dev/null
-     if (( $? == 0 )); then
-        grep -a "^==[0-9][0-9]*== ERROR SUMMARY: 0 errors from 0 contexts" ${output_file} &> /dev/null
-        # nonzero error count
-        if (( $? )); then
-           cp2k_exit_status=42
-        fi
-     fi
-     if (( cp2k_exit_status )); then
-        # CP2K failed obviously
-        if (( cp2k_exit_status == 137 )); then
-           # SIGKILL = 9 ... exit code 9+128
-           # usually caused by time-out
-           this_test="KILLED"
-        else
-           this_test="RUNTIME FAIL"
-        fi 
-        #
-        echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-        echo ${output_file} >>${error_description_file}
-        tail -40 ${output_file} >>${error_description_file}
-        # append an eventual valgrind report to the file
-        grep "^==[0-9][0-9]*== " ${output_file} | head -n 20 >> ${error_description_file}
-        echo "EXIT CODE: " $cp2k_exit_status " MEANING: " $this_test >>${error_description_file}
-        echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-        n_runtime_error=$((n_runtime_error+1))
-        failed_tests="${failed_tests} ${output_file}"
-     else
-        # ran but did not end !?
-        grep -a "ENDED" ${output_file} &> /dev/null
-        if (( $? )); then
-           echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-           echo ${output_file} >>${error_description_file}
-           tail -n 40 ${output_file} >>${error_description_file}
-           # append an eventual valgrind report to the file
-           grep "^==[0-9][0-9]*== " ${output_file} | head -n 20 >> ${error_description_file}
-           echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-           this_test="RUNTIME FAIL"
-           n_runtime_error=$((n_runtime_error+1))
-           failed_tests="${failed_tests} ${output_file}"
-        else
-           # Still running, you must be joking...
-           # see if we manage to pass the testing
-           # but only if we can compare
-           if [ -f ${output_last} ]; then
-              do_test ${test_type} ${test_tolerance} ${output_file} ${output_last} ${error_description_file}
-              if (( $? )); then
-                 this_test="WRONG RESULT TEST ${test_type}"
-                 n_wrong_results=$((n_wrong_results+1))
-              else
-                 this_test="OK"
-                 n_correct=$((n_correct+1))
-              fi
-           else
-              this_test="NEW"
-              n_new=$((n_new+1))
-           fi
-        fi
-     fi
-     # Keep the output up-to-date
-     timing=0
-     case ${this_test} in
-     "NEW" )
-        cp ${output_file} ${output_last}
-        timing=`grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%7.2f",$NF)}'`
-        this_test="${this_test} (${timing} sec)" ;;
-     "OK" )
-        timing=`grep -a "CP2K   " ${output_file} | tail -n 1 | ${awk} '{printf("%7.2f",$NF)}'`
-        this_test="${this_test} (${timing} sec)" ;;
-     esac
-     leak_marker=""
-     if [[ ${leakcheck} == "YES" ]]; then
-        if [[ -n $(echo ${cp2k_prefix} | grep "valgrind") ]]; then
-           leak_error_string="ERROR SUMMARY:"
-           nerror=$(grep -i "${leak_error_string}" ${output_file} | awk '{print $4}')
-           dum=""
-           (( nerror > 0 )) && dum=${nerror}
-        else
-           case ${FORT_C_NAME} in
-              gfortran*) leak_error_string="SUMMARY: LeakSanitizer:";;
-           esac
-           dum=`grep -l "${leak_error_string}" ${output_file}`
-        fi
-        if [[ ${dum} != "" ]]; then
-           leak_marker="!"
-           echo "XXXXXXXX  ${output_file} XXXXXXX" >>${memory_description_file}
-           grep -i "${leak_error_string}" ${output_file} >>${memory_description_file}
-        fi
-     fi
-
-     # grep numeric test value from output again
-     test_value="-"
-     if [[ ${test_type} != 0 ]]; then
-       grep_string="${test_grep[test_type]}"
-       grep_field="${test_col[test_type]}"
-       test_value=`grep -a "${grep_string}" ${output_file} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
-     fi
-
-     printf "    %-50s %25s %20s %s\n" "${input_file}" "${test_value}" "${this_test}" "${leak_marker}" >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
-  done
-
-  t2=`date +%s`
-  timing_all=`echo "1+($t2)-($t1)" | bc -l`
-  printf "%s %0.2f %s\n" "<<< ${dir_out}/tests/${dir} (${idir} of ${ndir}) done in" ${timing_all} "sec"  >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
-  echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests}" > ${dir_out}/status/REGTEST_TASK_RESULT-$task
-  cat ${dir_out}/status/REGTEST_TASK_TESTS-$task
-  rm -f ${dir_out}/status/REGTEST_TASK_TESTS-$task ${dir_out}/status/REGTEST_RUNNING-$task
  )&
 
  #
