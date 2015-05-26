@@ -37,18 +37,20 @@ MODULE cp_dbcsr_interface
        dbcsr_create_dist_r_unrot, dbcsr_data_clear_pointer, dbcsr_data_init, &
        dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, &
        dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_has_threads, &
+       dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_has_col_clusters, &
+       dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_threads, &
        dbcsr_distribution_init, dbcsr_distribution_local_cols, &
        dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
        dbcsr_distribution_ncols, dbcsr_distribution_new, &
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_distribution_obj, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_error_set, dbcsr_error_stop, dbcsr_error_type, dbcsr_filter, &
-       dbcsr_finalize, dbcsr_finalize_lib, dbcsr_frobenius_norm, &
-       dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, &
-       dbcsr_func_tanh, dbcsr_function_of_elements, dbcsr_gershgorin_norm, &
-       dbcsr_get_block_diag, dbcsr_get_block_p, &
+       dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
+       dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
+       dbcsr_error_type, dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
+       dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_dtanh, &
+       dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
+       dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_block_p, &
        dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
        dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
@@ -98,7 +100,10 @@ MODULE cp_dbcsr_interface
                                              int_8,&
                                              real_4,&
                                              real_8
+  USE machine,                         ONLY: default_output_unit
   USE string_utilities,                ONLY: uppercase
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   !$ USE OMP_LIB
 #include "../common/cp_common_uses.f90"
@@ -125,6 +130,8 @@ MODULE cp_dbcsr_interface
   PUBLIC :: dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_complex_4
   PUBLIC :: dbcsr_type_complex_default, dbcsr_type_real_default
   PUBLIC :: convert_offsets_to_sizes, dbcsr_distribution_obj, dbcsr_distribution_row_dist
+  PUBLIC :: dbcsr_distribution_row_clusters, dbcsr_distribution_col_clusters, &
+            dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_col_clusters
   PUBLIC :: dbcsr_get_conf_use_comm_thread, dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
   PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols
   PUBLIC :: dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
@@ -250,8 +257,8 @@ MODULE cp_dbcsr_interface
   END TYPE cp_dbcsr_type
 
   INTERFACE cp_dbcsr_distribution_new
-     MODULE PROCEDURE cp_dbcsr_distribution_new_blocks
      MODULE PROCEDURE cp_dbcsr_distribution_new_clusters1
+     MODULE PROCEDURE cp_dbcsr_distribution_new_clusters2
   END INTERFACE
 
   INTERFACE cp_dbcsr_create
@@ -1385,28 +1392,73 @@ CONTAINS
   END SUBROUTINE cp_dbcsr_verify_matrix
 
 ! *****************************************************************************
-!> \brief Creates new distribution from only block distributions
+!> \brief Creates new distribution from block and cluster distributions
 !> \param[out] dist           distribution
 !> \param[in] mp_env          multiprocessing environment
-!> \param row_dist row distribution
-!> \param col_dist column distribution
+!> \param row_dist_block ...
+!> \param col_dist_block ...
+!> \param row_dist_cluster ...
+!> \param col_dist_cluster ...
 !> \param reuse_arrays ...
+!> \param unit_nr ...
+!> \param col_dist column distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \param row_dist row distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_distribution_new_blocks(dist, mp_env, row_dist, col_dist, reuse_arrays)
+  SUBROUTINE cp_dbcsr_distribution_new_clusters1(dist, mp_env, &
+                                                 row_dist_block, col_dist_block, &
+                                                 row_dist_cluster, col_dist_cluster, &
+                                                 reuse_arrays, unit_nr)
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT)                            :: dist
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER, DIMENSION(:), INTENT(IN), &
-      POINTER                                :: row_dist, col_dist
+      POINTER                                :: row_dist_block, &
+                                                col_dist_block, &
+                                                row_dist_cluster, &
+                                                col_dist_cluster
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse_arrays
+    INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
 
     CHARACTER(len=*), PARAMETER :: &
-      routineN = 'cp_dbcsr_distribution_new_blocks', &
+      routineN = 'cp_dbcsr_distribution_new_clusters1', &
       routineP = moduleN//':'//routineN
 
-    CALL dbcsr_distribution_new(dist, mp_env, row_dist, col_dist, reuse_arrays=reuse_arrays)
+    INTEGER                                  :: iunit, timing_handle
+    INTEGER, DIMENSION(:), POINTER           :: col_dist_cluster2, &
+                                                row_dist_cluster2
 
-  END SUBROUTINE cp_dbcsr_distribution_new_blocks
+    CALL timeset(routineN, timing_handle)
+
+    row_dist_cluster2 => row_dist_cluster
+    col_dist_cluster2 => col_dist_cluster
+    IF (ASSOCIATED(row_dist_cluster2)) THEN
+       IF (ANY(row_dist_cluster2.eq.-1)) NULLIFY(row_dist_cluster2)
+    END IF
+    IF (ASSOCIATED(col_dist_cluster2)) THEN
+       IF (ANY(col_dist_cluster2.eq.-1)) NULLIFY(col_dist_cluster2)
+    END IF
+    
+    IF ((ASSOCIATED(row_dist_cluster2).OR.ASSOCIATED(col_dist_cluster2)).AND.&
+         .NOT.dbcsr_get_conf_use_mpi_rma()) THEN
+       iunit=default_output_unit
+       IF (PRESENT(unit_nr)) iunit=unit_nr
+       IF (iunit>0) THEN
+          WRITE(iunit,*) "************************************************************"
+          WRITE(iunit,*) "WARNING:: Cannot use cluster distribution without MPI RMA!!!"
+          WRITE(iunit,*) "          Set 'USE_MPI_RMA T' in DBCSR section."
+          WRITE(iunit,*) "************************************************************"
+       ENDIF
+       NULLIFY(row_dist_cluster2,col_dist_cluster2)
+    ENDIF
+
+    CALL dbcsr_distribution_new(dist, mp_env, row_dist_block, col_dist_block, &
+                                row_dist_cluster=row_dist_cluster2, &
+                                col_dist_cluster=col_dist_cluster2, &
+                                reuse_arrays=reuse_arrays)
+
+    CALL timestop(timing_handle)
+
+  END SUBROUTINE cp_dbcsr_distribution_new_clusters1
 
 ! *****************************************************************************
 !> \brief Creates new distribution from block and cluster distributions
@@ -1415,17 +1467,19 @@ CONTAINS
 !> \param row_dist row distribution
 !> \param col_dist column distribution
 !> \param reuse_arrays ...
+!> \param unit_nr ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_distribution_new_clusters1(dist, mp_env, row_dist, col_dist, reuse_arrays)
+  SUBROUTINE cp_dbcsr_distribution_new_clusters2(dist, mp_env, row_dist, col_dist, reuse_arrays, unit_nr)
     TYPE(dbcsr_distribution_obj), &
       INTENT(OUT)                            :: dist
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER, DIMENSION(:, :), INTENT(IN), &
       POINTER                                :: row_dist, col_dist
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse_arrays
+    INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
 
     CHARACTER(len=*), PARAMETER :: &
-      routineN = 'cp_dbcsr_distribution_new_clusters1', &
+      routineN = 'cp_dbcsr_distribution_new_clusters2', &
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(:), POINTER           :: col_dist_block, &
@@ -1437,14 +1491,13 @@ CONTAINS
     col_dist_block => col_dist(:,1)
     row_dist_cluster => row_dist(:,2)
     col_dist_cluster => col_dist(:,2)
-    IF (ANY(row_dist_cluster.eq.-1)) NULLIFY(row_dist_cluster)
-    IF (ANY(col_dist_cluster.eq.-1)) NULLIFY(col_dist_cluster)
-    CALL dbcsr_distribution_new(dist, mp_env, row_dist_block, col_dist_block, &
-                                row_dist_cluster=row_dist_cluster, &
-                                col_dist_cluster=col_dist_cluster, &
-                                reuse_arrays=reuse_arrays)
 
-  END SUBROUTINE cp_dbcsr_distribution_new_clusters1
+    CALL cp_dbcsr_distribution_new(dist, mp_env, &
+         row_dist_block, col_dist_block, &
+         row_dist_cluster, col_dist_cluster, &
+         reuse_arrays, unit_nr)
+
+  END SUBROUTINE cp_dbcsr_distribution_new_clusters2
 
 ! *****************************************************************************
 !> \brief ...
@@ -2200,8 +2253,8 @@ CONTAINS
     INTEGER                                  :: a_cols_total, a_rows_total, &
                                                 b_cols_total, b_rows_total, &
                                                 c_cols_total, c_rows_total
-    INTEGER, DIMENSION(:), POINTER           :: new_col_dist, new_col_size, &
-                                                new_row_dist, new_row_size
+    INTEGER, DIMENSION(:), POINTER :: new_col_clusters, new_col_dist, &
+      new_col_size, new_row_clusters, new_row_dist, new_row_size
     LOGICAL                                  :: atr, btr, create_col_dist, &
                                                 create_row_dist, new_a_rows, &
                                                 new_b_cols, new_b_rows
@@ -2229,6 +2282,9 @@ CONTAINS
     a_cols_total = cp_dbcsr_nfullcols_total (matrix_a)
     IF (atr) CALL swap (a_cols_total, a_rows_total)
     IF (btr) CALL swap (b_cols_total, b_rows_total)
+
+    NULLIFY(new_row_clusters,new_col_clusters)
+
     !
     ! Process matrix B.
     !
@@ -2245,63 +2301,93 @@ CONTAINS
           IF (new_b_cols) THEN
              CALL match_1_dist (new_col_dist,&
                   dbcsr_distribution_col_dist (b_dist),&
-                  dbcsr_distribution_col_dist (c_dist))
+                  dbcsr_distribution_col_dist (c_dist),&
+                  new_col_clusters,&
+                  dbcsr_distribution_col_clusters(b_dist),&
+                  dbcsr_distribution_col_clusters(c_dist))
              create_col_dist = .TRUE.
           ELSE
              new_col_dist => dbcsr_distribution_col_dist (b_dist)
+             new_col_clusters => dbcsr_distribution_col_clusters(b_dist)
           ENDIF
           new_col_size => cp_dbcsr_col_block_sizes (matrix_c)
           IF (new_b_rows) THEN
              IF (.NOT. atr) THEN
                 CALL match_1_dist (new_row_dist,&
                      dbcsr_distribution_row_dist(b_dist),&
-                     dbcsr_distribution_col_dist(a_dist))
+                     dbcsr_distribution_col_dist(a_dist),&
+                     new_row_clusters,&
+                     dbcsr_distribution_row_clusters(b_dist),&
+                     dbcsr_distribution_col_clusters(a_dist))
                 create_row_dist = .TRUE.
                 new_row_size => cp_dbcsr_col_block_sizes(matrix_a)
              ELSE
                 CALL match_1_dist (new_row_dist,&
                      dbcsr_distribution_row_dist(b_dist),&
-                     dbcsr_distribution_row_dist(a_dist))
+                     dbcsr_distribution_row_dist(a_dist),&
+                     new_row_clusters,&
+                     dbcsr_distribution_row_clusters(b_dist),&
+                     dbcsr_distribution_row_clusters(a_dist))
                 create_row_dist = .TRUE.
                 new_row_size => cp_dbcsr_row_block_sizes(matrix_a)
              ENDIF
           ELSE
              new_row_dist => dbcsr_distribution_row_dist(b_dist)
+             new_row_clusters => dbcsr_distribution_row_clusters(b_dist)
              new_row_size => cp_dbcsr_row_block_sizes(matrix_b)
           ENDIF
        ELSE
           IF (new_b_cols) THEN
              CALL match_1_dist (new_row_dist,&
                   dbcsr_distribution_row_dist (b_dist),&
-                  dbcsr_distribution_col_dist (c_dist))
+                  dbcsr_distribution_col_dist (c_dist),&
+                  new_row_clusters,&
+                  dbcsr_distribution_row_clusters(b_dist),&
+                  dbcsr_distribution_col_clusters(c_dist))
              create_row_dist = .TRUE.
           ELSE
              new_row_dist => dbcsr_distribution_row_dist (b_dist)
+             new_row_clusters => dbcsr_distribution_row_clusters(b_dist)
           ENDIF
           new_row_size => cp_dbcsr_col_block_sizes(matrix_c)
           IF (new_b_rows) THEN
              IF (.not.atr) THEN
                 CALL match_1_dist (new_col_dist,&
                      dbcsr_distribution_col_dist (b_dist),&
-                     dbcsr_distribution_col_dist (a_dist))
+                     dbcsr_distribution_col_dist (a_dist),&
+                     new_col_clusters,&
+                     dbcsr_distribution_col_clusters(b_dist),&
+                     dbcsr_distribution_col_clusters(a_dist))
                 create_col_dist = .TRUE.
                 new_col_size => cp_dbcsr_col_block_sizes(matrix_a)
              ELSE
                 CALL match_1_dist (new_col_dist,&
                      dbcsr_distribution_col_dist (b_dist),&
-                     dbcsr_distribution_row_dist (a_dist))
+                     dbcsr_distribution_row_dist (a_dist),&
+                     new_col_clusters,&
+                     dbcsr_distribution_col_clusters(b_dist),&
+                     dbcsr_distribution_row_clusters(a_dist))
                 create_col_dist = .TRUE.
                 new_col_size => cp_dbcsr_row_block_sizes(matrix_a)
              ENDIF
           ELSE
              new_col_dist => dbcsr_distribution_col_dist(b_dist)
+             new_col_clusters => dbcsr_distribution_col_clusters(b_dist)
              new_col_size => cp_dbcsr_col_block_sizes(matrix_b)
           ENDIF
        ENDIF
        CALL dbcsr_distribution_new (new_dist, dbcsr_distribution_mp (c_dist),&
-                                    new_row_dist, new_col_dist)
-       IF (create_col_dist) DEALLOCATE(new_col_dist)
-       IF (create_row_dist) DEALLOCATE(new_row_dist)
+                                    new_row_dist, new_col_dist,&
+                                    row_dist_cluster=new_row_clusters,&
+                                    col_dist_cluster=new_col_clusters)
+       IF (create_col_dist) THEN
+          DEALLOCATE(new_col_dist)
+          IF (ASSOCIATED(new_col_clusters)) DEALLOCATE(new_col_clusters)
+       ENDIF
+       IF (create_row_dist) THEN
+          DEALLOCATE(new_row_dist)
+          IF (ASSOCIATED(new_row_clusters)) DEALLOCATE(new_row_clusters)
+       ENDIF
        CALL cp_dbcsr_create (new_b, template=matrix_b,&
             dist = new_dist,&
             row_blk_size = new_row_size,&
@@ -2316,6 +2402,7 @@ CONTAINS
 
     create_col_dist = .FALSE.
     create_row_dist = .FALSE.
+    NULLIFY(new_row_clusters,new_col_clusters)
     !
     ! Process matrix A
     new_a_rows = a_rows_total .NE. c_rows_total
@@ -2323,25 +2410,40 @@ CONTAINS
        CALL cp_dbcsr_init (new_a, error=error)
        IF (atr) THEN
           new_row_dist => dbcsr_distribution_row_dist (a_dist)
+          new_row_clusters => dbcsr_distribution_row_clusters(a_dist)
           new_row_size => cp_dbcsr_row_block_sizes(matrix_a)
           CALL match_1_dist (new_col_dist,&
                dbcsr_distribution_col_dist (a_dist),&
-               dbcsr_distribution_row_dist (c_dist))
+               dbcsr_distribution_row_dist (c_dist),&
+               new_col_clusters,&
+               dbcsr_distribution_col_clusters(a_dist),&
+               dbcsr_distribution_row_clusters(c_dist))
           create_col_dist = .TRUE.
           new_col_size => cp_dbcsr_row_block_sizes(matrix_c)
        ELSE
           CALL match_1_dist (new_row_dist,&
                dbcsr_distribution_row_dist (a_dist),&
-               dbcsr_distribution_row_dist (c_dist))
+               dbcsr_distribution_row_dist (c_dist),&
+               new_row_clusters,&
+               dbcsr_distribution_row_clusters(a_dist),&
+               dbcsr_distribution_row_clusters(c_dist))
           create_row_dist = .TRUE.
           new_row_size => cp_dbcsr_row_block_sizes(matrix_c)
           new_col_dist => dbcsr_distribution_col_dist (a_dist)
+          new_col_clusters => dbcsr_distribution_col_clusters(a_dist)
           new_col_size => cp_dbcsr_col_block_sizes(matrix_a)
        ENDIF
        CALL dbcsr_distribution_new (new_dist, dbcsr_distribution_mp (a_dist),&
-                                    new_row_dist, new_col_dist)
-       IF (create_col_dist) DEALLOCATE(new_col_dist)
-       IF (create_row_dist) DEALLOCATE(new_row_dist)       
+                                    new_row_dist, new_col_dist,&
+                                    new_row_clusters, new_col_clusters)
+       IF (create_col_dist) THEN
+          DEALLOCATE(new_col_dist)
+          DEALLOCATE(new_col_clusters)
+       ENDIF
+       IF (create_row_dist) THEN
+          DEALLOCATE(new_row_dist)    
+          DEALLOCATE(new_row_clusters)   
+       ENDIF
        CALL cp_dbcsr_create (new_a, template=matrix_a,&
             dist=new_dist,&
             row_blk_size = new_row_size,&
@@ -2363,12 +2465,21 @@ CONTAINS
 !> \param new_dist ...
 !> \param old_dist ...
 !> \param template_dist ...
+!> \param new_clusters ...
+!> \param old_clusters ...
+!> \param template_clusters ...
 ! *****************************************************************************
-  SUBROUTINE match_1_dist (new_dist, old_dist, template_dist)
+  SUBROUTINE match_1_dist (new_dist, old_dist, template_dist, &
+                           new_clusters, old_clusters, template_clusters)
     INTEGER, DIMENSION(:), INTENT(out), &
       POINTER                                :: new_dist
     INTEGER, DIMENSION(:), INTENT(in), &
       POINTER                                :: old_dist, template_dist
+    INTEGER, DIMENSION(:), INTENT(out), &
+      POINTER                                :: new_clusters
+    INTEGER, DIMENSION(:), INTENT(in), &
+      POINTER                                :: old_clusters, &
+                                                template_clusters
 
     INTEGER                                  :: i, max_bin, new_size, &
                                                 old_size, sz
@@ -2376,7 +2487,7 @@ CONTAINS
     old_size = SIZE(old_dist)
     new_size = SIZE(template_dist)
     sz = MIN(old_size, new_size)
-    ALLOCATE(new_dist(new_size))
+    ALLOCATE(new_dist(new_size)) 
     new_dist = template_dist
     new_dist(1:sz) = old_dist(1:sz)
     max_bin = MAXVAL (old_dist)
@@ -2386,6 +2497,15 @@ CONTAINS
        END DO
     ELSE
        new_dist(sz+1:new_size) = 0
+    ENDIF
+    IF (ASSOCIATED(template_clusters).AND.ASSOCIATED(old_clusters)) THEN
+       ALLOCATE(new_clusters(new_size))
+       new_clusters = template_clusters
+       new_clusters(1:sz) = old_clusters(1:sz)
+       max_bin = MAXVAL (old_clusters)
+       DO i = sz+1 , new_size
+          new_clusters(i) = MOD (i, max_bin)
+       END DO
     ENDIF
   END SUBROUTINE match_1_dist
 

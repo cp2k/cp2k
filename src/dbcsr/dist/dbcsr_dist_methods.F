@@ -10,6 +10,7 @@
 ! *****************************************************************************
 MODULE dbcsr_dist_methods
   USE array_types,                     ONLY: array_data,&
+                                             array_exists,&
                                              array_i1d_obj,&
                                              array_new,&
                                              array_nullify,&
@@ -69,7 +70,11 @@ MODULE dbcsr_dist_methods
             dbcsr_distribution_thread_dist, dbcsr_distribution_has_threads,&
             dbcsr_distribution_make_threads, dbcsr_distribution_no_threads,&
             dbcsr_distribution_num_threads, dbcsr_distribution_data_max_size_allproc,&
-            dbcsr_distribution_get_num_images_1d
+            dbcsr_distribution_get_num_images_1d, &
+            dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_col_clusters, &
+            dbcsr_distribution_num_local_row_clusters, dbcsr_distribution_num_local_col_clusters, &
+            dbcsr_distribution_num_row_clusters, dbcsr_distribution_num_col_clusters, &
+            dbcsr_distribution_row_clusters, dbcsr_distribution_col_clusters
 
 CONTAINS
 
@@ -103,11 +108,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_distribution_new', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, mypcoor, seq
+    INTEGER                                  :: error_handler, i, j, lcmv, &
+                                                mypcoor, nclusters, seq
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: cluster_dist
     INTEGER, DIMENSION(:), POINTER           :: col_dist_tmp, ld, row_dist_tmp
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
 
     ALLOCATE (dist%d)
     dist%d%refcount = 1
@@ -116,11 +125,17 @@ CONTAINS
     CALL array_new(dist%d%row_dist_block, row_dist_tmp, gift=reuse_arrays)
     CALL array_new(dist%d%col_dist_block, col_dist_tmp, gift=reuse_arrays)
 
+    nclusters = 0
     CALL array_nullify(dist%d%row_dist_cluster)
     IF (PRESENT(row_dist_cluster)) THEN
        IF (ASSOCIATED(row_dist_cluster)) THEN
           row_dist_tmp => row_dist_cluster
           CALL array_new(dist%d%row_dist_cluster, row_dist_tmp, gift=reuse_arrays)
+          CALL dbcsr_assert(SIZE(row_dist_cluster), "EQ", SIZE(row_dist_block),&
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Blocks and clusters size are different for row grid",&
+               __LINE__, error=error)
+          nclusters=MAXVAL(row_dist_cluster)
        ENDIF
     ENDIF
     CALL array_nullify(dist%d%col_dist_cluster)
@@ -128,7 +143,16 @@ CONTAINS
        IF (ASSOCIATED(col_dist_cluster)) THEN
           col_dist_tmp => col_dist_cluster
           CALL array_new(dist%d%col_dist_cluster, col_dist_tmp, gift=reuse_arrays)
+          CALL dbcsr_assert(SIZE(col_dist_cluster), "EQ", SIZE(col_dist_block),&
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Blocks and clusters size are different for column grid",&
+               __LINE__, error=error)
+          nclusters=MAX(nclusters,MAXVAL(col_dist_cluster))
        ENDIF
+    ENDIF
+    IF (nclusters.GT.0) THEN
+       lcmv = lcm(dbcsr_mp_nprows(mp_env),dbcsr_mp_npcols(mp_env))
+       nclusters = CEILING(DBLE(nclusters)/lcmv)*lcmv
     ENDIF
 
     dist%d%mp_env = mp_env
@@ -175,6 +199,99 @@ CONTAINS
        ENDDO
        CALL array_new (dist%d%local_cols, ld, gift=.TRUE.)
     ENDIF
+
+    ! check cluster distributions and make it local -- rows
+    IF (array_exists(dist%d%row_dist_cluster)) THEN
+       ! cluster/proc distribution, 
+       ! map of the local clusters, 
+       ! # blocks per cluster
+       ALLOCATE(cluster_dist(nclusters,3))
+       cluster_dist(:,1:2) = -1
+       cluster_dist(:,3) = 0
+       seq = 0
+       mypcoor = dbcsr_mp_myprow (mp_env)
+       DO i = 1, SIZE(row_dist_block)
+          IF (cluster_dist(row_dist_cluster(i),1).EQ.-1) THEN
+             cluster_dist(row_dist_cluster(i),1) = row_dist_block(i)
+             IF (row_dist_block(i).EQ.mypcoor) THEN
+                seq = seq + 1
+                cluster_dist(row_dist_cluster(i),2) = seq
+             END IF
+          ELSE 
+             CALL dbcsr_assert (cluster_dist(row_dist_cluster(i),1),"EQ",row_dist_block(i),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Wrong cluster distribution",&
+                  __LINE__, error=error)
+          END IF
+          cluster_dist(row_dist_cluster(i),3) = cluster_dist(row_dist_cluster(i),3) + 1
+       END DO
+       CALL dbcsr_assert (seq,"LE",nclusters/dbcsr_mp_nprows(mp_env),&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Clusters distribution is not uniform across processors",&
+            __LINE__, error=error)
+       ALLOCATE(dist%d%local_cluster_rows(seq))
+       ld => array_data(dist%d%local_rows)
+       DO i = 1, nclusters
+          IF (cluster_dist(i,2).LT.1) CYCLE
+          ALLOCATE(row_dist_tmp(cluster_dist(i,3)))
+          seq = 1
+          DO j = 1, SIZE(ld)
+             IF (i.EQ.row_dist_cluster(ld(j))) THEN
+                row_dist_tmp(seq) = ld(j)
+                seq = seq + 1
+             ENDIF
+          ENDDO
+          CALL array_new (dist%d%local_cluster_rows(cluster_dist(i,2)),row_dist_tmp,gift=.TRUE.)
+       ENDDO
+       DEALLOCATE(cluster_dist)
+    END IF
+
+    ! check cluster distributions and make it local -- cols
+    IF (array_exists(dist%d%col_dist_cluster)) THEN
+       ! cluster/proc distribution, 
+       ! map of the local clusters, 
+       ! # blocks per cluster
+       ALLOCATE(cluster_dist(nclusters,3))
+       cluster_dist(:,1:2) = -1
+       cluster_dist(:,3) = 0
+       seq = 0
+       mypcoor = dbcsr_mp_mypcol (mp_env)
+       DO i = 1, SIZE(col_dist_block)
+          IF (cluster_dist(col_dist_cluster(i),1).EQ.-1) THEN
+             cluster_dist(col_dist_cluster(i),1) = col_dist_block(i)
+             IF (col_dist_block(i).EQ.mypcoor) THEN
+                seq = seq + 1
+                cluster_dist(col_dist_cluster(i),2) = seq
+             END IF
+          ELSE 
+             CALL dbcsr_assert (cluster_dist(col_dist_cluster(i),1),"EQ",col_dist_block(i),&
+                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+                  "Wrong cluster distribution",&
+                  __LINE__, error=error)
+          END IF
+          cluster_dist(col_dist_cluster(i),3) = cluster_dist(col_dist_cluster(i),3) + 1
+       END DO
+       CALL dbcsr_assert (seq,"LE",nclusters/dbcsr_mp_npcols(mp_env),&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Clusters distribution is not uniform across processors",&
+            __LINE__, error=error)
+       ALLOCATE(dist%d%local_cluster_cols(seq))
+       ld => array_data(dist%d%local_cols)
+       DO i = 1, nclusters
+          IF (cluster_dist(i,2).LT.1) CYCLE
+          ALLOCATE(col_dist_tmp(cluster_dist(i,3)))
+          seq = 1
+          DO j = 1, SIZE(ld)
+             IF (i.EQ.col_dist_cluster(ld(j))) THEN
+                col_dist_tmp(seq) = ld(j)
+                seq = seq + 1
+             ENDIF
+          ENDDO
+          CALL array_new (dist%d%local_cluster_cols(cluster_dist(i,2)),col_dist_tmp,gift=.TRUE.)
+       ENDDO
+       DEALLOCATE(cluster_dist)
+    END IF
+
     dist%d%num_threads = 1
 !$  dist%d%num_threads = OMP_GET_MAX_THREADS()
     dist%d%has_thread_dist = .FALSE.
@@ -189,6 +306,9 @@ CONTAINS
     CALL array_nullify (dist%d%global_col_map)
     dist%d%has_global_row_map = .FALSE.
     dist%d%has_global_col_map = .FALSE.
+
+    CALL dbcsr_error_stop(error_handler, error)
+
   END SUBROUTINE dbcsr_distribution_new
 
 ! *****************************************************************************
@@ -437,22 +557,144 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Count number of images in the product matrix
 !> \param[in] matrix_dense_size_1d  1D size of the (equivalent) dense matrix 
+!> \param nblocks ...
 !> \param[in] nprows                Number of row processors
 !> \param[in] npcols                Number of column processors
 !> \retval num_images               Number of images
 ! *****************************************************************************
-  FUNCTION dbcsr_distribution_get_num_images_1d (matrix_dense_size_1d,nprows,npcols) RESULT (num_images_1d)
-    INTEGER, INTENT(IN)                      :: matrix_dense_size_1d, nprows, &
-                                                npcols
+  FUNCTION dbcsr_distribution_get_num_images_1d (matrix_dense_size_1d,nblocks,&
+                                                 nprows,npcols) RESULT (num_images_1d)
+    INTEGER, INTENT(IN)                      :: matrix_dense_size_1d, &
+                                                nblocks, nprows, npcols
     INTEGER                                  :: num_images_1d
 
-    num_images_1d = lcm(nprows, npcols)
+    INTEGER                                  :: lcmv
+
+    lcmv = lcm(nprows, npcols)
+    num_images_1d = lcmv
     IF (avg_elements_images.GT.0) THEN
        num_images_1d = num_images_1d* &
             CEILING((DBLE(matrix_dense_size_1d)/num_images_1d)/ &
                      SQRT(DBLE(avg_elements_images)))
     ENDIF
+    ! limiting # clusters to be close to # atoms
+    IF (num_images_1d.gt.nblocks) THEN
+       num_images_1d = CEILING(DBLE(nblocks)/lcmv)*lcmv
+    ENDIF
   END FUNCTION dbcsr_distribution_get_num_images_1d
+
+! *****************************************************************************
+!> \brief ...
+!> \param[in] dist  ...
+!> \retval has_row_clusters ...
+! *****************************************************************************
+  FUNCTION dbcsr_distribution_has_row_clusters (dist) RESULT (has_row_clusters)
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+    LOGICAL                                  :: has_row_clusters
+
+    has_row_clusters = array_exists(dist%d%row_dist_cluster)
+  END FUNCTION dbcsr_distribution_has_row_clusters
+
+! *****************************************************************************
+!> \brief ...
+!> \param[in] dist  ...
+!> \retval has_col_clusters ...
+! *****************************************************************************
+  FUNCTION dbcsr_distribution_has_col_clusters (dist) RESULT (has_col_clusters)
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+    LOGICAL                                  :: has_col_clusters
+
+    has_col_clusters = array_exists(dist%d%col_dist_cluster)
+  END FUNCTION dbcsr_distribution_has_col_clusters
+
+! *****************************************************************************
+!> \brief ...
+!> \param[in] dist  ...
+!> \retval num_local_row_clusters ...
+! *****************************************************************************
+  FUNCTION dbcsr_distribution_num_local_row_clusters (dist) RESULT (num_local_row_clusters)
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+    INTEGER                                  :: num_local_row_clusters
+
+    num_local_row_clusters = 1
+    IF (dbcsr_distribution_has_row_clusters(dist)) THEN
+       num_local_row_clusters = SIZE(dist%d%local_cluster_rows)
+    ENDIF
+
+  END FUNCTION dbcsr_distribution_num_local_row_clusters
+
+! *****************************************************************************
+!> \brief ...
+!> \param[in] dist  ...
+!> \retval num_local_col_clusters ...
+! *****************************************************************************
+  FUNCTION dbcsr_distribution_num_local_col_clusters (dist) RESULT (num_local_col_clusters)
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+    INTEGER                                  :: num_local_col_clusters
+
+    num_local_col_clusters = 1
+    IF (dbcsr_distribution_has_col_clusters(dist)) THEN
+       num_local_col_clusters = SIZE(dist%d%local_cluster_cols)
+    ENDIF
+
+  END FUNCTION dbcsr_distribution_num_local_col_clusters
+
+! *****************************************************************************
+!> \brief ...
+!> \param[in] dist  ...
+!> \retval num_row_clusters ...
+! *****************************************************************************
+  FUNCTION dbcsr_distribution_num_row_clusters (dist) RESULT (num_row_clusters)
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+    INTEGER                                  :: num_row_clusters
+
+    num_row_clusters = 1
+    IF (dbcsr_distribution_has_row_clusters(dist)) THEN
+       num_row_clusters = SIZE(dist%d%local_cluster_rows)*dbcsr_mp_nprows(dbcsr_distribution_mp(dist))
+    ENDIF
+
+  END FUNCTION dbcsr_distribution_num_row_clusters
+
+! *****************************************************************************
+!> \brief ...
+!> \param[in] dist  ...
+!> \retval num_col_clusters ...
+! *****************************************************************************
+  FUNCTION dbcsr_distribution_num_col_clusters (dist) RESULT (num_col_clusters)
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+    INTEGER                                  :: num_col_clusters
+
+    num_col_clusters = 1
+    IF (dbcsr_distribution_has_col_clusters(dist)) THEN
+       num_col_clusters = SIZE(dist%d%local_cluster_cols)*dbcsr_mp_npcols(dbcsr_distribution_mp(dist))
+    ENDIF
+
+  END FUNCTION dbcsr_distribution_num_col_clusters
+
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval row_dist_cluster ...
+! *****************************************************************************
+  FUNCTION dbcsr_distribution_row_clusters(dist) RESULT (row_dist_cluster)
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+    INTEGER, DIMENSION(:), POINTER           :: row_dist_cluster
+
+    row_dist_cluster => array_data(dist%d%row_dist_cluster)
+  END FUNCTION dbcsr_distribution_row_clusters
+
+! *****************************************************************************
+!> \brief ...
+!> \param dist ...
+!> \retval col_dist_cluster ...
+! *****************************************************************************
+  FUNCTION dbcsr_distribution_col_clusters(dist) RESULT (col_dist_cluster)
+    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
+    INTEGER, DIMENSION(:), POINTER           :: col_dist_cluster
+
+    col_dist_cluster => array_data(dist%d%col_dist_cluster)
+  END FUNCTION dbcsr_distribution_col_clusters
+
 ! *****************************************************************************
 !> \brief Count max possible data storage for all processors used for matrix data
 !> \param[in] matrix          Count data of this matrix

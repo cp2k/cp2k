@@ -21,11 +21,13 @@ MODULE dm_ls_scf_qs
        cp_dbcsr_distribution_new, cp_dbcsr_finalize, cp_dbcsr_init, &
        cp_dbcsr_name, cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, &
        cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
-       cp_dbcsr_type, dbcsr_distribution_col_dist, dbcsr_distribution_init, &
+       cp_dbcsr_type, dbcsr_distribution_col_clusters, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_has_col_clusters, &
+       dbcsr_distribution_has_row_clusters, dbcsr_distribution_init, &
        dbcsr_distribution_mp, dbcsr_distribution_obj, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
-       dbcsr_type_symmetric
+       dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
+       dbcsr_distribution_row_dist, dbcsr_type_no_symmetry, &
+       dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
@@ -110,10 +112,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_to_cluster, &
                                                 atom_to_cluster_primus, &
                                                 primus_of_mol
-    INTEGER, DIMENSION(:), POINTER           :: blk_dist, blk_sizes, &
-                                                clustered_blk_sizes, &
-                                                clustered_col_dist, &
-                                                clustered_row_dist
+    INTEGER, DIMENSION(:), POINTER :: blk_dist, blk_sizes, &
+      clustered_blk_sizes, clustered_col_clusters, clustered_col_dist, &
+      clustered_row_clusters, clustered_row_dist
     TYPE(dbcsr_distribution_obj)             :: block_distribution, &
                                                 clustered_distribution
 
@@ -163,12 +164,29 @@ CONTAINS
        DO imol = 1, nmol
          clustered_row_dist(imol) = blk_dist(primus_of_mol(imol))
        ENDDO
+       NULLIFY(clustered_row_clusters)
+       IF (dbcsr_distribution_has_row_clusters(block_distribution)) THEN
+          ALLOCATE(clustered_row_clusters(nmol))
+          blk_dist => dbcsr_distribution_row_clusters(block_distribution)
+          DO imol = 1, nmol
+             clustered_row_clusters(imol) = blk_dist(primus_of_mol(imol))
+          ENDDO
+       ENDIF
+
        ! col
        ALLOCATE(clustered_col_dist(nmol))
        blk_dist => dbcsr_distribution_col_dist(block_distribution)
        DO imol = 1, nmol
          clustered_col_dist(imol) = blk_dist(primus_of_mol(imol))
        ENDDO
+       NULLIFY(clustered_col_clusters)
+       IF (dbcsr_distribution_has_col_clusters(block_distribution)) THEN
+          ALLOCATE(clustered_col_clusters(nmol))
+          blk_dist => dbcsr_distribution_col_clusters(block_distribution)
+          DO imol = 1, nmol
+             clustered_col_clusters(imol) = blk_dist(primus_of_mol(imol))
+          ENDDO
+       ENDIF
 
        blk_sizes => cp_dbcsr_row_block_sizes(matrix_qs)
        ALLOCATE(clustered_blk_sizes(nmol))
@@ -181,7 +199,9 @@ CONTAINS
        ! the parallel distribution
        CALL cp_dbcsr_distribution_new(clustered_distribution,&
             dbcsr_distribution_mp(block_distribution),&
-            clustered_row_dist, clustered_col_dist, reuse_arrays=.TRUE.)
+            clustered_row_dist, clustered_col_dist, &
+            clustered_row_clusters, clustered_col_clusters, &
+            reuse_arrays=.TRUE.)
 
        ! the matrix
        CALL cp_dbcsr_init (matrix_ls, error=error)

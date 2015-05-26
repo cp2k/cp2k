@@ -19,14 +19,15 @@ MODULE dbcsr_dist_operations
        array_new, array_nullify, array_release, array_size
   USE dbcsr_config,                    ONLY: max_elements_per_block
   USE dbcsr_dist_methods,              ONLY: &
-       dbcsr_distribution_col_dist, dbcsr_distribution_col_dist_obj, &
-       dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
-       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
-       dbcsr_distribution_local_rows, dbcsr_distribution_make_threads, &
-       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_new, dbcsr_distribution_no_threads, &
-       dbcsr_distribution_nrows, dbcsr_distribution_processor, &
-       dbcsr_distribution_release, dbcsr_distribution_row_dist, &
+       dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_col_dist_obj, dbcsr_distribution_has_threads, &
+       dbcsr_distribution_hold, dbcsr_distribution_init, &
+       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
+       dbcsr_distribution_ncols, dbcsr_distribution_new, &
+       dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
+       dbcsr_distribution_processor, dbcsr_distribution_release, &
+       dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
        dbcsr_distribution_row_dist_obj, dbcsr_distribution_thread_dist
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
@@ -499,7 +500,9 @@ CONTAINS
          dbcsr_distribution_col_dist (dist_normal), &
          dbcsr_distribution_row_dist (dist_normal), &
          dbcsr_distribution_local_cols (dist_normal), &
-         dbcsr_distribution_local_rows (dist_normal))
+         dbcsr_distribution_local_rows (dist_normal), &
+         dbcsr_distribution_col_clusters (dist_normal), &
+         dbcsr_distribution_row_clusters (dist_normal))
     CALL dbcsr_mp_release (mp_env_tr)
   END SUBROUTINE dbcsr_transpose_distribution
 
@@ -598,12 +601,6 @@ CONTAINS
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
-!CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(new_bins),&
-!     dbcsr_warning_level, dbcsr_internal_error,&
-!     routineN, "source/new bin array sizes not equal",__LINE__,error)
-!CALL dbcsr_assert (SIZE(source_bins), "EQ", SIZE(images),&
-!     dbcsr_warning_level, dbcsr_internal_error,&
-!     routineN, "source/image array sizes not equal",__LINE__,error)
 
     CALL dbcsr_assert (MOD (nbins, multiplicity), "EQ", 0,&
          dbcsr_warning_level, dbcsr_internal_error,&
@@ -1318,7 +1315,8 @@ CONTAINS
          dbcsr_distribution_col_dist (dist_left),&
          new_nprows, multiplicity, nimages)
     CALL dbcsr_distribution_new (dist_right, right_mp_env,&
-         right_row_dist, right_col_dist, reuse_arrays=.TRUE.)
+         right_row_dist, right_col_dist, &
+         reuse_arrays=.TRUE.)
     DEALLOCATE(tmp_images)
   END SUBROUTINE dbcsr_create_dist_r_unrot
 
@@ -1357,7 +1355,8 @@ CONTAINS
          right_col_blk_sizes, ncolumns, dbcsr_mp_npcols (right_mp_env))
     CALL dbcsr_distribution_new (dist_right, right_mp_env,&
          dbcsr_distribution_col_dist (dist_left), right_col_dist,&
-         local_rows=dbcsr_distribution_local_cols (dist_left))
+         local_rows=dbcsr_distribution_local_cols (dist_left),&
+         row_dist_cluster=dbcsr_distribution_col_clusters (dist_left))
     CALL dbcsr_mp_release (right_mp_env)
     DEALLOCATE(right_col_dist)
   END SUBROUTINE dbcsr_create_dist_r_rot
@@ -1395,7 +1394,8 @@ CONTAINS
          left_row_blk_sizes, nrows, dbcsr_mp_nprows (left_mp_env))
     CALL dbcsr_distribution_new (dist_left, left_mp_env,&
          left_row_dist, dbcsr_distribution_col_dist (dist_right),&
-         local_cols=dbcsr_distribution_local_cols (dist_right))
+         local_cols=dbcsr_distribution_local_cols (dist_right),&
+         col_dist_cluster=dbcsr_distribution_col_clusters (dist_right))
     DEALLOCATE(left_row_dist)
   END SUBROUTINE dbcsr_create_dist_l_unrot
 
@@ -1433,7 +1433,8 @@ CONTAINS
          left_row_blk_sizes, nrows, dbcsr_mp_nprows (left_mp_env))
     CALL dbcsr_distribution_new (dist_left, left_mp_env,&
          left_row_dist, dbcsr_distribution_row_dist (dist_right),&
-         local_cols=dbcsr_distribution_local_rows (dist_right))
+         local_cols=dbcsr_distribution_local_rows (dist_right),&
+         col_dist_cluster=dbcsr_distribution_row_clusters (dist_right))
     CALL dbcsr_mp_release (left_mp_env)
     DEALLOCATE (left_row_dist)
   END SUBROUTINE dbcsr_create_dist_l_rot

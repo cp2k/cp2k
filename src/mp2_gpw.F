@@ -350,7 +350,7 @@ MODULE mp2_gpw
     ! a dbcsr_dist
     ALLOCATE(dbcsr_dist_sub,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL cp_dbcsr_dist2d_to_dist (distribution_2d_sub, dbcsr_dist_sub, error_sub)
+    CALL cp_dbcsr_dist2d_to_dist (distribution_2d_sub, dbcsr_dist_sub, unit_nr, error_sub)
 
     ! build a dbcsr matrix the hard way
     natom = SIZE(particle_set)

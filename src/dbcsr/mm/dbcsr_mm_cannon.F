@@ -55,11 +55,14 @@ MODULE dbcsr_mm_cannon
        dbcsr_scalar_zero
   USE dbcsr_data_types,                ONLY: dbcsr_datatype_sizeof
   USE dbcsr_dist_methods,              ONLY: &
-       dbcsr_distribution_col_dist, dbcsr_distribution_data_max_size_allproc, &
-       dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
-       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_no_threads, &
-       dbcsr_distribution_nrows, dbcsr_distribution_release, &
+       dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_data_max_size_allproc, &
+       dbcsr_distribution_has_col_clusters, &
+       dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_threads, &
+       dbcsr_distribution_hold, dbcsr_distribution_make_threads, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
+       dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
        dbcsr_distribution_row_dist
   USE dbcsr_dist_operations,           ONLY: dbcsr_create_image_dist,&
                                              dbcsr_get_local_vcols,&
@@ -810,6 +813,16 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_distribution_make_threads (matrix_c%m%dist)
     ELSE
        release_tdist = .FALSE.
+    ENDIF
+
+    ! Check clusters distribution
+    IF (dbcsr_distribution_has_col_clusters(matrix_left%m%dist).AND.&
+        dbcsr_distribution_has_row_clusters(matrix_right%m%dist)) THEN
+       CALL dbcsr_assert (array_equality(dbcsr_distribution_col_clusters(matrix_left%m%dist),&
+                                         dbcsr_distribution_row_clusters(matrix_right%m%dist)),&
+                          dbcsr_fatal_level,&
+                          dbcsr_wrong_args_error, routineN, "A cols/B rows clusters not equal", &
+                          __LINE__, error) 
     ENDIF
 
     mult_images = 1

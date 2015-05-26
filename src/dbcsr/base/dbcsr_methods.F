@@ -334,6 +334,8 @@ CONTAINS
           CALL array_release (dist%d%col_dist_block)
           CALL array_release (dist%d%local_rows)
           CALL array_release (dist%d%local_cols)
+          CALL array_release (dist%d%row_dist_cluster)
+          CALL array_release (dist%d%col_dist_cluster)
           CALL dbcsr_mp_release (dist%d%mp_env)
           IF (dist%d%has_thread_dist) &
                CALL array_release (dist%d%thread_dist)
@@ -357,6 +359,22 @@ CONTAINS
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     INTEGER                                  :: i
+
+    IF (ASSOCIATED(dist%d%local_cluster_rows)) THEN
+       DO i = LBOUND (dist%d%local_cluster_rows,1), UBOUND (dist%d%local_cluster_rows,1)
+          CALL array_release (dist%d%local_cluster_rows(i))
+       END DO
+       DEALLOCATE(dist%d%local_cluster_rows)
+       NULLIFY(dist%d%local_cluster_rows)
+    ENDIF
+
+    IF (ASSOCIATED(dist%d%local_cluster_cols)) THEN
+       DO i = LBOUND (dist%d%local_cluster_cols,1), UBOUND (dist%d%local_cluster_cols,1)
+          CALL array_release (dist%d%local_cluster_cols(i))
+       END DO
+       DEALLOCATE(dist%d%local_cluster_cols)
+       NULLIFY(dist%d%local_cluster_cols)
+    ENDIF
 
     IF (dist%d%has_other_l_rows) THEN
        DO i = LBOUND (dist%d%other_l_rows,1), UBOUND (dist%d%other_l_rows,1)

@@ -20,8 +20,9 @@ MODULE mscfg_types
        cp_dbcsr_iterator_stop, cp_dbcsr_nfullcols_total, &
        cp_dbcsr_nfullrows_total, cp_dbcsr_release, cp_dbcsr_reserve_block2d, &
        cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
-       cp_dbcsr_work_create, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_mp, dbcsr_distribution_obj, &
+       cp_dbcsr_work_create, dbcsr_distribution_col_clusters, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_mp, &
+       dbcsr_distribution_obj, dbcsr_distribution_row_clusters, &
        dbcsr_distribution_row_dist, dbcsr_type_no_symmetry
 !cp_dbcsr_copy, & 
 !cp_dbcsr_filter, &
@@ -237,7 +238,8 @@ CONTAINS
       nblocks, nblocks_new, start_index, trailing_size
     INTEGER, DIMENSION(2)                    :: add_blocks_before
     INTEGER, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, &
-      col_distr_new, col_sizes_new, distr_new_array, row_distr_new, &
+      cluster_distr, cluster_distr_new, col_cluster_new, col_distr_new, &
+      col_sizes_new, distr_new_array, row_cluster_new, row_distr_new, &
       row_sizes_new
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_p, p_new_block
@@ -250,7 +252,7 @@ CONTAINS
     dist_qs = cp_dbcsr_distribution(submatrix_in)
     
     DO dimen=1,2 ! 1 - row, 2 - column dimension
-   
+
      add_blocks_before(dimen)=0
      add_blocks_after=0
      start_index=1
@@ -263,42 +265,62 @@ CONTAINS
       add_blocks_after=add_blocks_after+1
      ENDIF
 
+     NULLIFY(cluster_distr_new)
+
      IF (dimen==1) THEN !rows
       blk_distr => dbcsr_distribution_row_dist(dist_qs)
       blk_sizes => cp_dbcsr_row_block_sizes(submatrix_in)
+      cluster_distr => dbcsr_distribution_row_clusters(dist_qs)
      ELSE !columns
       blk_distr => dbcsr_distribution_col_dist(dist_qs)
       blk_sizes => cp_dbcsr_col_block_sizes(submatrix_in)
+      cluster_distr => dbcsr_distribution_col_clusters(dist_qs)
      ENDIF
      nblocks=SIZE(blk_sizes) ! number of blocks in the small matrix
 
      nblocks_new=nblocks+add_blocks_before(dimen)+add_blocks_after
      ALLOCATE(block_sizes_new(nblocks_new))
      ALLOCATE(distr_new_array(nblocks_new))
+     IF (ASSOCIATED(cluster_distr)) THEN
+        ALLOCATE(cluster_distr_new(nblocks_new))
+     END IF
      IF (add_blocks_before(dimen).gt.0) THEN
       block_sizes_new(1)=offset(dimen)
       distr_new_array(1)=0
+      IF (ASSOCIATED(cluster_distr)) THEN
+         cluster_distr_new(1)=0
+      END IF
      ENDIF
      block_sizes_new(start_index:nblocks+start_index-1)=blk_sizes(1:nblocks)
      distr_new_array(start_index:nblocks+start_index-1)=blk_distr(1:nblocks)
+     IF (ASSOCIATED(cluster_distr)) THEN
+        cluster_distr_new(start_index:nblocks+start_index-1)=cluster_distr(1:nblocks)
+     END IF
      IF (add_blocks_after.gt.0) THEN
       block_sizes_new(nblocks_new)=trailing_size
       distr_new_array(nblocks_new)=0
+      IF (ASSOCIATED(cluster_distr)) THEN
+         cluster_distr_new(nblocks_new)=0
+      END IF
      ENDIF
      
      ! create final arrays
      IF (dimen==1) THEN !rows
         row_sizes_new => block_sizes_new
         row_distr_new => distr_new_array
+        row_cluster_new => cluster_distr_new
      ELSE !columns
         col_sizes_new => block_sizes_new
         col_distr_new => distr_new_array
+        col_cluster_new => cluster_distr_new
      ENDIF
     ENDDO ! both rows and columns are done
     
     ! Create the distribution
     CALL cp_dbcsr_distribution_new(dist_new,&
-     dbcsr_distribution_mp(dist_qs),row_distr_new,col_distr_new,reuse_arrays=.TRUE.)
+     dbcsr_distribution_mp(dist_qs),row_distr_new,col_distr_new,&
+     row_cluster_new,col_cluster_new,&
+     reuse_arrays=.TRUE.)
 
     ! Create big the matrix
     CALL cp_dbcsr_init(matrix_new,error=error)

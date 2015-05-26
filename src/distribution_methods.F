@@ -1207,7 +1207,7 @@ CONTAINS
 
     CALL timeset (routineN, handle)
     natom=SIZE(costs)
-    ncluster=cp_distribution_get_num_images(SUM(costs),nprows,npcols)
+    ncluster=cp_distribution_get_num_images(SUM(costs),natom,nprows,npcols)
     ALLOCATE(atom_to_cluster(natom))
     ALLOCATE(cluster_cost(ncluster))
     ALLOCATE(cluster_to_row(ncluster))
@@ -1314,7 +1314,11 @@ CONTAINS
     natoms=SIZE(coord, 2)
     ! This is a bit of an arbitrary choice, simply a try to avoid too many clusters on large systems and too few for balancing on
     ! small systems or subclusters
-    nsplits=MIN(MAX(6, INT(60.00/LOG(REAL(natoms)))), ncluster)
+    IF (natoms.le.1) THEN
+       nsplits=1
+    ELSE
+       nsplits=MIN(MIN(MAX(6, INT(60.00/LOG(REAL(natoms)))), ncluster), natoms)
+    ENDIF
     IF (nsplits==1) THEN
        icluster=icluster+1
        cluster_inds=icluster

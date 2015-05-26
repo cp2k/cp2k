@@ -102,15 +102,17 @@ CONTAINS
 !>      The previous components of qs_env must be valid.
 !>      Initializes pools, charges and pw_env.
 !> \param qs_env the qs_env to set up
+!> \param unit_nr ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      10.2002 created [fawzi]
 !> \author Fawzi Mohamed
 ! *****************************************************************************
-SUBROUTINE qs_env_setup(qs_env,error)
+SUBROUTINE qs_env_setup(qs_env,unit_nr,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(in)                      :: unit_nr
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_setup', &
@@ -217,7 +219,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
 
        ! and use it to create the dbcsr_dist, which should be the sole user of distribution_2d by now.
        ALLOCATE(dbcsr_dist)
-       CALL cp_dbcsr_dist2d_to_dist(distribution_2d, dbcsr_dist, error)
+       CALL cp_dbcsr_dist2d_to_dist(distribution_2d, dbcsr_dist, unit_nr, error)
        CALL set_ks_env(ks_env, dbcsr_dist=dbcsr_dist, error=error)
 
        ! also keep distribution_2d in qs_env
