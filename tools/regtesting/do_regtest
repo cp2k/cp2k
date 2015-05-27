@@ -69,6 +69,7 @@
 #            in the previous run
 #  -noemptycheck : use this to force regression testing even if no changes exist in SVN
 #  -nobuild : do not build cp2k, but use one built by the user (turns on quick option automatically)
+#  -skiptest : skip the regression test, but do SVN update and compilation if requested
 #
 # Possible exit statuses:
 # -  end_test 0   : clean exit with testing
@@ -155,6 +156,7 @@ restrict_dirs[1]=""
 doretest="no"
 nosvn="svn"
 nobuild="build"
+skiptest="noskiptest"
 svndate="$datum_full"
 
 ###################################################################################
@@ -210,6 +212,8 @@ while [ $# -ge 1 ]; do
  # turns on automatically quick option, so that do_regtest does not do realclean
  -nobuild)
   quick="quick"; nobuild="nobuild";;
+ -skiptest)
+  skiptest="skiptest";;
  # stop on invalid flag
  -*)
   echo "ERROR: Invalid command line flag $1 found"
@@ -765,247 +769,250 @@ else
    echo "No build, continue regression testing"
 fi
 
-echo "-------------------------regtesting cp2k----------------------------------"
-
-###################################################################################
-#
-# parse the TEST_TYPES file to do different kinds of test (done after svn update)
-#
-# tests grep for the last line in the file where a string matches (test_grep)
-# and compares a numeric field at a given column (test_col)
-#
-# the format of the TEST_TYPES file is (notice the '!' as a field separator, to allow
-# for spaces in the test_grep)
-#
-# Ntest_types
-# test_grep_1 ! test_col_1
-# test_grep_2 ! test_col_2
-# ....
-# followed by comment lines
-#
-###################################################################################
-Ntest_types=`awk -v l=1 -v c=1 'BEGIN{FS="!"}{lr=lr+1;if (lr==l) print $c}' ${test_types_file}`
-test_grep[0]=""
-test_col[0]=1
-t=1
-while [ $t -le ${Ntest_types} ]; do
-test_grep[t]=`${awk} -v l=$t -v c=1 'BEGIN{FS="!"}{lr=lr+1;if (lr==l+1) print $c}' ${test_types_file}`
-test_col[t]=`${awk} -v l=$t -v c=2 'BEGIN{FS="!"}{lr=lr+1;if (lr==l+1) print $c}' ${test_types_file}`
-let t=t+1
-done
-
-###################################################################################
-#
-# *** now start testing
-# *** for a given directory we do a run on all files in TEST_FILES and
-# *** do the test as indicated by the number
-# *** files are run in order so that they can e.g. restart
-#
-###################################################################################
-n_runtime_error=0
-n_wrong_results=0
-n_correct=0
-n_tests=0
-n_new=0
-
-printf "Copying tests into working directory ... "
-
-# Copy the tests into the working regtest directory.
-cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
-cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || ( \
-  echo "Could not copy testing directory as hard links."
-  echo "Using normal copy instead."
-  sleep 10
-  cp -rp ${dir_base}/${cp2k_dir}/tests/* ${dir_out}/tests
-)
-
-printf "done!\n"
-
-#
-# preprocess the restrict directories if the retest is enabled
-#
-last_test_dir=""
-retest_dirs=""
-if [[ $doretest == "yes" ]];
-then
-  last_test_dir=`ls ${dir_base} | grep ^TEST-${dir_triplet}-${cp2k_version}- | tail -2 | head -1`
-  if [[ "${dir_out}" == "${dir_base}/${last_test_dir}" ]]
-  then
-    echo "No TEST directory with latest test results found. Nothing to test!"
-    end_test 5 ${lockfile}
-  elif [[ ! -f "${dir_base}/${last_test_dir}/error_summary" ]]
-  then
-    echo "No error summary exists in the last TEST directory. Nothing to test!"
-    end_test 6 ${lockfile}
-  else
-    retest_dirs=`grep .inp.out ${dir_base}/${last_test_dir}/error_summary | awk -F/ '{ test = 0; for (i = 1; i < NF; i++) { if (test == 1) { printf "%s/", $i } if ($i ~ /TEST/) test = 1; } printf "\n" }' | sort | sed 's/\/$//' | awk '!x[$0]++'`
-    for t in $retest_dirs
-    do
-      let ndirstorestrict=ndirstorestrict+1;
-      restrict_dirs[ndirstorestrict]=$t;
-    done
-    if (( ndirstorestrict == 0 )); then
-       echo "No error occurred during the last run. Nothing to retest!"
-       end_test 0 ${lockfile}
-    fi
-  fi
-fi
-
-#
-# get the cp2k flags for supported features
-#
-cp2kflags=`${cp2k_prefix} --version ${cp2k_postfix} 2>&1 | grep cp2kflags `
-echo "CP2K supports: $cp2kflags"
-
-# get a list of regtest directories
-dirs=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk '{print $1}'`
-
-# prepend list of unit-tests to dirs, use a special "UNIT/" prefix
-for unittest in ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/*_unittest.${cp2k_version}
-do
- t=${unittest##*/}
- dirs="UNIT/${t%.*} $dirs "
-done
-
-# filter out test-dir that should be skipped
-newdirs=""
-for dir in ${dirs}
-do
-  match="no"
-  t=1
-  # Match to exclusion list
-  while [ $t -le ${ndirstoskip} ]; do
-     if [[ "${skip_dirs[t]}" == "${dir}" ]]; then
-        match="yes"
+if [[ ${skiptest} != "skiptest" ]]; then
+   echo "-------------------------regtesting cp2k----------------------------------"
+   
+   ###################################################################################
+   #
+   # parse the TEST_TYPES file to do different kinds of test (done after svn update)
+   #
+   # tests grep for the last line in the file where a string matches (test_grep)
+   # and compares a numeric field at a given column (test_col)
+   #
+   # the format of the TEST_TYPES file is (notice the '!' as a field separator, to allow
+   # for spaces in the test_grep)
+   #
+   # Ntest_types
+   # test_grep_1 ! test_col_1
+   # test_grep_2 ! test_col_2
+   # ....
+   # followed by comment lines
+   #
+   ###################################################################################
+   Ntest_types=`awk -v l=1 -v c=1 'BEGIN{FS="!"}{lr=lr+1;if (lr==l) print $c}' ${test_types_file}`
+   test_grep[0]=""
+   test_col[0]=1
+   t=1
+   while [ $t -le ${Ntest_types} ]; do
+   test_grep[t]=`${awk} -v l=$t -v c=1 'BEGIN{FS="!"}{lr=lr+1;if (lr==l+1) print $c}' ${test_types_file}`
+   test_col[t]=`${awk} -v l=$t -v c=2 'BEGIN{FS="!"}{lr=lr+1;if (lr==l+1) print $c}' ${test_types_file}`
+   let t=t+1
+   done
+   
+   ###################################################################################
+   #
+   # *** now start testing
+   # *** for a given directory we do a run on all files in TEST_FILES and
+   # *** do the test as indicated by the number
+   # *** files are run in order so that they can e.g. restart
+   #
+   ###################################################################################
+   n_runtime_error=0
+   n_wrong_results=0
+   n_correct=0
+   n_tests=0
+   n_new=0
+   
+   printf "Copying tests into working directory ... "
+   
+   # Copy the tests into the working regtest directory.
+   cp -al ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || \
+   cp -rpl ${dir_base}/${cp2k_dir}/tests ${dir_out}/tests || ( \
+     echo "Could not copy testing directory as hard links."
+     echo "Using normal copy instead."
+     sleep 10
+     cp -rp ${dir_base}/${cp2k_dir}/tests/* ${dir_out}/tests
+   )
+   
+   printf "done!\n"
+   
+   #
+   # preprocess the restrict directories if the retest is enabled
+   #
+   last_test_dir=""
+   retest_dirs=""
+   if [[ $doretest == "yes" ]];
+   then
+     last_test_dir=`ls ${dir_base} | grep ^TEST-${dir_triplet}-${cp2k_version}- | tail -2 | head -1`
+     if [[ "${dir_out}" == "${dir_base}/${last_test_dir}" ]]
+     then
+       echo "No TEST directory with latest test results found. Nothing to test!"
+       end_test 5 ${lockfile}
+     elif [[ ! -f "${dir_base}/${last_test_dir}/error_summary" ]]
+     then
+       echo "No error summary exists in the last TEST directory. Nothing to test!"
+       end_test 6 ${lockfile}
+     else
+       retest_dirs=`grep .inp.out ${dir_base}/${last_test_dir}/error_summary | awk -F/ '{ test = 0; for (i = 1; i < NF; i++) { if (test == 1) { printf "%s/", $i } if ($i ~ /TEST/) test = 1; } printf "\n" }' | sort | sed 's/\/$//' | awk '!x[$0]++'`
+       for t in $retest_dirs
+       do
+         let ndirstorestrict=ndirstorestrict+1;
+         restrict_dirs[ndirstorestrict]=$t;
+       done
+       if (( ndirstorestrict == 0 )); then
+          echo "No error occurred during the last run. Nothing to retest!"
+          end_test 0 ${lockfile}
+       fi
      fi
-     let t=t+1
-  done
-  # Match to the restrict list, if no restrict list is found, all dirs match
-  if [ ${ndirstorestrict} -gt 0 ]; then
-     restrictmatch="no"
+   fi
+   
+   #
+   # get the cp2k flags for supported features
+   #
+   cp2kflags=`${cp2k_prefix} --version ${cp2k_postfix} 2>&1 | grep cp2kflags `
+   echo "CP2K supports: $cp2kflags"
+   
+   # get a list of regtest directories
+   dirs=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk '{print $1}'`
+   
+   # prepend list of unit-tests to dirs, use a special "UNIT/" prefix
+   for unittest in ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/*_unittest.${cp2k_version}
+   do
+    t=${unittest##*/}
+    dirs="UNIT/${t%.*} $dirs "
+   done
+   
+   # filter out test-dir that should be skipped
+   newdirs=""
+   for dir in ${dirs}
+   do
+     match="no"
      t=1
-     while [ $t -le ${ndirstorestrict} ]; do
-        if [[ "${restrict_dirs[t]}" == "${dir}" ]]; then
-           restrictmatch="yes"
+     # Match to exclusion list
+     while [ $t -le ${ndirstoskip} ]; do
+        if [[ "${skip_dirs[t]}" == "${dir}" ]]; then
+           match="yes"
         fi
         let t=t+1
      done
-  else
-    restrictmatch="yes"
-  fi
-
-  # does this dir require features we do not have ?
-  featurematch="yes"
-  features_required=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk -v dir="$dir" '{if ($1==dir) for(i=2;i<=NF;i++) printf("%s ",$i)}'`
-  for fr in $features_required
-  do
-     echo $cp2kflags | grep $fr >& /dev/null 
-     if [[ "$?" == "1" ]]; then
-        featurematch="no"
-        echo "Skipping $dir : missing required feature in cp2kflags : $fr" 
+     # Match to the restrict list, if no restrict list is found, all dirs match
+     if [ ${ndirstorestrict} -gt 0 ]; then
+        restrictmatch="no"
+        t=1
+        while [ $t -le ${ndirstorestrict} ]; do
+           if [[ "${restrict_dirs[t]}" == "${dir}" ]]; then
+              restrictmatch="yes"
+           fi
+           let t=t+1
+        done
+     else
+       restrictmatch="yes"
      fi
-  done
-
-  # If not excluded add to list of dirs
-  if [[ "${match}" == "no" && "${restrictmatch}" == "yes" && "$featurematch" == "yes" ]]; then
-     new_dirs="$new_dirs $dir"
-  fi
-done
-dirs=$new_dirs
-
-#
-# execute all regtests
-#
-
-# Just to be sure, clean possible existing status files.
-cd ${dir_out}
-mkdir ${dir_out}/status
-rm -f ${dir_out}/status/REGTEST_RUNNING-* \
-    ${dir_out}/status/REGTEST_TASK_RESULT-* \
-    ${dir_out}/status/REGTEST_TASK_TESTS-*
-
-
-(( ndir = $(echo ${dirs} | wc -w) ))
-(( idir = 0 ))
-for dir in ${dirs}; do
- (( idir++ ))
- # tests in different dirs can run in parallel. We spawn processes up to a given maximum
- (
-  if [[ $dir == UNIT/* ]]; then
-      run_unittest $dir
-  else
-      run_regtest_dir $dir
-  fi
- )&
-
- #
- # Here we allow only a given maximum of tasks
- #
- runningtasks=10000
- while (( runningtasks >= maxtasks/(numprocs*OMP_NUM_THREADS) )); do
-    sleep 0.1
-    runningtasks=`ls -1 ${dir_out}/status/REGTEST_RUNNING-* 2>/dev/null | wc -l`
- done
-
-done
-
-#
-# wait for all tasks to finish
-#
-wait
-#
-# generate results
-#
-for dir in ${dirs};
-do
-  task=${dir//\//-}
-  file=${dir_out}/status/REGTEST_TASK_RESULT-$task
-  tmp=`awk '{print $1}' $file`
-  n_runtime_error=$((n_runtime_error+tmp))
-  tmp=`awk '{print $2}' $file`
-  n_wrong_results=$((n_wrong_results+tmp))
-  tmp=`awk '{print $3}' $file`
-  n_correct=$((n_correct+tmp))
-  tmp=`awk '{print $4}' $file`
-  n_new=$((n_new+tmp))
-  tmp=`awk '{print $5}' $file`
-  n_tests=$((n_tests+tmp))
-  rm -f $file
-done
-
-echo "--------------------------------------------------------------------------"
-cat "${error_description_file}"
-echo "--------------------------------- Summary --------------------------------"
-if [[ ${quick} != "quick" ]]; then
-   printf "Number of COMPILE warns %d\n" ${compile_warnings} | tee -a ${summary}
-fi
-printf "Number of FAILED  tests %d\n" ${n_runtime_error}  | tee -a ${summary}
-printf "Number of WRONG   tests %d\n" ${n_wrong_results}  | tee -a ${summary}
-printf "Number of CORRECT tests %d\n" ${n_correct}        | tee -a ${summary}
-printf "Number of NEW     tests %d\n" ${n_new}            | tee -a ${summary}
-printf "Total number of   tests %d\n" ${n_tests}          | tee -a ${summary}
-
-if [[ ${leakcheck} == "YES" ]]; then
-   echo "--------------------------------------------------------------------------" | tee -a ${summary}
-   case ${FORT_C_NAME} in
-      gfortran*)
-       n_leaking_tests=`grep "XXXXXXXX" ${memory_description_file} | wc | ${awk} '{print $1}'`
-       n_leaks=`grep "SUMMARY" ${memory_description_file} | ${awk} 'BEGIN{n=0}{n=n+$7}END{print n}'`
-       printf "Number of LEAKING tests %d\n" ${n_leaking_tests} | tee -a ${summary}
-       ;;
-   esac
-   (( n_leaks == 0 )) && echo "No memory leaks detected" >>${memory_description_file}
-   printf "Number of memory  leaks %d\n" ${n_leaks} | tee -a ${summary}
-   if [[ -s ${dir_base}/suppr.txt ]]; then
-      echo "--------------------------------------------------------------------------" | tee -a ${summary}
-      printf "Note, that the following leak suppressions are currently active:\n" | tee -a ${summary}
-      cat ${dir_base}/suppr.txt | tee -a ${summary}
+   
+     # does this dir require features we do not have ?
+     featurematch="yes"
+     features_required=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk -v dir="$dir" '{if ($1==dir) for(i=2;i<=NF;i++) printf("%s ",$i)}'`
+     for fr in $features_required
+     do
+        echo $cp2kflags | grep $fr >& /dev/null 
+        if [[ "$?" == "1" ]]; then
+           featurematch="no"
+           echo "Skipping $dir : missing required feature in cp2kflags : $fr" 
+        fi
+     done
+   
+     # If not excluded add to list of dirs
+     if [[ "${match}" == "no" && "${restrictmatch}" == "yes" && "$featurematch" == "yes" ]]; then
+        new_dirs="$new_dirs $dir"
+     fi
+   done
+   dirs=$new_dirs
+   
+   #
+   # execute all regtests
+   #
+   
+   # Just to be sure, clean possible existing status files.
+   cd ${dir_out}
+   mkdir ${dir_out}/status
+   rm -f ${dir_out}/status/REGTEST_RUNNING-* \
+       ${dir_out}/status/REGTEST_TASK_RESULT-* \
+       ${dir_out}/status/REGTEST_TASK_TESTS-*
+   
+   
+   (( ndir = $(echo ${dirs} | wc -w) ))
+   (( idir = 0 ))
+   for dir in ${dirs}; do
+    (( idir++ ))
+    # tests in different dirs can run in parallel. We spawn processes up to a given maximum
+    (
+     if [[ $dir == UNIT/* ]]; then
+         run_unittest $dir
+     else
+         run_regtest_dir $dir
+     fi
+    )&
+   
+    #
+    # Here we allow only a given maximum of tasks
+    #
+    runningtasks=10000
+    while (( runningtasks >= maxtasks/(numprocs*OMP_NUM_THREADS) )); do
+       sleep 0.1
+       runningtasks=`ls -1 ${dir_out}/status/REGTEST_RUNNING-* 2>/dev/null | wc -l`
+    done
+   
+   done
+   
+   #
+   # wait for all tasks to finish
+   #
+   wait
+   #
+   # generate results
+   #
+   for dir in ${dirs};
+   do
+     task=${dir//\//-}
+     file=${dir_out}/status/REGTEST_TASK_RESULT-$task
+     tmp=`awk '{print $1}' $file`
+     n_runtime_error=$((n_runtime_error+tmp))
+     tmp=`awk '{print $2}' $file`
+     n_wrong_results=$((n_wrong_results+tmp))
+     tmp=`awk '{print $3}' $file`
+     n_correct=$((n_correct+tmp))
+     tmp=`awk '{print $4}' $file`
+     n_new=$((n_new+tmp))
+     tmp=`awk '{print $5}' $file`
+     n_tests=$((n_tests+tmp))
+     rm -f $file
+   done
+   
+   echo "--------------------------------------------------------------------------"
+   cat "${error_description_file}"
+   echo "--------------------------------- Summary --------------------------------"
+   if [[ ${quick} != "quick" ]]; then
+      printf "Number of COMPILE warns %d\n" ${compile_warnings} | tee -a ${summary}
    fi
-   echo "--------------------------------------------------------------------------" | tee -a ${summary}
-   echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} ${n_leaks}"
-else
-   echo "No memory leak check was performed" >>${memory_description_file}
-   echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} X"
+   printf "Number of FAILED  tests %d\n" ${n_runtime_error}  | tee -a ${summary}
+   printf "Number of WRONG   tests %d\n" ${n_wrong_results}  | tee -a ${summary}
+   printf "Number of CORRECT tests %d\n" ${n_correct}        | tee -a ${summary}
+   printf "Number of NEW     tests %d\n" ${n_new}            | tee -a ${summary}
+   printf "Total number of   tests %d\n" ${n_tests}          | tee -a ${summary}
+   
+   if [[ ${leakcheck} == "YES" ]]; then
+      echo "--------------------------------------------------------------------------" | tee -a ${summary}
+      case ${FORT_C_NAME} in
+         gfortran*)
+          n_leaking_tests=`grep "XXXXXXXX" ${memory_description_file} | wc | ${awk} '{print $1}'`
+          n_leaks=`grep "SUMMARY" ${memory_description_file} | ${awk} 'BEGIN{n=0}{n=n+$7}END{print n}'`
+          printf "Number of LEAKING tests %d\n" ${n_leaking_tests} | tee -a ${summary}
+          ;;
+      esac
+      (( n_leaks == 0 )) && echo "No memory leaks detected" >>${memory_description_file}
+      printf "Number of memory  leaks %d\n" ${n_leaks} | tee -a ${summary}
+      if [[ -s ${dir_base}/suppr.txt ]]; then
+         echo "--------------------------------------------------------------------------" | tee -a ${summary}
+         printf "Note, that the following leak suppressions are currently active:\n" | tee -a ${summary}
+         cat ${dir_base}/suppr.txt | tee -a ${summary}
+      fi
+      echo "--------------------------------------------------------------------------" | tee -a ${summary}
+      echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} ${n_leaks}"
+   else
+      echo "No memory leak check was performed" >>${memory_description_file}
+      echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} X"
+   fi
+
 fi
 
 end_test 0 ${lockfile}
