@@ -24,6 +24,7 @@ H2O-geo-pdos.inp                  1     5e-14
 H2O-geo-pdos_comp.inp             1     3e-14
 H2O-geo-ot-pdos-lumo-comp.inp     1     3e-13
 H2O-geo-pdos_comp_list.inp        1     3e-14
+H2O-geo-ot-lumo-all.inp           1     3e-14
 # sic ddapc decoupled
 sic_ddapc_rt.inp   1 1E-11
 # introduce coeff

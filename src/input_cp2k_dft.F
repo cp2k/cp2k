@@ -2135,7 +2135,7 @@ CONTAINS
 
     CALL keyword_create(keyword, name="nlumo",&
          description="If the printkey is activated controls the number of lumos"//&
-                     "that are printed and dumped as a cube (-1=all)",&
+                     " that are printed and dumped as a cube (-1=all)",&
          default_i_val=0, error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)

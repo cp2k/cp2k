@@ -489,7 +489,9 @@ CONTAINS
        ENDIF
 
        ! Gets the lumos, and eigenvalues for the lumos, and localize them if requested
-       nlumo = MAX(nlumo, nlumo_tddft)
+       IF(nlumo .GT. -1) THEN
+         nlumo = MAX(nlumo, nlumo_tddft) 
+       END IF
        compute_lumos=(do_mo_cubes .OR.dft_control%do_tddfpt_calculation ) .AND. nlumo .NE. 0
        compute_lumos=compute_lumos.OR.p_loc_lumo
 
@@ -507,6 +509,9 @@ CONTAINS
             IF(nlumo > nmo-homo) THEN
          ! this case not yet implemented
             ELSE
+              IF (nlumo .EQ. -1) THEN
+                nlumo = nmo-homo
+              END IF
               IF (output_unit>0) WRITE(output_unit,*) " "
               IF (output_unit>0) WRITE(output_unit,*) " Lowest eigenvalues of the unoccupied subspace spin ",ispin
               IF (output_unit>0) WRITE(output_unit,*) "---------------------------------------------"
