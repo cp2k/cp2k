@@ -321,16 +321,14 @@ CONTAINS
     IF(rtp%converged)THEN
        IF(rtp%linear_scaling) THEN
           CALL get_rtp(rtp=rtp,rho_old=rho_old,rho_new=rho_new,error=error) 
-          IF(rtp_control%mcweeny_max_iter>0.OR.rtp_control%calc_idempotency) THEN
-             IF(rtp_control%orthonormal) THEN
-                CALL purify_mcweeny_complex_orth(rho_new,rtp%filter_eps,rtp%filter_eps_small,&
-                     rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
-             ELSE
-                CALL purify_mcweeny_complex_nonorth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
-                     rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
-             ENDIF
-             IF(rtp_control%mcweeny_max_iter>0) CALL calc_update_rho_sparse(qs_env,error)
+          IF(rtp_control%orthonormal) THEN
+             CALL purify_mcweeny_complex_orth(rho_new,rtp%filter_eps,rtp%filter_eps_small,&
+                  rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
+          ELSE
+             CALL purify_mcweeny_complex_nonorth(rho_new,s_mat,rtp%filter_eps,rtp%filter_eps_small,&
+                  rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
           ENDIF
+          IF(rtp_control%mcweeny_max_iter>0) CALL calc_update_rho_sparse(qs_env,error)
           CALL report_density_occupation(rtp,rho_new,error=error)
           DO i=1,SIZE(rho_new)
              CALL cp_dbcsr_copy(rho_old(i)%matrix,rho_new(i)%matrix,error=error)

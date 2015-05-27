@@ -52,7 +52,6 @@ MODULE cp_control_types
      LOGICAL                              :: apply_delta_pulse
      LOGICAL                              :: periodic
      LOGICAL                              :: linear_scaling
-     LOGICAL                              :: calc_idempotency
      LOGICAL                              :: orthonormal
      LOGICAL                              :: write_restart
      INTEGER                              :: mcweeny_max_iter
