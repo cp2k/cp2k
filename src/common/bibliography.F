@@ -72,7 +72,7 @@ MODULE bibliography
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
        Rayson2009, Grimme2011, Fattebert2002, Andreussi2012,           &
        Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
-       QUIP_ref, DelBen2015
+       QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009
 
 CONTAINS
 
@@ -2905,6 +2905,59 @@ CONTAINS
           "UT WOS:000346954200014",&
           "ER"),&
           DOI="10.1016/j.cpc.2014.10.021")
+
+     CALL add_reference(key=Souza2002, ISI_record=s2a(&
+          "PT J",&
+          "AU Souza, I",&
+          "   Iniguez, J",&
+          "   Vanderbilt, D",&
+          "TI First-principles approach to insulators in finite electric fields",&
+          "SO PHYSICAL REVIEW LETTERS",&
+          "SN 0031-9007",&
+          "IS 11",&
+          "AR 117602",&
+          "PD SEP",&
+          "PY 2002",&
+          "VL 89",&
+          "DI 10.1103/PhysRevLett.89.117602",&
+          "ER"),&
+          DOI="10.1103/PhysRevLett.89.117602")
+
+     CALL add_reference(key=Umari2002, ISI_record=s2a(&
+          "PT J",&
+          "AU Umari, P",&
+          "   Pasquarello, A",&
+          "TI Ab initio molecular dynamics in a finite homogeneous electric field",&
+          "SO PHYSICAL REVIEW LETTERS",&
+          "SN 0031-9007",&
+          "IS 15",&
+          "AR 157602",&
+          "PD OCT",&
+          "PY 2002",&
+          "VL 89",&
+          "DI 10.1103/PhysRevLett.89.157602",&
+          "ER"),&
+          DOI="10.1103/PhysRevLett.89.157602")
+
+     CALL add_reference(key=Stengel2009, ISI_record=s2a(&
+          "PT J",&
+          "AU Stengel, Massimiliano",&
+          "   Spaldin, Nicola A.",&
+          "   Vanderbilt, David",&
+          "TI Ab initio molecular dynamics in a finite homogeneous electric field",&
+          "TI Electric displacement as the fundamental variable in",&
+          "   electronic-structure calculations",&
+          "SO NATURE PHYSICS",&
+          "SN 1745-2473",&
+          "IS 4",&
+          "PD APR",&
+          "PY 2009",&
+          "VL 5",&
+          "BP 304",&
+          "EP 308",&
+          "DI 10.1038/NPHYS1185",&
+          "ER"),&
+          DOI="10.1038/NPHYS1185")
 
   END SUBROUTINE add_all_references
 

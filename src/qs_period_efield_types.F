@@ -26,15 +26,10 @@ MODULE qs_period_efield_types
   PUBLIC :: efield_berry_type, efield_berry_release, init_efield_matrices,&
             set_efield_matrices
 
-  TYPE deriv_p_type
-     TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER           :: deriv
-  END TYPE
-
   TYPE efield_berry_type
      TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER           :: cosmat
      TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER           :: sinmat
-     TYPE(deriv_p_type),DIMENSION(:), POINTER           :: dcosmat
-     TYPE(deriv_p_type),DIMENSION(:), POINTER           :: dsinmat
+     TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER           :: dipmat
   END TYPE efield_berry_type
 
 CONTAINS
@@ -60,10 +55,9 @@ CONTAINS
     IF(ASSOCIATED(efield))CALL efield_berry_release(efield,error)
     ALLOCATE(efield,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    NULLIFY(efield%dcosmat)
-    NULLIFY(efield%dsinmat)
     NULLIFY(efield%cosmat)
     NULLIFY(efield%sinmat)
+    NULLIFY(efield%dipmat)
 
   END SUBROUTINE init_efield_matrices
 
@@ -72,26 +66,20 @@ CONTAINS
 !> \param efield ...
 !> \param sinmat ...
 !> \param cosmat ...
-!> \param dsinmat ...
-!> \param dcosmat ...
-!> \param fielddir ...
+!> \param dipmat ...
 ! *****************************************************************************
-  SUBROUTINE set_efield_matrices(efield,sinmat,cosmat,dsinmat,dcosmat,fielddir)
+  SUBROUTINE set_efield_matrices(efield,sinmat,cosmat,dipmat)
 
     TYPE(efield_berry_type), POINTER         :: efield
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: sinmat, cosmat, dsinmat, &
-                                                dcosmat
-    INTEGER, OPTIONAL                        :: fielddir
+      OPTIONAL, POINTER                      :: sinmat, cosmat, dipmat
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_efield_matrices', &
       routineP = moduleN//':'//routineN
 
      IF(PRESENT(cosmat))efield%cosmat=>cosmat
      IF(PRESENT(sinmat))efield%sinmat=>sinmat
-     IF(PRESENT(dcosmat))efield%dcosmat(fielddir)%deriv=>dcosmat
-     IF(PRESENT(dsinmat))efield%dsinmat(fielddir)%deriv=>dsinmat
-
+     IF(PRESENT(dipmat))efield%dipmat=>dipmat
 
   END SUBROUTINE set_efield_matrices
 
@@ -107,7 +95,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'efield_berry_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure =.FALSE.
@@ -116,15 +104,8 @@ CONTAINS
           CALL cp_dbcsr_deallocate_matrix_set ( efield%cosmat, error )
           CALL cp_dbcsr_deallocate_matrix_set ( efield%sinmat, error )
        END IF
-       IF(ASSOCIATED(efield%dsinmat).AND.ASSOCIATED(efield%dcosmat))THEN
-          DO i=1,3
-             CALL cp_dbcsr_deallocate_matrix_set(efield%dsinmat(i)%deriv,error)
-             CALL cp_dbcsr_deallocate_matrix_set(efield%dcosmat(i)%deriv,error)
-          END DO
-          DEALLOCATE(efield%dcosmat,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(efield%dsinmat,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF(ASSOCIATED(efield%dipmat))THEN
+          CALL cp_dbcsr_deallocate_matrix_set ( efield%dipmat, error )
        END IF
        DEALLOCATE(efield,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

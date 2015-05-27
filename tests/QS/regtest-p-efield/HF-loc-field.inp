@@ -1,0 +1,63 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &PRINT
+      &MOMENTS
+        PERIODIC T
+      &END
+    &END
+    BASIS_SET_FILE_NAME ../../../data/GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME ../../../data/POTENTIAL
+    &MGRID
+      CUTOFF 300
+      NGRIDS 1
+    &END MGRID
+    &EFIELD
+       POLARISATION 1 2 5 
+       INTENSITY 0.01
+    &END    
+    &QS
+      EPS_DEFAULT 1.0E-14
+      MAP_CONSISTENT
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-8
+      SCF_GUESS ATOMIC 
+      MAX_SCF 100
+      &OT
+         MINIMIZER DIIS
+      &END
+      &OUTER_SCF
+        MAX_SCF 50
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      A  6.0  0.0  0.0
+      B  0.0  6.0  0.0
+      C  0.0  0.0  6.0
+    &END CELL
+    &COORD
+    H   0.000000    0.000000    0.000000 
+    F   0.940000    0.000000    0.000000 
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+    &KIND F
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-BLYP-q7
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT HF
+  PRINT_LEVEL LOW
+  RUN_TYPE ENERGY
+&END GLOBAL

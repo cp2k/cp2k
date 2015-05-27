@@ -89,8 +89,8 @@ MODULE qs_moments
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_berry_moment_matrix
-  PUBLIC :: qs_moment_berry_phase, qs_moment_locop
+  PUBLIC :: build_berry_moment_matrix, build_local_moment_matrix
+  PUBLIC :: qs_moment_berry_phase, qs_moment_locop, op_orbbas
 
 CONTAINS
 
@@ -137,8 +137,6 @@ CONTAINS
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: mint
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
@@ -159,19 +157,10 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY (qs_kind_set,cell,particle_set,sab_orb)
-    NULLIFY (matrix_s)
 
-    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s,error=error)
 
     nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
-    CALL cp_dbcsr_allocate_matrix_set ( moments, nm ,error=error)
-
-    DO i=1,nm
-       ALLOCATE(moments(i)%matrix)
-       CALL cp_dbcsr_init (moments(i)%matrix, error=error)
-       CALL cp_dbcsr_copy(moments(i)%matrix, matrix_s(1)%matrix, "Moments", error)
-       CALL cp_dbcsr_set(moments(i)%matrix,0.0_dp,error=error)
-    END DO
+    CPPostcondition(SIZE(moments)>=nm,cp_failure_level,routineP,error,failure)
 
     NULLIFY (qs_kind_set,particle_set,sab_orb,cell)
     CALL get_qs_env(qs_env=qs_env,&
@@ -1456,7 +1445,18 @@ CONTAINS
        ! only allow for moments up to maxl set by basis
        nmom = MIN (nmoments,current_maxl)
        ! electronic contribution
-       NULLIFY ( moments )
+       NULLIFY ( moments,matrix_s )
+       CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+       nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
+       CALL cp_dbcsr_allocate_matrix_set(moments,nm,error=error)
+       DO i=1,nm
+          ALLOCATE(moments(i)%matrix,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CALL cp_dbcsr_init(moments(i)%matrix,error=error)
+          CALL cp_dbcsr_copy(moments(i)%matrix,matrix_s(1)%matrix,"Moments",error=error)
+          CALL cp_dbcsr_set(moments(i)%matrix,0.0_dp,error=error)
+       END DO
+
        CALL build_local_moment_matrix(qs_env,moments,nmom,ref_point=rcc,error=error)
 
        NULLIFY (dft_control,rho,cell,particle_set,qs_kind_set,results,para_env,matrix_s,rho_ao)

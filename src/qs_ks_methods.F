@@ -108,6 +108,7 @@ MODULE qs_ks_methods
   USE qs_core_energies,                ONLY: calculate_ptrace
   USE qs_dftb_matrices,                ONLY: build_dftb_ks_matrix
   USE qs_efield_berry,                 ONLY: qs_efield_berry_phase
+  USE qs_efield_local,                 ONLY: qs_efield_local_operator
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -739,6 +740,9 @@ CONTAINS
          CALL admm_dm_merge_ks_matrix(ks_env, error)
        ENDIF
 
+       ! External field (nonperiodic case)
+       CALL qs_efield_local_operator(qs_env,just_energy,calculate_forces,error)
+
        ! Right now we can compute the orbital derivative here, as it depends currently only on the available
        ! Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled
        ! from this routine, notice that this part of the calculation in not linear scaling
@@ -755,7 +759,10 @@ CONTAINS
        ! deal with sic on explicit orbitals
        CALL sic_explicit_orbitals(energy,qs_env,dft_control,poisson_env,just_energy,&
                                   calculate_forces,auxbas_pw_pool,error)
-       CALL qs_efield_berry_phase(ks_env,qs_env,calculate_forces,error)
+
+       ! Periodic external field
+       CALL qs_efield_berry_phase(qs_env,just_energy,calculate_forces,error)
+
        ! adds s2_restraint energy and orbital derivatives
        CALL qs_ks_s2_restraint(dft_control,qs_env,matrix_s,&
             energy,calculate_forces, just_energy,error)

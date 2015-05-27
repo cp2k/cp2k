@@ -10,9 +10,9 @@ MODULE cp_control_utils
   USE bibliography,                    ONLY: &
        Andreussi2012, Dewar1977, Dewar1985, Elstner1998, Fattebert2002, &
        Hu2007, Krack2000, Lippert1997, Lippert1999, Porezag1995, Repasky2002, &
-       Rocha2006, Schenter2008, Seifert1996, Stewart1989, Stewart2007, &
-       Thiel1992, VandeVondele2005a, VandeVondele2005b, Zhechkov2005, &
-       cite_reference
+       Rocha2006, Schenter2008, Seifert1996, Souza2002, Stengel2009, &
+       Stewart1989, Stewart2007, Thiel1992, Umari2002, VandeVondele2005a, &
+       VandeVondele2005b, Zhechkov2005, cite_reference
   USE cp_control_types,                ONLY: &
        admm_control_create, admm_control_type, ddapc_control_create, &
        ddapc_restraint_type, dft_control_create, dft_control_type, &
@@ -103,8 +103,9 @@ CONTAINS
                                                 potential_file_name
     INTEGER                                  :: excitations, i, method_id, &
                                                 nrep, stat, xc_deriv_method_id
-    LOGICAL                                  :: do_ot, failure, is_present, &
-                                                l_param, not_SE, was_present
+    LOGICAL                                  :: do_ot, do_rtp, failure, &
+                                                is_present, l_param, not_SE, &
+                                                was_present
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pol
@@ -323,10 +324,12 @@ CPSourceFileRef,&
        CALL tddfpt_control_create(dft_control%tddfpt_control, error=error)
     END IF
 
+    do_rtp = .FALSE.
     tmp_section => section_vals_get_subs_vals(dft_section,"REAL_TIME_PROPAGATION",error=error)
     CALL section_vals_get(tmp_section,explicit=is_present,error=error)
     IF (is_present) THEN
        CALL read_rtp_section(dft_control,tmp_section,error)
+       do_rtp = .TRUE.
     END IF
 
     ! Read the input section
@@ -339,17 +342,25 @@ CPSourceFileRef,&
     END IF
 
     ! Read the finite field input section
+    dft_control%apply_efield = .FALSE.
+    dft_control%apply_efield_field = .FALSE.  !this is for RTP
     tmp_section => section_vals_get_subs_vals(dft_section,"EFIELD",error=error)
-    CALL section_vals_get(tmp_section,n_repetition=nrep,explicit=dft_control%apply_efield_field,error=error)
-    IF (dft_control%apply_efield_field) THEN
+    CALL section_vals_get(tmp_section,n_repetition=nrep,explicit=is_present,error=error)
+    IF (is_present) THEN
        ALLOCATE(dft_control%efield_fields(nrep),stat=stat)
        CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        DO i=1,nrep
           CALL read_efield_sections(dft_control,tmp_section,error)
        END DO
+       IF(do_rtp) THEN
+          dft_control%apply_efield_field = .TRUE.
+       ELSE
+          dft_control%apply_efield = .TRUE.
+          CPPostcondition(nrep==1, cp_failure_level, routineP, error, failure)
+       END IF
     END IF
 
-    ! Read the finite field input section
+    ! Read the finite field input section for periodic fields
     tmp_section => section_vals_get_subs_vals(dft_section,"PERIODIC_EFIELD",error=error)
     CALL section_vals_get(tmp_section,explicit=dft_control%apply_period_efield,error=error)
     IF (dft_control%apply_period_efield) THEN
@@ -360,6 +371,17 @@ CPSourceFileRef,&
             dft_control%period_efield%polarisation=pol
        CALL section_vals_val_get(tmp_section,"INTENSITY", &
             r_val=dft_control%period_efield%strength,error=error)
+       dft_control%period_efield%displacement_field = .FALSE.
+       CALL section_vals_val_get(tmp_section,"DISPLACEMENT_FIELD", &
+            l_val=dft_control%period_efield%displacement_field,error=error)
+       ! periodic fields don't work with RTP
+       CPPostcondition(.NOT.do_rtp, cp_failure_level, routineP, error, failure)
+       IF(dft_control%period_efield%displacement_field) THEN
+          CALL cite_reference(Stengel2009)
+       ELSE
+          CALL cite_reference(Souza2002)
+          CALL cite_reference(Umari2002)
+       END IF
     END IF
 
     ! Read the external potential input section

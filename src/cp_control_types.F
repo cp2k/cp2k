@@ -171,6 +171,7 @@ MODULE cp_control_types
 ! \brief parameters for calculations involving a time dependent electric field
 ! *****************************************************************************
   TYPE period_efield_type
+     LOGICAL                         :: displacement_field
      REAL(KIND = dp), DIMENSION(:),POINTER :: polarisation
      REAL(kind=dp)                   :: strength
   END TYPE period_efield_type
@@ -405,6 +406,7 @@ MODULE cp_control_types
                                                    uks,&
                                                    lsd,&
                                                    dft_plus_u,&
+                                                   apply_efield,&
                                                    apply_efield_field,&
                                                    apply_period_efield,&
                                                    apply_external_potential,&

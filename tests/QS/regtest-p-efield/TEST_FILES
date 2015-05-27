@@ -8,3 +8,12 @@ H2O-field-gopt.inp                1     3e-11
 H2O-field-gopt-lsd.inp            1     3e-12
 H2O-field.inp                     1     2e-13
 H2O-field-lsd.inp                 1     4e-14
+HF-field.inp                      1     1e-12
+HF-field-gopt.inp                 1     1e-12
+HF-field-debug.inp                0     1e-12
+HF-dfield-gopt.inp                1     1e-12
+HF-dfield.inp                     1     1e-12
+HF-dfield-debug.inp               0     1e-12
+HF-loc-field.inp                  1     1e-12
+HF-loc-field-gopt.inp             1     1e-12
+HF-loc-field-debug.inp            0     1e-12

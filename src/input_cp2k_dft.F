@@ -17,9 +17,9 @@ MODULE input_cp2k_dft
        Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, &
        Kunert2003, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
        Rayson2009, Repasky2002, Rocha2006, Schenter2008, Seifert1996, &
-       Stewart1982, Stewart1989, Stewart2007, Thiel1992, Tozer1996, &
-       VandeVondele2003, VandeVondele2005a, VandeVondele2005b, &
-       VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
+       Souza2002, Stengel2009, Stewart1982, Stewart1989, Stewart2007, &
+       Thiel1992, Tozer1996, Umari2002, VandeVondele2003, VandeVondele2005a, &
+       VandeVondele2005b, VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              debug_print_level,&
@@ -5983,6 +5983,7 @@ CONTAINS
             description="parameters for finite periodic electric field computed using "//&
             "the Berry phase approach. IMPORTANT: Can only be used in combination "//&
             " with OT. Can not be used in combination with RTP or EMD.",&
+            citations=(/Souza2002, Umari2002/),&
             n_keywords=6, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -6001,6 +6002,15 @@ CONTAINS
             repeats=.FALSE.,required=.FALSE.,n_var=3,&
             type_of_var=real_t,default_r_vals=(/0.0_dp,0.0_dp,1.0_dp/),&
             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DISPLACEMENT_FIELD",&
+            description="Use the displacement field formulation.",&
+            usage="DISPLACEMENT_FIELD T",&
+            citations=(/Stengel2009/),&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -6037,8 +6047,10 @@ CONTAINS
        NULLIFY(keyword,subsection)
 
        CALL keyword_create(keyword, name="INTENSITY",&
-            description="Intensity of the electric field in W*cm-2 which corresponds "//&
-            "to a maximal amplitude in a.u. of sqrt(I/(3.50944*10^16))",&
+            description="Intensity of the electric field. For real-time propagation (RTP) units are "//&
+            "in W*cm-2 which corresponds "//&
+            "to a maximal amplitude in a.u. of sqrt(I/(3.50944*10^16)). "//&
+            "For a constant local field in isolated system calclulations, units are in a.u..",&
             usage="INTENSITY  0.001",&
             default_r_val=0._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -6053,22 +6065,23 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="wavelength",&
-            description="Wavelength of efield field",&
+       CALL keyword_create(keyword, name="WAVELENGTH",&
+            description="Wavelength of efield field for real-time propagation (RTP) calculations.",&
             usage="Wavelength  1.E0",&
             default_r_val=0._dp,unit_str="nm",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PHASE",&
-            description="phase offset of the cosine given in multiples of pi",&
+            description="Phase offset of the cosine given in multiples of pi. "//&
+            "Used in real-time propagation (RTP) calculations.",&
             usage="Phase  1.E0",&
             default_r_val=0._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ENVELOP",&
-            description="Shape of the efield pulse",&
+            description="Shape of the efield pulse used in real-time propagation (RTP) calculations.",&
             usage="ENVELOP CONSTANT",&
             default_i_val=constant_env,&
             enum_c_vals=s2a( "CONSTANT", "GAUSSIAN","RAMP" ),&
@@ -7645,7 +7658,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"CONSTANT_ENV",&
             description="parameters for a constant envelop",&
-            n_keywords=6, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=6, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
