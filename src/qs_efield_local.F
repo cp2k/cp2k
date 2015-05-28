@@ -172,9 +172,6 @@ MODULE qs_efield_local
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_efield_mo_derivatives', &
       routineP = moduleN//':'//routineN
-    COMPLEX(KIND=dp), PARAMETER              :: one = (1.0_dp,0.0_dp), &
-                                                zero = (0.0_dp,0.0_dp), &
-                                                zone = (0.0_dp,1.0_dp)
 
     INTEGER :: atom_a, atom_b, handle, i, ia, iatom, icol, idir, ikind, &
       inode, irow, iset, ispin, istat, jatom, jkind, jset, ldab, natom, ncoa, &

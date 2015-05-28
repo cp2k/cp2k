@@ -192,6 +192,7 @@ Flag __STATM_RESIDENT not mentioned in INSTALL
 Flag __STATM_TOTAL not mentioned in INSTALL
 Flag __STDC_VERSION__ not mentioned in INSTALL
 Flag __STDC_VERSION__ not mentioned in cp2k_flags()
+ai_moments.F: Unused dummy argument 'order' at (1)
 ai_overlap3.F: Unused dummy argument 'npgfc' at (1)
 al_system_init.F: Unused dummy argument 'temp_ext' at (1)
 almo_scf.F: Unused dummy argument 'qs_env' at (1)
