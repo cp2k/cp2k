@@ -2286,7 +2286,7 @@ MODULE rpa_ri_gpw
             DO iii=1, num_poles
               jjj=iii*2
               func_val=(1.0_dp,0.0_dp)/(im_unit*vec_omega_fit_gw_sign(xpos)-&
-                       CMPLX(Lambda_Re(jjj+1),Lambda_Im(jjj+1)))
+                       CMPLX(Lambda_Re(jjj+1),Lambda_Im(jjj+1),KIND=dp))
               mat_A_gw(kkk,iii+1)=func_val
             END DO
             vec_b_gw(kkk)=vec_Sigma_c_gw(n_level_gw,xpos)
@@ -2460,7 +2460,7 @@ MODULE rpa_ri_gpw
           Lambda_without_offset = Lambda
 
           DO iii=1, num_var
-            Lambda(iii)=CMPLX(Lambda_Re(iii),Lambda_Im(iii))
+            Lambda(iii)=CMPLX(Lambda_Re(iii),Lambda_Im(iii),KIND=dp)
           END DO
 
           ! print self_energy and fit on the imaginary frequency axis if required
