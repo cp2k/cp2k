@@ -35,7 +35,7 @@ cs_cell_opt_direct_lbfgs.inp 11
 cs_cell_opt_bfgs_geo_opt_bfgs.inp 11
 cs_cell_opt_bfgs_geo_opt_lbfgs.inp   11     2e-08
 cs_cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp   11     2e-12
-cs_cell_opt_cg_2pnt_geo_opt_lbfgs.inp   11     1e-09
+cs_cell_opt_cg_2pnt_geo_opt_lbfgs.inp   11     2e-09
 cs_cell_opt_lbfgs_geo_opt_lbfgs.inp   11     4e-09
 # Test parsing of products
 mc_cs_geo_opt_lbfgs.inp          11     2e-14
