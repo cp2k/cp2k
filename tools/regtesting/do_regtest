@@ -298,9 +298,19 @@ function do_test_grep(){
  grep_string=$4
  grep_field=$5
  error_tolerance=$6
- e1=`grep -a "${grep_string}" ${output_old} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
+ ref_value=$7
+
+ if [ -n "${ref_value}" ]; then
+   e1=$ref_value
+   label="ref"
+ else
+   e1=`grep -a "${grep_string}" ${output_old} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
+   label="old"
+ fi
+
  e2=`grep -a "${grep_string}" ${output_new} | tail -1 | ${awk} -v f=${grep_field} '{print $f}'`
  big=`echo "${e1} ${e2} ${error_tolerance}" | ${awk} '{if($2==0){v=sqrt(($1-$2)^2)}else{v=sqrt((($1-$2)/$2)^2)}; if (v>$3) printf("%16.8e",v); else printf("0") ;}'`
+
  case ${big} in
  0)
   # ok, same energy
@@ -309,7 +319,7 @@ function do_test_grep(){
   # nope too large
   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_file}
   echo "${output_new} : " >> ${error_file}
-  echo " ${grep_string} : old = ${e1} new = ${e2}  " >> ${error_file}
+  echo " ${grep_string} : ${label} = ${e1} new = ${e2}  " >> ${error_file}
   echo " relative error : ${big} >  numerical tolerance = ${error_tolerance}  " >>${error_file}
   echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_file}
   return 1 ;;
@@ -324,15 +334,16 @@ function do_test_grep(){
 function do_test() {
  which_test=$1
  num_tolerance=$2
- output_new=$3
- output_old=$4
- error_file=$5
+ ref_value=$3
+ output_new=$4
+ output_old=$5
+ error_file=$6
  case ${which_test} in
  0)
    #just be happy you executed
    return 0;;
  *)
-   do_test_grep ${output_new} ${output_old} ${error_file} "${test_grep[which_test]}" "${test_col[which_test]}" ${num_tolerance}
+   do_test_grep ${output_new} ${output_old} ${error_file} "${test_grep[which_test]}" "${test_col[which_test]}" "${num_tolerance}" "${ref_value}"
    return $? ;;
  esac
 }
@@ -390,7 +401,8 @@ function run_regtest_dir() {
      test_type=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
      # third field allows numerical tolerances to be read from the TEST_FILES
      # if value does not exist set to the default of 1.0E-14
-     test_tolerance=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest -v def_err_tol=$default_err_tolerance '{c=c+1;if (c==itest) if (NF == 3) { print $3 } else { print def_err_tol } }'`
+     test_tolerance=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest -v def_err_tol=$default_err_tolerance '{c=c+1;if (c==itest) if (NF >= 3) { print $3 } else { print def_err_tol } }'`
+     test_ref_value=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) if (NF == 4) { print $4 } }'`
 
      output_file=${dir_out}/${dir}/${input_file}.out
      output_last=${dir_last}/${dir}/${input_file}.out
@@ -441,8 +453,8 @@ function run_regtest_dir() {
            # Still running, you must be joking...
            # see if we manage to pass the testing
            # but only if we can compare
-           if [ -f ${output_last} ]; then
-              do_test ${test_type} ${test_tolerance} ${output_file} ${output_last} ${error_description_file}
+           if [ -f ${output_last} ] || [ -n "${test_ref_value}" ]; then
+              do_test "${test_type}" "${test_tolerance}" "${test_ref_value}" "${output_file}" "${output_last}" "${error_description_file}"
               if (( $? )); then
                  this_test="WRONG RESULT TEST ${test_type}"
                  n_wrong_results=$((n_wrong_results+1))
