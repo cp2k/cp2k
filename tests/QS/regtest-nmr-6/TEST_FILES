@@ -11,7 +11,7 @@ ch4-gapw-5.inp 14
 no-gapw-1.inp                    14     8e-03
 no-gapw-2.inp                    14     1e-05
 no-gapw-3.inp                    14     2e-04
-no-gapw-4.inp                    14     2e-04
+no-gapw-4.inp                    14     3e-04
 no-gapw-5.inp                    14     2e-05
 ch4-gapw-1-distributed.inp 14
 ch4-gapw-1-replicated.inp  14
