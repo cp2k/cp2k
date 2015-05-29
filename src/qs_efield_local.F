@@ -399,7 +399,7 @@ MODULE qs_efield_local
 
                    CALL dipole_force(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                                      lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
-                                     1,rac,rbc,pmat,forcea,forceb)
+                                     1,rac,rbc,pmat,forcea,forceb,error)
 
                    DEALLOCATE (work,pmat,STAT=istat)
                    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

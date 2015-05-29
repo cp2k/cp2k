@@ -41,6 +41,8 @@ MODULE ai_moments
 
   PRIVATE
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_moments'
+
   PUBLIC :: cossin, moment, diffop, diff_momop, contract_cossin, dipole_force
 
 CONTAINS
@@ -1487,7 +1489,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dipole_force(la_max,npgfa,zeta,rpgfa,la_min,&
                     lb_max,npgfb,zetb,rpgfb,lb_min,&
-                    order,rac,rbc,pab,forcea,forceb)
+                    order,rac,rbc,pab,forcea,forceb,error)
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
@@ -1499,7 +1501,12 @@ CONTAINS
       INTENT(IN)                             :: pab
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: forcea, forceb
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dipole_force', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
     INTEGER                                  :: i, imom, ipgf, j, jpgf, lda, &
                                                 lda_min, ldb, ldb_min, lmax, &
                                                 na, nb
@@ -1507,62 +1514,66 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: difmab, mab
 
-    rab = rbc - rac
-    rab2= SUM( rab**2 )
-    dab = SQRT(rab2)
-
-    lda_min = MAX ( 0, la_min-1 )
-    ldb_min = MAX ( 0, lb_min-1 )
-    lmax = MAX(la_max+1,lb_max+1)
-    lda = ncoset(la_max)*npgfa
-    ldb = ncoset(lb_max)*npgfb
-    ALLOCATE(difmab(lda,ldb,3))
-    ALLOCATE(mab(npgfa*ncoset(la_max+1),npgfb*ncoset(lb_max+1),3))
-    mab = 0.0_dp
-    CALL moment(la_max+1,npgfa,zeta,rpgfa,lda_min,&
-                lb_max+1,npgfb,zetb,rpgfb,1,rac,rbc,mab)
-
-    DO imom = 1,3
-      difmab = 0.0_dp
-      CALL adbdr(la_max,npgfa,rpgfa,la_min,lb_max,npgfb,zetb,rpgfb,lb_min,&
-           dab,mab(:,:,imom),difmab(:,:,1),difmab(:,:,2),difmab(:,:,3))
-      na = 0
-      DO ipgf=1,npgfa
-        nb = 0
-        DO jpgf=1,npgfb
-            DO j=nb+ncoset(lb_min-1)+1,nb+ncoset(lb_max)
-              DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max)
-                forceb(imom,1) = forceb(imom,1) + pab(i,j)*difmab(i,j,1)
-                forceb(imom,2) = forceb(imom,2) + pab(i,j)*difmab(i,j,2)
-                forceb(imom,3) = forceb(imom,3) + pab(i,j)*difmab(i,j,3)
+    failure = .FALSE.
+    CPPrecondition(order==1,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+      rab = rbc - rac
+      rab2= SUM( rab**2 )
+      dab = SQRT(rab2)
+  
+      lda_min = MAX ( 0, la_min-1 )
+      ldb_min = MAX ( 0, lb_min-1 )
+      lmax = MAX(la_max+1,lb_max+1)
+      lda = ncoset(la_max)*npgfa
+      ldb = ncoset(lb_max)*npgfb
+      ALLOCATE(difmab(lda,ldb,3))
+      ALLOCATE(mab(npgfa*ncoset(la_max+1),npgfb*ncoset(lb_max+1),3))
+      mab = 0.0_dp
+      CALL moment(la_max+1,npgfa,zeta,rpgfa,lda_min,&
+                  lb_max+1,npgfb,zetb,rpgfb,1,rac,rbc,mab)
+  
+      DO imom = 1,3
+        difmab = 0.0_dp
+        CALL adbdr(la_max,npgfa,rpgfa,la_min,lb_max,npgfb,zetb,rpgfb,lb_min,&
+             dab,mab(:,:,imom),difmab(:,:,1),difmab(:,:,2),difmab(:,:,3))
+        na = 0
+        DO ipgf=1,npgfa
+          nb = 0
+          DO jpgf=1,npgfb
+              DO j=nb+ncoset(lb_min-1)+1,nb+ncoset(lb_max)
+                DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max)
+                  forceb(imom,1) = forceb(imom,1) + pab(i,j)*difmab(i,j,1)
+                  forceb(imom,2) = forceb(imom,2) + pab(i,j)*difmab(i,j,2)
+                  forceb(imom,3) = forceb(imom,3) + pab(i,j)*difmab(i,j,3)
+                END DO
               END DO
-            END DO
-          nb = nb + ncoset(lb_max)
+            nb = nb + ncoset(lb_max)
+          END DO
+          na = na + ncoset(la_max)
         END DO
-        na = na + ncoset(la_max)
-      END DO
-
-      difmab = 0.0_dp
-      CALL dabdr(la_max,npgfa,zeta,rpgfa,la_min,lb_max,npgfb,rpgfb,lb_min,&
-           dab,mab(:,:,imom),difmab(:,:,1),difmab(:,:,2),difmab(:,:,3))
-      na = 0
-      DO ipgf=1,npgfa
-        nb = 0
-        DO jpgf=1,npgfb
-            DO j=nb+ncoset(lb_min-1)+1,nb+ncoset(lb_max)
-              DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max)
-                forcea(imom,1) = forcea(imom,1) + pab(i,j)*difmab(i,j,1)
-                forcea(imom,2) = forcea(imom,2) + pab(i,j)*difmab(i,j,2)
-                forcea(imom,3) = forcea(imom,3) + pab(i,j)*difmab(i,j,3)
+  
+        difmab = 0.0_dp
+        CALL dabdr(la_max,npgfa,zeta,rpgfa,la_min,lb_max,npgfb,rpgfb,lb_min,&
+             dab,mab(:,:,imom),difmab(:,:,1),difmab(:,:,2),difmab(:,:,3))
+        na = 0
+        DO ipgf=1,npgfa
+          nb = 0
+          DO jpgf=1,npgfb
+              DO j=nb+ncoset(lb_min-1)+1,nb+ncoset(lb_max)
+                DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max)
+                  forcea(imom,1) = forcea(imom,1) + pab(i,j)*difmab(i,j,1)
+                  forcea(imom,2) = forcea(imom,2) + pab(i,j)*difmab(i,j,2)
+                  forcea(imom,3) = forcea(imom,3) + pab(i,j)*difmab(i,j,3)
+                END DO
               END DO
-            END DO
-          nb = nb + ncoset(lb_max)
+            nb = nb + ncoset(lb_max)
+          END DO
+          na = na + ncoset(la_max)
         END DO
-        na = na + ncoset(la_max)
       END DO
-    END DO
-
-    DEALLOCATE(mab,difmab)
+  
+      DEALLOCATE(mab,difmab)
+    END IF
 
   END SUBROUTINE dipole_force
 
