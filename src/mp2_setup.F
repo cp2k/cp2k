@@ -103,6 +103,40 @@ CONTAINS
                               i_val=mp2_env%ri_rpa%mm_style, error=error)
     CALL section_vals_val_get(mp2_section,"RI_RPA%MINIMAX_QUADRATURE",&
                               l_val=mp2_env%ri_rpa%minimax_quad, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0",&
+                              l_val=mp2_env%ri_rpa%do_ri_g0w0, error=error)
+
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%CORR_MOS_OCC",&
+                              i_val=mp2_env%ri_g0w0%corr_mos_occ, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%CORR_MOS_VIRT",&
+                              i_val=mp2_env%ri_g0w0%corr_mos_virt, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%SCALING",&
+                              r_val=mp2_env%ri_g0w0%scaling, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%NUMB_POLES",&
+                              i_val=mp2_env%ri_g0w0%num_poles, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%OMEGA_MAX_FIT",&
+                              r_val=mp2_env%ri_g0w0%omega_max_fit, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%STOP_CRIT",&
+                              r_val=mp2_env%ri_g0w0%stop_crit, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%MAX_ITER_FIT",&
+                              i_val=mp2_env%ri_g0w0%max_iter_fit, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%CHECK_FIT",&
+                              l_val=mp2_env%ri_g0w0%check_fit, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%CROSSING_SEARCH",&
+                              i_val=mp2_env%ri_g0w0%crossing_search, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%FERMI_LEVEL_OFFSET",&
+                              r_val=mp2_env%ri_g0w0%fermi_level_offset, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%CUTOFF_RADIUS",&
+                              r_val=mp2_env%ri_g0w0%cutoff_rad_gw, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%TRUNCATION",&
+                              l_val=mp2_env%ri_g0w0%do_truncation, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%EV_SC_ITER",&
+                              i_val=mp2_env%ri_g0w0%iter_ev_sc, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%HF_LIKE_EV_START",&
+                              l_val=mp2_env%ri_g0w0%hf_like_ev_start, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%PRINT_GW_OUTPUT_FILE",&
+                              l_val=mp2_env%ri_g0w0%print_gw_file, error=error)
+
 
     CALL section_vals_val_get(mp2_section,"RI_LAPLACE%QUADRATURE_POINTS",&
                               i_val=mp2_env%ri_laplace%n_quadrature, error=error)

@@ -823,6 +823,10 @@ MODULE input_constants
                                               wfc_mm_style_gemm=11,&
                                               wfc_mm_style_syrk=12
 
+  ! G0W0 parameter
+  INTEGER, PARAMETER, PUBLIC               :: ri_rpa_g0w0_crossing_none=0,&
+                                              ri_rpa_g0w0_crossing_z_shot=1
+
   ! periodic RESP parameters
   INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir=0,&
                                               do_resp_y_dir=1,&

@@ -49,7 +49,8 @@ MODULE mp2_ri_gpw
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
                                              m_walltime
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: fourpi,&
+                                             pi
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_comm_split_direct,&
                                              mp_max,&
@@ -65,6 +66,7 @@ MODULE mp2_ri_gpw
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_methods,                      ONLY: pw_copy,&
                                              pw_scale,&
                                              pw_transfer
@@ -75,7 +77,8 @@ MODULE mp2_ri_gpw
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
-                                             pw_p_type
+                                             pw_p_type,&
+                                             pw_type
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -114,6 +117,7 @@ MODULE mp2_ri_gpw
 ! *****************************************************************************
 !> \brief with ri mp2 gpw
 !> \param BIb_C ...
+!> \param BIb_C_gw ...
 !> \param ends_array ...
 !> \param ends_B_virtual ...
 !> \param sizes_array ...
@@ -144,6 +148,8 @@ MODULE mp2_ri_gpw
 !> \param task_list_sub ...
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
+!> \param mo_coeff_all ...
+!> \param mo_coeff_gw ...
 !> \param eps_filter ...
 !> \param unit_nr ...
 !> \param mp2_memory ...
@@ -151,6 +157,14 @@ MODULE mp2_ri_gpw
 !> \param calc_forces ...
 !> \param error ...
 !> \param blacs_env_sub ...
+!> \param my_do_gw ...
+!> \param starts_B_all ...
+!> \param sizes_B_all ...
+!> \param ends_B_all ...
+!> \param gw_corr_lev_occ ...
+!> \param gw_corr_lev_virt ...
+!> \param rlength ...
+!> \param do_truncation_gw ...
 !> \param error_sub ...
 !> \param BIb_C_beta ...
 !> \param ends_B_virtual_beta ...
@@ -159,18 +173,24 @@ MODULE mp2_ri_gpw
 !> \param homo_beta ...
 !> \param mo_coeff_o_beta ...
 !> \param mo_coeff_v_beta ...
+!> \param mo_coeff_all_beta ...
+!> \param mo_coeff_gw_beta ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
-  SUBROUTINE mp2_ri_gpw_compute_in(BIb_C,ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
+  SUBROUTINE mp2_ri_gpw_compute_in(BIb_C,BIb_C_gw,ends_array,ends_B_virtual,&
+                                   sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                                    dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,&
                                    cell,particle_set,atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,&
                                    rho_r,rho_g,pot_g,mat_munu,sab_orb_sub,pw_env_sub,&
-                                   poisson_env,auxbas_pw_pool,task_list_sub,mo_coeff_o,mo_coeff_v,eps_filter,unit_nr,&
-                                   mp2_memory,calc_PQ_cond_num,calc_forces,error,blacs_env_sub,error_sub,&
+                                   poisson_env,auxbas_pw_pool,task_list_sub,mo_coeff_o,mo_coeff_v,mo_coeff_all,&
+                                   mo_coeff_gw,eps_filter,unit_nr,&
+                                   mp2_memory,calc_PQ_cond_num,calc_forces,error,blacs_env_sub,my_do_gw,&
+                                   starts_B_all,sizes_B_all,ends_B_all,gw_corr_lev_occ,gw_corr_lev_virt,&
+                                   rlength,do_truncation_gw,error_sub,&
                                    BIb_C_beta,ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta,&
-                                   homo_beta,mo_coeff_o_beta,mo_coeff_v_beta)
+                                   homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,mo_coeff_all_beta,mo_coeff_gw_beta)
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: BIb_C
+      DIMENSION(:, :, :)                     :: BIb_C, BIb_C_gw
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
       sizes_array, sizes_B_virtual, starts_array, starts_B_virtual
     INTEGER                                  :: dimen_RI
@@ -195,13 +215,21 @@ MODULE mp2_ri_gpw
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(task_list_type), POINTER            :: task_list_sub
-    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v, &
+                                                mo_coeff_all, mo_coeff_gw
     REAL(KIND=dp)                            :: eps_filter
     INTEGER                                  :: unit_nr
     REAL(KIND=dp)                            :: mp2_memory
     LOGICAL                                  :: calc_PQ_cond_num, calc_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
+    LOGICAL                                  :: my_do_gw
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: starts_B_all, sizes_B_all, &
+                                                ends_B_all
+    INTEGER                                  :: gw_corr_lev_occ, &
+                                                gw_corr_lev_virt
+    REAL(KIND=dp)                            :: rlength
+    LOGICAL                                  :: do_truncation_gw
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :), OPTIONAL           :: BIb_C_beta
@@ -211,40 +239,49 @@ MODULE mp2_ri_gpw
                                                 starts_B_virtual_beta
     INTEGER, OPTIONAL                        :: homo_beta
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: mo_coeff_o_beta, &
-                                                mo_coeff_v_beta
+                                                mo_coeff_v_beta, &
+                                                mo_coeff_all_beta, &
+                                                mo_coeff_gw_beta
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, handle2, handle3, i, i_counter, iproc, itmp(2), LLL, &
-      max_row_col_local, max_row_col_local_beta, my_B_size, my_B_size_beta, &
-      my_B_virtual_end, my_B_virtual_end_beta, my_B_virtual_start, &
-      my_B_virtual_start_beta, my_group_L_end, my_group_L_size, &
-      my_group_L_start, ncol_local, nfullcols_total, nfullrows_total, ngroup, &
-      nrow_local, num_small_eigen, stat, virtual, virtual_beta
+    INTEGER :: gw_corr_lev_total, handle, handle2, handle3, i, i_counter, ig, &
+      iiB, itmp(2), jjB, LLL, max_row_col_local, max_row_col_local_beta, &
+      max_row_col_local_gw, my_B_all_end, my_B_all_size, my_B_all_start, &
+      my_B_size, my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
+      my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
+      my_group_L_size, my_group_L_start, ncol_local, nfullcols_total, &
+      nfullrows_total, ngroup, nrow_local, num_small_eigen, stat, virtual, &
+      virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sub_proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
-                                                local_col_row_info_beta
-    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+                                                local_col_row_info_beta, &
+                                                local_col_row_info_gw
     LOGICAL                                  :: do_alpha_beta, failure
-    REAL(KIND=dp)                            :: cond_num, mem_for_iaK, &
-                                                pair_energy, wfn_size
+    REAL(KIND=dp)                            :: cond_num, g2, g3d, gg, &
+                                                mem_for_iaK, pair_energy, &
+                                                wfn_size
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: my_Lrows
-    TYPE(cp_dbcsr_type)                      :: matrix_ia_jb, &
-                                                matrix_ia_jb_beta, &
-                                                matrix_ia_jnu, &
-                                                matrix_ia_jnu_beta
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
-    TYPE(cp_fm_type), POINTER                :: fm_BIb_jb, fm_BIb_jb_beta, &
-                                                fm_matrix_L
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: BIb_C_gw_trunc
+    TYPE(cp_dbcsr_type) :: matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, &
+      matrix_ia_jnu_beta, matrix_in_jm, matrix_in_jnu
+    TYPE(cp_fm_type), POINTER                :: fm_BIb_gw, fm_BIb_jb, &
+                                                fm_BIb_jb_beta, fm_matrix_L
     TYPE(cp_para_env_type), POINTER          :: para_env_L
+    TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_p_type)                          :: psi_L
+    TYPE(pw_type), POINTER                   :: gf
 
     CALL timeset(routineN,handle)
+
     failure=.FALSE.
 
+
     CALL cite_reference(DelBen2013)
+
 
     do_alpha_beta=.FALSE.
     IF(PRESENT(BIb_C_beta).AND.&
@@ -255,151 +292,63 @@ MODULE mp2_ri_gpw
        PRESENT(mo_coeff_o_beta).AND.&
        PRESENT(mo_coeff_v_beta)) do_alpha_beta=.TRUE.
 
-    ! initialize and create the matrix (K|jnu)
-    CALL cp_dbcsr_init(matrix_ia_jnu,error=error_sub)
-    CALL cp_dbcsr_create(matrix_ia_jnu,template=mo_coeff_o,error=error_sub)
+    virtual=nmo-homo
 
-    ! Allocate Sparse matrices: (K|jb)
-    CALL cp_dbcsr_init(matrix_ia_jb,error=error_sub)
-    CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb,template=mo_coeff_o,m=homo,n=nmo-homo,&
-                                       sym=dbcsr_type_no_symmetry,error=error)
+    CALL create_intermediate_matrices(matrix_ia_jnu,matrix_ia_jb,mo_coeff_o,virtual,homo,&
+                                      "matrix_ia_jb",fm_BIb_jb,"fm_BIb_jb",max_row_col_local,&
+                                      nfullrows_total,nfullcols_total,nrow_local, &
+                                      ncol_local,blacs_env_sub,&
+                                      para_env_sub,local_col_row_info,error_sub,error)
 
-    ! set all to zero in such a way that the memory is actually allocated
-    CALL cp_dbcsr_set(matrix_ia_jnu,0.0_dp,error=error_sub)
-    CALL cp_dbcsr_set(matrix_ia_jb,0.0_dp,error=error_sub)
-    CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
-     
-    ! create the analogous of matrix_ia_jb in fm type
-    NULLIFY(fm_BIb_jb)
-    NULLIFY(fm_struct)
-    CALL cp_dbcsr_get_info(matrix_ia_jb,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
-    CALL cp_fm_struct_create(fm_struct,context=blacs_env_sub,nrow_global=nfullrows_total,&
-                             ncol_global=nfullcols_total,para_env=para_env_sub,error=error_sub)
-    CALL cp_fm_create(fm_BIb_jb,fm_struct,name="fm_BIb_jb",error=error_sub)
-
-    CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb, error=error_sub)
-    CALL cp_fm_struct_release(fm_struct,error=error_sub)
-
-    CALL cp_fm_get_info(matrix=fm_BIb_jb,&
-                        nrow_local=nrow_local,&
-                        ncol_local=ncol_local,&
-                        row_indices=row_indices,&
-                        col_indices=col_indices,&
-                        error=error_sub)
-
-    max_row_col_local=MAX(nrow_local,ncol_local)
-    CALL mp_max(max_row_col_local,para_env_sub%group)
-
-    ALLOCATE(local_col_row_info(0:max_row_col_local,2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    local_col_row_info=0
-    ! 0,1 nrows
-    local_col_row_info(0,1)=nrow_local
-    local_col_row_info(1:nrow_local,1)=row_indices(1:nrow_local)
-    ! 0,2 ncols
-    local_col_row_info(0,2)=ncol_local
-    local_col_row_info(1:ncol_local,2)=col_indices(1:ncol_local)
+    CALL create_parallelization_arrays(para_env_sub,ends_B_virtual,sizes_B_virtual,&
+                                       starts_B_virtual,my_B_virtual_start,&
+                                       my_B_virtual_end,my_B_size,&
+                                       virtual,error_sub,error)
 
 
     IF(do_alpha_beta) THEN
-      ! initialize and create the matrix (K|jnu)
-      CALL cp_dbcsr_init(matrix_ia_jnu_beta,error=error_sub)
-      CALL cp_dbcsr_create(matrix_ia_jnu_beta,template=mo_coeff_o_beta,error=error_sub)
 
-      ! Allocate Sparse matrices: (K|jb)
-      CALL cp_dbcsr_init(matrix_ia_jb_beta,error=error_sub)
-      CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb_beta,template=mo_coeff_o,m=homo_beta,n=nmo-homo_beta,&
-                                         sym=dbcsr_type_no_symmetry,error=error)
       virtual_beta=nmo-homo_beta
 
-      CALL cp_dbcsr_set(matrix_ia_jnu_beta,0.0_dp,error=error_sub)
-      CALL cp_dbcsr_set(matrix_ia_jb_beta,0.0_dp,error=error_sub)
+      CALL create_intermediate_matrices(matrix_ia_jnu_beta,matrix_ia_jb_beta,mo_coeff_o_beta,&
+                                        virtual_beta,homo_beta,&
+                                        "matrix_ia_jb_beta",fm_BIb_jb_beta,"fm_BIb_jb_beta",&
+                                        max_row_col_local_beta,&
+                                        nfullrows_total,nfullcols_total,nrow_local, &
+                                        ncol_local,blacs_env_sub,&
+                                        para_env_sub,local_col_row_info_beta,error_sub,error)
 
-      ! create the analogous of matrix_ia_jb_beta in fm type
-      NULLIFY(fm_BIb_jb_beta)
-      NULLIFY(fm_struct)
-      CALL cp_dbcsr_get_info(matrix_ia_jb_beta,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
-      CALL cp_fm_struct_create(fm_struct,context=blacs_env_sub,nrow_global=nfullrows_total,&
-                               ncol_global=nfullcols_total,para_env=para_env_sub,error=error_sub)
-      CALL cp_fm_create(fm_BIb_jb_beta,fm_struct,name="fm_BIb_jb_beta",error=error_sub)
+      CALL create_parallelization_arrays(para_env_sub,ends_B_virtual_beta,sizes_B_virtual_beta,&
+                                         starts_B_virtual_beta,my_B_virtual_start_beta,&
+                                         my_B_virtual_end_beta,my_B_size_beta,&
+                                         virtual_beta,error_sub,error)
 
-      CALL copy_dbcsr_to_fm(matrix_ia_jb_beta, fm_BIb_jb_beta, error=error_sub)
-      CALL cp_fm_struct_release(fm_struct,error=error_sub)
-
-      CALL cp_fm_get_info(matrix=fm_BIb_jb_beta,&
-                          nrow_local=nrow_local,&
-                          ncol_local=ncol_local,&
-                          row_indices=row_indices,&
-                          col_indices=col_indices,&
-                          error=error_sub)
-
-      max_row_col_local_beta=MAX(nrow_local,ncol_local)
-      CALL mp_max(max_row_col_local_beta,para_env_sub%group)
-
-      ALLOCATE(local_col_row_info_beta(0:max_row_col_local_beta,2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-      local_col_row_info_beta=0
-      ! 0,1 nrows
-      local_col_row_info_beta(0,1)=nrow_local
-      local_col_row_info_beta(1:nrow_local,1)=row_indices(1:nrow_local)
-      ! 0,2 ncols
-      local_col_row_info_beta(0,2)=ncol_local
-      local_col_row_info_beta(1:ncol_local,2)=col_indices(1:ncol_local)
-
-      ! divide the b states in the sub_group in such a way to create
-      ! b_start and b_end for each proc inside the sub_group
-      ! beta case
-      ALLOCATE(sizes_B_virtual_beta(0:para_env_sub%num_pe-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      sizes_B_virtual_beta=0
-      ALLOCATE(starts_B_virtual_beta(0:para_env_sub%num_pe-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      starts_B_virtual_beta=0
-      ALLOCATE(ends_B_virtual_beta(0:para_env_sub%num_pe-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ends_B_virtual_beta=0
-
-      DO iproc=0, para_env_sub%num_pe-1
-        itmp=get_limit(virtual_beta,para_env_sub%num_pe,iproc)
-        starts_B_virtual_beta(iproc)=itmp(1)
-        ends_B_virtual_beta(iproc)=itmp(2)
-        sizes_B_virtual_beta(iproc)=itmp(2)-itmp(1)+1
-      END DO
-
-      my_B_virtual_start_beta=starts_B_virtual_beta(para_env_sub%mepos)
-      my_B_virtual_end_beta=ends_B_virtual_beta(para_env_sub%mepos)
-      my_B_size_beta=sizes_B_virtual_beta(para_env_sub%mepos)
     END IF
 
-    virtual=nmo-homo
+    ! in the case of G0W0, we need (K|nm), n,m may be occ or virt (m restricted to corrected levels)
+    IF(my_do_gw) THEN
+
+      gw_corr_lev_total=gw_corr_lev_virt+gw_corr_lev_occ    
+
+      CALL create_intermediate_matrices(matrix_in_jnu,matrix_in_jm,mo_coeff_gw,&
+                                        nmo,gw_corr_lev_total,&
+                                        "matrix_in_jnu",fm_BIb_gw,"fm_BIb_gw",&
+                                        max_row_col_local_gw,&
+                                        nfullrows_total,nfullcols_total,nrow_local, &
+                                        ncol_local,blacs_env_sub,&
+                                        para_env_sub,local_col_row_info_gw,error_sub,error)
+
+      CALL create_parallelization_arrays(para_env_sub,ends_B_all,sizes_B_all,&
+                                         starts_B_all,my_B_all_start,&
+                                         my_B_all_end,my_B_all_size,&
+                                         nmo,error_sub,error)
+    END IF
+
 
     wfn_size=REAL(SIZE(rho_r%pw%cr3d),KIND=dp)
     CALL mp_max(wfn_size,para_env%group)
 
     ngroup=para_env%num_pe/para_env_sub%num_pe
-
-    ! divide the b states in the sub_group in such a way to create
-    ! b_start and b_end for each proc inside the sub_group
-    ALLOCATE(sizes_B_virtual(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    sizes_B_virtual=0
-    ALLOCATE(starts_B_virtual(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    starts_B_virtual=0
-    ALLOCATE(ends_B_virtual(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ends_B_virtual=0
-    
-    DO iproc=0, para_env_sub%num_pe-1
-      itmp=get_limit(virtual,para_env_sub%num_pe,iproc)
-      starts_B_virtual(iproc)=itmp(1)
-      ends_B_virtual(iproc)=itmp(2)
-      sizes_B_virtual(iproc)=itmp(2)-itmp(1)+1
-    END DO
-
-    my_B_virtual_start=starts_B_virtual(para_env_sub%mepos)
-    my_B_virtual_end=ends_B_virtual(para_env_sub%mepos)
-    my_B_size=sizes_B_virtual(para_env_sub%mepos)
 
     ALLOCATE(sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1))
     DO i=0,para_env_sub%num_pe-1
@@ -408,7 +357,7 @@ MODULE mp2_ri_gpw
       sub_proc_map(para_env_sub%num_pe+i)=i
     END DO
 
-    ! start real caltulation
+    ! start real calculation
     NULLIFY(psi_L%pw)
     CALL pw_pool_create_pw(auxbas_pw_pool,psi_L%pw,&
                             use_data=REALDATA3D,&
@@ -461,6 +410,12 @@ MODULE mp2_ri_gpw
 
       WRITE(unit_nr,'(T3,A,T67,F11.2,A3)') 'RI_INFO| Total memory for (ia|K) integrals:',&
                                            mem_for_iaK, ' MB'
+      IF(my_do_gw) THEN
+        mem_for_iaK=dimen_RI*REAL(nmo,KIND=dp)*gw_corr_lev_total*8.0_dp/(1024_dp**2)
+
+        WRITE(unit_nr,'(T3,A,T67,F11.2,A3)') 'RI_INFO| Total memory for G0W0-(nm|K) integrals:',&
+                                           mem_for_iaK, ' MB'
+      END IF
       CALL m_flush(unit_nr)
     ENDIF
 
@@ -470,7 +425,16 @@ MODULE mp2_ri_gpw
     ! array that will store the (ia|K) integrals
     ALLOCATE(BIb_C(my_group_L_size,my_B_size,homo),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+
     BIb_C=0.0_dp
+
+
+    ! in the case of GW, we also need (nm|K) 
+    IF(my_do_gw) THEN
+      ALLOCATE(BIb_C_gw(my_group_L_size,my_B_all_size,gw_corr_lev_total),STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      BIb_C_gw=0.0_dp
+    END IF
 
     IF(do_alpha_beta) THEN
       ALLOCATE(BIb_C_beta(my_group_L_size,my_B_size_beta,homo_beta),STAT=stat)
@@ -525,11 +489,13 @@ MODULE mp2_ri_gpw
         CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu_beta, mo_coeff_v_beta, &
                                 0.0_dp, matrix_ia_jb_beta, filter_eps=eps_filter, error=error_sub)
       END IF
+
       CALL timestop(handle3)
 
       ! now fill the matrix
       CALL timeset(routineN//"_E_Ex_1",handle3)
       CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb, error=error_sub)
+
       CALL grep_my_integrals(para_env_sub,fm_BIb_jb,BIb_C(i_counter,1:my_B_size,1:homo),max_row_col_local,&
                              homo,virtual,sub_proc_map,local_col_row_info,&
                              my_B_virtual_end,my_B_virtual_start,my_B_size,&
@@ -542,9 +508,123 @@ MODULE mp2_ri_gpw
                                my_B_virtual_end_beta,my_B_virtual_start_beta,my_B_size_beta,&
                                error_sub)
       END IF
+
       CALL timestop(handle3)
 
+
+      IF(my_do_gw) THEN
+        ! transform (K|mu nu) to (K|nm), n corresponds to corrected GW levels, m is in nmo
+        CALL timeset(routineN//"_mult_gw",handle3)
+        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_gw, &
+                                0.0_dp, matrix_in_jnu, filter_eps=eps_filter, error=error_sub)
+        CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_in_jnu, mo_coeff_all, &
+                                0.0_dp,matrix_in_jm,filter_eps=eps_filter, error=error_sub)
+
+        CALL timestop(handle3)
+
+        CALL timeset(routineN//"_E_Ex_2_gw",handle3)
+
+        CALL copy_dbcsr_to_fm(matrix_in_jm, fm_BIb_gw, error=error_sub)
+        CALL grep_my_integrals(para_env_sub,fm_BIb_gw,BIb_C_gw(i_counter,1:my_B_all_size,1:gw_corr_lev_total),&
+                               max_row_col_local_gw,&
+                               gw_corr_lev_total,nmo,sub_proc_map,local_col_row_info_gw,&
+                               my_B_all_end,my_B_all_start,my_B_all_size,&
+                               error_sub)
+
+        CALL timestop(handle3)
+  
+      END IF
+
     END DO
+
+
+    ! use truncated operator for diagonal elements B_nn^P in case of periodic calculations 
+    IF(my_do_gw .AND. do_truncation_gw) THEN
+
+      ! truncation
+      IF(my_group_L_start<=my_group_L_end)  THEN
+        grid => poisson_env%green_fft%influence_fn%pw_grid
+        gf   => poisson_env%green_fft%influence_fn
+        DO ig = grid%first_gne0, grid%ngpts_cut_local
+          g2 = grid%gsq(ig)
+          gg = SQRT(g2)
+          g3d = fourpi/g2
+          gf%cc(ig) = g3d*(1.0_dp-COS(rlength*gg))
+        END DO
+        IF(grid%have_g0) &
+          gf%cc(1)=0.5_dp*fourpi*rlength*rlength
+      END IF
+
+
+      i_counter=0
+      DO LLL=my_group_L_start, my_group_L_end
+        i_counter=i_counter+1
+  
+        ! pseudo psi_L
+        CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set, &
+                                    qs_kind_set,cell,dft_control,particle_set, &
+                                    pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
+                                    external_vector=my_Lrows(:,LLL-my_group_L_start+1),&
+                                    error=error_sub)
+  
+        ALLOCATE(BIb_C_gw_trunc(my_group_L_size,my_B_all_size,gw_corr_lev_total),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+        BIb_C_gw_trunc=0.0_dp
+
+        CALL timeset(routineN//"_pot_trunc",handle3)
+        rho_r%pw%cr3d = psi_L%pw%cr3d
+        CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
+
+        CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
+        CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
+        CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error_sub)
+        CALL timestop(handle3)
+ 
+        ! and finally (K|mu nu)
+        CALL timeset(routineN//"_int_trunc",handle3)
+        CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
+        CALL integrate_v_rspace(rho_r, h=mat_munu,qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
+           basis_set_id=use_orb_basis_set, pw_env_external=pw_env_sub, task_list_external=task_list_sub, error=error_sub)
+        CALL timestop(handle3)
+ 
+        CALL timeset(routineN//"_mult_gw_trunc",handle3)
+        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_gw, &
+                                0.0_dp, matrix_in_jnu, filter_eps=eps_filter, error=error_sub)
+        CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_in_jnu, mo_coeff_all, &
+                                0.0_dp,matrix_in_jm,filter_eps=eps_filter, error=error_sub)
+
+        CALL timestop(handle3)
+
+        CALL timeset(routineN//"_E_Ex_2_trunc",handle3)
+
+        CALL copy_dbcsr_to_fm(matrix_in_jm, fm_BIb_gw, error=error_sub)
+        CALL grep_my_integrals(para_env_sub,fm_BIb_gw,BIb_C_gw_trunc(i_counter,1:my_B_all_size,1:gw_corr_lev_total),&
+                               max_row_col_local_gw,&
+                               gw_corr_lev_total,nmo,sub_proc_map,local_col_row_info_gw,&
+                               my_B_all_end,my_B_all_start,my_B_all_size,&
+                               error_sub)
+
+        DO iiB=1,my_B_all_size
+          DO jjB=1,gw_corr_lev_total
+!          DO jjB=homo-gw_corr_lev_occ+1,homo+gw_corr_lev_virt
+            ! only use the truncation for the diagonal elements B^nn_P
+            IF(iiB + my_B_all_start - 1 == homo - gw_corr_lev_occ + jjB) THEN
+              BIb_C_gw(i_counter,iiB,jjB)=BIb_C_gw_trunc(i_counter,iiB,jjB)
+            END IF
+          END DO
+        END DO
+
+        DEALLOCATE(BIb_C_gw_trunc)
+
+        CALL timestop(handle3)
+
+      END DO
+
+      ! set this flag so that the truncation of above will be overwritten the next time the poisson_env is used
+      IF(my_group_L_start<=my_group_L_end)  &
+        poisson_env%rebuild=.TRUE. 
+
+    END IF ! use truncated operator for GW
     CALL timestop(handle2)
 
     DEALLOCATE(my_Lrows)
@@ -561,6 +641,13 @@ MODULE mp2_ri_gpw
       DEALLOCATE(local_col_row_info_beta)
     END IF
 
+    IF(my_do_gw) THEN
+      CALL cp_dbcsr_release(matrix_in_jnu,error=error_sub)
+      CALL cp_dbcsr_release(matrix_in_jm,error=error_sub)
+      CALL cp_fm_release(fm_BIb_gw, error=error_sub)
+      DEALLOCATE(local_col_row_info_gw)
+    END IF
+
     CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_L%pw,error=error_sub)
 
     DEALLOCATE(sub_proc_map)
@@ -568,6 +655,175 @@ MODULE mp2_ri_gpw
     CALL timestop(handle)
 
   END SUBROUTINE mp2_ri_gpw_compute_in
+
+
+! *****************************************************************************
+!> \brief Encapsulate building of intermediate matrices matrix_ia_jnu(_beta
+!>         matrix_ia_jb(_beta),fm_BIb_jb(_beta),matrix_in_jnu(for G0W0) and
+!>         fm_BIb_all(for G0W0)
+!> \param matrix_ia_jnu ...
+!> \param matrix_ia_jb ...
+!> \param mo_coeff_templ ...
+!> \param size_1 ...
+!> \param size_2 ...
+!> \param matrix_name_1 ...
+!> \param fm_BIb_jb ...
+!> \param matrix_name_2 ...
+!> \param max_row_col_local ...
+!> \param nfullrows_total ...
+!> \param nfullcols_total ...
+!> \param nrow_local ...
+!> \param ncol_local ...
+!> \param blacs_env_sub ...
+!> \param para_env_sub ...
+!> \param local_col_row_info ...
+!> \param error_sub ...
+!> \param error ...
+!> \author Jan Wilhelm
+! *****************************************************************************
+  SUBROUTINE create_intermediate_matrices(matrix_ia_jnu,matrix_ia_jb,mo_coeff_templ,size_1,size_2,&
+                                          matrix_name_1,fm_BIb_jb,matrix_name_2,max_row_col_local,&
+                                          nfullrows_total,nfullcols_total,nrow_local, &
+                                          ncol_local,blacs_env_sub,&
+                                          para_env_sub,local_col_row_info,error_sub,error)
+
+    TYPE(cp_dbcsr_type)                      :: matrix_ia_jnu, matrix_ia_jb, &
+                                                mo_coeff_templ
+    INTEGER                                  :: size_1, size_2
+    CHARACTER(LEN=*)                         :: matrix_name_1
+    TYPE(cp_fm_type), POINTER                :: fm_BIb_jb
+    CHARACTER(LEN=*)                         :: matrix_name_2
+    INTEGER                                  :: max_row_col_local, &
+                                                nfullrows_total, &
+                                                nfullcols_total, nrow_local, &
+                                                ncol_local
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
+    TYPE(cp_para_env_type), POINTER          :: para_env_sub
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info
+    TYPE(cp_error_type), INTENT(inout)       :: error_sub, error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_intermediate_matrices', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: failure
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    ! initialize and create the matrix (K|jnu)
+    CALL cp_dbcsr_init(matrix_ia_jnu,error=error_sub)
+    CALL cp_dbcsr_create(matrix_ia_jnu,template=mo_coeff_templ,error=error_sub)
+
+    ! Allocate Sparse matrices: (K|jb)
+    CALL cp_dbcsr_init(matrix_ia_jb,error=error_sub)
+    CALL cp_dbcsr_m_by_n_from_template(matrix_ia_jb,template=mo_coeff_templ,m=size_2,n=size_1,&
+                                       sym=dbcsr_type_no_symmetry,error=error)
+
+    ! set all to zero in such a way that the memory is actually allocated
+    CALL cp_dbcsr_set(matrix_ia_jnu,0.0_dp,error=error_sub)
+    CALL cp_dbcsr_set(matrix_ia_jb,0.0_dp,error=error_sub)
+
+    ! create the analogous of matrix_ia_jb in fm type
+    NULLIFY(fm_BIb_jb)
+    NULLIFY(fm_struct)
+    CALL cp_dbcsr_get_info(matrix_ia_jb,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
+    CALL cp_fm_struct_create(fm_struct,context=blacs_env_sub,nrow_global=nfullrows_total,&
+                             ncol_global=nfullcols_total,para_env=para_env_sub,error=error_sub)
+    CALL cp_fm_create(fm_BIb_jb,fm_struct,name=matrix_name_2,error=error_sub)
+
+    CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb, error=error_sub)
+    CALL cp_fm_struct_release(fm_struct,error=error_sub)
+
+    CALL cp_fm_get_info(matrix=fm_BIb_jb,&
+                        nrow_local=nrow_local,&
+                        ncol_local=ncol_local,&
+                        row_indices=row_indices,&
+                        col_indices=col_indices,&
+                        error=error_sub)
+
+    max_row_col_local=MAX(nrow_local,ncol_local)
+    CALL mp_max(max_row_col_local,para_env_sub%group)
+
+    ALLOCATE(local_col_row_info(0:max_row_col_local,2),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    local_col_row_info=0
+    ! 0,1 nrows
+    local_col_row_info(0,1)=nrow_local
+    local_col_row_info(1:nrow_local,1)=row_indices(1:nrow_local)
+    ! 0,2 ncols
+    local_col_row_info(0,2)=ncol_local
+    local_col_row_info(1:ncol_local,2)=col_indices(1:ncol_local)
+
+
+    CALL timestop(handle)
+
+  END SUBROUTINE create_intermediate_matrices 
+
+
+! *****************************************************************************
+!> \brief Encapsulate building of parallelization arrays
+!> \param para_env_sub ...
+!> \param ends_B ...
+!> \param sizes_B ...
+!> \param starts_B ...
+!> \param my_B_start ...
+!> \param my_B_end ...
+!> \param my_B_size ...
+!> \param size_1 ...
+!> \param error_sub ...
+!> \param error ...
+!> \author Jan Wilhelm
+! *****************************************************************************
+  SUBROUTINE create_parallelization_arrays(para_env_sub,ends_B,sizes_B,starts_B,&
+                                           my_B_start,my_B_end,my_B_size,size_1,error_sub,error)
+
+    TYPE(cp_para_env_type), POINTER          :: para_env_sub
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_B, sizes_B, starts_B
+    INTEGER                                  :: my_B_start, my_B_end, &
+                                                my_B_size, size_1
+    TYPE(cp_error_type), INTENT(inout)       :: error_sub, error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'create_parallelization_arrays', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iproc, itmp(2), stat
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+
+    ! divide the b states in the sub_group in such a way to create
+    ! b_start and b_end for each proc inside the sub_group
+    ALLOCATE(sizes_B(0:para_env_sub%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    sizes_B=0
+    ALLOCATE(starts_B(0:para_env_sub%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    starts_B=0
+    ALLOCATE(ends_B(0:para_env_sub%num_pe-1),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ends_B=0
+
+    DO iproc=0, para_env_sub%num_pe-1
+      itmp=get_limit(size_1,para_env_sub%num_pe,iproc)
+      starts_B(iproc)=itmp(1)
+      ends_B(iproc)=itmp(2)
+      sizes_B(iproc)=itmp(2)-itmp(1)+1
+    END DO
+
+    my_B_start=starts_B(para_env_sub%mepos)
+    my_B_end=ends_B(para_env_sub%mepos)
+    my_B_size=sizes_B(para_env_sub%mepos)
+
+
+    CALL timestop(handle)
+
+  END SUBROUTINE create_parallelization_arrays
+
 
 ! *****************************************************************************
 !> \brief ...
@@ -1584,8 +1840,8 @@ MODULE mp2_ri_gpw
   
      CALL neighbor_list_iterator_release(nl_iterator)
  
-     DEALLOCATE(diffsets_atom_set_bf,ref_at_se_sgf_ofs) !JW
-     DEALLOCATE(atom_set_afo_diffbf) !JW
+     DEALLOCATE(diffsets_atom_set_bf,ref_at_se_sgf_ofs) 
+     DEALLOCATE(atom_set_afo_diffbf) 
      DEALLOCATE(sizes_array_pot,starts_array_pot,ends_array_pot)
  
      CALL mp_sum(L_local_col,para_env_sub%group)

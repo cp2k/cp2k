@@ -458,6 +458,7 @@ MODULE hfx_types
 !> \param cell ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
+!> \param do_exx ...
 !> \par History
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -466,7 +467,7 @@ MODULE hfx_types
 !>        unknown at invocation time
 ! *****************************************************************************
   SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,atomic_kind_set, qs_kind_set, &
-                        dft_control, cell, error)
+                        dft_control, cell, error, do_exx)
     TYPE(hfx_type), DIMENSION(:, :), POINTER :: x_data
     TYPE(cp_para_env_type)                   :: para_env
     TYPE(section_vals_type), POINTER         :: hfx_section
@@ -478,6 +479,7 @@ MODULE hfx_types
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL, OPTIONAL                        :: do_exx
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_create', &
       routineP = moduleN//':'//routineN
@@ -488,7 +490,7 @@ MODULE hfx_types
       max_set, n_rep_hf, n_threads, natom_a, natom_b, nkind, nseta, nsetb, &
       pbc_shells, stat, storage_id
     INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
-    LOGICAL                                  :: failure, logic_val
+    LOGICAL                                  :: failure, logic_val, my_do_exx
     REAL(dp)                                 :: real_val
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
@@ -608,8 +610,19 @@ MODULE hfx_types
         ! at least 1 atom per block, and avoid overly large blocks
         actual_x_data%load_balance_parameter%block_size = MIN(max_atom_block, MAX(1, int_val))
 
-        CALL hfx_create_basis_types(actual_x_data%basis_parameter,actual_x_data%basis_info, qs_kind_set,&
-                        dft_control%do_admm, error) 
+        my_do_exx=.FALSE.
+        IF(PRESENT(do_exx)) THEN
+          my_do_exx=do_exx
+        END IF
+
+        ! in the case of RPA exchange (postprocessing after SCF), we do not use ADMM
+        IF(my_do_exx) THEN
+          CALL hfx_create_basis_types(actual_x_data%basis_parameter,actual_x_data%basis_info, qs_kind_set,&
+                          .FALSE., error)
+        ELSE
+          CALL hfx_create_basis_types(actual_x_data%basis_parameter,actual_x_data%basis_info, qs_kind_set,&
+                          dft_control%do_admm, error) 
+        END IF
 
 !!**************************************************************************************************
 !! **        !! ** This code writes the contraction routines

@@ -36,6 +36,7 @@ QS/regtest-almo-2
 QS/regtest-xc
 QS/regtest-ps-implicit-1-2
 QS/regtest-ri-rpa                                           libint 
+QS/regtest-gw
 QS/regtest-plus_u
 QS/regtest-kg                                               libxc2 
 QS/regtest-gapw-4                                           libint 

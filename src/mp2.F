@@ -19,10 +19,13 @@ MODULE mp2
                                              cite_reference
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
-                                             cp_dbcsr_p_type,&
-                                             cp_dbcsr_set
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_get_diag, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
+       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_set, &
+       cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -46,10 +49,13 @@ MODULE mp2
        hfx_init_container, hfx_release_basis_types, hfx_type
   USE input_constants,                 ONLY: cholesky_inverse,&
                                              do_mp2_potential_TShPSC,&
-                                             hfx_do_eval_energy
+                                             hfx_do_eval_energy,&
+                                             xc_none
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_flush,&
@@ -67,10 +73,14 @@ MODULE mp2
        mp2_ri_optimize_basis, mp2_type, ri_mp2_laplace, ri_mp2_method_gpw, &
        ri_rpa_method_gpw
   USE particle_types,                  ONLY: particle_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_energy_types,                 ONLY: allocate_qs_energy,&
+                                             deallocate_qs_energy,&
+                                             qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_matrix_pools,                 ONLY: mpools_create,&
                                              mpools_rebuild_fm_pools,&
                                              mpools_release,&
@@ -128,9 +138,9 @@ MODULE mp2
                                                 do_dynamic_load_balancing, &
                                                 do_exx, failure, &
                                                 free_hfx_buffer
-    REAL(KIND=dp) :: Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, Emp2_AB, &
-      Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, Emp2_Cou, &
-      Emp2_ex, Emp2_S, Emp2_T, maxocc, mem_real, t1, t2
+    REAL(KIND=dp) :: E_ex_from_GW, Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, &
+      Emp2_AB, Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, &
+      Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T, maxocc, mem_real, t1, t2, t3
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Auto, Auto_alpha, Auto_beta
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C, C_alpha, C_beta
@@ -383,6 +393,11 @@ MODULE mp2
       ! in the case of numerical stress we don't have to free the HFX integrals
       free_hfx_buffer=.FALSE.
       mp2_env%ri_mp2%free_hfx_buffer=.FALSE.
+    END IF
+    ! calculate the matrix sigma_x - vxc for G0W0
+    t3=0
+    IF(mp2_env%ri_rpa%do_ri_g0w0) THEN
+      CALL compute_vec_Sigma_x_minus_vxc_gw(qs_env,mp2_env,mos_mp2,E_ex_from_GW,t3,error) 
     END IF
     IF(free_hfx_buffer) THEN
       CALL timeset(routineN//"_free_hfx",handle2)
@@ -724,7 +739,7 @@ MODULE mp2
      hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
      CALL section_vals_get(hfx_sections,explicit=do_exx,error=error)
      IF(do_exx) THEN
-       CALL calculate_exx(qs_env,unit_nr,error)
+       CALL calculate_exx(qs_env,unit_nr,mp2_env%ri_rpa%do_ri_g0w0,E_ex_from_GW,t3,error)
      END IF
    END IF
 
@@ -1099,11 +1114,16 @@ MODULE mp2
 !> \brief ...
 !> \param qs_env ...
 !> \param unit_nr ...
+!> \param do_gw ...
+!> \param E_ex_from_GW ...
+!> \param t3 ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_exx(qs_env,unit_nr,error)
+  SUBROUTINE calculate_exx(qs_env,unit_nr,do_gw,E_ex_from_GW,t3,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER                                  :: unit_nr
+    LOGICAL                                  :: do_gw
+    REAL(KIND=dp)                            :: E_ex_from_GW, t3
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_exx', &
@@ -1126,6 +1146,7 @@ MODULE mp2
 
     NULLIFY(hfx_sections, input, para_env, matrix_ks, rho, rho_ao)
 
+! hack rho->rho_aux_fit
     CALL get_qs_env(qs_env=qs_env, &
                     input=input, &
                     para_env=para_env, &
@@ -1133,6 +1154,7 @@ MODULE mp2
                     rho=rho, &
                     matrix_ks=matrix_ks, &
                     error=error)
+
     CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
@@ -1146,24 +1168,32 @@ MODULE mp2
  
     ! Remove the Exchange-correlation energy contributions from the total energy
     energy%total = energy%total - (energy%exc + energy%exc1 + energy%ex + energy%exc_aux_fit)
+
     energy%exc=0.0_dp
     energy%exc1=0.0_dp
     energy%exc_aux_fit=0.0_dp
     energy%ex=0.0_dp
 
-    DO irep = 1,n_rep_hf
-      CALL integrate_four_center(qs_env, matrix_ks, energy, rho_ao, hfx_sections,&
-                                 para_env, .TRUE., irep, .TRUE.,&
-                                 ispin=1, error=error, do_exx=.TRUE.)
-    END DO
+    ! take the exact exchange energy from GW or calculate it
+    IF(do_gw) THEN
+      energy%total = energy%total + E_ex_from_GW
+      energy%ex = E_ex_from_GW
+    ELSE
+
+      DO irep = 1,n_rep_hf
+        CALL integrate_four_center(qs_env, matrix_ks, energy, rho_ao, hfx_sections,&
+                                   para_env, .TRUE., irep, .TRUE.,&
+                                   ispin=1, error=error, do_exx=.TRUE.)
+      END DO
+ 
+      ! include the EXX contribution to the total energy
+      energy%total = energy%total + energy%ex
+    END IF
 
     t2=m_walltime()
 
-    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Total EXX Time=',t2-t1
+    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.6)')  'Total EXX Time=',t2-t1+t3
     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'EXX energy  =   ', energy%ex
-
-    ! include the EXX contribution to the total energy
-    energy%total = energy%total + energy%ex
 
     ! reset to zero the Hartree-Fock energy
     energy%ex=0.0_dp
@@ -1171,6 +1201,203 @@ MODULE mp2
     CALL timestop(handle)
 
   END SUBROUTINE calculate_exx
+
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param mos_mp2 ...
+!> \param energy_ex ...
+!> \param t3 ...
+!> \param error ...
+!> \par History
+!>      04.2015 created 
+!> \author Jan Wilhelm
+! *****************************************************************************
+  SUBROUTINE compute_vec_Sigma_x_minus_vxc_gw(qs_env,mp2_env,mos_mp2,energy_ex,t3,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(mp2_type), POINTER                  :: mp2_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos_mp2
+    REAL(KIND=dp)                            :: energy_ex, t3
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'compute_vec_Sigma_x_minus_vxc_gw', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: dimen, gw_corr_lev_occ, &
+                                                gw_corr_lev_virt, homo, irep, &
+                                                ispin, myfun, n_rep_hf, nmo, &
+                                                stat
+    LOGICAL                                  :: do_hfx, failure
+    REAL(KIND=dp)                            :: hfx_fraction, t1, t2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_Sigma_x_minus_vxc_gw
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
+                                                matrix_sigma_x_minus_vxc, &
+                                                rho_ao
+    TYPE(cp_dbcsr_type)                      :: matrix_tmp, matrix_tmp_2, &
+                                                mo_coeff_b
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_energy_type), POINTER            :: energy_dummy
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(section_vals_type), POINTER         :: hfx_sections, input, &
+                                                xc_section
+
+    NULLIFY(matrix_ks,rho_ao,matrix_sigma_x_minus_vxc,input,xc_section,hfx_sections,&
+            rho,energy_dummy,dft_control,para_env,ks_env,mo_coeff)
+
+    t1=m_walltime()
+
+    CALL get_qs_env(qs_env,&
+                    matrix_ks=matrix_ks,&
+                    matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                    rho=rho,&
+                    input=input,&
+                    dft_control=dft_control,&
+                    para_env=para_env,&
+                    ks_env=ks_env,&
+                    error=error)
+
+    ! GW on top of HFX with ADMM is not working. Please converge an SCF with ADMM,
+    ! print the restart file, remove the ADMM section, add the RPA and GW section,
+    ! set very lax SCF convergence parameters to converge the SCF in one step.
+    IF(dft_control%do_admm) STOP "GW on top of ADMM is not implemented." 
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+
+    ! initialize matrix_sigma_x_minus_vxc
+    ALLOCATE(matrix_sigma_x_minus_vxc(SIZE(matrix_ks)))
+    DO ispin=1,SIZE(matrix_ks)
+       NULLIFY(matrix_sigma_x_minus_vxc(ispin)%matrix)
+       CALL cp_dbcsr_init_p(matrix_sigma_x_minus_vxc(ispin)%matrix,error=error)
+       CALL cp_dbcsr_create(matrix_sigma_x_minus_vxc(ispin)%matrix,template=matrix_ks(ispin)%matrix,error=error)
+       CALL cp_dbcsr_copy(matrix_sigma_x_minus_vxc(ispin)%matrix,matrix_ks(ispin)%matrix,&
+                                   name="Matrix VXC of spin "//cp_to_string(ispin),error=error)
+       CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
+    ENDDO
+
+    ! set DFT functional to none and hfx_fraction to zero
+    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF",error=error)
+    CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
+    IF(do_hfx) THEN
+      hfx_fraction = qs_env%x_data(1,1)%general_parameter%fraction
+      qs_env%x_data(:,:)%general_parameter%fraction = 0.0_dp
+    END IF
+    xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+    CALL section_vals_val_get(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
+         i_val=myfun,error=error)
+    CALL section_vals_val_set(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
+         i_val=xc_none,error=error)
+
+    ! calculate KS-matrix without XC and without HF
+    CALL qs_ks_build_kohn_sham_matrix(qs_env=qs_env, calculate_forces=.FALSE.,&
+                                      just_energy=.FALSE.,error=error)
+
+    ! set the DFT functional and HF fraction back
+    CALL section_vals_val_set(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
+         i_val=myfun,error=error)
+    IF(do_hfx) THEN
+      qs_env%x_data(:,:)%general_parameter%fraction = hfx_fraction
+    END IF
+  
+    ! remove the single-particle part (kin. En + Hartree pot) and change the sign
+    DO ispin=1,dft_control%nspins
+      CALL cp_dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, -1.0_dp, 1.0_dp, error)
+    END DO
+
+    CALL cp_dbcsr_set(matrix_ks(1)%matrix,0.0_dp,error=error)
+
+    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
+
+    CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
+
+    CALL allocate_qs_energy(energy_dummy)
+
+    energy_dummy%ex = 0.0_dp
+
+    ! add here HFX (=Sigma_exchange) to matrix_sigma_x_minus_vxc
+    DO irep = 1,n_rep_hf
+      CALL integrate_four_center(qs_env,matrix_ks,energy_dummy,rho_ao,hfx_sections,&
+                                 para_env,.TRUE.,irep,.TRUE.,&
+                                 ispin=1,error=error,do_exx=.TRUE.)
+    END DO
+
+    DO ispin=1,dft_control%nspins
+      CALL cp_dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, 1.0_dp, error)
+    END DO
+
+    energy_ex = energy_dummy%ex
+
+    CALL deallocate_qs_energy(energy_dummy)
+
+    ! Transform matrix_sigma_x_minus_vxc to MO basis
+    CALL get_mo_set(mo_set=mos_mp2(1)%mo_set,&
+                    mo_coeff=mo_coeff,&
+                    nmo=nmo,&
+                    homo=homo,&
+                    nao=dimen)
+
+    CALL cp_dbcsr_init (mo_coeff_b, error)
+    CALL cp_dbcsr_desymmetrize(matrix_ks(1)%matrix,mo_coeff_b,error)
+    CALL cp_dbcsr_set(mo_coeff_b, 0.0_dp, error)
+    CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,keep_sparsity=.TRUE.,&
+                          error=error)
+
+    CALL cp_dbcsr_init(matrix_tmp, error=error)
+    CALL cp_dbcsr_create(matrix_tmp,template=mo_coeff_b,error=error)
+    CALL cp_dbcsr_set(matrix_tmp, 0.0_dp, error)
+
+    CALL cp_dbcsr_init(matrix_tmp_2, error=error)
+    CALL cp_dbcsr_create(matrix_tmp_2,template=mo_coeff_b,error=error)
+    CALL cp_dbcsr_set(matrix_tmp_2, 0.0_dp, error)
+
+    gw_corr_lev_occ=mp2_env%ri_g0w0%corr_mos_occ
+    gw_corr_lev_virt=mp2_env%ri_g0w0%corr_mos_virt
+    ! if corrected occ/virt levels exceed the number of occ/virt levels, 
+    ! correct all occ/virt level energies
+    IF(gw_corr_lev_occ > homo)         gw_corr_lev_occ = homo
+    IF(gw_corr_lev_virt > dimen-homo)  gw_corr_lev_virt = dimen-homo
+    mp2_env%ri_g0w0%corr_mos_occ  = gw_corr_lev_occ
+    mp2_env%ri_g0w0%corr_mos_virt = gw_corr_lev_virt
+
+    CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_sigma_x_minus_vxc(1)%matrix,&
+                           mo_coeff_b,0.0_dp,matrix_tmp,first_column=homo+1-gw_corr_lev_occ,&
+                           last_column=homo+gw_corr_lev_virt,error=error)
+    CALL cp_dbcsr_multiply('T','N',1.0_dp,mo_coeff_b,&
+                           matrix_tmp,0.0_dp,matrix_tmp_2,first_row=homo+1-gw_corr_lev_occ,&
+                           last_row=homo+gw_corr_lev_virt,error=error)
+
+    ALLOCATE(vec_Sigma_x_minus_vxc_gw(nmo),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    vec_Sigma_x_minus_vxc_gw=0.0_dp
+
+    CALL cp_dbcsr_get_diag(matrix_tmp_2,vec_Sigma_x_minus_vxc_gw,error=error)
+   
+    CALL mp_sum(vec_Sigma_x_minus_vxc_gw,para_env%group)
+
+    CALL cp_dbcsr_release(mo_coeff_b,error)
+    CALL cp_dbcsr_release(matrix_tmp,error)
+    CALL cp_dbcsr_release(matrix_tmp_2,error)
+    DO ispin=1,SIZE(matrix_ks)
+      CALL cp_dbcsr_release(matrix_sigma_x_minus_vxc(ispin)%matrix,error=error)
+    END DO
+
+    ALLOCATE(mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(nmo),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! store vec_Sigma_x_minus_vxc_gw in the mp2_environment
+    mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw = vec_Sigma_x_minus_vxc_gw
+
+    t2=m_walltime()
+
+    t3=t2-t1
+
+  END SUBROUTINE compute_vec_Sigma_x_minus_vxc_gw
 
 END MODULE mp2
 

@@ -24,7 +24,8 @@ MODULE input_cp2k_mp2
        do_hfx_potential_coulomb, do_mp2_potential_tshpsc, gaussian, &
        mp2_method_direct, mp2_method_gpw, mp2_method_none, &
        mp2_ri_optimize_basis, numerical, ri_mp2_laplace, ri_mp2_method_gpw, &
-       ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
+       ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk, &
+       ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -549,14 +550,232 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(&
+            keyword=keyword,&
+            name="RI_G0W0",&
+            variants=(/"GW"/),&
+            description="Decide whether to perform an RI_G0W0 calculation on top of RI_ RPA.",&
+            usage="RI_G0W0",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
        ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
        CALL create_hfx_section(subsection,error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       ! here we generate a G0W0 subsection to use if G0W0 is desired
+       CALL create_ri_g0w0(subsection,error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
     END IF
 
   END SUBROUTINE create_ri_rpa
+
+! *****************************************************************************
+!> \brief ...
+!> \param section ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE create_ri_g0w0(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_g0w0', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"RI_G0W0",&
+            description="Parameters influencing the RI-G0W0 method",&
+            n_keywords=12, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            citations=(/DelBen2013/),&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="CORR_MOS_OCC",&
+            variants=(/"CORR_OCC"/),&
+            description="Number of occupied MOs whose energies are corrected by RI-G0W0. "//&
+                        "Counting beginning from HOMO, e.g. 3 corrected occ. MOs correspond "//&
+                        "to correction of HOMO, HOMO-1 and HOMO-2. Numerical effort and "//&
+                        "storage of RI-G0W0 increase linearly with this number. In case you "//&
+                        "want to correct all occ. MOs, insert a number larger than the number "//&
+                        "of occ. MOs.",&
+            usage="CORR_OCC 3",&
+            default_i_val=10,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CORR_MOS_VIRT",&
+            variants=(/"CORR_VIRT"/),&
+            description="Number of virtual MOs whose energies are corrected by RI-G0W0. "//&
+                        "Counting beginning from LUMO, e.g. 3 corrected occ. MOs correspond "//&
+                        "to correction of LUMO, LUMO+1 and LUMO+2. Numerical effort and "//&
+                        "storage of RI-G0W0 increase linearly with this number. In case you "//&
+                        "want to correct all virt. MOs, insert a number larger than the number "//& 
+                        "of virt. MOs.",&
+            usage="CORR_VIRT 3",&
+            default_i_val=10,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SCALING",&
+            variants=(/"A_SCALING"/),&
+            description="Set the scaling factor a for the Clenshaw-Curtis grid by hand. "//&
+                        "If SCALING < 0, a is calculated as for RI-RPA. Until now, the best "//&
+                        "choice seems to be 0.2. The grid points of the frequency grid are "//&
+                        "just multiplied by SCALING: omega_j = omega_j*Scaling.",&
+            usage="SCALING 0.2",&
+            default_r_val=0.2_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NUMB_POLES",&
+            description="Number of poles for the fitting. Usually, two poles are sufficient. ",&
+            usage="NUMB_POLES 2",&
+            default_i_val=2,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="OMEGA_MAX_FIT",&
+            description="Determines fitting range for the self-energy on the imaginary axis: "//&
+                        "[0, OMEGA_MAX_FIT] for virt orbitals, [-OMEGA_MAX_FIT,0] for occ orbitals. "//&
+                        "Unit: Hartree. Default: 0.734996 H = 20 eV. ",&
+            usage="OMEGA_MAX_FIT 0.5",&
+            default_r_val=0.734996_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="STOP_CRIT",&
+            variants=(/"STOP_CRIT_1"/),&
+            description="Convergence criterion for the fit. The fitting iteration terminates, if "//&
+                        "chi^2(n+1)/chi^2(n)-1 < STOP_CRIT.",&
+            usage="STOP_CRIT 1.0E-7",&
+            default_r_val=1E-5_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PRINT_FIT_ERROR",&
+            variants=(/"FIT_ERROR"/),&
+            description="Print the statistical error due to the fitting. This error in most cases "//&
+                        "is very pessimistic (e.g. can be a factor of 10 too large).",&
+            usage="FIT_ERROR",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_ITER_FIT",&
+            description="Maximum number of iterations for the Levenberg-Marquard fit.",&
+            usage="MAX_ITER_FIT 10000",&
+            default_i_val=10000,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CHECK_FIT",&
+            description="If true, the self-energy on the imaginary axis and the fit are printed"//&
+                        "the file self_energy_of_MO_<level>_for_imaginary_frequency.",&
+            usage="CHECK_FIT",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CROSSING_SEARCH",&
+            description="Determines, how the self_energy is evaluated on the real axis.",&
+            usage="CROSSING_SEARCH Z_SHOT",&
+            enum_c_vals=s2a("NONE","Z_SHOT"),&
+            enum_i_vals=(/ri_rpa_g0w0_crossing_none,ri_rpa_g0w0_crossing_z_shot/),&
+            enum_desc=s2a("Evaluate the correlation self-energy at the energy eigenvalue of SCF.",&
+                          "Calculate the derivative of Sigma and out of it Z. Then extrapolate using Z"),&
+            default_i_val=ri_rpa_g0w0_crossing_z_shot, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+ 
+       CALL keyword_create(keyword, name="FERMI_LEVEL_OFFSET",&
+             description="Fermi level for occ. orbitals: e_HOMO + FERMI_LEVEL_OFFSET; "//&
+                         "Fermi level for virt. orbitals: e_LUMO - FERMI_LEVEL_OFFSET. "//&
+                         "In case e_homo + FERMI_LEVEL_OFFSET < e_lumo - FERMI_LEVEL_OFFSET,"//&
+                         "we set Fermi level = (e_HOMO+e_LUMO)/2",&
+             usage="FERMI_LEVEL_OFFSET 1.0E-2",&
+             default_r_val=2.0E-2_dp,&
+             error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CUTOFF_RADIUS",&
+             description="Cutoff radius for the truncated Coulomb potential in GW in Angstrom. "//&
+                         "The cell length seems to be a good choice for the truncation.",&
+             usage="CUTOFF_RADIUS 6.0",&
+             default_r_val=10.0_dp,&
+             unit_str="angstrom",error=error)
+
+
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TRUNCATION",&
+            description="If true, the Coulomb potential is truncated. Recommended for periodic"//&
+                        "systems.",&
+            usage="TRUNCATION",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EV_SC_ITER",&
+            description="Number of iterations for eigenvalue self-consistency cycle. The "//&
+                        "computational effort of RPA and GW scales linearly with this number.",&
+            usage="EV_SC_ITER 3",&
+            default_i_val=1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="HF_LIKE_EV_START",&
+            description="If true, take as input for GW/RPA corrected HF-like eigenvalues according "//&
+                        "to PRB 83, 115103 (2011), Sec. IV.",&
+            usage="HF_LIKE_EV_START",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PRINT_GW_OUTPUT_FILE",&
+            description="If true, prints additional information on the quasiparticle energies to "//&
+                        "an external file.",&
+            usage="PRINT_GW_OUTPUT_FILE",&
+            default_l_val=.FALSE.,&
+            lone_keyword_l_val=.TRUE.,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_ri_g0w0
 
 ! *****************************************************************************
 !> \brief ...
