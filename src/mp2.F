@@ -1393,6 +1393,9 @@ MODULE mp2
     ! store vec_Sigma_x_minus_vxc_gw in the mp2_environment
     mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:) = vec_Sigma_x_minus_vxc_gw(:)
 
+    ! clean up
+    DEALLOCATE(matrix_sigma_x_minus_vxc, vec_Sigma_x_minus_vxc_gw)
+
     t2=m_walltime()
 
     t3=t2-t1
