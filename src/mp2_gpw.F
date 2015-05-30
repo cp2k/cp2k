@@ -25,9 +25,7 @@ MODULE mp2_gpw
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_reserve_all_blocks, &
        cp_dbcsr_set, cp_dbcsr_type, dbcsr_distribution_obj, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_default, dbcsr_type_symmetric, &
-       cp_dbcsr_distribution, cp_dbcsr_row_block_sizes, &
-       dbcsr_mp_npcols, dbcsr_distribution_mp, dbcsr_distribution_row_dist
+       dbcsr_type_no_symmetry, dbcsr_type_real_default, dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_dist2d_to_dist,&
                                              cp_dbcsr_m_by_n_from_row_template,&
@@ -164,16 +162,17 @@ MODULE mp2_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER :: blacs_grid_layout, color_sub, comm_sub, dimen, dimen_RI, &
-      handle, homo, homo_beta, i, i_multigrid, local_unit_nr, my_group_L_end, &
-      my_group_L_size, my_group_L_start, n_multigrid, natom, nelectron, &
-      nelectron_beta, nkind, nmo, nspins, stat, gw_corr_lev_occ, gw_corr_lev_virt
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
-      ends_B_virtual_beta, sizes_array, sizes_B_virtual, &
-      sizes_B_virtual_beta, starts_array, starts_B_virtual, &
-      starts_B_virtual_beta, starts_B_all, sizes_B_all, ends_B_all
+      gw_corr_lev_occ, gw_corr_lev_virt, handle, homo, homo_beta, i, &
+      i_multigrid, local_unit_nr, my_group_L_end, my_group_L_size, &
+      my_group_L_start, n_multigrid, natom, nelectron, nelectron_beta, nkind, &
+      nmo, nspins, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_all, &
+      ends_B_virtual, ends_B_virtual_beta, sizes_array, sizes_B_all, &
+      sizes_B_virtual, sizes_B_virtual_beta, starts_array, starts_B_all, &
+      starts_B_virtual, starts_B_virtual_beta
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
-    LOGICAL :: blacs_repeatable, failure, my_do_ri_mp2, my_do_ri_rpa, &
-      my_do_ri_sos_laplace_mp2, skip_load_balance_distributed, my_do_gw
+    LOGICAL :: blacs_repeatable, failure, my_do_gw, my_do_ri_mp2, &
+      my_do_ri_rpa, my_do_ri_sos_laplace_mp2, skip_load_balance_distributed
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
@@ -183,18 +182,16 @@ MODULE mp2_gpw
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: e_cutoff_old, Eigenval, &
                                                 Eigenval_beta
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: BIb_C, BIb_C_beta,&
-                                                BIb_C_gw
+      DIMENSION(:, :, :)                     :: BIb_C, BIb_C_beta, BIb_C_gw
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
-    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_o_beta, &
-                                                mo_coeff_v, mo_coeff_v_beta, &
-                                                mo_coeff_all, mo_coeff_all_beta, &
-                                                mo_coeff_gw, mo_coeff_gw_beta
+    TYPE(cp_dbcsr_type), POINTER :: mo_coeff_all, mo_coeff_all_beta, &
+      mo_coeff_gw, mo_coeff_gw_beta, mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, &
+      mo_coeff_v_beta
     TYPE(cp_error_type)                      :: error_sub
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_beta
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
@@ -1642,7 +1639,8 @@ MODULE mp2_gpw
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v, &
                                                 mo_coeff_all, mo_coeff_gw
     LOGICAL                                  :: my_do_gw
-    INTEGER                                  :: gw_corr_lev_occ,gw_corr_lev_virt
+    INTEGER                                  :: gw_corr_lev_occ, &
+                                                gw_corr_lev_virt
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
     INTEGER                                  :: unit_nr
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
@@ -1650,12 +1648,11 @@ MODULE mp2_gpw
     CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_mat_to_subgroup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk, col, col_offset, col_size, handle, i, i_global, iiB, &
-      iproc, itmp(2), j, j_global, jjB, max_row_col_local, my_mu_end, &
-      my_mu_size, my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, &
-      proc_receive, proc_receive_static, proc_send, proc_send_static, &
-      proc_shift, rec_mu_end, rec_mu_size, rec_mu_start, row, row_offset, &
-      row_size, stat, virtual
+    INTEGER :: blk, col, col_offset, col_size, handle, i_global, iiB, iproc, &
+      itmp(2), j_global, jjB, max_row_col_local, my_mu_end, my_mu_size, &
+      my_mu_start, ncol_local, ncol_rec, nrow_local, nrow_rec, proc_receive, &
+      proc_receive_static, proc_send, proc_send_static, proc_shift, row, &
+      row_offset, row_size, stat, virtual
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_array, proc_map, &
                                                 sizes_array, starts_array
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
@@ -1664,7 +1661,7 @@ MODULE mp2_gpw
                                                 row_indices, row_indices_rec
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: C, Cocc, Cvirt, Cgw, rec_C
+      DIMENSION(:, :)                        :: C, Cgw, Cocc, Cvirt, rec_C
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block, local_C, &
                                                 local_C_internal
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -2020,30 +2017,23 @@ MODULE mp2_gpw
     CHARACTER(LEN=*)                         :: mo_coeff_name
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Cread
-    INTEGER                                  :: dimen, number_of_level, blk, &
-                                                row, col, row_size,&
-                                                col_size, row_offset, &
-                                                col_offset, i_global, &
-                                                j_global, &
-                                                my_mu_start, my_mu_end
+    INTEGER :: dimen, number_of_level, blk, row, col, row_size, col_size, &
+      row_offset, col_offset, i_global, j_global, my_mu_start, my_mu_end
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
     TYPE(cp_dbcsr_iterator)                  :: iter
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ends_array, proc_map, &
                                                 sizes_array, starts_array
-
-    TYPE(cp_error_type), INTENT(inout)       :: error,error_sub
+    TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_mo_coeff_v_o_all', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: i, j, proc_shift, &
-                                                proc_send, proc_receive, &
-                                                rec_mu_start, rec_mu_end, &
-                                                rec_mu_size, stat, handle
+
+    INTEGER :: handle, i, j, proc_receive, proc_send, proc_shift, rec_mu_end, &
+      rec_mu_size, rec_mu_start, stat
+    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rec_C
-    TYPE(dbcsr_distribution_obj)             :: dist
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     failure=.FALSE.

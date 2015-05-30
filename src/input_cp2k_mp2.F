@@ -24,8 +24,8 @@ MODULE input_cp2k_mp2
        do_hfx_potential_coulomb, do_mp2_potential_tshpsc, gaussian, &
        mp2_method_direct, mp2_method_gpw, mp2_method_none, &
        mp2_ri_optimize_basis, numerical, ri_mp2_laplace, ri_mp2_method_gpw, &
-       ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk, &
-       ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot
+       ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot, &
+       ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&

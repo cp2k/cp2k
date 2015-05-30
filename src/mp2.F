@@ -1391,7 +1391,7 @@ MODULE mp2
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! store vec_Sigma_x_minus_vxc_gw in the mp2_environment
-    mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw = vec_Sigma_x_minus_vxc_gw
+    mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:) = vec_Sigma_x_minus_vxc_gw(:)
 
     t2=m_walltime()
 
