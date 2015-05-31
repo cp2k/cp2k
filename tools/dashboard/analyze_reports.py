@@ -10,6 +10,7 @@ import re
 import gzip
 import numpy as np
 from glob import glob
+from os import path
 
 #===============================================================================
 def main():
@@ -21,8 +22,10 @@ def main():
     ref_tester = "mkrack-pdbg"
 
     ref_report = sorted(glob("archive/%s/rev_*.txt.gz"%ref_tester))[-1]
+
     print("Using %s as reference."%ref_report)
     ref_values = parse_report(ref_report, set())
+    ref_values_str = parse_report_str(ref_report, set())
 
     valuesDB = dict()
     testerDB = dict()
@@ -47,7 +50,7 @@ def main():
 
     print("Parsed %d reports\n"%nreports)
 
-    analyze(valuesDB, ref_values, tolerances)
+    analyze(valuesDB, ref_values, ref_values_str, tolerances)
     print("\n")
 
     # seconds reports
@@ -74,7 +77,7 @@ def merge_values(valuesDB, ref_values, tolerances, new_values):
 
 
 #===============================================================================
-def analyze(valuesDB, ref_values, tolerance):
+def analyze(valuesDB, ref_values, ref_values_str, tolerance):
     n_ok=0; n_shaky=0
     print("%7s %-70s %10s %10s %10s %8s"%("","Test Name", "Max Diff", "Tol", "Out-Rate", "Grade"))
     print("-"*120)
@@ -86,6 +89,7 @@ def analyze(valuesDB, ref_values, tolerance):
         mean_outsides = np.mean(diff > tol)
         if(max_diff < tol):
             stat = "ok"
+            set_ref_value(k, ref_values_str[k])
             n_ok += 1
         else:
             stat ="shaky"
@@ -93,6 +97,30 @@ def analyze(valuesDB, ref_values, tolerance):
         print("STATS1: %-70s %10.1e %10.1e %10.4f %8s"%(k, max_diff, tol, mean_outsides, stat))
 
     print("Ok: %d  Shaky: %d"%(n_ok, n_shaky))
+
+#===============================================================================
+def set_ref_value(name, value):
+    fn = "../../tests/"+path.dirname(name)+"/TEST_FILES"
+    inp = path.basename(name)
+    output = []
+    content = open(fn).read()
+    for line in content.split("\n"):
+        if(line.startswith(inp)):
+            parts = line.split()
+            if(len(parts) == 2):
+                parts += ["1.0E-14", value]
+            elif(len(parts) == 3):
+                parts += [value]
+            else:
+                assert(False)
+            print "NEW:" +"    ".join(parts)
+            output.append("    ".join(parts))
+        else:
+            output.append(line)
+
+    f = open(fn, "w")
+    f.write("\n".join(output))
+    f.close()
 
 #===============================================================================
 def parse_tolerances():
@@ -118,6 +146,49 @@ def parse_tolerances():
     return(tolerances)
 
 #===============================================================================
+def parse_report_str(fn, resets):
+    print("Parsing: "+fn)
+
+    values = dict()
+    report_txt = gzip.open(fn, 'rb').read()
+    m = re.search("\n-+regtesting cp2k-+\n(.*)\n-+ Summary -+\n", report_txt, re.DOTALL)
+    if(not m):
+        print("Regtests not finished, skipping.")
+        return(None)
+
+    main_part = m.group(1)
+    curr_dir = None
+    for line in main_part.split("\n"):
+        if("/UNIT/" in line):
+            curr_dir = None # ignore unit-tests
+        elif(line.startswith(">>>")):
+            curr_dir = line.rsplit("/tests/")[1] + "/"
+        elif(line.startswith("<<<")):
+            curr_dir = None
+        elif(curr_dir):
+            parts = line.split()
+            if(not parts[0].endswith(".inp")):
+                print("Found strange line:\n"+line)
+                continue
+            if(parts[1]== "RUNTIME" and parts[2]=="FAIL"):
+                continue  # ignore crashed tests
+            if(parts[1] == "-"):
+                continue  # test without numeric check
+
+            test_name = curr_dir+parts[0]
+            if(test_name in resets):
+                #print("Dropping older values: "+test_name)
+                continue # test was reseted, don't add older results
+            if(parts[2] == "NEW"):
+                resets.add(test_name)
+                #print("Found NEW: "+test_name)
+            values[test_name] = parts[1]
+        else:
+            pass # ignore line
+
+    return values
+
+#===============================================================================
 def parse_report(fn, resets):
     print("Parsing: "+fn)
 
@@ -131,7 +202,9 @@ def parse_report(fn, resets):
     main_part = m.group(1)
     curr_dir = None
     for line in main_part.split("\n"):
-        if(line.startswith(">>>")):
+        if("/UNIT/" in line):
+            curr_dir = None # ignore unit-tests
+        elif(line.startswith(">>>")):
             curr_dir = line.rsplit("/tests/")[1] + "/"
         elif(line.startswith("<<<")):
             curr_dir = None
@@ -140,6 +213,8 @@ def parse_report(fn, resets):
             if(not parts[0].endswith(".inp")):
                 print("Found strange line:\n"+line)
                 continue
+            if(parts[1]== "RUNTIME" and parts[2]=="FAIL"):
+                continue  # ignore crashed tests
             if(parts[1] == "-"):
                 continue  # test without numeric check
 
