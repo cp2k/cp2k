@@ -66,8 +66,8 @@ scotch_sha=e57e16c965bab68c1b03389005ecd8a03745ba20fd9c23081c0bb2336972d879
 superlu_ver=3.3
 superlu_sha=d2fd8dc847ae63ed7980cff2ad4db8d117640ecdf0234c9711e0f6ee1398cac2
 
-pexsi_ver=0.7.3
-pexsi_sha=077c0de466bdbef055992eea91e2fee5c10814552fb1f7e2a354a8881dc7d39f
+pexsi_ver=0.8.0
+pexsi_sha=7a0cc2e78dea77164e582c80e9380974e3a7e4153836917dabe29b23614c5c45
 #
 #
 #
@@ -370,7 +370,7 @@ else
   cat <<EOF >> make.inc
 PLAT=_x86_64
 DSUPERLULIB= ${PWD}/lib/libsuperlu_dist_${superlu_ver}.a
-LIBS=\$(DSUPERLULIB) -lparmetis -lmetis -lrefblas
+LIBS=\$(DSUPERLULIB) -L${INSTALLDIR}/lib -lparmetis -lmetis -lrefblas
 ARCH=ar
 ARCHFLAGS=cr
 RANLIB=ranlib
@@ -398,39 +398,23 @@ if [ -f pexsi_v${pexsi_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
   wget http://www.cp2k.org/static/downloads/pexsi_v${pexsi_ver}.tar.gz
+  #wget https://math.berkeley.edu/~linlin/pexsi/download/pexsi_v${pexsi_ver}.tar.gz
   echo "${pexsi_sha} *pexsi_v${pexsi_ver}.tar.gz" | sha256sum  --check
-  mkdir pexsi_v${pexsi_ver}
-  tar -xzf pexsi_v${pexsi_ver}.tar.gz -C pexsi_v${pexsi_ver}
+
+  tar -xzf pexsi_v${pexsi_ver}.tar.gz
 
   cd pexsi_v${pexsi_ver}
-
-  # fix uninitialised variables
-  cat <<EOF >> pexsi.patch 
---- src/get_perm_c_parmetis.c
-+++ src/get_perm_c_parmetis.c
-@@ -131,0 +132 @@
-+ dist_order = 0;
---- src/pdsymbfact.c
-+++ src/pdsymbfact.c
-@@ -87,0 +88 @@
-+ symb_mem_usage.total = 0.;
---- src/pzsymbfact.c
-+++ src/pzsymbfact.c
-@@ -87,0 +88 @@
-+ symb_mem_usage.total = 0.;
-EOF
-  patch -p0 < pexsi.patch >& patch.log
 
   cat config/make.inc.linux.gnu | \
   sed 's|\(PAR_ND_LIBRARY *=\).*|\1 parmetis|' |\
   sed 's|\(SEQ_ND_LIBRARY *=\).*|\1 metis|' |\
   sed "s|\(PEXSI_DIR *=\).*|\1 ${PWD}|" |\
   sed "s|\(CPP_LIB *=\).*|\1 -lstdc++|" |\
-  sed 's|\(LAPACK_LIB *=\).*|\1 -lreflapack|' |\
-  sed 's|\(BLAS_LIB *=\).*|\1 -lrefblas|' |\
-  sed 's|\(\bMETIS_LIB *=\).*|\1 -lmetis|' |\
-  sed 's|\(PARMETIS_LIB *=\).*|\1 -lparmetis|' |\
-  sed "s|\(DSUPERLU_LIB *=\).*|\1 -lsuperlu_dist_${superlu_ver}|" |\
+  sed "s|\(LAPACK_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lreflapack|" |\
+  sed "s|\(BLAS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lrefblas|" |\
+  sed "s|\(\bMETIS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lmetis|" |\
+  sed "s|\(PARMETIS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lparmetis|" |\
+  sed "s|\(DSUPERLU_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lsuperlu_dist_${superlu_ver}|" |\
   sed 's|#FLOADOPTS *=.*|FLOADOPTS    = ${LIBS} ${CPP_LIB}|' |\
   sed "s|\(DSUPERLU_INCLUDE *=\).*|\1 -I${INSTALLDIR}/include/superlu_dist_${superlu_ver}|" |\
   sed 's|\(INCLUDES *=\).*|\1 ${DSUPERLU_INCLUDE} ${PEXSI_INCLUDE}|' |\
