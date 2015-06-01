@@ -51,8 +51,8 @@ fftw_ver=3.3.4
 fftw_sha=8f0cde90929bc05587c3368d2f15cd0530a60b8a9912a8e2979a72dbe5af0982
 
 # will need hand-checking for non-standard dir name in tar
-elpa_ver=2013.11.008
-elpa_sha=d4a028fddb64a7c1454f08b930525cce0207893c6c770cb7bf92ab6f5d44bd78
+elpa_ver=2015.05.001
+elpa_sha=f45f8aa78c8fbe6612dc0509a6c8b9ecfc09d1e558680eecec83ada24a931db3
 
 cmake_ver=3.1.1
 cmake_sha=b58694e545d51cde5756a894f53107e3d9e469360e1d92e7f6892b55ebc0bebf
@@ -301,19 +301,17 @@ else
   tar -xzf elpa-${elpa_ver}.tar.gz
 
   # need both flavors ?
-  cp -rp ELPA_2013.11 ELPA_2013.11-mt
+  cp -rp elpa-${elpa_ver} elpa-${elpa_ver}_mt
 
-  cd ELPA_2013.11-mt
+  cd elpa-${elpa_ver}_mt
   ./configure  --prefix=${INSTALLDIR} --enable-openmp=yes --with-generic --enable-shared=no >& config.log
-  # wrong deps, build serially ?
-  make -j 1 >&  make.log
+  make -j $nprocs >&  make.log
   make install >& install.log
   cd ..
 
-  cd ELPA_2013.11
+  cd elpa-${elpa_ver}
   ./configure  --prefix=${INSTALLDIR} --enable-openmp=no --with-generic --enable-shared=no >& config.log
-  # wrong deps, build serially ?
-  make -j 1 >&  make.log
+  make -j $nprocs >&  make.log
   make install >& install.log
   cd ..
 fi
@@ -455,7 +453,7 @@ mkdir -p ${INSTALLDIR}/arch
 WFLAGS="-Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable -Wunused-variable -Wconversion -Werror"
 DEBFLAGS="-fcheck=bounds,do,recursion,pointer -fsanitize=leak"
 BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1"
-PARAFLAGS="-D__parallel -D__SCALAPACK -D__LIBPEXSI -D__MPI_VERSION=3"
+PARAFLAGS="-D__parallel -D__SCALAPACK -D__LIBPEXSI -D__MPI_VERSION=3 -D__ELPA2"
 CUDAFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA"
 OPTFLAGS="-O3 -march=native -ffast-math \$(PROFOPT)"
 DFLAGS="-D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
@@ -475,10 +473,10 @@ LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${PARAFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.popt
@@ -489,10 +487,10 @@ LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${PARAFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.psmp
@@ -503,10 +501,10 @@ LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${PARAFLAGS}
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.sdbg
@@ -573,10 +571,10 @@ LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${PARAFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} -O3 \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} -O3 \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.psmp
@@ -588,11 +586,11 @@ LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${CUDAFLAGS} ${PARAFLAGS}
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.ssmp
