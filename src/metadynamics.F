@@ -145,19 +145,18 @@ CONTAINS
         WRITE(*,*)"NO PLUMED IN YOUR LD_LIBRARY_PATH?"
         STOP
     ELSE
-        IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
-            CALL plumed_f_gcreate()
-            CALL plumed_f_gcmd("setRealPrecision"//CHAR(0),8)
-            CALL plumed_f_gcmd("setMDEnergyUnits"//CHAR(0),kjmol) ! Hartree to kjoule/mol
-            CALL plumed_f_gcmd("setMDLengthUnits"//CHAR(0),angstrom*0.1_dp) ! Bohr to nm
-            CALL plumed_f_gcmd("setMDTimeUnits"//CHAR(0),picoseconds) !  atomic units to ps
-            CALL plumed_f_gcmd("setPlumedDat"//CHAR(0),force_env%meta_env%plumed_input_file//CHAR(0))
-            CALL plumed_f_gcmd("setLogFile"//CHAR(0),"PLUMED.OUT"//CHAR(0))
-            CALL plumed_f_gcmd("setNatoms"//CHAR(0),natom_plumed)
-            CALL plumed_f_gcmd("setMDEngine"//CHAR(0),"cp2k");
-            CALL plumed_f_gcmd("setTimestep"//CHAR(0),timestep_plumed);
-            CALL plumed_f_gcmd("init"//CHAR(0),0);
-        END IF
+        CALL plumed_f_gcreate()
+        CALL plumed_f_gcmd("setMPIFComm"//CHAR(0),force_env%para_env%group)
+        CALL plumed_f_gcmd("setRealPrecision"//CHAR(0),8)
+        CALL plumed_f_gcmd("setMDEnergyUnits"//CHAR(0),kjmol) ! Hartree to kjoule/mol
+        CALL plumed_f_gcmd("setMDLengthUnits"//CHAR(0),angstrom*0.1_dp) ! Bohr to nm
+        CALL plumed_f_gcmd("setMDTimeUnits"//CHAR(0),picoseconds) !  atomic units to ps
+        CALL plumed_f_gcmd("setPlumedDat"//CHAR(0),force_env%meta_env%plumed_input_file//CHAR(0))
+        CALL plumed_f_gcmd("setLogFile"//CHAR(0),"PLUMED.OUT"//CHAR(0))
+        CALL plumed_f_gcmd("setNatoms"//CHAR(0),natom_plumed)
+        CALL plumed_f_gcmd("setMDEngine"//CHAR(0),"cp2k")
+        CALL plumed_f_gcmd("setTimestep"//CHAR(0),timestep_plumed)
+        CALL plumed_f_gcmd("init"//CHAR(0),0)
     END IF
 #endif
 
@@ -286,49 +285,40 @@ CONTAINS
                 pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
             END DO
  
-            IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
-               ! stupid cell conversion, to be fixed
-               celltbt(1,1)=cell%hmat(1,1)
-               celltbt(1,2)=cell%hmat(1,2)
-               celltbt(1,3)=cell%hmat(1,3)
-               celltbt(2,1)=cell%hmat(2,1)
-               celltbt(2,2)=cell%hmat(2,2)
-               celltbt(2,3)=cell%hmat(2,3)
-               celltbt(3,1)=cell%hmat(3,1)
-               celltbt(3,2)=cell%hmat(3,2)
-               celltbt(3,3)=cell%hmat(3,3)
-     
-               ! virial
-               plu_vir(:,:)=0.0d0
-     
-               CALL force_env_get(force_env, potential_energy=stpcfg, error=error)
-     
-               CALL plumed_f_gcmd("setStep"//CHAR(0),plumed_itimes)      
-               CALL plumed_f_gcmd("setPositionsX"//CHAR(0),pos_plumed_x(:)) ! PluMed Output !
-               CALL plumed_f_gcmd("setPositionsY"//CHAR(0),pos_plumed_y(:)) ! PluMed Output !
-               CALL plumed_f_gcmd("setPositionsZ"//CHAR(0),pos_plumed_z(:)) ! PluMed Output !
-               CALL plumed_f_gcmd("setMasses"//CHAR(0), pma0_plumed) 
-               CALL plumed_f_gcmd("setBox"//CHAR(0),celltbt)
-               CALL plumed_f_gcmd("setVirial"//CHAR(0),plu_vir)    ! PluMed Output, NOT ACTUALLY USED !
-               CALL plumed_f_gcmd("setEnergy"//CHAR(0),stpcfg) 
-               CALL plumed_f_gcmd("setForcesX"//CHAR(0),force_plumed_x(:)) ! PluMed Output !
-               CALL plumed_f_gcmd("setForcesY"//CHAR(0),force_plumed_y(:)) ! PluMed Output !
-               CALL plumed_f_gcmd("setForcesZ"//CHAR(0),force_plumed_z(:)) ! PluMed Output !
-               
-               !runnano plumed
-               CALL plumed_f_gcmd("prepareCalc"//CHAR(0),0) 
-               CALL plumed_f_gcmd("prepareDependencies"//CHAR(0),0)
-               CALL plumed_f_gcmd("shareData"//CHAR(0),0)
-               
-               CALL plumed_f_gcmd("performCalc"//CHAR(0),0)
+            ! stupid cell conversion, to be fixed
+            celltbt(1,1)=cell%hmat(1,1)
+            celltbt(1,2)=cell%hmat(1,2)
+            celltbt(1,3)=cell%hmat(1,3)
+            celltbt(2,1)=cell%hmat(2,1)
+            celltbt(2,2)=cell%hmat(2,2)
+            celltbt(2,3)=cell%hmat(2,3)
+            celltbt(3,1)=cell%hmat(3,1)
+            celltbt(3,2)=cell%hmat(3,2)
+            celltbt(3,3)=cell%hmat(3,3)
+  
+            ! virial
+            plu_vir(:,:)=0.0d0
+  
+            CALL force_env_get(force_env, potential_energy=stpcfg, error=error)
+  
+            CALL plumed_f_gcmd("setStep"//CHAR(0),plumed_itimes)      
+            CALL plumed_f_gcmd("setPositionsX"//CHAR(0),pos_plumed_x(:)) ! PluMed Output !
+            CALL plumed_f_gcmd("setPositionsY"//CHAR(0),pos_plumed_y(:)) ! PluMed Output !
+            CALL plumed_f_gcmd("setPositionsZ"//CHAR(0),pos_plumed_z(:)) ! PluMed Output !
+            CALL plumed_f_gcmd("setMasses"//CHAR(0), pma0_plumed) 
+            CALL plumed_f_gcmd("setBox"//CHAR(0),celltbt)
+            CALL plumed_f_gcmd("setVirial"//CHAR(0),plu_vir)    ! PluMed Output, NOT ACTUALLY USED !
+            CALL plumed_f_gcmd("setEnergy"//CHAR(0),stpcfg) 
+            CALL plumed_f_gcmd("setForcesX"//CHAR(0),force_plumed_x(:)) ! PluMed Output !
+            CALL plumed_f_gcmd("setForcesY"//CHAR(0),force_plumed_y(:)) ! PluMed Output !
+            CALL plumed_f_gcmd("setForcesZ"//CHAR(0),force_plumed_z(:)) ! PluMed Output !
+            
+            CALL plumed_f_gcmd("prepareCalc"//CHAR(0),0) 
+            CALL plumed_f_gcmd("prepareDependencies"//CHAR(0),0)
+            CALL plumed_f_gcmd("shareData"//CHAR(0),0)
+            
+            CALL plumed_f_gcmd("performCalc"//CHAR(0),0)
            
-            ENDIF
- 
-            CALL mp_bcast (force_plumed_x,force_env%para_env%source,force_env%para_env%group)
-            CALL mp_bcast (force_plumed_y,force_env%para_env%source,force_env%para_env%group)
-            CALL mp_bcast (force_plumed_z,force_env%para_env%source,force_env%para_env%group)
- 
-             
             DO i_part=1,natom_plumed
               subsys%particles%els(i_part)%f(1) = subsys%particles%els(i_part)%f(1) + force_plumed_x(i_part)
               subsys%particles%els(i_part)%f(2) = subsys%particles%els(i_part)%f(2) + force_plumed_y(i_part)
