@@ -50,10 +50,10 @@ def gen_povray():
     output += '}\n'
 
     for c in coords:
-        output += "sphere {<%f, %f, %f>, 0.73 \n"%c
+        output += "sphere { <%f, %f, %f>, 0.73 \n"%c
         output += "  texture {\n"
-        output += "    finish {Shiny}\n"
-        output += "    pigment {color rgb <1, 0.2, 0>}\n"
+        output += "    finish { Shiny ambient 0.3 }\n"
+        output += "    pigment { color rgb <1, 0.2, 0> }\n"
         output += "  }\n"
         output += "}\n"
 
@@ -64,5 +64,4 @@ def gen_povray():
 
 #-------------------------------------------------------------------------------
 main()
-
 #EOF
