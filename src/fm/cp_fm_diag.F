@@ -1009,8 +1009,10 @@ CONTAINS
               THIS_REAL_ELPA_KERNEL_API=kernel_type,useQR=.FALSE.)
 #endif
 
- 
-    CPPrecondition(success,cp_failure_level,routineP,error,failure)
+     CALL cp_assert(success,cp_failure_level,cp_assertion_failed,&
+     routineP,"ELPA failed to diagonalize a matrix at "//&
+CPSourceFileRef,&
+     error)
 
 #else
     CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
