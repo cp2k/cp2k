@@ -25,3 +25,6 @@ H_hf_gapw_nopaw_full.inp          1     7e-13
 H2O_Onopaw_gop.inp                1     4e-14
 # GAPW element with local basis > number of projectors
 Fe.inp                            1     6e-14
+# GAPW with an external potential
+H2O_constant_extpot_GAPW.inp      1
+H2O_uniform_efield_GAPW.inp       1

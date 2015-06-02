@@ -301,7 +301,9 @@ CONTAINS
        !swap external_e_potential before external_c_potential, to ensure 
        !that external potential on grid is loaded before calculating energy of cores
        CALL external_e_potential(qs_env,error)
-       CALL external_c_potential(qs_env,calculate_forces=.TRUE.,error=error)
+       IF (.NOT. dft_control%qs_control%gapw ) THEN
+         CALL external_c_potential(qs_env,calculate_forces=.TRUE.,error=error)
+       END IF
     END IF
 
     ! Compute grid-based forces

@@ -69,7 +69,6 @@ MODULE qs_ks_methods
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kahan_sum,                       ONLY: accurate_sum
   USE kg_correction,                   ONLY: kg_ekin_subset
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -84,6 +83,7 @@ MODULE qs_ks_methods
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_axpy,&
                                              pw_copy,&
+                                             pw_integral_ab,&
                                              pw_integrate_function,&
                                              pw_scale,&
                                              pw_transfer,&
@@ -243,8 +243,8 @@ CONTAINS
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
                                                 v_tau_rspace_aux_fit
-    TYPE(pw_p_type), POINTER                 :: rho_core, rho_nlcc, vee, &
-                                                vppl_rspace
+    TYPE(pw_p_type), POINTER                 :: rho0_s_rs, rho_core, &
+                                                rho_nlcc, vee, vppl_rspace
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -488,10 +488,17 @@ CONTAINS
           ! Compute the energy due to the external potential
           ee_ener=0.0_dp
           DO ispin=1,nspins
-             ee_ener=ee_ener+accurate_sum(vee%pw%cr3d*rho_r(ispin)%pw%cr3d)*&
-                  vee%pw%pw_grid%dvol
+             ee_ener = ee_ener +  pw_integral_ab (rho_r(ispin)%pw, vee%pw, error=error)
           END DO
-          CALL mp_sum(ee_ener, para_env%group)
+          IF (.NOT.just_energy) THEN
+             IF (gapw) THEN
+                CALL get_qs_env(qs_env=qs_env,&
+                     rho0_s_rs=rho0_s_rs,&
+                     error=error)
+                CPPrecondition(ASSOCIATED(rho0_s_rs),cp_failure_level,routineP,error,failure)
+                ee_ener = ee_ener +  pw_integral_ab (rho0_s_rs%pw, vee%pw, error=error)
+             END IF
+          END IF
           ! the sign accounts for the charge of the electrons
           energy%ee=-ee_ener
        END IF
@@ -696,7 +703,12 @@ CONTAINS
        END IF
 
        IF (gapw) THEN
-          ! Integrals of the Hartree potential with g0_soft
+          IF (dft_control%apply_external_potential) THEN
+             ! Integrals of the Hartree potential with g0_soft
+             CALL qmmm_modify_hartree_pot(v_hartree=v_hartree_rspace,&
+                                          v_qmmm=vee,scale=-1.0_dp,&
+                                          error=error)
+          ENDIF
           CALL integrate_vhg0_rspace(qs_env,v_hartree_rspace,calculate_forces,error=error)
        END IF
 
