@@ -22,8 +22,8 @@ MODULE mp2
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
        cp_dbcsr_get_diag, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, &
-       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_set, &
-       cp_dbcsr_type
+       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_release_p, cp_dbcsr_set, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
@@ -1275,7 +1275,6 @@ MODULE mp2
     DO ispin=1,SIZE(matrix_ks)
        NULLIFY(matrix_sigma_x_minus_vxc(ispin)%matrix)
        CALL cp_dbcsr_init_p(matrix_sigma_x_minus_vxc(ispin)%matrix,error=error)
-       CALL cp_dbcsr_create(matrix_sigma_x_minus_vxc(ispin)%matrix,template=matrix_ks(ispin)%matrix,error=error)
        CALL cp_dbcsr_copy(matrix_sigma_x_minus_vxc(ispin)%matrix,matrix_ks(ispin)%matrix,&
                                    name="Matrix VXC of spin "//cp_to_string(ispin),error=error)
        CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
@@ -1384,7 +1383,7 @@ MODULE mp2
     CALL cp_dbcsr_release(matrix_tmp,error)
     CALL cp_dbcsr_release(matrix_tmp_2,error)
     DO ispin=1,SIZE(matrix_ks)
-      CALL cp_dbcsr_release(matrix_sigma_x_minus_vxc(ispin)%matrix,error=error)
+      CALL cp_dbcsr_release_p(matrix_sigma_x_minus_vxc(ispin)%matrix,error=error)
     END DO
 
     ALLOCATE(mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(nmo),STAT=stat)
