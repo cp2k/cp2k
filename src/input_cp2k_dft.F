@@ -4389,8 +4389,8 @@ CONTAINS
   END SUBROUTINE create_relativistic_section
 
 ! *****************************************************************************
-!> \brief creates the structure of the section with the dft scf parameters
-!> \param section will contain the scf section
+!> \brief creates the structure of the section with the DFT SCF parameters
+!> \param section will contain the SCF section
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -4412,7 +4412,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,"scf",&
-            description="parameters needed perform an scf run",&
+            description="Parameters needed perform an SCF run.",&
             n_keywords=24, n_subsections=3, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
@@ -4482,13 +4482,13 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_SCF",&
-            description="target accuracy for the scf convergence",&
+            description="Target accuracy for the SCF convergence.",&
             usage="EPS_SCF 1.e-6", default_r_val=1.e-5_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_SCF_HISTORY", variants=(/"EPS_SCF_HIST"/), &
-            description="target accuracy for the scf convergence after the history pipeline is filled",&
+            description="Target accuracy for the SCF convergence after the history pipeline is filled.",&
             usage="EPS_SCF_HISTORY 1.e-5", default_r_val=0.0_dp,lone_keyword_r_val=1.0e-5_dp,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -4604,11 +4604,11 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL section_create(subsection,"PRINT","printing of information during the scf",&
+       CALL section_create(subsection,"PRINT", "Printing of information during the SCF.",&
             error=error, repeats=.FALSE., required=.FALSE.)
 
         CALL cp_print_key_section_create(print_key,"RESTART",&
-            description="Controls the dumping of the MO restart file during scf."//&
+            description="Controls the dumping of the MO restart file during SCF."//&
                         "By default keeps a short history of three restarts."//&
                         "See also RESTART_HISTORY", &
             print_level=low_print_level, common_iter_levels=3,&
@@ -4639,12 +4639,12 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"iteration_info",&
-            description="Controls the printing of basic iteration information during the scf.", &
+            description="Controls the printing of basic iteration information during the SCF.", &
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL keyword_create(keyword, name="time_cumul",&
             description="If the printkey is activated switches the printing of timings"//&
-            " to cumulative (over the scf).",&
+            " to cumulative (over the SCF).",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -4652,7 +4652,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
-            description="Controls the printing of basic information during the SCF", &
+            description="Controls the printing of basic information during the SCF.", &
             print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -4680,7 +4680,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"diis_info",&
-            description="Controls the printing of diis information.", &
+            description="Controls the printing of DIIS information.", &
             print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
@@ -4831,9 +4831,9 @@ CONTAINS
   END SUBROUTINE create_kg_section
 
 ! *****************************************************************************
-!> \brief creates the structure of the section with scf parameters
+!> \brief creates the structure of the section with SCF parameters
 !>      controlling an other loop
-!> \param section will contain the scf section
+!> \param section will contain the SCF section
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Joost VandeVondele [2006.03]
@@ -4902,7 +4902,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_SCF",&
-            description="The target gradient of the outer scf variables. "//&
+            description="The target gradient of the outer SCF variables. "//&
             "Notice that the EPS_SCF of the inner loop also determines "//&
             "the value that can be reached in the outer loop, "//&
             "typically EPS_SCF of the outer loop must be smaller "//&
@@ -5809,14 +5809,14 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DX",&
-            description="Parameter used for computing the derivative with the Ridders method.",&
+            description="Parameter used for computing the derivative with the Ridders' method.",&
             usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ERROR_LIMIT",&
             description="Checks that the error in computing the derivative is not larger than "//&
-            "the value set. In case prints a warning message.",&
+            "the value set; in case error is larger a warning message is printed.",&
             usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -7019,10 +7019,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+
+
        CALL keyword_create(keyword, name="XAS_TOT_EL",&
             description="Total number of electrons for spin channel alpha, in XAS calculation by TP_FLEX."//&
-            "If negative value, the number of electrons is set to GS number of electron "//&
-            " minus the amount subtracted from the core state",&
+            "If it is a negative value, the number of electrons is set to GS number of electrons "//&
+            "minus the amount subtracted from the core state",&
             usage="XAS_TOT_EL 10",&
             default_r_val=-1._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -7030,16 +7032,16 @@ CONTAINS
 
 
        CALL keyword_create(keyword, name="XES_CORE",&
-            description="Occupation of the core state in XES calculation by TP_VAL."//&
-            "The homo is emptied by the same amount",&
+            description="Occupation of the core state in XES calculation by TP_VAL. "//&
+            "The HOMO is emptied by the same amount.",&
             usage="XES_CORE 0.5",&
             default_r_val=1._dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="XES_EMPTY_HOMO",&
-            description="Set the occupation of the HOMO in XES calculation by TP_VAL."//&
-            "The HOMO can be emptied or not, if the core is still full",&
+            description="Set the occupation of the HOMO in XES calculation by TP_VAL. "//&
+            "The HOMO can be emptied or not, if the core is still full.",&
             usage="XES_EMPTY_HOMO",&
             default_l_val=.FALSE., &
             lone_keyword_l_val=.TRUE., error=error)
@@ -7090,7 +7092,7 @@ CONTAINS
 
        CALL keyword_create(keyword,name="ATOMS_LIST",&
             variants=(/"AT_LIST"/),&
-            description="Indexes of the atoms to be excited"//&
+            description="Indexes of the atoms to be excited. "//&
             "This keyword can be repeated several times"//&
             "(useful if you have to specify many indexes).",&
             usage="ATOMS_LIST {integer}  {integer} ..  {integer} ",&
@@ -7117,7 +7119,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NGAUSS",&
-            description="Number of gto's for the expansion of the sto"//&
+            description="Number of gto's for the expansion of the STO "//&
             "of the type given by STATE_TYPE",&
             usage="NGAUSS {integer}", default_i_val=3,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -7132,7 +7134,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="WFN_RESTART_FILE_NAME",&
             variants=(/"RESTART_FILE_NAME"/),&
-            description="Root of the file names where to read the MOS from"//&
+            description="Root of the file names where to read the MOS from "//&
             "which to restart the calculation of the core level excited states",&
             usage="WFN_RESTART_FILE_NAME <FILENAME>",&
             type_of_var=lchar_t,&
@@ -7152,12 +7154,12 @@ CONTAINS
        CALL print_wanniers(subsection, error)
 
        CALL cp_print_key_section_create(print_key,"iteration_info",&
-            description="Controls the printing of basic iteration information during the xas scf.", &
+            description="Controls the printing of basic iteration information during the XAS SCF.", &
             print_level=low_print_level,filename="__STD_OUT__",&
             error=error)
        CALL keyword_create(keyword, name="time_cumul",&
             description="If the printkey is activated switches the printing of timings"//&
-            " to cumulative (over the scf).",&
+            " to cumulative (over the SCF).",&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -7186,7 +7188,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"RESTART",&
-            description="Controls the dumping of MO restart file during the scf"//&
+            description="Controls the dumping of MO restart file during the SCF."//&
             "of a Core-Level-Spectroscopy calculation. For each new excited atom,"//&
             "one different restart file is dumped. These restart files should be"//&
             "employed only to restart the same type of CLS calculation, "//&
@@ -7489,7 +7491,7 @@ CONTAINS
             enum_c_vals=s2a("SCF_WFN","RESTART_WFN","RT_RESTART"),&
             enum_i_vals=(/use_scf_wfn,use_restart_wfn,use_rt_restart/),&
             enum_desc=s2a("An SCF run is performed to get the initial state.",&
-            "A wavefunction from a previous scf is propageted. Especially useful,"//&
+            "A wavefunction from a previous SCF is propagated. Especially useful,"//&
             " if electronic constraints or restraints are used in the previous calculation, "//&
             "since these do not work in the rtp scheme.",&
             "use the wavefunction of a real time propagation/ehrenfest run"),&
