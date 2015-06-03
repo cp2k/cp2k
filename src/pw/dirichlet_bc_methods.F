@@ -112,7 +112,7 @@ CONTAINS
     CASE (MIXED_BC, MIXED_PERIODIC_BC)
       IF (n_dbcs .EQ. 0) THEN 
          CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP, &
-                        "Dirichlet Boundary regions are not defined.", error)
+                        "No Dirichlet region is defined.", error)
       END IF
 
       ALLOCATE(dbcs(n_dbcs))

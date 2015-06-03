@@ -58,7 +58,7 @@ MODULE ps_implicit_types
      REAL(dp), DIMENSION(:,:), POINTER :: B   => NULL()
      REAL(dp), DIMENSION(:,:), POINTER :: Bt  => NULL()
      REAL(dp), DIMENSION(:), POINTER   :: v_D => NULL()
-     INTEGER, DIMENSION(:), POINTER    :: idx_3dto1d => NULL()
+     INTEGER, DIMENSION(:), POINTER    :: idx_1dto3d => NULL()
   END TYPE ps_implicit_type
 
   PUBLIC ps_implicit_type, ps_implicit_parameters
@@ -116,7 +116,7 @@ CONTAINS
        DEALLOCATE(implicit_env%QS)
        DEALLOCATE(implicit_env%Rinv)
        DEALLOCATE(implicit_env%v_D)
-       DEALLOCATE(implicit_env%idx_3dto1d)
+       DEALLOCATE(implicit_env%idx_1dto3d)
     
        CALL dielectric_release(implicit_env%dielectric,pw_pool,error)
 

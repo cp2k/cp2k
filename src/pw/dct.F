@@ -184,30 +184,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Finds the process ids for mpi_isend destiations and mpi_irecv sources
 !>   for expanding and shrinking a pw_type data
-!> 
-!> example: 3x4 process grid
-!> rs_dim1 = 3 -->  src_pos1 = [1  2; 3 -3; -2 -1]'
-!> rs_dim2 = 4 -->  src_pos2 = [1  2; 3  4; -4 -3; -2 -1]' 
-!> => (1,1) receives from (1,1) ; (1,2) ; (2,1) ; (2,2) | flipping status 0 0 0 0
-!>    (2,4) receives from (3,2) ; (3,1) ; (3,2) ; (3,1) | flipping status 2 2 4 4 
-!> and so on ...
-!> or equivalently 
-!> =>   0   receives from 0 ; 1 ; 4 ; 5 | flipping status 0 0 0 0 
-!>      7   receives from 9 ; 8 ; 9 ; 8 | flipping status 2 2 4 4
-!> schematically :
-!> ij : coordinates in a 2D process grid (starting from 1 just for demonstration) 
-!> () : to be flipped from left to right
-!> [] : to be flipped from up to down
-!> {} : to be rotated 180 degrees
-!>       11   12  |  13   14  | (14) (13) | (12) (11)
-!>       21   22  |  23   24  | (24) (23) | (22) (21)
-!>      ---------------------------------------------
-!>       31   32  |  33   34  | (34) (33) | (32) (31)
-!>      [31] [32] | [33] [34] | {34} {33} | {32} {31}
-!>      ---------------------------------------------
-!>      [21] [22] | [23] [24] | {24} {23} | {22} {21}
-!>      [11] [12] | [13] [14] | {14} {13} | {12} {11}
-!>
 !> \param pw_grid the original plane wave grid
 !> \param dests_expand list of the destination processes (pw_expand)
 !> \param srcs_expand list of the source processes (pw_expand)
@@ -241,6 +217,29 @@ CONTAINS
     INTEGER, DIMENSION(2, 4)                 :: srcs_coord
 
     CALL timeset(routineN,handle)
+
+! example: 3x4 process grid
+! rs_dim1 = 3 -->  src_pos1 = [1  2; 3 -3; -2 -1]'
+! rs_dim2 = 4 -->  src_pos2 = [1  2; 3  4; -4 -3; -2 -1]' 
+! => (1,1) receives from (1,1) ; (1,2) ; (2,1) ; (2,2) | flipping status 0 0 0 0
+!    (2,4) receives from (3,2) ; (3,1) ; (3,2) ; (3,1) | flipping status 2 2 4 4 
+! and so on ...
+! or equivalently 
+! =>   0   receives from 0 ; 1 ; 4 ; 5 | flipping status 0 0 0 0 
+!      7   receives from 9 ; 8 ; 9 ; 8 | flipping status 2 2 4 4
+! schematically :
+! ij : coordinates in a 2D process grid (starting from 1 just for demonstration) 
+! () : to be flipped from left to right
+! [] : to be flipped from up to down
+! {} : to be rotated 180 degrees
+!       11   12  |  13   14  | (14) (13) | (12) (11)
+!       21   22  |  23   24  | (24) (23) | (22) (21)
+!      ---------------------------------------------
+!       31   32  |  33   34  | (34) (33) | (32) (31)
+!      [31] [32] | [33] [34] | {34} {33} | {32} {31}
+!      ---------------------------------------------
+!      [21] [22] | [23] [24] | {24} {23} | {22} {21}
+!      [11] [12] | [13] [14] | {14} {13} | {12} {11}
 
     rs_group = pw_grid%para%rs_group
     rs_mpo = pw_grid%para%rs_mpo

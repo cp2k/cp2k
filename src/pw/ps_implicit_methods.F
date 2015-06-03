@@ -613,11 +613,11 @@ CONTAINS
     IF (data_size .NE. 0) THEN
        CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_old, 1, 0.0_dp, Btxlambda_old, 1)
     END IF
-    CALL convert_3dto1d(Btxlambda_old3D, Btxlambda_old, ps_implicit_env%idx_3dto1d, error)
+    CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D, error)
     res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
 ! evaluate \Delta^-1(res_old)
-       CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres_old, error)
+    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres_old, error)
 
     iter = 1
     DO
@@ -635,7 +635,7 @@ CONTAINS
 
 ! evaluate Q_S * \lambda + v_D - B * \bar{v}
        CALL DGEMV('N', n_tiles_tot, n_tiles_tot, 1.0_dp, QS, n_tiles_tot, lambda_old, 1, 0.0_dp, QSxlambda, 1)
-       v_bar1D(ps_implicit_env%idx_3dto1d) = RESHAPE(v_new%cr3d, (/data_size/))
+       v_bar1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
        CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_bar1D, 1, 0.0_dp, Bxv_bar, 1)
        CALL mp_sum(Bxv_bar, pw_grid%para%group)
 ! solve R [\lambda; \eta] = [Q_S * \lambda + v_D - B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
@@ -652,7 +652,7 @@ CONTAINS
        IF (data_size .NE. 0) THEN
           CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_new, 1, 0.0_dp, Btxlambda_new, 1)
        END IF
-       CALL convert_3dto1d(Btxlambda_new3D, Btxlambda_new, ps_implicit_env%idx_3dto1d, error)
+       CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_new, Btxlambda_new3D, error)
 
 ! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) + B^t * ( \lambda_old - \lambda_new )
        CALL pw_scale(QAinvxres_old, 1.0_dp/omega, error=error)
@@ -676,7 +676,7 @@ CONTAINS
 
 ! debugging
        IF (poisson_params%dbc_params%debug) THEN
-          v_new1D(ps_implicit_env%idx_3dto1d) = RESHAPE(v_new%cr3d, (/data_size/))
+          v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
           CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
           CALL mp_sum(Bxv_new, pw_grid%para%group)
           IF (outp_unit .GT. 0) THEN
@@ -888,7 +888,7 @@ CONTAINS
     IF (data_size .NE. 0) THEN
        CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_old, 1, 0.0_dp, Btxlambda_old, 1)
     END IF
-    CALL convert_3dto1d(Btxlambda_old3D, Btxlambda_old, ps_implicit_env%idx_3dto1d, error)
+    CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D, error)
     res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
 ! evaluate \Delta^-1(res_old)
@@ -916,7 +916,7 @@ CONTAINS
 
 ! evaluate Q_S * \lambda + v_D - B * \bar{v}
        CALL DGEMV('N', n_tiles_tot, n_tiles_tot, 1.0_dp, QS, n_tiles_tot, lambda_old, 1, 0.0_dp, QSxlambda, 1)
-       v_bar1D(ps_implicit_env%idx_3dto1d) = RESHAPE(v_new%cr3d, (/data_size/))
+       v_bar1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
        CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_bar1D, 1, 0.0_dp, Bxv_bar, 1)
        CALL mp_sum(Bxv_bar, pw_grid%para%group)
 ! solve R [\lambda; \eta] = [Q_S * \lambda + v_D - B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
@@ -933,7 +933,7 @@ CONTAINS
        IF (data_size .NE. 0) THEN
           CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_new, 1, 0.0_dp, Btxlambda_new, 1)
        END IF
-       CALL convert_3dto1d(Btxlambda_new3D, Btxlambda_new, ps_implicit_env%idx_3dto1d, error)
+       CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_new, Btxlambda_new3D, error)
 
 ! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) + B^t * ( \lambda_old - \lambda_new )
        CALL pw_scale(QAinvxres_old, 1.0_dp/omega, error=error)
@@ -958,7 +958,7 @@ CONTAINS
 
 ! debugging
        IF (poisson_params%dbc_params%debug) THEN
-          v_new1D(ps_implicit_env%idx_3dto1d) = RESHAPE(v_new%cr3d, (/data_size/))
+          v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
           CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
           CALL mp_sum(Bxv_new, pw_grid%para%group)
           IF (outp_unit .GT. 0) THEN
@@ -1138,12 +1138,12 @@ CONTAINS
     SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
     CASE (MIXED_BC)
 
-       ALLOCATE(ps_implicit_env%idx_3dto1d(data_size))
+       ALLOCATE(ps_implicit_env%idx_1dto3d(data_size))
        l = 1
        DO k = lb3, ub3
           DO j = lb2, ub2
              DO i = lb1, ub1
-                ps_implicit_env%idx_3dto1d(l) = (i - lb1 + 1) + &
+                ps_implicit_env%idx_1dto3d(l) = (i - lb1 + 1) + &
                                                 (j - lb2)*npts_local(1) + &
                                                 (k - lb3)*npts_local(1)*npts_local(2)
                 l = l + 1
@@ -1189,7 +1189,7 @@ CONTAINS
                 smooth_tile_npts = accurate_sum(pw_in%cr3d)
                 CALL mp_sum(smooth_tile_npts, pw_grid_orig%para%group)
                 CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts, error)     ! normalize tile_pw
-                ps_implicit_env%Bt(ps_implicit_env%idx_3dto1d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
+                ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
                 CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE, error=error)
                 CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
@@ -1198,7 +1198,7 @@ CONTAINS
                                                 dct_env%dests_shrink, dct_env%srcs_shrink, &
                                                 dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
                                                 adjust_local_bounds, pw_in, pw_out, error)
-                QAinvxBt(ps_implicit_env%idx_3dto1d, indx1+i-1) = - 1.0_dp * RESHAPE(pw_out%cr3d, (/data_size/))
+                QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = - 1.0_dp * RESHAPE(pw_out%cr3d, (/data_size/))
                 ps_implicit_env%v_D(indx1+i-1) = ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%v_D
 
                 CALL pw_pool_give_back_pw(pw_pool_orig, pw_out, error=error)
@@ -1210,7 +1210,7 @@ CONTAINS
 
                 tile_npts = ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
                 CALL pw_scale(pw_in, 1.0_dp / tile_npts, error)     ! normalize tile_pw
-                ps_implicit_env%Bt(ps_implicit_env%idx_3dto1d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
+                ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
                 CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE, error=error)
                 CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
@@ -1219,7 +1219,7 @@ CONTAINS
                                                 dct_env%dests_shrink, dct_env%srcs_shrink, &
                                                 dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
                                                 adjust_local_bounds, pw_in, pw_out, error)
-                QAinvxBt(ps_implicit_env%idx_3dto1d, indx1+i-1) = - 1.0_dp * RESHAPE(pw_out%cr3d, (/data_size/))
+                QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = - 1.0_dp * RESHAPE(pw_out%cr3d, (/data_size/))
                 ps_implicit_env%v_D(indx1+i-1) = ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%v_D
 
                 CALL pw_pool_give_back_pw(pw_pool_orig, pw_out, error=error)
@@ -1266,12 +1266,12 @@ CONTAINS
 
     CASE (MIXED_PERIODIC_BC)
 
-       ALLOCATE(ps_implicit_env%idx_3dto1d(data_size))
+       ALLOCATE(ps_implicit_env%idx_1dto3d(data_size))
        l = 1
        DO k = lb3, ub3
           DO j = lb2, ub2
              DO i = lb1, ub1
-                ps_implicit_env%idx_3dto1d(l) = (i - lb1 + 1) + &
+                ps_implicit_env%idx_1dto3d(l) = (i - lb1 + 1) + &
                                                 (j - lb2)*npts_local(1) + &
                                                 (k - lb3)*npts_local(1)*npts_local(2)
                 l = l + 1
@@ -1314,11 +1314,11 @@ CONTAINS
                 smooth_tile_npts = accurate_sum(pw_in%cr3d)
                 CALL mp_sum(smooth_tile_npts, pw_grid_orig%para%group)
                 CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts, error)     ! normalize tile_pw
-                ps_implicit_env%Bt(ps_implicit_env%idx_3dto1d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
+                ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
                 CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE, error=error)
                 CALL apply_inv_laplace_operator(pw_pool_orig, green, pw_in, pw_out, error)
-                QAinvxBt(ps_implicit_env%idx_3dto1d, indx1+i-1) = - 1.0_dp * RESHAPE(pw_out%cr3d, (/data_size/))
+                QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = - 1.0_dp * RESHAPE(pw_out%cr3d, (/data_size/))
                 ps_implicit_env%v_D(indx1+i-1) = ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%v_D
 
                 CALL pw_pool_give_back_pw(pw_pool_orig, pw_out, error=error)
@@ -1330,11 +1330,11 @@ CONTAINS
 
                 tile_npts = ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
                 CALL pw_scale(pw_in, 1.0_dp / tile_npts, error)     ! normalize tile_pw
-                ps_implicit_env%Bt(ps_implicit_env%idx_3dto1d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
+                ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
                 CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE, error=error)
                 CALL apply_inv_laplace_operator(pw_pool_orig, green, pw_in, pw_out, error)
-                QAinvxBt(ps_implicit_env%idx_3dto1d, indx1+i-1) = - 1.0_dp * RESHAPE(pw_out%cr3d, (/data_size/))
+                QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = - 1.0_dp * RESHAPE(pw_out%cr3d, (/data_size/))
                 ps_implicit_env%v_D(indx1+i-1) = ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%v_D
 
                 CALL pw_pool_give_back_pw(pw_pool_orig, pw_out, error=error)
@@ -1379,14 +1379,14 @@ CONTAINS
 
     CASE (PERIODIC_BC, NEUMANN_BC)
 
-       ALLOCATE(ps_implicit_env%idx_3dto1d(1))
+       ALLOCATE(ps_implicit_env%idx_1dto3d(1))
        ALLOCATE(ps_implicit_env%B (1, 1))
        ALLOCATE(ps_implicit_env%Bt(1, 1))
        ALLOCATE(ps_implicit_env%QS(1, 1))
        ALLOCATE(ps_implicit_env%Rinv(1, 1))
        ALLOCATE(ps_implicit_env%v_D(1))
 
-       ps_implicit_env%idx_3dto1d = 1
+       ps_implicit_env%idx_1dto3d = 1
        ps_implicit_env%B  = 0.0_dp
        ps_implicit_env%Bt = 0.0_dp
        ps_implicit_env%QS = 0.0_dp
@@ -2371,23 +2371,23 @@ CONTAINS
   END SUBROUTINE derive_fft
 
 ! *****************************************************************************
-!> \brief  converts a 3D array to a 1D array (contiguous layout)
-!> \param arr3d input 3D array
+!> \brief  converts a 1D array to a 3D array (contiguous layout)
+!> \param idx_1dto3d mapping of indices
 !> \param arr1d input 1D array
-!> \param idx_3dto1d mapping of indices
+!> \param arr3d input 3D array
 !> \param error cp2k error
 ! *****************************************************************************
-  SUBROUTINE convert_3dto1d(arr3d, arr1d, idx_3dto1d, error)
+  SUBROUTINE convert_1dto3d(idx_1dto3d, arr1d, arr3d, error)
 
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      POINTER                                :: idx_1dto3d
+    REAL(dp), ALLOCATABLE, DIMENSION(:), &
+      INTENT(IN)                             :: arr1d
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :), INTENT(INOUT)      :: arr3d
-    REAL(dp), ALLOCATABLE, DIMENSION(:), &
-      INTENT(INOUT)                          :: arr1d
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      POINTER                                :: idx_3dto1d
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_3dto1d', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_1dto3d', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, k, l, lb1, lb2, &
@@ -2404,15 +2404,15 @@ CONTAINS
     npts2 = ub2-lb2+1  
     npts3 = ub3-lb3+1
 
-    DO l = 1, SIZE(idx_3dto1d)
-       k = ((idx_3dto1d(l) - 1) / (npts1 * npts2)) + lb3
-       j = ((idx_3dto1d(l) - 1)  - (k - lb3) * npts1 * npts2) / npts1 + lb2
-       i = idx_3dto1d(l) - ((j - lb2) * npts1 + (k - lb3) * npts1 * npts2) + lb1 - 1
+    DO l = 1, SIZE(idx_1dto3d)
+       k = ((idx_1dto3d(l) - 1) / (npts1 * npts2)) + lb3
+       j = ((idx_1dto3d(l) - 1)  - (k - lb3) * npts1 * npts2) / npts1 + lb2
+       i = idx_1dto3d(l) - ((j - lb2) * npts1 + (k - lb3) * npts1 * npts2) + lb1 - 1
        arr3d(i,j,k) = arr1d(l)
     END DO
 
     CALL timestop(handle)
 
-  END SUBROUTINE convert_3dto1d
+  END SUBROUTINE convert_1dto3d
 
 END MODULE ps_implicit_methods

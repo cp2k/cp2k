@@ -106,7 +106,8 @@ MODULE qs_scf_post_gpw
                                              pw_scale,&
                                              pw_transfer,&
                                              pw_zero
-  USE pw_poisson_types,                ONLY: pw_poisson_type
+  USE pw_poisson_types,                ONLY: pw_poisson_implicit,&
+                                             pw_poisson_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_p_type,&
@@ -2289,7 +2290,6 @@ CONTAINS
       POINTER                                :: rho_atom_set
     TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(section_vals_type), POINTER         :: dft_section, &
-                                                dielectric_section, &
                                                 dirichlet_bc_section, input, &
                                                 print_key, xc_section
 
@@ -2789,8 +2789,9 @@ CONTAINS
        ! Write the dielectric constant into a cube file
        do_dielectric_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
                                   "DFT%PRINT%DIELECTRIC_CUBE",error=error),cp_p_file)
-       dielectric_section => section_vals_get_subs_vals(input,"DFT%POISSON%IMPLICIT%DIELECTRIC",error=error)
-       CALL section_vals_get(dielectric_section,explicit=has_dielectric,error=error)
+       has_dielectric = .FALSE.
+       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, error=error)
+       IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_dielectric = .TRUE.
 
        IF (has_dielectric .AND. do_dielectric_cube) THEN
           append_cube = section_get_lval(input,"DFT%PRINT%DIELECTRIC_CUBE%APPEND",error=error)
@@ -2800,7 +2801,6 @@ CONTAINS
           END IF
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIELECTRIC_CUBE",&
                extension=".cube", middle_name="DIELCTRIC_CONSTANT", file_position=my_pos_cube, error=error)
-          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, error=error)
           CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 

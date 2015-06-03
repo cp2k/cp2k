@@ -535,7 +535,7 @@ CONTAINS
           "Not enough points to define a cartesian space plane",error)
     ELSE IF ( ABS(ABS(SUM(AB/AC) - 3)) .LE. small_value ) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "Unable to define a cartesian space plane. reason: A, B, C are colinear.",error)
+          "Unable to define a cartesian space plane. reason: A, B, C are collinear.",error)
     ELSE
        plane%normal = vector_product(AB, AC)
        plane%unit_normal = plane%normal / SQRT(SUM(plane%normal**2))
@@ -603,7 +603,7 @@ CONTAINS
     ALLOCATE(plane%AB, plane%AC)
     CALL cs_segment_create(plane%AB, A, B, error)
     CALL cs_segment_create(plane%AC, A, C, error)
-! NB: the Housholder procedure is quite stable no need to check if the points are colinear
+! NB: the Housholder procedure is quite stable no need to check if the points are collinear
 ! or any two of them coincide
     plane%normal = n
     plane%unit_normal = plane%normal / SQRT(SUM(plane%normal**2))
@@ -860,12 +860,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief  generates an axis-aligned box in the 3D Cartesian space with vertices
-!>         labeled as:        6--------5
-!>                           /|       /|
-!>                          7-|------8 |
-!>                          | 1------|-4
-!>                          |/       |/
-!>                          2--------3
 !> \param box the box to be generated
 !> \param vertices vertices of the box
 !> \param error cp2k error
@@ -891,7 +885,14 @@ CONTAINS
     ALLOCATE(edge, face)
     box%vertices = vertices
 
-! faces taged in a way that vertices are counter-clockwise with respect to the outer unit normal to the face
+! vertices are labeled as:
+!                           6--------5
+!                          /|       /|
+!                         7-|------8 |
+!                         | 1------|-4
+!                         |/       |/
+!                         2--------3
+! faces are taged in a way that vertices are counter-clockwise with respect to the outer unit normal to the face
     CALL cs_face_create(face, vertices(:,2), vertices(:,1), vertices(:,4), 1432, error);   box%faces(1) = face
     CALL cs_face_create(face, vertices(:,1), vertices(:,6), vertices(:,5), 1654, error);   box%faces(2) = face
     CALL cs_face_create(face, vertices(:,2), vertices(:,7), vertices(:,6), 2761, error);   box%faces(3) = face
