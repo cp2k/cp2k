@@ -189,24 +189,24 @@ CONTAINS
 
        ! Centering keywords
        CALL keyword_create(keyword, name="CENTER",&
-            description="This keyword sets when the qm system is automatically "//&
+            description="This keyword sets when the QM system is automatically "//&
             "centered.  Default is EVERY_STEP.",&
             usage="center (EVERY_STEP|SETUP_ONLY|NEVER)",&
             enum_c_vals=s2a("EVERY_STEP","SETUP_ONLY","NEVER"),&
-            enum_desc=s2a("re-center every step",&
-                          "center at first step only", &
-                          "never center"),&
+            enum_desc=s2a("Re-center every step",&
+                          "Center at first step only", &
+                          "Never center"),&
             enum_i_vals=(/ do_qmmm_center_every_step, do_qmmm_center_setup_only, do_qmmm_center_never /),&
             default_i_val=do_qmmm_center_every_step, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CENTER_TYPE",&
-            description="How to do the centering",&
+            description="This keyword specifies how to do the QM system centering.",&
             usage="center_type (MAX_MINUS_MIN|PBC_AWARE_MAX_MINUS_MIN)",&
             enum_c_vals=s2a("MAX_MINUS_MIN","PBC_AWARE_MAX_MINUS_MIN"),&
-            enum_desc=s2a("center of box defined by maximum coordinate minus minimum coordinate",&
-                          "PBC-aware centering.  Useful  for &QMMM&FORCE_MIXING."),&
+            enum_desc=s2a("Center of box defined by maximum coordinate minus minimum coordinate",&
+                          "PBC-aware centering (useful for &QMMM&FORCE_MIXING)"),&
             enum_i_vals=(/ do_qmmm_center_max_minus_min, do_qmmm_center_pbc_aware /),&
             default_i_val=do_qmmm_center_max_minus_min, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -302,7 +302,7 @@ CONTAINS
     NULLIFY(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="MM_KIND",&
-         description="Information about the mm kind in the qm/mm scheme",&
+         description="Information about the MM kind in the QM/MM scheme",&
          n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
          error=error)
 
@@ -602,17 +602,17 @@ CONTAINS
     NULLIFY(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="QM_KIND",&
-         description="Information about the qm kind in the qm/mm scheme",&
+         description="Information about the QM kind in the QM/MM scheme",&
          n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
          error=error)
 
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-         description="The qm kind",usage="O",n_var=1,type_of_var=char_t,error=error)
+         description="The QM kind",usage="O",n_var=1,type_of_var=char_t,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="MM_INDEX",&
-         description="The indexes of the mm atoms that have this kind. This keyword can be"//&
+         description="The indexes of the MM atoms that have this kind. This keyword can be"//&
          " repeated several times (useful if you have to specify many indexes).",&
          usage="MM_INDEX 1 2",&
          n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
@@ -1107,6 +1107,9 @@ CONTAINS
             usage="LINK_TYPE char",&
             enum_c_vals=s2a( "IMOMM","GHO","PSEUDO"),&
             enum_i_vals=(/ do_qmmm_link_imomm, do_qmmm_link_gho, do_qmmm_link_pseudo/),&
+            enum_desc=s2a("Use Generalized Hybrid Orbital method",&
+                          "Use Integrated Molecular Orbital Molecular Mechanics method",&
+                          "Use a monovalent pseudo-potential"),&
             default_i_val=do_qmmm_link_imomm, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1461,7 +1464,7 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"GRID_INFORMATION",&
             description="Controls the printing of information regarding the PW grid structures"//&
-            " for PERIODIC qm/mm calculations.",&
+            " for PERIODIC QM/MM calculations.",&
             print_level=medium_print_level,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)

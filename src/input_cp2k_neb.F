@@ -110,12 +110,12 @@ CONTAINS
                             "D-NEB",&
                             "SM",&
                             "EB"),&
-            enum_desc=s2a( "Bisection NEB",&
-                           "Improved tangent NEB",&
-                           "Climbing Image NEB",&
-                           "Doubly NEB",&
+            enum_desc=s2a( "Bisection nudged elastic band",&
+                           "Improved tangent nudged elastic band",&
+                           "Climbing image nudged elastic band",&
+                           "Doubly nudged elastic band",&
                            "String Method",&
-                           "Elastic Band (Hamiltonian formulation)"),&
+                           "Elastic band (Hamiltonian formulation)"),&
             enum_i_vals=(/do_b_neb,do_it_neb,do_ci_neb,do_d_neb,do_sm,do_eb/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -351,8 +351,8 @@ CONTAINS
             default_i_val=band_diis_opt,&
             enum_c_vals=s2a("MD",&
                             "DIIS"),&
-            enum_desc=s2a( "Molecular Dynamics based Optimizer",&
-                           "Coupled Steepest Descent / DIIS "),&
+            enum_desc=s2a( "Molecular dynamics-based optimizer",&
+                           "Coupled steepest descent / direct inversion in the iterative subspace"),&
             enum_i_vals=(/band_md_opt,band_diis_opt/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -521,7 +521,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL cp_print_key_section_create(print_key,"diis_info",&
-            description="Controls the printing of diis info during a BAND run", &
+            description="Controls the printing of DIIS info during a BAND run", &
             print_level=high_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(subsection,print_key,error=error)

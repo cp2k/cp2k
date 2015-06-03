@@ -302,7 +302,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DO_NONBONDED",&
-            description="Controls the computation of all the real-sapce "//&
+            description="Controls the computation of all the real-space "//&
                         "(short-range) nonbonded interactions. This also "//&
                         "includes the real-space corrections for excluded "//&
                         "or scaled 1-2, 1-3 and 1-4 interactions. When set "//&
@@ -1035,7 +1035,7 @@ CONTAINS
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOM",&
-            description="Defines the atomic kind of the scf quadrupole.",&
+            description="Defines the atomic kind of the SCF quadrupole.",&
             usage="ATOM {KIND1}", required=.TRUE., type_of_var=char_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1082,7 +1082,7 @@ CONTAINS
        NULLIFY(subsection,keyword)
 
        CALL keyword_create(keyword, name="ATOM",&
-            description="Defines the atomic kind of the scf dipole.",&
+            description="Defines the atomic kind of the SCF dipole.",&
             usage="ATOM {KIND1}", required=.TRUE., type_of_var=char_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)

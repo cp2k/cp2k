@@ -111,7 +111,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_SCF",&
-            description="target accuracy for the scf convergence. Change of the total energy per electron",&
+            description="Target accuracy for the SCF convergence in terms of change of the total energy per electron.",&
             usage="EPS_SCF 1.e-6", default_r_val=1.e-7_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -439,7 +439,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="FILTER_FACTOR_SCALE",&
-            description="Allows for dynamic EPS_FILTER. Updates the filter factor every scf-newton "//&
+            description="Allows for dynamic EPS_FILTER. Updates the filter factor every SCF-Newton "//&
                         "step by FILTER_FACTOR=FILTER_FACTOR*FILTER_FACTOR_SCALE",&
             usage="FILTER_FACTOR_SCALE 0.5", default_r_val=1.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)

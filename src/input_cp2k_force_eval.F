@@ -231,14 +231,14 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DX",&
-            description="Parameter used for computing the derivative with the Ridders method.",&
+            description="Parameter used for computing the derivative with the Ridders' method.",&
             usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ERROR_LIMIT",&
             description="Checks that the error in computing the derivative is not larger than "//&
-            "the value set. In case prints a warning message.",&
+            "the value set; in case error is larger a warning message is printed.",&
             usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

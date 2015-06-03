@@ -77,6 +77,9 @@ CONTAINS
             n_var=1, repeats=.FALSE., variants=(/"EIP-MODEL"/), &
             enum_c_vals=s2a("BAZANT", "EDIP", "LENOSKY"), &
             enum_i_vals=(/use_bazant_eip, use_bazant_eip, use_lenosky_eip/), &
+            enum_desc=s2a("Bazant potentials",&
+                          "Environment-Dependent Interatomic Potential",&
+                          "Lenosky potentials"),&
             default_i_val=use_lenosky_eip, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)

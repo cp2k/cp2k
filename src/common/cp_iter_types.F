@@ -49,18 +49,18 @@ MODULE cp_iter_types
        "Iteration level for __ROOT__ (fictitious iteration level)                      ",&
        "Iteration level for an ENERGY/ENERGY_FORCE calculation.                        ",&
        "Iteration level for POWELL based optimization steps.                           ",&
-       "Iteration level for the SCF Steps.                                             ",&
-       "Iteration level for the X-Ray Absorption Spectroscopy (XAS) SCF Steps.         ",&
+       "Iteration level for the SCF steps.                                             ",&
+       "Iteration level for the X-Ray Absorption Spectroscopy (XAS) SCF steps.         ",&
        "Iteration level for the MD steps.                                              ",&
        "Iteration level for the METADYNAMICS steps (number of hills added).            ",&
        "Iteration level for the Geometry optimization steps.                           ",&
-       "Iteration level for the Rotational optimization steps in the Dimer Calculation.",&
+       "Iteration level for the Rotational optimization steps in the Dimer calculation.",&
        "Iteration level for the Cell optimization steps.                               ",&
-       "Iteration level for the Band Calculation Steps                                 ",&
+       "Iteration level for the BAND calculation steps                                 ",&
        "Iteration level for the Energy Perturbation (EP) linear solver                 ",&
        "Iteration level for the solution of the coefficients of the splines            ",&
        "Iteration level for the evaluation of the Replica Environment                  ",&
-       "Iteration level for the Basis Set Superposition Error (BSSE) Calculation       ",&
+       "Iteration level for the Basis Set Superposition Error (BSSE) calculation       ",&
        "Iteration level for the Shell-Core distances optimization steps                "/)
 
 ! *****************************************************************************
