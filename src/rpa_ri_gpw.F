@@ -2382,8 +2382,6 @@ MODULE rpa_ri_gpw
             CALL timeset(routineN//"_fit_zgemv_1",handle4)
             CALL zgemv('C',num_fit_points,num_var*2,one,mat_B_gw,num_fit_points,dLambda,1,&
                        zero,vec_b_gw,1)
-            vec_b_gw=vec_b_gw
-  
             CALL timestop(handle4)
   
             ! scale diagonal elements of a_mat
