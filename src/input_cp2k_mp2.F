@@ -763,10 +763,9 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="PRINT_GW_OUTPUT_FILE",&
-            description="If true, prints additional information on the quasiparticle energies to "//&
-                        "an external file.",&
-            usage="PRINT_GW_OUTPUT_FILE",&
+       CALL keyword_create(keyword, name="PRINT_GW_DETAILS",&
+            description="If true, prints additional information on the quasiparticle energies.",&
+            usage="PRINT_GW_DETAILS",&
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
             error=error)

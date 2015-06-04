@@ -104,6 +104,8 @@ MODULE mp2_types
   TYPE ri_g0w0_type
        INTEGER                  :: corr_mos_occ
        INTEGER                  :: corr_mos_virt
+       INTEGER                  :: corr_mos_occ_beta
+       INTEGER                  :: corr_mos_virt_beta
        REAL(KIND=dp)            :: scaling
        INTEGER                  :: num_poles
        REAL(KIND=dp)            :: omega_max_fit
@@ -115,8 +117,8 @@ MODULE mp2_types
        REAL(KIND=dp)            :: cutoff_rad_gw
        LOGICAL                  :: do_truncation
        INTEGER                  :: iter_ev_sc
-       LOGICAL                  :: hf_like_ev_start, print_gw_file
-       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) ::vec_Sigma_x_minus_vxc_gw
+       LOGICAL                  :: hf_like_ev_start, print_gw_details
+       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) ::vec_Sigma_x_minus_vxc_gw
   END TYPE
 
   TYPE ri_basis_opt

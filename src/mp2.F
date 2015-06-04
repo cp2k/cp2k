@@ -1232,9 +1232,10 @@ MODULE mp2
                                                 stat
     LOGICAL                                  :: do_hfx, failure
     REAL(KIND=dp)                            :: hfx_fraction, t1, t2
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_Sigma_x_minus_vxc_gw
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: vec_Sigma_x_minus_vxc_gw
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
+      POINTER                                :: matrix_ks, &
                                                 matrix_sigma_x_minus_vxc, &
                                                 rho_ao
     TYPE(cp_dbcsr_type)                      :: matrix_tmp, matrix_tmp_2, &
@@ -1255,7 +1256,6 @@ MODULE mp2
 
     CALL get_qs_env(qs_env,&
                     matrix_ks=matrix_ks,&
-                    matrix_ks_aux_fit=matrix_ks_aux_fit,&
                     rho=rho,&
                     input=input,&
                     dft_control=dft_control,&
@@ -1263,7 +1263,7 @@ MODULE mp2
                     ks_env=ks_env,&
                     error=error)
 
-    ! GW on top of HFX with ADMM is not working. Please converge an SCF with ADMM,
+    ! GW on top of HFX with ADMM is not working. Please, converge an SCF with ADMM,
     ! print the restart file, remove the ADMM section, add the RPA and GW section,
     ! set very lax SCF convergence parameters to converge the SCF in one step.
     IF(dft_control%do_admm) STOP "GW on top of ADMM is not implemented." 
@@ -1309,7 +1309,9 @@ MODULE mp2
       CALL cp_dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, -1.0_dp, 1.0_dp, error)
     END DO
 
-    CALL cp_dbcsr_set(matrix_ks(1)%matrix,0.0_dp,error=error)
+    DO ispin=1,dft_control%nspins
+      CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
+    END DO
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF",error=error)
 
@@ -1334,63 +1336,93 @@ MODULE mp2
 
     CALL deallocate_qs_energy(energy_dummy)
 
-    ! Transform matrix_sigma_x_minus_vxc to MO basis
-    CALL get_mo_set(mo_set=mos_mp2(1)%mo_set,&
-                    mo_coeff=mo_coeff,&
-                    nmo=nmo,&
-                    homo=homo,&
-                    nao=dimen)
-
     CALL cp_dbcsr_init (mo_coeff_b, error)
     CALL cp_dbcsr_desymmetrize(matrix_ks(1)%matrix,mo_coeff_b,error)
     CALL cp_dbcsr_set(mo_coeff_b, 0.0_dp, error)
-    CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,keep_sparsity=.TRUE.,&
-                          error=error)
 
-    CALL cp_dbcsr_init(matrix_tmp, error=error)
-    CALL cp_dbcsr_create(matrix_tmp,template=mo_coeff_b,error=error)
-    CALL cp_dbcsr_set(matrix_tmp, 0.0_dp, error)
+    ! Transform matrix_sigma_x_minus_vxc to MO basis
+    DO ispin=1,dft_control%nspins
 
-    CALL cp_dbcsr_init(matrix_tmp_2, error=error)
-    CALL cp_dbcsr_create(matrix_tmp_2,template=mo_coeff_b,error=error)
-    CALL cp_dbcsr_set(matrix_tmp_2, 0.0_dp, error)
+      CALL get_mo_set(mo_set=mos_mp2(ispin)%mo_set,&
+                      mo_coeff=mo_coeff,&
+                      nmo=nmo,&
+                      homo=homo,&
+                      nao=dimen)
 
-    gw_corr_lev_occ=mp2_env%ri_g0w0%corr_mos_occ
-    gw_corr_lev_virt=mp2_env%ri_g0w0%corr_mos_virt
-    ! if corrected occ/virt levels exceed the number of occ/virt levels, 
-    ! correct all occ/virt level energies
-    IF(gw_corr_lev_occ > homo)         gw_corr_lev_occ = homo
-    IF(gw_corr_lev_virt > dimen-homo)  gw_corr_lev_virt = dimen-homo
-    mp2_env%ri_g0w0%corr_mos_occ  = gw_corr_lev_occ
-    mp2_env%ri_g0w0%corr_mos_virt = gw_corr_lev_virt
+      IF(ispin==1) THEN 
+        ALLOCATE(vec_Sigma_x_minus_vxc_gw(nmo,dft_control%nspins),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        vec_Sigma_x_minus_vxc_gw=0.0_dp
+      END IF
+ 
+      CALL cp_dbcsr_set(mo_coeff_b, 0.0_dp, error)
+      CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b,keep_sparsity=.TRUE.,&
+                            error=error)
 
-    CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_sigma_x_minus_vxc(1)%matrix,&
-                           mo_coeff_b,0.0_dp,matrix_tmp,first_column=homo+1-gw_corr_lev_occ,&
-                           last_column=homo+gw_corr_lev_virt,error=error)
-    CALL cp_dbcsr_multiply('T','N',1.0_dp,mo_coeff_b,&
-                           matrix_tmp,0.0_dp,matrix_tmp_2,first_row=homo+1-gw_corr_lev_occ,&
-                           last_row=homo+gw_corr_lev_virt,error=error)
+      ! initialize matrix_tmp and matrix_tmp2
+      IF(ispin==1) THEN
+        CALL cp_dbcsr_init(matrix_tmp, error=error)
+        CALL cp_dbcsr_create(matrix_tmp,template=mo_coeff_b,error=error)
+        CALL cp_dbcsr_copy(matrix_tmp,mo_coeff_b,error=error)
+        CALL cp_dbcsr_set(matrix_tmp, 0.0_dp, error)
+    
+        CALL cp_dbcsr_init(matrix_tmp_2, error=error)
+        CALL cp_dbcsr_create(matrix_tmp_2,template=mo_coeff_b,error=error)
+        CALL cp_dbcsr_copy(matrix_tmp_2,mo_coeff_b,error=error)
+        CALL cp_dbcsr_set(matrix_tmp_2, 0.0_dp, error)
+      END IF
+ 
+      gw_corr_lev_occ=mp2_env%ri_g0w0%corr_mos_occ
+      gw_corr_lev_virt=mp2_env%ri_g0w0%corr_mos_virt
+      ! if corrected occ/virt levels exceed the number of occ/virt levels, 
+      ! correct all occ/virt level energies
+      IF(gw_corr_lev_occ > homo)         gw_corr_lev_occ = homo
+      IF(gw_corr_lev_virt > dimen-homo)  gw_corr_lev_virt = dimen-homo
+      IF(ispin==1) THEN
+        mp2_env%ri_g0w0%corr_mos_occ  = gw_corr_lev_occ
+        mp2_env%ri_g0w0%corr_mos_virt = gw_corr_lev_virt
+      ELSE IF(ispin==2) THEN
+        ! ensure that the total number of corrected MOs is the same for alpha and beta, important 
+        ! for parallelization
+        IF(mp2_env%ri_g0w0%corr_mos_occ + mp2_env%ri_g0w0%corr_mos_virt /= &
+           gw_corr_lev_occ + gw_corr_lev_virt) THEN
+           gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_occ + mp2_env%ri_g0w0%corr_mos_virt - gw_corr_lev_occ
+        END IF
+        mp2_env%ri_g0w0%corr_mos_occ_beta  = gw_corr_lev_occ
+        mp2_env%ri_g0w0%corr_mos_virt_beta = gw_corr_lev_virt
 
-    ALLOCATE(vec_Sigma_x_minus_vxc_gw(nmo),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    vec_Sigma_x_minus_vxc_gw=0.0_dp
+      END IF
 
-    CALL cp_dbcsr_get_diag(matrix_tmp_2,vec_Sigma_x_minus_vxc_gw,error=error)
-   
+      CALL cp_dbcsr_multiply('N','N',1.0_dp,matrix_sigma_x_minus_vxc(ispin)%matrix,&
+                             mo_coeff_b,0.0_dp,matrix_tmp,first_column=homo+1-gw_corr_lev_occ,&
+                             last_column=homo+gw_corr_lev_virt,error=error)
+
+      CALL cp_dbcsr_multiply('T','N',1.0_dp,mo_coeff_b,&
+                             matrix_tmp,0.0_dp,matrix_tmp_2,first_row=homo+1-gw_corr_lev_occ,&
+                             last_row=homo+gw_corr_lev_virt,error=error)
+
+      CALL cp_dbcsr_get_diag(matrix_tmp_2,vec_Sigma_x_minus_vxc_gw(:,ispin),error=error)
+
+      CALL cp_dbcsr_set(matrix_tmp, 0.0_dp, error)
+      CALL cp_dbcsr_set(matrix_tmp_2, 0.0_dp, error)
+
+    END DO
+
     CALL mp_sum(vec_Sigma_x_minus_vxc_gw,para_env%group)
 
     CALL cp_dbcsr_release(mo_coeff_b,error)
     CALL cp_dbcsr_release(matrix_tmp,error)
     CALL cp_dbcsr_release(matrix_tmp_2,error)
+
     DO ispin=1,SIZE(matrix_ks)
       CALL cp_dbcsr_release_p(matrix_sigma_x_minus_vxc(ispin)%matrix,error=error)
     END DO
 
-    ALLOCATE(mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(nmo),STAT=stat)
+    ALLOCATE(mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(nmo,dft_control%nspins),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! store vec_Sigma_x_minus_vxc_gw in the mp2_environment
-    mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:) = vec_Sigma_x_minus_vxc_gw(:)
+    mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,:) = vec_Sigma_x_minus_vxc_gw(:,:)
 
     ! clean up
     DEALLOCATE(matrix_sigma_x_minus_vxc, vec_Sigma_x_minus_vxc_gw)

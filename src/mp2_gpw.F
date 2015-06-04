@@ -162,10 +162,10 @@ MODULE mp2_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER :: blacs_grid_layout, color_sub, comm_sub, dimen, dimen_RI, &
-      gw_corr_lev_occ, gw_corr_lev_virt, handle, homo, homo_beta, i, &
-      i_multigrid, local_unit_nr, my_group_L_end, my_group_L_size, &
-      my_group_L_start, n_multigrid, natom, nelectron, nelectron_beta, nkind, &
-      nmo, nspins, stat
+      gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, &
+      gw_corr_lev_virt_beta, handle, homo, homo_beta, i, i_multigrid, &
+      local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, &
+      n_multigrid, natom, nelectron, nelectron_beta, nkind, nmo, nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_all, &
       ends_B_virtual, ends_B_virtual_beta, sizes_array, sizes_B_all, &
       sizes_B_virtual, sizes_B_virtual_beta, starts_array, starts_B_all, &
@@ -182,7 +182,8 @@ MODULE mp2_gpw
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: e_cutoff_old, Eigenval, &
                                                 Eigenval_beta
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: BIb_C, BIb_C_beta, BIb_C_gw
+      DIMENSION(:, :, :)                     :: BIb_C, BIb_C_beta, BIb_C_gw, &
+                                                BIb_C_gw_beta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -234,11 +235,6 @@ MODULE mp2_gpw
     ! check if we want to do ri-sos-laplace-mp2
     my_do_ri_sos_laplace_mp2=.FALSE.
     IF(PRESENT(do_ri_sos_laplace_mp2)) my_do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2
-
-    ! check if we want to do ri-g0w0 on top of ri-rpa
-    my_do_gw=mp2_env%ri_rpa%do_ri_g0w0
-    gw_corr_lev_occ=mp2_env%ri_g0w0%corr_mos_occ
-    gw_corr_lev_virt=mp2_env%ri_g0w0%corr_mos_virt
 
     ! ... setup needed to be able to qs_integrate in a subgroup.
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
@@ -379,6 +375,11 @@ MODULE mp2_gpw
     CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix,sab_orb_sub,error_sub)
     DEALLOCATE(row_blk_sizes)
 
+    ! check if we want to do ri-g0w0 on top of ri-rpa
+    my_do_gw=mp2_env%ri_rpa%do_ri_g0w0
+    gw_corr_lev_occ=mp2_env%ri_g0w0%corr_mos_occ
+    gw_corr_lev_virt=mp2_env%ri_g0w0%corr_mos_virt
+
     ! and the array of mos
     ALLOCATE(Eigenval(dimen),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -402,9 +403,12 @@ MODULE mp2_gpw
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       Eigenval_beta(:)=mo_eigenvalues(:)
 
+      gw_corr_lev_occ_beta=mp2_env%ri_g0w0%corr_mos_occ_beta
+      gw_corr_lev_virt_beta=mp2_env%ri_g0w0%corr_mos_virt_beta
+
       CALL replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff_beta,dimen,homo_beta,mat_munu,&
                                      mo_coeff_o_beta,mo_coeff_v_beta,mo_coeff_all_beta,mo_coeff_gw_beta,&
-                                     my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,blacs_env_sub,&
+                                     my_do_gw,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,blacs_env_sub,&
                                      unit_nr,error,error_sub)
     END IF
 
@@ -476,7 +480,7 @@ MODULE mp2_gpw
                                    mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_forces,error,blacs_env_sub,my_do_gw,&
                                    starts_B_all,sizes_B_all,ends_B_all,gw_corr_lev_occ,gw_corr_lev_virt,&
                                    mp2_env%ri_g0w0%cutoff_rad_gw,mp2_env%ri_g0w0%do_truncation,error_sub,&
-                                   BIb_C_beta,ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta,&
+                                   BIb_C_beta,BIb_C_gw_beta,ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta,&
                                    homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,mo_coeff_all_beta,mo_coeff_gw_beta)
       ELSE
         ! closed shell case (RI)
@@ -602,20 +606,20 @@ MODULE mp2_gpw
     IF(my_do_ri_rpa.OR.my_do_ri_sos_laplace_mp2) THEN
       ! RI-RPA
       IF(nspins==2) THEN
-        CALL rpa_ri_compute_en(Emp2,mp2_env,qs_env,BIb_C,BIb_C_gw,para_env,para_env_sub,color_sub,&
+        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,BIb_C_gw,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,ends_B_all,sizes_array,sizes_B_virtual,sizes_B_all,&
                                starts_array,starts_B_virtual,starts_B_all,&
                                Eigenval,nmo,homo,dimen_RI,gw_corr_lev_occ,gw_corr_lev_virt,&
-                               unit_nr,mo_coeff_gw,error,error_sub,my_do_ri_sos_laplace_mp2,my_do_gw,&
+                               unit_nr,error,error_sub,my_do_ri_sos_laplace_mp2,my_do_gw,&
                                BIb_C_beta,homo_beta,Eigenval_beta,&
                                ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta,&
-                               mo_coeff_gw_beta)
+                               BIb_C_gw_beta,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta)
       ELSE
-        CALL rpa_ri_compute_en(Emp2,mp2_env,qs_env,BIb_C,BIb_C_gw,para_env,para_env_sub,color_sub,&
+        CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,BIb_C_gw,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,ends_B_all,sizes_array,sizes_B_virtual,sizes_B_all,&
                                starts_array,starts_B_virtual,starts_B_all,&
                                Eigenval,nmo,homo,dimen_RI,gw_corr_lev_occ,gw_corr_lev_virt,&
-                               unit_nr,mo_coeff_gw,error,error_sub,my_do_ri_sos_laplace_mp2,my_do_gw)
+                               unit_nr,error,error_sub,my_do_ri_sos_laplace_mp2,my_do_gw)
       END IF
     ELSE
       IF(my_do_ri_mp2) THEN
@@ -633,7 +637,6 @@ MODULE mp2_gpw
                                      sizes_B_virtual_beta,starts_array,starts_B_virtual_beta,&
                                      Eigenval_beta,nmo,homo_beta,dimen_RI,unit_nr,calc_forces,calc_ex,error,error_sub,&
                                      open_shell_SS=.TRUE.)
-
 
           ! alpha-beta case
           CALL mp2_ri_gpw_compute_en(Emp2_d_AB,Emp2_AB,Emp2_d2_AB,BIb_C,mp2_env,para_env,para_env_sub,color_sub,&
@@ -1822,29 +1825,27 @@ MODULE mp2_gpw
     Cvirt(1:my_mu_size,1:virtual)=C(1:my_mu_size,homo+1:dimen)
 
     ! create and fill mo_coeff_o, mo_coeff_v and mo_coeff_all
-    CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_o,"mo_coeff_o",Cocc,&
-                                dimen,&
+    CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_o,Cocc,&
                                 homo,blk,row,col,row_size,col_size,row_offset,&
                                 col_offset,i_global,j_global,my_mu_start,my_mu_end,&
                                 mat_munu,iter,&
                                 data_block,ends_array,proc_map, &
                                 sizes_array,starts_array,error,error_sub)
 
-    CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_v,"mo_coeff_v",Cvirt,&
-                                dimen,&
+    CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_v,Cvirt,&
                                 virtual,blk,row,col,row_size,col_size,row_offset,&
                                 col_offset,i_global,j_global,my_mu_start,my_mu_end,&
                                 mat_munu,iter,&
                                 data_block,ends_array,proc_map, &
                                 sizes_array,starts_array,error,error_sub)
     IF (my_do_gw) THEN
+
       ! also cut levels homo-gw_corr_lev_occ+1, ..., lumo+gw_corr_lev_virt-1 of C
       ALLOCATE(Cgw(my_mu_size,gw_corr_lev_occ+gw_corr_lev_virt),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       Cgw(1:my_mu_size,1:(gw_corr_lev_occ+gw_corr_lev_virt))=&
                              C(1:my_mu_size,homo-gw_corr_lev_occ+1:homo+gw_corr_lev_virt)
-      CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_gw,"mo_coeff_all",Cgw,&
-                                  dimen,&
+      CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_gw,Cgw,&
                                   gw_corr_lev_occ+gw_corr_lev_virt,&
                                   blk,row,col,row_size,col_size,row_offset,&
                                   col_offset,i_global,j_global,my_mu_start,my_mu_end,&
@@ -1852,8 +1853,7 @@ MODULE mp2_gpw
                                   data_block,ends_array,proc_map, &
                                   sizes_array,starts_array,error,error_sub)
       ! all levels
-      CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_all,"mo_coeff_all",C,&
-                                  dimen,&
+      CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_all,C,&
                                   dimen,blk,row,col,row_size,col_size,row_offset,&
                                   col_offset,i_global,j_global,my_mu_start,my_mu_end,&
                                   mat_munu,iter,&
@@ -1872,7 +1872,7 @@ MODULE mp2_gpw
 
     CALL timestop(handle)
 
-  END SUBROUTINE
+  END SUBROUTINE replicate_mat_to_subgroup
 
 ! *****************************************************************************
 !> \brief ...
@@ -1978,9 +1978,7 @@ MODULE mp2_gpw
 !> \param mp2_env ...
 !> \param para_env_sub ...
 !> \param mo_coeff_to_build ...
-!> \param mo_coeff_name ...
 !> \param Cread ...
-!> \param dimen ...
 !> \param number_of_level ...
 !> \param blk ...
 !> \param row ...
@@ -2004,8 +2002,7 @@ MODULE mp2_gpw
 !> \param error_sub ...
 !> \author Jan Wilhelm
 ! *****************************************************************************
-  SUBROUTINE build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_to_build,mo_coeff_name,Cread,&
-                                    dimen,&
+  SUBROUTINE build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_to_build,Cread,&
                                     number_of_level,blk,row,col,row_size,col_size,row_offset,&
                                     col_offset,i_global,j_global,my_mu_start,my_mu_end,&
                                     mat_munu,iter,&
@@ -2014,10 +2011,9 @@ MODULE mp2_gpw
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_to_build
-    CHARACTER(LEN=*)                         :: mo_coeff_name
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Cread
-    INTEGER :: dimen, number_of_level, blk, row, col, row_size, col_size, &
+    INTEGER :: number_of_level, blk, row, col, row_size, col_size, &
       row_offset, col_offset, i_global, j_global, my_mu_start, my_mu_end
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
     TYPE(cp_dbcsr_iterator)                  :: iter

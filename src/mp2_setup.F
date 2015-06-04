@@ -134,8 +134,8 @@ CONTAINS
                               i_val=mp2_env%ri_g0w0%iter_ev_sc, error=error)
     CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%HF_LIKE_EV_START",&
                               l_val=mp2_env%ri_g0w0%hf_like_ev_start, error=error)
-    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%PRINT_GW_OUTPUT_FILE",&
-                              l_val=mp2_env%ri_g0w0%print_gw_file, error=error)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%PRINT_GW_DETAILS",&
+                              l_val=mp2_env%ri_g0w0%print_gw_details, error=error)
 
 
     CALL section_vals_val_get(mp2_section,"RI_LAPLACE%QUADRATURE_POINTS",&
