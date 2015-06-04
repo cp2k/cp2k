@@ -41,20 +41,15 @@ MODULE rt_propagator_init
   USE kinds,                           ONLY: dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE rt_make_propagators,             ONLY: compute_exponential,&
                                              compute_exponential_sparse,&
                                              propagate_arnoldi
   USE rt_matrix_exp,                   ONLY: get_nsquare_norder
   USE rt_propagation_methods,          ONLY: calc_SinvH,&
-                                             calc_update_rho,&
-                                             calc_update_rho_sparse,&
                                              put_data_to_history,&
                                              s_matrices_create
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
-  USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -66,7 +61,6 @@ MODULE rt_propagator_init
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagator_init'
 
   PUBLIC :: init_propagators,&
-            init_emd_propagators,&
             rt_initialize_rho_from_ks
 
 
@@ -448,38 +442,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE backtransform_matrix
-
-! *****************************************************************************
-!> \brief computs all matrices needed to initialize emd (S_derivs, SinvH,
-!>        SinvB and forces)
-!> \param qs_env ...
-!> \param error ...
-!> \author Florian Schiffmann (02.09)
-! *****************************************************************************
-
-  SUBROUTINE init_emd_propagators(qs_env,error)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_emd_propagators', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-
-       IF (qs_env%rtp%linear_scaling) THEN
-          CALL calc_update_rho_sparse(qs_env,error=error)
-       ELSE
-          CALL calc_update_rho(qs_env,error)
-       ENDIF
-       CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,error=error)
-       !derivatives of the potential
-       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
-       !derivativs of the overlap needed for EMD
-       CALL calc_S_derivs(qs_env,error)
-       ! a bit hidden, but computes SinvH and SinvB (calc_SinvH for CN,EM and ARNOLDI)
-       ! make_etrs_exp in case of ETRS in combination with TAYLOR and PADE
-       CALL init_propagators(qs_env,error)
-   END SUBROUTINE init_emd_propagators
 
 
 ! *****************************************************************************

@@ -63,7 +63,8 @@ MODULE rt_propagation
                                              rt_prop_create,&
                                              rt_prop_type,&
                                              rtp_history_create
-  USE rt_propagation_utils,            ONLY: get_restart_wfn
+  USE rt_propagation_utils,            ONLY: calc_S_derivs,&
+                                             get_restart_wfn
   USE rt_propagator_init,              ONLY: init_propagators,&
                                              rt_initialize_rho_from_ks
   USE timings,                         ONLY: timeset,&
@@ -98,12 +99,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: aspc_order
-    INTEGER, DIMENSION(2)                    :: nelectron_spin
     LOGICAL                                  :: failure
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
@@ -115,7 +114,7 @@ CONTAINS
     NULLIFY(qs_env,rtp_control,dft_control)
 
     CALL force_env_get(force_env=force_env,qs_env=qs_env,globenv=globenv,error=error)
-    CALL get_qs_env(qs_env, dft_control=dft_control, error=error)
+    CALL get_qs_env(qs_env, dft_control=dft_control,energy=energy, error=error)
     rtp_control=>dft_control%rtp_control
 
 
@@ -152,28 +151,31 @@ CONTAINS
     IF(rtp%do_hfx)&
        CALL rtp_hfx_rebuild(qs_env,error)
 
-    IF(qs_env%rtp%linear_scaling.AND.rtp_control%initial_wfn==use_scf_wfn) THEN
-       CALL get_qs_env(qs_env,&
-                       matrix_ks=matrix_ks,&
-                       matrix_s=matrix_s,&
-                       nelectron_spin=nelectron_spin,&
-                       error=error)
-       CALL rt_initialize_rho_from_ks(rtp,matrix_ks,matrix_s,nelectron_spin,rtp_control%orthonormal,error=error)
-       CALL calc_update_rho_sparse(qs_env,error)
-    ENDIF
-
+    CALL init_propagation_run(qs_env,error)
+    IF(.NOT.rtp_control%fixed_ions) THEN
+       !derivatives of the potential
+       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
+       !derivativs of the overlap needed for EMD
+       CALL calc_S_derivs(qs_env,error)
+       ! a bit hidden, but computes SinvH and SinvB (calc_SinvH for CN,EM and ARNOLDI)
+       ! make_etrs_exp in case of ETRS in combination with TAYLOR and PADE
+    END IF
+    CALL init_propagators(qs_env,error)
     IF(rtp_control%fixed_ions) THEN
-       CALL init_propagation_run(qs_env,error)
        CALL run_propagation(qs_env,force_env,globenv,error)
     ELSE
-       CALL init_ehrenfest_md(force_env,qs_env,error)
+       rtp_control%initial_step=.TRUE.
+       CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
+            error=error)
+       rtp_control%initial_step=.FALSE.
+       rtp%energy_old=energy%total
     END IF
 
 
   END SUBROUTINE rt_prop_setup
 
 ! *****************************************************************************
-!> \brief calculates the matrices needed in the first step of RTP
+!> \brief calculates the matrices needed in the first step of EMD/RTP
 !> \param qs_env ...
 !> \param error ...
 !> \author Florian Schiffmann (02.09)
@@ -186,8 +188,9 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
 
     INTEGER                                  :: i
+    INTEGER, DIMENSION(2)                    :: nelectron_spin
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -229,74 +232,20 @@ CONTAINS
           CALL cp_fm_to_fm(mos_old(i)%matrix,mos_new(i)%matrix,error)
        END DO
        CALL calc_update_rho(qs_env,error)
+    ELSE
+       IF(qs_env%rtp%linear_scaling.AND.rtp_control%initial_wfn==use_scf_wfn) THEN
+          CALL get_qs_env(qs_env,&
+                          matrix_ks=matrix_ks,&
+                          nelectron_spin=nelectron_spin,&
+                          error=error)
+          CALL rt_initialize_rho_from_ks(rtp,matrix_ks,matrix_s,nelectron_spin,rtp_control%orthonormal,error=error)
+       ENDIF
+       CALL calc_update_rho_sparse(qs_env,error)
     END IF
 
     CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
 
-    CALL init_propagators(qs_env,error)
-
   END SUBROUTINE init_propagation_run
-
-! *****************************************************************************
-!> \brief calculates the matrices needed in the first step of EMD
-!> \param force_env ...
-!> \param qs_env ...
-!> \param error ...
-!> \author Florian Schiffmann (02.09)
-! *****************************************************************************
-
-  SUBROUTINE init_ehrenfest_md(force_env,qs_env,error)
-
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
-
-    INTEGER                                  :: i
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mos_new, mos_old
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(rtp_control_type), POINTER          :: rtp_control
-
-    NULLIFY(dft_control)
-
-     CALL get_qs_env(qs_env,&
-                     mos=mos,&
-                     rtp=rtp,&
-                     energy=energy,&
-                     dft_control=dft_control,&
-                     error=error)
-     rtp_control=>dft_control%rtp_control
-
-     IF(.NOT.rtp%linear_scaling) THEN 
-        CALL get_rtp(rtp=rtp,mos_old=mos_old,mos_new=mos_new,error=error)
-
-        IF(rtp_control%initial_wfn==use_scf_wfn)THEN
-           DO i=1,SIZE(mos)
-               CALL cp_fm_to_fm(mos(i)%mo_set%mo_coeff,mos_old(2*i-1)%matrix,error)
-               CALL cp_fm_set_all(mos_old(2*i)%matrix,zero,zero,error)
-           END DO
-        END IF
-
-        DO i=1,SIZE(mos_old)
-           CALL cp_fm_to_fm(mos_old(i)%matrix,mos_new(i)%matrix,error)
-        END DO
-     ENDIF
-
-     rtp_control%initial_step=.TRUE.
-     CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
-          error=error)
-
-     rtp_control%initial_step=.FALSE.
-     rtp%energy_old=energy%total
-
-
-  END SUBROUTINE init_ehrenfest_md
 
 ! *****************************************************************************
 !> \brief performes the real RTP run, gets information from MD section

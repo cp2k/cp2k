@@ -119,8 +119,7 @@ MODULE force_env_methods
                                              apply_qmmm_wrap,&
                                              qmmm_force_mixing_active
   USE qs_energy,                       ONLY: qs_energies
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_env_retain,&
+  USE qs_environment_types,            ONLY: qs_env_retain,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force,                        ONLY: qs_forces
@@ -244,7 +243,6 @@ CONTAINS
              ELSE
                 CALL qs_forces(force_env%qs_env, error=error)
              END IF
-             CALL get_qs_env(qs_env=force_env%qs_env,error=error)
           CASE (use_eip_force)
              IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
                 CALL eip_lenosky(force_env%eip_env, error=error)

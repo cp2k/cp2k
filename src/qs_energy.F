@@ -32,7 +32,6 @@ MODULE qs_energy
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE rt_propagation_types,            ONLY: rt_prop_type
   USE rt_propagation_utils,            ONLY: calc_S_derivs
-  USE rt_propagator_init,              ONLY: init_emd_propagators
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -185,11 +184,9 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, error=error)
 
     rtp_control=>dft_control%rtp_control
-    eps_ener=rtp_control%eps_ener
-    aspc_order=rtp_control%aspc_order
-    IF(rtp_control%initial_step)THEN
-       CALL init_emd_propagators(qs_env,error=error)
-    ELSE
+    IF(.NOT.rtp_control%initial_step)THEN
+       eps_ener=rtp_control%eps_ener
+       aspc_order=rtp_control%aspc_order
        IF(qs_env%rtp%iter==1)THEN
           CALL qs_energies_init(qs_env, .FALSE. , error=error)
           CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
