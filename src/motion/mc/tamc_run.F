@@ -44,10 +44,14 @@ MODULE tamc_run
   USE free_energy_types,               ONLY: fe_env_create,&
                                              free_energy_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: &
-       ehrenfest, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
-       nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, npt_f_ensemble, &
-       npt_i_ensemble, reftraj_ensemble
+  USE input_constants,                 ONLY: langevin_ensemble,&
+                                             npe_f_ensemble,&
+                                             npe_i_ensemble,&
+                                             nph_uniaxial_damped_ensemble,&
+                                             nph_uniaxial_ensemble,&
+                                             npt_f_ensemble,&
+                                             npt_i_ensemble,&
+                                             reftraj_ensemble
   USE input_cp2k_check,                ONLY: remove_restart_info
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get,&
@@ -112,9 +116,6 @@ MODULE tamc_run
                                              reftraj_type,&
                                              release_reftraj
   USE reftraj_util,                    ONLY: initialize_reftraj
-  USE rt_propagation,                  ONLY: rt_prop_setup,&
-                                             rt_write_input_restart
-  USE rt_propagation_output,           ONLY: rt_prop_output
   USE simpar_methods,                  ONLY: read_md_section
   USE simpar_types,                    ONLY: create_simpar_type,&
                                              release_simpar_type,&
@@ -170,8 +171,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages,error)
     INTEGER :: handle, i, initialStep, iprint, isos, istep, j, md_stride, &
       nmccycles, output_unit, rand2skip, run_type_id
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: check, ehrenfest_md, &
-                                                explicit, failure, &
+    LOGICAL                                  :: check, explicit, failure, &
                                                 my_rm_restart_info, save_mem, &
                                                 should_stop
     REAL(KIND=dp)                            :: auxRandom, inittime, rval, &
@@ -243,7 +243,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages,error)
     CALL section_vals_val_get(global_section,"SAVE_MEM",l_val=save_mem,error=error)
 
     CALL section_vals_val_get(global_section,"RUN_TYPE", i_val=run_type_id,error=error)
-    IF(run_type_id==ehrenfest) CALL set_md_env(md_env, ehrenfest_md=.TRUE., error=error)
 
     CALL create_simpar_type(simpar, error)
     force_env_section => force_env%force_env_section
@@ -277,14 +276,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages,error)
 
     CALL set_md_env(md_env, thermostats=thermostats, barostat=barostat, thermal_regions=thermal_regions,error=error)
 
-    CALL get_md_env(md_env, ehrenfest_md=ehrenfest_md, error=error)
-
-    !If requested set up the REFTRAJ run
-    IF(simpar%ensemble == reftraj_ensemble .AND. ehrenfest_md)&
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "Ehrenfest MD does not support reftraj ensemble "//&
-                     CPSourceFileRef,&
-                     error,failure)
     IF(simpar%ensemble == reftraj_ensemble) THEN
         reftraj_section => section_vals_get_subs_vals(md_section,"REFTRAJ",error=error)
         CALL create_reftraj(reftraj, reftraj_section, para_env, error=error)
@@ -451,16 +442,12 @@ SUBROUTINE qs_tamc(force_env, globenv,averages,error)
           CALL section_vals_remove_values(work_section, error)
        END IF
 
-       IF(ehrenfest_md)THEN
-          CALL rt_prop_setup(force_env,error)
-          force_env%qs_env%rtp%dt=simpar%dt
-       ELSE
-!         CALL force_env_calc_energy_force (force_env, calc_force=.TRUE., error=error)
-         meta_env_saved=> force_env%meta_env
-         NULLIFY(force_env%meta_env)
-         CALL force_env_calc_energy_force (force_env, calc_force=.FALSE., error=error)
-         force_env%meta_env=>meta_env_saved
-       END IF
+
+!      CALL force_env_calc_energy_force (force_env, calc_force=.TRUE., error=error)
+       meta_env_saved=> force_env%meta_env
+       NULLIFY(force_env%meta_env)
+       CALL force_env_calc_energy_force (force_env, calc_force=.FALSE., error=error)
+       force_env%meta_env=>meta_env_saved
 
        IF(ASSOCIATED(force_env%qs_env))THEN
 !           force_env%qs_env%sim_time=time
@@ -603,8 +590,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages,error)
           force_env%meta_env%time=force_env%qs_env%sim_time
        END IF
 
-       IF(ehrenfest_md)force_env%qs_env%rtp%istep=istep
-
        CALL cp_iterate(logger%iter_info,last=(istep==force_env%meta_env%TAMCSteps),iter_nr=itimes,error=error)
        ! Open possible Shake output units
        simpar%info_constraint = cp_print_key_unit_nr(logger,constraint_section,"CONSTRAINT_INFO",&
@@ -646,10 +631,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages,error)
        IF (should_stop) THEN
           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes,error=error)
 !           CALL md_output(md_env,md_section,force_env%root_section,should_stop,error=error)
-          IF(ehrenfest_md)THEN
-             CALL rt_prop_output(force_env%qs_env,ehrenfest,error=error)
-             CALL rt_write_input_restart(md_env,force_env,error)
-          END IF
           EXIT
        END IF
 
