@@ -53,6 +53,7 @@ MODULE rt_propagation_methods
   USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: binomial
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
@@ -155,6 +156,7 @@ CONTAINS
        ENDIF
        CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
     END IF
+    rtp%converged=.FALSE.
 
     IF(rtp%linear_scaling) THEN
        ! keep temporary copy of the starting density matrix to check for convergence  
@@ -291,11 +293,12 @@ CONTAINS
                                                 rho_new, rho_old, s_mat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_old
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(rt_prop_type), POINTER              :: rtp
 
     CALL timeset(routineN,handle)
 
-    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,matrix_ks=matrix_ks,matrix_ks_im=matrix_ks_im,error=error)
+    CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,matrix_ks=matrix_ks,matrix_ks_im=matrix_ks_im,energy=energy,error=error)
     CALL get_rtp(rtp=rtp,exp_H_old=exp_H_old,exp_H_new=exp_H_new,error=error)
 
     IF(rtp_control%sc_check_start.LT.rtp%iter) THEN
@@ -350,6 +353,9 @@ CONTAINS
           CALL  put_data_to_history(rtp,rho=rho_new,mos=mos_new,s_mat=s_mat,ihist=ihist,error=error)
        END IF
     END IF
+    
+    rtp%energy_new=energy%total
+    
     CALL timestop(handle)
 
   END SUBROUTINE step_finalize

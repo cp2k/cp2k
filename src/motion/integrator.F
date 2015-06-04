@@ -83,7 +83,6 @@ MODULE integrator
                                              femtoseconds
   USE qmmm_update,                     ONLY: qmmm_update_force_mixing_env
   USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_energy_utils,                 ONLY: qs_energies_init
   USE qs_environment_types,            ONLY: get_qs_env
   USE reftraj_types,                   ONLY: reftraj_type
@@ -92,7 +91,6 @@ MODULE integrator
                                              s_matrices_create
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE rt_propagation_types,            ONLY: rt_prop_type
-  USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE shell_opt,                       ONLY: optimize_shell_core
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
@@ -448,7 +446,6 @@ CONTAINS
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
-    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(simpar_type), POINTER               :: simpar
     TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
@@ -561,16 +558,13 @@ CONTAINS
        IF(ehrenfest_md)THEN
           force_env%qs_env%rtp%iter=i_iter
           tmp%vel=v_old
-          force_env%qs_env%rtp%converged=.FALSE.
           deallocate_vel=.FALSE.
           IF(force_env%qs_env%rtp%iter==1)THEN
              CALL qs_energies_init(force_env%qs_env, .FALSE. , error=error)
-             CALL get_qs_env(qs_env=force_env%qs_env,rtp=rtp,energy=energy,matrix_s=s_mat,error=error)
+             CALL get_qs_env(qs_env=force_env%qs_env,rtp=rtp,matrix_s=s_mat,error=error)
              CALL s_matrices_create (s_mat,rtp,error=error)
           END IF
-          CALL calc_S_derivs(force_env%qs_env,error=error)
           CALL propagation_step(force_env%qs_env, rtp, dft_control%rtp_control, error=error)
-          rtp%energy_new=energy%total
        END IF
 
        ![NB] let nve work with force mixing which does not have consistent energies and forces
@@ -578,7 +572,6 @@ CONTAINS
        
        IF(ehrenfest_md)THEN
           CALL rt_prop_output(force_env%qs_env,ehrenfest,delta_iter=force_env%qs_env%rtp%delta_iter,error=error)
-          force_env%qs_env%rtp%energy_old=force_env%qs_env%rtp%energy_new
        ENDIF
 
        ! Metadynamics

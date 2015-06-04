@@ -213,6 +213,8 @@ CONTAINS
           ENDIF
        END IF
     END IF
+    
+    rtp%energy_old=rtp%energy_new
 
   END SUBROUTINE rt_prop_output
 
