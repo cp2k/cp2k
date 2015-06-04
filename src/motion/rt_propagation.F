@@ -153,8 +153,6 @@ CONTAINS
 
     CALL init_propagation_run(qs_env,error)
     IF(.NOT.rtp_control%fixed_ions) THEN
-       !derivatives of the potential
-       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
        !derivativs of the overlap needed for EMD
        CALL calc_S_derivs(qs_env,error)
        ! a bit hidden, but computes SinvH and SinvB (calc_SinvH for CN,EM and ARNOLDI)

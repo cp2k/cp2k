@@ -11,12 +11,8 @@
 ! *****************************************************************************
 MODULE qs_energy
   USE almo_scf,                        ONLY: almo_entry_scf
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             rtp_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE dm_ls_scf,                       ONLY: ls_scf
-  USE input_constants,                 ONLY: ehrenfest
-  USE kinds,                           ONLY: dp
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_energy_utils,                 ONLY: qs_energies_compute_matrix_w,&
                                              qs_energies_init,&
@@ -27,11 +23,6 @@ MODULE qs_energy
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_scf,                          ONLY: scf
-  USE rt_propagation_methods,          ONLY: propagation_step,&
-                                             s_matrices_create
-  USE rt_propagation_output,           ONLY: rt_prop_output
-  USE rt_propagation_types,            ONLY: rt_prop_type
-  USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -80,9 +71,7 @@ CONTAINS
     CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
     CALL get_qs_env(qs_env=qs_env,run_rtp=run_rtp,error=error)
-    IF(run_rtp)THEN
-       CALL qs_energies_rtp(qs_env,error=error)
-    ELSE
+    IF(.NOT.run_rtp)THEN
        CALL qs_energies_scf(qs_env, consistent_energies, my_calc_forces, error)
     END IF
 
@@ -152,59 +141,5 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE qs_energies_scf
-
-! *****************************************************************************
-!> \brief   energy calculation for real time propagation (iterated through integrator)
-!> \param qs_env ...
-!> \param error ...
-!> \date    02.2009
-!> \author  Florian Schiffmann
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE qs_energies_rtp(qs_env,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_rtp', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: aspc_order, handle
-    REAL(Kind=dp)                            :: eps_ener
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: s_mat
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(rtp_control_type), POINTER          :: rtp_control
-
-    CALL timeset(routineN,handle)
-
-    NULLIFY(dft_control,rtp,rtp_control,s_mat,energy)
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, energy=energy, error=error)
-
-    rtp_control=>dft_control%rtp_control
-    IF(.NOT.rtp_control%initial_step)THEN
-       eps_ener=rtp_control%eps_ener
-       aspc_order=rtp_control%aspc_order
-       IF(qs_env%rtp%iter==1)THEN
-          CALL qs_energies_init(qs_env, .FALSE. , error=error)
-          CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
-          CALL s_matrices_create (s_mat,rtp,error=error)
-       END IF
-       CALL get_qs_env(qs_env=qs_env,rtp=rtp,matrix_s=s_mat,error=error)
-
-       CALL calc_S_derivs(qs_env,error=error)
-
-       eps_ener=rtp_control%eps_ener
-
-       CALL propagation_step(qs_env, rtp, rtp_control, error=error)
-       rtp%energy_new=energy%total
-
-       CALL rt_prop_output(qs_env,ehrenfest,delta_iter=rtp%delta_iter,error=error)
-       rtp%energy_old=rtp%energy_new
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE qs_energies_rtp
 
 END MODULE qs_energy
