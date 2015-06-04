@@ -91,6 +91,7 @@ MODULE integrator
                                              s_matrices_create
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE rt_propagation_types,            ONLY: rt_prop_type
+  USE rt_propagation_utils,            ONLY: calc_S_derivs
   USE shell_opt,                       ONLY: optimize_shell_core
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
@@ -564,6 +565,7 @@ CONTAINS
              CALL get_qs_env(qs_env=force_env%qs_env,rtp=rtp,matrix_s=s_mat,error=error)
              CALL s_matrices_create (s_mat,rtp,error=error)
           END IF
+          CALL calc_S_derivs(force_env%qs_env,error=error)
           CALL propagation_step(force_env%qs_env, rtp, dft_control%rtp_control, error=error)
        END IF
 
