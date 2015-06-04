@@ -5,3 +5,7 @@ H2O_mixed_periodic_cylindrical.inp
 # properly include the dielectric contribution to the Hamiltonian, v_eps.
 H2O_mixed_periodic_cuboidal.inp     
 H2O_mixed_periodic_cylindrical.inp  
+
+# consider extra contribution to the Hartree energy attributed to Dirichlet type constraints
+H2O_mixed_periodic_cuboidal.inp
+H2O_mixed_periodic_cylindrical.inp

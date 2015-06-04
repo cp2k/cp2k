@@ -17,3 +17,8 @@ Ar_mixed_periodic_planar.inp
 Ar_mixed_periodic_planar.inp
 Ar_mixed_periodic_cuboidal.inp
 Ar_mixed_periodic_cylindrical.inp
+
+# consider extra contribution to the Hartree energy attributed to Dirichlet type constraints
+Ar_mixed_periodic_planar.inp
+Ar_mixed_periodic_cuboidal.inp
+Ar_mixed_periodic_cylindrical.inp

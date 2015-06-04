@@ -13,3 +13,8 @@ Ar_mixed_cylindrical.inp
 # use rho_elec - rho_core to evaluate the dielectric constant
 Ar_periodic.inp
 Ar_mixed_periodic_aa_planar.inp
+
+# consider extra contribution to the Hartree energy attributed to Dirichlet type constraints
+Ar_mixed_periodic_aa_planar.inp
+Ar_mixed_cuboidal.inp
+Ar_mixed_cylindrical.inp
