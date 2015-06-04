@@ -529,7 +529,7 @@ MODULE rpa_ri_gpw
                                  fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
                                  my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
                                  stop_crit,check_fit,fermi_level_offset,crossing_search,&
-                                 max_iter_fit,my_B_all_start,&
+                                 max_iter_fit,&
                                  mp2_env%ri_rpa%mm_style,do_minimax_quad,error,&
                                  homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
                                  fm_mat_Q_gemm_beta,fm_mat_Q_beta,fm_mat_S_gw_beta,&
@@ -550,7 +550,7 @@ MODULE rpa_ri_gpw
                                  fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
                                  my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
                                  stop_crit,check_fit,fermi_level_offset,crossing_search,&
-                                 max_iter_fit,my_B_all_start,&
+                                 max_iter_fit,&
                                  mp2_env%ri_rpa%mm_style,do_minimax_quad,error)
       END IF
     END IF
@@ -1520,7 +1520,6 @@ MODULE rpa_ri_gpw
 !> \param fermi_level_offset ...
 !> \param crossing_search ...
 !> \param max_iter_fit ...
-!> \param my_B_all_start ...
 !> \param mm_style ...
 !> \param do_minimax_quad ...
 !> \param error ...
@@ -1541,7 +1540,7 @@ MODULE rpa_ri_gpw
                                    fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
                                    my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
                                    stop_crit,check_fit,fermi_level_offset,crossing_search,&
-                                   max_iter_fit,my_B_all_start,mm_style,do_minimax_quad,error,&
+                                   max_iter_fit,mm_style,do_minimax_quad,error,&
                                    homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
                                    fm_mat_Q_gemm_beta,fm_mat_Q_beta,fm_mat_S_gw_beta,&
                                    gw_corr_lev_occ_beta,gw_corr_lev_virt_beta)
@@ -1566,8 +1565,7 @@ MODULE rpa_ri_gpw
     LOGICAL                                  :: check_fit
     REAL(KIND=dp)                            :: fermi_level_offset
     INTEGER                                  :: crossing_search, &
-                                                max_iter_fit, my_B_all_start, &
-                                                mm_style
+                                                max_iter_fit, mm_style
     LOGICAL                                  :: do_minimax_quad
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, OPTIONAL                        :: homo_beta, virtual_beta, &
@@ -2422,13 +2420,13 @@ MODULE rpa_ri_gpw
           CALL print_and_update_for_ev_sc(vec_gw_energ,vec_gw_energ_error_fit,&
                       z_value,m_value,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,1),Eigenval,&
                       Eigenval_last,Eigenval_scf,gw_corr_lev_occ,gw_corr_lev_virt,gw_corr_lev_tot,&
-                      iter_ev_sc,count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details,&
+                      count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details,&
                       error,do_alpha=.TRUE.)
 
           CALL print_and_update_for_ev_sc(vec_gw_energ_beta,vec_gw_energ_error_fit_beta,&
                       z_value_beta,m_value_beta,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,2),Eigenval_beta,&
                       Eigenval_last_beta,Eigenval_scf_beta,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,gw_corr_lev_tot,&
-                      iter_ev_sc,count_ev_sc_GW,crossing_search,homo_beta,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details,&
+                      count_ev_sc_GW,crossing_search,homo_beta,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details,&
                       error,do_beta=.TRUE.)
 
         ELSE 
@@ -2436,7 +2434,7 @@ MODULE rpa_ri_gpw
           CALL print_and_update_for_ev_sc(vec_gw_energ,vec_gw_energ_error_fit,&
                       z_value,m_value,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,1),Eigenval,&
                       Eigenval_last,Eigenval_scf,gw_corr_lev_occ,gw_corr_lev_virt,gw_corr_lev_tot,&
-                      iter_ev_sc,count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details,&
+                      count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details,&
                       error)
 
         END IF
@@ -3651,7 +3649,6 @@ MODULE rpa_ri_gpw
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
 !> \param gw_corr_lev_tot ...
-!> \param iter_ev_sc ...
 !> \param count_ev_sc_GW ...
 !> \param crossing_search ...
 !> \param homo ...
@@ -3665,7 +3662,7 @@ MODULE rpa_ri_gpw
     SUBROUTINE print_and_update_for_ev_sc(vec_gw_energ,vec_gw_energ_error_fit,&
                     z_value,m_value,vec_Sigma_x_minus_vxc_gw,Eigenval,&
                     Eigenval_last,Eigenval_scf,gw_corr_lev_occ,gw_corr_lev_virt,gw_corr_lev_tot,&
-                    iter_ev_sc,count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,print_gw_details,error,do_alpha,do_beta)
+                    count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,print_gw_details,error,do_alpha,do_beta)
 
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_gw_energ, &
                                                 vec_gw_energ_error_fit, &
@@ -3674,7 +3671,7 @@ MODULE rpa_ri_gpw
                                                 Eigenval
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Eigenval_last, Eigenval_scf
     INTEGER :: gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-      iter_ev_sc, count_ev_sc_GW, crossing_search, homo, nmo, unit_nr
+      count_ev_sc_GW, crossing_search, homo, nmo, unit_nr
     LOGICAL                                  :: print_gw_details
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL, OPTIONAL                        :: do_alpha, do_beta
