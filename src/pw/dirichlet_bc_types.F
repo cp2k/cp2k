@@ -505,7 +505,7 @@ CONTAINS
 
     INTEGER                                  :: handle
     REAL(dp)                                 :: AB_norm, AC_norm, BC_norm
-    REAL(dp), DIMENSION(3)                   :: AB, AC, BC, xy_normal, &
+    REAL(dp), DIMENSION(3)                   :: AB, ABxAC, AC, BC, xy_normal, &
                                                 xz_normal, yz_normal
 
     CALL timeset(routineN,handle)
@@ -517,6 +517,7 @@ CONTAINS
     AB = B - A
     AC = C - A
     BC = C - B
+    ABxAC = vector_product(AB, AC)
 
     plane%A = A
     plane%B = B
@@ -532,12 +533,14 @@ CONTAINS
 
     IF ( (AB_norm .LE. small_value) .OR. (AC_norm.LE. small_value) .OR. (BC_norm .LE. small_value) ) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "Not enough points to define a cartesian space plane",error)
-    ELSE IF ( ABS(ABS(SUM(AB/AC) - 3)) .LE. small_value ) THEN
+          "Not enough points to define a cartesian space plane. "//&
+          "Please increase the cutoff.",error)
+    ELSE IF ( SUM(ABS(ABxAC)) .LE. small_value ) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-          "Unable to define a cartesian space plane. reason: A, B, C are collinear.",error)
+          "Unable to define a cartesian space plane. Reason: A, B, C are collinear. "//&
+          "Please increase the cutoff.",error)
     ELSE
-       plane%normal = vector_product(AB, AC)
+       plane%normal = ABxAC
        plane%unit_normal = plane%normal / SQRT(SUM(plane%normal**2))
 !       plane%d = -1.0_dp * DOT_PRODUCT(plane%unit_normal, A)
        plane%d = DOT_PRODUCT(plane%unit_normal, A)
@@ -778,7 +781,7 @@ CONTAINS
   END SUBROUTINE cs_rectangle_ABC_create
 
 ! *****************************************************************************
-!> \brief   generates a polygon give the coordinates of its vertices
+!> \brief   generates a polygon given the coordinates of its vertices
 !> \param polygon the polygon to be created
 !> \param vertices coordinates of the vertices of the polygon
 !> \param error cp2k error
@@ -796,18 +799,52 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cs_polygon_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, num_vertices, tag
+    INTEGER                                  :: handle, i, j, k, &
+                                                num_vertices, tag
+    REAL(dp), DIMENSION(3)                   :: A, AB, ABxAC, AC, Aprime, B, &
+                                                Bprime, C, Cprime
     REAL(dp) :: py_vertices(3, 0:SIZE(vertices)/3-1)
     TYPE(cs_edge), POINTER                   :: edge
 
     CALL timeset(routineN,handle)
 
     num_vertices = SIZE(vertices)/3
+    polygon%n_vertices = num_vertices
     ALLOCATE(polygon%vertices(3,num_vertices))
     polygon%vertices = vertices
+
+! define the polygon's plane using three vertices that are not collinear. 
     ALLOCATE(polygon%plane)
-    CALL cs_plane_create(polygon%plane, vertices(:,1), vertices(:,2), vertices(:,3), error)
-    polygon%n_vertices = num_vertices
+    A = vertices(:,1)
+    B = vertices(:,2)
+    C = vertices(:,3)
+    IF (num_vertices .EQ. 3) THEN 
+       CALL cs_plane_create(polygon%plane, A, B, C, error)
+    ELSE
+       ! this is a 3-sum problem but the number of vertices is limited so 
+       ! a naive implementation should be alright
+       DO i = 1, num_vertices-2 
+          DO j = i+1, num_vertices-1
+             DO k = j+1, num_vertices 
+                Aprime = vertices(:,i)
+                Bprime = vertices(:,j)
+                Cprime = vertices(:,k)
+                AB = Bprime - Aprime
+                AC = Cprime - Aprime
+                ABxAC = vector_product(AB, AC)
+                IF (SUM(ABS(ABxAC)) .GT. small_value) THEN
+                   A(:) = Aprime
+                   B(:) = Bprime
+                   C(:) = Cprime 
+                   EXIT
+                END IF
+              END DO
+          END DO
+       END DO
+       ! if no 3 vertices are noncollinear, the solution will be using a higher 
+       ! cutoff. This will be captured here:
+       CALL cs_plane_create(polygon%plane, A, B, C, error)
+    END IF
 
 ! assume vertices are already sorted
     py_vertices = polygon%vertices
@@ -859,7 +896,8 @@ CONTAINS
   END SUBROUTINE cs_face_create
 
 ! *****************************************************************************
-!> \brief  generates an axis-aligned box in the 3D Cartesian space with vertices
+!> \brief  generates an axis-aligned box in the 3D Cartesian space given the 
+!>         coordinates of its vertices
 !> \param box the box to be generated
 !> \param vertices vertices of the box
 !> \param error cp2k error

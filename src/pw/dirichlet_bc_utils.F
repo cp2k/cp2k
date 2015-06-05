@@ -1473,7 +1473,8 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: unique_intxn, valid_intxn
     REAL(dp), ALLOCATABLE, DIMENSION(:, :), &
       TARGET                                 :: intersection_points
-    REAL(dp), DIMENSION(3)                   :: O, unit_normal
+    REAL(dp), DIMENSION(3)                   :: A, AB, ABxAC, AC, B, C, O, &
+                                                unit_normal
     REAL(dp), DIMENSION(3, 24)               :: all_intxn
     REAL(dp), DIMENSION(:, :), POINTER       :: polygon_vertices
     TYPE(cs_intersection_obj), POINTER       :: seg_pln_intxn
@@ -1514,15 +1515,26 @@ CONTAINS
           CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
           intersection%point = unique_intxn(:,1)
        CASE (2)
+          A = unique_intxn(:,1)
+          B = unique_intxn(:,2)
           CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
-          CALL cs_segment_create(intersection%segment, &
-                                 unique_intxn(:,1), unique_intxn(:,2), &
-                                 error)
+          CALL cs_segment_create(intersection%segment, A, B, error)
        CASE (3)
-          CALL cs_intersection_obj_create(intersection, TRI_INTXN, error=error)
-          CALL cs_triangle_create(intersection%triangle, &
-                                 unique_intxn(:,1), unique_intxn(:,2), unique_intxn(:,3), &
-                                 error)
+          A = unique_intxn(:,1)
+          B = unique_intxn(:,2)
+          C = unique_intxn(:,3)
+          AB = B - A
+          AC = C - A
+          ABxAC = vector_product(AB, AC)
+          ! if the three points are collinear
+          IF ( SUM(ABS(ABxAC)) .LE. small_value ) THEN
+             CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
+             CALL cs_segment_create(intersection%segment, A, B, error)
+
+          ELSE
+             CALL cs_intersection_obj_create(intersection, TRI_INTXN, error=error)
+             CALL cs_triangle_create(intersection%triangle, A, B, C, error)
+          END IF
      ! CASE (4)
           ! consider rectangle as a regular polygon
        CASE DEFAULT
@@ -1583,7 +1595,8 @@ CONTAINS
                                                 valid_vertices
     REAL(dp), ALLOCATABLE, DIMENSION(:, :), &
       TARGET                                 :: overlap_vertices
-    REAL(dp), DIMENSION(3)                   :: O, unit_normal, vertex
+    REAL(dp), DIMENSION(3)                   :: A, AB, ABxAC, AC, B, C, O, &
+                                                unit_normal, vertex
     REAL(dp), DIMENSION(:, :), POINTER       :: ovlp_vertices
     TYPE(cs_edge), POINTER                   :: py_edge, rect_edge
     TYPE(cs_intersection_obj), POINTER       :: seg_seg_intxn
@@ -1659,15 +1672,26 @@ CONTAINS
           CALL cs_intersection_obj_create(intersection, PT_INTXN, error=error)
           intersection%point = unique_vertices(:,1)
        CASE (2)
+          A = unique_vertices(:,1)
+          B = unique_vertices(:,2)
           CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
-          CALL cs_segment_create(intersection%segment, &
-                                 unique_vertices(:,1), unique_vertices(:,2), &
-                                 error)
+          CALL cs_segment_create(intersection%segment, A, B, error)
        CASE (3)
-          CALL cs_intersection_obj_create(intersection, TRI_INTXN, error=error)
-          CALL cs_triangle_create(intersection%triangle, &
-                                 unique_vertices(:,1), unique_vertices(:,2), unique_vertices(:,3), &
-                                 error)
+          A = unique_vertices(:,1)
+          B = unique_vertices(:,2)
+          C = unique_vertices(:,3)
+          AB = B - A
+          AC = C - A
+          ABxAC = vector_product(AB, AC)
+          ! if the three points are collinear
+          IF ( SUM(ABS(ABxAC)) .LE. small_value ) THEN
+             CALL cs_intersection_obj_create(intersection, SEG_INTXN, error=error)
+             CALL cs_segment_create(intersection%segment, A, B, error)
+
+          ELSE
+             CALL cs_intersection_obj_create(intersection, TRI_INTXN, error=error)
+             CALL cs_triangle_create(intersection%triangle, A, B, C, error)
+          END IF
      ! CASE (4)
           ! consider rectangle as a regular polygon
        CASE DEFAULT
