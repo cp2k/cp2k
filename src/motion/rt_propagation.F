@@ -55,15 +55,15 @@ MODULE rt_propagation
   USE rt_delta_pulse,                  ONLY: apply_delta_pulse,&
                                              apply_delta_pulse_periodic
   USE rt_hfx_utils,                    ONLY: rtp_hfx_rebuild
-  USE rt_propagation_methods,          ONLY: calc_update_rho,&
-                                             calc_update_rho_sparse,&
-                                             propagation_step
+  USE rt_propagation_methods,          ONLY: propagation_step
   USE rt_propagation_output,           ONLY: rt_prop_output
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_create,&
                                              rt_prop_type,&
                                              rtp_history_create
   USE rt_propagation_utils,            ONLY: calc_S_derivs,&
+                                             calc_update_rho,&
+                                             calc_update_rho_sparse,&
                                              get_restart_wfn
   USE rt_propagator_init,              ONLY: init_propagators,&
                                              rt_initialize_rho_from_ks

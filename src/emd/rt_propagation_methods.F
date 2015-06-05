@@ -16,23 +16,20 @@ MODULE rt_propagation_methods
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_type
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             rtp_control_type
+  USE cp_control_types,                ONLY: rtp_control_type
   USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                              cp_dbcsr_cholesky_invert
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
-       cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
-       cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
-       cp_dbcsr_desymmetrize, cp_dbcsr_filter, cp_dbcsr_frobenius_norm, &
-       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_init_p, &
-       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_transposed, &
-       cp_dbcsr_type
-  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
-                                             cp_dbcsr_sm_fm_multiply
+       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
+       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_get_block_p, &
+       cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_transposed, cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_double,&
@@ -55,6 +52,7 @@ MODULE rt_propagation_methods
   USE ls_matrix_exp,                   ONLY: cp_complex_dbcsr_gemm_3
   USE mathlib,                         ONLY: binomial
   USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_energy_utils,                 ONLY: qs_energies_init
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
@@ -73,6 +71,9 @@ MODULE rt_propagation_methods
                                              rt_convergence_density
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
+  USE rt_propagation_utils,            ONLY: calc_S_derivs,&
+                                             calc_update_rho,&
+                                             calc_update_rho_sparse
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -85,8 +86,6 @@ MODULE rt_propagation_methods
 
   PUBLIC :: propagation_step,&
             s_matrices_create,&
-            calc_update_rho,&
-            calc_update_rho_sparse,&
             calc_sinvH,&
             put_data_to_history
 
@@ -144,6 +143,11 @@ CONTAINS
          ks_env=ks_env,&
          error=error)
     IF(rtp%iter==1)THEN
+       IF(.NOT.rtp_control%fixed_ions)THEN
+          CALL qs_energies_init(qs_env, .FALSE. , error=error)
+          CALL get_qs_env(qs_env,matrix_s=matrix_s,ks_env=ks_env,rho=rho,error=error)
+          CALL s_matrices_create (matrix_s,rtp,error=error)
+       END IF
        rtp%delta_iter=100.0_dp
        rtp%mixing_factor=1.0_dp
        rtp%mixing=.FALSE.
@@ -155,6 +159,9 @@ CONTAINS
           CALL calc_update_rho(qs_env,error=error)
        ENDIF
        CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., error=error)
+    END IF
+    IF(.NOT.rtp_control%fixed_ions)THEN
+       CALL calc_S_derivs(qs_env,error=error)
     END IF
     rtp%converged=.FALSE.
 
@@ -816,199 +823,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE purify_mcweeny_complex_orth
-
-! *****************************************************************************
-!> \brief calculates the density from the complex MOs and passes the density to
-!>        qs_env.
-!> \param qs_env ...
-!> \param error ...
-!> \author Florian Schiffmann (02.09)
-! *****************************************************************************
-
-  SUBROUTINE calc_update_rho(qs_env,error)
-
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'calc_update_rho', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
-
-    INTEGER                                  :: handle, i, im, ncol, re
-    REAL(KIND=dp)                            :: alpha
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao, rho_ao_im
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(rt_prop_type), POINTER              :: rtp
-
-    CALL timeset(routineN,handle)
-
-    NULLIFY (rho,ks_env,mos,rtp)
-    CALL get_qs_env(qs_env,&
-                    ks_env=ks_env,&
-                    rho=rho,&
-                    rtp=rtp,&
-                    error=error)
-    CALL get_rtp(rtp=rtp,mos_new=mos,error=error)
-    CALL qs_rho_get(rho_struct=rho,rho_ao=rho_ao,error=error)
-    DO i=1,SIZE(mos)/2
-       re=2*i-1 ; im =2*i
-       alpha=3*one-REAL(SIZE(mos)/2,dp)
-       CALL cp_dbcsr_set(rho_ao(i)%matrix,zero,error=error)
-       CALL cp_fm_get_info(mos(re)%matrix,ncol_global=ncol,error=error)
-       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix,&
-                               matrix_v=mos(re)%matrix,&
-                               ncol=ncol,&
-                               alpha=alpha,error=error)
-       ! It is actually complex conjugate but i*i=-1 therfore it must be added
-       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix,&
-                        matrix_v=mos(im)%matrix,&
-                        ncol=ncol,&
-                        alpha=alpha,error=error)
-    END DO
-
-    CALL qs_rho_update_rho(rho, qs_env, error=error)
-
-    IF(rtp%do_hfx)THEN
-       CALL qs_rho_get(rho_struct=rho,rho_ao_im=rho_ao_im,error=error)
-       CALL calculate_P_imaginary(rtp, rho_ao_im, error)
-       CALL qs_rho_set(rho, rho_ao_im=rho_ao_im, error=error)
-    END IF
-
-    CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE calc_update_rho
-
-
-! *****************************************************************************
-!> \brief Copies the density matrix back into the qs_env%rho%rho_ao
-!> \param qs_env ...
-!> \param error ...
-!> \author Samuel Andermatt (3.14)
-! *****************************************************************************
-
-  SUBROUTINE calc_update_rho_sparse(qs_env,error)
-
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'calc_update_rho_sparse', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
-
-    INTEGER                                  :: handle, im, ispin, re
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao, rho_ao_im, rho_new
-    TYPE(cp_dbcsr_type), POINTER             :: S_minus_half, tmp, tmp2
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(rtp_control_type), POINTER          :: rtp_control
-
-    NULLIFY(rho,ks_env,rtp,tmp,tmp2,dft_control)
-    CALL timeset(routineN,handle)
-    CALL get_qs_env(qs_env,&
-                   ks_env=ks_env,&
-                   rho=rho,&
-                   rtp=rtp,&
-                   dft_control=dft_control,&
-                   error=error)
-    rtp_control=>dft_control%rtp_control
-    CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
-    CALL qs_rho_get(rho_struct=rho,rho_ao=rho_ao,error=error)
-    IF(rtp%do_hfx) CALL qs_rho_get(rho_struct=rho,rho_ao_im=rho_ao_im,error=error)
-    IF(rtp_control%orthonormal) THEN
-       CALL get_rtp(rtp=rtp,S_minus_half=S_minus_half,error=error)
-       ALLOCATE(tmp)
-       CALL cp_dbcsr_init(tmp,error=error)
-       CALL cp_dbcsr_create(tmp,template=rho_new(1)%matrix,error=error)
-       ALLOCATE(tmp2)
-       CALL cp_dbcsr_init(tmp2,error=error)
-       CALL cp_dbcsr_create(tmp2,template=rho_new(1)%matrix,error=error)
-       DO ispin=1,SIZE(rho_ao)
-          re = 2*ispin-1
-          CALL cp_dbcsr_multiply("N","N",one,S_minus_half,rho_new(re)%matrix,zero,tmp,filter_eps=rtp%filter_eps,error=error)
-          CALL cp_dbcsr_multiply("N","N",one,tmp,S_minus_half,zero,tmp2,filter_eps=rtp%filter_eps,error=error)
-          CALL cp_dbcsr_set(rho_ao(ispin)%matrix,zero,error=error)
-          CALL cp_dbcsr_copy_into_existing(rho_ao(ispin)%matrix,tmp2,error=error)
-       END DO
-       IF(rtp%do_hfx) THEN
-          DO ispin=1,SIZE(rho_ao_im)
-             im = 2*ispin
-             CALL cp_dbcsr_multiply("N","N",one,S_minus_half,rho_new(im)%matrix,zero,tmp,filter_eps=rtp%filter_eps,error=error)
-             CALL cp_dbcsr_multiply("N","N",one,tmp,S_minus_half,zero,tmp2,filter_eps=rtp%filter_eps,error=error)
-             CALL cp_dbcsr_set(rho_ao_im(ispin)%matrix,zero,error=error)
-             CALL cp_dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix,tmp2,error=error)
-          END DO
-       ENDIF
-       CALL cp_dbcsr_deallocate_matrix(tmp,error=error)
-       CALL cp_dbcsr_deallocate_matrix(tmp2,error=error)
-    ELSE
-       DO ispin=1,SIZE(rho_ao)
-          CALL cp_dbcsr_set(rho_ao(ispin)%matrix,zero,error=error)
-          CALL cp_dbcsr_copy_into_existing(rho_ao(ispin)%matrix,rho_new(ispin*2-1)%matrix,error=error)
-          IF(rtp%do_hfx) CALL cp_dbcsr_copy_into_existing(rho_ao_im(ispin)%matrix,rho_new(ispin*2)%matrix,error=error)
-       END DO
-    ENDIF
-
-    CALL qs_rho_update_rho(rho, qs_env, error=error)
-    CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-
-
-    CALL timestop(handle)
-
-  END SUBROUTINE calc_update_rho_sparse
-
-! *****************************************************************************
-!> \brief ...
-!> \param rtp ...
-!> \param matrix_p_im ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE calculate_P_imaginary(rtp,matrix_p_im,error)
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p_im
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_P_imaginary', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, im, ncol, re
-    REAL(KIND=dp)                            :: alpha
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-
-    CALL get_rtp(rtp=rtp,mos_new=mos,error=error)
-
-    DO i=1,SIZE(mos)/2
-       re=2*i-1 ; im =2*i
-       alpha=3.0_dp-REAL(SIZE(matrix_p_im),dp)
-       CALL cp_dbcsr_set(matrix_p_im(i)%matrix,0.0_dp,error=error)
-       CALL cp_fm_get_info(mos(re)%matrix,ncol_global=ncol,error=error)
-       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p_im(i)%matrix,&
-                               matrix_v=mos(im)%matrix,&
-                               matrix_g=mos(re)%matrix,&
-                               ncol=ncol,&
-                               alpha=alpha,error=error)
-       ! It is actually complex conjugate not only transposed
-       alpha=-alpha
-       CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p_im(i)%matrix,&
-                        matrix_v=mos(re)%matrix,&
-                        matrix_g=mos(im)%matrix,&
-                        ncol=ncol,&
-                        alpha=alpha,error=error)
-    END DO
-  
-  END SUBROUTINE calculate_P_imaginary
 
 ! *****************************************************************************
 !> \brief ...
