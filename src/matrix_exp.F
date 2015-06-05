@@ -8,7 +8,7 @@
 !> \author Florian Schiffmann (02.09)
 ! *****************************************************************************
 
-MODULE rt_matrix_exp
+MODULE matrix_exp
 
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add,&
                                              cp_cfm_gemm,&
@@ -1066,4 +1066,4 @@ CONTAINS
   END SUBROUTINE arnoldi
 
 
-END MODULE rt_matrix_exp
+END MODULE matrix_exp

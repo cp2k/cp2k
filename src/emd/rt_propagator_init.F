@@ -44,7 +44,7 @@ MODULE rt_propagator_init
   USE rt_make_propagators,             ONLY: compute_exponential,&
                                              compute_exponential_sparse,&
                                              propagate_arnoldi
-  USE rt_matrix_exp,                   ONLY: get_nsquare_norder
+  USE matrix_exp,                      ONLY: get_nsquare_norder
   USE rt_propagation_methods,          ONLY: calc_SinvH,&
                                              put_data_to_history,&
                                              s_matrices_create

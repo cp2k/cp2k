@@ -56,7 +56,7 @@ MODULE qs_localization_methods
                                              mp_sendrecv,&
                                              mp_sum,&
                                              mp_sync
-  USE rt_matrix_exp,                   ONLY: exp_pade_real,&
+  USE matrix_exp,                      ONLY: exp_pade_real,&
                                              get_nsquare_norder
   USE timings,                         ONLY: timeset,&
                                              timestop

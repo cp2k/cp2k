@@ -30,12 +30,12 @@ MODULE rt_make_propagators
                                              do_pade,&
                                              do_taylor
   USE kinds,                           ONLY: dp
-  USE rt_ls_matrix_exp,                ONLY: bch_expansion_complex_propagator,&
+  USE ls_matrix_exp,                   ONLY: bch_expansion_complex_propagator,&
                                              bch_expansion_imaginary_propagator,&
                                              cp_complex_dbcsr_gemm_3,&
                                              taylor_full_complex_dbcsr,&
                                              taylor_only_imaginary_dbcsr
-  USE rt_matrix_exp,                   ONLY: arnoldi,&
+  USE matrix_exp,                      ONLY: arnoldi,&
                                              exp_pade_full_complex,&
                                              exp_pade_only_imaginary,&
                                              taylor_full_complex,&

@@ -5,11 +5,11 @@
 
 ! *****************************************************************************
 !> \brief Routines for calculating a complex matrix exponential with dbcsr matrices.
-!>        Based on the code in rt_matrix_exp.F from Florian Schiffmann
+!>        Based on the code in matrix_exp.F from Florian Schiffmann
 !> \author Samuel Andermatt (02.14)
 ! *****************************************************************************
 
-MODULE rt_ls_matrix_exp
+MODULE ls_matrix_exp
 
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
@@ -594,4 +594,4 @@ END SUBROUTINE
 
    END SUBROUTINE
 
-END MODULE rt_ls_matrix_exp
+END MODULE ls_matrix_exp
