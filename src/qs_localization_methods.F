@@ -50,14 +50,14 @@ MODULE qs_localization_methods
                                              m_walltime
   USE mathconstants,                   ONLY: pi,&
                                              twopi
+  USE matrix_exp,                      ONLY: exp_pade_real,&
+                                             get_nsquare_norder
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast,&
                                              mp_max,&
                                              mp_sendrecv,&
                                              mp_sum,&
                                              mp_sync
-  USE matrix_exp,                      ONLY: exp_pade_real,&
-                                             get_nsquare_norder
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"

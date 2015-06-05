@@ -49,7 +49,7 @@ MODULE matrix_exp
   PRIVATE
 
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_matrix_exp'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'matrix_exp'
 
   PUBLIC :: taylor_only_imaginary,&
             taylor_full_complex,&

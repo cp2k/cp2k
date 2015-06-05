@@ -52,6 +52,7 @@ MODULE rt_propagation_methods
                                              do_taylor
   USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
   USE kinds,                           ONLY: dp
+  USE ls_matrix_exp,                   ONLY: cp_complex_dbcsr_gemm_3
   USE mathlib,                         ONLY: binomial
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -63,7 +64,6 @@ MODULE rt_propagation_methods
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_set,&
                                              qs_rho_type
-  USE ls_matrix_exp,                   ONLY: cp_complex_dbcsr_gemm_3
   USE rt_make_propagators,             ONLY: propagate_arnoldi,&
                                              propagate_bch,&
                                              propagate_exp,&

@@ -39,12 +39,12 @@ MODULE rt_propagator_init
                                              do_taylor
   USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
   USE kinds,                           ONLY: dp
+  USE matrix_exp,                      ONLY: get_nsquare_norder
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE rt_make_propagators,             ONLY: compute_exponential,&
                                              compute_exponential_sparse,&
                                              propagate_arnoldi
-  USE matrix_exp,                      ONLY: get_nsquare_norder
   USE rt_propagation_methods,          ONLY: calc_SinvH,&
                                              put_data_to_history,&
                                              s_matrices_create
