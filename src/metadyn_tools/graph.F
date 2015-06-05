@@ -434,6 +434,7 @@ PROGRAM graph
   IF      (l_cp2k)            THEN
      CALL get_val_res(unit=unit_nr,section="&METADYN",keyword="NHILLS_START_VAL", i_val=nt)
      ! These sections may not necessarily be present.. if not the values will be HUGE and negative..
+     ! If sc>0 but p and q are not defined, it fails miserably
      CALL get_val_res(unit=unit_nr,section="&METADYN",keyword="HILL_TAIL_CUTOFF", r_val=sc)
      CALL get_val_res(unit=unit_nr,section="&METADYN",keyword="P_EXPONENT", i_val=p)
      CALL get_val_res(unit=unit_nr,section="&METADYN",keyword="Q_EXPONENT", i_val=q)
@@ -589,6 +590,7 @@ PROGRAM graph
 
   ncount = 0
   WRITE(iw,'(/,"FES|",T7,A)') "Computing Free Energy Surface"
+
   Stride : DO WHILE (nh <= nt)
      Hills : DO it=nh,nf
         ind=INT((ss0(:,it)-x0)/dp_grid) + 1
@@ -607,7 +609,7 @@ PROGRAM graph
               diff = ss-ss0(i,it)
               dp2=(diff/delta_s(i,it))**2
               gauss(ip,i)=ww(it)*EXP(-0.5_dp*dp2)
-              IF(sc > 0.0_dp) THEN
+              IF(sc > 0.0_dp .AND. p>0.0_dp .AND. q>0.0_dp .AND. q>p) THEN
                  gauss(ip,i)= gauss(ip,i) * (1-(diff/sc*delta_s(i,it))**p)/(1-(diff/sc*delta_s(i,it))**q)
               END IF
            END DO
@@ -656,7 +658,8 @@ PROGRAM graph
   END IF
  
   WRITE(iw,'("FES|",T7,A)') "Dumping FES structure in file: < "//TRIM(out3)//" >"
-  CALL open_file(unit_number=unit_nr,file_name=out3)
+!  CALL open_file(unit_number=unit_nr,file_name=out3,file_status='unknown')
+  OPEN(UNIT=unit_nr,FILE=out3,status='UNKNOWN')
   IF (l_cube) THEN
      ind   = 1 
      CALL fes_cube_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw, l_fes_int, file)
@@ -664,9 +667,10 @@ PROGRAM graph
      ix=0
      IF (l_math) WRITE(unit_nr,'(10g12.5)')(ngrid(id),id=ndim,ndim-ndw+1,-1),ix
      ind   = 1   
-     CALL fes_write(ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw, l_fes_int)
+     CALL fes_write(unit_nr, ndim, fes, ind, ndim, ngrid, dp_grid, x0, ndw, l_fes_int)
   END IF
-  CALL close_file(unit_nr)
+  CLOSE(unit_nr)
+!  CALL close_file(unit_nr)
 
   ! If requested find minima
   IF (l_fmin) CALL fes_min(fes, ndim, iperd, ngrid, dp_grid, x0, ndw)

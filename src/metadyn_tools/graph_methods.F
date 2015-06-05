@@ -121,8 +121,9 @@ CONTAINS
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE fes_write(idim, fes,  pos,  ndim, ngrid,&
+  RECURSIVE SUBROUTINE fes_write(unit_nr, idim, fes,  pos,  ndim, ngrid,&
          dp_grid, x0, ndw, l_fes_int, array)
+    INTEGER, INTENT(IN)                      :: unit_nr
     INTEGER, INTENT(IN)                      :: idim
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fes
     INTEGER, DIMENSION(:), POINTER           :: pos
@@ -144,10 +145,10 @@ CONTAINS
        pos(idim)=i
        IF(idim/=ndim-ndw+1) THEN
           IF (PRESENT(array)) THEN
-             CALL fes_write(idim-1, fes,  pos,  ndim, ngrid, dp_grid,&
+             CALL fes_write(unit_nr,idim-1, fes,  pos,  ndim, ngrid, dp_grid,&
                     x0, ndw, l_fes_int, array)
           ELSE
-             CALL fes_write(idim-1, fes,  pos,  ndim, ngrid, dp_grid,&
+             CALL fes_write(unit_nr,idim-1, fes,  pos,  ndim, ngrid, dp_grid,&
                     x0, ndw, l_fes_int)
           END IF
        ELSE
@@ -166,14 +167,16 @@ CONTAINS
           pnt=point_no_pbc(pos,ngrid,ndim)
           xx = x0 + dp_grid * ( pos - 1 )
           dimval = PRODUCT(ngrid(1:ndim-ndw))
-          IF (l_fes_int) THEN
+
+          IF (.NOT. l_fes_int) THEN
              IF (PRESENT(array)) THEN
                 array(ind)=MINVAL(-fes(pnt:pnt+dimval-1))
              ELSE
-                WRITE(123,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1),MINVAL(-fes(pnt:pnt+dimval-1))
+                WRITE(unit_nr,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1),MINVAL(-fes(pnt:pnt+dimval-1))
              END IF
           ELSE
              sum_fes =0.0_dp
+             dvol = 1.0_dp
              dvol = PRODUCT(dp_grid(1:ndim-ndw))
              DO is = pnt,pnt+dimval-1
                 sum_fes = sum_fes + fes(is)*dvol
@@ -181,7 +184,7 @@ CONTAINS
              IF (PRESENT(array)) THEN
                 array(ind)=-sum_fes
              ELSE
-                WRITE(123,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1), -sum_fes
+                WRITE(unit_nr,'(10f20.10)')(xx(id),id=ndim,ndim-ndw+1,-1), -sum_fes
              END IF
           END IF
        END IF
@@ -645,7 +648,7 @@ CONTAINS
     
     np = ngrid(1) * ngrid(2) * ngrid(3)    
     ALLOCATE(rho(np), rhot(np))
-    CALL fes_write(idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw, l_fes_int, rho)
+    CALL fes_write(123,idim, fes,  pos,  ndim, ngrid, dp_grid, x0, ndw, l_fes_int, rho)
     WRITE(*,*) 'Internal FES transfer completed!'
 
     ! translate cell
