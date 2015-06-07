@@ -124,8 +124,7 @@ CONTAINS
 ! *****************************************************************************
   RECURSIVE SUBROUTINE fes_write(unit_nr, idim, fes,  pos,  ndim, ngrid,&
          dp_grid, x0, ndw, l_fes_int, array)
-    INTEGER, INTENT(IN)                      :: unit_nr
-    INTEGER, INTENT(IN)                      :: idim
+    INTEGER, INTENT(IN)                      :: unit_nr, idim
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fes
     INTEGER, DIMENSION(:), POINTER           :: pos
     INTEGER, INTENT(IN)                      :: ndim
