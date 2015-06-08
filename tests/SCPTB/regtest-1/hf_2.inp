@@ -15,7 +15,6 @@
       EPS_SCF   1.e-7
       MAX_SCF   10000
       &OT
-         MINIMIZER DIIS
          PRECONDITIONER FULL_KINETIC
       &END
     &END SCF
