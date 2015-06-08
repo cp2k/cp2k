@@ -335,7 +335,7 @@ CONTAINS
                   rtp_control%mcweeny_max_iter,rtp_control%mcweeny_eps,error)
           ENDIF
           IF(rtp_control%mcweeny_max_iter>0) CALL calc_update_rho_sparse(qs_env,error)
-          CALL report_density_occupation(rtp,rho_new,error=error)
+          CALL report_density_occupation(rtp%filter_eps,rho_new,error=error)
           DO i=1,SIZE(rho_new)
              CALL cp_dbcsr_copy(rho_old(i)%matrix,rho_new(i)%matrix,error=error)
           END DO

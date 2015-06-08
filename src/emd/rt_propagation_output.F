@@ -91,6 +91,9 @@ CONTAINS
     REAL(dp), INTENT(in), OPTIONAL           :: delta_iter, used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_output', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: n_electrons, output_unit
     REAL(dp)                                 :: orthonormality, tot_rho_r
     REAL(KIND=dp), DIMENSION(:), POINTER     :: qs_tot_rho_r
@@ -112,7 +115,7 @@ CONTAINS
                                                 rtp_section
 
     NULLIFY(logger, dft_control)
-
+    
     logger => cp_error_get_logger(error)
     CALL get_qs_env(qs_env,&
                     rtp=rtp,&
@@ -215,6 +218,11 @@ CONTAINS
     END IF
     
     rtp%energy_old=rtp%energy_new
+    
+    CALL cp_assert(rtp%converged.OR.rtp%iter<dft_control%rtp_control%max_iter,cp_failure_level,cp_assertion_failed,&
+         routineP,"EMD did not converge, either increase MAX_ITER "//&
+         "or use a smaller TIMESTEP",&
+         error)
 
   END SUBROUTINE rt_prop_output
 
@@ -541,15 +549,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Reports the sparsity pattern of the complex density matrix
-!> \param rtp ...
+!> \param filter_eps ...
 !> \param rho ...
 !> \param error ...
 !> \author Samuel Andermatt (09.14)
 ! *****************************************************************************
 
-  SUBROUTINE report_density_occupation(rtp,rho,error)
+  SUBROUTINE report_density_occupation(filter_eps,rho,error)
 
-    TYPE(rt_prop_type), POINTER              :: rtp
+    REAL(KIND=dp)                            :: filter_eps
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -578,7 +586,7 @@ CONTAINS
     DO ispin=1,SIZE(rho)/2
       re=2*ispin-1
       im=2*ispin
-      eps=MAX(rtp%filter_eps,10E-12_dp)
+      eps=MAX(filter_eps,10E-12_dp)
       DO WHILE(eps<1.1_dp)
          CALL cp_dbcsr_filter(tmp(re)%matrix,eps,error=error)
          occ=cp_dbcsr_get_occupation(tmp(re)%matrix)
@@ -586,7 +594,7 @@ CONTAINS
                        ispin," eps ", eps, " real: ", occ
          eps=eps*10 
       ENDDO
-      eps=MAX(rtp%filter_eps,10E-12_dp)
+      eps=MAX(filter_eps,10E-12_dp)
       DO WHILE(eps<1.1_dp)
          CALL cp_dbcsr_filter(tmp(im)%matrix,eps,error=error)
          occ=cp_dbcsr_get_occupation(tmp(im)%matrix)

@@ -413,8 +413,10 @@ CONTAINS
     INTEGER                                  :: i_iter, n_iter, nparticle, &
                                                 nparticle_kind, nshell
     INTEGER, POINTER                         :: itimes
-    LOGICAL :: deallocate_vel, ehrenfest_md, failure, shell_adiabatic, &
-      shell_check_distance, shell_present
+    LOGICAL                                  :: deallocate_vel, ehrenfest_md, &
+                                                shell_adiabatic, &
+                                                shell_check_distance, &
+                                                shell_present
     REAL(KIND=dp)                            :: dt
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: v_old
@@ -447,8 +449,6 @@ CONTAINS
                                                 thermostat_shell
     TYPE(tmp_variables_type), POINTER        :: tmp
     TYPE(virial_type), POINTER               :: virial
-
-    failure = .FALSE.
 
     NULLIFY (thermostat_coeff, tmp)
     NULLIFY (subsys, simpar, para_env, cell, gci, force_env, virial)
@@ -492,7 +492,6 @@ CONTAINS
     END IF
 
     CALL allocate_tmp(md_env, tmp, nparticle,nshell,shell_adiabatic,error=error)
-    IF(ehrenfest_md) ALLOCATE(v_old(3,SIZE(tmp%vel,2)))
 
     ! Apply thermostat over the full set of shells if required
     IF(shell_adiabatic) THEN
@@ -535,6 +534,7 @@ CONTAINS
     ! Update forces
     ! In case of ehrenfest dynamics, velocities need to be iterated
     IF(ehrenfest_md)THEN
+       ALLOCATE(v_old(3,SIZE(tmp%vel,2)))
        v_old(:,:)=tmp%vel
        CALL vv_second(tmp, atomic_kind_set, local_particles, particle_set, &
             core_particle_set, shell_particle_set, nparticle_kind, shell_adiabatic, dt, error=error )
@@ -547,11 +547,12 @@ CONTAINS
     ELSE
        n_iter=1
     END IF
+    
     DO i_iter=1,n_iter
     
        IF(ehrenfest_md)THEN
           CALL get_qs_env(qs_env=force_env%qs_env,rtp=rtp,error=error)
-          force_env%qs_env%rtp%iter=i_iter
+          rtp%iter=i_iter
           tmp%vel=v_old
           CALL propagation_step(force_env%qs_env, rtp, dft_control%rtp_control, error=error)
        END IF
@@ -591,7 +592,7 @@ CONTAINS
           END IF
        END IF
 
-       IF(ehrenfest_md)deallocate_vel=force_env%qs_env%rtp%converged
+       IF(ehrenfest_md) deallocate_vel=force_env%qs_env%rtp%converged
        IF(i_iter.EQ.n_iter) deallocate_vel=.TRUE.
        ! Broadcast the new particle velocities and deallocate the full temporary
        CALL update_dealloc_tmp ( tmp, particle_set, shell_particle_set, &
@@ -599,12 +600,6 @@ CONTAINS
             should_deall_vel=deallocate_vel,error=error )
        IF(ehrenfest_md)THEN
           IF(force_env%qs_env%rtp%converged)EXIT
-          !  will be handled better in the next step of the implementation
-          IF(i_iter==n_iter)&
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"EMD did not converge, either increase MAX_ITER "//&
-                 "or use a smaller TIMESTEP",&
-                 error,failure)
        END IF
 
     END DO
