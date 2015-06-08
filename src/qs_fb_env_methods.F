@@ -10,8 +10,7 @@ MODULE qs_fb_env_methods
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_p_type,&
                                              gto_basis_set_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
+  USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
@@ -40,7 +39,6 @@ MODULE qs_fb_env_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_constants,                 ONLY: cholesky_inverse,&
                                              use_aux_fit_basis_set,&
                                              use_orb_basis_set
@@ -57,11 +55,13 @@ MODULE qs_fb_env_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_fb_atomic_halo_types,         ONLY: &
+       fb_atomic_halo_build_halo_atoms, fb_atomic_halo_cost, &
        fb_atomic_halo_create, fb_atomic_halo_list_create, &
        fb_atomic_halo_list_nullify, fb_atomic_halo_list_obj, &
        fb_atomic_halo_list_release, fb_atomic_halo_list_set, &
        fb_atomic_halo_nelectrons_estimate_Z, fb_atomic_halo_nullify, &
-       fb_atomic_halo_obj, fb_atomic_halo_set, fb_atomic_halo_sort
+       fb_atomic_halo_obj, fb_atomic_halo_set, fb_atomic_halo_sort, &
+       fb_build_pair_radii
   USE qs_fb_env_types,                 ONLY: fb_env_get,&
                                              fb_env_has_data,&
                                              fb_env_obj,&
@@ -88,7 +88,6 @@ MODULE qs_fb_env_methods
                                              init_mo_set,&
                                              mo_set_p_type,&
                                              set_mo_set
-  USE qs_neighbor_lists,               ONLY: pair_radius_setup
   USE qs_scf_methods,                  ONLY: eigensolver
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
@@ -875,28 +874,24 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_atomic_halos', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iatom, iatom_local, ihalo, ihalo_atom, ikind, jatom, &
-      jatom_in_kind, jkind, max_natoms_local, n_global_atoms_in_kind, &
-      n_local_atoms_in_kind, natoms_global, natoms_local, nelectrons_in_halo, &
-      nhalo_atoms, nkinds, nkinds_global, owner_id_in_halo, stat
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, halo_atoms
+    INTEGER :: handle, iatom, ihalo, max_natoms_local, natoms_global, &
+      natoms_local, nelectrons, nhalo_atoms, nkinds_global, owner_id_in_halo, &
+      stat
+    INTEGER, DIMENSION(:), POINTER           :: halo_atoms, local_atoms
     LOGICAL                                  :: failure
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: present_ab
-    REAL(KIND=dp)                            :: rij
+    REAL(KIND=dp)                            :: cost
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pair_radius
-    REAL(KIND=dp), DIMENSION(3)              :: ri, rij_pbc, rj
+      DIMENSION(:, :)                        :: pair_radii
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(fb_atomic_halo_list_obj)            :: atomic_halos
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       POINTER                                :: halos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
 
     CALL timeset(routineN, handle)
 
@@ -904,13 +899,15 @@ CONTAINS
 
     CPPrecondition(fb_env_has_data(fb_env), cp_failure_level, routineP, error, failure)
 
-    NULLIFY(atomic_kind_set, cell, halos, halo_atoms, local_particles,&
-            rcut, particle_set, para_env)
+    NULLIFY(cell, halos, halo_atoms, rcut, particle_set, para_env, &
+            qs_kind_set, local_atoms)
     CALL fb_atomic_halo_list_nullify(atomic_halos)
 
     ! get relevant data from fb_env
     CALL fb_env_get(fb_env=fb_env, &
                     rcut=rcut, &
+                    local_atoms=local_atoms, &
+                    nlocal_atoms=natoms_local, &
                     error=error)
 
     ! create atomic_halos
@@ -918,17 +915,14 @@ CONTAINS
 
     ! get the number of atoms and kinds:
     CALL get_qs_env(qs_env=qs_env, &
-                    local_particles=local_particles, &
                     natom=natoms_global, &
                     particle_set=particle_set, &
-                    atomic_kind_set=atomic_kind_set, &
+                    qs_kind_set=qs_kind_set, &
                     nkind=nkinds_global, &
                     para_env=para_env, &
                     cell=cell, &
                     error=error)
 
-    nkinds = SIZE(local_particles%list)
-    natoms_local = SUM(local_particles%n_el)
     ! get the maximum number of local atoms across the procs.
     max_natoms_local = natoms_local
     CALL mp_max(max_natoms_local, para_env%group)
@@ -944,100 +938,45 @@ CONTAINS
                                  nhalos=natoms_local, &
                                  max_nhalos=max_natoms_local, &
                                  error=error)
-
-    ! construct pair_radius
-    ALLOCATE(present_ab(nkinds_global), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    ALLOCATE(pair_radius(nkinds_global,nkinds_global), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-    present_ab = .TRUE.
-    CALL pair_radius_setup(present_ab, present_ab, rcut, rcut, pair_radius, error)
-    DEALLOCATE(present_ab, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-
     ! build halos
-    ihalo = 1
-    DO ikind=1, nkinds
-       n_local_atoms_in_kind = local_particles%n_el(ikind)
-       DO iatom_local = 1, n_local_atoms_in_kind
-          iatom = local_particles%list(ikind)%array(iatom_local)
-          CALL fb_atomic_halo_set(halos(ihalo), &
-                                  owner_atom=iatom, &
-                                  error=error)
-          nhalo_atoms = 0
-          ! count nhalo_atoms
-          DO jkind = 1, nkinds
-             CALL get_atomic_kind(atomic_kind=atomic_kind_set(jkind), &
-                                  natom=n_global_atoms_in_kind, &
-                                  atom_list=atom_list)
-             DO jatom_in_kind = 1, n_global_atoms_in_kind
-                jatom = atom_list(jatom_in_kind)
-                ! calculate the minimum distance between iatom and
-                ! jatom, taking account of the periodic boundary
-                ! conditions
-                ri(1:3) = particle_set(iatom)%r(1:3)
-                rj(1:3) = particle_set(jatom)%r(1:3)
-                rij_pbc = pbc(ri, rj, cell)
-                rij = rij_pbc(1)*rij_pbc(1) + &
-                      rij_pbc(2)*rij_pbc(2) + &
-                      rij_pbc(3)*rij_pbc(3)
-                rij = SQRT(rij)
-                IF (rij .LE. pair_radius(ikind, jkind)) THEN
-                   ! jatom is in iatom's halo
-                   nhalo_atoms = nhalo_atoms + 1
-                END IF
-             END DO ! jatom_in_kind
-          END DO ! jkind
-          ! allocate
-          ALLOCATE(halo_atoms(nhalo_atoms), STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          ! now find and store halo atoms
-          ihalo_atom = 1
-          DO jkind = 1, nkinds
-             CALL get_atomic_kind(atomic_kind=atomic_kind_set(jkind), &
-                                  natom=n_global_atoms_in_kind, &
-                                  atom_list=atom_list)
-             DO jatom_in_kind = 1, n_global_atoms_in_kind
-                jatom = atom_list(jatom_in_kind)
-                ! record the position of the atom owning the halo in its own halo
-                IF (jatom == iatom) THEN
-                   owner_id_in_halo = ihalo_atom
-                END IF
-                ! calculate the minimum distance between iatom and
-                ! jatom, taking account of the periodic boundary
-                ! conditions
-                ri(1:3) = particle_set(iatom)%r(1:3)
-                rj(1:3) = particle_set(jatom)%r(1:3)
-                rij_pbc = pbc(ri, rj, cell)
-                rij = rij_pbc(1)*rij_pbc(1) + &
-                      rij_pbc(2)*rij_pbc(2) + &
-                      rij_pbc(3)*rij_pbc(3)
-                rij = SQRT(rij)
-                IF (rij .LE. pair_radius(ikind, jkind)) THEN
-                   ! jatom is in iatom's halo
-                   halo_atoms(ihalo_atom) = jatom
-                   ihalo_atom = ihalo_atom + 1
-                END IF
-             END DO ! jatom_in_kind
-          END DO ! jkind
-          ! calculate the number of electrons in each halo
-          nelectrons_in_halo = fb_atomic_halo_nelectrons_estimate_Z(halos(ihalo), &
-                                                                    particle_set)
-          ! set atomic halo
-          CALL fb_atomic_halo_set(atomic_halo=halos(ihalo), &
-                                  owner_id_in_halo=owner_id_in_halo, &
-                                  natoms=nhalo_atoms, &
-                                  halo_atoms=halo_atoms, &
-                                  nelectrons=nelectrons_in_halo, &
-                                  error=error)
-          ! sort atomic halo
-          CALL fb_atomic_halo_sort(halos(ihalo), error)
-          CALL fb_atomic_halo_set(atomic_halo=halos(ihalo), &
-                                  sorted=.TRUE., &
-                                  error=error)
-          ihalo = ihalo + 1
-       END DO ! iatom_local
-    END DO ! ikind
+    ALLOCATE(pair_radii(nkinds_global,nkinds_global), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CALL fb_build_pair_radii(rcut, nkinds_global, pair_radii)
+    ihalo = 0
+    DO iatom = 1, natoms_local
+       ihalo = ihalo + 1
+       CALL fb_atomic_halo_build_halo_atoms(local_atoms(iatom), &
+                                            particle_set, &
+                                            cell, &
+                                            pair_radii, &
+                                            halo_atoms, &
+                                            nhalo_atoms, &
+                                            owner_id_in_halo, &
+                                            error)
+       CALL fb_atomic_halo_set(atomic_halo=halos(ihalo), &
+                               owner_atom=local_atoms(iatom), &
+                               owner_id_in_halo=owner_id_in_halo, &
+                               natoms=nhalo_atoms, &
+                               halo_atoms=halo_atoms, &
+                               error=error)
+       ! prepare halo_atoms for another halo, do not deallocate, as
+       ! original data is being pointed at by the atomic halo data
+       ! structure
+       NULLIFY(halo_atoms)
+       ! calculate the number of electrons in each halo
+       nelectrons = fb_atomic_halo_nelectrons_estimate_Z(halos(ihalo), &
+                                                         particle_set)
+       ! calculate cost
+       cost = fb_atomic_halo_cost(halos(ihalo), particle_set, qs_kind_set)
+       CALL fb_atomic_halo_set(atomic_halo=halos(ihalo), &
+                               nelectrons=nelectrons, &
+                               cost=cost, &
+                               error=error)
+       ! sort atomic halo
+       CALL fb_atomic_halo_sort(halos(ihalo), error)
+    END DO ! iatom
+    DEALLOCATE(pair_radii, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     ! finalise
     CALL fb_atomic_halo_list_set(atomic_halos=atomic_halos, &
@@ -1047,10 +986,6 @@ CONTAINS
                     atomic_halos=atomic_halos, &
                     error=error)
     CALL fb_atomic_halo_list_release(atomic_halos, error)
-
-    ! cleanup
-    DEALLOCATE(pair_radius, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
 
     CALL timestop(handle)
 
@@ -1349,29 +1284,29 @@ CONTAINS
     IF (unit_nr > 0) THEN
        IF (collective_com) THEN
           WRITE (UNIT=unit_nr, FMT="(/,A,T71,A)") &
-               "FILTER_MAT_DIAG| MPI communication method:", &
+               " FILTER_MAT_DIAG| MPI communication method:", &
                "Collective"
        ELSE
           WRITE (UNIT=unit_nr, FMT="(/,A,T71,A)") &
-               "FILTER_MAT_DIAG| MPI communication method:", &
+               " FILTER_MAT_DIAG| MPI communication method:", &
                "At each step"
        END IF
        WRITE (UNIT=unit_nr, FMT="(A,T71,g10.4)") &
-             "FILTER_MAT_DIAG| Filter temperature [K]:", &
+             " FILTER_MAT_DIAG| Filter temperature [K]:", &
              cp_unit_from_cp2k(filter_temperature, "K", error=error)
        WRITE (UNIT=unit_nr, FMT="(A,T71,f10.4)") &
-             "FILTER_MAT_DIAG| Filter temperature [a.u.]:", &
+             " FILTER_MAT_DIAG| Filter temperature [a.u.]:", &
              filter_temperature
        WRITE (UNIT=unit_nr, FMT="(A,T71,f10.4)") &
-             "FILTER_MAT_DIAG| Auto atomic cutoff radius scale:", &
+             " FILTER_MAT_DIAG| Auto atomic cutoff radius scale:", &
              auto_cutoff_scale
        WRITE (UNIT=unit_nr, FMT="(A)") &
-             "FILTER_MAT_DIAG| atomic cutoff radii [a.u.]"
+             " FILTER_MAT_DIAG| atomic cutoff radii [a.u.]"
        DO ikind = 1, nkinds
           CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), &
                                element_symbol=element_symbol)
           WRITE (UNIT=unit_nr, FMT="(A,A,T71,f10.4)") &
-                "FILTER_MAT_DIAG|   ", element_symbol, rcut(ikind)
+                " FILTER_MAT_DIAG|   ", element_symbol, rcut(ikind)
        END DO ! ikind
     END IF
     CALL cp_print_key_finished_output(unit_nr, logger, scf_section, &

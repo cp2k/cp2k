@@ -7,14 +7,20 @@ MODULE qs_fb_atomic_halo_types
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE memory_utilities,                ONLY: reallocate
   USE particle_types,                  ONLY: particle_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -43,6 +49,8 @@ MODULE qs_fb_atomic_halo_types
             fb_atomic_halo_sort,&
             fb_atomic_halo_atom_global2halo,&
             fb_atomic_halo_nelectrons_estimate_Z,&
+            fb_atomic_halo_cost,&
+            fb_atomic_halo_build_halo_atoms,&
             fb_atomic_halo_list_retain,&
             fb_atomic_halo_list_release,&
             fb_atomic_halo_list_nullify,&
@@ -52,7 +60,8 @@ MODULE qs_fb_atomic_halo_types
             fb_atomic_halo_list_init,&
             fb_atomic_halo_list_get,&
             fb_atomic_halo_list_set,&
-            fb_atomic_halo_list_write
+            fb_atomic_halo_list_write,&
+            fb_build_pair_radii
 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_atomic_halo_types'
@@ -71,6 +80,8 @@ MODULE qs_fb_atomic_halo_types
 !> \param nelectrons       : estimate of total number of electrons in halo
 !> \param halo_atoms       : the list of global id of atoms in the halo
 !> \param sorted           : whether the halo_atoms list is sorted or not
+!> \param cost             : computational cost for the atomic matrix associated
+!>                           to this atomic halo
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   TYPE fb_atomic_halo_data
@@ -81,6 +92,7 @@ MODULE qs_fb_atomic_halo_types
      INTEGER :: nelectrons
      INTEGER, DIMENSION(:), POINTER :: halo_atoms
      LOGICAL :: sorted
+     REAL(KIND=dp) :: cost
   END TYPE fb_atomic_halo_data
 
 
@@ -272,6 +284,7 @@ CONTAINS
        atomic_halo%obj%natoms = 0
        atomic_halo%obj%nelectrons = 0
        atomic_halo%obj%sorted = .FALSE.
+       atomic_halo%obj%cost = 0.0_dp
        NULLIFY(atomic_halo%obj%halo_atoms)
        atomic_halo%obj%ref_count = 1
        atomic_halo%obj%id_nr = last_fb_atomic_halo_id + 1
@@ -311,6 +324,7 @@ CONTAINS
        atomic_halo%obj%natoms = 0
        atomic_halo%obj%nelectrons = 0
        atomic_halo%obj%sorted = .FALSE.
+       atomic_halo%obj%cost = 0.0_dp
     END IF
   END SUBROUTINE fb_atomic_halo_init
 
@@ -328,6 +342,7 @@ CONTAINS
 !> \param halo_atoms [OPTIONAL]: if present, outputs pointer
 !>                               atomic_halo%obj%halo_atoms
 !> \param sorted [OPTIONAL]: if present, outputs atomic_halo%obj%sorted
+!> \param cost [OPTIONAL]: if present, outputs atomic_halo%obj%cost
 !> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
@@ -338,12 +353,14 @@ CONTAINS
                                 nelectrons, &
                                 halo_atoms, &
                                 sorted, &
+                                cost, &
                                 error)
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     INTEGER, INTENT(OUT), OPTIONAL           :: owner_atom, owner_id_in_halo, &
                                                 natoms, nelectrons
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
     LOGICAL, INTENT(OUT), OPTIONAL           :: sorted
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cost
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
@@ -360,6 +377,7 @@ CONTAINS
        IF (PRESENT(nelectrons)) nelectrons = atomic_halo%obj%nelectrons
        IF (PRESENT(halo_atoms)) halo_atoms => atomic_halo%obj%halo_atoms
        IF (PRESENT(sorted)) sorted = atomic_halo%obj%sorted
+       IF (PRESENT(cost)) cost = atomic_halo%obj%cost
     END IF
   END SUBROUTINE fb_atomic_halo_get
 
@@ -379,6 +397,7 @@ CONTAINS
 !>                               to the size of halo_atoms, and copies
 !>                               contents of halo_atoms to atomic_halo%obj%halo_atoms
 !> \param sorted [OPTIONAL]: if present, sets atomic_halo%obj%sorted = sorted
+!> \param cost [OPTIONAL]: if present, sets atomic_halo%obj%cost = cost
 !> \param error CP2K data container for error logging
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
@@ -389,12 +408,14 @@ CONTAINS
                                 nelectrons, &
                                 halo_atoms, &
                                 sorted, &
+                                cost, &
                                 error)
     TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
     INTEGER, INTENT(IN), OPTIONAL            :: owner_atom, owner_id_in_halo, &
                                                 natoms, nelectrons
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
     LOGICAL, INTENT(IN), OPTIONAL            :: sorted
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cost
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set', &
@@ -419,6 +440,7 @@ CONTAINS
        END IF
        IF (PRESENT(nelectrons)) atomic_halo%obj%nelectrons = nelectrons
        IF (PRESENT(sorted)) atomic_halo%obj%sorted = sorted
+       IF (PRESENT(cost)) atomic_halo%obj%cost = cost
     END IF
   END SUBROUTINE fb_atomic_halo_set
 
@@ -533,6 +555,137 @@ CONTAINS
        END DO
     END IF
   END FUNCTION fb_atomic_halo_nelectrons_estimate_Z
+
+
+! *****************************************************************************
+!> \brief Estimates the computational cost with respect to the filter matrix
+!>        calculation associated to an atomic halo. Given the bottle neck
+!>        of the filter matrix generation will be the diagoanlisation of the
+!>        atomic matrices (each consists of atoms in an atomic halo), the cost
+!>        can be estimated by counting the total number of contracted gaussians
+!>        in the halo
+!> \param atomic_halo  : the atomic_halo object in question
+!> \param particle_set : an array of cp2k particle set objects, this
+!>                       provides atomic information
+!> \param qs_kind_set  : cp2k qs_kind objects, provides information on the
+!>                       number of contracted gaussian functions each kind
+!>                       has
+!> \retval cost        : computation cost w.r.t. the filter matrix
+!>                       calculation for this atomic halo
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
+  FUNCTION fb_atomic_halo_cost(atomic_halo, &
+                               particle_set, &
+                               qs_kind_set) &
+    RESULT(cost)
+    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      INTENT(IN)                             :: qs_kind_set
+    REAL(KIND=dp)                            :: cost
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_cost', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iatom, ii, ikind, ncgf
+
+    cost = 0.0_dp
+    DO ii = 1, atomic_halo%obj%natoms
+       iatom = atomic_halo%obj%halo_atoms(ii)
+       CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
+                            kind_number=ikind)
+       CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
+                        ncgf=ncgf)
+       cost = cost + REAL(ncgf, dp)
+    END DO
+    ! diagonalisation is N**3 process, so cost must reflect that
+    cost = cost**3
+  END FUNCTION fb_atomic_halo_cost
+
+
+! *****************************************************************************
+!> \brief Builds halo atoms for a given (owner) atom
+!> \param owner_atom   : the atom the halo is going to be built for
+!> \param particle_set : an array of cp2k particle set objects, this
+!>                       provides atomic information
+!> \param cell         : cp2k cell object, used for resolving periodic
+!>                       boundary conditions
+!> \param pair_radii   : 2D array storing interaction radii between two kinds
+!> \param halo_atoms   : must be NULL pointer on input, and outputs an
+!>                       array of halo atoms corresponding to the owner atom
+!> \param nhalo_atoms  : outputs number of halo atoms
+!> \param owner_id_in_halo : the index of the owner atom in the halo_atoms list
+!> \param error        : CP2K error handler container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
+  SUBROUTINE fb_atomic_halo_build_halo_atoms(owner_atom, &
+                                             particle_set, &
+                                             cell, &
+                                             pair_radii, &
+                                             halo_atoms, &
+                                             nhalo_atoms, &
+                                             owner_id_in_halo, &
+                                             error)
+    INTEGER, INTENT(IN)                      :: owner_atom
+    TYPE(particle_type), DIMENSION(:), &
+      INTENT(IN)                             :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN)                             :: pair_radii
+    INTEGER, DIMENSION(:), POINTER           :: halo_atoms
+    INTEGER, INTENT(OUT)                     :: nhalo_atoms, owner_id_in_halo
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'fb_atomic_halo_build_halo_atoms', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iatom, ikind, jatom, jkind, &
+                                                natoms_global, stat
+    LOGICAL                                  :: check_ok, failure
+    REAL(KIND=dp)                            :: rij
+    REAL(KIND=dp), DIMENSION(3)              :: ri, rij_pbc, rj
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+    failure = .FALSE.
+    check_ok = .NOT. ASSOCIATED(halo_atoms)
+    CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
+
+    NULLIFY(atomic_kind)
+
+    iatom = owner_atom
+    atomic_kind => particle_set(iatom)%atomic_kind
+    CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                         kind_number=ikind)
+    natoms_global = SIZE(particle_set)
+    ALLOCATE(halo_atoms(natoms_global), STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    owner_id_in_halo = 0
+    nhalo_atoms = 0
+    DO jatom = 1, natoms_global
+       atomic_kind => particle_set(jatom)%atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                            kind_number=jkind)
+       ! calculate the minimum distance between iatom and
+       ! jatom, taking account of the periodic boundary
+       ! conditions
+       ri(1:3) = particle_set(iatom)%r(1:3)
+       rj(1:3) = particle_set(jatom)%r(1:3)
+       rij_pbc = pbc(ri, rj, cell)
+       rij = rij_pbc(1)*rij_pbc(1) + &
+             rij_pbc(2)*rij_pbc(2) + &
+             rij_pbc(3)*rij_pbc(3)
+       rij = SQRT(rij)
+       IF (rij .LE. pair_radii(ikind, jkind)) THEN
+          ! jatom is in iatom's halo
+          nhalo_atoms = nhalo_atoms + 1
+          halo_atoms(nhalo_atoms) = jatom
+          IF (jatom == iatom) owner_id_in_halo = nhalo_atoms
+       END IF
+    END DO
+    CALL reallocate(halo_atoms, 1, nhalo_atoms)
+  END SUBROUTINE fb_atomic_halo_build_halo_atoms
 
 
 ! *****************************************************************************
@@ -891,5 +1044,33 @@ CONTAINS
                                          "PRINT%ATOMIC_HALOS", error=error)
     END IF
   END SUBROUTINE fb_atomic_halo_list_write
+
+
+! *****************************************************************************
+!> \brief Builds the required pair_radii array required for building the
+!>        halo atoms from a given set of cut off radii
+!> \param rcut   : rcut(ikind) is the cutoff radii for determining the halo
+!>                 corresponding to atomic kind ikind
+!> \param nkinds : total number of atomic kinds in rcut
+!> \param pair_radii : output array pair_radii(ikind,jkind) gives the
+!>                     corresponding interaction range between a pair of atoms
+!>                     of kinds ikind and jkind
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
+  PURE SUBROUTINE fb_build_pair_radii(rcut, nkinds, pair_radii)
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rcut
+    INTEGER, INTENT(IN)                      :: nkinds
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: pair_radii
+
+    INTEGER                                  :: ii, jj
+
+    pair_radii = 0.0_dp
+    DO ii = 1, nkinds
+       DO jj = 1, nkinds
+          pair_radii(ii,jj) = rcut(ii) + rcut(jj)
+       END DO
+    END DO
+  END SUBROUTINE fb_build_pair_radii
 
 END MODULE qs_fb_atomic_halo_types

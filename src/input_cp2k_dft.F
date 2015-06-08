@@ -6691,13 +6691,14 @@ CONTAINS
                                        "of each filter matrix calculation. This "//&
                                        "makes communications more efficient, at "//&
                                        "the expense of using more memory. If you "//&
-                                       "are running low on memory, then turn this "//&
-                                       "option to .FALSE.", &
+                                       "find the fb_fltrmat_add_blkcol_mpi times "//&
+                                       "at the end of CP2K output is high, then "//&
+                                       "run again with this option set to .TRUE.", &
                            required=.FALSE., &
                            repeats=.FALSE., &
                            n_var=1, &
                            type_of_var=logical_t, &
-                           default_l_val=.TRUE., &
+                           default_l_val=.FALSE., &
                            usage="COLLECTIVE_COMMUNICATION T", &
                            error=error)
        CALL section_add_keyword(section, keyword, error=error)
