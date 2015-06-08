@@ -1001,18 +1001,17 @@ CONTAINS
     ! Calculate eigenvalues/eigenvectors
 #if defined (__ELPA) || defined (__ELPA2)
 
-
 #if defined (__ELPA)
     CALL solve_evp_real_2stage(n,neig,m,n_rows,eval,v,n_rows,nblk,comm_row,comm_col,group)
+
 #else
     success = solve_evp_real_2stage(n,neig,m,n_rows,eval,v,n_rows,nblk,comm_row,comm_col,group,&
               THIS_REAL_ELPA_KERNEL_API=kernel_type,useQR=.FALSE.)
-#endif
-
      CALL cp_assert(success,cp_failure_level,cp_assertion_failed,&
      routineP,"ELPA failed to diagonalize a matrix at "//&
 CPSourceFileRef,&
      error)
+#endif
 
 #else
     CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
