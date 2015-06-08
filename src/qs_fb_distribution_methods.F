@@ -864,9 +864,8 @@ CONTAINS
 !> \brief Move the pos-th element from a distribution to another
 !> \param dist_from   : the source distribution
 !> \param pos         : index of the element in the source distribution
-!> \param dist_to ...
+!> \param dist_to     : the destination distribution
 !> \param error       : cp2k error container
-!> \param             : the destination distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_distribution_move_ind(dist_from, pos, dist_to, error)
@@ -897,9 +896,8 @@ CONTAINS
 !> \brief Move a given element from a distribution to another
 !> \param dist_from   : the source distribution
 !> \param element     : the element in question
-!> \param dist_to ...
+!> \param dist_to     : the destination distribution
 !> \param error       : cp2k error container
-!> \param             : the destination distribution UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_distribution_move_el(dist_from, element, dist_to, error)
