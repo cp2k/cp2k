@@ -2263,13 +2263,7 @@ MODULE rpa_ri_gpw
           IF(my_open_shell) THEN
             vec_W_gw_beta = 0.0_dp
           END IF
-          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,nm_global,m_global,n_global,iquad,sign_occ_virt,omega_i,e_fermi, &
-          !$OMP                                   n_global_beta,m_global_beta) &
-          !$OMP             SHARED(ncol_local,nrow_local,row_indices,fm_mat_S_gw_work,vec_W_gw,fm_mat_S_gw,nmo,homo, &
-          !$OMP                    gw_corr_lev_occ,num_integ_points,do_minimax_quad,tj,a_scaling,Eigenval, &
-          !$OMP                    fermi_level_offset,vec_Sigma_c_gw,wj,jquad,omega,im_unit,num_fit_points,vec_omega_fit_gw, &
-          !$OMP                    my_open_shell,vec_w_gw_beta,fm_mat_S_gw_work_beta,fm_mat_s_gw_beta,homo_beta, &
-          !$OMP                    eigenval_beta,gw_corr_lev_occ_beta,vec_Sigma_c_gw_beta)
+
           DO iiB=1, nrow_local
             nm_global=row_indices(iiB)
             DO jjB=1, ncol_local
