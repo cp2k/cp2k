@@ -552,7 +552,7 @@ CONTAINS
     END DO
 
     WRITE(*,*)"MEP saved on <mep.data> file."
-    CALL open_file(unit_number=unit_nr,file_name="mep.data",file_status='unknown',file_form='formatted')
+    CALL open_file(unit_number=unit_nr,file_name="mep.data",file_action="WRITE",file_status="UNKNOWN",file_form="FORMATTED")
     DO irep=1,nreplica
        ! compute energy and derivative for each single point of the replica
        ipos= FLOOR((pos(:,irep)-x0)/dp_grid)+1
