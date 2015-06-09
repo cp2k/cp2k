@@ -8,8 +8,9 @@
 
 #if defined (__ACC) && defined (__OPENCL)
 
-// maximum information line lenght
-#define MAX_DEV_TYPE_LEN 3
+// maximum information line lenght (including null terminator)
+// e.g. 'GPU\0'
+#define MAX_DEV_TYPE_LEN 4
 
 // struct definitions
 typedef struct {
