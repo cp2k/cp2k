@@ -239,13 +239,12 @@ MODULE xc_xwpbe
       !$omp parallel default(none) &
       !$omp shared(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho) &
       !$omp shared(e_rho_rho, e_ndrho_rho, e_ndrho_ndrho, epsilon_rho) &
-      !$omp shared(epsilon_norm_drho, sx, sx0, omega, error)
+      !$omp shared(sx, sx0, omega, error)
 
       CALL xwpbe_lda_calc(npoints,order,rho=rho, norm_drho=norm_drho,&
            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
            e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
-           epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
-           sx=sx,sx0=sx0,omega=omega,error=error)
+           epsilon_rho=epsilon_rho,sx=sx,sx0=sx0,omega=omega,error=error)
 
       !$omp end parallel
 
@@ -275,7 +274,6 @@ MODULE xc_xwpbe
 !> \param e_ndrho_rho ...
 !> \param e_ndrho_ndrho ...
 !> \param epsilon_rho ...
-!> \param epsilon_norm_drho ...
 !> \param sx , sx0: scaling factor for omega!=0 and omega=0
 !> \param sx0 ...
 !> \param omega screening parameter
@@ -291,7 +289,7 @@ MODULE xc_xwpbe
 ! *****************************************************************************
   SUBROUTINE xwpbe_lda_calc(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho,&
                             e_rho_rho, e_ndrho_rho, e_ndrho_ndrho,&
-                            epsilon_rho, epsilon_norm_drho, sx, sx0, omega,&
+                            epsilon_rho, sx, sx0, omega,&
                             error)
 
     INTEGER, INTENT(in)                      :: npoints, order
@@ -299,9 +297,7 @@ MODULE xc_xwpbe
       INTENT(inout)                          :: rho, norm_drho, e_0, e_rho, &
                                                 e_ndrho, e_rho_rho, &
                                                 e_ndrho_rho, e_ndrho_ndrho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, sx, sx0, &
-                                                omega
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, sx0, omega
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xwpbe_lda_calc', &
@@ -5478,7 +5474,7 @@ MODULE xc_xwpbe
       !$omp parallel default(none) &
       !$omp shared(npoints, order, rhoa, norm_drhoa, e_0, e_rhoa, e_ndrhoa) &
       !$omp shared(e_rhoa_rhoa, e_ndrhoa_rhoa, e_ndrhoa_ndrhoa, epsilon_rho) &
-      !$omp shared(epsilon_norm_drho, sx, sx0, omega, error) &
+      !$omp shared(sx, sx0, omega, error) &
       !$omp shared(rhob, norm_drhob, e_rhob, e_ndrhob, e_rhob_rhob) &
       !$omp shared(e_ndrhob_rhob, e_ndrhob_ndrhob)
 
@@ -5487,12 +5483,12 @@ MODULE xc_xwpbe
       CALL xwpbe_lsd_calc(npoints,order, rho=rhoa, norm_drho=norm_drhoa, &
            e_0=e_0,e_rho=e_rhoa,e_ndrho=e_ndrhoa,e_rho_rho=e_rhoa_rhoa, &
            e_ndrho_rho=e_ndrhoa_rhoa, e_ndrho_ndrho=e_ndrhoa_ndrhoa, &
-           epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho, &
+           epsilon_rho=epsilon_rho, &
            sx=sx,sx0=sx0,omega=omega,error=error)
       CALL xwpbe_lsd_calc(npoints,order, rho=rhob, norm_drho=norm_drhob, &
            e_0=e_0,e_rho=e_rhob,e_ndrho=e_ndrhob,e_rho_rho=e_rhob_rhob, &
            e_ndrho_rho=e_ndrhob_rhob, e_ndrho_ndrho=e_ndrhob_ndrhob, &
-           epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho, &
+           epsilon_rho=epsilon_rho,&
            sx=sx,sx0=sx0,omega=omega,error=error)
 
       !$omp end parallel
@@ -5523,7 +5519,6 @@ MODULE xc_xwpbe
 !> \param e_ndrho_rho ...
 !> \param e_ndrho_ndrho ...
 !> \param epsilon_rho ...
-!> \param epsilon_norm_drho ...
 !> \param sx , sx0: scaling factor for omega!=0 and omega=0
 !> \param sx0 ...
 !> \param omega screening parameter
@@ -5544,7 +5539,7 @@ MODULE xc_xwpbe
 ! *****************************************************************************
   SUBROUTINE xwpbe_lsd_calc(npoints, order, rho, norm_drho, e_0, e_rho, e_ndrho, &
                             e_rho_rho, e_ndrho_rho, e_ndrho_ndrho, &
-                            epsilon_rho, epsilon_norm_drho,sx, sx0, omega, &
+                            epsilon_rho,sx, sx0, omega, &
                             error)
 
     INTEGER, INTENT(in)                      :: npoints, order
@@ -5552,9 +5547,7 @@ MODULE xc_xwpbe
       INTENT(inout)                          :: rho, norm_drho, e_0, e_rho, &
                                                 e_ndrho, e_rho_rho, &
                                                 e_ndrho_rho, e_ndrho_ndrho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, sx, sx0, &
-                                                omega
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, sx0, omega
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xwpbe_lsd_calc', &

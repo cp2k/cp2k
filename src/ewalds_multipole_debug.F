@@ -129,11 +129,9 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   e_self = 0.0_dp
 
   CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "CHARGE", echarge=-1.0_dp, &
-       random_stream=random_stream, particle_set=particle_set, charges=charges,&
-       error=error)
+       random_stream=random_stream, charges=charges,error=error)
   CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "CHARGE", echarge=1.0_dp, &
-       random_stream=random_stream, particle_set=particle_set, charges=charges,&
-       error=error)
+       random_stream=random_stream, charges=charges,error=error)
   CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy,&
        debug_r_space, error)
 
@@ -165,11 +163,9 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   e_self = 0.0_dp
 
   CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "CHARGE", echarge=-1.0_dp, &
-       random_stream=random_stream, particle_set=particle_set, charges=charges,&
-       error=error)
+       random_stream=random_stream, charges=charges,error=error)
   CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "DIPOLE", echarge=0.5_dp, &
-       random_stream=random_stream, particle_set=particle_set, dipoles=dipoles,&
-       error=error)
+       random_stream=random_stream, dipoles=dipoles,error=error)
   WRITE(*,'("CHARGES",F15.9)')charges
   WRITE(*,'("DIPOLES",3F15.9)')dipoles
   CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy, &
@@ -201,11 +197,9 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   e_self = 0.0_dp
 
   CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "DIPOLE", echarge=10000.0_dp, &
-       random_stream=random_stream, particle_set=particle_set, dipoles=dipoles,&
-       error=error)
+       random_stream=random_stream,dipoles=dipoles,error=error)
   CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "DIPOLE", echarge=20000._dp, &
-       random_stream=random_stream, particle_set=particle_set, dipoles=dipoles,&
-       error=error)
+       random_stream=random_stream,dipoles=dipoles,error=error)
   WRITE(*,'("DIPOLES",3F15.9)')dipoles
   CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy, &
        debug_r_space, error)
@@ -237,11 +231,9 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   e_self = 0.0_dp
 
   CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "CHARGE", echarge=-1.0_dp, &
-       random_stream=random_stream, particle_set=particle_set, charges=charges,&
-       error=error)
+       random_stream=random_stream,charges=charges,error=error)
   CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "QUADRUPOLE", echarge=10.0_dp, &
-       random_stream=random_stream, particle_set=particle_set, quadrupoles=quadrupoles,&
-       error=error)
+       random_stream=random_stream,quadrupoles=quadrupoles,error=error)
   WRITE(*,'("CHARGES",F15.9)')charges
   WRITE(*,'("QUADRUPOLES",9F15.9)')quadrupoles
   CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy, &
@@ -274,11 +266,9 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   e_self = 0.0_dp
 
   CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "DIPOLE", echarge=10000.0_dp, &
-       random_stream=random_stream, particle_set=particle_set, dipoles=dipoles,&
-       error=error)
+       random_stream=random_stream,dipoles=dipoles,error=error)
   CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "QUADRUPOLE", echarge=10000.0_dp, &
-       random_stream=random_stream, particle_set=particle_set, quadrupoles=quadrupoles,&
-       error=error)
+       random_stream=random_stream,quadrupoles=quadrupoles,error=error)
   WRITE(*,'("DIPOLES",3F15.9)')dipoles
   WRITE(*,'("QUADRUPOLES",9F15.9)')quadrupoles
   CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy, &
@@ -310,11 +300,9 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   e_self = 0.0_dp
 
   CALL create_multi_type(multipoles, nparticles, 1, nparticles/2, "QUADRUPOLE", echarge=-20000.0_dp, &
-       random_stream=random_stream, particle_set=particle_set, quadrupoles=quadrupoles,&
-       error=error)
+       random_stream=random_stream,quadrupoles=quadrupoles,error=error)
   CALL create_multi_type(multipoles, nparticles, nparticles/2+1, nparticles, "QUADRUPOLE", echarge=10000.0_dp, &
-       random_stream=random_stream, particle_set=particle_set, quadrupoles=quadrupoles,&
-       error=error)
+       random_stream=random_stream,quadrupoles=quadrupoles,error=error)
   WRITE(*,'("QUADRUPOLES",9F15.9)')quadrupoles
   CALL debug_ewald_multipole_low(particle_set, cell, nonbond_env, multipoles, debug_energy, &
        debug_r_space, error)
@@ -494,7 +482,6 @@ CONTAINS
 !> \param label ...
 !> \param echarge ...
 !> \param random_stream ...
-!> \param particle_set ...
 !> \param charges ...
 !> \param dipoles ...
 !> \param quadrupoles ...
@@ -503,7 +490,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich - 05.2008
 ! *****************************************************************************
   SUBROUTINE create_multi_type(multipoles, idim, istart, iend, label, echarge,&
-       random_stream, particle_set, charges, dipoles, quadrupoles, error)
+       random_stream, charges, dipoles, quadrupoles, error)
     IMPLICIT NONE
     TYPE(multi_charge_type), DIMENSION(:),&
          POINTER                             :: multipoles
@@ -511,8 +498,6 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: label
     REAL(KIND=dp), INTENT(IN)                :: echarge
     TYPE(rng_stream_type), POINTER           :: random_stream
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(:), POINTER,&
          OPTIONAL                            :: charges
     REAL(KIND=dp), DIMENSION(:,:), POINTER,&

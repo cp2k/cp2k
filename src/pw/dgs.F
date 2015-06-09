@@ -344,24 +344,6 @@ END SUBROUTINE dg_set_cell
 
 ! *****************************************************************************
 !> \brief ...
-!> \param npts ...
-!> \param grid_b ...
-! *****************************************************************************
-SUBROUTINE dg_find_max_cutoff ( npts, grid_b )
-
-    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    TYPE(pw_grid_type), DIMENSION(:), &
-      INTENT(IN)                             :: grid_b
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dg_find_max_cutoff', &
-      routineP = moduleN//':'//routineN
-
-  CALL stop_program(routineN,moduleN,__LINE__,"Not yet implemented.")
-
-END SUBROUTINE dg_find_max_cutoff
-
-! *****************************************************************************
-!> \brief ...
 !> \param cell_hmat ...
 !> \param r ...
 !> \param npts_s ...

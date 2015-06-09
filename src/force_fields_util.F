@@ -1204,7 +1204,7 @@ CONTAINS
              DEALLOCATE(bad2,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DO iimpr=1,SIZE(impr_kind_set)
-                CALL impr_kind_dealloc_ref(impr_kind_set(iimpr),error=error)
+                CALL impr_kind_dealloc_ref(error=error) !This Subroutine doesn't deallocate anything, maybe needs to be implemented
              END DO
              DEALLOCATE(impr_kind_set,STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

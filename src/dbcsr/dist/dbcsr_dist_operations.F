@@ -627,6 +627,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Makes new distribution with decimation and multiplicity
+!>        Multiplicity is beeing ignored, maybe this is a bug
 !> \param[out] images        new image distribution
 !> \param[in] my_bins        Basis for the new images
 !> \param[in] nbins          number of bins in the new real distribution
@@ -938,7 +939,7 @@ CONTAINS
           CALL reimage_distribution (row_img_data,&
                array_data (row_dist),&
                nprows,&
-               imgdist%i%row_multiplicity, imgdist%i%row_decimation)
+               imgdist%i%row_multiplicity, imgdist%i%row_decimation) !the multiplicity argument is beeing ignored
        ENDIF
        CALL array_new (row_image, row_img_data, gift=.TRUE.)
     ENDIF
@@ -994,7 +995,7 @@ CONTAINS
           CALL reimage_distribution (col_img_data,&
                array_data (col_dist),&
                npcols,&
-               imgdist%i%col_multiplicity, imgdist%i%col_decimation)
+               imgdist%i%col_multiplicity, imgdist%i%col_decimation) !the multiplicity argument is beeing ignored
        ENDIF
        CALL array_new (col_image, col_img_data, gift=.TRUE.)
     ENDIF
@@ -1687,13 +1688,11 @@ CONTAINS
 !> \param row_blk_offsets ...
 !> \param col_blk_offsets ...
 !> \param old_image_dist ...
-!> \param old_col_idist ...
-!> \param old_col_nimages ...
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE match_sizes_to_dist (new_distribution, old_distribution,&
        row_blk_sizes, col_blk_sizes, row_blk_offsets, col_blk_offsets,&
-       old_image_dist, old_col_idist, old_col_nimages)
+       old_image_dist)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: new_distribution, &
                                                 old_distribution
     INTEGER, DIMENSION(:), INTENT(INOUT), &
@@ -1701,8 +1700,7 @@ CONTAINS
                                                 row_blk_offsets, &
                                                 col_blk_offsets
     TYPE(dbcsr_imagedistribution_obj), &
-      INTENT(IN), OPTIONAL                   :: old_image_dist, &
-                                                old_col_idist, old_col_nimages
+      INTENT(IN), OPTIONAL                   :: old_image_dist
 
     CHARACTER(len=*), PARAMETER :: routineN = 'match_sizes_to_dist', &
       routineP = moduleN//':'//routineN
@@ -1737,18 +1735,18 @@ CONTAINS
                  row_blk_offsets(nvprows+1), col_blk_offsets(nvpcols+1))
        old_irow_dist => array_data (old_image_dist%i%row_image)
        old_icol_dist => array_data (old_image_dist%i%col_image)
-       CALL match_sizes_to_el_dist(row_blk_sizes, old_row_blk_offsets, new_prow_dist,&
+       CALL match_sizes_to_el_dist(row_blk_sizes, old_row_blk_offsets,&
             old_prow_dist, old_irow_dist, old_image_dist%i%row_decimation)
-       CALL match_sizes_to_el_dist(col_blk_sizes, old_col_blk_offsets, new_pcol_dist,&
+       CALL match_sizes_to_el_dist(col_blk_sizes, old_col_blk_offsets,&
             old_pcol_dist, old_icol_dist, old_image_dist%i%col_decimation)
     ELSE
        nvprows = dbcsr_mp_nprows (mp)
        nvpcols = dbcsr_mp_npcols (mp)
        ALLOCATE (row_blk_sizes(nvprows), col_blk_sizes(nvpcols), &
                  row_blk_offsets(nvprows+1), col_blk_offsets(nvpcols+1))
-       CALL match_sizes_to_el_dist (row_blk_sizes, old_row_blk_offsets, new_prow_dist,&
+       CALL match_sizes_to_el_dist (row_blk_sizes, old_row_blk_offsets,&
             old_prow_dist)
-       CALL match_sizes_to_el_dist (col_blk_sizes, old_col_blk_offsets, new_pcol_dist,&
+       CALL match_sizes_to_el_dist (col_blk_sizes, old_col_blk_offsets,&
             old_pcol_dist)
     ENDIF
     CALL convert_sizes_to_offsets (row_blk_sizes, row_blk_offsets)
@@ -1798,17 +1796,15 @@ CONTAINS
 !>        distributions.
 !> \param new_sizes ...
 !> \param old_offsets ...
-!> \param new_dist ...
 !> \param old_dist ...
 !> \param old_idist ...
 !> \param old_nimages ...
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   PURE SUBROUTINE match_sizes_to_el_dist(new_sizes, old_offsets,&
-       new_dist, old_dist, old_idist, old_nimages)
+       old_dist, old_idist, old_nimages)
     INTEGER, DIMENSION(:), INTENT(OUT)       :: new_sizes
-    INTEGER, DIMENSION(:), INTENT(IN)        :: old_offsets, new_dist, &
-                                                old_dist
+    INTEGER, DIMENSION(:), INTENT(IN)        :: old_offsets, old_dist
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: old_idist
     INTEGER, INTENT(IN), OPTIONAL            :: old_nimages

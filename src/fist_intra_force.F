@@ -524,18 +524,11 @@ CONTAINS
              tm(1) =  t32(2)*t12(3)-t12(2)*t32(3)
              tm(2) = -t32(1)*t12(3)+t12(1)*t32(3)
              tm(3) =  t32(1)*t12(2)-t12(1)*t32(2)
-             ! tn = - t41 x tm
-             tn(1) = -( t41(2)*tm(3)-tm(2)*t41(3))
-             tn(2) = -(-t41(1)*tm(3)+tm(1)*t41(3))
-             tn(3) = -( t41(1)*tm(2)-tm(1)*t41(2))
              sm = SQRT ( DOT_PRODUCT(tm,tm) )
-             ism = 1.0_dp/sm
              sn = SQRT ( DOT_PRODUCT(tn,tn) )
-             isn = 1.0_dp/sn
              s32 = SQRT ( DOT_PRODUCT(t32,t32) )
-             is32 = 1.0_dp/s32
              CALL force_opbends( opbend_list(iopbend)%opbend_kind%id_type, &
-                                      s32, is32,ism,isn,tm,tn, t41, t42, t43, &
+                                      s32,tm,t41, t42, t43, &
                                       opbend_list(iopbend)%opbend_kind%k, &
                                       opbend_list(iopbend)%opbend_kind%phi0, &
                                       gt1,gt2,gt3,gt4,energy,fscalar)

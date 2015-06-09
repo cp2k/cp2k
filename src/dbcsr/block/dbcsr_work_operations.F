@@ -885,14 +885,12 @@ CONTAINS
           !$OMP                  start_offset, sort_data, error)
           CALL dbcsr_merge_all (matrix%m,&
                old_row_p, old_col_i, old_blk_p,&
-               data_starting_offset = start_offset,&
                sort_data=sort_data, &
                error=error)
           !$OMP END PARALLEL
        ELSE
           CALL dbcsr_merge_all (matrix%m,&
                old_row_p, old_col_i, old_blk_p,&
-               data_starting_offset = start_offset,&
                sort_data=sort_data, &
                error=error)
        ENDIF
@@ -1423,16 +1421,14 @@ CONTAINS
 !> \param old_row_p ...
 !> \param old_col_i ...
 !> \param old_blk_p ...
-!> \param[in] data_starting_offset   Where to add data
 !> \param[in] sort_data       whether data will be fully sorted
 !> \param[in,out] error       error
 ! *****************************************************************************
   SUBROUTINE dbcsr_merge_all (matrix, old_row_p, old_col_i, old_blk_p,&
-       data_starting_offset, sort_data, error)
+       sort_data, error)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     INTEGER, DIMENSION(*), INTENT(IN)        :: old_row_p, old_col_i, &
                                                 old_blk_p
-    INTEGER, INTENT(IN)                      :: data_starting_offset
     LOGICAL, INTENT(IN)                      :: sort_data
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 

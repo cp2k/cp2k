@@ -885,7 +885,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_cp2k_section', &
-      routineP = moduleN//':'//routineN, start_section_label = "CP2K"
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: output_unit
     TYPE(cp_logger_type), POINTER            :: logger

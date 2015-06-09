@@ -191,7 +191,7 @@ MODULE glbopt_minhop
     CALL swarm_message_get(report, "Epot", report_Epot)
     CALL swarm_message_get(report, "positions", report_positions)
 
-    report_fp = history_fingerprint(this%history(hid), report_Epot, report_positions)
+    report_fp = history_fingerprint(report_Epot, report_positions)
 
     IF(.NOT. ALLOCATED(this%worker_state(wid)%pos)) THEN
        !init (first real report)

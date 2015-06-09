@@ -458,7 +458,7 @@ CONTAINS
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%impr_kind_set)) THEN
            DO i = 1, SIZE(molecule_kind_set(imolecule_kind)%impr_kind_set)
-              CALL impr_kind_dealloc_ref(molecule_kind_set(imolecule_kind)%impr_kind_set(i),error=error)
+              CALL impr_kind_dealloc_ref(error=error)  !This Subroutine doesn't deallocate anything, maybe needs to be implemented
            END DO
            DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_kind_set,STAT=stat)
            CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)

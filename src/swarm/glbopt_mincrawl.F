@@ -378,7 +378,7 @@ MODULE glbopt_mincrawl
     start_minima => this%workers(wid)%start_minima
     tempstep = this%workers(wid)%tempstep
 
-    report_fp = history_fingerprint(this%history, report_Epot, report_positions)
+    report_fp = history_fingerprint(report_Epot, report_positions)
     CALL history_lookup(this%history, report_fp, minima_known)
 
     IF(ASSOCIATED(start_minima)) THEN

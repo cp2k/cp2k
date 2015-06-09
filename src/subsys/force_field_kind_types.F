@@ -410,12 +410,10 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Deallocate a impr kind element
-!> \param impr_kind ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE impr_kind_dealloc_ref(impr_kind, error)
+  SUBROUTINE impr_kind_dealloc_ref(error)
 
-    TYPE(impr_kind_type), INTENT(INOUT)      :: impr_kind
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'impr_kind_dealloc_ref', &
@@ -426,6 +424,7 @@ CONTAINS
     failure = .FALSE.
     !
     ! Questa e' la migliore routine che mente umana abbia concepito! ;-)
+    ! Translation to english: This is the best subroutine that humanity can imagine! ;-)
     !
   END SUBROUTINE impr_kind_dealloc_ref
 

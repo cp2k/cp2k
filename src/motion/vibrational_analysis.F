@@ -95,7 +95,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, ip1, ip2, &
       iparticle1, iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, &
-      nRotTrM, nvib, output_molden, output_unit, prep, proc_dist_type, stat
+      nRotTrM, nvib, output_unit, prep, proc_dist_type, stat
     INTEGER, DIMENSION(:), POINTER           :: Clist, Mlist
     LOGICAL                                  :: calc_intens, &
                                                 do_mode_tracking, failure, &
@@ -159,7 +159,7 @@ CONTAINS
           ! Decide which kind of Vibrational Analysis to perform
           IF (do_mode_tracking)THEN
              CALL ms_vb_anal(input,rep_env, para_env, globenv, particles,&
-                             nrep,calc_intens,dx,output_unit,output_molden, error)
+                             nrep,calc_intens,dx,output_unit, error)
              CALL f_env_rm_defaults(f_env,new_error,ierr)
           ELSE
              CALL get_moving_atoms(force_env=f_env%force_env,Ilist=Mlist,error=error)

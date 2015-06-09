@@ -88,14 +88,12 @@ MODULE glbopt_history
 
 ! *****************************************************************************
 !> \brief Calculates a fingerprint for a given configuration.
-!> \param history ...
 !> \param Epot ...
 !> \param pos ...
 !> \retval fp ...
 !> \author Ole Schuett
 ! *****************************************************************************
- FUNCTION history_fingerprint(history, Epot, pos) RESULT(fp)
-    TYPE(history_type), INTENT(IN)           :: history
+ FUNCTION history_fingerprint(Epot, pos) RESULT(fp)
     REAL(KIND=dp), INTENT(IN)                :: Epot
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pos
     TYPE(history_fingerprint_type)           :: fp

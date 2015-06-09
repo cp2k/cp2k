@@ -91,12 +91,11 @@ CONTAINS
 !> \param calc_intens ...
 !> \param dx ...
 !> \param output_unit ...
-!> \param output_molden ...
 !> \param error ...
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
   SUBROUTINE ms_vb_anal(input,rep_env, para_env, globenv, particles,&
-                        nrep,calc_intens,dx,output_unit,output_molden, error)
+                        nrep,calc_intens,dx,output_unit,error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -106,7 +105,7 @@ CONTAINS
     INTEGER                                  :: nrep
     LOGICAL                                  :: calc_intens
     REAL(KIND=dp)                            :: dx
-    INTEGER                                  :: output_unit, output_molden
+    INTEGER                                  :: output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ms_vb_anal', &
@@ -154,7 +153,7 @@ CONTAINS
     CALL MS_initial_moves( para_env, nrep , input, globenv,ms_vib,&
          particles,&
          mass,&
-         dx,output_unit,output_molden,&
+         dx,output_unit,&
          calc_intens,error)
     ncoord=3*natoms
     ALLOCATE(pos0(ncoord), stat=stat)
@@ -214,7 +213,7 @@ CONTAINS
             mass,&
             converged,&
             dx,calc_intens,&
-            output_unit,output_molden, error)
+            output_unit,error)
        IF(converged)EXIT
        IF(calc_intens)THEN
           ALLOCATE(tmp_deriv(3,ms_vib%mat_size),stat=stat)
@@ -279,13 +278,12 @@ CONTAINS
 !> \param mass ...
 !> \param dx ...
 !> \param output_unit_ms ...
-!> \param output_molden ...
 !> \param calc_intens ...
 !> \param error ...
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************
   SUBROUTINE MS_initial_moves(para_env, nrep , input, globenv ,ms_vib,particles ,&
-                              mass, dx,output_unit_ms,output_molden,&
+                              mass, dx,output_unit_ms,&
                               calc_intens, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: nrep
@@ -296,7 +294,7 @@ CONTAINS
       POINTER                                :: particles
     REAL(Kind=dp), DIMENSION(:)              :: mass
     REAL(KIND=dp)                            :: dx
-    INTEGER                                  :: output_unit_ms, output_molden
+    INTEGER                                  :: output_unit_ms
     LOGICAL                                  :: calc_intens
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -894,7 +892,6 @@ CONTAINS
 !> \param dx ...
 !> \param calc_intens ...
 !> \param output_unit_ms ...
-!> \param output_molden ...
 !> \param error ...
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************
@@ -902,7 +899,7 @@ CONTAINS
                                   particles,&
                                   mass, &
                                   converged,dx,&
-                                  calc_intens,output_unit_ms,output_molden,error)
+                                  calc_intens,output_unit_ms,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(ms_vib_type)                        :: ms_vib
     TYPE(section_vals_type), POINTER         :: input
@@ -913,7 +910,7 @@ CONTAINS
     LOGICAL                                  :: converged
     REAL(KIND=dp)                            :: dx
     LOGICAL                                  :: calc_intens
-    INTEGER                                  :: output_unit_ms, output_molden
+    INTEGER                                  :: output_unit_ms
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_H_update_b', &
