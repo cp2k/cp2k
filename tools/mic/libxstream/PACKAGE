@@ -1,5 +1,0 @@
-{
-"description": "Stream programming API for Intel Architecture",
-"archive":"libxstream",
-"requires": ["include", "src"]
-}
