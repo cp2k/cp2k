@@ -1,5 +1,3 @@
-Flag DAMPING not mentioned in INSTALL
-Flag DAMPING not mentioned in cp2k_flags()
 Flag FD_DEBUG not mentioned in INSTALL
 Flag FD_DEBUG not mentioned in cp2k_flags()
 Flag FLUSH_OPT not mentioned in INSTALL
@@ -24,138 +22,24 @@ Flag LIBMICSMM_USE_XALIGN not mentioned in INSTALL
 Flag LIBMICSMM_USE_XALIGN not mentioned in cp2k_flags()
 Flag LIBXSMM_COL_MAJOR not mentioned in INSTALL
 Flag LIBXSMM_COL_MAJOR not mentioned in cp2k_flags()
-Flag LIBXSTREAM_ALLOC_HPP not mentioned in INSTALL
-Flag LIBXSTREAM_ALLOC_HPP not mentioned in cp2k_flags()
-Flag LIBXSTREAM_ALLOC_PINNED not mentioned in INSTALL
-Flag LIBXSTREAM_ALLOC_PINNED not mentioned in cp2k_flags()
-Flag LIBXSTREAM_ARGUMENT_HPP not mentioned in INSTALL
-Flag LIBXSTREAM_ARGUMENT_HPP not mentioned in cp2k_flags()
-Flag LIBXSTREAM_ASYNC not mentioned in INSTALL
-Flag LIBXSTREAM_ASYNC not mentioned in cp2k_flags()
-Flag LIBXSTREAM_ASYNCHOST not mentioned in INSTALL
-Flag LIBXSTREAM_ASYNCHOST not mentioned in cp2k_flags()
-Flag LIBXSTREAM_CALL_BYVALUE not mentioned in INSTALL
-Flag LIBXSTREAM_CALL_BYVALUE not mentioned in cp2k_flags()
-Flag LIBXSTREAM_CAPTURE_DEBUG not mentioned in INSTALL
-Flag LIBXSTREAM_CAPTURE_DEBUG not mentioned in cp2k_flags()
-Flag LIBXSTREAM_CAPTURE_HPP not mentioned in INSTALL
-Flag LIBXSTREAM_CAPTURE_HPP not mentioned in cp2k_flags()
-Flag LIBXSTREAM_CAPTURE_UNLOCK_LATE not mentioned in INSTALL
-Flag LIBXSTREAM_CAPTURE_UNLOCK_LATE not mentioned in cp2k_flags()
-Flag LIBXSTREAM_CHECK not mentioned in INSTALL
-Flag LIBXSTREAM_CHECK not mentioned in cp2k_flags()
-Flag LIBXSTREAM_CONFIG_EXTERNAL not mentioned in INSTALL
-Flag LIBXSTREAM_CONFIG_EXTERNAL not mentioned in cp2k_flags()
-Flag LIBXSTREAM_CONTEXT_HPP not mentioned in INSTALL
-Flag LIBXSTREAM_CONTEXT_HPP not mentioned in cp2k_flags()
 Flag LIBXSTREAM_DEBUG not mentioned in INSTALL
 Flag LIBXSTREAM_DEBUG not mentioned in cp2k_flags()
-Flag LIBXSTREAM_ERROR_CHECK not mentioned in INSTALL
-Flag LIBXSTREAM_ERROR_CHECK not mentioned in cp2k_flags()
-Flag LIBXSTREAM_ERROR_DEBUG not mentioned in INSTALL
-Flag LIBXSTREAM_ERROR_DEBUG not mentioned in cp2k_flags()
-Flag LIBXSTREAM_EVENT_HPP not mentioned in INSTALL
-Flag LIBXSTREAM_EVENT_HPP not mentioned in cp2k_flags()
-Flag LIBXSTREAM_EVENT_WAIT_PAST not mentioned in INSTALL
-Flag LIBXSTREAM_EVENT_WAIT_PAST not mentioned in cp2k_flags()
-Flag LIBXSTREAM_EXPORTED not mentioned in INSTALL
-Flag LIBXSTREAM_EXPORTED not mentioned in cp2k_flags()
-Flag LIBXSTREAM_H not mentioned in INSTALL
-Flag LIBXSTREAM_H not mentioned in cp2k_flags()
-Flag LIBXSTREAM_HPP not mentioned in INSTALL
-Flag LIBXSTREAM_HPP not mentioned in cp2k_flags()
-Flag LIBXSTREAM_LOCK_RETRY not mentioned in INSTALL
-Flag LIBXSTREAM_LOCK_RETRY not mentioned in cp2k_flags()
-Flag LIBXSTREAM_MACROS_H not mentioned in INSTALL
-Flag LIBXSTREAM_MACROS_H not mentioned in cp2k_flags()
-Flag LIBXSTREAM_OFFLOAD not mentioned in INSTALL
-Flag LIBXSTREAM_OFFLOAD not mentioned in cp2k_flags()
-Flag LIBXSTREAM_OFFLOAD_HPP not mentioned in INSTALL
-Flag LIBXSTREAM_OFFLOAD_HPP not mentioned in cp2k_flags()
-Flag LIBXSTREAM_PREFER_OPENMP not mentioned in INSTALL
-Flag LIBXSTREAM_PREFER_OPENMP not mentioned in cp2k_flags()
 Flag LIBXSTREAM_PRINT not mentioned in INSTALL
 Flag LIBXSTREAM_PRINT not mentioned in cp2k_flags()
-Flag LIBXSTREAM_STDFEATURES not mentioned in INSTALL
-Flag LIBXSTREAM_STDFEATURES not mentioned in cp2k_flags()
-Flag LIBXSTREAM_STDFEATURES_THREADX not mentioned in INSTALL
-Flag LIBXSTREAM_STDFEATURES_THREADX not mentioned in cp2k_flags()
-Flag LIBXSTREAM_STREAM_HPP not mentioned in INSTALL
-Flag LIBXSTREAM_STREAM_HPP not mentioned in cp2k_flags()
-Flag LIBXSTREAM_STREAM_UNLOCK_OWNER not mentioned in INSTALL
-Flag LIBXSTREAM_STREAM_UNLOCK_OWNER not mentioned in cp2k_flags()
-Flag LIBXSTREAM_STREAM_WAIT_PAST not mentioned in INSTALL
-Flag LIBXSTREAM_STREAM_WAIT_PAST not mentioned in cp2k_flags()
-Flag LIBXSTREAM_SYNCMEM not mentioned in INSTALL
-Flag LIBXSTREAM_SYNCMEM not mentioned in cp2k_flags()
-Flag LIBXSTREAM_THREADLOCAL_SIGNALS not mentioned in INSTALL
-Flag LIBXSTREAM_THREADLOCAL_SIGNALS not mentioned in cp2k_flags()
-Flag LIBXSTREAM_TLS not mentioned in INSTALL
-Flag LIBXSTREAM_TLS not mentioned in cp2k_flags()
-Flag LIBXSTREAM_TRACE not mentioned in INSTALL
-Flag LIBXSTREAM_TRACE not mentioned in cp2k_flags()
 Flag MKL_DIRECT_CALL_SEQ not mentioned in INSTALL
 Flag MKL_DIRECT_CALL_SEQ not mentioned in cp2k_flags()
-Flag MULTI_DGEMM_TYPE_HPP not mentioned in INSTALL
-Flag MULTI_DGEMM_TYPE_HPP not mentioned in cp2k_flags()
-Flag MULTI_DGEMM_USE_CHECK not mentioned in INSTALL
-Flag MULTI_DGEMM_USE_CHECK not mentioned in cp2k_flags()
-Flag MULTI_DGEMM_USE_NESTED not mentioned in INSTALL
-Flag MULTI_DGEMM_USE_NESTED not mentioned in cp2k_flags()
-Flag MULTI_DGEMM_USE_SYNC not mentioned in INSTALL
-Flag MULTI_DGEMM_USE_SYNC not mentioned in cp2k_flags()
-Flag NDEBUG not mentioned in INSTALL
-Flag NDEBUG not mentioned in cp2k_flags()
-Flag NOMINMAX not mentioned in INSTALL
-Flag NOMINMAX not mentioned in cp2k_flags()
 Flag PARAMS_IN_SMEM_OPT not mentioned in INSTALL
 Flag PARAMS_IN_SMEM_OPT not mentioned in cp2k_flags()
-Flag PURE_COULOMB not mentioned in INSTALL
-Flag PURE_COULOMB not mentioned in cp2k_flags()
-Flag PURE_COULOMB_GAUSS not mentioned in INSTALL
-Flag PURE_COULOMB_GAUSS not mentioned in cp2k_flags()
-Flag SCREENED_COULOMB_ERF not mentioned in INSTALL
-Flag SCREENED_COULOMB_ERF not mentioned in cp2k_flags()
-Flag SCREENED_COULOMB_ERFC not mentioned in INSTALL
-Flag SCREENED_COULOMB_ERFC not mentioned in cp2k_flags()
-Flag SCREENED_COULOMB_GAUSS not mentioned in INSTALL
-Flag SCREENED_COULOMB_GAUSS not mentioned in cp2k_flags()
-Flag STORE_ENERGY not mentioned in INSTALL
-Flag STORE_ENERGY not mentioned in cp2k_flags()
-Flag STORE_FORCES not mentioned in INSTALL
-Flag STORE_FORCES not mentioned in cp2k_flags()
-Flag TEST_HPP not mentioned in INSTALL
-Flag TEST_HPP not mentioned in cp2k_flags()
 Flag USE_NATIVE_64 not mentioned in INSTALL
 Flag USE_NATIVE_64 not mentioned in cp2k_flags()
-Flag WIN32_LEAN_AND_MEAN not mentioned in INSTALL
-Flag WIN32_LEAN_AND_MEAN not mentioned in cp2k_flags()
-Flag _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES not mentioned in INSTALL
-Flag _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES not mentioned in cp2k_flags()
-Flag _CRT_SECURE_NO_DEPRECATE not mentioned in INSTALL
-Flag _CRT_SECURE_NO_DEPRECATE not mentioned in cp2k_flags()
-Flag _DEBUG not mentioned in INSTALL
-Flag _DEBUG not mentioned in cp2k_flags()
-Flag _MSC_VER not mentioned in INSTALL
-Flag _MSC_VER not mentioned in cp2k_flags()
-Flag _USE_MATH_DEFINES not mentioned in INSTALL
-Flag _USE_MATH_DEFINES not mentioned in cp2k_flags()
-Flag _WIN32 not mentioned in INSTALL
-Flag _WIN32 not mentioned in cp2k_flags()
-Flag _WINDLL not mentioned in INSTALL
-Flag _WINDLL not mentioned in cp2k_flags()
 Flag __ACC not mentioned in INSTALL
 Flag __ACC_MIC not mentioned in INSTALL
 Flag __ACC_MIC not mentioned in cp2k_flags()
 Flag __CRAY_PM_ACCEL_ENERGY not mentioned in INSTALL
 Flag __CRAY_PM_ENERGY not mentioned in INSTALL
 Flag __CRAY_PM_FAKE_ENERGY not mentioned in INSTALL
-Flag __CYGWIN32__ not mentioned in INSTALL
-Flag __CYGWIN32__ not mentioned in cp2k_flags()
 Flag __DATA_DIR not mentioned in cp2k_flags()
 Flag __FFTW3_UNALIGNED not mentioned in cp2k_flags()
-Flag __GNUC__ not mentioned in INSTALL
-Flag __GNUC__ not mentioned in cp2k_flags()
 Flag __GRID_CORE not mentioned in cp2k_flags()
 Flag __HAS_smm_cnt not mentioned in INSTALL
 Flag __HAS_smm_ctn not mentioned in INSTALL
@@ -169,14 +53,10 @@ Flag __HAS_smm_stt not mentioned in INSTALL
 Flag __HAS_smm_znt not mentioned in INSTALL
 Flag __HAS_smm_ztn not mentioned in INSTALL
 Flag __HAS_smm_ztt not mentioned in INSTALL
-Flag __INTEL_OFFLOAD not mentioned in INSTALL
-Flag __INTEL_OFFLOAD not mentioned in cp2k_flags()
 Flag __LIBDERIV_MAX_AM1 not mentioned in INSTALL
 Flag __LIBINT_MAX_AM not mentioned in INSTALL
 Flag __LIBXSMM not mentioned in INSTALL
 Flag __LIBXSMM not mentioned in cp2k_flags()
-Flag __LIBXSTREAM not mentioned in INSTALL
-Flag __LIBXSTREAM not mentioned in cp2k_flags()
 Flag __LINUMA not mentioned in INSTALL
 Flag __MAX_CONTR not mentioned in INSTALL
 Flag __MIC__ not mentioned in INSTALL
@@ -190,14 +70,7 @@ Flag __RELEASE_VERSION not mentioned in cp2k_flags()
 Flag __SCALAPACK2 not mentioned in INSTALL
 Flag __STATM_RESIDENT not mentioned in INSTALL
 Flag __STATM_TOTAL not mentioned in INSTALL
-Flag __STDC_VERSION__ not mentioned in INSTALL
-Flag __STDC_VERSION__ not mentioned in cp2k_flags()
-ai_overlap3.F: Unused dummy argument 'npgfc' at (1)
-al_system_init.F: Unused dummy argument 'temp_ext' at (1)
-almo_scf.F: Unused dummy argument 'qs_env' at (1)
-almo_scf.F: Unused dummy argument 'unit_nr' at (1)
 almo_scf_diis_types.F: Unused dummy argument 'sample_var' at (1)
-almo_scf_methods.F: Unused dummy argument 'matrix_nn' at (1)
 atom_output.F: Routine XC_F90_VERSION called with an implicit interface.
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio"
 bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt"
@@ -223,10 +96,6 @@ call_collocate_omp.f90: Routine COLLOCATE_CORE_7 called with an implicit interfa
 call_collocate_omp.f90: Routine COLLOCATE_CORE_8 called with an implicit interface.
 call_collocate_omp.f90: Routine COLLOCATE_CORE_9 called with an implicit interface.
 call_collocate_omp.f90: Routine COLLOCATE_CORE_DEFAULT called with an implicit interface.
-core_ppl.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
-core_ppl.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
-core_ppnl.F: Routine OMP_GET_MAX_THREADS called with an implicit interface.
-core_ppnl.F: Routine OMP_GET_THREAD_NUM called with an implicit interface.
 cp2k_shell.F: Found GOTO statement in procedure "cp2k_shell"
 cp2k_shell.F: Found OPEN statement in procedure "get_eof_stat"
 cp_dbcsr_cholesky.F: Routine PDCOPY called with an implicit interface.
@@ -240,17 +109,11 @@ cp_dbcsr_cholesky.F: Routine PSPOTRF called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSPOTRI called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSTRMM called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSTRSM called with an implicit interface.
-cp_ddapc.F: Unused dummy argument 'energy' at (1)
-cp_ddapc.F: Unused dummy argument 'ks_env' at (1)
-cp_ddapc.F: Unused dummy argument 'section_id' at (1)
-cp_ddapc_forces.F: Unused dummy argument 'cell' at (1)
 cp_files.F: Found CLOSE statement in procedure "close_file"
 cp_files.F: Found OPEN statement in procedure "open_file"
 cp_fm_basic_linalg.F: Unused dummy argument 'correct_sign' at (1)
 cp_fm_diag.F: Unused parameter 'vl' declared at (1)
 cp_fm_diag.F: Unused parameter 'vu' declared at (1)
-cp_ma_interface.F: Unused dummy argument 'para_env' at (1)
-cp_subsys_methods.F: Unused dummy argument 'cell' at (1)
 ct_methods.F: Unused dummy argument 'level' at (1)
 ct_methods.F: Unused dummy argument 'tensor_type' at (1)
 ct_types.F: Unused dummy argument 'matrix_x' at (1)
@@ -260,9 +123,6 @@ dbcsr_data_methods_low_d.f90: Unused dummy argument 'coersion' at (1)
 dbcsr_data_methods_low_s.f90: Unused dummy argument 'coersion' at (1)
 dbcsr_data_methods_low_z.f90: Unused dummy argument 'coersion' at (1)
 dbcsr_dist_operations.F: Unused dummy argument 'multiplicity' at (1)
-dbcsr_dist_operations.F: Unused dummy argument 'new_dist' at (1)
-dbcsr_dist_operations.F: Unused dummy argument 'old_col_idist' at (1)
-dbcsr_dist_operations.F: Unused dummy argument 'old_col_nimages' at (1)
 dbcsr_dist_operations.F: Unused dummy argument 'transpose' at (1)
 dbcsr_dist_operations.F: Unused parameter 'dbg' declared at (1)
 dbcsr_geev.F: Unused dummy argument 'jobvl' at (1)
@@ -308,12 +168,9 @@ dbcsr_tests.F: Unused dummy argument 'matrix_types' at (1)
 dbcsr_tests.F: Unused dummy argument 'mp_group' at (1)
 dbcsr_transformations.F: Unused parameter 'debug_level' declared at (1)
 dbcsr_transformations.F: Unused parameter 'metalen' declared at (1)
-dbcsr_work_operations.F: Unused dummy argument 'data_starting_offset' at (1)
 dbcsr_work_operations.F: Unused dummy argument 'reuse' at (1)
 dbcsr_work_operations.F: Unused parameter 'index_blocks' declared at (1)
 dbcsr_work_operations.F: Unused parameter 'index_data' declared at (1)
-dgs.F: Unused dummy argument 'grid_b' at (1)
-dgs.F: Unused dummy argument 'npts' at (1)
 dkh_main.F: Unused dummy argument 'aa' at (1)
 dkh_main.F: Unused dummy argument 'e' at (1)
 dkh_main.F: Unused dummy argument 'n' at (1)
@@ -326,10 +183,7 @@ eip_silicon.F: Found GOTO statement in procedure "eip_lenosky_silicon"
 eip_silicon.F: Found GOTO statement in procedure "sublstiat_l"
 eip_silicon.F: Found OPEN statement in procedure "eip_bazant_silicon"
 eip_silicon.F: Found OPEN statement in procedure "eip_lenosky_silicon"
-environment.F: Unused parameter 'start_section_label' declared at (1)
 erf_fn.F: Found GOTO statement in procedure "calerf"
-ewalds.F: Unused dummy argument 'cell' at (1)
-ewalds_multipole_debug.F: Unused dummy argument 'particle_set' at (1)
 ewalds_multipole_debug.h: Copyright banner malformed
 f77_int.h: Copyright banner malformed
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
@@ -338,13 +192,7 @@ fft_lib.F: Unused parameter 'dp' which has been explicitly imported at (1)
 fft_tools.F: Unused dummy argument 'group' at (1)
 fft_tools.F: Unused parameter 'cudahostallocmapped' declared at (1)
 fft_tools.F: Unused parameter 'cudahostallocportable' declared at (1)
-force_field_kind_types.F: Unused dummy argument 'impr_kind' at (1)
 force_fields_all.F: Unused dummy argument 'amb_info' at (1)
-force_fields_all.F: Unused dummy argument 'iw2' at (1)
-force_fields_all.F: Unused dummy argument 'iw3' at (1)
-force_fields_input.F: Unused dummy argument 'at1' at (1)
-force_fields_input.F: Unused dummy argument 'at2' at (1)
-force_fields_input.F: Unused dummy argument 'ftd' at (1)
 force_fields_input.F: Unused dummy argument 'mm_section' at (1)
 force_fields_input.F: Unused dummy argument 'para_env' at (1)
 fparser.F: Copyright banner malformed
@@ -353,10 +201,6 @@ gauss_colloc.F: Found GOTO statement in procedure "collocgaussflat"
 gauss_colloc.F: Found GOTO statement in procedure "integrategauss"
 gauss_colloc.F: Found GOTO statement in procedure "integrategaussfull"
 gauss_colloc.F: Found GOTO statement in procedure "integrategaussfullflat"
-glbopt_history.F: Unused dummy argument 'history' at (1)
-glbopt_master.F: Unused dummy argument 'input_path' at (1)
-glbopt_master.F: Unused dummy argument 'iw' at (1)
-gle_system_dynamics.F: Unused dummy argument 'particle_set' at (1)
 glob_matching.F: Copyright banner malformed
 gopt_f77_methods.h: Copyright banner malformed
 gopt_f_methods.F: Unused dummy argument 'ediff' at (1)
@@ -365,7 +209,6 @@ graph_methods.F: Copyright banner malformed
 graph_methods.F: Found OPEN statement in procedure "fes_cube_write"
 graph_utils.F: Copyright banner malformed
 graphcon.F: Found GOTO statement in procedure "all_permutations"
-hartree_local_methods.F: Unused dummy argument 'iatom' at (1)
 helium_methods.F: Unused dummy argument 'pint_env' at (1)
 hfx_admm_utils.F: Unused dummy argument 'ks_env' at (1)
 hfx_communication.F: Unused dummy argument 'natom' at (1)
@@ -378,27 +221,6 @@ k290.F: Unused dummy argument 'nsp' at (1)
 library_tests.F: Routine PILAENV called with an implicit interface.
 library_tests.F: Unused dummy argument 'blacs_grid_layout' at (1)
 library_tests.F: Unused dummy argument 'blacs_repeatable' at (1)
-libxstream.cpp: Copyright banner malformed
-libxstream.h: Copyright banner malformed
-libxstream.hpp: Copyright banner malformed
-libxstream_alloc.cpp: Copyright banner malformed
-libxstream_alloc.hpp: Copyright banner malformed
-libxstream_argument.cpp: Copyright banner malformed
-libxstream_argument.hpp: Copyright banner malformed
-libxstream_begin.h: Copyright banner malformed
-libxstream_capture.cpp: Copyright banner malformed
-libxstream_capture.hpp: Copyright banner malformed
-libxstream_config.h: Copyright banner malformed
-libxstream_context.cpp: Copyright banner malformed
-libxstream_context.hpp: Copyright banner malformed
-libxstream_end.h: Copyright banner malformed
-libxstream_event.cpp: Copyright banner malformed
-libxstream_event.hpp: Copyright banner malformed
-libxstream_macros.h: Copyright banner malformed
-libxstream_offload.cpp: Copyright banner malformed
-libxstream_offload.hpp: Copyright banner malformed
-libxstream_stream.cpp: Copyright banner malformed
-libxstream_stream.hpp: Copyright banner malformed
 lri_environment_types.F: Unused dummy argument 'atomic_kind_set' at (1)
 lri_ks_methods.F: Unused dummy argument 'para_env' at (1)
 lri_optimize_ri_basis.F: Unused dummy argument 'lri_env' at (1)
@@ -463,13 +285,8 @@ message_passing.F: Unused dummy argument 'array_of_requests' at (1)
 mixed_environment_utils.F: Unused dummy argument 'mixed_section' at (1)
 mm_collocate_potential.F: Routine COLLOCATE_GF_NPBC called with an implicit interface.
 mm_collocate_potential.F: Routine INTEGRATE_GF_NPBC called with an implicit interface.
-mode_selective.F: Unused dummy argument 'output_molden' at (1)
 mode_selective.F: Unused dummy argument 'output_unit_ms' at (1)
-mol_force.F: Unused dummy argument 'is32' at (1)
-mol_force.F: Unused dummy argument 'ism' at (1)
-mol_force.F: Unused dummy argument 'isn' at (1)
 mol_force.F: Unused dummy argument 't32' at (1)
-mol_force.F: Unused dummy argument 'tn' at (1)
 mp2.F: Unused dummy argument 'basis_parameter' at (1)
 mp2.F: Unused dummy argument 'kind_of' at (1)
 mp2.F: Unused dummy argument 'matrix_ks' at (1)
@@ -534,9 +351,6 @@ mp2_ri_libint.F: Unused dummy argument 'particle_set' at (1)
 mp2_ri_libint.F: Unused dummy argument 'unit_nr' at (1)
 mp2_ri_libint.F: Unused parameter 'due' declared at (1)
 mp2_ri_libint.F: Unused parameter 'zero' declared at (1)
-multi-dgemm-type.cpp: Copyright banner malformed
-multi-dgemm-type.hpp: Copyright banner malformed
-multi-dgemm.cpp: Copyright banner malformed
 neb_opt_utils.F: Unused dummy argument 'output_unit' at (1)
 optbas_fenv_manipulation.F: Unused dummy argument 'set_id' at (1)
 optimize_basis_utils.F: Unused dummy argument 'output_file' at (1)
@@ -549,33 +363,14 @@ preconditioner_makes.F: Unused parameter 'eval_shift' declared at (1)
 preconditioner_makes.F: Unused parameter 'fudge_factor' declared at (1)
 preconditioner_solvers.F: Unused dummy argument 'matrix_s' at (1)
 ps_wavelet_base.F: Unused dummy argument 'hgrid' at (1)
-ps_wavelet_base.F: Unused dummy argument 'hx' at (1)
-ps_wavelet_base.F: Unused dummy argument 'hy' at (1)
-ps_wavelet_base.F: Unused dummy argument 'hz' at (1)
 ps_wavelet_base.F: Unused parameter 'timing_flag' declared at (1)
 ps_wavelet_kernel.F: Unused dummy argument 'nterms' at (1)
 ps_wavelet_kernel.F: Unused parameter 'timing_flag' declared at (1)
 ps_wavelet_methods.F: Unused dummy argument 'eh' at (1)
 ps_wavelet_scaling_function.F: Unused dummy argument 'cg' at (1)
-ps_wavelet_scaling_function.F: Unused dummy argument 'cgt' at (1)
 ps_wavelet_scaling_function.F: Unused dummy argument 'ch' at (1)
-ps_wavelet_scaling_function.F: Unused dummy argument 'cht' at (1)
 ps_wavelet_util.F: Unused dummy argument 'datacode' at (1)
-ps_wavelet_util.F: Unused dummy argument 'geocode' at (1)
-ps_wavelet_util.F: Unused dummy argument 'hx' at (1)
-ps_wavelet_util.F: Unused dummy argument 'hy' at (1)
-ps_wavelet_util.F: Unused dummy argument 'hz' at (1)
-ps_wavelet_util.F: Unused dummy argument 'iproc' at (1)
-ps_wavelet_util.F: Unused dummy argument 'm2' at (1)
-ps_wavelet_util.F: Unused dummy argument 'nwb' at (1)
-ps_wavelet_util.F: Unused dummy argument 'nwbl' at (1)
-ps_wavelet_util.F: Unused dummy argument 'nwbr' at (1)
-ps_wavelet_util.F: Unused dummy argument 'nxcl' at (1)
-ps_wavelet_util.F: Unused dummy argument 'nxcr' at (1)
-ps_wavelet_util.F: Unused dummy argument 'nxt' at (1)
-ps_wavelet_util.F: Unused parameter 'nordgr' declared at (1)
 pw_env_methods.F: Unused parameter 'safety_factor' declared at (1)
-pw_spline_utils.F: Unused parameter 'w_border' declared at (1)
 qmmm_elpot.F: Unused parameter 'd2x' declared at (1)
 qmmm_force_mixing.F: Unused dummy argument 'breakable_bonds' at (1)
 qmmm_force_mixing.F: Unused dummy argument 'molecule_of_atom' at (1)
@@ -598,12 +393,9 @@ qmmm_se_forces.F: Unused dummy argument 'num_mm_atoms' at (1)
 qs_collocate_density.F: Unused dummy argument 'lri_env' at (1)
 qs_collocate_density.F: ‘atomic_kind_set.dim[0].lbound’ is used uninitialized in this function [-Wuninitialized]
 qs_collocate_density.F: ‘atomic_kind_set.dim[0].ubound’ is used uninitialized in this function [-Wuninitialized]
-qs_efield_berry.F: Unused dummy argument 'ks_env' at (1)
 qs_electric_field_gradient.F: Unused dummy argument 'grid_atom' at (1)
-qs_environment_types.F: Unused dummy argument 'kinetic' at (1)
 qs_fb_com_tasks_types.F: Unused dummy argument 'dbcsr_matrix' at (1)
 qs_harmonics_atom.F: Unused dummy argument 'my_cg' at (1)
-qs_initial_guess.F: Unused dummy argument 'ispin' at (1)
 qs_integrate_potential_low.F: Routine CALL_TO_XYZ_TO_VAB called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_0 called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_1 called with an implicit interface.
@@ -626,28 +418,19 @@ qs_oce_types.F: Unused dummy argument 'natom' at (1)
 qs_oce_types.F: Unused dummy argument 'ndim' at (1)
 qs_ot.F: Unused parameter 'ci' declared at (1)
 qs_resp.F: Unused dummy argument 'input' at (1)
-qs_resp.F: Unused dummy argument 'particle_set' at (1)
 qs_scf_block_davidson.F: Unused dummy argument 'matrix_sc' at (1)
 qs_scf_loop_utils.F: Unused dummy argument 'do_kpoints' at (1)
 qs_scf_loop_utils.F: Unused dummy argument 'energy_only' at (1)
 qs_scf_loop_utils.F: Unused dummy argument 'scf_control' at (1)
 qs_scf_output.F: Unused dummy argument 'last' at (1)
-qs_vxc_atom.F: Unused dummy argument 'drho_h' at (1)
-qs_vxc_atom.F: Unused dummy argument 'drho_s' at (1)
 rpa_communication.F: Unused dummy argument 'number_of_rec' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'dimen_ia' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'dimen_ri' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'ends_array' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'ends_ia' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'four' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'homo' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'num_integ_group' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'pig' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'sizes_array' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'sizes_ia' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'starts_array' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'starts_ia' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'virtual' at (1)
 rpa_ri_gpw.F: Unused parameter 'use_gemm' declared at (1)
 scptb_ks_matrix.F: Unused dummy argument 'dmcharge' at (1)
 se_core_matrix.F: Unused parameter 'ix' declared at (1)
@@ -660,27 +443,11 @@ semi_empirical_int_debug.h: Copyright banner malformed
 semi_empirical_int_gks.F: Unused dummy argument 'se_taper' at (1)
 semi_empirical_int_utils.F: Routine EVAL called with an implicit interface.
 sockets.c: Copyright banner malformed
-statistical_methods.F: Unused parameter 'bf1' declared at (1)
-statistical_methods.F: Unused parameter 'c7' declared at (1)
-statistical_methods.F: Unused parameter 'c8' declared at (1)
-statistical_methods.F: Unused parameter 'c9' declared at (1)
-statistical_methods.F: Unused parameter 'three' declared at (1)
-statistical_methods.F: Unused parameter 'xx90' declared at (1)
-statistical_methods.F: Unused parameter 'xx95' declared at (1)
-statistical_methods.F: Unused parameter 'z90' declared at (1)
-statistical_methods.F: Unused parameter 'z95' declared at (1)
-statistical_methods.F: Unused parameter 'z99' declared at (1)
-statistical_methods.F: Unused parameter 'zm' declared at (1)
-statistical_methods.F: Unused parameter 'zss' declared at (1)
 swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master"
 swarm_mpi.F: Found OPEN statement in procedure "logger_finalize"
 t_c_g0.F: Copyright banner malformed
 t_sh_p_s_c.F: Copyright banner malformed
-task_list_methods.F: Unused dummy argument 'cell' at (1)
 termination.F: Unused dummy argument 'line_number' at (1)
-test.cpp: Copyright banner malformed
-test.hpp: Copyright banner malformed
-thermostat_utils.F: Unused dummy argument 'cell' at (1)
 tmc_messages.F: Unused dummy argument 'msg_type' at (1)
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
@@ -689,24 +456,12 @@ xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd"
 xc_atom.F: Unused dummy argument 'exc' at (1)
 xc_atom.F: Unused dummy argument 'needs' at (1)
 xc_b97.F: Unused dummy argument 'epsilon_drho' at (1)
-xc_b97.F: Unused parameter 'small' declared at (1)
 xc_exchange_gga.F: Unused dummy argument 'grho' at (1)
 xc_f90_lib_m.F: Copyright banner malformed
 xc_f90_types_m.F: Copyright banner malformed
 xc_hcth.F: Unused dummy argument 'epsilon_drho' at (1)
 xc_ke_gga.F: Unused dummy argument 'grho' at (1)
 xc_libxc.F: Unused dummy argument 'epsilon_norm_drho' at (1)
-xc_lyp.F: Unused dummy argument 'epsilon_drho' at (1)
-xc_lyp.F: Unused dummy argument 'epsilon_norm_drho' at (1)
-xc_lyp_adiabatic.F: Unused dummy argument 'e_ndrho_ndrho' at (1)
-xc_lyp_adiabatic.F: Unused dummy argument 'e_ndrho_ndrho_rho' at (1)
-xc_lyp_adiabatic.F: Unused dummy argument 'e_ndrho_rho' at (1)
-xc_lyp_adiabatic.F: Unused dummy argument 'e_ndrho_rho_rho' at (1)
-xc_lyp_adiabatic.F: Unused dummy argument 'e_rho_rho' at (1)
-xc_lyp_adiabatic.F: Unused dummy argument 'e_rho_rho_rho' at (1)
-xc_lyp_adiabatic.F: Unused dummy argument 'epsilon_drho' at (1)
-xc_lyp_adiabatic.F: Unused dummy argument 'epsilon_norm_drho' at (1)
-xc_lyp_adiabatic.F: Unused dummy argument 'rho_1_3' at (1)
 xc_pade.F: Unused dummy argument 'derivative_set' at (1)
 xc_pbe.F: Unused dummy argument 'epsilon_drho' at (1)
 xc_pbe.F: Unused dummy argument 'epsilon_norm_drho' at (1)
@@ -721,27 +476,12 @@ xc_xbecke88.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_xbecke_roussel.F: Unused dummy argument 'br_params' at (1)
 xc_xbecke_roussel.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_xbecke_roussel.F: Unused dummy argument 'r' at (1)
-xc_xbeef.F: Unused dummy argument 'e_ndrho_ndrho' at (1)
-xc_xbeef.F: Unused dummy argument 'e_ndrho_ndrho_ndrho' at (1)
-xc_xbeef.F: Unused dummy argument 'e_ndrho_ndrho_ndrho_spin' at (1)
-xc_xbeef.F: Unused dummy argument 'e_ndrho_ndrho_rho' at (1)
-xc_xbeef.F: Unused dummy argument 'e_ndrho_ndrho_rho_spin' at (1)
-xc_xbeef.F: Unused dummy argument 'e_ndrho_ndrho_spin' at (1)
-xc_xbeef.F: Unused dummy argument 'e_ndrho_rho' at (1)
-xc_xbeef.F: Unused dummy argument 'e_ndrho_rho_rho' at (1)
-xc_xbeef.F: Unused dummy argument 'e_ndrho_rho_rho_spin' at (1)
-xc_xbeef.F: Unused dummy argument 'e_ndrho_rho_spin' at (1)
-xc_xbeef.F: Unused dummy argument 'e_rho_rho' at (1)
-xc_xbeef.F: Unused dummy argument 'e_rho_rho_rho' at (1)
-xc_xbeef.F: Unused dummy argument 'e_rho_rho_rho_spin' at (1)
-xc_xbeef.F: Unused dummy argument 'e_rho_rho_spin' at (1)
 xc_xbeef.F: Unused dummy argument 'epsilon_drho' at (1)
 xc_xbeef.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_xbr_pbe_lda_hole_t_c_lr.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_xlda_hole_t_c_lr.F: Unused dummy argument 'xlda_params' at (1)
 xc_xpbe_hole_t_c_lr.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_xpbe_hole_t_c_lr.F: Unused dummy argument 'ndrho' at (1)
-xc_xwpbe.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xml_parser.F: Copyright banner malformed
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_0_0 called with an implicit interface.
