@@ -222,6 +222,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     qs_kind_set=qs_kind_set,&
+                    atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
                     cell=cell,&
                     particle_set=particle_set,&
