@@ -968,7 +968,7 @@ CONTAINS
                   error=error)
              CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%WEIGHT_TYPE",i_val=weight,&
                   error=error)
-             ALLOCATE(R0(SIZE(list)),stat=stat)
+             ALLOCATE(R0(3),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              SELECT CASE(weight)
              CASE (weight_type_unit)
