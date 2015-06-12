@@ -1,28 +1,28 @@
 # test of gle thermostat
-argon-nve.inp    2
-argon-nose.inp   2
-argon-csvr.inp   2
-argon-gle.inp    2
-argon-gle_r.inp  2
+argon-nve.inp    2    1.0E-14    -0.174623742212E+00
+argon-nose.inp    2    1.0E-14    -0.169562375558E+00
+argon-csvr.inp    2    1.0E-14    -0.170032262039E+00
+argon-gle.inp    2    1.0E-14    -0.178882251343E+00
+argon-gle_r.inp    2    1.0E-14    -0.170320310331E+00
 #new FF
-water_mm3.inp   11
+water_mm3.inp    11    1.0E-14    0.003534941656640
 #mol_set + amber
-lamol.inp        2
+lamol.inp    2    1.0E-14    0.734695738723E+00
 #impropers read from input file section
-imp_test_11.inp 11
-imp_test_12.inp 11
-imp_test_21.inp 11
-imp_test_22.inp 11
-opbend_test.inp 11
+imp_test_11.inp    11    1.0E-14    0.804574647188983
+imp_test_12.inp    11    1.0E-14    0.804574647188983
+imp_test_21.inp    11    1.0E-14    0.804574647188983
+imp_test_22.inp    11    1.0E-14    0.804574647188983
+opbend_test.inp    11    1.0E-14    3.691532536434223
 # new exclusions
-11_exvdw_12_exei.inp               11
-11_exvdw_11_exei.inp               11
-12_exvdw_12_exei.inp               11
-12_exvdw_12_exei_list_1.inp        11
-12_exvdw_12_exei_list_1_check.inp  11
-12_exvdw_12_exei_list_2.inp        11
-12_exvdw_12_exei_list_2_c.inp      11
-12_exvdw_12_exei_list_empty.inp    11
+11_exvdw_12_exei.inp    11    1.0E-14    1.750198649929873
+11_exvdw_11_exei.inp    11    1.0E-14    -3.230293212724743
+12_exvdw_12_exei.inp    11    1.0E-14    1.313453412771051
+12_exvdw_12_exei_list_1.inp    11    1.0E-14    -3.667038449883563
+12_exvdw_12_exei_list_1_check.inp    11    1.0E-14    -3.667038449883563
+12_exvdw_12_exei_list_2.inp    11    1.0E-14    1.750198649929873
+12_exvdw_12_exei_list_2_c.inp    11    1.0E-14    1.750198649929873
+12_exvdw_12_exei_list_empty.inp    11    1.0E-14    -3.230293212724743
 #fues
-H2O-1-fues.inp  11
-ignore.inp       2
+H2O-1-fues.inp    11    1.0E-14    0.015367750775911
+ignore.inp    2    1.0E-14    -0.911636536623E-06

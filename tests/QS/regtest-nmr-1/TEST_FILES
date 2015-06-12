@@ -3,19 +3,19 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-H2O-NMR-1.inp 14
-H2O-NMR-1_rst.inp 14
-H2O-NMR-2.inp 14
-H2O-NMR-3.inp 14
-H2O-NMR-4.inp 14
-H2O-NMR-5.inp 14
-H2O-NMR-6.inp 14
-H2O-NMR-7.inp 14
-H2O-NMR-8.inp 14
-H2O-NMR-9.inp 14
-H2O-NMR-10.inp 14
-H2O-NMR-11.inp 14
-H2O-NMR-12.inp 14
+H2O-NMR-1.inp    14    1.0E-14    0.605916E+02
+H2O-NMR-1_rst.inp    14    1.0E-14    0.605916E+02
+H2O-NMR-2.inp    14    1.0E-14    0.605387E+02
+H2O-NMR-3.inp    14    1.0E-14    0.604205E+02
+H2O-NMR-4.inp    14    1.0E-14    0.751661E+02
+H2O-NMR-5.inp    14    1.0E-14    0.605387E+02
+H2O-NMR-6.inp    14    1.0E-14    0.605387E+02
+H2O-NMR-7.inp    14    1.0E-14    0.605916E+02
+H2O-NMR-8.inp    14    1.0E-14    0.605387E+02
+H2O-NMR-9.inp    14    1.0E-14    0.604205E+02
+H2O-NMR-10.inp    14    1.0E-14    0.605916E+02
+H2O-NMR-11.inp    14    1.0E-14    0.605387E+02
+H2O-NMR-12.inp    14    1.0E-14    0.606583E+02
 # linres as post sc
-H2O-NMR-1-postene.inp 14
-H2O-NMR-1-postgeo.inp 14
+H2O-NMR-1-postene.inp    14    1.0E-14    0.605916E+02
+H2O-NMR-1-postgeo.inp    14    1.0E-14    0.641761E+02

@@ -4,41 +4,41 @@
 #      for details see cp2k/tools/do_regtest
 #
 # Geometry optimisation
-geo_opt_bfgs.inp 11
-geo_opt_cg_2pnt.inp              11     2e-14
+geo_opt_bfgs.inp    11    1.0E-14    -35.282422070543703
+geo_opt_cg_2pnt.inp    11    2e-14    -35.282422123859703
 geo_opt_cg_fit.inp 11
 geo_opt_cg_gold.inp 11
-geo_opt_lbfgs.inp 11
+geo_opt_lbfgs.inp    11    1.0E-14    -35.282422125160856
 # Direct cell optimisation (combined geometry and cell optimiser)
-cell_opt_direct_bfgs.inp 11
+cell_opt_direct_bfgs.inp    11    1.0E-14    -35.644084205321462
 cell_opt_direct_cg_2pnt.inp 11
 cell_opt_direct_cg_gold.inp      11     2e-14
 cell_opt_direct_lbfgs.inp 11 1E-11
 # Cell optimisation
 cell_opt_bfgs_geo_opt_bfgs.inp 11
 cell_opt_bfgs_geo_opt_lbfgs.inp   11     8e-10
-cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp   11     1e-11
+cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp    11    1e-11    -35.644084203937524
 cell_opt_cg_2pnt_geo_opt_lbfgs.inp   11     2e-09
 cell_opt_lbfgs_geo_opt_lbfgs.inp   11     4e-09
 # Geometry optimisation using core-shell models
-cs_geo_opt_bfgs.inp 11
+cs_geo_opt_bfgs.inp    11    1.0E-14    -34.165775691654950
 cs_geo_opt_cg_2pnt.inp 11
-cs_geo_opt_cg_fit.inp 11
-cs_geo_opt_cg_gold.inp 11
+cs_geo_opt_cg_fit.inp    11    1.0E-14    -34.165775838192260
+cs_geo_opt_cg_gold.inp    11    1.0E-14    -34.165775835825670
 cs_geo_opt_lbfgs.inp 11
 # Direct cell optimisation using core-shell models
-cs_cell_opt_direct_bfgs.inp 11
-cs_cell_opt_direct_cg_2pnt.inp 11
-cs_cell_opt_direct_cg_gold.inp   11     5e-11
+cs_cell_opt_direct_bfgs.inp    11    1.0E-14    -34.187395867233498
+cs_cell_opt_direct_cg_2pnt.inp    11    1.0E-14    -34.187395869049013
+cs_cell_opt_direct_cg_gold.inp    11    5e-11    -34.187395868578747
 cs_cell_opt_direct_lbfgs.inp 11
 # Cell optimisation using core-shell models
-cs_cell_opt_bfgs_geo_opt_bfgs.inp 11
+cs_cell_opt_bfgs_geo_opt_bfgs.inp    11    1.0E-14    -34.187394923767854
 cs_cell_opt_bfgs_geo_opt_lbfgs.inp   11     2e-08
 cs_cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp   11     2e-12
 cs_cell_opt_cg_2pnt_geo_opt_lbfgs.inp   11     2e-09
 cs_cell_opt_lbfgs_geo_opt_lbfgs.inp   11     4e-09
 # Test parsing of products
-mc_cs_geo_opt_lbfgs.inp          11     2e-14
+mc_cs_geo_opt_lbfgs.inp    11    2e-14    -136.663104867266583
 # Cell symmetry constraint
 cell_sym_cubic.inp               11     1e-10
 cell_sym_hexagonal.inp           11     4e-09

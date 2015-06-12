@@ -3,8 +3,8 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-H2O-MNDO-2.inp      3
-H-0.inp            11
-H2-0.inp           11
-H2.inp             11
-H2O-MNDO.inp       11
+H2O-MNDO-2.inp    3    1.0E-14    -351.42145109555821
+H-0.inp    11    1.0E-14    -0.319258384771667
+H2-0.inp    11    1.0E-14    -0.993280881213762
+H2.inp    11    1.0E-14    -0.037305167769230
+H2O-MNDO.inp    11    1.0E-14    -12.913048351744974

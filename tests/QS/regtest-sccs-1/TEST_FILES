@@ -1,5 +1,5 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # e.g. 0 means do not compare anything, running is enough
-H2O_sccs_td_fft.inp                1    1.0E-12
-H2O_sccs_td_cd5_fg.inp             1    1.0E-12
+H2O_sccs_td_fft.inp    1    1.0E-12    -17.22655035812108
+H2O_sccs_td_cd5_fg.inp    1    1.0E-12    -17.23617846673195

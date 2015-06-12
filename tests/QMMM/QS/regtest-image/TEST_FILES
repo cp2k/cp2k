@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM
-Cu-H2-qmmm-image-1.inp            1     4e-12
+Cu-H2-qmmm-image-1.inp    1    4e-12    -1.11673069976103
 Cu-H2-qmmm-image-2.inp            1     3e-12
-Cu-H2-qmmm-image-3.inp            1     4e-12
+Cu-H2-qmmm-image-3.inp    1    4e-12    -1.11673069976121
 Cu-H2-qmmm-image-4.inp            1     

@@ -4,6 +4,6 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-Solv_alch_chng.inp        2
-Solv_alch_chng_dist.inp   2
-Solv_alch_chng_simpl.inp  2
+Solv_alch_chng.inp    2    1.0E-14    -0.736767743388E+01
+Solv_alch_chng_dist.inp    2    1.0E-14    -0.736767743388E+01
+Solv_alch_chng_simpl.inp    2    1.0E-14    -0.736767743388E+01

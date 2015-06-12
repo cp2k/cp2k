@@ -6,31 +6,31 @@
 # tests GAPW GTH and ALL
 H2O-gapw-gth.inp                  1     3e-14
 H2O-gapw-all.inp   1
-H2O-gapw-all_localize.inp 23
-H2O-gapw-all_localize_crazy.inp  23
+H2O-gapw-all_localize.inp    23    1.0E-14    7.0288209649
+H2O-gapw-all_localize_crazy.inp    23    1.0E-14    7.0288209644
 H2O-gapw-all_loc_list.inp        23     2e-10
-H2O-gapwxc-gth.inp                1     2e-13
+H2O-gapwxc-gth.inp    1    2e-13    -17.16421780562204
 # test with presence of soft S
 H2S-gapw.inp                      1     9e-14
 # tests GAPW  6-311++G(3df,3pd)
 HF_gapw_all_LB.inp                1     4e-13
 # tests GAPW  6-311++G(3df,3pd) and LSD
-OF_gapw_all_lsd_LB.inp            1     9e-14
+OF_gapw_all_lsd_LB.inp    1    9e-14    -174.10093736583187
 # keep special case alive
 H-gapw-all.inp                    1     2e-13
 # test the full_all with LSD and GAPW
-He2-all.inp                       1     3e-13
-He2-all-md.inp                    1     2e-13
+He2-all.inp    1    3e-13    -5.00398521082516
+He2-all-md.inp    1    2e-13    -5.02915069972336
 # new option : stride_xyz
 H2O-gapw-gth-pvh.inp              1     3e-14
 # localization with non orthorhombic cell
-H2O-gapw-all_noortho.inp  1
-H2O-gapw-all_localize_noortho.inp   23     3e-11
-H2O-gapw-all_localize_crazy_noortho.inp  23
+H2O-gapw-all_noortho.inp    1    1.0E-14    -75.88145710711659
+H2O-gapw-all_localize_noortho.inp    23    3e-11    7.0317611595
+H2O-gapw-all_localize_crazy_noortho.inp    23    1.0E-14    7.0317611684
 # TPSS functional
-Be_GAPW.inp                       1     7e-13
+Be_GAPW.inp    1    7e-13    -14.78551249375846
 # Single atom isolated function
-Na_atom.inp                       1     5e-13
+Na_atom.inp    1    5e-13    -154.80563524480456
 #
 h2o_dist.inp                      1     3e-13
 H2S-gapw-gop.inp                  1     2e-13

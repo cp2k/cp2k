@@ -5,18 +5,18 @@
 #      for details see cp2k/tools/do_regtest
 #
 # dang-chang model
-H2O-dimer-dangchang.inp               2
+H2O-dimer-dangchang.inp    2    1.0E-14    -0.707149464407E-02
 H2OandI-dangchang.inp                 2
-deca_cg.inp                          11
+deca_cg.inp    11    1.0E-14    -0.710872118265617
 deca_sc.inp                      11     2e-14
-ethanol_cg.inp                       11
-ethanol_sc.inp                       11
+ethanol_cg.inp    11    1.0E-14    -0.092377428773621
+ethanol_sc.inp    11    1.0E-14    -0.092377428770884
 nacl_cg.inp                          11
 nacl_sc.inp                          11
-quartz_cg.inp                         2
-quartz_sc.inp                         2
+quartz_cg.inp    2    1.0E-14    0.110910625643E+02
+quartz_sc.inp    2    1.0E-14    0.110910625668E+02
 #BMHFTD and inducible dipole damping
-flibe.inp                             2
-fli_small1.inp                       11
-fli_small2.inp                       11
-fli_small3.inp                       11
+flibe.inp    2    1.0E-14    -0.117512040363E+01
+fli_small1.inp    11    1.0E-14    1.310083443876858
+fli_small2.inp    11    1.0E-14    -0.280532103030175
+fli_small3.inp    11    1.0E-14    -0.204261021617205

@@ -1,31 +1,31 @@
 # complex torsion potential
-TNF2.inp                  7
+TNF2.inp    7    1.0E-14    -0.0277253995
 # isolated system 
-H+.inp                           11     3e-11
-ef.inp                   11
-h2o-32-g3x3-mult.inp      2
+H+.inp    11    3e-11    0.016349647995117
+ef.inp    11    1.0E-14    0.000237442973528
+h2o-32-g3x3-mult.inp    2    1.0E-14    -0.610881161775E+00
 # multipoles
-1atom_multipole.inp                  11
-multipole_charge.inp                 11
+1atom_multipole.inp    11    1.0E-14    0.000000342644949
+multipole_charge.inp    11    1.0E-14    -15.287642442896628
 multipole_charge_check.inp           11
-multipole_charge2.inp                11
-multipole_charge3.inp                11
-multipole_charge_dipole.inp          11
-multipole_charge_quadrupole.inp      11
-multipole_dipole.inp                 11
-multipole_dipole_quadrupole.inp      11
-multipole_quadrupole.inp             11
+multipole_charge2.inp    11    1.0E-14    6.596674009793624
+multipole_charge3.inp    11    1.0E-14    2.733060249900690
+multipole_charge_dipole.inp    11    1.0E-14    -0.075070707584016
+multipole_charge_quadrupole.inp    11    1.0E-14    -0.075069611498002
+multipole_dipole.inp    11    1.0E-14    -0.010818588952921
+multipole_dipole_quadrupole.inp    11    1.0E-14    -0.002019442612467
+multipole_quadrupole.inp    11    1.0E-14    -0.001005395772078
 multipole_zero.inp                   11
 # @INCLUDE regtest
 deca_ala_include.inp                  2
 # multipoles forces
-multipole_ch_dip.dbg_f.inp           11
+multipole_ch_dip.dbg_f.inp    11    1.0E-14    -1.244734914782993
 multipole_ch_dip.dbg_f_real.inp      11  
 multipole_ch_dip.dbg_f_rec.inp   11     4e-14
-multipole_ch_dip_qu.dbg_f.inp        11
-multipole_ch_qu.dbg_f.inp            11
+multipole_ch_dip_qu.dbg_f.inp    11    1.0E-14    -0.425959838400946
+multipole_ch_qu.dbg_f.inp    11    1.0E-14    -1.023163612537030
 multipole_ch_qu.dbg_f_real.inp       11
 multipole_ch_qu.dbg_f_rec.inp    11     2e-13
-multipole_charge.dbg_f.inp           11
+multipole_charge.dbg_f.inp    11    1.0E-14    -0.448601140084368
 multipole_charge.dbg_f_real.inp   11     8e-14
-multipole_charge.dbg_f_rec.inp       11
+multipole_charge.dbg_f_rec.inp    11    1.0E-14    -0.448621623307337

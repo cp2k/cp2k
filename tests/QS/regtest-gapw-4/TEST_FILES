@@ -7,17 +7,17 @@
 #XAS
 CO.inp                            1
 CO_xastpxfh.inp                   1     8e-10
-CO_xastpxfh_locall.inp            1     4e-12
-CO_xastpxfh_150Ry.inp             1     2e-12
+CO_xastpxfh_locall.inp    1    4e-12    -92.76703520816123
+CO_xastpxfh_150Ry.inp    1    2e-12    -92.83674249641638
 #bug fix gpw_type
-H2O_gpw.inp                       1     2e-13
+H2O_gpw.inp    1    2e-13    -17.10774257571033
 #bug fix perdew_zunger
-Ne-BP.inp               1
+Ne-BP.inp    1    1.0E-14    -128.04346039645392
 # mixed GPW/FULL_GAPW run
-H2O_gpw_full_gapw.inp             1     2e-13
-H2O_Onopaw.inp                    1     2e-13
+H2O_gpw_full_gapw.inp    1    2e-13    -17.10774257571033
+H2O_Onopaw.inp    1    2e-13    -17.10774257571033
 H2O_allnopaw.inp                  1     5e-12
-H2O_Hnopaw_pp.inp                 1     2e-12
+H2O_Hnopaw_pp.inp    1    2e-12    -14.67461488546443
 H_hf_gapw_forcepaw.inp            1     1e-13
 H_hf_gapw_nopaw.inp               1     7e-13
 H_hf_gapw_nopaw_full.inp          1     7e-13

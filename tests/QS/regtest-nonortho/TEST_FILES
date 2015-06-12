@@ -2,6 +2,6 @@ graphite.inp                      2     2e-09
 graphite2.inp                     2     3e-09
 graphite3.inp                     2     2e-09
 graphite-stm.inp 0
-graphite-lumo.inp 30
-graph_b111.inp 31
-graph_b111_gapw.inp 31
+graphite-lumo.inp    30    1.0E-14    -15.517030
+graph_b111.inp    31    1.0E-14    2.15955385E+01
+graph_b111_gapw.inp    31    1.0E-14    1.70661153E+01

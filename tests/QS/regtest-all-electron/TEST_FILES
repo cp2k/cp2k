@@ -1,3 +1,3 @@
-H2O-xrd.inp 26
-H2O-rhotot-cube.inp 27
-NO2-rhotot-cube.inp 28
+H2O-xrd.inp    26    1.0E-14    -9.9999991403
+H2O-rhotot-cube.inp    27    1.0E-14    -9.9999990366
+NO2-rhotot-cube.inp    28    1.0E-14    -1.0000002244

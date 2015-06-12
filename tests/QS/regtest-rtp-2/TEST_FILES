@@ -1,13 +1,13 @@
 H2-emd_CN.inp 2
 H2-emd_EM.inp 2
 H2-emd_ETRS_PADE.inp 2
-H2-rtp_CN.inp 1
-H2-rtp_ETRS_PADE.inp 1
+H2-rtp_CN.inp    1    1.0E-14    -0.9022396834
+H2-rtp_ETRS_PADE.inp    1    1.0E-14    -0.9022396835
 H2-emd_restart.inp 2
 H2-emd_restart-1.inp 2
-H2-rtp_restart.inp 1
-H2-rtp_restart-1.inp 1
-H2-rtp-efield.inp 1
+H2-rtp_restart.inp    1    1.0E-14    -0.9022396835
+H2-rtp_restart-1.inp    1    1.0E-14    -0.9022396836
+H2-rtp-efield.inp    1    1.0E-14    -0.8296879654
 H2-emd-efield.inp 2          4e-11
-H2-rtp_ETRS_ARNOLDI.inp 1
+H2-rtp_ETRS_ARNOLDI.inp    1    1.0E-14    -0.9022396835
 H2-emd_ETRS_ARNOLDI.inp 1    6e-12

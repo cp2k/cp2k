@@ -1,54 +1,54 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-ch2o-1.inp          1
+ch2o-1.inp    1    1.0E-14    -5.76250962732554
 # not yet implemented
 # isolated system..
-ch2o-2.inp          1
-ch2o-3.inp          1
-H+.inp              1 
-ch2o-4.inp                        1     3e-14
-ch2o-5.inp                        1     6e-14
-ch2o.inp            1
-ch2o-r.inp          1
-ch2o-p.inp          1
-co.inp              1
-h2o-1.inp           1
-h2o-2.inp           1
-h2o-3.inp           1
-h2o-4.inp           1
-h2o.inp             1
-h2o_hb_corr.inp     1
+ch2o-2.inp    1    1.0E-14    -5.75087368892706
+ch2o-3.inp    1    1.0E-14    -5.75463060809440
+H+.inp    1    1.0E-14    0.23499952947293
+ch2o-4.inp    1    3e-14    -5.75087369849484
+ch2o-5.inp    1    6e-14    -5.75463063389089
+ch2o.inp    1    1.0E-14    -5.75087391751536
+ch2o-r.inp    1    1.0E-14    -5.75087391754637
+ch2o-p.inp    1    1.0E-14    -5.75087391754637
+co.inp    1    1.0E-14    -5.04980895105760
+h2o-1.inp    1    1.0E-14    -130.55615201450678
+h2o-2.inp    1    1.0E-14    -130.54584722120117
+h2o-3.inp    1    1.0E-14    -130.53037829229433
+h2o-4.inp    1    1.0E-14    -130.55615287555833
+h2o.inp    1    1.0E-14    -130.41283728026696
+h2o_hb_corr.inp    1    1.0E-14    -12.21999177950558
 ch2o-ot1.inp        1
-ch2o-ot2.inp        1
-ch2o-ot3.inp        1
-ch2o-ot4.inp        1
-ch2o-ot6.inp        1
+ch2o-ot2.inp    1    1.0E-14    -5.60300975790435
+ch2o-ot3.inp    1    1.0E-14    -5.74238713882779
+ch2o-ot4.inp    1    1.0E-14    -5.71482283252281
+ch2o-ot6.inp    1    1.0E-14    -5.72519022607777
 # bug fix for neighborlists
-h2o-5.inp           1
+h2o-5.inp    1    1.0E-14    -130.55615201450678
 # first check for LSD
-test-lsd.inp                      1     4e-14
+test-lsd.inp    1    4e-14    -5.75878702495205
 # atomic properties
-fa_atprop.inp       1
-fa2_atprop.inp      1
-h2o_atprop.inp      1
+fa_atprop.inp    1    1.0E-14    -5.75463073188988
+fa2_atprop.inp    1    1.0E-14    -5.75087391754637
+h2o_atprop.inp    1    1.0E-14    -130.55524725908725
 # MD properties
-h2o_md.inp          1
+h2o_md.inp    1    1.0E-14    -130.43412437998944
 # Ehrenfest and RTP
 h2o_emd.inp         1 
-h2o_rtp.inp         1
+h2o_rtp.inp    1    1.0E-14    -4.0655286107
 c2h2_emd_mix.inp                  1     5e-11
 # HB correction parameter
-h2o_hb_corr_1.inp     1
-h2o_hb_corr_2.inp     1
+h2o_hb_corr_1.inp    1    1.0E-14    -12.21999177950558
+h2o_hb_corr_2.inp    1    1.0E-14    -12.22941399481958
 # Dispersion
-h2o_disp1.inp         1
-h2o_disp2.inp         1
-h2o_disp3.inp         1
+h2o_disp1.inp    1    1.0E-14    -130.41283728026696
+h2o_disp2.inp    1    1.0E-14    -130.75741209724970
+h2o_disp3.inp    1    1.0E-14    -130.76472793745498
 # DFTB3
-h2o-6.inp           1
-h2o-7.inp           1
+h2o-6.inp    1    1.0E-14    -131.25213795632621
+h2o-7.inp    1    1.0E-14    -131.26425805025826
 # Properties stress
-h2o-atprop1.inp           1
-h2o-atprop2.inp           1
-h2o-atprop3.inp           1
+h2o-atprop1.inp    1    1.0E-14    -130.77689031535715
+h2o-atprop2.inp    1    1.0E-14    -131.67997131801212
+h2o-atprop3.inp    1    1.0E-14    -131.33363546896408

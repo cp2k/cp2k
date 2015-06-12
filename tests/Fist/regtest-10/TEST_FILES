@@ -1,22 +1,22 @@
 # ANGULAR VELOCITY
-ar3_angvel_zero_000.inp     2
-ar3_angvel_zero_001.inp     2 
-ar3_angvel_zero_002.inp     2
-water_2_angvel_zero_000.inp 2
-water_2_angvel_zero_001.inp 2
-water_2_angvel_zero_002.inp 2
+ar3_angvel_zero_000.inp    2    1.0E-14    -0.189300330270E-03
+ar3_angvel_zero_001.inp    2    1.0E-14    -0.281894421237E-03
+ar3_angvel_zero_002.inp    2    1.0E-14    -0.187969911467E-03
+water_2_angvel_zero_000.inp    2    1.0E-14    0.419276310080E-02
+water_2_angvel_zero_001.inp    2    1.0E-14    0.434526284501E-02
+water_2_angvel_zero_002.inp    2    1.0E-14    0.654998307196E-03
 #walls for metadynamics
-nh3-meta-0.inp              2
-nh3-meta-1.inp              2
+nh3-meta-0.inp    2    1.0E-14    0.110355972496E+00
+nh3-meta-1.inp    2    1.0E-14    0.239548069118E-01
 nh3-meta-2.inp                    2     2e-10
-nh3-meta-3.inp                    2     8e-12
+nh3-meta-3.inp    2    8e-12    0.256487807803E-02
 nh3-meta-4.inp                    2     1e-11
 #new colvar
-c60_pl_pl_angl1_restr.inp   2
-c60_pl_pl_angl2_restr.inp   2
+c60_pl_pl_angl1_restr.inp    2    1.0E-14    -0.148068455776E+02
+c60_pl_pl_angl2_restr.inp    2    1.0E-14    -0.147676373113E+02
 #METADYN LANGEVIN ON COLVARS
-c60_meta_lagr.inp           2
+c60_meta_lagr.inp    2    1.0E-14    -0.146982914564E+02
 #Reaction path Colvar  
-2gly_mtd_rp_dp_rmsd.inp           2     7e-12
+2gly_mtd_rp_dp_rmsd.inp    2    7e-12    -0.286918916536E+00
 2gly_mtd_rprmsd.inp               2     7e-12
-2gly_mtd_dprmsd.inp               2     7e-12
+2gly_mtd_dprmsd.inp    2    7e-12    -0.287254064957E+00

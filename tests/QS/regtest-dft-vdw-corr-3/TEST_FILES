@@ -1,16 +1,16 @@
-argon05.inp                       1     4e-13
-argon06.inp                       1     4e-13
-argon07.inp                       1     5e-13
-argon08.inp                       1     4e-13
-argon09.inp                       1     4e-13
-argon10.inp                       1     3e-13
+argon05.inp    1    4e-13    -85.03330689863475
+argon06.inp    1    4e-13    -85.19494678038042
+argon07.inp    1    5e-13    -85.02985036033705
+argon08.inp    1    4e-13    -85.02799062194991
+argon09.inp    1    4e-13    -85.03363749273637
+argon10.inp    1    3e-13    -85.03362446827002
 argon11.inp                       1     3e-13
 argon12.inp                       1     1e-12
 argon13.inp                       1     1e-06
 # beef functional
-argon-beef.inp                    1     4e-13
+argon-beef.inp    1    4e-13    -42.46387599666736
 # BJ
-dftd3bj_t1.inp                33
-dftd3bj_t2.inp                33
-dftd3bj_t3.inp                33
-dftd3bj_t4.inp                7
+dftd3bj_t1.inp    33    1.0E-14    -0.00355123783846
+dftd3bj_t2.inp    33    1.0E-14    -0.05897808570153
+dftd3bj_t3.inp    33    1.0E-14    -0.00112433648565
+dftd3bj_t4.inp    7    1.0E-14    -84.2983391146

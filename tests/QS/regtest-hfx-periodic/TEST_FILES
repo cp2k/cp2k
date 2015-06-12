@@ -3,7 +3,7 @@
 # see regtest/TEST_FILES
 H2O-trunc-2.inp                   1     5e-11
 H2O-trunc-auto.inp                1     5e-11
-H2O-coul-0.inp                1
+H2O-coul-0.inp    1    1.0E-14    -76.02314790926955
 H2O-trunc-auto-md.inp             2     3e-10
 CH3-trunc-auto.inp                1     8e-11
 CH3-trunc-1.inp                   1     2e-10

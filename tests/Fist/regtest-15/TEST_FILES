@@ -1,16 +1,16 @@
 # metadyn
-metadyn1.inp          2
-metadyn2.inp          2
-metadyn3.inp          2
-metadyn4.inp          2
-metadyn5.inp          2
+metadyn1.inp    2    1.0E-14    -0.465672945738E-02
+metadyn2.inp    2    1.0E-14    -0.146726946152E-02
+metadyn3.inp    2    1.0E-14    -0.465614912423E-02
+metadyn4.inp    2    1.0E-14    -0.465636428374E-02
+metadyn5.inp    2    1.0E-14    0.260815657919E-02
 metadyn6.inp                      2     1e-11
-metadyn7.inp          2
-metadyn8.inp          2
-fixed_points.inp      11
+metadyn7.inp    2    1.0E-14    -0.339349055640E-03
+metadyn8.inp    2    1.0E-14    0.980940093151E-02
+fixed_points.inp    11    1.0E-14    17.200199874623529
 # changing the hills shape
 mtd_test0.inp                     2     2e-10
-mtd_test0_hill.inp         2 1E-11
+mtd_test0_hill.inp    2    1E-11    -0.827793953456E-02
 mtd_test0_cuthill.inp             2     8e-10
 mtd_test0_hillslow.inp      2 1E-11
 mtd_test0_cuthillslow.inp   2 1E-11

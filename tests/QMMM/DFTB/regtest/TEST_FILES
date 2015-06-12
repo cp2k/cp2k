@@ -6,8 +6,8 @@
 # QM/MM
 wdim_scc.inp          1
 wdim_nonscc.inp       1
-wdimmc_scc.inp        1
-wdimmc_nonscc.inp     1
+wdimmc_scc.inp    1    1.0E-14    -4.07060757309577
+wdimmc_nonscc.inp    1    1.0E-14    -4.10169797261567
 epc_1.inp             1
 epc_2.inp             1
 epc_3.inp             1

@@ -1,69 +1,69 @@
-UO2-2x2x2-coord-scaled-2.inp   11
+UO2-2x2x2-coord-scaled-2.inp    11    1.0E-14    -77.461096482420359
 UO2-2x2x2-coord-scaled-3.inp     11     3e-14
 # Binary restart file
-UO2-2x2x2-binary_restart-1.inp            11
-UO2-2x2x2-binary_restart-2.inp            11
-UO2-2x2x2-binary_restart-3.inp            11
-UO2-2x2x2-binary_restart-4.inp            11
-UO2-2x2x2-binary_restart-cs-1.inp         11
-UO2-2x2x2-binary_restart-cs-2.inp         11
-UO2-2x2x2-binary_restart-cs-3.inp         11
-UO2-2x2x2-binary_restart-cs-4.inp         11
-UO2-2x2x2-binary_restart-scaled-1.inp     11
-UO2-2x2x2-binary_restart-scaled-2.inp     11
-UO2-2x2x2-binary_restart-scaled-3.inp     11
-UO2-2x2x2-binary_restart-scaled-4.inp     11
-UO2-2x2x2-binary_restart-cs-scaled-1.inp  11
-UO2-2x2x2-binary_restart-cs-scaled-2.inp  11
-UO2-2x2x2-binary_restart-cs-scaled-3.inp  11
-UO2-2x2x2-binary_restart-cs-scaled-4.inp  11
+UO2-2x2x2-binary_restart-1.inp    11    1.0E-14    -77.451036391549238
+UO2-2x2x2-binary_restart-2.inp    11    1.0E-14    -77.426819124310725
+UO2-2x2x2-binary_restart-3.inp    11    1.0E-14    -77.401272663672373
+UO2-2x2x2-binary_restart-4.inp    11    1.0E-14    -77.384190547741795
+UO2-2x2x2-binary_restart-cs-1.inp    11    1.0E-14    -118.496049328333186
+UO2-2x2x2-binary_restart-cs-2.inp    11    1.0E-14    -118.466826928839851
+UO2-2x2x2-binary_restart-cs-3.inp    11    1.0E-14    -118.436664461699593
+UO2-2x2x2-binary_restart-cs-4.inp    11    1.0E-14    -118.419916184934948
+UO2-2x2x2-binary_restart-scaled-1.inp    11    1.0E-14    -77.451036422535751
+UO2-2x2x2-binary_restart-scaled-2.inp    11    1.0E-14    -77.426818554410275
+UO2-2x2x2-binary_restart-scaled-3.inp    11    1.0E-14    -77.401271299843842
+UO2-2x2x2-binary_restart-scaled-4.inp    11    1.0E-14    -77.384189078997920
+UO2-2x2x2-binary_restart-cs-scaled-1.inp    11    1.0E-14    -118.496049653055763
+UO2-2x2x2-binary_restart-cs-scaled-2.inp    11    1.0E-14    -118.466826735735538
+UO2-2x2x2-binary_restart-cs-scaled-3.inp    11    1.0E-14    -118.436663515106090
+UO2-2x2x2-binary_restart-cs-scaled-4.inp    11    1.0E-14    -118.419914424522517
 # Switch from ASCII to binary restart file
-UO2-switch2binary_restart-1.inp 11
-UO2-switch2binary_restart-2.inp 11
-UO2-switch2binary_restart-3.inp 11
+UO2-switch2binary_restart-1.inp    11    1.0E-14    -77.426302152735047
+UO2-switch2binary_restart-2.inp    11    1.0E-14    -77.379440574247923
+UO2-switch2binary_restart-3.inp    11    1.0E-14    -77.372160495540030
 # Binary restart for shell thermostats
 UO2-2x2x2-binary_restart-cs-5.inp   11     9e-10
 UO2-2x2x2-binary_restart-cs-6.inp   11     1e-09
 UO2-2x2x2-binary_restart-cs-7.inp   11     3e-10
 UO2-2x2x2-binary_restart-cs-8.inp   11     5e-09
 # Non-harmonic core-shell spring potential
-UO2-2x2x2-non-harm-cs.inp 11
+UO2-2x2x2-non-harm-cs.inp    11    1.0E-14    -118.471207246616927
 # GENPOT: Enable units for parameter values
-UO2-2x2x2-genpot_units.inp 11
+UO2-2x2x2-genpot_units.inp    11    1.0E-14    -77.461096432231159
 # Switch ensemble with binary restart file
-UO2-2x2x2-binary_restart-npt-nve-1.inp 11
-UO2-2x2x2-binary_restart-npt-nve-2.inp 11
-UO2-2x2x2-binary_restart-npt-nve-cs-1.inp 11
+UO2-2x2x2-binary_restart-npt-nve-1.inp    11    1.0E-14    -77.447361627232752
+UO2-2x2x2-binary_restart-npt-nve-2.inp    11    1.0E-14    -77.423550550309457
+UO2-2x2x2-binary_restart-npt-nve-cs-1.inp    11    1.0E-14    -118.496676418722132
 UO2-2x2x2-binary_restart-npt-nve-cs-2.inp 11
-UO2-2x2x2-binary_restart-nve-npt-1.inp 11
-UO2-2x2x2-binary_restart-nve-npt-2.inp 11
-UO2-2x2x2-binary_restart-nve-npt-cs-1.inp 11
-UO2-2x2x2-binary_restart-nve-npt-cs-2.inp 11
+UO2-2x2x2-binary_restart-nve-npt-1.inp    11    1.0E-14    -77.451043466455289
+UO2-2x2x2-binary_restart-nve-npt-2.inp    11    1.0E-14    -77.422933585101291
+UO2-2x2x2-binary_restart-nve-npt-cs-1.inp    11    1.0E-14    -118.508379553618425
+UO2-2x2x2-binary_restart-nve-npt-cs-2.inp    11    1.0E-14    -118.506726020459837
 # Cascade section
 UO2-2x2x2-cascade-1.inp          11     2e-13
 # Enable binary restart with core-shell potential from a non-core-shell potential and vice versa
-UO2-2x2x2-nocs2cs-nve-1.inp 11
-UO2-2x2x2-nocs2cs-nve-2.inp 11
-UO2-2x2x2-nocs2cs-nve-3.inp 11
-UO2-2x2x2-nocs2cs-nvt-1.inp 11
-UO2-2x2x2-nocs2cs-nvt-2.inp 11
-UO2-2x2x2-nocs2cs-nvt-3.inp 11
-UO2-2x2x2-nocs2cs-npt-1.inp 11
-UO2-2x2x2-nocs2cs-npt-2.inp 11
-UO2-2x2x2-nocs2cs-npt-3.inp 11
-UO2-2x2x2-nocs2cs-nvt2nve-1.inp 11
-UO2-2x2x2-nocs2cs-nvt2nve-2.inp 11
-UO2-2x2x2-nocs2cs-nvt2nve-3.inp 11
+UO2-2x2x2-nocs2cs-nve-1.inp    11    1.0E-14    -77.451043466455289
+UO2-2x2x2-nocs2cs-nve-2.inp    11    1.0E-14    -118.461799043114780
+UO2-2x2x2-nocs2cs-nve-3.inp    11    1.0E-14    -77.400354384089582
+UO2-2x2x2-nocs2cs-nvt-1.inp    11    1.0E-14    -77.451036391549238
+UO2-2x2x2-nocs2cs-nvt-2.inp    11    1.0E-14    -118.463066793266336
+UO2-2x2x2-nocs2cs-nvt-3.inp    11    1.0E-14    -77.402157165972909
+UO2-2x2x2-nocs2cs-npt-1.inp    11    1.0E-14    -77.447361627232752
+UO2-2x2x2-nocs2cs-npt-2.inp    11    1.0E-14    -118.468476040377197
+UO2-2x2x2-nocs2cs-npt-3.inp    11    1.0E-14    -77.400614122543701
+UO2-2x2x2-nocs2cs-nvt2nve-1.inp    11    1.0E-14    -77.451036391549238
+UO2-2x2x2-nocs2cs-nvt2nve-2.inp    11    1.0E-14    -118.463067373915493
+UO2-2x2x2-nocs2cs-nvt2nve-3.inp    11    1.0E-14    -77.402162598499288
 # Fix (BFGS) geometry optimisation for shell models
 UO2-2x2x2-geo_opt-bfgs.inp 11
-UO2-2x2x2-geo_opt-cg.inp 11  1E-13
+UO2-2x2x2-geo_opt-cg.inp    11    1E-13    -77.448416774069074
 UO2-2x2x2-geo_opt-lbfgs.inp 11
 UO2-2x2x2-cs-geo_opt-bfgs.inp    11     2e-14    
-UO2-2x2x2-cs-geo_opt-cg.inp      11     1e-11
-UO2-2x2x2-cs-geo_opt-lbfgs.inp   11     3e-14
+UO2-2x2x2-cs-geo_opt-cg.inp    11    1e-11    -118.530158827850585
+UO2-2x2x2-cs-geo_opt-lbfgs.inp    11    3e-14    -118.530158827854791
 # Enable fixed atom constraint for core-shell models
-UO2-4x4x4-fixd.inp               11     9e-14
-UO2-4x4x4-cs-fixd.inp 43
-UO2-4x4x4-cs-fixd-restart.inp 44
-UO2-4x4x4-cs-fixd-nvt.inp 54
-UO2-4x4x4-cs-fixd-npt.inp 54
+UO2-4x4x4-fixd.inp    11    9e-14    -619.588154772236749
+UO2-4x4x4-cs-fixd.inp    43    1.0E-14    0.008410
+UO2-4x4x4-cs-fixd-restart.inp    44    1.0E-14    0.017655
+UO2-4x4x4-cs-fixd-nvt.inp    54    1.0E-14    0.041076
+UO2-4x4x4-cs-fixd-npt.inp    54    1.0E-14    0.021386

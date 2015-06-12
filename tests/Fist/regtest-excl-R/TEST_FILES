@@ -4,67 +4,67 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-ethanol_both_rcut10.0_e1-1_v1-1___R.inp   11     3e-14
-ethanol_both_rcut10.0_e1-1_v1-1_R_R.inp   11     4e-14
-ethanol_both_rcut10.0_e1-1_v1-1_RSR.inp 11
-ethanol_both_rcut10.0_e1-1_v1-1__SR.inp 11
-ethanol_both_rcut10.0_e1-1_v1-2___R.inp 11
-ethanol_both_rcut10.0_e1-1_v1-2_R_R.inp   11     6e-14
-ethanol_both_rcut10.0_e1-1_v1-2_RSR.inp 11
-ethanol_both_rcut10.0_e1-1_v1-2__SR.inp 11
-ethanol_both_rcut10.0_e1-1_v1-3___R.inp 11
-ethanol_both_rcut10.0_e1-1_v1-3_R_R.inp 11
-ethanol_both_rcut10.0_e1-1_v1-3_RSR.inp 11
-ethanol_both_rcut10.0_e1-1_v1-3__SR.inp 11
-ethanol_both_rcut10.0_e1-1_v1-4___R.inp 11
-ethanol_both_rcut10.0_e1-1_v1-4_R_R.inp 11
-ethanol_both_rcut10.0_e1-1_v1-4_RSR.inp 11
-ethanol_both_rcut10.0_e1-1_v1-4__SR.inp   11     5e-14
-ethanol_both_rcut10.0_e1-2_v1-1___R.inp 11
-ethanol_both_rcut10.0_e1-2_v1-1_R_R.inp 11
-ethanol_both_rcut10.0_e1-2_v1-1_RSR.inp 11
-ethanol_both_rcut10.0_e1-2_v1-1__SR.inp 11
-ethanol_both_rcut10.0_e1-2_v1-2___R.inp 11
-ethanol_both_rcut10.0_e1-2_v1-2_R_R.inp   11     1e-13
-ethanol_both_rcut10.0_e1-2_v1-2_RSR.inp 11
-ethanol_both_rcut10.0_e1-2_v1-2__SR.inp 11
-ethanol_both_rcut10.0_e1-2_v1-3___R.inp 11
-ethanol_both_rcut10.0_e1-2_v1-3_R_R.inp 11
-ethanol_both_rcut10.0_e1-2_v1-3_RSR.inp 11
-ethanol_both_rcut10.0_e1-2_v1-3__SR.inp 11
-ethanol_both_rcut10.0_e1-2_v1-4___R.inp 11
-ethanol_both_rcut10.0_e1-2_v1-4_R_R.inp 11
-ethanol_both_rcut10.0_e1-2_v1-4_RSR.inp 11
+ethanol_both_rcut10.0_e1-1_v1-1___R.inp    11    3e-14    -0.067825285296427
+ethanol_both_rcut10.0_e1-1_v1-1_R_R.inp    11    4e-14    -0.051399456590101
+ethanol_both_rcut10.0_e1-1_v1-1_RSR.inp    11    1.0E-14    -0.041787424987134
+ethanol_both_rcut10.0_e1-1_v1-1__SR.inp    11    1.0E-14    -0.058213303930123
+ethanol_both_rcut10.0_e1-1_v1-2___R.inp    11    1.0E-14    -0.052519373486897
+ethanol_both_rcut10.0_e1-1_v1-2_R_R.inp    11    6e-14    -0.036093544780570
+ethanol_both_rcut10.0_e1-1_v1-2_RSR.inp    11    1.0E-14    -0.026486128601906
+ethanol_both_rcut10.0_e1-1_v1-2__SR.inp    11    1.0E-14    -0.042912007544895
+ethanol_both_rcut10.0_e1-1_v1-3___R.inp    11    1.0E-14    -0.049870722395851
+ethanol_both_rcut10.0_e1-1_v1-3_R_R.inp    11    1.0E-14    -0.033444893689524
+ethanol_both_rcut10.0_e1-1_v1-3_RSR.inp    11    1.0E-14    -0.023840809773987
+ethanol_both_rcut10.0_e1-1_v1-3__SR.inp    11    1.0E-14    -0.040266688716976
+ethanol_both_rcut10.0_e1-1_v1-4___R.inp    11    1.0E-14    -0.049784586698598
+ethanol_both_rcut10.0_e1-1_v1-4_R_R.inp    11    1.0E-14    -0.033358757992271
+ethanol_both_rcut10.0_e1-1_v1-4_RSR.inp    11    1.0E-14    -0.023754819592293
+ethanol_both_rcut10.0_e1-1_v1-4__SR.inp    11    5e-14    -0.040180698535282
+ethanol_both_rcut10.0_e1-2_v1-1___R.inp    11    1.0E-14    -0.039767406255664
+ethanol_both_rcut10.0_e1-2_v1-1_R_R.inp    11    1.0E-14    -0.035534664456785
+ethanol_both_rcut10.0_e1-2_v1-1_RSR.inp    11    1.0E-14    -0.028039341778118
+ethanol_both_rcut10.0_e1-2_v1-1__SR.inp    11    1.0E-14    -0.032272133723720
+ethanol_both_rcut10.0_e1-2_v1-2___R.inp    11    1.0E-14    -0.024461494446134
+ethanol_both_rcut10.0_e1-2_v1-2_R_R.inp    11    1e-13    -0.020228752647254
+ethanol_both_rcut10.0_e1-2_v1-2_RSR.inp    11    1.0E-14    -0.012738045392889
+ethanol_both_rcut10.0_e1-2_v1-2__SR.inp    11    1.0E-14    -0.016970837338492
+ethanol_both_rcut10.0_e1-2_v1-3___R.inp    11    1.0E-14    -0.021812843355088
+ethanol_both_rcut10.0_e1-2_v1-3_R_R.inp    11    1.0E-14    -0.017580101556208
+ethanol_both_rcut10.0_e1-2_v1-3_RSR.inp    11    1.0E-14    -0.010092726564970
+ethanol_both_rcut10.0_e1-2_v1-3__SR.inp    11    1.0E-14    -0.014325518510573
+ethanol_both_rcut10.0_e1-2_v1-4___R.inp    11    1.0E-14    -0.021726707657834
+ethanol_both_rcut10.0_e1-2_v1-4_R_R.inp    11    1.0E-14    -0.017493965858955
+ethanol_both_rcut10.0_e1-2_v1-4_RSR.inp    11    1.0E-14    -0.010006736383276
 ethanol_both_rcut10.0_e1-2_v1-4__SR.inp 11 1E-13
-ethanol_both_rcut10.0_e1-3_v1-1___R.inp 11
-ethanol_both_rcut10.0_e1-3_v1-1_R_R.inp 11
-ethanol_both_rcut10.0_e1-3_v1-1_RSR.inp 11
-ethanol_both_rcut10.0_e1-3_v1-1__SR.inp 11
-ethanol_both_rcut10.0_e1-3_v1-2___R.inp 11
-ethanol_both_rcut10.0_e1-3_v1-2_R_R.inp 11
-ethanol_both_rcut10.0_e1-3_v1-2_RSR.inp 11
-ethanol_both_rcut10.0_e1-3_v1-2__SR.inp 11
-ethanol_both_rcut10.0_e1-3_v1-3___R.inp 11
-ethanol_both_rcut10.0_e1-3_v1-3_R_R.inp 11
-ethanol_both_rcut10.0_e1-3_v1-3_RSR.inp 11
-ethanol_both_rcut10.0_e1-3_v1-3__SR.inp 11
-ethanol_both_rcut10.0_e1-3_v1-4___R.inp 11
-ethanol_both_rcut10.0_e1-3_v1-4_R_R.inp 11
-ethanol_both_rcut10.0_e1-3_v1-4_RSR.inp 11
-ethanol_both_rcut10.0_e1-3_v1-4__SR.inp 11
-ethanol_both_rcut10.0_e1-4_v1-1___R.inp 11
-ethanol_both_rcut10.0_e1-4_v1-1_R_R.inp 11
-ethanol_both_rcut10.0_e1-4_v1-1_RSR.inp 11
-ethanol_both_rcut10.0_e1-4_v1-1__SR.inp 11
-ethanol_both_rcut10.0_e1-4_v1-2___R.inp 11
-ethanol_both_rcut10.0_e1-4_v1-2_R_R.inp 11
-ethanol_both_rcut10.0_e1-4_v1-2_RSR.inp 11
-ethanol_both_rcut10.0_e1-4_v1-2__SR.inp 11
-ethanol_both_rcut10.0_e1-4_v1-3___R.inp   11     9e-12
-ethanol_both_rcut10.0_e1-4_v1-3_R_R.inp 11
-ethanol_both_rcut10.0_e1-4_v1-3_RSR.inp 11
-ethanol_both_rcut10.0_e1-4_v1-3__SR.inp 11
-ethanol_both_rcut10.0_e1-4_v1-4___R.inp 11
-ethanol_both_rcut10.0_e1-4_v1-4_R_R.inp 11
-ethanol_both_rcut10.0_e1-4_v1-4_RSR.inp 11
-ethanol_both_rcut10.0_e1-4_v1-4__SR.inp 11
+ethanol_both_rcut10.0_e1-3_v1-1___R.inp    11    1.0E-14    -0.025238485847246
+ethanol_both_rcut10.0_e1-3_v1-1_R_R.inp    11    1.0E-14    -0.023779619348268
+ethanol_both_rcut10.0_e1-3_v1-1_RSR.inp    11    1.0E-14    -0.019459360010946
+ethanol_both_rcut10.0_e1-3_v1-1__SR.inp    11    1.0E-14    -0.020918276566842
+ethanol_both_rcut10.0_e1-3_v1-2___R.inp    11    1.0E-14    -0.009932574037716
+ethanol_both_rcut10.0_e1-3_v1-2_R_R.inp    11    1.0E-14    -0.008473707538738
+ethanol_both_rcut10.0_e1-3_v1-2_RSR.inp    11    1.0E-14    -0.004158063625718
+ethanol_both_rcut10.0_e1-3_v1-2__SR.inp    11    1.0E-14    -0.005616980181613
+ethanol_both_rcut10.0_e1-3_v1-3___R.inp    11    1.0E-14    -0.007283922946670
+ethanol_both_rcut10.0_e1-3_v1-3_R_R.inp    11    1.0E-14    -0.005825056447692
+ethanol_both_rcut10.0_e1-3_v1-3_RSR.inp    11    1.0E-14    -0.001512744797799
+ethanol_both_rcut10.0_e1-3_v1-3__SR.inp    11    1.0E-14    -0.002971661353694
+ethanol_both_rcut10.0_e1-3_v1-4___R.inp    11    1.0E-14    -0.007197787249416
+ethanol_both_rcut10.0_e1-3_v1-4_R_R.inp    11    1.0E-14    -0.005738920750438
+ethanol_both_rcut10.0_e1-3_v1-4_RSR.inp    11    1.0E-14    -0.001426754616104
+ethanol_both_rcut10.0_e1-3_v1-4__SR.inp    11    1.0E-14    -0.002885671172000
+ethanol_both_rcut10.0_e1-4_v1-1___R.inp    11    1.0E-14    -0.017731465537833
+ethanol_both_rcut10.0_e1-4_v1-1_R_R.inp    11    1.0E-14    -0.017738173247161
+ethanol_both_rcut10.0_e1-4_v1-1_RSR.inp    11    1.0E-14    -0.016063799952427
+ethanol_both_rcut10.0_e1-4_v1-1__SR.inp    11    1.0E-14    -0.016057142300378
+ethanol_both_rcut10.0_e1-4_v1-2___R.inp    11    1.0E-14    -0.002425553728303
+ethanol_both_rcut10.0_e1-4_v1-2_R_R.inp    11    1.0E-14    -0.002432261437631
+ethanol_both_rcut10.0_e1-4_v1-2_RSR.inp    11    1.0E-14    -0.000762503567198
+ethanol_both_rcut10.0_e1-4_v1-2__SR.inp    11    1.0E-14    -0.000755845915150
+ethanol_both_rcut10.0_e1-4_v1-3___R.inp    11    9e-12    0.000223097362743
+ethanol_both_rcut10.0_e1-4_v1-3_R_R.inp    11    1.0E-14    0.000216389653415
+ethanol_both_rcut10.0_e1-4_v1-3_RSR.inp    11    1.0E-14    0.001882815260721
+ethanol_both_rcut10.0_e1-4_v1-3__SR.inp    11    1.0E-14    0.001889472912769
+ethanol_both_rcut10.0_e1-4_v1-4___R.inp    11    1.0E-14    0.000309233059997
+ethanol_both_rcut10.0_e1-4_v1-4_R_R.inp    11    1.0E-14    0.000302525350669
+ethanol_both_rcut10.0_e1-4_v1-4_RSR.inp    11    1.0E-14    0.001968805442415
+ethanol_both_rcut10.0_e1-4_v1-4__SR.inp    11    1.0E-14    0.001975463094463

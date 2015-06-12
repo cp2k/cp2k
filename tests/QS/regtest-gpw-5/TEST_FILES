@@ -15,7 +15,7 @@ si8_pulay_reduce.inp              1     1e-13
 si8_pulay_restore.inp             1     1e-13
 si8_pulay_inverse.inp             1     9e-14
 si8_pulay_inv_dbcsr.inp           1     3e-13
-si8_pulay_off.inp                 1     5e-13
+si8_pulay_off.inp    1    5e-13    -33.01431207828869
 #
-si8_pmix_nosmear_mocubes.inp      1     5e-13
-si8_pulay_mocubes.inp             1     5e-13
+si8_pmix_nosmear_mocubes.inp    1    5e-13    -31.18760296982239
+si8_pulay_mocubes.inp    1    5e-13    -31.16058546016065

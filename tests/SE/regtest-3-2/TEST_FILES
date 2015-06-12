@@ -1,10 +1,10 @@
-H2_check.inp       11
-O2.inp             11
+H2_check.inp    11    1.0E-14    -0.037115662799135
+O2.inp    11    1.0E-14    -23.350344185743410
 H2O-3.inp                        11     3e-14
 N3-rp_colvar.inp                 11     2e-08
 Periclase.inp                    11     2e-13
 # dumped KDSO
-H2O-MNDO-KDSOd.inp  3
+H2O-MNDO-KDSOd.inp    3    1.0E-14    -351.37908064005433
 LM-KSDO.inp                       3     4e-14
 LM-KSDO-D.inp                     3     3e-14
 # Multipole with NONE MAX_EXPANSION

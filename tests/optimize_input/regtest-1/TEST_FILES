@@ -1,4 +1,4 @@
 argon-ref.inp         0
 driver.inp                       45     1e-05
 driver-restart.inp               45     1e-06
-driver-stride.inp    45
+driver-stride.inp    45    1.0E-14    0.1072343388958498E+03

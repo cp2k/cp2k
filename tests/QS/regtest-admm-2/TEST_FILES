@@ -2,6 +2,6 @@ CH3-BP-CAUCHY_SUBSPACE.inp        1     6e-14
 CH3-BP-CAUCHY_SUBSPACE_OT_OFF.inp    1     2e-14
 CH3-BP-CAUCHY.inp                 1     1e-13
 CH3-BP-CAUCHY_OT_OFF.inp          1     2e-14
-CH4-BP-MO_DIAG.inp                1     2e-13
-CH4-BP-MO_NO_DIAG.inp             1     2e-13
-CH4-BP-NONE.inp                   1     2e-13
+CH4-BP-MO_DIAG.inp    1    2e-13    -8.07859057532626
+CH4-BP-MO_NO_DIAG.inp    1    2e-13    -8.07859057532626
+CH4-BP-NONE.inp    1    2e-13    -8.07630758934361

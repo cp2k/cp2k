@@ -1,25 +1,25 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-ch2o-1.inp           1
-ch2o-2.inp           1
-ch2o-3.inp           1
-ch2o-r.inp           1
-h2-1.inp             1
-h2-2.inp             1
-h2-3.inp             1
+ch2o-1.inp    1    1.0E-14    -5.82072731467941
+ch2o-2.inp    1    1.0E-14    -5.82159061359821
+ch2o-3.inp    1    1.0E-14    -5.81373413468792
+ch2o-r.inp    1    1.0E-14    -5.81373413468792
+h2-1.inp    1    1.0E-14    -0.70875565358819
+h2-2.inp    1    1.0E-14    -0.70875565358819
+h2-3.inp    1    1.0E-14    -0.70875565358819
 h2-4.inp                          1     3e-14
-h2o-32_1.inp         1
-h2o-32_2.inp         1
-h2o-32_3.inp         1
-h2o-32_4.inp         1
-MoS.inp              1
-n2.inp               1
-s2.inp               1
+h2o-32_1.inp    1    1.0E-14    -131.08636569540289
+h2o-32_2.inp    1    1.0E-14    -131.07999322329658
+h2o-32_3.inp    1    1.0E-14    -131.07520539767836
+h2o-32_4.inp    1    1.0E-14    -131.07520539722631
+MoS.inp    1    1.0E-14    -2.99616182900092
+n2.inp    1    1.0E-14    -4.86560729572791
+s2.inp    1    1.0E-14    -4.83731808711857
 # atomic properties
-ch2o_atprop.inp      1
-MoS_atprop.inp       1
-h2o-32_atprop.inp    1
+ch2o_atprop.inp    1    1.0E-14    -5.81281420275335
+MoS_atprop.inp    1    1.0E-14    -2.99616182900092
+h2o-32_atprop.inp    1    1.0E-14    -131.08636569540289
 # 
-co2_1.inp            1
-co2_2.inp            1
+co2_1.inp    1    1.0E-14    -8.55586246566686
+co2_2.inp    1    1.0E-14    -8.55586246566686

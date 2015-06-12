@@ -4,43 +4,43 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
-C2H4-init.inp      1
-C2H4.inp                          1     3e-14
+C2H4-init.inp    1    1.0E-14    -12.67942277363101
+C2H4.inp    1    3e-14    -13.40449179388862
 # test ddapc constraints
-He2_ddapc_constraint.inp          1     5e-13
+He2_ddapc_constraint.inp    1    5e-13    -5.12409717641076
 He2_ddapc_constraint-2.inp        1     2e-05
 He2_ddapc_constraint-3.inp        1     3e-10
 # outer scf loop none
-He2_none.inp                      1     3e-13
+He2_none.inp    1    3e-13    -5.14307655580282
 He2_none_full_all.inp             1     1e-13
-He2_none_full_single.inp          1     3e-13
+He2_none_full_single.inp    1    3e-13    -5.14635296460525
 He2_none_full_inverse.inp         1     5e-10
 He2_lumos.inp 0
 # check that ot / geo / mo / pdos can be used together
 H2O-geo-ot-evals.inp              1     3e-13
-H2O-geo-ot-mols.inp               1     1e-13
-H2O-geo-ot-pdos.inp               1     2e-13
-H2O-geo-pdos.inp                  1     5e-14
-H2O-geo-pdos_comp.inp             1     3e-14
-H2O-geo-ot-pdos-lumo-comp.inp     1     3e-13
-H2O-geo-pdos_comp_list.inp        1     3e-14
+H2O-geo-ot-mols.inp    1    1e-13    -33.56384376433835
+H2O-geo-ot-pdos.inp    1    2e-13    -17.11010055734335
+H2O-geo-pdos.inp    1    5e-14    -17.11090886162136
+H2O-geo-pdos_comp.inp    1    3e-14    -17.11090886166302
+H2O-geo-ot-pdos-lumo-comp.inp    1    3e-13    -17.11010055734335
+H2O-geo-pdos_comp_list.inp    1    3e-14    -17.11090886166302
 H2O-geo-ot-lumo-all.inp           1     3e-14
 # sic ddapc decoupled
-sic_ddapc_rt.inp   1 1E-11
+sic_ddapc_rt.inp    1    1E-11    -13.49756230145696
 # introduce coeff
 He2_ddapc_constraint-4.inp        1     1e-12
 #test constraint on becke wight population
 H2-BECKE-MD.inp                   1     3e-04
-H2-diffBECKE-ET_coupling.inp      1     1e-13
+H2-diffBECKE-ET_coupling.inp    1    1e-13    -1.24257949981589
 # just energy with sic
-sic_energy.inp 1
+sic_energy.inp    1    1.0E-14    -16.68885651999939
 # elf
-C2H4-elf.inp  1
+C2H4-elf.inp    1    1.0E-14    -13.40989428665456
 # analytic poisson solver
 He_a_xyz.inp 1
-He_a_xz.inp 1
+He_a_xz.inp    1    1.0E-14    -2.79892418663782
 He_a_yz.inp 1
-He_a_xy.inp 1
+He_a_xy.inp    1    1.0E-14    -2.79892418663782
 He_a_x.inp  1
 He_a_y.inp  1
 He_a_z.inp  1

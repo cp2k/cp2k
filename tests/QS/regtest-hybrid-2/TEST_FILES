@@ -1,7 +1,7 @@
-H2O-hybrid-b3lyp-g03.inp          1     3e-14
+H2O-hybrid-b3lyp-g03.inp    1    3e-14    -76.41035425153540
 CH3-hybrid-b3lyp-lsd-g03.inp      1     1e-13
 CH3-hybrid-handh-lsd.inp          1     1e-13
 CH3-hybrid-handhlyp-lsd.inp       1     1e-13
 CH3-hybrid-pbe0-lsd.inp           1     1e-13
-NE-hybrid-HSE03-lda.inp           1     2e-14
-NE-hybrid-HSE06-lda.inp           1     9e-13
+NE-hybrid-HSE03-lda.inp    1    2e-14    -128.91384797313992
+NE-hybrid-HSE06-lda.inp    1    9e-13    -128.80112152310457

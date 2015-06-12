@@ -5,27 +5,27 @@
 #      for details see cp2k/tools/do_regtest
 H2O.inp            1
 #restart
-H2O-OT-1.inp                      1     4e-13
+H2O-OT-1.inp    1    4e-13    -17.13993288492818
 #restart
-H2O-OT-2.inp                      1     7e-14
+H2O-OT-2.inp    1    7e-14    -17.13993271168255
 #restart
 H2O-OT-3.inp       1
 #restart
-H2O-OT-4.inp                      1     1e-13
+H2O-OT-4.inp    1    1e-13    -17.13983663781175
 # restart, state selective
-H2O-OT-5.inp                      1     5e-14
+H2O-OT-5.inp    1    5e-14    -17.14028119979584
 # LSD 
 H2-1.inp                          1     4e-13
 H2-2.inp                          1     8e-13
 H2-3.inp                          1     6e-13
 # more complete OT testing
-Ar-14.inp                         1     4e-13
+Ar-14.inp    1    4e-13    -20.95260104206562
 Ar-15.inp                         1     3e-13
-Ar-16.inp                         1     4e-13
-Ar-17.inp                         1     4e-13
-Ar-18.inp                         1     4e-13
+Ar-16.inp    1    4e-13    -20.95260104206562
+Ar-17.inp    1    4e-13    -20.94915310647679
+Ar-18.inp    1    4e-13    -20.95260104206562
 Ar-19.inp                         1     4e-13
-Ar-20.inp                         1     4e-13
+Ar-20.inp    1    4e-13    -20.95260104206562
 Ar-21.inp                         1     3e-13
 # OT and occuation
 H2O-7.inp          1
@@ -37,20 +37,20 @@ H2O-OT-ASPC-1.inp                 1     4e-14
 H2O-OT-ASPC-2.inp                 1     3e-14
 H2O-OT-ASPC-3.inp  1
 H2O-OT-ASPC-4.inp                 1     3e-14
-H2O-OT-ASPC-5.inp                 1     3e-14
+H2O-OT-ASPC-5.inp    1    3e-14    -17.13993068757226
 H2O-OT-ASPC-6.inp  1
 # Input driven basis set and potential
-H2O-bs_input.inp                  1     4e-14
+H2O-bs_input.inp    1    4e-14    -17.13993294311388
 # Mode selectiv vibrational analysis and intensities
-H2O-VIB-MS-INT-1.inp   21
-H2O-VIB-MS-INT-2.inp   21
-vib-mixed.inp           8
+H2O-VIB-MS-INT-1.inp    21    1.0E-14    0.009948
+H2O-VIB-MS-INT-2.inp    21    1.0E-14    0.009948
+vib-mixed.inp    8    1.0E-14    2160.676205
 dip-mixed.inp          11
 vib-int-mixed.inp       8
 #broyden
-H2O-broyden-1.inp                 1     3e-14
+H2O-broyden-1.inp    1    3e-14    -17.16150835997220
 H2O-broyden-2.inp                 1     2e-05
 #inverse_update_preconditioner solve
-H2O-inverse_up.inp                1
+H2O-inverse_up.inp    1    1.0E-14    -17.14017488354676
 #magnetic dipole moment
-H2O-magnetic.inp                 17
+H2O-magnetic.inp    17    1.0E-14    0.65963137

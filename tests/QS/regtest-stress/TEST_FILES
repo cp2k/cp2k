@@ -1,5 +1,5 @@
-LiH-stress-lda-rks.inp 31
-LiH-stress-lda-uks.inp 31
-LiH-stress-pbe-rks.inp 31
-LiH-stress-pbe-uks.inp 31
-SiC-stress-pbe-nlcc.inp 31
+LiH-stress-lda-rks.inp    31    1.0E-14    1.432173E-02
+LiH-stress-lda-uks.inp    31    1.0E-14    -5.413E-02
+LiH-stress-pbe-rks.inp    31    1.0E-14    3.105924E-01
+LiH-stress-pbe-uks.inp    31    1.0E-14    1.151E-01
+SiC-stress-pbe-nlcc.inp    31    1.0E-14    -1.846324E+01

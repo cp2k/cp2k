@@ -4,11 +4,11 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 h2o_ot_refine_1.inp               1     2e-14
-h2o_ot_refine_2.inp               1     2e-13
-h2o_ot_refine_diis_1.inp          1     7e-14
-h2o_ot_refine_diis_2.inp 1
+h2o_ot_refine_2.inp    1    2e-13    -17.09533899780471
+h2o_ot_refine_diis_1.inp    1    7e-14    -17.16034284653870
+h2o_ot_refine_diis_2.inp    1    1.0E-14    -17.13286786003731
 o2_ot_refine_1.inp                1     1e-13
 o2_ot_refine_2.inp                1     1e-13
 o2_ot_refine_diis_1.inp           1     8e-14
-o2_ot_refine_diis_2.inp           1     5e-14
-ethylene_l1_loc.inp 13
+o2_ot_refine_diis_2.inp    1    5e-14    -31.26277229416462
+ethylene_l1_loc.inp    13    1.0E-14    0.4063601636E+02
