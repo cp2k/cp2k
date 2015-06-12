@@ -218,6 +218,7 @@ CONTAINS
          atom_list,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,cores)
 
     CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,&
                     cell=cell,&
