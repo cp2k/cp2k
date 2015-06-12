@@ -575,7 +575,7 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword,name="WEIGHT",&
+       CALL keyword_create(keyword,name="WEIGHT_TYPE",&
             description="Defines the weight used to define the center of the sphere"//&
             " (if ATOM_LIST is provided)",&
             usage="WEIGHT (UNIT|MASS)",&
