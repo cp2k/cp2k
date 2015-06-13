@@ -106,6 +106,7 @@ MODULE timings_report
     CHARACTER(LEN=default_string_length)     :: routineN
     INTEGER                                  :: local_routine_id, sending_rank
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: collected
+    REAL(KIND=dp)                            :: foobar
     TYPE(routine_report_type), POINTER       :: r_report
     TYPE(routine_stat_type), POINTER         :: r_stat
     TYPE(timer_env_type), POINTER            :: timer_env
@@ -114,6 +115,19 @@ MODULE timings_report
     IF(.NOT. list_isready(reports)) STOP "BUG"
 
     timer_env => get_timer_env()
+
+    ! make sure all functions have been called so that list_size(timer_env%routine_stats)
+    ! and the actual dictionary are consistent in the loop below, preventing out of bounds.
+    ! this hack makes sure they are called before
+    routineN=""
+    CALL mp_bcast(routineN, 0, para_env%group)
+    sending_rank=0
+    CALL mp_max(sending_rank, para_env%group)
+    CALL mp_sum(sending_rank, para_env%group)
+    foobar=0.0_dp
+    CALL mp_max(foobar, para_env%group)
+    CALL mp_sum(foobar, para_env%group)
+    ! end hack
 
     ! Array collected is used as a bit field.
     ! It's of type integer in order to use the convenient MINLOC routine.
