@@ -120,11 +120,11 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_alg_serial', &
       routineP = moduleN//':'//routineN
+    LOGICAL, PARAMETER                       :: test_arnoldi = .FALSE.
 
     INTEGER                                  :: handle, mp_group, unit_nr
     LOGICAL                                  :: do_svd
     TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL, PARAMETER                       :: test_arnoldi=.FALSE.
 
     CALL timeset(routineN,handle)
 
