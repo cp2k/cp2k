@@ -11,14 +11,13 @@
 ! *****************************************************************************
 
 MODULE cp_dbcsr_util
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_distribution,&
-                                             cp_dbcsr_get_data_type,&
-                                             cp_dbcsr_get_info,&
-                                             cp_dbcsr_type,&
-                                             dbcsr_distribution_mp,&
-                                             dbcsr_mp_group,&
-                                             dbcsr_type_real_4,&
-                                             dbcsr_type_real_8
+  USE cp_dbcsr_interface,              ONLY: &
+       arnoldi_is_converged, cp_dbcsr_allocate_matrix_set, &
+       cp_dbcsr_arnoldi_ev, cp_dbcsr_distribution, cp_dbcsr_get_data_type, &
+       cp_dbcsr_get_info, cp_dbcsr_p_type, cp_dbcsr_setup_arnoldi_data, &
+       cp_dbcsr_type, dbcsr_arnoldi_data, dbcsr_distribution_mp, &
+       dbcsr_mp_group, dbcsr_type_real_4, dbcsr_type_real_8, &
+       deallocate_arnoldi_data, get_selected_ritz_val
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_multiply_local
   USE kinds,                           ONLY: dp,&
                                              sp
@@ -45,6 +44,53 @@ MODULE cp_dbcsr_util
   PUBLIC :: lanczos_alg_serial
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief simple transitional wrapper to estimate extremal eigenvalues with arnoldi, using the old lanczos interface
+!>        this hides some of the power of the arnoldi routines (e.g. only min or max eval, generalized eval, ritz vectors, etc.),
+!>        and does not allow for providing an initial guess of the ritz vector. Currently only for testing purposes.
+!> \param matrix_a input mat
+!> \param max_ev estimated max eval
+!> \param min_ev estimated min eval
+!> \param converged estimated converged within max_iter
+!> \param threshold target precision
+!> \param max_iter max allowed iterations (maybe times nrestarts ?)
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE arnoldi_extremal(matrix_a,  max_ev, min_ev, converged, threshold, max_iter, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT), &
+      TARGET                                 :: matrix_a
+    REAL(KIND=dp), INTENT(OUT)               :: max_ev, min_ev
+    LOGICAL, INTENT(OUT)                     :: converged
+    REAL(KIND=dp), INTENT(IN)                :: threshold
+    INTEGER, INTENT(IN)                      :: max_iter
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_extremal', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: arnoldi_matrices
+    TYPE(dbcsr_arnoldi_data)                 :: my_arnoldi
+
+    CALL timeset(routineN,handle)
+    NULLIFY(arnoldi_matrices)
+    CALL cp_dbcsr_allocate_matrix_set(arnoldi_matrices, 1, error)
+    arnoldi_matrices(1)%matrix => matrix_a
+    CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,arnoldi_matrices,max_iter=max_iter,&
+         threshold=threshold,selection_crit=1, nval_request=2, nrestarts=1,&
+         generalized_ev=.FALSE.,iram=.TRUE.)
+    CALL cp_dbcsr_arnoldi_ev(arnoldi_matrices,my_arnoldi,error)
+    converged=arnoldi_is_converged(my_arnoldi)
+    max_eV=REAL(get_selected_ritz_val(my_arnoldi,2),dp)
+    min_eV=REAL(get_selected_ritz_val(my_arnoldi,1),dp)
+    CALL deallocate_arnoldi_data(my_arnoldi)
+    DEALLOCATE(arnoldi_matrices)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE arnoldi_extremal
 
 ! *****************************************************************************
 !> \brief Computes the highest and lowest eigenvalue of matrix_a (assumed to be symmetric)
@@ -78,6 +124,7 @@ CONTAINS
     INTEGER                                  :: handle, mp_group, unit_nr
     LOGICAL                                  :: do_svd
     TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL, PARAMETER                       :: test_arnoldi=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -88,19 +135,32 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    mp_group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_a)))
 
     do_svd = .FALSE.
     IF(PRESENT(svd)) do_svd = svd
 
-    SELECT CASE(cp_dbcsr_get_data_type(matrix_a))
-      CASE (dbcsr_type_real_8)
-        CALL lanczos_alg_serial_d(matrix_a, max_ev, min_ev, converged, threshold, max_iter, do_svd, mp_group, error)
-      CASE (dbcsr_type_real_4)
-        CALL lanczos_alg_serial_s(matrix_a, max_ev, min_ev, converged, threshold, max_iter, do_svd, mp_group, error)
-    !  CASE DEFAULT
-    !    CALL stop_program(routineN,moduleN,__LINE__,"NYI")
-    END SELECT
+    IF (.NOT. do_svd .AND. test_arnoldi ) THEN
+       CALL arnoldi_extremal(matrix_a, max_ev, min_ev, converged, threshold, max_iter, error)
+       IF (unit_nr>0 .AND. .FALSE.) THEN
+          WRITE(unit_nr,*) "ARNOLDI",max_ev,min_ev,converged,do_svd
+       ENDIF
+    ENDIF
+
+    IF (.NOT. test_arnoldi .OR. do_svd) THEN
+      mp_group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_a)))
+      SELECT CASE(cp_dbcsr_get_data_type(matrix_a))
+        CASE (dbcsr_type_real_8)
+          CALL lanczos_alg_serial_d(matrix_a, max_ev, min_ev, converged, threshold, max_iter, do_svd, mp_group, error)
+        CASE (dbcsr_type_real_4)
+          CALL lanczos_alg_serial_s(matrix_a, max_ev, min_ev, converged, threshold, max_iter, do_svd, mp_group, error)
+      !  CASE DEFAULT
+      !    CALL stop_program(routineN,moduleN,__LINE__,"NYI")
+      END SELECT
+
+      IF (unit_nr>0 .AND. .FALSE.) THEN
+         WRITE(unit_nr,*) "LANCZOS",max_ev,min_ev,converged,do_svd
+      ENDIF
+    ENDIF
 
     CALL timestop(handle)
   END SUBROUTINE lanczos_alg_serial

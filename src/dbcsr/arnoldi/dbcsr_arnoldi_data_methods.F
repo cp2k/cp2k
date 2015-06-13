@@ -25,6 +25,7 @@ MODULE dbcsr_arnoldi_data_methods
   USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type,&
                                              dbcsr_is_initialized,&
                                              dbcsr_release
+  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_grid_setup
   USE dbcsr_operations,                ONLY: dbcsr_get_info
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_distribution_obj,&
@@ -45,7 +46,7 @@ MODULE dbcsr_arnoldi_data_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_arnoldi_data_methods'
 
-  PUBLIC :: select_evals, get_selected_ritz_val,&
+  PUBLIC :: select_evals, get_selected_ritz_val,arnoldi_is_converged, &
             dbcsr_arnoldi_data, get_nrestart, set_arnoldi_initial_vector, &
             setup_arnoldi_data, deallocate_arnoldi_data, get_selected_ritz_vector
 
@@ -132,10 +133,11 @@ CONTAINS
     CALL dbcsr_get_info(matrix=matrix(1)%matrix, distribution=distri)
     control%mp_group=distri%d%mp_env%mp%mp_group
     control%myproc=distri%d%mp_env%mp%mynode
+    CALL dbcsr_mp_grid_setup(distri%d%mp_env,force=.TRUE.)
+    IF(.NOT. distri%d%mp_env%mp%subgroups_defined) STOP 'arnoldi only with subgroups'
     control%pcol_group=distri%d%mp_env%mp%pcol_group
     control%prow_group=distri%d%mp_env%mp%prow_group
 
-!    CALL dbcsr_mp_grid_setup(distri%d%mp_env,force=.TRUE.)
     control%symmetric=.FALSE.
 ! Will need a fix for complex because there it has to be hermitian
     IF(SIZE(matrix)==1)control%symmetric=&

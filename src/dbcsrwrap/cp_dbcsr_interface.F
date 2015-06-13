@@ -20,9 +20,9 @@ MODULE cp_dbcsr_interface
        accdrv_do_inhomogenous, accdrv_min_flop_process, accdrv_min_flop_sort, &
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, add_work_coordinate, &
-       array_data, convert_csr_to_dbcsr, convert_dbcsr_to_csr, &
-       convert_offsets_to_sizes, convert_sizes_to_offsets, &
-       cp_dbcsr_iterator=>dbcsr_iterator, &
+       arnoldi_is_converged, array_data, convert_csr_to_dbcsr, &
+       convert_dbcsr_to_csr, convert_offsets_to_sizes, &
+       convert_sizes_to_offsets, cp_dbcsr_iterator=>dbcsr_iterator, &
        cp_distribution_get_num_images=>dbcsr_distribution_get_num_images_1d, &
        create_bl_distribution, create_col_vec_from_matrix, &
        create_replicated_col_vec_from_matrix, &
@@ -242,7 +242,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_add_block_node
   PUBLIC :: cp_dbcsr_maxabs
   PUBLIC :: cp_dbcsr_arnoldi_ev, dbcsr_arnoldi_data, cp_dbcsr_setup_arnoldi_data, deallocate_arnoldi_data,&
-            get_selected_ritz_val, get_selected_ritz_vec, cp_set_arnoldi_initial_vector
+            get_selected_ritz_val, get_selected_ritz_vec, cp_set_arnoldi_initial_vector, arnoldi_is_converged
   PUBLIC :: csr_type, cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr,&
             cp_csr_create_from_dbcsr, cp_csr_destroy, cp_csr_create,&
             csr_dbcsr_blkrow_dist, csr_eqrow_floor_dist,&
