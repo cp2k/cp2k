@@ -126,6 +126,7 @@ MODULE dbcsr_config
   ! by calling the dbcsr_init_conf() subroutine.
 
   ! Allocates subcommunicators for process rows and columns.
+  ! TODO / FIXME : enforce the use of subcommunicators always
   LOGICAL, SAVE :: use_subcommunicators = .TRUE.
 
   ! Use MPI-allocated memory.
