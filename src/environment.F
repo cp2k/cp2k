@@ -76,6 +76,8 @@ MODULE environment
                                              threads
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
+                                             mp_external_timeset,&
+                                             mp_external_timestop,&
                                              mp_max,&
                                              mp_sum,&
                                              rm_mp_perf_env
@@ -536,7 +538,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: ata, do_echo_all_hosts, efl, &
                                                 explicit, failure, trace, &
-                                                trace_master
+                                                trace_master, time_mpi
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum1, enum2
     TYPE(keyword_type), POINTER              :: keyword
@@ -595,6 +597,12 @@ CONTAINS
           CALL timings_setup_tracing(trace_max, unit_nr, tracing_string)
        END IF
     ENDIF 
+   
+    CALL section_vals_val_get(global_section,"TIMINGS%TIME_MPI",l_val=time_mpi,error=error)
+    IF (time_mpi) THEN
+       mp_external_timeset=>timeset
+       mp_external_timestop=>timestop
+    ENDIF
 
     SELECT CASE(i_diag)
     CASE(do_diag_sl)

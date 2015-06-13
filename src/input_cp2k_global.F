@@ -418,6 +418,7 @@ CONTAINS
          "Controls the printing of the timing report at the end of CP2K execution", &
          print_level=silent_print_level,filename="__STD_OUT__",&
          supported_feature=.TRUE.,error=error)
+
     CALL keyword_create(keyword,name="THRESHOLD",&
          description="Specify % of CPUTIME above which the contribution will be inserted in the"//&
          " final timing report (e.g. 0.02 = 2%)",&
@@ -425,6 +426,7 @@ CONTAINS
          default_r_val=0.02_dp, supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
     CALL keyword_create(keyword,name="SORT_BY_SELF_TIME",&
          description="Sort the final timing report by the average self (exclusive) time instead of the "//&
          "total (inclusive) time of a routine",&
@@ -432,6 +434,14 @@ CONTAINS
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword,name="TIME_MPI",&
+         description="Include message_passing calls in the timing report (useful with CALLGRAPH).",&
+         usage="TIME_MPI .TRUE.",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
 

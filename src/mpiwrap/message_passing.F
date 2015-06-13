@@ -551,8 +551,8 @@ MODULE message_passing
   END INTERFACE
 
   ! assumed to be private...
-  PROCEDURE(timeset_interface), POINTER, SAVE  :: mp_external_timeset  => NULL()
-  PROCEDURE(timestop_interface), POINTER, SAVE :: mp_external_timestop => NULL()
+  PROCEDURE(timeset_interface), POINTER, PUBLIC, SAVE  :: mp_external_timeset  => NULL()
+  PROCEDURE(timestop_interface), POINTER, PUBLIC, SAVE :: mp_external_timestop => NULL()
 
 CONTAINS
 
