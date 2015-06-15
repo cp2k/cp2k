@@ -265,6 +265,44 @@ CONTAINS
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE dbcsr_conjg
 
+! *****************************************************************************
+!> \brief fill a dbcsr matrix with zeros
+!> \param matrix_a ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_zero(matrix_a, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_zero', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
+
+    SELECT CASE(dbcsr_get_data_type (matrix_a))
+    CASE(dbcsr_type_complex_4)
+      !$OMP PARALLEL WORKSHARE DEFAULT(none), SHARED(matrix_a)
+      matrix_a%m%data_area%d%c_sp = (0.0,0.0)
+      !$OMP END PARALLEL WORKSHARE
+    CASE(dbcsr_type_complex_8)
+      !$OMP PARALLEL WORKSHARE DEFAULT(none), SHARED(matrix_a)
+      matrix_a%m%data_area%d%c_dp = (0.0_dp,0.0_dp)
+      !$OMP END PARALLEL WORKSHARE
+    CASE(dbcsr_type_real_4)
+      !$OMP PARALLEL WORKSHARE DEFAULT(none), SHARED(matrix_a)
+      matrix_a%m%data_area%d%r_sp = 0.0
+      !$OMP END PARALLEL WORKSHARE
+    CASE(dbcsr_type_real_8)
+      !$OMP PARALLEL WORKSHARE DEFAULT(none), SHARED(matrix_a)
+      matrix_a%m%data_area%d%r_dp = 0.0_dp
+      !$OMP END PARALLEL WORKSHARE
+    END SELECT
+
+    CALL dbcsr_error_stop(handle, error)
+
+  END SUBROUTINE dbcsr_zero
 
 ! *****************************************************************************
 !> \brief Scales a DBCSR matrix by alpha

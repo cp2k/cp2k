@@ -322,7 +322,11 @@
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(kind=real_8), INTENT(IN)                      :: alpha
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-    CALL dbcsr_set_anytype(matrix, dbcsr_scalar(alpha), error)
+    IF (alpha==0.0_real_8) THEN
+      CALL dbcsr_zero(matrix, error)
+    ELSE
+      CALL dbcsr_set_anytype(matrix, dbcsr_scalar(alpha), error)
+    ENDIF
   END SUBROUTINE dbcsr_set_d
 
 ! *****************************************************************************
