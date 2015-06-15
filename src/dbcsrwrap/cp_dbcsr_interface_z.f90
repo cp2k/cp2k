@@ -484,15 +484,15 @@
 !> \param ub ...
 !> \retval DATA ...
 ! *****************************************************************************
-  FUNCTION cp_dbcsr_get_data_c_z (matrix, index_matrix, coersion, lb, ub) RESULT (DATA)
+  FUNCTION cp_dbcsr_get_data_c_z (matrix, index_matrix, select_data_type, lb, ub) RESULT (DATA)
     TYPE(cp_dbcsr_type), INTENT(IN)  :: matrix
     INTEGER, INTENT(IN)              :: index_matrix
-    COMPLEX(kind=real_8), INTENT(IN)              :: coersion
+    COMPLEX(kind=real_8), INTENT(IN)              :: select_data_type
     COMPLEX(kind=real_8), DIMENSION(:), POINTER   :: DATA
     INTEGER, INTENT(IN), OPTIONAL    :: lb, ub
     
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_data_p_z', &
       routineP = moduleN//':'//routineN
 
-    DATA => dbcsr_get_data_p(matrix%matrix%m%wms(index_matrix)%data_area,coersion,lb,ub)
+    DATA => dbcsr_get_data_p(matrix%matrix%m%wms(index_matrix)%data_area,select_data_type,lb,ub)
   END FUNCTION cp_dbcsr_get_data_c_z

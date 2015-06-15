@@ -323,7 +323,7 @@
     LOGICAL                                  :: is_local
     [type_nametype1], DIMENSION(:), POINTER          :: data_vec
 
-    data_vec => dbcsr_get_data_p (vec%m%data_area, coersion=[nametype_zero])
+    data_vec => dbcsr_get_data_p (vec%m%data_area, select_data_type=[nametype_zero])
     IF(is_local)array(1:n)=data_vec(1:n)
 
   END SUBROUTINE transfer_dbcsr_to_local_array_[nametype1]
@@ -342,7 +342,7 @@
     LOGICAL                                  :: is_local
     [type_nametype1], DIMENSION(:), POINTER          :: data_vec
 
-    data_vec => dbcsr_get_data_p (vec%m%data_area, coersion=[nametype_zero])
+    data_vec => dbcsr_get_data_p (vec%m%data_area, select_data_type=[nametype_zero])
     IF(is_local)data_vec(1:n)=array(1:n)
 
 ! *****************************************************************************

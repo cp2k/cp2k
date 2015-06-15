@@ -323,7 +323,7 @@
     LOGICAL                                  :: is_local
     COMPLEX(kind=real_8), DIMENSION(:), POINTER          :: data_vec
 
-    data_vec => dbcsr_get_data_p (vec%m%data_area, coersion=CMPLX(0.0, 0.0, real_8))
+    data_vec => dbcsr_get_data_p (vec%m%data_area, select_data_type=CMPLX(0.0, 0.0, real_8))
     IF(is_local)array(1:n)=data_vec(1:n)
 
   END SUBROUTINE transfer_dbcsr_to_local_array_z
@@ -342,7 +342,7 @@
     LOGICAL                                  :: is_local
     COMPLEX(kind=real_8), DIMENSION(:), POINTER          :: data_vec
 
-    data_vec => dbcsr_get_data_p (vec%m%data_area, coersion=CMPLX(0.0, 0.0, real_8))
+    data_vec => dbcsr_get_data_p (vec%m%data_area, select_data_type=CMPLX(0.0, 0.0, real_8))
     IF(is_local)data_vec(1:n)=array(1:n)
 
 ! *****************************************************************************

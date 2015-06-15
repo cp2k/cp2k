@@ -92,7 +92,7 @@
        DO i=1,sspace_size
           ritz_v(:)=ritz_v(:)+ar_data%local_history(:,i)*ar_data%revec(i,myind)
        END DO
-       data_vec => dbcsr_get_data_p (vector%m%data_area, coersion=[nametype_zero])
+       data_vec => dbcsr_get_data_p (vector%m%data_area, select_data_type=[nametype_zero])
        ! is a bit odd but ritz_v is always complex and matrix type determines where it goes
        ! again I hope the user knows what is required
        data_vec(1:vsize) =[vartype](ritz_v(1:vsize),KIND=[type_prec])
@@ -124,7 +124,7 @@
 
     CALL dbcsr_get_info(matrix=vector, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
     ar_data=>get_data_[nametype1](arnoldi_data)
-    data_vec => dbcsr_get_data_p (vector%m%data_area, coersion=[nametype_zero])
+    data_vec => dbcsr_get_data_p (vector%m%data_area, select_data_type=[nametype_zero])
     IF(nrow_local*ncol_local>0)ar_data%f_vec(1:nrow_local)=data_vec(1:nrow_local)
 
   END SUBROUTINE set_initial_vector_[nametype1]  

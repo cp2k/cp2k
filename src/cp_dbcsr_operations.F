@@ -825,11 +825,11 @@ CONTAINS
           IF (fm%use_sp) THEN
              !blk_1d_sp => bc_mat%m%wms(1)%data_area%d%r_sp(blk_p:blk_p+nze-1)
              blk_1d_sp => cp_dbcsr_get_data_p (bc_mat, 1,&
-                  coersion=REAL(0.0, KIND=sp), lb=blk_p, ub=blk_p+nze-1)
+                  select_data_type=REAL(0.0, KIND=sp), lb=blk_p, ub=blk_p+nze-1)
           ELSE
              !blk_1d_dp => bc_mat%m%wms(1)%data_area%d%r_dp(blk_p:blk_p+nze-1)
              blk_1d_dp => cp_dbcsr_get_data_p (bc_mat, 1,&
-                  coersion=REAL(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
+                  select_data_type=REAL(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
           ENDIF
           CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
                cp_fatal_level, cp_internal_error, routineN,&
@@ -1026,11 +1026,11 @@ CONTAINS
           IF (fm%use_sp) THEN
              !blk_1d_sp => bc_mat%m%wms(1)%data_area%d%r_sp(blk_p:blk_p+nze-1)
              blk_1d_sp => cp_dbcsr_get_data_p (bc_mat, 1,&
-                  coersion=REAL(0.0, KIND=sp), lb=blk_map(my_blk), ub=blk_map(my_blk)+nze-1)
+                  select_data_type=REAL(0.0, KIND=sp), lb=blk_map(my_blk), ub=blk_map(my_blk)+nze-1)
           ELSE
              !blk_1d_dp => bc_mat%m%wms(1)%data_area%d%r_dp(blk_p:blk_p+nze-1)
              blk_1d_dp => cp_dbcsr_get_data_p (bc_mat, 1,&
-                  coersion=REAL(0.0, KIND=dp), lb=blk_map(my_blk), ub=blk_map(my_blk)+nze-1)
+                  select_data_type=REAL(0.0, KIND=dp), lb=blk_map(my_blk), ub=blk_map(my_blk)+nze-1)
           ENDIF
           CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
                cp_fatal_level, cp_internal_error, routineN,&
@@ -1194,7 +1194,7 @@ CONTAINS
           CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p, error=dbcsr_error)
           !blk_1d => bc_mat%m%wms(1)%data_area%d%c_dp(blk_p:blk_p+nze-1)
           blk_1d => cp_dbcsr_get_data_p (bc_mat, 1,&
-               coersion=CMPLX(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
+               select_data_type=CMPLX(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
           CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
                cp_fatal_level, cp_internal_error, routineN,&
                "Block size does not match block row/col sizes")

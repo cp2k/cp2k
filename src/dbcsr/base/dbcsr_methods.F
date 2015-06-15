@@ -1311,7 +1311,7 @@ CONTAINS
 !!> \par Warning
 !!>      This routine should only be used within DBCSR code.
 !!> \param[in] area       data area
-!!> \param[in] coersion   force datatype
+!!> \param[in] select_data_type   force datatype
 !!> \param[out] data      pointer to data
 !! *****************************************************************************
 !  SUBROUTINE get_data_m_[nametype1] (matrix, DATA)

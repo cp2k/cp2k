@@ -47,18 +47,18 @@
 ! *****************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \param[in] area       data area
-!> \param[in] coersion   force datatype
+!> \param[in] select_data_type   force datatype
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
 !> \retval data          pointer to data
 !> \par Calling
 !>      This routine is hidden behind the dbcsr_get_data interface, hence the
-!>      need for the coersion argument.
+!>      need for the select_data_type argument.
 !>      see dbcsr_get_data_p_z
 ! *****************************************************************************
-  FUNCTION dbcsr_get_data_c_z (area, coersion, lb, ub) RESULT (DATA)
+  FUNCTION dbcsr_get_data_c_z (area, select_data_type, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
-    COMPLEX(kind=real_8), INTENT(IN)            :: coersion
+    COMPLEX(kind=real_8), INTENT(IN)            :: select_data_type
     INTEGER, INTENT(IN), OPTIONAL  :: lb, ub
     COMPLEX(kind=real_8), DIMENSION(:), POINTER :: DATA
 
@@ -70,7 +70,7 @@
 
 !   ---------------------------------------------------------------------------
 
-    ! The coersion argument is needed to make this function unique
+    ! The select_data_type argument is needed to make this function unique
     ! enough to use in the interface.
     IF (ASSOCIATED (area%d)) THEN
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
