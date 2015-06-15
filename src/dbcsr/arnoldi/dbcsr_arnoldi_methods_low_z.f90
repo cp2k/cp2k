@@ -237,7 +237,7 @@
 
   SUBROUTINE build_subspace_z(matrix, vectors, arnoldi_data, error)
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
-    TYPE(m_x_v_vectors)                      :: vectors
+    TYPE(m_x_v_vectors), TARGET              :: vectors
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
@@ -247,9 +247,10 @@
     INTEGER                                  :: i, j, ncol_local, nrow_local
     REAL(real_8)                        :: rnorm
     TYPE(arnoldi_control), POINTER           :: control
-    TYPE(arnoldi_data_z), POINTER            :: ar_data
+    TYPE(arnoldi_data_z), POINTER  :: ar_data
     COMPLEX(kind=real_8)                         :: norm
     COMPLEX(kind=real_8), ALLOCATABLE, DIMENSION(:)      :: h_vec, s_vec, v_vec, w_vec
+    TYPE(dbcsr_obj), POINTER                 :: input_vec, result_vec, swap_vec
 
     ar_data=>get_data_z(arnoldi_data)
     control=>get_control(arnoldi_data)
@@ -274,16 +275,20 @@
        ! transfer normalized residdum to history and its norm to the Hessenberg matrix
        v_vec(:)=ar_data%f_vec(:)/rnorm; ar_data%local_history(:, j+1)=v_vec(:); ar_data%Hessenberg(j+1, j)=norm
 
-       CALL transfer_local_array_to_dbcsr_z(vectors%input_vec, v_vec, nrow_local, control%local_comp)
+       input_vec=>vectors%input_vec
+       result_vec=>vectors%result_vec
+       CALL transfer_local_array_to_dbcsr_z(input_vec, v_vec, nrow_local, control%local_comp)
  
        ! This permits to compute the subspace of a matrix which is a product of two matrices
        DO i=1, SIZE(matrix)
-          CALL dbcsr_matrix_colvec_multiply(matrix(i)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_8), &
+          CALL dbcsr_matrix_colvec_multiply(matrix(i)%matrix, input_vec, result_vec, CMPLX(1.0, 0.0, real_8), &
                                             CMPLX(0.0, 0.0, real_8), vectors%rep_row_vec, vectors%rep_col_vec, error)
-          CALL dbcsr_copy(vectors%input_vec, vectors%result_vec, error=error)
+          swap_vec=>input_vec
+          input_vec=>result_vec
+          result_vec=>swap_vec
        END DO
 
-       CALL transfer_dbcsr_to_local_array_z(vectors%result_vec, w_vec, nrow_local, control%local_comp)
+       CALL transfer_dbcsr_to_local_array_z(input_vec, w_vec, nrow_local, control%local_comp)
 
        ! Let's do the orthonormalization, to get the new f_vec. First try the Gram Schmidt scheme
        CALL Gram_Schmidt_ortho_z(h_vec, ar_data%f_vec, s_vec, w_vec, nrow_local, j+1, &
