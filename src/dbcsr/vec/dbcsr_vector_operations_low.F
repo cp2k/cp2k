@@ -151,9 +151,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_col_vec_from_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: npcol
+    INTEGER                                  :: handle, npcol
     INTEGER, DIMENSION(:), POINTER           :: col_sizes, dist_col
     TYPE(dbcsr_distribution_obj)             :: dist_col_vec, distri
+
+    CALL dbcsr_error_set(routineN, handle, error)
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     npcol=SIZE(distri%d%mp_env%mp%pgrid,2)
@@ -175,6 +177,8 @@ CONTAINS
     CALL dbcsr_distribution_release(dist_col_vec)
     DEALLOCATE(dist_col,col_sizes)
 
+    CALL dbcsr_error_stop(handle, error)
+
   END SUBROUTINE create_col_vec_from_matrix
 
 ! *****************************************************************************
@@ -195,9 +199,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_row_vec_from_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nprow
+    INTEGER                                  :: handle, nprow
     INTEGER, DIMENSION(:), POINTER           :: dist_row, row_sizes
     TYPE(dbcsr_distribution_obj)             :: dist_row_vec, distri
+
+    CALL dbcsr_error_set(routineN, handle, error)
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     nprow=SIZE(distri%d%mp_env%mp%pgrid,1)
@@ -220,6 +226,8 @@ CONTAINS
     CALL dbcsr_distribution_release(dist_row_vec)
     DEALLOCATE(dist_row,row_sizes)
 
+    CALL dbcsr_error_stop(handle, error)
+
   END SUBROUTINE create_row_vec_from_matrix
 
 ! *****************************************************************************
@@ -241,9 +249,11 @@ CONTAINS
       routineN = 'create_replicated_col_vec_from_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, npcol
+    INTEGER                                  :: handle, i, npcol
     INTEGER, DIMENSION(:), POINTER           :: col_sizes, dist_col
     TYPE(dbcsr_distribution_obj)             :: dist_col_vec, distri
+
+    CALL dbcsr_error_set(routineN, handle, error)
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     npcol=SIZE(distri%d%mp_env%mp%pgrid,2)
@@ -269,6 +279,8 @@ CONTAINS
     CALL dbcsr_distribution_release(dist_col_vec)
     DEALLOCATE(dist_col,col_sizes)
 
+    CALL dbcsr_error_stop(handle, error)
+
   END SUBROUTINE create_replicated_col_vec_from_matrix
 
 ! *****************************************************************************
@@ -290,9 +302,11 @@ CONTAINS
       routineN = 'create_replicated_row_vec_from_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, nprow
+    INTEGER                                  :: handle, i, nprow
     INTEGER, DIMENSION(:), POINTER           :: dist_row, row_sizes
     TYPE(dbcsr_distribution_obj)             :: dist_row_vec, distri
+
+    CALL dbcsr_error_set(routineN, handle, error)
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     nprow=SIZE(distri%d%mp_env%mp%pgrid,1)
@@ -317,6 +331,8 @@ CONTAINS
 
     CALL dbcsr_distribution_release(dist_row_vec)
     DEALLOCATE(dist_row,row_sizes)
+
+    CALL dbcsr_error_stop(handle, error)
 
   END SUBROUTINE create_replicated_row_vec_from_matrix
 
