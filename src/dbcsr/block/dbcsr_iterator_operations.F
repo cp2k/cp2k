@@ -278,8 +278,6 @@ CONTAINS
     ELSE
        iterator%nblkrows_total = matrix%m%nblkrows_total
     ENDIF
-    iterator%max_r_size = matrix%m%max_rbs
-    iterator%max_c_size = matrix%m%max_cbs
 
     iterator%row_p => matrix%m%row_p
     iterator%col_i => matrix%m%col_i

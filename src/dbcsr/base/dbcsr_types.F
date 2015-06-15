@@ -308,7 +308,7 @@ MODULE dbcsr_types
      LOGICAL            :: shared, dynamic, dynamic_byrows
      INTEGER, POINTER   :: common_pos => Null()
      ! Copies from the matrix.
-     INTEGER            :: nblks, nblkrows_total, max_r_size, max_c_size
+     INTEGER            :: nblks, nblkrows_total
      INTEGER, DIMENSION(:), POINTER :: row_p       => Null(),&
                                        col_i       => Null(),&
                                        blk_p       => Null(),&
