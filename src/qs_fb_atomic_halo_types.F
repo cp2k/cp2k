@@ -18,6 +18,9 @@ MODULE qs_fb_atomic_halo_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_min,&
+                                             mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
@@ -61,6 +64,7 @@ MODULE qs_fb_atomic_halo_types
             fb_atomic_halo_list_get,&
             fb_atomic_halo_list_set,&
             fb_atomic_halo_list_write,&
+            fb_atomic_halo_list_write_info,&
             fb_build_pair_radii
 
 
@@ -1044,6 +1048,85 @@ CONTAINS
                                          "PRINT%ATOMIC_HALOS", error=error)
     END IF
   END SUBROUTINE fb_atomic_halo_list_write
+
+
+! *****************************************************************************
+!> \brief Writes out the atomic halo list summary, no detailed neighbour lists,
+!>        just average, min and max number of halo atoms in the halo list
+!> \param atomic_halos : the fb_atomic_halo object
+!> \param para_env     : pointer to a para_env_type object containing MPI info
+!> \param scf_section  : pointer to the scf input section
+!> \param error        : CP2K data container for error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
+  SUBROUTINE fb_atomic_halo_list_write_info(atomic_halos, para_env, scf_section, error)
+    TYPE(fb_atomic_halo_list_obj), &
+      INTENT(IN)                             :: atomic_halos
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'fb_atomic_halo_list_write_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: ihalo, max_natoms, min_natoms, nhalo_atoms, nhalos, &
+      total_n_halo_atoms, total_n_halos, unit_nr
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: ave_natoms
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(fb_atomic_halo_obj), DIMENSION(:), &
+      POINTER                                :: halos
+
+    failure = .FALSE.
+    NULLIFY(logger, halos)
+    logger => cp_error_get_logger(error)
+    unit_nr = cp_print_key_unit_nr(logger, scf_section, &
+                                   "PRINT%FILTER_MATRIX", &
+                                   extension="", &
+                                   error=error)
+
+    ! obtain data
+    CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
+         halos=halos, &
+         nhalos=nhalos, &
+         error=error)
+    max_natoms = 0
+    min_natoms = HUGE(0)
+    total_n_halo_atoms = 0
+    total_n_halos = nhalos
+    DO ihalo = 1, nhalos
+       CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
+            natoms=nhalo_atoms, &
+            error=error)
+       total_n_halo_atoms = total_n_halo_atoms + nhalo_atoms
+       max_natoms = MAX(max_natoms, nhalo_atoms)
+       min_natoms = MIN(min_natoms, nhalo_atoms)
+    END DO
+    CALL mp_max(max_natoms, para_env%group)
+    CALL mp_min(min_natoms, para_env%group)
+    CALL mp_sum(total_n_halos, para_env%group)
+    CALL mp_sum(total_n_halo_atoms, para_env%group)
+    ave_natoms = REAL(total_n_halo_atoms,dp) / REAL(total_n_halos,dp)
+    ! write info
+    IF (unit_nr > 0) THEN
+       WRITE (UNIT=unit_nr, FMT="(/,A)") &
+            " FILTER_MAT_DIAG| Atomic matrix neighbor lists information:"
+       WRITE (UNIT=unit_nr, FMT="(A,I10)") &
+            " FILTER_MAT_DIAG|   Number of atomic matrices: ", &
+            total_n_halos
+       WRITE (UNIT=unit_nr, &
+              FMT="(A,T45,A,T57,A,T69,A,T81,A)") &
+            " FILTER_MAT_DIAG| ", "Average", "Max", "Min"
+       WRITE (UNIT=unit_nr, &
+              FMT="(A,T45,F10.1,T57,I10,T69,I10,T81,I10)") &
+            " FILTER_MAT_DIAG|   N neighbors per atom:", &
+            ave_natoms, max_natoms, min_natoms
+    END IF
+    ! finish
+    CALL cp_print_key_finished_output(unit_nr, logger, scf_section, &
+                                      "PRINT%FILTER_MATRIX", error=error)
+  END SUBROUTINE fb_atomic_halo_list_write_info
 
 
 ! *****************************************************************************

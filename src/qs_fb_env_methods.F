@@ -59,9 +59,9 @@ MODULE qs_fb_env_methods
        fb_atomic_halo_create, fb_atomic_halo_list_create, &
        fb_atomic_halo_list_nullify, fb_atomic_halo_list_obj, &
        fb_atomic_halo_list_release, fb_atomic_halo_list_set, &
-       fb_atomic_halo_nelectrons_estimate_Z, fb_atomic_halo_nullify, &
-       fb_atomic_halo_obj, fb_atomic_halo_set, fb_atomic_halo_sort, &
-       fb_build_pair_radii
+       fb_atomic_halo_list_write_info, fb_atomic_halo_nelectrons_estimate_Z, &
+       fb_atomic_halo_nullify, fb_atomic_halo_obj, fb_atomic_halo_set, &
+       fb_atomic_halo_sort, fb_build_pair_radii
   USE qs_fb_env_types,                 ONLY: fb_env_get,&
                                              fb_env_has_data,&
                                              fb_env_obj,&
@@ -863,12 +863,14 @@ CONTAINS
 !> \param qs_env : quickstep environment (need this to access particle)
 !>                 positions and their kinds as well as which particles
 !>                 are local to this process
+!> \param scf_section : SCF input section, for printing output
 !> \param error : cp2k error container
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
-  SUBROUTINE fb_env_build_atomic_halos(fb_env, qs_env, error)
+  SUBROUTINE fb_env_build_atomic_halos(fb_env, qs_env, scf_section, error)
     TYPE(fb_env_obj), INTENT(INOUT)          :: fb_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_atomic_halos', &
@@ -986,6 +988,12 @@ CONTAINS
                     atomic_halos=atomic_halos, &
                     error=error)
     CALL fb_atomic_halo_list_release(atomic_halos, error)
+
+    ! print info
+    CALL fb_atomic_halo_list_write_info(atomic_halos, &
+                                        para_env, &
+                                        scf_section, &
+                                        error)
 
     CALL timestop(handle)
 
