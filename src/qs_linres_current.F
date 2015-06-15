@@ -639,8 +639,7 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, den_found, den_found_a, &
-      distributed_rs_grids, do_igaim, failure, map_consistent, &
-      my_minimum_image, my_soft
+      distributed_rs_grids, do_igaim, failure, map_consistent, my_soft
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_current, my_gauge, my_rho
     REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_a, kind_radius_b, &
@@ -705,16 +704,10 @@ CONTAINS
     ! Set pointers for the different gauge
     do_igaim = current_env%gauge.EQ.current_gauge_atom
 
-    IF(do_igaim) THEN
-       mat_a => mat_jp
-       mat_b => mat_jp_rii
-       mat_c => mat_jp_riii
-       mat_d => mat_d0
-    ELSE
-       mat_a => mat_jp
-       mat_b => mat_jp_rii
-       mat_c => mat_jp_riii
-    ENDIF
+    mat_a => mat_jp
+    mat_b => mat_jp_rii
+    mat_c => mat_jp_riii
+    IF(do_igaim) mat_d => mat_d0
 
     CALL get_qs_env(qs_env=qs_env,&
          qs_kind_set=qs_kind_set,&
@@ -725,9 +718,7 @@ CONTAINS
          para_env=para_env,&
          pw_env=pw_env,error=error)
 
-    CALL get_current_env(current_env=current_env,&
-                         rs_gauge=rs_gauge,&
-                         error=error)
+    IF(do_igaim) CALL get_current_env(current_env=current_env,rs_gauge=rs_gauge,error=error)
 
     ! Component of appearing in the vector product rxp, iiB and iiiB
     CALL set_vecp(iB,iiB,iiiB)
@@ -765,13 +756,10 @@ CONTAINS
          maxco=maxco,&
          maxsgf=maxsgf,&
          maxsgf_set=maxsgf_set)
-    my_minimum_image = .TRUE.
-    !    IF(PRESENT(minimum_image)) THEN
-    !       my_minimum_image=minimum_image
+
     Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
     Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
     Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
-    !    END IF
 
     my_soft=.FALSE.
     IF (PRESENT(soft_valid)) my_soft = soft_valid
@@ -824,26 +812,21 @@ CONTAINS
           CALL cp_dbcsr_init(deltajp_d, error=error)
        ENDIF
 
-       CALL cp_dbcsr_create(deltajp_a, ' deltajp_a ', &
-            cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
-            cp_dbcsr_row_block_sizes(mat_a),&
-            cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a), cp_dbcsr_get_data_size(mat_a),&
-            error=error)
-       CALL cp_dbcsr_create(deltajp_b, ' deltajp_b ', &
-            cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
-            cp_dbcsr_row_block_sizes(mat_a),&
-            cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a), cp_dbcsr_get_data_size(mat_a),&
-            error=error)
-       CALL cp_dbcsr_create(deltajp_c, ' deltajp_c ', &
-            cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
-            cp_dbcsr_row_block_sizes(mat_a),&
-            cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a), cp_dbcsr_get_data_size(mat_a),&
-            error=error)
-       IF(do_igaim) CALL cp_dbcsr_create(deltajp_d, ' deltajp_d ', &
-            cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
-            cp_dbcsr_row_block_sizes(mat_a),&
-            cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a), cp_dbcsr_get_data_size(mat_a),&
-            error=error)
+       CALL cp_dbcsr_create(deltajp_a, ' deltajp_a ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
+            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a),&
+            cp_dbcsr_get_data_size(mat_a),error=error)
+            
+       CALL cp_dbcsr_create(deltajp_b, ' deltajp_b ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
+            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a),&
+            cp_dbcsr_get_data_size(mat_a),error=error)
+            
+       CALL cp_dbcsr_create(deltajp_c, ' deltajp_c ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
+            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a),&
+            cp_dbcsr_get_data_size(mat_a),error=error)
+            
+       IF(do_igaim) CALL cp_dbcsr_create(deltajp_d, ' deltajp_d ', cp_dbcsr_distribution (mat_a),&
+            cp_dbcsr_get_matrix_type (mat_a),cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a),&
+            cp_dbcsr_get_num_blocks(mat_a), cp_dbcsr_get_data_size(mat_a),error=error)
     ELSE
        deltajp_a => mat_a !mat_jp
        deltajp_b => mat_b !mat_jp_rii
@@ -895,10 +878,8 @@ CONTAINS
        sphi_b       =>  basis_set_b%sphi
        zetb         =>  basis_set_b%zet
 
-       IF(my_minimum_image) THEN
-          IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) THEN
-             CYCLE
-          END IF
+       IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) THEN
+          CYCLE
        END IF
 
        brow = iatom
@@ -923,8 +904,10 @@ CONTAINS
           jpblock_b = jp_block_b
           CALL cp_dbcsr_add_block_node ( deltajp_c, brow, bcol, jpblock_c ,error=error)
           jpblock_c = jp_block_c
-          IF(do_igaim) CALL cp_dbcsr_add_block_node ( deltajp_d, brow, bcol, jpblock_d ,error=error)
-          IF(do_igaim) jpblock_d = jp_block_d
+          IF(do_igaim) THEN
+              CALL cp_dbcsr_add_block_node ( deltajp_d, brow, bcol, jpblock_d ,error=error)
+              jpblock_d = jp_block_d
+          END IF
        ELSE
           jpblock_a => jp_block_a
           jpblock_b => jp_block_b
@@ -977,8 +960,7 @@ CONTAINS
          CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
        ENDIF
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
-       CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc,&
-                           error=error)
+       CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
     ENDDO
 
@@ -1204,19 +1186,20 @@ CONTAINS
 
        ! Four calls to the general collocate density, to multply the correct function
        ! to each density matrix
+       
+       !
+       ! here the decontracted mat_jp_{ab} is multiplied by
+       !     f_{ab} = g_{a} (dg_{b}/dr)_{idir} - (dg_{a}/dr)_{idir} g_{b}
+       scale = 1.0_dp
+       CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
+            la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+            ra,rab,rab2,scale,jpab_a,na1-1,nb1-1,&
+            rs_current(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
+            eps_rho_rspace,&
+            ga_gb_function=FUNC_ADBmDAB,&
+            idir=idir,&
+            map_consistent=map_consistent,error=error)
        IF(do_igaim) THEN
-          !
-          ! here the decontracted mat_jp_{ab} is multiplied by
-          !     f_{ab} = g_{a} (dg_{b}/dr)_{idir} - (dg_{a}/dr)_{idir} g_{b}
-          scale = 1.0_dp
-          CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
-               la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-               ra,rab,rab2,scale,jpab_a,na1-1,nb1-1,&
-               rs_current(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
-               eps_rho_rspace,&
-               ga_gb_function=FUNC_ADBmDAB,&
-               idir=idir,&
-               map_consistent=map_consistent,error=error)
           ! here the decontracted mat_jb_{ab} is multiplied by
           !     f_{ab} = g_{a} * g_{b} ! THIS GOES OUTSIDE THE LOOP !
           IF(scale2.NE.0.0_dp) THEN
@@ -1257,17 +1240,6 @@ CONTAINS
                rsbuf=current_env%rs_buf(igrid_level)%rs_grid,&
                map_consistent=map_consistent,error=error)
        ELSE
-          ! here the decontracted mat_jp_{ab} is multiplied by
-          !     f_{ab} = g_{a} (dg_{b}/dr)_{idir} - (dg_{a}/dr)_{idir} g_{b}
-          scale = 1.0_dp
-          CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
-               la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-               ra,rab,rab2,scale,jpab_a,na1-1,nb1-1,&
-               rs_current(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
-               eps_rho_rspace,&
-               ga_gb_function=FUNC_ADBmDAB,&
-               idir=idir,&
-               map_consistent=map_consistent,error=error)
           ! here the decontracted mat_jp_rii{ab} is multiplied by
           !     f_{ab} = g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
           !             (dg_{a}/dr)_{idir} (r - R_{b})_{iiB} g_{b}
