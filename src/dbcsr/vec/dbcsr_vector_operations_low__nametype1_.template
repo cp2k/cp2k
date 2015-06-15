@@ -95,7 +95,7 @@
     CALL dbcsr_set(work_col, [nametype_zero], error=error)
 
 ! Perform the local multiply. Here we exploit, that we have the blocks replicated on the mpi processes
-! It is important to note, that the input and result vector are sitributed differently (row wise, col wise respectively)
+! It is important to note, that the input and result vector are distributed differently (row wise, col wise respectively)
     CALL dbcsr_error_set(routineN//"_local_mm", handle1, error)
 
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,transposed,ithread) &
@@ -179,7 +179,7 @@
     mypcol=distri%d%mp_env%mp%mypcol; myprow=distri%d%mp_env%mp%myprow
 
 ! Perform the local multiply. Here we exploit, that we have the blocks replicated on the mpi processes
-! It is important to note, that the input and result vector are sitributed differently (row wise, col wise respectively)
+! It is important to note, that the input and result vector are distributed differently (row wise, col wise respectively)
     CALL dbcsr_get_info(matrix=work_row, nblkcols_total=nblk_col)
     CALL dbcsr_get_info(matrix=work_col, nblkrows_total=nblk_row)
     ALLOCATE(blk_map_row(nblk_col));  ALLOCATE(blk_map_col(nblk_row))
