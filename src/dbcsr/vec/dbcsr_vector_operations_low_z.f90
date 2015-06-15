@@ -57,10 +57,10 @@
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_vector_mult', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col, col_size, mypcol, &
+    INTEGER                                  :: col, mypcol, &
                                                 myprow, nblk_col, nblk_row, &
                                                 ncols, pcol_group, nrows, &
-                                                prow_group, row, row_size, &
+                                                prow_group, row, &
                                                 handle, handle1, ithread 
     LOGICAL                                  :: transposed
     COMPLEX(kind=real_8), DIMENSION(:), POINTER          :: data_vec
@@ -83,8 +83,9 @@
 ! Create pointers to the content of the vectors, this is simply done for efficiency in the later steps
 ! However, it restricts the sparsity of the vector as it assumes the sparsity pattern does not change
     CALL dbcsr_get_info(matrix=work_row, nblkcols_total=nblk_col)
-    CALL dbcsr_get_info(matrix=work_col, nblkrows_total=nblk_row, nfullcols_local=ncols)
+    CALL dbcsr_get_info(matrix=work_col, nblkrows_total=nblk_row)
     ALLOCATE(blk_map_row(nblk_col));  ALLOCATE(blk_map_col(nblk_row))
+
     CALL assign_row_vec_block_ptr_z(work_row, blk_map_row, error)
     CALL assign_col_vec_block_ptr_z(work_col, blk_map_col, error)
 
@@ -98,12 +99,12 @@
 ! It is important to note, that the input and result vector are distributed differently (row wise, col wise respectively)
     CALL dbcsr_error_set(routineN//"_local_mm", handle1, error)
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,transposed,ithread) &
-!$OMP          SHARED(matrix,blk_map_row,blk_map_col,ncols)
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,transposed,ithread) &
+!$OMP          SHARED(matrix,blk_map_row,blk_map_col)
     !$ ithread = omp_get_thread_num ()
     CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, data_d, transposed, row_size=row_size, col_size=col_size)
+       CALL dbcsr_iterator_next_block(iter, row, col, data_d, transposed)
        IF(blk_map_col(row)%assigned_thread .NE. ithread ) CYCLE
        blk_map_col(row)%ptr=blk_map_col(row)%ptr+MATMUL(data_d,TRANSPOSE(blk_map_row(col)%ptr))
     END DO
@@ -121,7 +122,7 @@
 ! from the replicated to the original vector. Let's play it safe and use the iterator
     CALL dbcsr_iterator_start(iter, vec_out)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
-       CALL dbcsr_iterator_next_block(iter, row, col, vec_res, transposed, row_size=row_size)
+       CALL dbcsr_iterator_next_block(iter, row, col, vec_res, transposed)
        IF(ASSOCIATED(blk_map_col(row)%ptr))THEN
           vec_res(:, :)= beta*vec_res(:, :)+alpha*blk_map_col(row)%ptr(:, :)     
        ELSE
