@@ -26,6 +26,7 @@ MODULE dbcsr_io
                                              dbcsr_error_stop,&
                                              dbcsr_error_type,&
                                              dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
                                              dbcsr_warning_level
   USE dbcsr_methods,                   ONLY: &
        dbcsr_data_area, dbcsr_distribution, dbcsr_get_data_size, &
@@ -112,9 +113,12 @@ CONTAINS
       POINTER                                :: c_sp
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: c_dp
-    INTEGER                                  :: bc, blk, blk_p, br, &
-                                                error_handler, iunit, m, mn, n
+    INTEGER                                  :: ablk_p, bc, blk, blk_p, br, &
+                                                ebr, error_handler, fblk, &
+                                                ibr, iunit, lblk, m, mn, n, &
+                                                sblk
     INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, col_blk_size, &
+                                                local_cols, local_rows, &
                                                 row_blk_offset, row_blk_size
     LOGICAL                                  :: my_matlab_format, tr, yesprint
     REAL(KIND=dp)                            :: blk_cs
@@ -162,14 +166,51 @@ CONTAINS
     col_blk_offset => array_data (matrix%m%col_blk_offset)
 
     IF (matrix%m%nblks .GT. 0) THEN
-       DO br = 1, matrix%m%nblkrows_total
-          m = row_blk_size(br)
-          DO blk = matrix%m%row_p(br)+1, matrix%m%row_p(br+1)
-             bc = matrix%m%col_i(blk)
+       IF (matrix%m%list_indexing) THEN
+          CALL dbcsr_assert(SIZE(matrix%m%coo_l).EQ.3*matrix%m%nblks,&
+               dbcsr_fatal_level, dbcsr_caller_error, routineN,&
+               "Wrong list", __LINE__, error)
+          IF (matrix%m%local_indexing) THEN
+             local_rows => array_data (matrix%m%local_rows)
+             local_cols => array_data (matrix%m%local_cols)
+          ELSE
+             NULLIFY(local_rows)
+             NULLIFY(local_cols)
+          ENDIF
+          ebr = 1
+          sblk = 3
+       ELSE
+          ebr = matrix%m%nblkrows_total
+          sblk = 1
+       ENDIF
+       DO ibr = 1, ebr
+          IF (matrix%m%list_indexing) THEN
+             fblk = 1
+             lblk = SIZE(matrix%m%coo_l)
+          ELSE
+             br = ibr
+             fblk = matrix%m%row_p(br)+1
+             lblk = matrix%m%row_p(br+1)
+             m = row_blk_size(br)
+          ENDIF
+          DO blk = fblk, lblk, sblk
+             IF (matrix%m%list_indexing) THEN
+                br = matrix%m%coo_l(blk)
+                bc = matrix%m%coo_l(blk+1)
+                IF (matrix%m%local_indexing) THEN
+                   br = local_rows(br)
+                   bc = local_cols(bc)
+                ENDIF
+                m = row_blk_size(br)
+                ablk_p = matrix%m%coo_l(blk+2)
+             ELSE
+                bc = matrix%m%col_i(blk)
+                ablk_p = matrix%m%blk_p(blk)
+             ENDIF
              n = col_blk_size(bc)
              mn = m*n
-             blk_p = ABS(matrix%m%blk_p(blk))
-             tr = matrix%m%blk_p(blk) .LT. 0
+             blk_p = ABS(ablk_p)
+             tr = ablk_p .LT. 0
              block_exists: IF (blk_p .NE. 0) THEN
                 IF (mn .GT. 0) THEN
                    SELECT CASE (matrix%m%data_type)
@@ -201,7 +242,7 @@ CONTAINS
                 !     blk_p,'l',mn,'= ', blk_cs,'size',m,n
                 IF(.not.my_matlab_format) WRITE(iunit,'(A,I6,",",I6,A,I7,A,I6,I6,"=",I7,A,E12.3)')&
                      !" Checksum for (",br,bc,") at ",blk_p," size ",m,n,mn,&
-                     " Checksum for (",br,bc,") at ",matrix%m%blk_p(blk)," size ",m,n,mn,&
+                     " Checksum for (",br,bc,") at ",ablk_p," size ",m,n,mn,&
                      " checksum=",blk_cs
                 IF (yesprint .AND. blk_p .NE. 0) THEN
                    IF (mn .GT. 0) THEN
