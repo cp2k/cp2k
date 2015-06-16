@@ -36,7 +36,9 @@ MODULE dbcsr_block_access
                                              dbcsr_data_set_pointer,&
                                              dbcsr_get_data,&
                                              dbcsr_get_data_p
-  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_mp
+  USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_local_cols,&
+                                             dbcsr_distribution_local_rows,&
+                                             dbcsr_distribution_mp
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_block_index,&
                                              dbcsr_get_stored_block_info,&
                                              dbcsr_get_stored_coordinates
@@ -53,8 +55,8 @@ MODULE dbcsr_block_access
   USE dbcsr_methods,                   ONLY: &
        dbcsr_blk_column_size, dbcsr_blk_row_size, dbcsr_distribution, &
        dbcsr_get_data_type, dbcsr_get_num_blocks, dbcsr_mutable_instantiated, &
-       dbcsr_mutable_new, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_use_mutable, dbcsr_wm_use_mutable
+       dbcsr_mutable_new, dbcsr_nblkrows_total, dbcsr_use_mutable, &
+       dbcsr_wm_use_mutable
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_mynode
   USE dbcsr_ptr_util,                  ONLY: pointer_rank_remap2,&
                                              pointer_view
@@ -441,21 +443,26 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_all_blocks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_count, col, col_s, &
-                                                error_handle, myrank, rank, &
-                                                row, row_s
+    INTEGER                                  :: blk_count, col, col_local, &
+                                                col_s, error_handle, myrank, &
+                                                rank, row, row_local, row_s
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: columns, rows
+    INTEGER, DIMENSION(:), POINTER           :: local_cols, local_rows
     LOGICAL                                  :: tr
 
     CALL dbcsr_error_set (routineN, error_handle, error=error)
 
     myrank = dbcsr_mp_mynode (dbcsr_distribution_mp (dbcsr_distribution (matrix)))
+    local_rows => dbcsr_distribution_local_rows (dbcsr_distribution (matrix))
+    local_cols => dbcsr_distribution_local_cols (dbcsr_distribution (matrix))
 
     blk_count=0
     ! should be possible to loop only over the local blockrows/blockcols
-    DO row = 1, dbcsr_nblkrows_total(matrix)
-     DO col = 1, dbcsr_nblkcols_total(matrix)
+    DO row_local = 1, SIZE(local_rows)
+     DO col_local = 1, SIZE(local_cols)
         tr = .FALSE.
+        row = local_rows(row_local)
+        col = local_cols(col_local)
         row_s=row ; col_s=col
         CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, tr, rank)
         ! is that the correct condition for symmetric matrices ?
@@ -466,9 +473,11 @@ CONTAINS
     ALLOCATE(rows(blk_count),columns(blk_count))
 
     blk_count=0
-    DO row = 1, dbcsr_nblkrows_total(matrix)
-     DO col = 1, dbcsr_nblkcols_total(matrix)
+    DO row_local = 1, SIZE(local_rows)
+     DO col_local = 1, SIZE(local_cols)
         tr = .FALSE.
+        row = local_rows(row_local)
+        col = local_cols(col_local)
         row_s=row ; col_s=col
         CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, tr, rank)
         IF (rank.EQ.myrank .AND. row_s.EQ.row .AND. col_s.EQ.col) THEN
