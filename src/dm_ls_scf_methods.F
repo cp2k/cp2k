@@ -463,7 +463,6 @@ CONTAINS
     do_dyn_threshold = .FALSE.
     IF(PRESENT(dynamic_threshold)) do_dyn_threshold = dynamic_threshold
 
-
     ! init X = (eps_n*I - H)/(eps_n - eps_0)  ... H* = S^-1/2*H*S^-1/2
     CALL cp_dbcsr_init(matrix_x,error=error)
     CALL cp_dbcsr_create(matrix_x, template=matrix_ks, matrix_type="S", error=error)
@@ -483,19 +482,22 @@ CONTAINS
     CALL cp_dbcsr_copy(matrix_k0, matrix_x_nosym, error=error)
 
     ! compute the deviation in the mixed matrix, as seen in the ortho basis
-    CALL cp_dbcsr_add(matrix_ks_deviation, matrix_x_nosym , -1.0_dp, 1.0_dp, error=error)
-    CALL lanczos_alg_serial(matrix_ks_deviation, maxev, minev, max_iter=max_iter_lanczos, threshold=eps_lanczos, &
-                            converged=converged, error=error)
-    maxdev = MAX(ABS(maxev), ABS(minev))
-    IF (unit_nr>0) THEN
-       WRITE(unit_nr, '(T6,A,1X,L12)')   "Lanczos converged:      ", converged
-       WRITE(unit_nr, '(T6,A,1X,F12.5)') "change in mixed matrix: ", maxdev
-       WRITE(unit_nr, '(T6,A,1X,F12.5)') "HOMO upper bound:       ", e_homo+maxdev
-       WRITE(unit_nr, '(T6,A,1X,F12.5)') "LUMO lower bound:       ", e_lumo-maxdev
-       WRITE(unit_nr, '(T6,A,1X,L12)')   "Predicts a gap ?        ", ((e_lumo-maxdev)-(e_homo+maxdev))>0
+    IF (do_dyn_threshold) THEN
+       CALL cp_dbcsr_add(matrix_ks_deviation, matrix_x_nosym , -1.0_dp, 1.0_dp, error=error)
+       CALL lanczos_alg_serial(matrix_ks_deviation, maxev, minev, max_iter=max_iter_lanczos, threshold=eps_lanczos, &
+                               converged=converged, error=error)
+       maxdev = MAX(ABS(maxev), ABS(minev))
+       IF (unit_nr>0) THEN
+          WRITE(unit_nr, '(T6,A,1X,L12)')   "Lanczos converged:      ", converged
+          WRITE(unit_nr, '(T6,A,1X,F12.5)') "change in mixed matrix: ", maxdev
+          WRITE(unit_nr, '(T6,A,1X,F12.5)') "HOMO upper bound:       ", e_homo+maxdev
+          WRITE(unit_nr, '(T6,A,1X,F12.5)') "LUMO lower bound:       ", e_lumo-maxdev
+          WRITE(unit_nr, '(T6,A,1X,L12)')   "Predicts a gap ?        ", ((e_lumo-maxdev)-(e_homo+maxdev))>0
+       ENDIF
+       ! save the old mixed matrix
+       CALL cp_dbcsr_copy(matrix_ks_deviation, matrix_x_nosym , error=error)
+
     ENDIF
-    ! save the old mixed matrix
-    CALL cp_dbcsr_copy(matrix_ks_deviation, matrix_x_nosym , error=error)
 
     ! get largest/smallest eigenvalues for scaling
     CALL lanczos_alg_serial(matrix_x_nosym, max_eig, min_eig, max_iter=max_iter_lanczos, threshold=eps_lanczos,&
@@ -509,10 +511,12 @@ CONTAINS
     CALL cp_dbcsr_add_on_diag(matrix_x, -eps_max, error=error)
     CALL cp_dbcsr_scale(matrix_x, -1.0_dp/(eps_max-eps_min), error=error)
 
-    ! scale bounds for HOMO/LUMO
-    scaled_homo_bound = (eps_max-(e_homo+maxdev))/(eps_max-eps_min)
-    scaled_lumo_bound = (eps_max-(e_lumo-maxdev))/(eps_max-eps_min)
     current_threshold = threshold
+    IF (do_dyn_threshold) THEN
+       ! scale bounds for HOMO/LUMO
+       scaled_homo_bound = (eps_max-(e_homo+maxdev))/(eps_max-eps_min)
+       scaled_lumo_bound = (eps_max-(e_lumo-maxdev))/(eps_max-eps_min)
+    ENDIF
 
     CALL cp_dbcsr_init(matrix_xsq,error=error)
     CALL cp_dbcsr_create(matrix_xsq,template=matrix_ks,matrix_type="S",error=error)
@@ -571,22 +575,24 @@ CONTAINS
          WRITE(unit_nr,*) "trace_fx",trace_fx,"trace_gx",trace_gx,"gam",gam,"frob_id",frob_id,"conv",ABS(frob_id/frob_x)
       ENDIF
 
-      ! quantities used for dynamic thresholding, when the estimated gap is larger than zero
-      xi = (scaled_homo_bound-scaled_lumo_bound)
-      IF (do_dyn_threshold .AND. xi > 0.0_dp) THEN
-        mmin = 0.5*(scaled_homo_bound+scaled_lumo_bound)
-        max_threshold = ABS(1-2*mmin)*xi
+      IF (do_dyn_threshold) THEN
+        ! quantities used for dynamic thresholding, when the estimated gap is larger than zero
+        xi = (scaled_homo_bound-scaled_lumo_bound)
+        IF (xi > 0.0_dp) THEN
+           mmin = 0.5*(scaled_homo_bound+scaled_lumo_bound)
+           max_threshold = ABS(1-2*mmin)*xi
   
-        scaled_homo_bound = evaluate_trs4_polynomial(scaled_homo_bound, gamma_values(i:), 1)
-        scaled_lumo_bound = evaluate_trs4_polynomial(scaled_lumo_bound, gamma_values(i:), 1)
-        estimated_steps = estimate_steps(scaled_homo_bound, scaled_lumo_bound, threshold)
+           scaled_homo_bound = evaluate_trs4_polynomial(scaled_homo_bound, gamma_values(i:), 1)
+           scaled_lumo_bound = evaluate_trs4_polynomial(scaled_lumo_bound, gamma_values(i:), 1)
+           estimated_steps = estimate_steps(scaled_homo_bound, scaled_lumo_bound, threshold)
       
-        est_threshold = (threshold/(estimated_steps+i+1))*xi/(1+threshold/(estimated_steps+i+1))
-        est_threshold = MIN(max_threshold, est_threshold)
-        IF (i > 1) est_threshold = MAX(est_threshold, 0.1_dp * current_threshold)
-        current_threshold = est_threshold
-      ELSE
-        current_threshold = threshold
+           est_threshold = (threshold/(estimated_steps+i+1))*xi/(1+threshold/(estimated_steps+i+1))
+           est_threshold = MIN(max_threshold, est_threshold)
+           IF (i > 1) est_threshold = MAX(est_threshold, 0.1_dp * current_threshold)
+           current_threshold = est_threshold
+        ELSE
+           current_threshold = threshold
+        ENDIF
       ENDIF
 
       IF (gam > gamma_max) THEN
@@ -636,7 +642,7 @@ CONTAINS
                            0.0_dp, matrix_x_nosym, filter_eps=threshold,error=error)
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s_sqrt_inv, matrix_x_nosym,&
                            0.0_dp, matrix_p, filter_eps=threshold,error=error)
-    
+
     ! calculate the chemical potential by doing a bisection of fk(x0)-0.5, where fk is evaluated using the stored values for gamma
     ! E. Rubensson et al., Chem Phys Lett 432, 2006, 591-594
     mu_a = 0.0_dp; mu_b = 1.0_dp; 
@@ -660,11 +666,13 @@ CONTAINS
     ENDIF
     e_mu = mu
 
-    CALL cp_dbcsr_desymmetrize(matrix_x,matrix_x_nosym,error=error)
-    CALL compute_homo_lumo(matrix_k0,matrix_x_nosym,eps_min,eps_max,threshold,max_iter_lanczos,eps_lanczos,homo,lumo,unit_nr,error)
-
-    e_homo = homo
-    e_lumo = lumo
+    IF (do_dyn_threshold) THEN
+      CALL cp_dbcsr_desymmetrize(matrix_x,matrix_x_nosym,error=error)
+      CALL compute_homo_lumo(matrix_k0,matrix_x_nosym,eps_min,eps_max,&
+               threshold,max_iter_lanczos,eps_lanczos,homo,lumo,unit_nr,error)
+      e_homo = homo
+      e_lumo = lumo
+    ENDIF
 
     CALL cp_dbcsr_release(matrix_x, error=error)
     CALL cp_dbcsr_release(matrix_x_nosym, error=error)
