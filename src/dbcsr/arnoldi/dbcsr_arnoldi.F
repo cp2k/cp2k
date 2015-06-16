@@ -31,7 +31,8 @@ MODULE dbcsr_arnoldi
                                              dbcsr_error_type
   USE dbcsr_methods,                   ONLY: dbcsr_init,&
                                              dbcsr_release
-  USE dbcsr_operations,                ONLY: dbcsr_get_info
+  USE dbcsr_operations,                ONLY: dbcsr_copy,&
+                                             dbcsr_get_info
   USE dbcsr_types,                     ONLY: dbcsr_obj,&
                                              dbcsr_obj_type_p
   USE dbcsr_vector_operations,         ONLY: create_col_vec_from_matrix,&
@@ -112,7 +113,8 @@ CONTAINS
 
 !prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
     CALL create_col_vec_from_matrix(vectors%input_vec, matrix(1)%matrix, 1, error)
-    CALL create_col_vec_from_matrix(vectors%result_vec, matrix(1)%matrix, 1, error)
+    CALL dbcsr_init(vectors%result_vec)
+    CALL dbcsr_copy(vectors%result_vec,vectors%input_vec,error=error)
     CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1, error)
     CALL create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix(1)%matrix, 1, error)
 
@@ -196,14 +198,15 @@ CONTAINS
 
     CALL dbcsr_error_set(routineN, handle, error)
     ALLOCATE(matrix_arnoldi(2))
-    ! this matrix will conatin +/- A-rho*B
+    ! this matrix will contain +/- A-rho*B
     CALL dbcsr_init(A_rho_B)
     matrix_arnoldi(1)%matrix=>A_rho_B
     matrix_arnoldi(2)%matrix=>matrix(2)%matrix
 
 !prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
     CALL create_col_vec_from_matrix(vectors%input_vec, matrix(1)%matrix, 1, error)
-    CALL create_col_vec_from_matrix(vectors%result_vec, matrix(1)%matrix, 1, error)
+    CALL dbcsr_init(vectors%result_vec)
+    CALL dbcsr_copy(vectors%result_vec,vectors%input_vec,error=error)
     CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1, error)
     CALL create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix(1)%matrix, 1, error)
 
