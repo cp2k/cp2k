@@ -1,0 +1,82 @@
+! regtesting input, needs CUTOFF 300, EPS_DEFAULT 1E-10,
+!                         EPS_FILTER 1E-6, EPS_SCF 1E-7 for better setting
+!
+!
+! use NREP=37 for >100000 particles
+! use NREP=47 for >200000 particles
+! use NREP=80 for >1000000 particles
+@SET NREP 3
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    ! LSD
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &MGRID
+      CUTOFF 100
+      &RS_GRID
+         MAX_DISTRIBUTED_LEVEL 5
+      &END
+      SKIP_LOAD_BALANCE_DISTRIBUTED
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-7
+      LS_SCF
+    &END QS
+    &LS_SCF
+      MAX_SCF     4
+      EPS_FILTER  1.0E-4
+      EPS_SCF     1.0E-5
+      MU         -0.1
+      S_PRECONDITIONER  ATOMIC
+      S_INVERSION       SIGN_SQRT
+      REPORT_ALL_SPARSITIES ON
+      PERFORM_MU_SCAN OFF
+    &END
+    &SCF
+      EPS_SCF 1.0E-8
+    &END
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.0 3.0 3.0
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END CELL
+    &COORD
+      H 0.0 0.0 0.0 H
+      H 0.8 0.0 0.0 H
+    &END COORD
+    &KIND H
+      BASIS_SET SZV-MOLOPT-GTH
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2-big-1
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+  EXTENDED_FFT_LENGTHS
+  &DBCSR
+    USE_MPI_RMA T
+    avg_elements_images 500
+  &END
+! TRACE
+! TRACE_MASTER
+! TRACE_MAX 1000
+&END GLOBAL
+&MOTION
+  &MD
+     ENSEMBLE NVE
+     TIMESTEP 0.1
+     TEMPERATURE 300
+     STEPS 10
+  &END
+&END

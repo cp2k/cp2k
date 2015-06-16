@@ -1,2 +1,4 @@
 H2O-32-dftb-ls-2.inp    11    1e-12    -32.574187904318592
 H2O-OT-ASPC-1.inp    1    4e-14    -17.13993294772316
+H2-big-nimages.inp               11     2e-13
+H2-big-nimages_clusters.inp      11     2e-13
