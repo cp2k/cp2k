@@ -512,7 +512,6 @@ CONTAINS
            WRITE (UNIT=unit_nr,FMT="(30(1X,I0))") basis%subset(iset)%n,basis%subset(iset)%lmin,basis%subset(iset)%lmax,&
                                                   basis%subset(iset)%nexp,basis%subset(iset)%l
            DO iexp=1,basis%subset(iset)%nexp
-              WRITE (UNIT=unit_nr,FMT="(30(1X,ES24.16))") basis%subset(iset)%exps(iexp),basis%subset(iset)%coeff(iexp,:)
               WRITE (UNIT=unit_nr,FMT="(T2,F24.14,30(1X,ES24.14))") basis%subset(iset)%exps(iexp),basis%subset(iset)%coeff(iexp,:)
            END DO
         END DO
