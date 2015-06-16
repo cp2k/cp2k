@@ -442,9 +442,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk_count, col, col_s, &
-                                                myrank, rank, row, row_s
+                                                error_handle, myrank, rank, &
+                                                row, row_s
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: columns, rows
     LOGICAL                                  :: tr
+
+    CALL dbcsr_error_set (routineN, error_handle, error=error)
 
     myrank = dbcsr_mp_mynode (dbcsr_distribution_mp (dbcsr_distribution (matrix)))
 
@@ -477,6 +480,8 @@ CONTAINS
     ENDDO
 
     CALL dbcsr_reserve_blocks(matrix,rows,columns,error=error)
+
+    CALL dbcsr_error_stop (error_handle, error=error)
 
   END SUBROUTINE dbcsr_reserve_all_blocks
 
