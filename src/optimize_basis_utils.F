@@ -147,7 +147,7 @@ CONTAINS
        unit_nr=cp_logger_get_default_unit_nr(logger)
 
     IF(unit_nr>0)THEN
-       WRITE(unit_nr,'(1X,A,A)')"BASOPT| Total number of calcualtions ",&
+       WRITE(unit_nr,'(1X,A,A)')"BASOPT| Total number of calculations ",&
                             TRIM(cp_to_string(opt_bas%ncombinations*opt_bas%ntraining_sets))
        WRITE(unit_nr,'(A)')""
        DO icomb=1,opt_bas%ncombinations
@@ -223,7 +223,7 @@ CONTAINS
    END SUBROUTINE generate_basis_combinations
 
 ! *****************************************************************************
-!> \brief returns a mapping from the calcualtion id to the trainings set id and
+!> \brief returns a mapping from the calculation id to the trainings set id and
 !>        basis combination id
 !> \param calc_id ...
 !> \param opt_bas ...
@@ -252,7 +252,7 @@ CONTAINS
    END SUBROUTINE
  
 ! *****************************************************************************
-!> \brief Pack calcualtions in groups. If less MPI tasks than systems are used
+!> \brief Pack calculations in groups. If less MPI tasks than systems are used
 !>        multiple systems will be assigned to a single MPI task
 !> \param opt_bas ...
 !> \param optbas_section ...
@@ -513,6 +513,7 @@ CONTAINS
                                                   basis%subset(iset)%nexp,basis%subset(iset)%l
            DO iexp=1,basis%subset(iset)%nexp
               WRITE (UNIT=unit_nr,FMT="(30(1X,ES24.16))") basis%subset(iset)%exps(iexp),basis%subset(iset)%coeff(iexp,:)
+              WRITE (UNIT=unit_nr,FMT="(T2,F24.14,30(1X,ES24.14))") basis%subset(iset)%exps(iexp),basis%subset(iset)%coeff(iexp,:)
            END DO
         END DO
       END IF
