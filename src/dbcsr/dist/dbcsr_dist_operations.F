@@ -602,10 +602,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (MOD (nbins, multiplicity), "EQ", 0,&
+    CALL dbcsr_assert (MOD(nbins*nimages,multiplicity), "EQ", 0,&
          dbcsr_warning_level, dbcsr_internal_error,&
          routineN, "mulitplicity is not divisor of new process grid coordinate",__LINE__,error)
-    old_nbins = nbins * nimages / multiplicity
+    old_nbins = (nbins * nimages) / multiplicity
     ALLOCATE (bin_multiplier(0:old_nbins-1))
     bin_multiplier(:) = 0
     DO i = 1, SIZE (new_bins)
@@ -840,12 +840,13 @@ CONTAINS
 !>                                      distribution to these column images
 !> \param[in] match_col_nbins           number of bins in the distribution to
 !>                                      match the local columns
-!> \param mult_images ...
+!> \param nclusters_rows ...
+!> \param nclusters_cols ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_image_dist(imgdist, dist,&
        match_row_pdist, match_row_idist, match_row_nbins,&
        match_col_pdist, match_col_idist, match_col_nbins,&
-       mult_images)
+       nclusters_rows, nclusters_cols)
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(OUT)                            :: imgdist
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
@@ -856,18 +857,16 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: match_col_pdist, &
                                                 match_col_idist
-    INTEGER, INTENT(IN)                      :: match_col_nbins
-    INTEGER, INTENT(IN), OPTIONAL            :: mult_images
+    INTEGER, INTENT(IN)                      :: match_col_nbins, &
+                                                nclusters_rows, nclusters_cols
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_image_dist', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: factor_mult_images, ncols, &
-                                                npcols, nprows, nrows
+    INTEGER                                  :: ncols, npcols, nprows, nrows
     INTEGER, DIMENSION(:), POINTER :: col_dist_data, col_img_data, &
       col_img_data_tmp, col_vdist, row_dist_data, row_img_data, &
       row_img_data_tmp, row_vdist
-    LOGICAL                                  :: do_mult_images_rows_or_cols
     TYPE(array_i1d_obj)                      :: col_dist, col_image, &
                                                 row_dist, row_image
     TYPE(dbcsr_distribution_obj)             :: new_dist
@@ -884,7 +883,6 @@ CONTAINS
     CALL dbcsr_distribution_init (imgdist%i%main)
     CALL array_nullify (imgdist%i%col_image)
     CALL array_nullify (imgdist%i%row_image)
-    do_mult_images_rows_or_cols = (PRESENT(match_row_pdist) .AND. PRESENT(match_col_idist))
     mp_env = dbcsr_distribution_mp (dist)
     ! Determine the factors.
     nrows = dbcsr_distribution_nrows (dist)
@@ -892,18 +890,8 @@ CONTAINS
     nprows = dbcsr_mp_nprows (mp_env)
     npcols = dbcsr_mp_npcols (mp_env)
     ! Create the new row distribution and row image distribution
-    imgdist%i%row_decimation = lcm (nprows, match_row_nbins) / nprows
-    imgdist%i%row_multiplicity = nprows / gcd (nprows, match_row_nbins)
-
-    IF (PRESENT(mult_images) .AND. .NOT. do_mult_images_rows_or_cols) THEN
-       ! right matrix
-       IF (mult_images.GT.1) THEN
-          factor_mult_images = CEILING(MAX(DBLE(mult_images)/imgdist%i%row_decimation,&
-                                           DBLE(mult_images)/imgdist%i%row_multiplicity))
-          imgdist%i%row_decimation = imgdist%i%row_decimation*factor_mult_images
-          imgdist%i%row_multiplicity = imgdist%i%row_multiplicity*factor_mult_images
-       ENDIF
-    END IF
+    imgdist%i%row_decimation = nclusters_rows / nprows
+    imgdist%i%row_multiplicity = nclusters_rows / gcd (nclusters_rows, match_row_nbins)
 
     IF (debug_mod) WRITE (*,'(1X,A,I5,"x",I5)')routineN//"pgrid",&
          nprows, npcols
@@ -950,18 +938,8 @@ CONTAINS
     CALL array_new (imgdist%i%vrow_dist, row_vdist, gift=.TRUE.)
     !
     ! Create the new column distribution and column image distribution
-    imgdist%i%col_decimation = lcm (npcols, match_col_nbins) / npcols
-    imgdist%i%col_multiplicity = npcols / gcd (npcols, match_col_nbins)
-
-    IF (PRESENT(mult_images) .AND. do_mult_images_rows_or_cols) THEN
-       IF (mult_images.GT.1) THEN
-          ! left matrix
-          factor_mult_images = CEILING(MAX(DBLE(mult_images)/imgdist%i%col_decimation,&
-                                           DBLE(mult_images)/imgdist%i%col_multiplicity))
-          imgdist%i%col_decimation = imgdist%i%col_decimation*factor_mult_images
-          imgdist%i%col_multiplicity = imgdist%i%col_multiplicity*factor_mult_images
-       ENDIF
-    END IF
+    imgdist%i%col_decimation = nclusters_cols / npcols
+    imgdist%i%col_multiplicity = nclusters_cols / gcd (nclusters_cols, match_col_nbins)
 
     IF (debug_mod) WRITE (*,*)routineN//'col decimation, multiplicity',&
          imgdist%i%col_decimation, imgdist%i%col_multiplicity

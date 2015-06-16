@@ -15,6 +15,8 @@
 MODULE dbcsr_work_operations
 
   USE array_types,                     ONLY: array_data,&
+                                             array_hold,&
+                                             array_i1d_obj,&
                                              array_new,&
                                              array_nullify,&
                                              array_release,&
@@ -69,10 +71,11 @@ MODULE dbcsr_work_operations
        dbcsr_get_data_size_used, dbcsr_get_data_type, &
        dbcsr_get_index_memory_type, dbcsr_get_matrix_type, &
        dbcsr_get_replication_type, dbcsr_init, dbcsr_is_initialized, &
-       dbcsr_matrix_counter, dbcsr_mutable_destroy, dbcsr_mutable_init, &
-       dbcsr_mutable_instantiated, dbcsr_mutable_new, dbcsr_mutable_release, &
-       dbcsr_name, dbcsr_row_block_sizes, dbcsr_use_mutable, &
-       dbcsr_valid_index, dbcsr_wm_use_mutable
+       dbcsr_matrix_counter, dbcsr_max_col_size, dbcsr_max_row_size, &
+       dbcsr_mutable_destroy, dbcsr_mutable_init, dbcsr_mutable_instantiated, &
+       dbcsr_mutable_new, dbcsr_mutable_release, dbcsr_name, &
+       dbcsr_row_block_sizes, dbcsr_use_mutable, dbcsr_valid_index, &
+       dbcsr_wm_use_mutable
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
   USE dbcsr_toollib,                   ONLY: dbcsr_unpack_i8_2i4,&
                                              sort,&
@@ -147,6 +150,10 @@ CONTAINS
 !>                            special memory
 !> \param[in] index_memory_type     (optional) allocate indices using
 !>                            special memory
+!> \param max_rbs ...
+!> \param max_cbs ...
+!> \param row_blk_offset ...
+!> \param col_blk_offset ...
 !> \param[in] reuse           (optional) reuses an existing matrix, default
 !>                            is to create a fresh one
 !> \param reuse_arrays ...
@@ -162,8 +169,10 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_new(matrix, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type,&
-       data_memory_type, index_memory_type, reuse,&
-       reuse_arrays, mutable_work, replication_type, error)
+       data_memory_type, index_memory_type,&
+       max_rbs, max_cbs,&
+       row_blk_offset, col_blk_offset,&
+       reuse, reuse_arrays, mutable_work, replication_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     CHARACTER(len=*), INTENT(IN)             :: name
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
@@ -174,6 +183,9 @@ CONTAINS
     TYPE(dbcsr_memtype_type), INTENT(IN), &
       OPTIONAL                               :: data_memory_type, &
                                                 index_memory_type
+    INTEGER, INTENT(IN), OPTIONAL            :: max_rbs, max_cbs
+    TYPE(array_i1d_obj), INTENT(IN), &
+      OPTIONAL                               :: row_blk_offset, col_blk_offset
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reuse_arrays, &
                                                 mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
@@ -185,7 +197,8 @@ CONTAINS
     CHARACTER                                :: matrix_type_l
     INTEGER                                  :: error_handler, my_nblks, &
                                                 my_nze
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, row_blk_offset
+    INTEGER, DIMENSION(:), POINTER           :: vec_col_blk_offset, &
+                                                vec_row_blk_offset
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
     LOGICAL                                  :: hijack
 
@@ -269,13 +282,17 @@ CONTAINS
     NULLIFY(matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, matrix%m%thr_c,&
          matrix%m%coo_l)
     CALL array_new(matrix%m%row_blk_size, row_blk_size, gift=reuse_arrays)
-    IF (array_size (matrix%m%row_blk_size) .GT. 0) THEN
+    IF (PRESENT(max_rbs)) THEN
+       matrix%m%max_rbs = max_rbs
+    ELSE IF (array_size (matrix%m%row_blk_size) .GT. 0) THEN
        matrix%m%max_rbs = MAXVAL (array_data (matrix%m%row_blk_size))
     ELSE
        matrix%m%max_rbs = 0
     ENDIF
     CALL array_new(matrix%m%col_blk_size, col_blk_size, gift=reuse_arrays)
-    IF (array_size (matrix%m%col_blk_size) .GT. 0) THEN
+    IF (PRESENT(max_cbs)) THEN
+       matrix%m%max_cbs = max_cbs
+    ELSE IF (array_size (matrix%m%col_blk_size) .GT. 0) THEN
        matrix%m%max_cbs = MAXVAL (array_data (matrix%m%col_blk_size))
     ELSE
        matrix%m%max_cbs = 0
@@ -292,12 +309,33 @@ CONTAINS
          "Number of blocked columns does match blocked column distribution.",&
          __LINE__, error=error)
     ! initialize row/col offsets
-    ALLOCATE(row_blk_offset(array_size (matrix%m%row_blk_size)+1))
-    ALLOCATE(col_blk_offset(array_size (matrix%m%col_blk_size)+1))
-    CALL convert_sizes_to_offsets(array_data(matrix%m%col_blk_size), col_blk_offset)
-    CALL convert_sizes_to_offsets(array_data(matrix%m%row_blk_size), row_blk_offset)
-    CALL array_new(matrix%m%col_blk_offset, col_blk_offset, gift=.TRUE.)
-    CALL array_new(matrix%m%row_blk_offset, row_blk_offset, gift=.TRUE.)
+    IF (PRESENT(row_blk_offset)) THEN
+       CALL dbcsr_assert (dbcsr_distribution_nrows (dist)+1, "EQ",&
+            array_size(row_blk_offset),&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Number of blocked offset rows does match blocked row distribution.",&
+         __LINE__, error=error)
+       matrix%m%row_blk_offset = row_blk_offset
+       CALL array_hold(matrix%m%row_blk_offset)
+    ELSE
+       ALLOCATE(vec_row_blk_offset(array_size (matrix%m%row_blk_size)+1))
+       CALL convert_sizes_to_offsets(array_data(matrix%m%row_blk_size), vec_row_blk_offset)
+       CALL array_new(matrix%m%row_blk_offset, vec_row_blk_offset, gift=.TRUE.)
+    ENDIF
+
+    IF (PRESENT(col_blk_offset)) THEN
+       CALL dbcsr_assert (dbcsr_distribution_ncols (dist)+1, "EQ",&
+            array_size(col_blk_offset),&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Number of blocked offset columns does match blocked colum distribution.",&
+            __LINE__, error=error)
+       matrix%m%col_blk_offset = col_blk_offset
+       CALL array_hold(matrix%m%col_blk_offset)
+    ELSE
+       ALLOCATE(vec_col_blk_offset(array_size (matrix%m%col_blk_size)+1))
+       CALL convert_sizes_to_offsets(array_data(matrix%m%col_blk_size), vec_col_blk_offset)
+       CALL array_new(matrix%m%col_blk_offset, vec_col_blk_offset, gift=.TRUE.)
+    ENDIF
 
     matrix%m%dist = dist
     CALL dbcsr_distribution_hold (matrix%m%dist)
@@ -419,6 +457,10 @@ CONTAINS
 !> \param data_type ...
 !> \param data_memory_type ...
 !> \param index_memory_type ...
+!> \param max_rbs ...
+!> \param max_cbs ...
+!> \param row_blk_offset ...
+!> \param col_blk_offset ...
 !> \param reuse ...
 !> \param reuse_arrays ...
 !> \param mutable_work ...
@@ -427,8 +469,10 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_template(matrix, template, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nblks, nze, data_type,&
-       data_memory_type, index_memory_type, reuse,&
-       reuse_arrays, mutable_work, replication_type, error)
+       data_memory_type, index_memory_type,&
+       max_rbs, max_cbs,&
+       row_blk_offset, col_blk_offset,&
+       reuse, reuse_arrays, mutable_work, replication_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_obj), INTENT(IN)              :: template
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: name
@@ -441,6 +485,9 @@ CONTAINS
     TYPE(dbcsr_memtype_type), INTENT(IN), &
       OPTIONAL                               :: data_memory_type, &
                                                 index_memory_type
+    INTEGER, INTENT(IN), OPTIONAL            :: max_rbs, max_cbs
+    TYPE(array_i1d_obj), INTENT(IN), &
+      OPTIONAL                               :: row_blk_offset, col_blk_offset
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reuse_arrays, &
                                                 mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
@@ -452,10 +499,15 @@ CONTAINS
     CHARACTER                                :: new_matrix_type, &
                                                 new_replication_type
     CHARACTER(len=default_string_length)     :: new_name
-    INTEGER                                  :: new_data_type
+    INTEGER                                  :: new_data_type, new_max_cbs, &
+                                                new_max_rbs
     INTEGER, DIMENSION(:), POINTER           :: new_col_blk_size, &
-                                                new_row_blk_size
+                                                new_row_blk_size, &
+                                                vec_col_blk_offset, &
+                                                vec_row_blk_offset
     LOGICAL                                  :: new_mutable_work
+    TYPE(array_i1d_obj)                      :: new_col_blk_offset, &
+                                                new_row_blk_offset
     TYPE(dbcsr_distribution_obj)             :: new_dist
     TYPE(dbcsr_memtype_type)                 :: new_data_memory_type, &
                                                 new_index_memory_type
@@ -477,15 +529,42 @@ CONTAINS
     ELSE
        new_matrix_type = dbcsr_get_matrix_type (template)
     ENDIF
+    IF (PRESENT(max_rbs)) new_max_rbs = max_rbs
+    IF (PRESENT(row_blk_offset)) new_row_blk_offset = row_blk_offset
+
     IF (PRESENT (row_blk_size)) THEN
        new_row_blk_size => row_blk_size
+       IF (.NOT.PRESENT(max_rbs)) &
+            new_max_rbs = MAXVAL (new_row_blk_size)
+       IF (.NOT.PRESENT(row_blk_offset)) THEN
+          ALLOCATE(vec_row_blk_offset(SIZE(new_row_blk_size)+1))
+          CALL convert_sizes_to_offsets(new_row_blk_size, vec_row_blk_offset)
+          CALL array_new(new_row_blk_offset, vec_row_blk_offset, gift=.TRUE.)
+       ENDIF
     ELSE
        new_row_blk_size => dbcsr_row_block_sizes (template)
+       IF (.NOT.PRESENT(max_rbs)) &
+            new_max_rbs = dbcsr_max_row_size (template)
+       IF (.NOT.PRESENT(row_blk_offset)) &
+            new_row_blk_offset = template%m%row_blk_offset
     ENDIF
+    IF (PRESENT(max_cbs)) new_max_cbs = max_cbs
+    IF (PRESENT(col_blk_offset)) new_col_blk_offset = col_blk_offset
     IF (PRESENT (col_blk_size)) THEN
        new_col_blk_size => col_blk_size
+       IF (.NOT.PRESENT(max_cbs)) &
+            new_max_cbs = MAXVAL (new_col_blk_size)
+       IF (.NOT.PRESENT(col_blk_offset)) THEN
+          ALLOCATE(vec_col_blk_offset(SIZE(new_col_blk_size)+1))
+          CALL convert_sizes_to_offsets(new_col_blk_size, vec_col_blk_offset)
+          CALL array_new(new_col_blk_offset, vec_col_blk_offset, gift=.TRUE.)
+       ENDIF
     ELSE
        new_col_blk_size => dbcsr_col_block_sizes (template)
+       IF (.NOT.PRESENT(max_cbs)) &
+            new_max_cbs = dbcsr_max_col_size (template)
+       IF (.NOT.PRESENT(col_blk_offset)) &
+            new_col_blk_offset = template%m%col_blk_offset
     ENDIF
     IF (PRESENT (data_type)) THEN
        new_data_type = data_type
@@ -520,6 +599,8 @@ CONTAINS
          data_type = new_data_type,&
          data_memory_type = new_data_memory_type,&
          index_memory_type = new_index_memory_type,&
+         max_rbs=new_max_rbs, max_cbs=new_max_cbs,&
+         row_blk_offset=new_row_blk_offset,col_blk_offset=new_col_blk_offset,&
          reuse_arrays = reuse_arrays,&
          mutable_work = new_mutable_work,&
          replication_type = new_replication_type,&
@@ -532,6 +613,14 @@ CONTAINS
     matrix%m%index(dbcsr_slot_home_coli) = template%m%index(dbcsr_slot_home_coli)
     matrix%m%index(dbcsr_slot_home_vprow) = template%m%index(dbcsr_slot_home_vprow)
     matrix%m%index(dbcsr_slot_home_vpcol) = template%m%index(dbcsr_slot_home_vpcol)
+
+    IF (PRESENT(row_blk_size).AND. .NOT.PRESENT(row_blk_offset)) THEN
+       CALL array_release(new_row_blk_offset)
+    ENDIF
+    IF (PRESENT(col_blk_size).AND. .NOT.PRESENT(col_blk_offset)) THEN
+       CALL array_release(new_col_blk_offset)
+    ENDIF
+
   END SUBROUTINE dbcsr_create_template
 
 

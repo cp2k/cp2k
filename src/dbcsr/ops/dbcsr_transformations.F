@@ -217,6 +217,10 @@ CONTAINS
          matrix_type = dbcsr_get_matrix_type(normal),&
          row_blk_size = array_data(normal%m%col_blk_size),&
          col_blk_size = array_data(normal%m%row_blk_size),&
+         max_rbs=normal%m%max_cbs,&
+         max_cbs=normal%m%max_rbs,&
+         row_blk_offset=normal%m%col_blk_offset,&
+         col_blk_offset=normal%m%row_blk_offset,&
          error=error)
     CALL dbcsr_distribution_release (new_dist)
     ! Reserve the space for the new indices.

@@ -608,7 +608,7 @@ MODULE dbcsr_types
 !> \var ...
 ! *****************************************************************************
   TYPE dbcsr_mpi_statistics_type
-     INTEGER                               :: col_nimages, row_nimages
+     INTEGER                               :: nimages
      INTEGER                               :: nexchanged
      INTEGER                               :: nfiltered
      INTEGER                               :: nprocs
