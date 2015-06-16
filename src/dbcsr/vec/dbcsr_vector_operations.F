@@ -35,19 +35,6 @@ MODULE dbcsr_vector_operations
 
   PRIVATE
 
-  TYPE block_ptr_d
-    REAL(real_8),DIMENSION(:,:), POINTER          :: ptr =>NULL()
-  END TYPE
-  TYPE block_ptr_s
-    REAL(real_4),DIMENSION(:,:), POINTER          :: ptr =>NULL()
-  END TYPE
-  TYPE block_ptr_c
-    COMPLEX(real_4),DIMENSION(:,:), POINTER       :: ptr =>NULL()
-  END TYPE
-  TYPE block_ptr_z
-    COMPLEX(real_8),DIMENSION(:,:), POINTER       :: ptr =>NULL()
-  END TYPE
-
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_vector_operations'
 
   PUBLIC :: dbcsr_matrix_colvec_multiply,&
