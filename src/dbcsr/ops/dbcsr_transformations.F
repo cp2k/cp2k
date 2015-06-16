@@ -1260,7 +1260,7 @@ CONTAINS
              tco = 1 + col_internal_offsets(blk_col)
           ELSE
              target_col_offset = und_col_blk_offsets(blk_col)
-             target_cs = und_col_blk_offsets(blk_col)
+             target_cs = blk_col_size
              tco = 1
           ENDIF
           target_offset = (target_row_offset-1) * nfullcols &
