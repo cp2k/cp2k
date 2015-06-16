@@ -37,8 +37,7 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_block_real_neg,&
                                              dbcsr_block_scale,&
                                              dbcsr_block_transpose_aa
-  USE dbcsr_config,                    ONLY: avg_elements_images,&
-                                             default_resize_factor,&
+  USE dbcsr_config,                    ONLY: default_resize_factor,&
                                              mm_async,&
                                              mm_driver,&
                                              mm_driver_acc,&
@@ -667,7 +666,7 @@ MODULE dbcsr_mm_cannon
     IF (mm_async) use_dense_mult = .FALSE.
     !
     ! No dense multiplication and local indexing when 2D clustering is used.
-    IF (use_mpi_rma.AND.avg_elements_images.GT.0) THEN
+    IF (use_mpi_rma) THEN
        use_dense_mult = .FALSE.
        do_local_indexing = .FALSE.
     ELSE
