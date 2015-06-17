@@ -888,6 +888,7 @@ CONTAINS
     INTEGER                                  :: iostat
     REAL(KIND=dp)                            :: tmp_r
 
+    iostat = 0
     IF (i>999999 .OR. i<-99999) THEN
        tmp_r=i
        WRITE (t_res,fmt='(es6.1)',iostat=iostat) tmp_r
