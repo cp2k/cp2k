@@ -19,7 +19,7 @@ MODULE rt_propagation_output
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_type, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type, &
        dbcsr_distribution_mp, dbcsr_mp_group
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
@@ -34,8 +34,11 @@ MODULE rt_propagation_output
                                              cp_fm_set_all,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE input_constants,                 ONLY: ehrenfest,&
                                              real_time_propagation
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -45,11 +48,25 @@ MODULE rt_propagation_output
                                              dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_max
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
+  USE pw_methods,                      ONLY: pw_copy
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_p_type,&
+                                             pw_release
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                              qs_kind_type
+  USE qs_linres_current,               ONLY: calculate_jrho_resp
+  USE qs_linres_types,                 ONLY: current_env_type
   USE qs_mo_io,                        ONLY: write_rt_mos_to_restart
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
@@ -57,6 +74,9 @@ MODULE rt_propagation_output
   USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                              write_available_results,&
                                              write_mo_free_results
+  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                             qs_subsys_type
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_type
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
   USE timings,                         ONLY: timeset,&
@@ -141,8 +161,6 @@ CONTAINS
             extension=".scfLog",error=error)
 
 
-
-
     IF(output_unit>0) THEN
        WRITE (output_unit,FMT="(/,(T3,A,T40,I5))")&
             "Information at iteration step:",rtp%iter
@@ -186,36 +204,30 @@ CONTAINS
        CALL m_flush(output_unit)
     CALL cp_print_key_finished_output(output_unit,logger,rtp_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)
-
+    
     IF(rtp%converged)THEN
-       IF(dft_control%qs_control%dftb)THEN
-          IF (rtp%linear_scaling) THEN
-             CALL make_moment(qs_env,error)
-             CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
-             IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,error)
-          ELSE
-             CALL make_moment(qs_env,error)
-             CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
-             dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
-             CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,&
-                            dft_section,atomic_kind_set,qs_kind_set,error)
-          END IF
-       ELSE
-          dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
-          IF (rtp%linear_scaling) THEN
-             CALL make_moment(qs_env,error)
+       CALL make_moment(qs_env,error)
+       dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
+       IF (rtp%linear_scaling) THEN
+          CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
+          IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,error) !At some point a print section should control this output
+          IF(.NOT.dft_control%qs_control%dftb) THEN
+             !Not sure if these things could also work with dftb or not
              CALL write_mo_free_results(qs_env,error)
-             CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
-             IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,error)
-          ELSE
-             CALL make_moment(qs_env,error)
-             CALL write_available_results(qs_env=qs_env,error=error)
-             CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
-             CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,&
-                               dft_section,atomic_kind_set,qs_kind_set,error)
+             IF(BTEST(cp_print_key_should_output(logger%iter_info,&
+                dft_section,"REAL_TIME_PROPAGATION%PRINT%CURRENT",error=error),cp_p_file)) THEN
+                   CALL rt_current(qs_env,rho_new(2)%matrix,dft_section,error) !not yet implemented for spin polarized systems and full matrix rtp
+             ENDIF
           ENDIF
-       END IF
-    END IF
+       ELSE
+          CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
+          IF(.NOT.dft_control%qs_control%dftb) THEN
+             CALL write_available_results(qs_env=qs_env,error=error)
+          ENDIF
+          CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,&
+                            dft_section,atomic_kind_set,qs_kind_set,error)
+       ENDIF
+    ENDIF
     
     rtp%energy_old=rtp%energy_new
     
@@ -660,5 +672,108 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_rt_p_to_restart
+  
+  ! *****************************************************************************
+  !> \brief Hack to get current cubes out of an EMD simulation
+  !> \param rho_new ...
+  !> \param error ...
+  !> \author Samuel Andermatt (09.14)
+  ! *****************************************************************************
+  
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param P_im ...
+!> \param dft_section ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE rt_current(qs_env,P_im,dft_section,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_dbcsr_type), POINTER             :: P_im
+    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rt_current', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=2)                         :: sdir
+    CHARACTER(len=7)                         :: ext
+    INTEGER                                  :: dir, handle, print_unit
+    INTEGER, DIMENSION(:), POINTER           :: stride(:)
+    TYPE(cp_dbcsr_type), POINTER             :: zero
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(current_env_type)                   :: current_env
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
+    TYPE(pw_p_type), POINTER                 :: gs, rs
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_subsys_type), POINTER            :: subsys
+    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
+
+    CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+    CALL get_qs_env(qs_env=qs_env,subsys=subsys,pw_env=pw_env,rho=rho,error=error)
+    CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc,auxbas_pw_pool=auxbas_pw_pool,error=error)
+
+    NULLIFY(zero,rs,gs)
+    ALLOCATE(zero)
+    CALL cp_dbcsr_init(zero,error=error)
+    CALL cp_dbcsr_create(zero,template=P_im,error=error)
+    CALL cp_dbcsr_copy(zero,P_im,error=error)
+    CALL cp_dbcsr_set(zero,0.0_dp,error=error)
+    current_env%gauge=-1
+    
+    NULLIFY(stride)
+    ALLOCATE(stride(3))
+    
+    DO dir=1,3
+       NULLIFY(rs,gs)
+       ALLOCATE(rs)
+       ALLOCATE(gs)
+       CALL qs_rho_get(rho,rho_r=rho_r,rho_g=rho_g,error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool,rs%pw,use_data=REALDATA3D,in_space=REALSPACE,error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool,gs%pw,use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+       CALL pw_copy(rho_r(1)%pw,rs%pw,error)
+       CALL pw_copy(rho_g(1)%pw,gs%pw,error)
+    
+       CALL calculate_jrho_resp(zero,P_im,zero,zero,dir,dir,rs,gs,qs_env,current_env,error=error)
+    
+       CALL qs_subsys_get(subsys,particles=particles,error=error) 
+    
+       stride(:)=1 !TODO: put this into the input
+       
+       IF(dir==1) THEN
+          sdir="-x"
+       ELSEIF(dir==2) THEN
+          sdir="-y"
+       ELSE
+          sdir="-z"
+       ENDIF
+       
+       ext=sdir//".cube"
+       
+       print_unit=cp_print_key_unit_nr(logger,dft_section,"REAL_TIME_PROPAGATION%PRINT%CURRENT",&
+                                       extension=ext, file_status="REPLACE", file_action="WRITE",&
+                                       log_filename=.FALSE.,error=error)
+       
+       CALL cp_pw_to_cube(rs%pw,print_unit,"EMD current",particles=particles,stride=stride,error=error)
+    
+       CALL pw_release(rs%pw,error=error)
+       CALL pw_release(gs%pw,error=error)
+       DEALLOCATE(rs)
+       DEALLOCATE(gs)
+    END DO
+    
+    CALL cp_dbcsr_deallocate_matrix(zero,error=error)
+
+    DEALLOCATE(stride)
+    
+    CALL timestop(handle)
+
+  END SUBROUTINE rt_current
+  
 
 END MODULE rt_propagation_output

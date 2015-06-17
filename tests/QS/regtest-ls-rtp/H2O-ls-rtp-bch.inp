@@ -10,6 +10,13 @@
        EPS_ITER 1.0E-9
        INITIAL_WFN SCF_WFN
        DENSITY_PROPAGATION .TRUE.
+       &PRINT
+         &CURRENT
+           &EACH
+              MD 1
+           &END EACH
+         &END CURRENT
+       &END PRINT
     &END
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL

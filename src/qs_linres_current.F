@@ -133,7 +133,7 @@ MODULE qs_linres_current
   PRIVATE
 
   ! *** Public subroutines ***
-  PUBLIC :: current_build_current, current_build_chi
+  PUBLIC :: current_build_current, current_build_chi, calculate_jrho_resp
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_current'
 
@@ -702,7 +702,7 @@ CONTAINS
 
     !
     ! Set pointers for the different gauge
-    do_igaim = current_env%gauge.EQ.current_gauge_atom
+    do_igaim = current_env%gauge.EQ.current_gauge_atom ! If do_igaim is False the current_env is never needed
 
     mat_a => mat_jp
     mat_b => mat_jp_rii
@@ -975,7 +975,7 @@ CONTAINS
 
     !
     ! we need to build the gauge here
-    IF(.NOT.current_env%gauge_init) THEN
+    IF(.NOT.current_env%gauge_init.AND.do_igaim) THEN
        CALL current_set_gauge(current_env, qs_env, error=error)
        current_env%gauge_init = .TRUE.
     ENDIF

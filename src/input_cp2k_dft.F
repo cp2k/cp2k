@@ -7626,6 +7626,21 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(print_section,print_key,error=error)
        CALL section_release(print_key,error=error)
+       
+       CALL cp_print_key_section_create(print_key,"CURRENT",&
+            description="Print the current during an EMD simulation to cube files.",&
+            print_level=high_print_level, common_iter_levels=0,&
+            each_iter_names=s2a("MD"),&
+            each_iter_values=(/20/), &
+            filename="current",error=error)
+       CALL keyword_create(keyword, name="BACKUP_COPIES",&
+            description="Specifies the maximum index of backup copies.",&
+            usage="BACKUP_COPIES {int}",&
+            default_i_val=1, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(print_section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
        CALL section_add_subsection(section,print_section,error=error)
        CALL section_release(print_section,error=error)
