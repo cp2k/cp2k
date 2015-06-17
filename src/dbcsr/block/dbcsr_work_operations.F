@@ -603,20 +603,38 @@ CONTAINS
     ELSE
        new_mutable_work = dbcsr_use_mutable (template%m)
     ENDIF
-    CALL dbcsr_create (matrix, name=new_name, dist=new_dist,&
-         matrix_type = new_matrix_type,&
-         row_blk_size = new_row_blk_size,&
-         col_blk_size = new_col_blk_size,&
-         nblks = nblks, nze = nze,&
-         data_type = new_data_type,&
-         data_memory_type = new_data_memory_type,&
-         index_memory_type = new_index_memory_type,&
-         max_rbs=new_max_rbs, max_cbs=new_max_cbs,&
-         row_blk_offset=new_row_blk_offset,col_blk_offset=new_col_blk_offset,&
-         reuse_arrays = reuse_arrays,&
-         mutable_work = new_mutable_work,&
-         replication_type = new_replication_type,&
-         error=error)
+    IF (PRESENT(row_blk_size)) THEN
+       CALL dbcsr_create (matrix, name=new_name, dist=new_dist,&
+            matrix_type = new_matrix_type,&
+            row_blk_size = new_row_blk_size,&
+            col_blk_size = new_col_blk_size,&
+            nblks = nblks, nze = nze,&
+            data_type = new_data_type,&
+            data_memory_type = new_data_memory_type,&
+            index_memory_type = new_index_memory_type,&
+            max_rbs=new_max_rbs, max_cbs=new_max_cbs,&
+            row_blk_offset=new_row_blk_offset,col_blk_offset=new_col_blk_offset,&
+            reuse_arrays = reuse_arrays,&
+            mutable_work = new_mutable_work,&
+            replication_type = new_replication_type,&
+            error=error)
+    ELSE
+       CALL dbcsr_create (matrix, name=new_name, dist=new_dist,&
+            matrix_type = new_matrix_type,&
+            row_blk_size = new_row_blk_size,&
+            col_blk_size = new_col_blk_size,&
+            nblks = nblks, nze = nze,&
+            data_type = new_data_type,&
+            data_memory_type = new_data_memory_type,&
+            index_memory_type = new_index_memory_type,&
+            max_rbs=new_max_rbs, max_cbs=new_max_cbs,&
+            row_blk_offset=new_row_blk_offset,col_blk_offset=new_col_blk_offset,&
+            thread_dist=dbcsr_distribution(template),&
+            reuse_arrays = reuse_arrays,&
+            mutable_work = new_mutable_work,&
+            replication_type = new_replication_type,&
+            error=error)
+    ENDIF
     ! Copy stuff from the meta-array.  These are not normally needed,
     ! but have to be here for creating matrices from "image" matrices.
     matrix%m%index(dbcsr_slot_home_prow) = template%m%index(dbcsr_slot_home_prow)

@@ -101,9 +101,9 @@ MODULE dbcsr_mm_cannon
        dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_image_dist_hold, &
        dbcsr_image_dist_init, dbcsr_image_dist_release, dbcsr_init, &
        dbcsr_nblkcols_local, dbcsr_nblkcols_total, dbcsr_nblkrows_local, &
-       dbcsr_nblkrows_total, dbcsr_nfullcols_local, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_local, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_release_locals, dbcsr_row_block_offsets, dbcsr_valid_index
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_release_locals, dbcsr_row_block_offsets, &
+       dbcsr_valid_index
   USE dbcsr_mm_multrec,                ONLY: dbcsr_mm_multrec_finalize,&
                                              dbcsr_mm_multrec_init,&
                                              dbcsr_mm_multrec_lib_finalize,&
@@ -144,10 +144,8 @@ MODULE dbcsr_mm_cannon
        dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_coo_l, &
        dbcsr_slot_home_coli, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
        dbcsr_slot_home_rowi, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
-       dbcsr_slot_nblkcols_local, dbcsr_slot_nblkcols_total, &
-       dbcsr_slot_nblkrows_local, dbcsr_slot_nblkrows_total, &
-       dbcsr_slot_nfullcols_local, dbcsr_slot_nfullcols_total, &
-       dbcsr_slot_nfullrows_local, dbcsr_slot_nfullrows_total, &
+       dbcsr_slot_nblkcols_total, dbcsr_slot_nblkrows_total, &
+       dbcsr_slot_nfullcols_total, dbcsr_slot_nfullrows_total, &
        dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_slot_thr_c, dbcsr_transpose, &
        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
        dbcsr_type_complex_8, dbcsr_type_int_4, dbcsr_type_no_symmetry, &
@@ -3562,8 +3560,6 @@ MODULE dbcsr_mm_cannon
              DO v_ri = 0, right_row_nimages-1
                 ! Calculate which data I receive
                 CALL image_calculator (right_set%image_dist,&
-                     prow = dst_prow, pcol = dst_pcol,&
-                     rowi = dst_irow, coli = dst_icol,&                     
                      vprow=get_vrow,vpcol=get_vcol,&
                      myvprow=v_ri+right_myfirstvrow,&
                      myvpcol=v_ci+right_myfirstvcol,&
@@ -3598,8 +3594,7 @@ MODULE dbcsr_mm_cannon
                    CALL count_mpi_statistics(dbcsr_mpi_statistics%index_size(1,:),right_gets(imeta_size,get_vrow,get_vcol))
                    dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
                 ELSE
-                   CALL set_empty_meta_index(right_meta_get,nthreads,&
-                        dst_prow,dst_pcol,dst_irow,dst_icol,get_vrow,get_vcol,&
+                   CALL set_empty_meta_index(right_meta_get,&
                         right_buffer_calc%mats(v_ri+1,v_ci+1))
                    dbcsr_mpi_statistics%nfiltered = dbcsr_mpi_statistics%nfiltered+1
                 ENDIF
@@ -3641,8 +3636,6 @@ MODULE dbcsr_mm_cannon
              DO v_ri = 0, left_row_nimages-1
                 ! Calculate which data I receive
                 CALL image_calculator (left_set%image_dist,&
-                     prow = dst_prow, pcol = dst_pcol,&
-                     rowi = dst_irow, coli = dst_icol,&
                      vprow=get_vrow,vpcol=get_vcol,&
                      myvprow=v_ri+left_myfirstvrow,&
                      myvpcol=v_ci+left_myfirstvcol,&
@@ -3677,9 +3670,9 @@ MODULE dbcsr_mm_cannon
                    CALL count_mpi_statistics(dbcsr_mpi_statistics%index_size(2,:),left_gets(imeta_size,get_vrow,get_vcol))
                    dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
                 ELSE
-                   CALL set_empty_meta_index(left_meta_get,nthreads,&
-                        dst_prow,dst_pcol,dst_irow,dst_icol,get_vrow,get_vcol,&
-                        left_buffer_calc%mats(v_ri+1,v_ci+1))
+                   CALL set_empty_meta_index(left_meta_get,&
+                        left_buffer_calc%mats(v_ri+1,v_ci+1),nthreads)
+                   dbcsr_mpi_statistics%nfiltered = dbcsr_mpi_statistics%nfiltered+1
                 ENDIF
                 CALL dbcsr_error_stop(error_handler2, error)
              ENDDO
@@ -3903,50 +3896,35 @@ MODULE dbcsr_mm_cannon
 ! *****************************************************************************
 !> \brief ...
 !> \param meta_index ...
-!> \param nthreads ...
-!> \param dst_prow ...
-!> \param dst_pcol ...
-!> \param dst_irow ...
-!> \param dst_icol ...
-!> \param get_vrow ...
-!> \param get_vcol ...
 !> \param matrix ...
+!> \param nthreads ...
 ! *****************************************************************************
-  SUBROUTINE set_empty_meta_index(meta_index, nthreads,&
-                                  dst_prow, dst_pcol, dst_irow, dst_icol, get_vrow, get_vcol,&
-                                  matrix)
+  SUBROUTINE set_empty_meta_index(meta_index, matrix, nthreads)
     INTEGER, DIMENSION(:), INTENT(OUT), &
       POINTER                                :: meta_index
-    INTEGER, INTENT(IN)                      :: nthreads, dst_prow, dst_pcol, &
-                                                dst_irow, dst_icol, get_vrow, &
-                                                get_vcol
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
+    INTEGER, INTENT(IN), OPTIONAL            :: nthreads
 
 !   ---------------------------------------------------------------------------
 
     meta_index = 0
-    meta_index(dbcsr_slot_size) = dbcsr_num_slots+nthreads+1
+    meta_index(dbcsr_slot_size) = dbcsr_num_slots
+    IF (PRESENT(nthreads)) THEN
+       meta_index(dbcsr_slot_size) = meta_index(dbcsr_slot_size)+nthreads+1
+    ENDIF
     meta_index(dbcsr_slot_nblkrows_total) = dbcsr_nblkrows_total(matrix)
     meta_index(dbcsr_slot_nblkcols_total) = dbcsr_nblkcols_total(matrix)
     meta_index(dbcsr_slot_nfullrows_total) = dbcsr_nfullrows_total(matrix)
     meta_index(dbcsr_slot_nfullcols_total) = dbcsr_nfullcols_total(matrix)
-    meta_index(dbcsr_slot_nblkrows_local) = dbcsr_nblkrows_local(matrix)
-    meta_index(dbcsr_slot_nblkcols_local) = dbcsr_nblkcols_local(matrix)
-    meta_index(dbcsr_slot_nfullrows_local) = dbcsr_nfullrows_local(matrix)
-    meta_index(dbcsr_slot_nfullcols_local) = dbcsr_nfullcols_local(matrix)
-    meta_index(dbcsr_slot_home_prow) = dst_prow
-    meta_index(dbcsr_slot_home_pcol) = dst_pcol
-    meta_index(dbcsr_slot_home_rowi) = dst_irow
-    meta_index(dbcsr_slot_home_coli) = dst_icol
-    meta_index(dbcsr_slot_home_vprow) = get_vrow
-    meta_index(dbcsr_slot_home_vpcol) = get_vcol
     meta_index(dbcsr_slot_row_p) = 1
     meta_index(dbcsr_slot_col_i) = 1
     meta_index(dbcsr_slot_blk_p) = 1
-    meta_index(dbcsr_slot_thr_c) = dbcsr_num_slots+1
-    meta_index(dbcsr_slot_thr_c+1) = meta_index(dbcsr_slot_thr_c)+nthreads
-    meta_index(dbcsr_slot_coo_l) = meta_index(dbcsr_slot_thr_c+1)+1
-    meta_index(dbcsr_num_slots) = meta_index(dbcsr_slot_thr_c+1)
+    IF (PRESENT(nthreads)) THEN
+       meta_index(dbcsr_slot_thr_c) = dbcsr_num_slots+1
+       meta_index(dbcsr_slot_thr_c+1) = meta_index(dbcsr_slot_thr_c)+nthreads
+    ENDIF
+    meta_index(dbcsr_slot_coo_l) = meta_index(dbcsr_slot_size)+1
+    meta_index(dbcsr_num_slots) = meta_index(dbcsr_slot_size)
   END SUBROUTINE set_empty_meta_index
 
 ! *****************************************************************************
