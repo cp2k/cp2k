@@ -54,6 +54,9 @@ MODULE dbcsr_vector_operations_low
 
   IMPLICIT NONE
 
+! the following types provide fast access to distributed dbcsr vectors
+INCLUDE 'hash_table_types.f90'
+
   TYPE block_ptr_d
     REAL(real_8), DIMENSION(:, :), POINTER          :: ptr =>NULL()
     INTEGER                                         :: assigned_thread
@@ -69,6 +72,14 @@ MODULE dbcsr_vector_operations_low
   TYPE block_ptr_z
     COMPLEX(real_8), DIMENSION(:, :), POINTER       :: ptr =>NULL()
     INTEGER                                         :: assigned_thread
+  END TYPE
+
+  TYPE fast_vec_access_type
+    TYPE(hash_table_type) :: hash_table
+    TYPE(block_ptr_d), DIMENSION(:), ALLOCATABLE :: blk_map_d
+    TYPE(block_ptr_s), DIMENSION(:), ALLOCATABLE :: blk_map_s
+    TYPE(block_ptr_c), DIMENSION(:), ALLOCATABLE :: blk_map_c
+    TYPE(block_ptr_z), DIMENSION(:), ALLOCATABLE :: blk_map_z
   END TYPE
 
   PRIVATE
@@ -335,6 +346,100 @@ CONTAINS
     CALL dbcsr_error_stop(handle, error)
 
   END SUBROUTINE create_replicated_row_vec_from_matrix
+
+! *****************************************************************************
+!> \brief given a column vector, prepare the fast_vec_access container
+!> \param vec ...
+!> \param fast_vec_access ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE create_fast_col_vec_access(vec, fast_vec_access, error)
+    TYPE(dbcsr_obj)                          :: vec
+    TYPE(fast_vec_access_type)               :: fast_vec_access
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_col_vec_access', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
+
+    SELECT CASE(vec%m%data_type)
+    CASE(dbcsr_type_real_8)
+      CALL create_fast_col_vec_access_d(vec, fast_vec_access, error)
+    CASE(dbcsr_type_real_4)
+      CALL create_fast_col_vec_access_s(vec, fast_vec_access, error)
+    CASE(dbcsr_type_complex_8)
+      CALL create_fast_col_vec_access_z(vec, fast_vec_access, error)
+    CASE(dbcsr_type_complex_4)
+      CALL create_fast_col_vec_access_c(vec, fast_vec_access, error)
+    END SELECT
+
+    CALL dbcsr_error_stop(handle, error)
+
+  END SUBROUTINE create_fast_col_vec_access
+
+! *****************************************************************************
+!> \brief given a row vector, prepare the fast_vec_access_container
+!> \param vec ...
+!> \param fast_vec_access ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE create_fast_row_vec_access(vec, fast_vec_access, error)
+    TYPE(dbcsr_obj)                          :: vec
+    TYPE(fast_vec_access_type)               :: fast_vec_access
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_row_vec_access', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
+
+    SELECT CASE(vec%m%data_type)
+    CASE(dbcsr_type_real_8)
+       CALL create_fast_row_vec_access_d(vec, fast_vec_access, error)
+    CASE(dbcsr_type_real_4)
+       CALL create_fast_row_vec_access_s(vec, fast_vec_access, error)
+    CASE(dbcsr_type_complex_8)
+       CALL create_fast_row_vec_access_c(vec, fast_vec_access, error)
+    CASE(dbcsr_type_complex_4)
+       CALL create_fast_row_vec_access_z(vec, fast_vec_access, error)
+    END SELECT
+
+    CALL dbcsr_error_stop(handle, error)
+
+  END SUBROUTINE create_fast_row_vec_access
+
+! *****************************************************************************
+!> \brief release all memory associated with the fast_vec_access type
+!> \param fast_vec_access ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE release_fast_vec_access(fast_vec_access, error)
+    TYPE(fast_vec_access_type)               :: fast_vec_access
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'release_fast_vec_access', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL dbcsr_error_set(routineN, handle, error)
+
+    CALL hash_table_release(fast_vec_access%hash_table)
+    IF (ALLOCATED(fast_vec_access%blk_map_d)) DEALLOCATE(fast_vec_access%blk_map_d)
+    IF (ALLOCATED(fast_vec_access%blk_map_s)) DEALLOCATE(fast_vec_access%blk_map_s)
+    IF (ALLOCATED(fast_vec_access%blk_map_c)) DEALLOCATE(fast_vec_access%blk_map_c)
+    IF (ALLOCATED(fast_vec_access%blk_map_z)) DEALLOCATE(fast_vec_access%blk_map_z)
+
+    CALL dbcsr_error_stop(handle, error)
+
+  END SUBROUTINE release_fast_vec_access
+
+INCLUDE 'hash_table.f90'
 
 #include "dbcsr_vector_operations_low_d.f90"
 #include "dbcsr_vector_operations_low_z.f90"
