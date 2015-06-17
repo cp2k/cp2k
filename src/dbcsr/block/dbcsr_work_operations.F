@@ -154,6 +154,7 @@ CONTAINS
 !> \param max_cbs ...
 !> \param row_blk_offset ...
 !> \param col_blk_offset ...
+!> \param thread_dist ...
 !> \param[in] reuse           (optional) reuses an existing matrix, default
 !>                            is to create a fresh one
 !> \param reuse_arrays ...
@@ -172,6 +173,7 @@ CONTAINS
        data_memory_type, index_memory_type,&
        max_rbs, max_cbs,&
        row_blk_offset, col_blk_offset,&
+       thread_dist,&
        reuse, reuse_arrays, mutable_work, replication_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     CHARACTER(len=*), INTENT(IN)             :: name
@@ -186,6 +188,8 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: max_rbs, max_cbs
     TYPE(array_i1d_obj), INTENT(IN), &
       OPTIONAL                               :: row_blk_offset, col_blk_offset
+    TYPE(dbcsr_distribution_obj), &
+      INTENT(IN), OPTIONAL                   :: thread_dist
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reuse_arrays, &
                                                 mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
@@ -339,6 +343,14 @@ CONTAINS
 
     matrix%m%dist = dist
     CALL dbcsr_distribution_hold (matrix%m%dist)
+!$  IF (PRESENT(thread_dist)) THEN
+!$     IF (dbcsr_distribution_has_threads(thread_dist)) THEN
+!$        matrix%m%dist%d%num_threads = thread_dist%d%num_threads
+!$        matrix%m%dist%d%has_thread_dist = .TRUE.
+!$        matrix%m%dist%d%thread_dist = thread_dist%d%thread_dist
+!$        CALL array_hold(matrix%m%dist%d%thread_dist)
+!$     ENDIF
+!$  ENDIF
 !$  IF (.NOT. dbcsr_distribution_has_threads (matrix%m%dist)) THEN
 !$     CALL dbcsr_distribution_make_threads (matrix%m%dist,&
 !$          array_data(matrix%m%row_blk_size))

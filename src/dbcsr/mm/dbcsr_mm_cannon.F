@@ -1488,7 +1488,7 @@ MODULE dbcsr_mm_cannon
     ALLOCATE (all_total_send_offset(2, 0:numproc-1))
     ALLOCATE (blk_ps(nrow_images, ncol_images)) ; blk_ps = 1
     ALLOCATE (blks(nrow_images, ncol_images)) ; blks = 1
-
+    !
     ! Allocate and init mats
     !
     ALLOCATE (ums%mats(nrow_images,ncol_images))
@@ -1501,6 +1501,7 @@ MODULE dbcsr_mm_cannon
                0,0, data_type,&
                max_rbs=sm%max_rbs,max_cbs=sm%max_cbs,&
                row_blk_offset=sm%row_blk_offset,col_blk_offset=sm%col_blk_offset,&
+               thread_dist=sm%dist,&
                data_memory_type=data_memory_type,&
                index_memory_type=index_memory_type,&
                error=dbcsr_error)
