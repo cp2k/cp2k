@@ -4,4 +4,4 @@
 ch3-admm.inp                     31     6e-09
 ch3.inp           31
 ch4-admm.inp                     31     7e-06
-h2o.inp    31    1.0E-14    1.26297506E+01
+h2o.inp                          31     2e-08                 1.26297506E+01
