@@ -15,6 +15,7 @@
            &EACH
               MD 1
            &END EACH
+           STRIDE 3 3 3
          &END CURRENT
        &END PRINT
     &END

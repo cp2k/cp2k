@@ -41,7 +41,8 @@ MODULE rt_propagation_output
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE input_constants,                 ONLY: ehrenfest,&
                                              real_time_propagation
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_get_ivals,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: default_path_length,&
@@ -679,7 +680,7 @@ CONTAINS
 !> \param P_im ...
 !> \param dft_section ...
 !> \param error ...
-!> \author Samuel Andermatt (09.14)
+!> \author Samuel Andermatt (06.15)
 ! *****************************************************************************
   SUBROUTINE rt_current(qs_env,P_im,dft_section,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -737,7 +738,7 @@ CONTAINS
     
        CALL qs_subsys_get(subsys,particles=particles,error=error) 
     
-       stride(:)=1 !TODO: put this into the input
+       stride=section_get_ivals(dft_section,"REAL_TIME_PROPAGATION%PRINT%CURRENT%STRIDE",error=error)
        
        IF(dir==1) THEN
           sdir="-x"
