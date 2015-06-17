@@ -343,7 +343,7 @@ CONTAINS
 
     matrix%m%dist = dist
     CALL dbcsr_distribution_hold (matrix%m%dist)
-!$  IF (PRESENT(thread_dist)) THEN
+!$  IF (.NOT. dbcsr_distribution_has_threads (matrix%m%dist).AND.PRESENT(thread_dist)) THEN
 !$     IF (dbcsr_distribution_has_threads(thread_dist)) THEN
 !$        matrix%m%dist%d%num_threads = thread_dist%d%num_threads
 !$        matrix%m%dist%d%has_thread_dist = .TRUE.
