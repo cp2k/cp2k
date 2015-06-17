@@ -337,20 +337,16 @@ CONTAINS
     DO c = 1,cols
     DO r = 1,rows
        IF(.NOT.t) THEN
-          IF(ABS(matrix(r+(c-1)*rows)).GT.1e-18_real_8) THEN
           IF(PRESENT(variable_name)) THEN
               WRITE(iunit,'(A,I4,A,I4,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
           ELSE
              WRITE(iunit,'(A,I4,A,I4,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
           ENDIF
-          ENDIF
        ELSE
-          IF(ABS(matrix((r-1)*cols+c)).GT.1e-18_real_8) THEN
           IF(PRESENT(variable_name)) THEN
              WRITE(iunit,'(A,I4,A,I4,A,E23.16,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
           ELSE
              WRITE(iunit,'(A,I4,A,I4,A,E23.16,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
-          ENDIF
           ENDIF
        ENDIF
     ENDDO
@@ -399,20 +395,16 @@ CONTAINS
     DO c = 1,cols
     DO r = 1,rows
        IF(.NOT.t) THEN
-          IF(ABS(matrix(r+(c-1)*rows)).GT.1e-8_real_4) THEN
           IF(PRESENT(variable_name)) THEN
               WRITE(iunit,'(A,I4,A,I4,A,E15.7,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
           ELSE
              WRITE(iunit,'(A,I4,A,I4,A,E15.7,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix(r+(c-1)*rows),';'
           ENDIF
-          ENDIF
        ELSE
-          IF(ABS(matrix((r-1)*cols+c)).GT.1e-8_real_4) THEN
           IF(PRESENT(variable_name)) THEN
              WRITE(iunit,'(A,I4,A,I4,A,E15.7,A)') variable_name//'(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
           ELSE
              WRITE(iunit,'(A,I4,A,I4,A,E15.7,A)') 'a(',r+r_offset-1,',',c+c_offset-1,')=',matrix((r-1)*cols+c),';'
-          ENDIF
           ENDIF
        ENDIF
     ENDDO
