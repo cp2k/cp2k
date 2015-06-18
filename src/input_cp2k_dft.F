@@ -7552,13 +7552,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="WRITE_RESTART",&
-            description="For density propagation. It writes out the density matrix after each step",&
-            usage="WRITE_RESTART",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="MCWEENY_MAX_ITER",&
             description="Determines the maximum amount of McWeeny steps used after each converged"//&
             " step in density propagation",&
@@ -7599,7 +7592,7 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"RESTART",&
             description="Controls the dumping of the MO restart file during rtp."//&
                         "By default keeps a short history of three restarts."//&
-                        "See also RESTART_HISTORY", &
+                        "See also RESTART_HISTORY. In density propagation this controls the printing of P", &
             print_level=low_print_level, common_iter_levels=3,&
             each_iter_names=s2a("MD"),each_iter_values=(/20/), &
             add_last=add_last_numeric,filename="RESTART",error=error)

@@ -10,7 +10,13 @@
        EPS_ITER 1.0E-9
        INITIAL_WFN RESTART_WFN
        DENSITY_PROPAGATION .TRUE.
-       WRITE_RESTART
+       &PRINT
+         &RESTART
+           &EACH
+             MD 1
+           &END EACH
+         &END RESTART
+       &END PRINT
     &END
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL

@@ -10,7 +10,13 @@
        INITIAL_WFN RT_RESTART
        DENSITY_PROPAGATION .TRUE.
        MCWEENY_MAX_ITER 5
-       WRITE_RESTART
+       &PRINT
+         &RESTART
+           &EACH
+             MD 1
+           &END EACH
+         &END RESTART
+       &END PRINT
     &END
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL

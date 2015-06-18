@@ -416,7 +416,7 @@ CONTAINS
        ALLOCATE(qs_env%rtp)
        CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,dft_control,matrix_s(1)%matrix,&
-                           rtp_control%linear_scaling,rtp_control%write_restart,qs_env%mos_aux_fit,error)
+                           rtp_control%linear_scaling,qs_env%mos_aux_fit,error)
 
     CASE(use_restart_wfn,use_rt_restart)
        CALL qs_energies_init(qs_env, .FALSE. , error)
@@ -450,7 +450,7 @@ CONTAINS
        ALLOCATE(qs_env%rtp)
        CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
        CALL rt_prop_create(qs_env%rtp,qs_env%mos,qs_env%mpools,dft_control,matrix_s(1)%matrix,&
-                           rtp_control%linear_scaling,rtp_control%write_restart,qs_env%mos_aux_fit,error)
+                           rtp_control%linear_scaling,qs_env%mos_aux_fit,error)
        CALL get_restart_wfn(qs_env,error)
 
        qs_env%run_rtp=.TRUE.

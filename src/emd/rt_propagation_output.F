@@ -211,7 +211,10 @@ CONTAINS
        dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
        IF (rtp%linear_scaling) THEN
           CALL get_rtp(rtp=rtp,rho_new=rho_new,error=error)
-          IF (rtp%write_restart) CALL write_rt_p_to_restart(rho_new,error) !At some point a print section should control this output
+          IF(BTEST(cp_print_key_should_output(logger%iter_info,&
+                dft_section,"REAL_TIME_PROPAGATION%PRINT%RESTART",error=error),cp_p_file)) THEN
+             CALL write_rt_p_to_restart(rho_new,error)
+          ENDIF
           IF(.NOT.dft_control%qs_control%dftb) THEN
              !Not sure if these things could also work with dftb or not
              CALL write_mo_free_results(qs_env,error)
