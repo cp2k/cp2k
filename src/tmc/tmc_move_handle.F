@@ -627,7 +627,7 @@ CONTAINS
                       c_tmp = TRIM(c_d)
                       WRITE(c_d,TRIM(FMT_r))TRIM(c_tmp),&
                         move_types%subbox_acc_count(typ,temper)/&
-                        REAL(move_types%subbox_count(typ,temper),KIND=dp)
+                        REAL(MAX(1,move_types%subbox_count(typ,temper)),KIND=dp)
                       c_tmp = TRIM(c_e)
                       WRITE(c_e,TRIM(FMT_i))TRIM(c_tmp),&
                         move_types%subbox_count(typ,temper)
@@ -638,7 +638,7 @@ CONTAINS
                       WRITE(c_e,TRIM(FMT_c))TRIM(c_tmp),"-"
                    END IF
                 END IF
-                
+
                 SELECT CASE(typ)
                 CASE(mv_type_atom_trans)
                    IF(type_title) THEN
