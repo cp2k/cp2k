@@ -317,7 +317,7 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  PURE FUNCTION is_inside_rectangle(point, rectangle)
+  FUNCTION is_inside_rectangle(point, rectangle)
 
     REAL(dp), DIMENSION(3), INTENT(IN)       :: point
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
@@ -342,6 +342,7 @@ CONTAINS
        ELSE
           costheta = DOT_PRODUCT(v1, v2) / prodnorm
        END IF
+       costheta = MIN(1.0_dp,MAX(-1.0_dp,costheta))
        sum_angle = sum_angle + ACOS(costheta)
     END DO
 
@@ -388,6 +389,7 @@ CONTAINS
        ELSE
           costheta = DOT_PRODUCT(v1, v2) / prodnorm
        END IF
+       costheta = MIN(1.0_dp,MAX(-1.0_dp,costheta))
        sum_angle = sum_angle + ACOS(costheta)
     END DO
 
