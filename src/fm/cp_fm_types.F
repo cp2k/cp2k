@@ -1273,7 +1273,7 @@ CPSourceFileRef,&
                 unit_number=data_unit)
         END IF
 
-        IF (loc .OR. para_env%mepos==para_env%source.or.long_description) THEN
+        IF (loc .OR. para_env%mepos==para_env%source.or.my_long_description) THEN
            WRITE (unit=desc_unit,&
                 fmt="(' <cp_fm_types>:{ id_nr=',i10,' ref_count=',i10,',')",&
                 iostat=iostat) matrix%id_nr, matrix%ref_count
