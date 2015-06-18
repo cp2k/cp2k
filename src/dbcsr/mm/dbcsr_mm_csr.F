@@ -86,7 +86,7 @@ MODULE dbcsr_mm_csr
      TYPE(dbcsr_mm_sched_type)                      :: sched
   END TYPE dbcsr_mm_csr_type
 
-INCLUDE 'hash_table_types.f90'
+#include "../base/hash_table_types.f90"
 
 ! *****************************************************************************
   PUBLIC :: dbcsr_mm_csr_type
@@ -956,6 +956,6 @@ END SUBROUTINE flush_stacks
 
   END FUNCTION my_checker_tr
 
-INCLUDE 'hash_table.f90'
+#include "../base/hash_table.f90"
 
 END MODULE dbcsr_mm_csr

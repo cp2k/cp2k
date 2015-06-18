@@ -55,7 +55,7 @@ MODULE dbcsr_vector_operations_low
   IMPLICIT NONE
 
 ! the following types provide fast access to distributed dbcsr vectors
-INCLUDE 'hash_table_types.f90'
+#include "../base/hash_table_types.f90"
 
   TYPE block_ptr_d
     REAL(real_8), DIMENSION(:, :), POINTER          :: ptr =>NULL()
@@ -439,7 +439,7 @@ CONTAINS
 
   END SUBROUTINE release_fast_vec_access
 
-INCLUDE 'hash_table.f90'
+#include "../base/hash_table.f90"
 
 #include "dbcsr_vector_operations_low_d.f90"
 #include "dbcsr_vector_operations_low_z.f90"
