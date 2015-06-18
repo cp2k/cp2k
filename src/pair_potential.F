@@ -1026,13 +1026,23 @@ CPSourceFileRef,&
        IF (ABS(hicut0) <= MIN_HICUT_VALUE) hicut0 = DEFAULT_HICUT_VALUE
     END IF
     CALL init_genpot(potparm, ntype)
-    DO i = 1, nvalues
-       value = my_index(i)
-       CALL get_indexes(value,ntype,tmpij)
-       pot => potparm%pot(tmpij(1),tmpij(2))%pot
-       CALL spline_factor_create(pot%spl_f, error)
 
-       IF (ANY(potential_single_allocation==pot_target)) THEN
+    DO i = 1, nvalues
+          value = my_index(i)
+          CALL get_indexes(value,ntype,tmpij)
+          pot => potparm%pot(tmpij(1),tmpij(2))%pot
+          CALL spline_factor_create(pot%spl_f, error)
+          pot%spl_f%rcutsq_f  = 1.0_dp
+          pot%spl_f%rscale    = 1.0_dp
+          pot%spl_f%fscale    = 1.0_dp
+    ENDDO
+
+    IF(ANY(potential_single_allocation==pot_target)) THEN
+       DO i = 1, nvalues
+          value = my_index(i)
+          CALL get_indexes(value,ntype,tmpij)
+          pot => potparm%pot(tmpij(1),tmpij(2))%pot
+
           check = SIZE(pot%type)==1
           CPPostcondition(check,cp_failure_level,routineP,error,failure)
           ! Undef potential.. this will be used to compute the splines..
@@ -1053,11 +1063,14 @@ CPSourceFileRef,&
                 pot%spl_f%fscale(1) = l_epsilon/m_epsilon
              END IF
           END IF
-       ELSE
-          pot%spl_f%rcutsq_f  = 1.0_dp
-          pot%spl_f%rscale    = 1.0_dp
-          pot%spl_f%fscale    = 1.0_dp
-       END IF
+       ENDDO
+    END IF
+
+    DO i = 1, nvalues
+       value = my_index(i)
+       CALL get_indexes(value,ntype,tmpij)
+       pot => potparm%pot(tmpij(1),tmpij(2))%pot
+
        IF (do_zbl) THEN
           atomic_kind => atomic_kind_set(tmpij(1))
           CALL get_atomic_kind(atomic_kind, rcov=rcovi, z=zi)
@@ -1074,6 +1087,7 @@ CPSourceFileRef,&
           pot%spl_f%cutoff = ener_pot(pot, hicut0, 0.0_dp)
        END IF
     END DO
+
     ! Handle the cutoff
     IF (shift_cutoff) THEN
        pot_ref => potparm%pot(tmpij_out(1),tmpij_out(2))%pot
