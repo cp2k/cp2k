@@ -317,7 +317,7 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  FUNCTION is_inside_rectangle(point, rectangle)
+  PURE FUNCTION is_inside_rectangle(point, rectangle)
 
     REAL(dp), DIMENSION(3), INTENT(IN)       :: point
     TYPE(cs_rectangle), INTENT(IN), POINTER  :: rectangle
