@@ -25,3 +25,6 @@ Ar_mixed_periodic_cylindrical.inp
 
 # 
 Ar_mixed_periodic_planar.inp
+
+# Fixed NaNs from ACOS
+Ar_mixed_periodic_planar.inp

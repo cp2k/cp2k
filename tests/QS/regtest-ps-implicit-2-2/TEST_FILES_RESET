@@ -12,3 +12,6 @@ H2O_mixed_periodic_planar.inp
 # consider extra contribution to the Hartree energy attributed to Dirichlet type constraints
 H2O_mixed_periodic_aa_planar.inp
 H2O_mixed_periodic_planar.inp
+
+# Fix NaNs from ACOS
+H2O_mixed_periodic_planar.inp
