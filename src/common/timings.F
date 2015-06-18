@@ -200,7 +200,8 @@ MODULE timings
     CHARACTER(LEN=60)                        :: sformat
     CHARACTER(LEN=default_string_length)     :: routine_name_dsl
     INTEGER                                  :: routine_id, stack_size
-    INTEGER(KIND=int_8)                      :: gpumem_free, gpumem_total
+    INTEGER(KIND=int_8)                      :: cpumem, gpumem_free, &
+                                                gpumem_total
     TYPE(callstack_entry_type)               :: cs_entry
     TYPE(routine_stat_type), POINTER         :: r_stat
     TYPE(timer_env_type), POINTER            :: timer_env
@@ -238,8 +239,9 @@ MODULE timings
        WRITE ( mystring, sformat) timer_env%trace_str, ">>", stack_size+1, &
           r_stat%total_calls, TRIM(r_stat%routineN),"       start"
        CALL cuda_mem_info(gpumem_free, gpumem_total)
+       CALL m_memory(cpumem)
        WRITE(line,'(A,A,I0,A,A,I0,A)') TRIM(mystring),&
-          " Hostmem: ", (m_memory()+1024*1024-1)/(1024*1024)," MB",&
+          " Hostmem: ", (cpumem+1024*1024-1)/(1024*1024)," MB",&
           " GPUmem: ", (gpumem_total-gpumem_free)/(1024*1024)," MB"
        WRITE(timer_env%trace_unit,*) TRIM(line)
        CALL m_flush(timer_env%trace_unit)
@@ -271,7 +273,8 @@ MODULE timings
     CHARACTER(LEN=400)                       :: line, mystring
     CHARACTER(LEN=60)                        :: sformat
     INTEGER                                  :: routine_id, stack_size
-    INTEGER(KIND=int_8)                      :: gpumem_free, gpumem_total
+    INTEGER(KIND=int_8)                      :: cpumem, gpumem_free, &
+                                                gpumem_total
     INTEGER, DIMENSION(2)                    :: routine_tuple
     REAL(KIND=dp)                            :: en_elapsed, en_now, &
                                                 wt_elapsed, wt_now
@@ -349,8 +352,9 @@ MODULE timings
        WRITE (mystring, sformat) timer_env%trace_str, "<<", stack_size+1, &
             r_stat%total_calls, TRIM(r_stat%routineN), wt_elapsed
        CALL cuda_mem_info(gpumem_free, gpumem_total)
+       CALL m_memory(cpumem)
        WRITE(line,'(A,A,I0,A,A,I0,A)') TRIM(mystring),&
-          " Hostmem: ", (m_memory()+1024*1024-1)/(1024*1024)," MB",&
+          " Hostmem: ", (cpumem+1024*1024-1)/(1024*1024)," MB",&
           " GPUmem: ", (gpumem_total-gpumem_free)/(1024*1024)," MB"
        WRITE(timer_env%trace_unit,*) TRIM(line)
        CALL m_flush(timer_env%trace_unit)

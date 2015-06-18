@@ -99,9 +99,9 @@ CONTAINS
 ! *****************************************************************************
 ! returns the total amount of memory [bytes] in use, if known, zero otherwise
 ! *****************************************************************************
-  FUNCTION m_memory()
+  SUBROUTINE m_memory(mem)
 
-      INTEGER(KIND=int_8)                      :: m_memory
+      INTEGER(KIND=int_8), INTENT(OUT)         :: mem
       INTEGER(KIND=int_8)                      :: m1,m2,m3
 
       !
@@ -109,7 +109,7 @@ CONTAINS
       ! lead to linking errors or /proc/self/statm can not be opened
       !
 #if defined(__NO_STATM_ACCESS)
-      m_memory=0
+      mem=0
 #else
       CHARACTER(LEN=80) :: DATA
       INTEGER :: iostat,i
@@ -125,7 +125,7 @@ CONTAINS
       !
       ! reading from statm
       !
-      m_memory=-1
+      mem=-1
       DATA=""
       OPEN(121245,FILE="/proc/self/statm",ACTION="READ",STATUS="OLD",ACCESS="STREAM")
       DO I=1,80
@@ -138,20 +138,20 @@ CONTAINS
       ! m3 = shared
       READ(DATA,*,IOSTAT=iostat) m1,m2,m3
       IF (iostat.NE.0) THEN
-         m_memory=0
+         mem=0
       ELSE
-         m_memory=m2
+         mem=m2
 #if defined(__STATM_TOTAL)
-         m_memory=m1
+         mem=m1
 #endif
 #if defined(__STATM_RESIDENT)
-         m_memory=m2
+         mem=m2
 #endif
-         m_memory=m_memory*getpagesize()
+         mem=mem*getpagesize()
       ENDIF
 #endif
 
-  END FUNCTION m_memory
+  END SUBROUTINE m_memory
 
 ! *****************************************************************************
 ! *** get more detailed memory info, all units are bytes.

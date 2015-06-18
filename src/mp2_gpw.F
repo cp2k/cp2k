@@ -48,7 +48,8 @@ MODULE mp2_gpw
                                              distribute_molecules_2d
   USE input_constants,                 ONLY: use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE machine,                         ONLY: default_output_unit,&
                                              m_flush,&
                                              m_memory
@@ -913,6 +914,7 @@ MODULE mp2_gpw
     INTEGER :: p_best, proc_receive, proc_send, q, q_best, row, row_offset, &
       row_size, size_EX, size_EX_send, size_of_exchange_group, stat, &
       sub_sub_color, virtual, virtual_beta, wfn_calc, wfn_calc_best
+    INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:) :: proc_map, sub_proc_map, &
       vector_B_sizes, vector_batch_A_size_group, vector_batch_I_size_group
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: color_array, &
@@ -1012,8 +1014,8 @@ MODULE mp2_gpw
       CALL cp_dbcsr_set(matrix_ia_jb_beta,0.0_dp,error=error_sub)
     END IF
 
-    mem_real=m_memory()
-    mem_real=(mem_real+1024*1024-1)/(1024*1024)
+    CALL m_memory(mem)
+    mem_real=(mem+1024*1024-1)/(1024*1024)
     ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
     ! has not been given back to the OS yet. 
     CALL mp_min(mem_real,para_env%group)

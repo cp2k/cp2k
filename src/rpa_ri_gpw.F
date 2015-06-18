@@ -38,7 +38,8 @@ MODULE rpa_ri_gpw
                                              ri_rpa_g0w0_crossing_z_shot,&
                                              wfc_mm_style_gemm,&
                                              wfc_mm_style_syrk
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
                                              m_walltime
@@ -160,6 +161,7 @@ MODULE rpa_ri_gpw
       my_ia_start_beta, my_nm_gw_end, my_nm_gw_size, my_nm_gw_start
     INTEGER :: ngroup, num_integ_group, num_integ_points, num_poles, &
       pos_integ_group, virtual, virtual_beta
+    INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_ia, ends_ia_beta, ends_nm_gw, &
       sizes_ia, sizes_ia_beta, sizes_nm_gw, starts_ia, starts_ia_beta, &
       starts_nm_gw, sub_proc_map
@@ -249,8 +251,8 @@ MODULE rpa_ri_gpw
       mem_for_QK=mem_for_QK*2.0_dp
     END IF
 
-    mem_real=m_memory()
-    mem_real=(mem_real+1024*1024-1)/(1024*1024)
+    CALL m_memory(mem)
+    mem_real=(mem+1024*1024-1)/(1024*1024)
     ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
     ! has not been given back to the OS yet. 
     CALL mp_min(mem_real,para_env%group)
