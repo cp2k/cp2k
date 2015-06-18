@@ -1692,13 +1692,15 @@ CONTAINS
                            error=error)
 
     CALL pw_transfer(pw_in, pw_in_gs, error=error)
-    DO ig = 1, ng
-       pw_in_gs%cc(ig) = prefactor * (pw_in_gs%cc(ig) / green%influence_fn%cc(ig))
-    END DO
+
     IF (have_g0) THEN
        g0_index = green%influence_fn%pw_grid%first_gne0 - 1
        pw_in_gs%cc(g0_index) = 0.0_dp
     END IF
+    DO ig = green%influence_fn%pw_grid%first_gne0, ng
+       pw_in_gs%cc(ig) = prefactor * (pw_in_gs%cc(ig) / green%influence_fn%cc(ig))
+    END DO
+
     CALL pw_transfer(pw_in_gs, pw_out, error=error)
 
     CALL pw_pool_give_back_pw(pw_pool, pw_in_gs, error=error)
@@ -1789,13 +1791,15 @@ CONTAINS
                       pw_in, pw_in_xpndd, error)
        CALL pw_adjust_bounds_local(pw_in_xpndd, pw_in_xpndd_adj, error) 
        CALL pw_transfer(pw_in_xpndd_adj, pw_in_xpndd_gs, debug=.FALSE., error=error)
-       DO ig = 1, ng_xpndd
-          pw_in_xpndd_gs%cc(ig) = prefactor * (pw_in_xpndd_gs%cc(ig) / green%dct_influence_fn%cc(ig))
-       END DO
+
        IF (have_g0) THEN
           g0_index = green%dct_influence_fn%pw_grid%first_gne0 - 1
           pw_in_xpndd_gs%cc(g0_index) = 0.0_dp
        END IF
+       DO ig = green%dct_influence_fn%pw_grid%first_gne0, ng_xpndd
+          pw_in_xpndd_gs%cc(ig) = prefactor * (pw_in_xpndd_gs%cc(ig) / green%dct_influence_fn%cc(ig))
+       END DO
+
        CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE., error=error)
        CALL pw_adjust_bounds_local(pw_out_xpndd, pw_out_xpndd_adj, error) 
        CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd_adj, pw_out, error)
@@ -1821,13 +1825,15 @@ CONTAINS
        CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
                       pw_in, pw_in_xpndd, error)
        CALL pw_transfer(pw_in_xpndd, pw_in_xpndd_gs, debug=.FALSE., error=error)
-       DO ig = 1, ng_xpndd
-          pw_in_xpndd_gs%cc(ig) = prefactor * (pw_in_xpndd_gs%cc(ig) / green%dct_influence_fn%cc(ig))
-       END DO
+
        IF (have_g0) THEN
           g0_index = green%dct_influence_fn%pw_grid%first_gne0 - 1
           pw_in_xpndd_gs%cc(g0_index) = 0.0_dp
        END IF
+       DO ig = green%dct_influence_fn%pw_grid%first_gne0, ng_xpndd
+          pw_in_xpndd_gs%cc(ig) = prefactor * (pw_in_xpndd_gs%cc(ig) / green%dct_influence_fn%cc(ig))
+       END DO
+
        CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE., error=error)
        CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd, pw_out, error)
    
