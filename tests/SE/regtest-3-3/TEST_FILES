@@ -1,5 +1,5 @@
 # MD with wavefunction extrapolation methods
-wfn_ex1.inp    3    5e-14    -636.12635377865820
+wfn_ex1.inp                       3     5e-14            -636.12635377881054
 wfn_ex2.inp                       3     3e-14
 wfn_ex3.inp                       3     3e-14
 wfn_ex4.inp         3

@@ -130,13 +130,13 @@ CONTAINS
 
        CALL keyword_create(keyword, name="EPS_LANCZOS",&
             description="Threshold used for lanczos estimates.",&
-            usage="EPS_LANCZOS 1.0E-7", default_r_val=1.0E-4_dp,error=error)
+            usage="EPS_LANCZOS 1.0E-4", default_r_val=1.0E-3_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MAX_ITER_LANCZOS",&
             description="Maximum number of lanczos iterations.",&
-            usage="MAX_ITER_LANCZOS ", default_i_val=40,error=error)
+            usage="MAX_ITER_LANCZOS ", default_i_val=128,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -1091,3 +1091,5 @@ Cu.inp
 test-pdb.inp
 # Bug fix
 H2O-extpot.inp
+#  
+h2o-otdiag.inp

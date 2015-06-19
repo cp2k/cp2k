@@ -1,4 +1,4 @@
-H2O-32-dftb-ls-4.inp    11    1.0E-14    -65.156510081939558
+H2O-32-dftb-ls-4.inp             11     1e-14            -65.156510147174032
 ace_ala_nme_pm6_01.inp           11     7e-14
 ace_ala_nme_pm6_02.inp           11     6e-14
 ace_ala_nme_pm6_03.inp           11     6e-14
@@ -11,6 +11,6 @@ ace_ala_nme_pm6_09.inp           11     2e-07
 ace_ala_nme_pm6_10.inp           11     5e-07
 ace_ala_nme_pm6_11.inp           11     5e-07
 ace_ala_nme_pm6_12.inp           11     5e-07
-H2O-32-dftb-trs4.inp    11    1.0E-14    -32.574189343452822
-H2O-32-dftb-ls-5.inp    11    1.0E-14    -65.156509314841770
-H2O-32-dftb-ls-6.inp    11    1.0E-14    -65.156510081939558
+H2O-32-dftb-trs4.inp             11     1e-14            -32.574186647231741
+H2O-32-dftb-ls-5.inp             11     1e-14            -65.156509908278281
+H2O-32-dftb-ls-6.inp             11     1e-14            -65.156510147174032

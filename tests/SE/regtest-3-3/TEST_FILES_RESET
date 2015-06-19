@@ -25,3 +25,7 @@ wfn_ex3.inp
 wfn_ex4.inp
 new defaults for preconditioner
 H2O-4.inp
+#  
+wfn_ex1.inp
+#  
+wfn_ex3.inp

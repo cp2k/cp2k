@@ -748,3 +748,7 @@ H2O-inverse_up.inp
 H2O-inverse_up.inp
 #improve Hotelling
 H2O-inverse_up.inp
+#  
+vib-mixed.inp
+#  
+vib-int-mixed.inp

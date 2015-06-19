@@ -52,9 +52,9 @@ CONTAINS
 !> \param matrix_a input mat
 !> \param max_ev estimated max eval
 !> \param min_ev estimated min eval
-!> \param converged estimated converged within max_iter
+!> \param converged ? Usually arnoldi is more accurate than claimed.
 !> \param threshold target precision
-!> \param max_iter max allowed iterations (maybe times nrestarts ?)
+!> \param max_iter max allowed iterations (will be rounded up)
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE arnoldi_extremal(matrix_a,  max_ev, min_ev, converged, threshold, max_iter, error)
@@ -74,12 +74,24 @@ CONTAINS
       POINTER                                :: arnoldi_matrices
     TYPE(dbcsr_arnoldi_data)                 :: my_arnoldi
 
+    INTEGER :: max_iter_internal 
+    INTEGER :: nrestarts
+
+    ! we go in chunks of max_iter_internal, and restart ater each of those.
+    ! at low threshold smaller values of max_iter_internal make sense
+    IF (.TRUE.)               max_iter_internal=16
+    IF (threshold<=1.0E-3_dp) max_iter_internal=32
+    IF (threshold<=1.0E-4_dp) max_iter_internal=64
+
+    ! the max number of iter will be (nrestarts+1)*max_iter_internal
+    nrestarts = max_iter/max_iter_internal
+
     CALL timeset(routineN,handle)
     NULLIFY(arnoldi_matrices)
     CALL cp_dbcsr_allocate_matrix_set(arnoldi_matrices, 1, error)
     arnoldi_matrices(1)%matrix => matrix_a
-    CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,arnoldi_matrices,max_iter=max_iter,&
-         threshold=threshold,selection_crit=1, nval_request=2, nrestarts=1,&
+    CALL cp_dbcsr_setup_arnoldi_data(my_arnoldi,arnoldi_matrices,max_iter=max_iter_internal,&
+         threshold=threshold,selection_crit=1, nval_request=2, nrestarts=nrestarts,&
          generalized_ev=.FALSE.,iram=.TRUE.)
     CALL cp_dbcsr_arnoldi_ev(arnoldi_matrices,my_arnoldi,error)
     converged=arnoldi_is_converged(my_arnoldi)
@@ -120,7 +132,9 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lanczos_alg_serial', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: test_arnoldi = .FALSE.
+    LOGICAL, PARAMETER                       :: have_io = .FALSE., &
+                                                test_arnoldi = .TRUE., &
+                                                test_lanczos = .FALSE.
 
     INTEGER                                  :: handle, mp_group, unit_nr
     LOGICAL                                  :: do_svd
@@ -138,15 +152,16 @@ CONTAINS
 
     do_svd = .FALSE.
     IF(PRESENT(svd)) do_svd = svd
+    IF (do_svd) STOP "PROBLEMS with SVD"
 
-    IF (.NOT. do_svd .AND. test_arnoldi ) THEN
-       CALL arnoldi_extremal(matrix_a, max_ev, min_ev, converged, threshold, max_iter, error)
-       IF (unit_nr>0 .AND. .FALSE.) THEN
-          WRITE(unit_nr,*) "ARNOLDI",max_ev,min_ev,converged,do_svd
-       ENDIF
+    IF ( (.NOT. do_svd .AND. test_arnoldi) ) THEN
+          CALL arnoldi_extremal(matrix_a, max_ev, min_ev, converged, threshold, max_iter, error)
+          IF (unit_nr>0 .AND. have_io) THEN
+             WRITE(unit_nr,*) "ARNOLDI",max_ev,min_ev,converged
+          ENDIF
     ENDIF
 
-    IF (.NOT. test_arnoldi .OR. do_svd) THEN
+    IF (test_lanczos .OR. do_svd )  THEN
       mp_group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_a)))
       SELECT CASE(cp_dbcsr_get_data_type(matrix_a))
         CASE (dbcsr_type_real_8)
@@ -157,7 +172,7 @@ CONTAINS
       !    CALL stop_program(routineN,moduleN,__LINE__,"NYI")
       END SELECT
 
-      IF (unit_nr>0 .AND. .FALSE.) THEN
+      IF (unit_nr>0 .AND. have_io) THEN
          WRITE(unit_nr,*) "LANCZOS",max_ev,min_ev,converged,do_svd
       ENDIF
     ENDIF

@@ -44,7 +44,7 @@ H2O-bs_input.inp    1    4e-14    -17.13993294311388
 # Mode selectiv vibrational analysis and intensities
 H2O-VIB-MS-INT-1.inp    21    1.0E-14    0.009948
 H2O-VIB-MS-INT-2.inp    21    1.0E-14    0.009948
-vib-mixed.inp    8    1.0E-14    2160.676205
+vib-mixed.inp                     8     1e-14                    2160.676220
 dip-mixed.inp          11
 vib-int-mixed.inp       8
 #broyden

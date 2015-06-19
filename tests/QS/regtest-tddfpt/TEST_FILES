@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 H2O_tddfpt-s-1.inp    37    1.0E-14    0.604250E+00
 H2O_tddfpt-t-1.inp               37     7e-06
-NO_tddfpt-s-1.inp    37    1.0E-14    0.399548E+00
+NO_tddfpt-s-1.inp                37     1e-14                   0.399639E+00
 NO_tddfpt-t-1.inp                37     8e-04
 H2O_tddfpt-s-2.inp    37    1.0E-14    0.547986E+00
 H2O_tddfpt-t-2.inp    37    1.0E-14    0.548674E+00

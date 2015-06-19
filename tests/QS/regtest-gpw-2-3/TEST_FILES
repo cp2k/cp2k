@@ -1,10 +1,10 @@
 hcn_ts.inp                        7     3e-10
 hcn_ts_r.inp                      7     1e-07
 #  chain of two coordination numbers
-hcn_md.inp    1    2e-14    -16.50121471894402
+hcn_md.inp                        1     2e-14             -16.50121471894339
 hcn_meta_coord.inp                1     4e-14
-hcn_meta_chaincoord.inp    1    7e-14    -16.64019903526744
-hcn_meta_chaincoord_kind.inp    1    1E-13    -16.64019903526744
+hcn_meta_chaincoord.inp           1     7e-14             -16.64019903515767
+hcn_meta_chaincoord_kind.inp      1     1e-13             -16.64019903515767
 # Population colvar
 H2O_meta_pop.inp                  1     5e-08
 # Metadynamics with langevin on COLVAR
