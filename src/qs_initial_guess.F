@@ -1061,7 +1061,9 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     CALL cp_dbcsr_iterator_stop(iter)
 
     CALL cp_dbcsr_trace(matrix_p, matrix_s, trps1, error=error)
-    scale=REAL(nelectron_spin,dp)/trps1
+    scale = 0.0_dp
+    IF(nelectron_spin>0)& ! could be a ghost-atoms-only simulation
+       scale = REAL(nelectron_spin,dp)/trps1
     CALL cp_dbcsr_scale(matrix_p, scale, error=error)
 
     IF (output_unit > 0) THEN
