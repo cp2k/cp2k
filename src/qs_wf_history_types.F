@@ -30,9 +30,9 @@ MODULE qs_wf_history_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_wf_history_types'
 
-  PUBLIC :: qs_wf_snapshot_type, qs_wf_snapshot_p_type,&
+  PUBLIC :: qs_wf_snapshot_type,&
             qs_wf_history_type, qs_wf_history_p_type
-  PUBLIC :: wfs_release, wfi_retain, wfi_release, wfi_get_snapshot
+  PUBLIC :: wfi_retain, wfi_release, wfi_get_snapshot
 
 ! *****************************************************************************
 !> \brief represent a past snapshot of the wavefunction.

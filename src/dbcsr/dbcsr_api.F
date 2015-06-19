@@ -163,12 +163,6 @@ MODULE dbcsr_api
             heap_reset_first,&
             heap_t,&
             array_data,&
-            array_hold,&
-            array_i1d_obj,&
-            array_new,&
-            array_release,&
-            array_size,&
-            array_nullify,&
             add_work_coordinate,&
             convert_offsets_to_sizes,&
             convert_sizes_to_offsets,&

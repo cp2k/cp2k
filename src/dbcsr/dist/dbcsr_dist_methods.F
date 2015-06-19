@@ -62,11 +62,10 @@ MODULE dbcsr_dist_methods
             dbcsr_distribution_local_rows_obj, dbcsr_distribution_local_cols_obj,&
             dbcsr_distribution_thread_dist, dbcsr_distribution_has_threads,&
             dbcsr_distribution_make_threads, dbcsr_distribution_no_threads,&
-            dbcsr_distribution_num_threads, &
-            dbcsr_distribution_get_num_images_1d, &
-            dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_col_clusters, &
-            dbcsr_distribution_num_local_row_clusters, dbcsr_distribution_num_local_col_clusters, &
-            dbcsr_distribution_num_row_clusters, dbcsr_distribution_num_col_clusters, &
+            dbcsr_distribution_num_threads,&
+            dbcsr_distribution_get_num_images_1d,&
+            dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_col_clusters,&
+            dbcsr_distribution_num_local_row_clusters, dbcsr_distribution_num_local_col_clusters,&
             dbcsr_distribution_row_clusters, dbcsr_distribution_col_clusters
 
 CONTAINS

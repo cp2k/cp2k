@@ -24,16 +24,12 @@ MODULE qs_fb_matrix_data_types
   PUBLIC :: fb_matrix_data_obj
 
   ! public methods
-  PUBLIC :: fb_matrix_data_add, &
-            fb_matrix_data_associate, &
-            fb_matrix_data_create ,&
-            fb_matrix_data_get, &
-            fb_matrix_data_has_data, &
-            fb_matrix_data_init, &
-            fb_matrix_data_nullify, &
-            fb_matrix_data_release, &
-            fb_matrix_data_retain, &
-            fb_matrix_data_status
+  PUBLIC :: fb_matrix_data_add,&
+            fb_matrix_data_create,&
+            fb_matrix_data_get,&
+            fb_matrix_data_has_data,&
+            fb_matrix_data_nullify,&
+            fb_matrix_data_release
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_matrix_data_types'
   INTEGER, PRIVATE, SAVE :: last_fb_matrix_data_id = 0

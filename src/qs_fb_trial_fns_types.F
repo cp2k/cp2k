@@ -20,7 +20,6 @@ MODULE qs_fb_trial_fns_types
             fb_trial_fns_associate,&
             fb_trial_fns_has_data,&
             fb_trial_fns_create,&
-            fb_trial_fns_init,&
             fb_trial_fns_get,&
             fb_trial_fns_set
 

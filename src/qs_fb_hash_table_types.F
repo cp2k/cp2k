@@ -33,18 +33,12 @@ MODULE qs_fb_hash_table_types
   PUBLIC :: fb_hash_table_obj
 
 ! public methods
-  PUBLIC :: fb_hash_table_add, &
-            fb_hash_table_associate, &
-            fb_hash_table_create, &
-            fb_hash_table_get, &
-            fb_hash_table_has_data, &
-            fb_hash_table_init, &
-            fb_hash_table_nullify, &
-            fb_hash_table_rehash, &
-            fb_hash_table_release, &
-            fb_hash_table_remove, &
-            fb_hash_table_retain, &
-            fb_hash_table_status
+  PUBLIC :: fb_hash_table_add,&
+            fb_hash_table_create,&
+            fb_hash_table_get,&
+            fb_hash_table_has_data,&
+            fb_hash_table_nullify,&
+            fb_hash_table_release
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_hash_table_types'
   INTEGER, PRIVATE, SAVE :: last_fb_hash_table_id = 0

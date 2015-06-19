@@ -66,7 +66,7 @@ MODULE dbcsr_methods
             dbcsr_get_index_memory_type, dbcsr_get_data_memory_type,&
             dbcsr_name, dbcsr_setname, dbcsr_get_data_size,&
             dbcsr_use_mutable, dbcsr_wm_use_mutable, dbcsr_has_symmetry,&
-            dbcsr_get_nze, dbcsr_nfullrows_local, dbcsr_nfullcols_local
+            dbcsr_get_nze, dbcsr_nfullrows_local
   PUBLIC :: dbcsr_get_data_size_used
   PUBLIC :: dbcsr_col_block_offsets, dbcsr_row_block_offsets
   PUBLIC :: dbcsr_data_area

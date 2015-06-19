@@ -93,10 +93,9 @@ MODULE pair_potential_types
   PUBLIC :: ft_pot_type,&
             ipbv_pot_type,&
             eam_pot_type,&
-            quip_pot_type, &
+            quip_pot_type,&
             tersoff_pot_type,&
-            siepmann_pot_type,&
-            ftd_pot_type
+            siepmann_pot_type
 
   PUBLIC :: pair_potential_lj_create
   PUBLIC :: compare_pot

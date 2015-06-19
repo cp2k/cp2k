@@ -90,7 +90,7 @@ MODULE qs_moments
 ! *** Public subroutines ***
 
   PUBLIC :: build_berry_moment_matrix, build_local_moment_matrix
-  PUBLIC :: qs_moment_berry_phase, qs_moment_locop, op_orbbas
+  PUBLIC :: qs_moment_berry_phase, qs_moment_locop
 
 CONTAINS
 

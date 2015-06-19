@@ -132,11 +132,11 @@ MODULE cp_dbcsr_interface
   PUBLIC :: dbcsr_type_complex_8, dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_complex_4
   PUBLIC :: dbcsr_type_complex_default, dbcsr_type_real_default
   PUBLIC :: convert_offsets_to_sizes, dbcsr_distribution_obj, dbcsr_distribution_row_dist
-  PUBLIC :: dbcsr_distribution_row_clusters, dbcsr_distribution_col_clusters, &
+  PUBLIC :: dbcsr_distribution_row_clusters, dbcsr_distribution_col_clusters,&
             dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_col_clusters
   PUBLIC :: dbcsr_get_conf_use_comm_thread, dbcsr_data_clear_pointer, dbcsr_data_new, dbcsr_data_init
   PUBLIC :: dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_mp_nprows, dbcsr_mp_npcols,&
-            dbcsr_mp_get_process, dbcsr_mp_pgrid
+            dbcsr_mp_get_process
   PUBLIC :: dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
   PUBLIC :: dbcsr_iterator_blocks_left, dbcsr_iterator_next_block
   PUBLIC :: dbcsr_error_type, dbcsr_mp_obj, dbcsr_norm_frobenius
@@ -145,7 +145,6 @@ MODULE cp_dbcsr_interface
   PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release
   PUBLIC :: dbcsr_func_artanh, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh
   PUBLIC :: dbcsr_distribution_mp
-  PUBLIC :: dbcsr_distribution_processor
   PUBLIC :: convert_sizes_to_offsets
   PUBLIC :: cp_dbcsr_iterator
   PUBLIC :: cp_dbcsr_type
@@ -243,7 +242,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_maxabs
   PUBLIC :: cp_dbcsr_arnoldi_ev, dbcsr_arnoldi_data, cp_dbcsr_setup_arnoldi_data, deallocate_arnoldi_data,&
             get_selected_ritz_val, get_selected_ritz_vec, cp_set_arnoldi_initial_vector,&
-            arnoldi_is_converged, cp_dbcsr_arnoldi_extremal
+            cp_dbcsr_arnoldi_extremal
   PUBLIC :: csr_type, cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr,&
             cp_csr_create_from_dbcsr, cp_csr_destroy, cp_csr_create,&
             csr_dbcsr_blkrow_dist, csr_eqrow_floor_dist,&

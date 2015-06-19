@@ -107,8 +107,6 @@ MODULE qs_fb_env_methods
             fb_env_read_input,&
             fb_env_build_rcut_auto,&
             fb_env_build_atomic_halos,&
-            fb_env_build_trial_fns_auto,&
-            fb_dbcsr_copy_sparse_struct,&
             fb_env_write_info
 
 

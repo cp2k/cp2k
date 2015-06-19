@@ -51,16 +51,12 @@ MODULE cp_array_utils_i
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_array_utils_i'
 
   ! types
-  PUBLIC :: cp_1d_i_p_type, cp_2d_i_p_type, cp_3d_i_p_type
+  PUBLIC :: cp_1d_i_p_type, cp_2d_i_p_type
 
   ! generic interfaces
-  PUBLIC :: cp_guarantee_size
 
   ! the underlying procedures
-  PUBLIC :: cp_1d_i_guarantee_size, &
-       cp_1d_i_write, cp_2d_i_write,&
-       cp_2d_i_guarantee_size,&
-       cp_1d_i_bsearch
+  PUBLIC :: cp_1d_i_write, cp_2d_i_write
 
   INTERFACE cp_guarantee_size
      MODULE PROCEDURE cp_1d_i_guarantee_size,&
