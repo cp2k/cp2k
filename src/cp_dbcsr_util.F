@@ -69,16 +69,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_extremal', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, max_iter_internal, &
+                                                nrestarts
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: arnoldi_matrices
     TYPE(dbcsr_arnoldi_data)                 :: my_arnoldi
 
-    INTEGER :: max_iter_internal 
-    INTEGER :: nrestarts
+! we go in chunks of max_iter_internal, and restart ater each of those.
+! at low threshold smaller values of max_iter_internal make sense
 
-    ! we go in chunks of max_iter_internal, and restart ater each of those.
-    ! at low threshold smaller values of max_iter_internal make sense
     IF (.TRUE.)               max_iter_internal=16
     IF (threshold<=1.0E-3_dp) max_iter_internal=32
     IF (threshold<=1.0E-4_dp) max_iter_internal=64
