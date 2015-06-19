@@ -12,12 +12,11 @@ MODULE rt_propagator_init
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
-       cp_dbcsr_filter, cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-       cp_dbcsr_scale, cp_dbcsr_type
+       cp_dbcsr_arnoldi_extremal, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_deallocate_matrix, cp_dbcsr_filter, cp_dbcsr_init, &
+       cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_scale, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
-  USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_upper_to_full
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
@@ -377,7 +376,7 @@ CONTAINS
             filter_eps=rtp%filter_eps,error=error)
        CALL cp_dbcsr_multiply("N","N",one,s_minus_half,tmp,zero,tmp2,&
             filter_eps=rtp%filter_eps,error=error)
-       CALL lanczos_alg_serial(tmp2, max_ev, min_ev, threshold=rtp%lanzcos_threshold, &
+       CALL cp_dbcsr_arnoldi_extremal(tmp2, max_ev, min_ev, threshold=rtp%lanzcos_threshold, &
             max_iter=rtp%lanzcos_max_iter, converged=converged, error=error)
        norm2=2.0_dp*MAX(ABS(min_ev),ABS(max_ev))
        CALL get_nsquare_norder(norm2,rtp%orders(1,ispin),rtp%orders(2,ispin),&

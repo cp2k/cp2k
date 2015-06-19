@@ -11,17 +11,16 @@
 ! *****************************************************************************
 MODULE dm_ls_scf_methods
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_desymmetrize, cp_dbcsr_filter, cp_dbcsr_finalize, &
-       cp_dbcsr_frobenius_norm, cp_dbcsr_get_data_type, &
-       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_iterator_start, &
-       cp_dbcsr_multiply, cp_dbcsr_put_block, cp_dbcsr_release, &
-       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, &
-       dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
-       dbcsr_data_obj, dbcsr_data_release, dbcsr_iterator, &
+       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_extremal, &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_filter, cp_dbcsr_finalize, cp_dbcsr_frobenius_norm, &
+       cp_dbcsr_get_data_type, cp_dbcsr_get_occupation, cp_dbcsr_init, &
+       cp_dbcsr_iterator_start, cp_dbcsr_multiply, cp_dbcsr_put_block, &
+       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, &
+       cp_dbcsr_type, dbcsr_data_clear_pointer, dbcsr_data_init, &
+       dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, dbcsr_iterator, &
        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_stop, dbcsr_type_no_symmetry
-  USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                              ls_mstruct_type
   USE input_constants,                 ONLY: ls_s_preconditioner_atomic,&
@@ -484,7 +483,7 @@ CONTAINS
     ! compute the deviation in the mixed matrix, as seen in the ortho basis
     IF (do_dyn_threshold) THEN
        CALL cp_dbcsr_add(matrix_ks_deviation, matrix_x_nosym , -1.0_dp, 1.0_dp, error=error)
-       CALL lanczos_alg_serial(matrix_ks_deviation, maxev, minev, max_iter=max_iter_lanczos, threshold=eps_lanczos, &
+       CALL cp_dbcsr_arnoldi_extremal(matrix_ks_deviation, maxev, minev, max_iter=max_iter_lanczos, threshold=eps_lanczos, &
                                converged=converged, error=error)
        maxdev = MAX(ABS(maxev), ABS(minev))
        IF (unit_nr>0) THEN
@@ -500,7 +499,7 @@ CONTAINS
     ENDIF
 
     ! get largest/smallest eigenvalues for scaling
-    CALL lanczos_alg_serial(matrix_x_nosym, max_eig, min_eig, max_iter=max_iter_lanczos, threshold=eps_lanczos,&
+    CALL cp_dbcsr_arnoldi_extremal(matrix_x_nosym, max_eig, min_eig, max_iter=max_iter_lanczos, threshold=eps_lanczos,&
                             converged=converged, error=error)
     IF (unit_nr>0) WRITE(unit_nr,'(T6,A,1X,2F12.5,1X,A,1X,L1)') "Est. extremal eigenvalues", &
                                                          min_eig, max_eig," converged: ",converged
@@ -758,7 +757,7 @@ CONTAINS
     ENDIF
 
     ! get largest/smallest eigenvalues for scaling
-    CALL lanczos_alg_serial(matrix_x, max_eig, min_eig, max_iter=max_iter_lanczos, threshold=eps_lanczos,&
+    CALL cp_dbcsr_arnoldi_extremal(matrix_x, max_eig, min_eig, max_iter=max_iter_lanczos, threshold=eps_lanczos,&
                             converged=converged, error=error)
     IF (unit_nr>0) WRITE(unit_nr,'(T6,A,1X,2F12.5,1X,A,1X,L1)') "Est. extremal eigenvalues", &
                                                          min_eig, max_eig," converged: ",converged
@@ -1001,7 +1000,7 @@ CONTAINS
     CALL cp_dbcsr_add_on_diag(tmp2, shift1, error=error)
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_p, tmp2,&
                            0.0_dp, tmp1, filter_eps=threshold,error=error)
-    CALL lanczos_alg_serial(tmp1, max_eig, min_eig, converged=converged, &
+    CALL cp_dbcsr_arnoldi_extremal(tmp1, max_eig, min_eig, converged=converged, &
               threshold=eps_lanczos, max_iter=max_iter_lanczos, error=error)
     homo = max_eig-shift1
     IF (unit_nr > 0) THEN
@@ -1016,7 +1015,7 @@ CONTAINS
     CALL cp_dbcsr_add_on_diag(tmp2, -shift2, error=error)
     CALL cp_dbcsr_multiply("N", "N", -1.0_dp, tmp3, tmp2,&
                            0.0_dp, tmp1, filter_eps=threshold,error=error)
-    CALL lanczos_alg_serial(tmp1, max_eig, min_eig, converged=converged,&
+    CALL cp_dbcsr_arnoldi_extremal(tmp1, max_eig, min_eig, converged=converged,&
                             threshold=eps_lanczos, max_iter=max_iter_lanczos, error=error)
     lumo = -max_eig+shift2
 

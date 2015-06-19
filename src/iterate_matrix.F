@@ -11,15 +11,14 @@
 MODULE iterate_matrix
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_ev, &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_filter, &
-       cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, cp_dbcsr_get_info, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_get_occupation, cp_dbcsr_init, &
-       cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_setup_arnoldi_data, &
-       cp_dbcsr_transposed, cp_dbcsr_type, dbcsr_arnoldi_data, &
-       dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, &
+       cp_dbcsr_arnoldi_extremal, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_gershgorin_norm, &
+       cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_get_occupation, &
+       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_norm, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_setup_arnoldi_data, cp_dbcsr_transposed, cp_dbcsr_type, &
+       dbcsr_arnoldi_data, dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, &
        deallocate_arnoldi_data, get_selected_ritz_val
-  USE cp_dbcsr_util,                   ONLY: lanczos_alg_serial
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_flush,&
@@ -386,7 +385,7 @@ CONTAINS
     CALL cp_dbcsr_copy(matrix_sqrt,matrix,error=error)
 
     ! scale the matrix to get into the convergence range
-    CALL lanczos_alg_serial(matrix_sqrt, max_ev, min_ev, threshold=eps_lanczos, &
+    CALL cp_dbcsr_arnoldi_extremal(matrix_sqrt, max_ev, min_ev, threshold=eps_lanczos, &
                             max_iter=max_iter_lanczos, converged=converged, error=error)
     IF (unit_nr>0) THEN
        WRITE(unit_nr,*)

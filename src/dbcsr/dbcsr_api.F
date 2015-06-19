@@ -20,7 +20,8 @@ MODULE dbcsr_api
                                              array_nullify,&
                                              array_release,&
                                              array_size
-  USE dbcsr_arnoldi,                   ONLY: dbcsr_arnoldi_ev
+  USE dbcsr_arnoldi,                   ONLY: dbcsr_arnoldi_ev,&
+                                             dbcsr_arnoldi_extremal
   USE dbcsr_arnoldi_data_methods,      ONLY: arnoldi_is_converged,&
                                              dbcsr_arnoldi_data,&
                                              deallocate_arnoldi_data,&
@@ -193,6 +194,7 @@ MODULE dbcsr_api
             set_arnoldi_initial_vector,&
             deallocate_arnoldi_data,&
             dbcsr_arnoldi_ev,&
+            dbcsr_arnoldi_extremal,&
             arnoldi_is_converged,&
             get_selected_ritz_val,&
             get_selected_ritz_vector,&

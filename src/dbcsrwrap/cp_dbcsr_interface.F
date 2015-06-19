@@ -30,15 +30,15 @@ MODULE cp_dbcsr_interface
        csr_create_from_dbcsr, csr_create_new, csr_create_template, &
        csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_floor_dist, &
        csr_print_sparsity, csr_type, dbcsr_add, dbcsr_add_on_diag, &
-       dbcsr_arnoldi_data, dbcsr_arnoldi_ev, dbcsr_binary_read, &
-       dbcsr_binary_write, dbcsr_checksum, dbcsr_clear_mempools, &
-       dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
-       dbcsr_create, dbcsr_create_dist_block_cyclic, &
-       dbcsr_create_dist_r_unrot, dbcsr_data_clear_pointer, dbcsr_data_init, &
-       dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, &
-       dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
-       dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_has_col_clusters, &
+       dbcsr_arnoldi_data, dbcsr_arnoldi_ev, dbcsr_arnoldi_extremal, &
+       dbcsr_binary_read, dbcsr_binary_write, dbcsr_checksum, &
+       dbcsr_clear_mempools, dbcsr_complete_redistribute, dbcsr_copy, &
+       dbcsr_copy_into_existing, dbcsr_create, &
+       dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
+       dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
+       dbcsr_data_obj, dbcsr_data_release, dbcsr_desymmetrize_deep, &
+       dbcsr_distribute, dbcsr_distribution, dbcsr_distribution_col_clusters, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_has_col_clusters, &
        dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_threads, &
        dbcsr_distribution_init, dbcsr_distribution_local_cols, &
        dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
@@ -242,7 +242,8 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_add_block_node
   PUBLIC :: cp_dbcsr_maxabs
   PUBLIC :: cp_dbcsr_arnoldi_ev, dbcsr_arnoldi_data, cp_dbcsr_setup_arnoldi_data, deallocate_arnoldi_data,&
-            get_selected_ritz_val, get_selected_ritz_vec, cp_set_arnoldi_initial_vector, arnoldi_is_converged
+            get_selected_ritz_val, get_selected_ritz_vec, cp_set_arnoldi_initial_vector,&
+            arnoldi_is_converged, cp_dbcsr_arnoldi_extremal
   PUBLIC :: csr_type, cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr,&
             cp_csr_create_from_dbcsr, cp_csr_destroy, cp_csr_create,&
             csr_dbcsr_blkrow_dist, csr_eqrow_floor_dist,&
@@ -2081,6 +2082,35 @@ CONTAINS
     DEALLOCATE(m_ptrs)
     
   END SUBROUTINE cp_dbcsr_arnoldi_ev  
+
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param max_ev ...
+!> \param min_ev ...
+!> \param converged ...
+!> \param threshold ...
+!> \param max_iter ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE cp_dbcsr_arnoldi_extremal(matrix, max_ev, min_ev, converged, threshold, max_iter, error)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
+    REAL(KIND=dp), INTENT(OUT)               :: max_ev, min_ev
+    LOGICAL, INTENT(OUT)                     :: converged
+    REAL(KIND=dp), INTENT(IN)                :: threshold
+    INTEGER, INTENT(IN)                      :: max_iter
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_arnoldi_extremal', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(dbcsr_error_type)                   :: dbcsr_error
+
+    CALL dbcsr_arnoldi_extremal(matrix%matrix,max_ev, min_ev, converged, threshold, max_iter, dbcsr_error)
+
+  END SUBROUTINE cp_dbcsr_arnoldi_extremal
+
+
 
 ! *****************************************************************************
 !> \brief ...
