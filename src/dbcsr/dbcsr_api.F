@@ -13,13 +13,7 @@
 !> \author  Joost VandeVondele
 ! *****************************************************************************
 MODULE dbcsr_api
-  USE array_types,                     ONLY: array_data,&
-                                             array_hold,&
-                                             array_i1d_obj,&
-                                             array_new,&
-                                             array_nullify,&
-                                             array_release,&
-                                             array_size
+  USE array_types,                     ONLY: array_data
   USE dbcsr_arnoldi,                   ONLY: dbcsr_arnoldi_ev,&
                                              dbcsr_arnoldi_extremal
   USE dbcsr_arnoldi_data_methods,      ONLY: arnoldi_is_converged,&
