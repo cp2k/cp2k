@@ -115,13 +115,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_prop_output', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n_electrons, output_unit
+    INTEGER                                  :: n_electrons, nspin, &
+                                                output_unit, spin
     REAL(dp)                                 :: orthonormality, tot_rho_r
     REAL(KIND=dp), DIMENSION(:), POINTER     :: qs_tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, rho_new
+      POINTER                                :: matrix_s, P_im, rho_new
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new
     TYPE(cp_logger_type), POINTER            :: logger
@@ -220,13 +221,27 @@ CONTAINS
              CALL write_mo_free_results(qs_env,error)
              IF(BTEST(cp_print_key_should_output(logger%iter_info,&
                 dft_section,"REAL_TIME_PROPAGATION%PRINT%CURRENT",error=error),cp_p_file)) THEN
-                   CALL rt_current(qs_env,rho_new(2)%matrix,dft_section,error) !not yet implemented for spin polarized systems and full matrix rtp
+                DO spin=1,SIZE(rho_new)/2
+                   CALL rt_current(qs_env,rho_new(2*spin)%matrix,dft_section,spin,error)
+                END DO
              ENDIF
           ENDIF
        ELSE
           CALL get_rtp(rtp=rtp,mos_new=mos_new,error=error)
           IF(.NOT.dft_control%qs_control%dftb) THEN
              CALL write_available_results(qs_env=qs_env,error=error)
+             IF(BTEST(cp_print_key_should_output(logger%iter_info,&
+                dft_section,"REAL_TIME_PROPAGATION%PRINT%CURRENT",error=error),cp_p_file)) THEN
+                NULLIFY(P_im)
+                nspin=SIZE(mos_new)/2
+                CALL cp_dbcsr_allocate_matrix_set(P_im,nspin,error=error)
+                DO spin=1,nspin
+                   CALL cp_dbcsr_init_p(P_im(spin)%matrix,error=error)
+                   CALL cp_dbcsr_create(P_im(spin)%matrix,template=matrix_s(1)%matrix,matrix_type="N",error=error)
+                   CALL rt_current(qs_env,P_im(spin)%matrix,dft_section,spin,error)
+                END DO
+                CALL cp_dbcsr_deallocate_matrix_set(P_im,error=error)
+             ENDIF
           ENDIF
           CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,&
                             dft_section,atomic_kind_set,qs_kind_set,error)
@@ -682,20 +697,23 @@ CONTAINS
 !> \param qs_env ...
 !> \param P_im ...
 !> \param dft_section ...
+!> \param spin ...
 !> \param error ...
 !> \author Samuel Andermatt (06.15)
 ! *****************************************************************************
-  SUBROUTINE rt_current(qs_env,P_im,dft_section,error)
+  SUBROUTINE rt_current(qs_env,P_im,dft_section,spin,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_type), POINTER             :: P_im
     TYPE(section_vals_type), POINTER         :: dft_section
+    INTEGER                                  :: spin
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rt_current', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(len=1)                         :: char_spin
+    CHARACTER(len=13)                        :: ext
     CHARACTER(len=2)                         :: sdir
-    CHARACTER(len=7)                         :: ext
     INTEGER                                  :: dir, handle, print_unit
     INTEGER, DIMENSION(:), POINTER           :: stride(:)
     TYPE(cp_dbcsr_type), POINTER             :: zero
@@ -750,8 +768,9 @@ CONTAINS
        ELSE
           sdir="-z"
        ENDIF
+       WRITE(char_spin,"(I1)") spin
        
-       ext=sdir//".cube"
+       ext="SPIN-"//char_spin//sdir//".cube"
        
        print_unit=cp_print_key_unit_nr(logger,dft_section,"REAL_TIME_PROPAGATION%PRINT%CURRENT",&
                                        extension=ext, file_status="REPLACE", file_action="WRITE",&

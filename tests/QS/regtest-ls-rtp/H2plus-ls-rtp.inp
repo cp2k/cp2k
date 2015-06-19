@@ -11,6 +11,14 @@
        EPS_ITER 1.0E-9
        MCWEENY_MAX_ITER 1
        INITIAL_WFN SCF_WFN
+       &PRINT
+         &CURRENT
+           &EACH
+              MD 1
+           &END EACH
+           STRIDE 3 3 3
+         &END CURRENT
+       &END PRINT
     &END
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL

@@ -66,7 +66,8 @@ MODULE  rt_propagation_utils
   PUBLIC:: get_restart_wfn,&
            calc_S_derivs,&
            calc_update_rho,&
-           calc_update_rho_sparse
+           calc_update_rho_sparse,&
+           calculate_P_imaginary
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
 
