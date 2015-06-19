@@ -38,7 +38,7 @@ H2O-OT-ASPC-2.inp                 1     3e-14
 H2O-OT-ASPC-3.inp  1
 H2O-OT-ASPC-4.inp                 1     3e-14
 H2O-OT-ASPC-5.inp    1    3e-14    -17.13993068757226
-H2O-OT-ASPC-6.inp  1
+H2O-OT-ASPC-6.inp                 1     2e-14                               
 # Input driven basis set and potential
 H2O-bs_input.inp    1    4e-14    -17.13993294311388
 # Mode selectiv vibrational analysis and intensities
