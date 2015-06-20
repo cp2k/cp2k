@@ -68,9 +68,12 @@ MODULE transport_env_types
      TYPE(cp2k_transport_parameters)  :: params 
      TYPE(cp_dbcsr_type)              :: template_matrix_sym
      TYPE(cp_dbcsr_type)              :: template_matrix_nosym
+     TYPE(cp_dbcsr_type)              :: csr_sparsity
      TYPE(csr_type)                   :: s_matrix 
      TYPE(csr_type)                   :: ks_matrix 
      TYPE(csr_type)                   :: p_matrix
+     LOGICAL                          :: csr_screening
+     INTEGER                          :: row_dist
   END TYPE transport_env_type
 
 ! DO NOT change the ORDERING or the NAMES in the following data type

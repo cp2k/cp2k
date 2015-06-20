@@ -13,6 +13,9 @@
 ! *****************************************************************************
 MODULE input_cp2k_transport
 
+  USE cp_dbcsr_interface,              ONLY: csr_dbcsr_blkrow_dist,&
+                                             csr_eqrow_ceil_dist,&
+                                             csr_eqrow_floor_dist
   USE input_constants,                 ONLY: do_transport,&
                                              exper_code,&
                                              misc_method,&
@@ -120,7 +123,7 @@ CONTAINS
        CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="TASKS_PER_POINT",&
-            description="Number of tasks per energy point.",&
+            description="Minimum number of tasks per energy point.",&
             usage="TASKS_PER_POINT <integer>", default_i_val=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -184,6 +187,23 @@ CONTAINS
             usage="TEMPERATURE [K] 300.0", default_r_val=300.0_dp, unit_str="K", error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="ROW_DISTRIBUTION",&
+            description="How to distribute matrix rows over tasks.",&
+            enum_c_vals=s2a("DBCSR","CEILING","FLOOR"),&
+            enum_desc=s2a("Each task holds floor(N_BLOCK/TASKS_PER_POINT) DBCSR block rows for a total of N_BLOCK block rows",&
+                          "Each task holds ceiling(N/TASKS_PER_POINT) rows for a total of N matrix rows",&
+                          "Each task holds floor(N/TASKS_PER_POINT) rows for a total of N matrix rows"),&
+            enum_i_vals=(/csr_dbcsr_blkrow_dist,csr_eqrow_ceil_dist,csr_eqrow_floor_dist/),&
+            default_i_val=csr_dbcsr_blkrow_dist, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="CSR_SCREENING",&
+            description="Whether distance screening should be applied to improve sparsity of CSR matrices.",&
+            default_l_val=.FALSE., lone_keyword_l_val = .TRUE. ,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
     END IF
 

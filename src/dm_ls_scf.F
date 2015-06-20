@@ -334,7 +334,7 @@ CONTAINS
     ENDIF
 
     IF (qs_env%do_transport) THEN
-       CALL transport_initialize(qs_env%transport_env, ls_scf_env%matrix_s, error)
+       CALL transport_initialize(ks_env,qs_env%transport_env, matrix_s(1)%matrix, error)
     END IF
 
     CALL timestop(handle)

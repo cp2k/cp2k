@@ -15,20 +15,24 @@
 ! *****************************************************************************
 MODULE transport
 
+  USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
   USE cp_dbcsr_interface,              ONLY: &
        cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr, cp_csr_create, &
-       cp_csr_create_from_dbcsr, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, &
-       cp_dbcsr_desymmetrize, cp_dbcsr_has_symmetry, cp_dbcsr_init, &
-       cp_dbcsr_type, csr_dbcsr_blkrow_dist, csr_type
+       cp_csr_create_from_dbcsr, cp_csr_print_sparsity, cp_dbcsr_copy, &
+       cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_has_symmetry, cp_dbcsr_init, cp_dbcsr_set, cp_dbcsr_type, &
+       csr_type, dbcsr_type_real_4
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_allgather
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_environ
   USE physcon,                         ONLY: evolt
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE transport_env_types,             ONLY: cp2k_csr_interop_type,&
@@ -102,6 +106,7 @@ CONTAINS
     CALL transport_init_read_input(input,transport_env,error)
     CALL cp_dbcsr_init(transport_env%template_matrix_sym, error)
     CALL cp_dbcsr_init(transport_env%template_matrix_nosym, error)
+    CALL cp_dbcsr_init(transport_env%csr_sparsity, error)
     CALL set_qs_env(qs_env,transport_env=transport_env,error=error)
 
     CALL timestop(handle)
@@ -152,6 +157,8 @@ CONTAINS
     CALL section_vals_val_get(transport_section,"ENERGY_INTERVAL",r_val=transport_env%params%energy_interval,error=error)
     CALL section_vals_val_get(transport_section,"MIN_INTERVAL",r_val=transport_env%params%min_interval,error=error)
     CALL section_vals_val_get(transport_section,"TEMPERATURE",r_val=transport_env%params%temperature,error=error)
+    CALL section_vals_val_get(transport_section,"ROW_DISTRIBUTION",i_val=transport_env%row_dist,error=error)
+    CALL section_vals_val_get(transport_section,"CSR_SCREENING",l_val=transport_env%csr_screening,error=error)
 
     CALL timestop(handle)
 
@@ -159,12 +166,14 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief initializes the transport environment
+!> \param ks_env ...
 !> \param[inout] transport_env the transport env to be initialized 
 !> \param[in]    template_matrix   template matrix to keep the sparsity of matrices fixed
 !> \param[inout] error             CP2K error
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE transport_initialize(transport_env, template_matrix, error)
+  SUBROUTINE transport_initialize(ks_env, transport_env, template_matrix, error)
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(transport_env_type), INTENT(INOUT)  :: transport_env
     TYPE(cp_dbcsr_type), INTENT(IN)          :: template_matrix
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -172,9 +181,32 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'transport_initialize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, mp_group, mynode, &
+                                                numnodes, unit_nr
+    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)  
+
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    mp_group = logger%para_env%group
+    CALL mp_environ(numnodes, mynode, mp_group)
+
+    ! Use all tasks if user input for TASKS_PER_POINT is 0 or greater than MPI size.
+    IF ((transport_env%params%tasks_per_point .GT. numnodes) &
+      .OR. (transport_env%params%tasks_per_point .EQ. 0)) THEN
+      transport_env%params%tasks_per_point = numnodes
+    ENDIF
+
+    ! Determine valid TASKS_PER_POINT from user input
+    DO WHILE(MOD(numnodes, transport_env%params%tasks_per_point) .NE. 0)
+      transport_env%params%tasks_per_point = transport_env%params%tasks_per_point + 1
+    ENDDO
 
     IF (cp_dbcsr_has_symmetry(template_matrix)) THEN
        CALL cp_dbcsr_copy(transport_env%template_matrix_sym, template_matrix, error=error)
@@ -184,7 +216,23 @@ CONTAINS
        CALL cp_dbcsr_copy(transport_env%template_matrix_sym, template_matrix, error=error)
     END IF
 
-    CALL cp_csr_create_from_dbcsr(transport_env%template_matrix_nosym, transport_env%s_matrix, csr_dbcsr_blkrow_dist, error=error)
+    CALL cp_dbcsr_create(transport_env%csr_sparsity, "CSR sparsity", &
+                         template = transport_env%template_matrix_sym, &
+                         data_type=dbcsr_type_real_4, error=error)
+    CALL cp_dbcsr_copy(transport_env%csr_sparsity, transport_env%template_matrix_sym, error=error)
+
+    CALL cp_dbcsr_to_csr_screening(ks_env, transport_env%csr_sparsity, error)
+
+    IF (.NOT. transport_env%csr_screening) CALL cp_dbcsr_set (transport_env%csr_sparsity, 1.0, error)
+    CALL cp_csr_create_from_dbcsr(transport_env%template_matrix_nosym, &
+                                  transport_env%s_matrix, &
+                                  transport_env%row_dist, &
+                                  csr_sparsity = transport_env%csr_sparsity, &
+                                  numnodes = transport_env%params%tasks_per_point, &
+                                  error = error)
+
+    CALL cp_csr_print_sparsity(transport_env%s_matrix, unit_nr, error)
+
     CALL cp_convert_dbcsr_to_csr(transport_env%template_matrix_nosym, transport_env%s_matrix, error=error)
 
     CALL cp_csr_create(transport_env%ks_matrix, transport_env%s_matrix, error)
