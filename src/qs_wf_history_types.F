@@ -115,32 +115,6 @@ MODULE qs_wf_history_types
 CONTAINS
 
 ! *****************************************************************************
-!> \brief retains a snapshot of a wavefunction(see doc/ReferenceCounting.html)
-!> \param snapshot the snapshot to retain
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      02.2003 created [fawzi]
-!> \author fawzi
-! *****************************************************************************
-SUBROUTINE wfs_retain(snapshot,error)
-    TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'wfs_retain', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
-  CPPrecondition(ASSOCIATED(snapshot),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     snapshot%ref_count=snapshot%ref_count+1
-  END IF
-END SUBROUTINE wfs_retain
-
-! *****************************************************************************
 !> \brief releases a snapshot of a wavefunction (see doc/ReferenceCounting.html)
 !> \param snapshot the snapshot to release
 !> \param error variable to control error logging, stopping,...
@@ -296,43 +270,5 @@ FUNCTION wfi_get_snapshot(wf_history, index, error) RESULT(res)
           wf_history%memory_depth)+1)%snapshot
   END IF
 END FUNCTION wfi_get_snapshot
-
-! *****************************************************************************
-!> \brief clears the history taken so far
-!> \param wf_history the history to clear
-!> \param flush_buffer if the memory of the buffer should be released
-!>        defaults to false
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      05.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE wfi_clear_history(wf_history,flush_buffer,error)
-    TYPE(qs_wf_history_type), POINTER        :: wf_history
-    LOGICAL, INTENT(in), OPTIONAL            :: flush_buffer
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_clear_history', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_flush_buffer
-
-  failure=.FALSE.
-  my_flush_buffer=.FALSE.
-  IF (PRESENT(flush_buffer)) my_flush_buffer=flush_buffer
-
-  CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
-  CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     wf_history%snapshot_count=0
-     IF (my_flush_buffer) THEN
-        DO i=1,SIZE(wf_history%past_states)
-           CALL wfs_release(wf_history%past_states(i)%snapshot,error=error)
-        END DO
-     END IF
-  END IF
-END SUBROUTINE wfi_clear_history
 
 END MODULE qs_wf_history_types

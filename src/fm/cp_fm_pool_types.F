@@ -263,57 +263,6 @@ CONTAINS
   END SUBROUTINE fm_pool_create_fm
 
 ! *****************************************************************************
-!> \brief returns a vector of elements, allocating them, if none
-!>      is in the pool
-!> \param pool the pool from where you get the elements
-!> \param n_elements the number of elements in the vector
-!> \param elements will contain the new vector
-!> \param name the name for the new matrixes (optional)
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE fm_pool_create_fm_vect(pool, n_elements,&
-       elements, name, error)
-    TYPE(cp_fm_pool_type), POINTER           :: pool
-    INTEGER, INTENT(in)                      :: n_elements
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: elements
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: name
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create_fm_vect', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
-    CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(elements(n_elements), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       DO i=1,n_elements
-          NULLIFY(elements(i)%matrix)
-          IF (PRESENT(name)) THEN
-         CALL fm_pool_create_fm(pool,elements(i)%matrix,&
-           name=name//"-"//ADJUSTL(cp_to_string(i)),&
-           error=error)
-      ELSE
-         CALL fm_pool_create_fm(pool,elements(i)%matrix,&
-           error=error)
-      END IF
-
-       END DO
-       
-    END IF
-  END SUBROUTINE fm_pool_create_fm_vect
-
-! *****************************************************************************
 !> \brief returns the element to the pool
 !> \param pool the pool where to cache the element
 !> \param element the element to give back
@@ -362,52 +311,6 @@ CPSourceFileRef,&
     END IF
     NULLIFY(element)
   END SUBROUTINE fm_pool_give_back_fm
-
-! *****************************************************************************
-!> \brief returns the elements to the pool
-!> \param pool the pool where to cache the elements
-!> \param elements the elements to give back
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-!> \note
-!>      transfers the ownership of the elements to the pool
-!>      and deallocates the array of elements
-!>      (it is as if you had called cp_fm_vect_dealloc)
-!>      Accept give_backs of non associated arrays?
-! *****************************************************************************
-  SUBROUTINE fm_pool_give_back_fm_vect(pool, elements, error)
-    TYPE(cp_fm_pool_type), POINTER           :: pool
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: elements
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_give_back_fm_vect', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
-    CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
-    CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(elements),cp_warning_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       DO i=1,SIZE(elements)
-          IF (ASSOCIATED(elements(i)%matrix)) THEN
-             CALL fm_pool_give_back_fm(pool,&
-                  elements(i)%matrix,&
-                  error=error)
-          END IF
-       END DO
-       DEALLOCATE(elements,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    END IF
-    NULLIFY(elements)
-  END SUBROUTINE fm_pool_give_back_fm_vect
 
 ! *****************************************************************************
 !> \brief returns the structure of the elements in this pool
@@ -508,36 +411,6 @@ SUBROUTINE fm_pools_dealloc(pools, error)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
 END SUBROUTINE fm_pools_dealloc
-
-! *****************************************************************************
-!> \brief deallocates all the cached elements of an array of pools
-!> \param pools the pools to flush
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      09.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE fm_pools_flush_cache(pools, error)
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fm_pools_flush_cache', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
-  CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     DO i=1,SIZE(pools)
-        CALL fm_pool_flush_cache(pools(i)%pool,error=error)
-     END DO
-  END IF
-END SUBROUTINE fm_pools_flush_cache
 
 ! *****************************************************************************
 !> \brief Returns a vector with an element from each pool
