@@ -199,9 +199,8 @@ CONTAINS
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(ps_implicit_type), POINTER          :: ps_implicit_env
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(pw_type), POINTER                   :: g, QAinvxres_new, &
-                                                QAinvxres_old, res_new, &
-                                                res_old, v0, v_old
+    TYPE(pw_type), POINTER                   :: g, PxQAinvxres, QAinvxres, &
+                                                res_new, res_old, v0, v_old
 
     CALL timeset(routineN,handle)
 
@@ -224,8 +223,8 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, QAinvxres_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, QAinvxres_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create_pw(pw_pool, PxQAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
        CALL pw_zero(v0, error=error)
@@ -242,25 +241,26 @@ CONTAINS
     CALL pw_scale(res_old, - 1.0_dp, error)
     CALL pw_axpy(g, res_old, error=error)
 
-! evaluate \Delta^-1(res_old)
-    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres_old, error)
-
     iter = 1
     DO
 
+! evaluate \Delta^-1(res_old)
+    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres, error)
+
 ! v_new = v_old + \omega * QAinvxres_old
-       CALL pw_scale(QAinvxres_old, omega, error=error)
-       CALL pw_copy(QAinvxres_old, v_new, error=error)
+       CALL pw_scale(QAinvxres, omega, error=error)
+       CALL pw_copy(QAinvxres, v_new, error=error)
        CALL pw_axpy(v_old, v_new, error=error)
 
 ! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) )
-       CALL pw_scale(QAinvxres_old, 1.0_dp/omega, error=error)
-       CALL apply_poisson_operator(pw_pool, green, dielectric, QAinvxres_old, res_new, error)
-       CALL pw_scale(res_new, - omega , error)
-       CALL pw_axpy(res_old, res_new, error=error)
+!         = (1 - \omega) * res_old - \omega * PxQAinvxres
+       CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres , error=error)
+       CALL pw_copy(PxQAinvxres, res_new, error=error)
+       CALL pw_scale(res_new, - 1.0_dp , error)
+       CALL pw_axpy(res_old, res_new, 1.0_dp - omega, error=error)
 
 ! compute the error
-       CALL ps_implicit_compute_error(pw_pool, green, res_new, v_old, v_new, QAinvxres_new, &
+       CALL ps_implicit_compute_error(pw_pool, green, res_new, v_old, v_new, QAinvxres, &
                                       pres_error, nabs_error, error)
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
@@ -283,7 +283,6 @@ CONTAINS
 ! v_old = v_new, res_old = res_new
        CALL pw_copy(v_new, v_old, error=error)
        CALL pw_copy(res_new, res_old, error=error)
-       CALL pw_copy(QAinvxres_new, QAinvxres_old, error=error)
 
     END DO
 
@@ -299,8 +298,8 @@ CONTAINS
     CALL pw_pool_give_back_pw(pw_pool, v_old, error=error)
     CALL pw_pool_give_back_pw(pw_pool, res_old, error=error)
     CALL pw_pool_give_back_pw(pw_pool, res_new, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, QAinvxres_old, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, QAinvxres_new, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, QAinvxres, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres, error=error)
 
     CALL timestop(handle)
 
@@ -345,9 +344,8 @@ CONTAINS
     TYPE(ps_implicit_type), POINTER          :: ps_implicit_env
     TYPE(pw_pool_type), POINTER              :: aux_pw_pool_xpndd, pw_pool, &
                                                 pw_pool_xpndd
-    TYPE(pw_type), POINTER                   :: g, QAinvxres_new, &
-                                                QAinvxres_old, res_new, &
-                                                res_old, v0, v_old
+    TYPE(pw_type), POINTER                   :: g, PxQAinvxres, QAinvxres, &
+                                                res_new, res_old, v0, v_old
 
     CALL timeset(routineN,handle)
 
@@ -373,8 +371,8 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, QAinvxres_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, QAinvxres_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create_pw(pw_pool, PxQAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
        CALL pw_zero(v0, error=error)
@@ -392,33 +390,32 @@ CONTAINS
     CALL pw_scale(res_old, - 1.0_dp, error)
     CALL pw_axpy(g, res_old, error=error)
 
+    iter = 1
+    DO
+
 ! evaluate \Delta^-1(res_old)
     CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
                                     dct_env%recv_msgs_bnds, dct_env%dests_expand, &
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
                                     dct_env%dests_shrink, dct_env%srcs_shrink, &
                                     dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                    adjust_local_bounds, res_old, QAinvxres_old, error)
-
-
-    iter = 1
-    DO
+                                    adjust_local_bounds, res_old, QAinvxres, error)
 
 ! v_new = v_old + \omega * QAinvxres_old
-       CALL pw_scale(QAinvxres_old, omega, error=error)
-       CALL pw_copy(QAinvxres_old, v_new, error=error)
+       CALL pw_scale(QAinvxres, omega, error=error)
+       CALL pw_copy(QAinvxres, v_new, error=error)
        CALL pw_axpy(v_old, v_new, error=error)
 
 ! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) )
-       CALL pw_scale(QAinvxres_old, 1.0_dp/omega, error=error)
-       CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
-                                   adjust_local_bounds, QAinvxres_old, res_new, error)
-       CALL pw_scale(res_new, - omega , error)
-       CALL pw_axpy(res_old, res_new, error=error)
+!         = (1 - \omega) * res_old - \omega * PxQAinvxres
+       CALL apply_P_operator(pw_pool, dielectric, QAinvxres, PxQAinvxres , error=error)
+       CALL pw_copy(PxQAinvxres, res_new, error=error)
+       CALL pw_scale(res_new, - 1.0_dp , error)
+       CALL pw_axpy(res_old, res_new, 1.0_dp - omega, error=error)
 
 ! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, res_new, &
-                                      v_old, v_new, QAinvxres_new, adjust_local_bounds, pres_error, nabs_error, error)
+                                      v_old, v_new, QAinvxres, adjust_local_bounds, pres_error, nabs_error, error)
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
@@ -440,7 +437,6 @@ CONTAINS
 ! v_old = v_new, res_old = res_new
        CALL pw_copy(v_new, v_old, error=error)
        CALL pw_copy(res_new, res_old, error=error)
-       CALL pw_copy(QAinvxres_new, QAinvxres_old, error=error)
 
     END DO
 
@@ -456,8 +452,8 @@ CONTAINS
     CALL pw_pool_give_back_pw(pw_pool, v_old, error=error)
     CALL pw_pool_give_back_pw(pw_pool, res_old, error=error)
     CALL pw_pool_give_back_pw(pw_pool, res_new, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, QAinvxres_old, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, QAinvxres_new, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, QAinvxres, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres, error=error)
     CALL pw_pool_release(aux_pw_pool_xpndd, error=error)
     CALL pw_pool_release(pw_pool_xpndd, error=error)
 
@@ -514,9 +510,8 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_poisson_parameter_type), POINTER :: poisson_params
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(pw_type), POINTER                   :: Axvbar, g, QAinvxres_new, &
-                                                QAinvxres_old, res_new, &
-                                                res_old, v0, v_old
+    TYPE(pw_type), POINTER                   :: Axvbar, g, QAinvxres, &
+                                                res_new, res_old, v0, v_old
 
     CALL timeset(routineN,handle)
 
@@ -587,8 +582,7 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, QAinvxres_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, QAinvxres_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, Axvbar, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
@@ -615,15 +609,15 @@ CONTAINS
     CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D, error)
     res_old%cr3d = res_old%cr3d + Btxlambda_old3D
 
-! evaluate \Delta^-1(res_old)
-    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres_old, error)
-
     iter = 1
     DO
 
+! evaluate \Delta^-1(res_old)
+    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres, error)
+
 ! v_new (v_bar) = v_old + \omega * QAinvxres_old
-       CALL pw_scale(QAinvxres_old, omega, error=error)
-       CALL pw_copy(QAinvxres_old, v_new, error=error)
+       CALL pw_scale(QAinvxres, omega, error=error)
+       CALL pw_copy(QAinvxres, v_new, error=error)
        CALL pw_axpy(v_old, v_new, error=error)
 
 ! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
@@ -654,14 +648,14 @@ CONTAINS
        CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_new, Btxlambda_new3D, error)
 
 ! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) + B^t * ( \lambda_new - \lambda_old )
-       CALL pw_scale(QAinvxres_old, 1.0_dp/omega, error=error)
-       CALL apply_poisson_operator(pw_pool, green, dielectric, QAinvxres_old, res_new, error)
+       CALL pw_scale(QAinvxres, 1.0_dp/omega, error=error)
+       CALL apply_poisson_operator(pw_pool, green, dielectric, QAinvxres, res_new, error)
        CALL pw_scale(res_new, - omega , error)
        CALL pw_axpy(res_old, res_new, error=error)
        res_new%cr3d = res_new%cr3d + Btxlambda_new3D - Btxlambda_old3D
 
 ! compute the error
-       CALL ps_implicit_compute_error(pw_pool, green, res_new, v_old, v_new, QAinvxres_new, &
+       CALL ps_implicit_compute_error(pw_pool, green, res_new, v_old, v_new, QAinvxres, &
                                       pres_error, nabs_error, error)
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
@@ -714,7 +708,6 @@ CONTAINS
        lambda_old(:) = lambda_new
        CALL pw_copy(res_new, res_old, error=error)
        Btxlambda_old3D(:,:,:) = Btxlambda_new3D
-       CALL pw_copy(QAinvxres_new, QAinvxres_old, error=error)
 
     END DO
 
@@ -733,8 +726,7 @@ CONTAINS
     CALL pw_pool_give_back_pw(pw_pool, res_old, error=error)
     CALL pw_pool_give_back_pw(pw_pool, res_new, error=error)
     CALL pw_pool_give_back_pw(pw_pool, Axvbar, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, QAinvxres_old, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, QAinvxres_new, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, QAinvxres, error=error)
 
     CALL timestop(handle)
 
@@ -791,9 +783,8 @@ CONTAINS
     TYPE(pw_poisson_parameter_type), POINTER :: poisson_params
     TYPE(pw_pool_type), POINTER              :: aux_pw_pool_xpndd, pw_pool, &
                                                 pw_pool_xpndd
-    TYPE(pw_type), POINTER                   :: Axvbar, g, QAinvxres_new, &
-                                                QAinvxres_old, res_new, &
-                                                res_old, v0, v_old
+    TYPE(pw_type), POINTER                   :: Axvbar, g, QAinvxres, &
+                                                res_new, res_old, v0, v_old
 
     CALL timeset(routineN,handle)
 
@@ -867,8 +858,7 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, res_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, res_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, QAinvxres_old, use_data=REALDATA3D, in_space=REALSPACE, error=error)
-    CALL pw_pool_create_pw(pw_pool, QAinvxres_new, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+    CALL pw_pool_create_pw(pw_pool, QAinvxres, use_data=REALDATA3D, in_space=REALSPACE, error=error)
     CALL pw_pool_create_pw(pw_pool, Axvbar, use_data=REALDATA3D, in_space=REALSPACE, error=error)
 
     IF (use_zero_initial_guess) THEN
@@ -896,20 +886,20 @@ CONTAINS
     CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D, error)
     res_old%cr3d = res_old%cr3d + Btxlambda_old3D
 
+    iter = 1
+    DO
+
 ! evaluate \Delta^-1(res_old)
     CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
                                     dct_env%recv_msgs_bnds, dct_env%dests_expand, &
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
                                     dct_env%dests_shrink, dct_env%srcs_shrink, &
                                     dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                    adjust_local_bounds, res_old, QAinvxres_old, error)
-
-    iter = 1
-    DO
+                                    adjust_local_bounds, res_old, QAinvxres, error)
 
 ! v_new (v_bar) = v_old + \omega * QAinvxres_old
-       CALL pw_scale(QAinvxres_old, omega, error=error)
-       CALL pw_copy(QAinvxres_old, v_new, error=error)
+       CALL pw_scale(QAinvxres, omega, error=error)
+       CALL pw_copy(QAinvxres, v_new, error=error)
        CALL pw_axpy(v_old, v_new, error=error)
 
 ! evaluate 1^t * (g - \Delta(\bar{v}) - P(\bar{v})) 
@@ -941,16 +931,16 @@ CONTAINS
        CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_new, Btxlambda_new3D, error)
 
 ! res_new = res_old - \omega * ( \Delta(QAinvxres_old) + P(QAinvxres_old) ) + B^t * ( \lambda_new - \lambda_old )
-       CALL pw_scale(QAinvxres_old, 1.0_dp/omega, error=error)
+       CALL pw_scale(QAinvxres, 1.0_dp/omega, error=error)
        CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
-                                   adjust_local_bounds, QAinvxres_old, res_new, error)
+                                   adjust_local_bounds, QAinvxres, res_new, error)
        CALL pw_scale(res_new, - omega , error)
        CALL pw_axpy(res_old, res_new, error=error)
        res_new%cr3d = res_new%cr3d + Btxlambda_new3D - Btxlambda_old3D
 
 ! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, res_new, &
-                                      v_old, v_new, QAinvxres_new, adjust_local_bounds, pres_error, nabs_error, error)
+                                      v_old, v_new, QAinvxres, adjust_local_bounds, pres_error, nabs_error, error)
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
@@ -1002,7 +992,6 @@ CONTAINS
        lambda_old(:) = lambda_new
        CALL pw_copy(res_new, res_old, error=error)
        Btxlambda_old3D(:,:,:) = Btxlambda_new3D
-       CALL pw_copy(QAinvxres_new, QAinvxres_old, error=error)
 
     END DO
 
@@ -1020,8 +1009,7 @@ CONTAINS
     CALL pw_pool_give_back_pw(pw_pool, v_old, error=error)
     CALL pw_pool_give_back_pw(pw_pool, res_old, error=error)
     CALL pw_pool_give_back_pw(pw_pool, res_new, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, QAinvxres_old, error=error)
-    CALL pw_pool_give_back_pw(pw_pool, QAinvxres_new, error=error)
+    CALL pw_pool_give_back_pw(pw_pool, QAinvxres, error=error)
     CALL pw_pool_give_back_pw(pw_pool, Axvbar, error=error)
     CALL pw_pool_release(aux_pw_pool_xpndd, error=error)
     CALL pw_pool_release(pw_pool_xpndd, error=error)
