@@ -19,7 +19,7 @@ MODULE rt_propagation_output
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_type, &
        dbcsr_distribution_mp, dbcsr_mp_group
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
@@ -66,8 +66,6 @@ MODULE rt_propagation_output
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                              qs_kind_type
-  USE qs_linres_current,               ONLY: calculate_jrho_resp
-  USE qs_linres_types,                 ONLY: current_env_type
   USE qs_mo_io,                        ONLY: write_rt_mos_to_restart
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
@@ -80,6 +78,7 @@ MODULE rt_propagation_output
   USE realspace_grid_types,            ONLY: realspace_grid_desc_type
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
+  USE rt_propagation_utils,            ONLY: rt_current_low
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -716,9 +715,8 @@ CONTAINS
     CHARACTER(len=2)                         :: sdir
     INTEGER                                  :: dir, handle, print_unit
     INTEGER, DIMENSION(:), POINTER           :: stride(:)
-    TYPE(cp_dbcsr_type), POINTER             :: zero
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(current_env_type)                   :: current_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
@@ -731,17 +729,10 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
-    CALL get_qs_env(qs_env=qs_env,subsys=subsys,pw_env=pw_env,rho=rho,error=error)
+    CALL get_qs_env(qs_env=qs_env,subsys=subsys,pw_env=pw_env,rho=rho,dft_control=dft_control,error=error)
     CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc,auxbas_pw_pool=auxbas_pw_pool,error=error)
 
-    NULLIFY(zero,rs,gs)
-    ALLOCATE(zero)
-    CALL cp_dbcsr_init(zero,error=error)
-    CALL cp_dbcsr_create(zero,template=P_im,error=error)
-    CALL cp_dbcsr_copy(zero,P_im,error=error)
-    CALL cp_dbcsr_set(zero,0.0_dp,error=error)
-    current_env%gauge=-1
-    
+    NULLIFY(rs,gs)
     NULLIFY(stride)
     ALLOCATE(stride(3))
     
@@ -755,7 +746,7 @@ CONTAINS
        CALL pw_copy(rho_r(1)%pw,rs%pw,error)
        CALL pw_copy(rho_g(1)%pw,gs%pw,error)
     
-       CALL calculate_jrho_resp(zero,P_im,zero,zero,dir,dir,rs,gs,qs_env,current_env,error=error)
+       CALL rt_current_low(P_im,dir,rs,gs,qs_env,dft_control%qs_control%gapw,error=error)
     
        CALL qs_subsys_get(subsys,particles=particles,error=error) 
     
@@ -783,8 +774,6 @@ CONTAINS
        DEALLOCATE(rs)
        DEALLOCATE(gs)
     END DO
-    
-    CALL cp_dbcsr_deallocate_matrix(zero,error=error)
 
     DEALLOCATE(stride)
     

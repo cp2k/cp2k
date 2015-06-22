@@ -10,52 +10,84 @@
 
 MODULE  rt_propagation_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_p_type,&
+                                             gto_basis_set_type
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              rtp_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_binary_read, cp_dbcsr_checksum, cp_dbcsr_copy, &
-       cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
-       cp_dbcsr_deallocate_matrix, cp_dbcsr_deallocate_matrix_set, &
-       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_filter, &
-       cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
-       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type
+       cp_dbcsr_add, cp_dbcsr_add_block_node, cp_dbcsr_binary_read, &
+       cp_dbcsr_checksum, cp_dbcsr_copy, cp_dbcsr_copy_into_existing, &
+       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
+       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_distribution, cp_dbcsr_filter, cp_dbcsr_finalize, &
+       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_p_type, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cube_utils,                      ONLY: cube_info_type
+  USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_restart_wfn,&
                                              use_rt_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
-                                             dp
+                                             dp,&
+                                             int_8
   USE mathconstants,                   ONLY: zero
+  USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
+  USE pw_types,                        ONLY: pw_p_type
+  USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_dftb_matrices,                ONLY: build_dftb_overlap
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             get_qs_kind_set,&
+                                             qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                              qs_ks_env_type
   USE qs_mo_io,                        ONLY: read_mo_set,&
                                              read_rt_mos_from_restart
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: mo_set_p_type
-  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+  USE qs_modify_pab_block,             ONLY: FUNC_ADBmDAB
+  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                             neighbor_list_iterate,&
+                                             neighbor_list_iterator_create,&
+                                             neighbor_list_iterator_p_type,&
+                                             neighbor_list_iterator_release,&
+                                             neighbor_list_set_p_type
   USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_set,&
                                              qs_rho_type
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                             realspace_grid_p_type,&
+                                             rs_grid_create,&
+                                             rs_grid_zero
+  USE rs_pw_interface,                 ONLY: density_rs2pw
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
+  USE task_list_methods,               ONLY: distribute_tasks,&
+                                             int2pair,&
+                                             rs_distribute_matrix,&
+                                             task_list_inner_loop
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -67,6 +99,7 @@ MODULE  rt_propagation_utils
            calc_S_derivs,&
            calc_update_rho,&
            calc_update_rho_sparse,&
+           rt_current_low,&
            calculate_P_imaginary
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
@@ -560,5 +593,435 @@ MODULE  rt_propagation_utils
     END DO
   
   END SUBROUTINE calculate_P_imaginary
+  
+! *****************************************************************************
+!> \brief Calculates the current during an rtp/emd simulation. The subroutine is
+!>        based on calculate_jrho_resp in qs_linres_current.F.
+!> \param mat_jp ...
+!> \param idir ...
+!> \param current_rs ...
+!> \param current_gs ...
+!> \param qs_env ...
+!> \param soft_valid ...
+!> \param error ...
+!> \author Samuel Andermatt (6.15)
+! *****************************************************************************
+  
+  SUBROUTINE rt_current_low(mat_jp,idir,current_rs, current_gs, qs_env, soft_valid, error)
+
+    TYPE(cp_dbcsr_type), POINTER             :: mat_jp
+    INTEGER, INTENT(IN)                      :: idir
+    TYPE(pw_p_type), INTENT(INOUT)           :: current_rs, current_gs
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rt_current_low', &
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: max_tasks = 2000
+
+    INTEGER :: bcol, brow, curr_tasks, handle, iatom, iatom_old, igrid_level, &
+      ikind, ikind_old, ipgf, iset, iset_old, istat, itask, jatom, jatom_old, &
+      jkind, jkind_old, jpgf, jset, jset_old, maxco, maxpgf, maxset, maxsgf, &
+      maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nkind, nseta, nsetb, &
+      ntasks, sgfa, sgfb
+    INTEGER(kind=int_8), DIMENSION(:), &
+      POINTER                                :: atom_pair_recv, atom_pair_send
+    INTEGER(kind=int_8), DIMENSION(:, :), &
+      POINTER                                :: tasks
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL :: atom_pair_changed, den_found, den_found_a, &
+      distributed_rs_grids, failure, map_consistent, my_soft
+    REAL(KIND=dp)                            :: eps_rho_rspace, &
+                                                kind_radius_a, kind_radius_b, &
+                                                Lxo2, Lyo2, Lzo2, rab2, &
+                                                scale, zetp
+    REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dist_ab, jp_block_a, jpab_a, &
+                                                jpblock_a, rpgfa, rpgfb, &
+                                                sphi_a, sphi_b, work, zeta, &
+                                                zetb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: jpabt_a, workt
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_dbcsr_type), POINTER             :: deltajp_a, mat_a
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
+                                                orb_basis_set
+    TYPE(neighbor_list_iterator_p_type), &
+      DIMENSION(:), POINTER                  :: nl_iterator
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(qs_kind_type), POINTER              :: qs_kind
+    TYPE(realspace_grid_desc_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_current
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+    NULLIFY(qs_kind, cell, dft_control, orb_basis_set, qs_kind_set, &
+         sab_orb, particle_set, rs_current, pw_env, rs_descs, para_env, &
+         dist_ab, set_radius_a, set_radius_b, la_max, la_min, lb_max, &
+         lb_min, npgfa, npgfb, nsgfa, nsgfb, rpgfa, rpgfb, sphi_a, sphi_b, &
+         zeta, zetb, first_sgfa, first_sgfb, dist_ab, tasks, workt, mat_a, &
+         deltajp_a, jp_block_a, jpblock_a, jpabt_a)
+
+    mat_a => mat_jp
+
+    CALL get_qs_env(qs_env=qs_env,&
+         qs_kind_set=qs_kind_set,&
+         cell=cell,&
+         dft_control=dft_control,&
+         particle_set=particle_set,&
+         sab_all=sab_orb,&
+         para_env=para_env,&
+         pw_env=pw_env,error=error)
+
+    !
+    ! *** assign from pw_env
+    gridlevel_info=>pw_env%gridlevel_info
+    cube_info=>pw_env%cube_info
+
+    !   Check that the neighbor list with all the pairs is associated
+    CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
+    ! *** set up the pw multi-grids
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+    CALL pw_env_get(pw_env, rs_descs=rs_descs, error=error)
+
+    distributed_rs_grids=.FALSE.
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       IF(.NOT.ALL(rs_descs(igrid_level)%rs_desc%perd == 1)) THEN
+          distributed_rs_grids = .TRUE.
+       ENDIF
+    ENDDO
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+    map_consistent = dft_control%qs_control%map_consistent
+
+    !   *** Allocate work storage ***
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
+         maxco=maxco,&
+         maxsgf=maxsgf,&
+         maxsgf_set=maxsgf_set)
+
+    Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
+    Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
+    Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
+
+    my_soft=.FALSE.
+    IF (PRESENT(soft_valid)) my_soft = soft_valid
+
+    nkind = SIZE(qs_kind_set)
+
+    CALL reallocate(jpabt_a,1,maxco,1,maxco,0,0)
+    CALL reallocate(workt,1,maxco,1,maxsgf_set,0,0)
+    CALL reallocate(tasks,1,6,1,max_tasks)
+    CALL reallocate(dist_ab,1,3,1,max_tasks)
+
+    tasks = 0
+    ntasks = 0
+    curr_tasks = SIZE(tasks,2)
+
+    !   get maximum numbers
+    natom = SIZE( particle_set )
+    maxset=0
+    maxpgf=0
+
+    DO ikind=1,nkind
+       qs_kind => qs_kind_set(ikind)
+
+       CALL get_qs_kind(qs_kind=qs_kind,&
+            orb_basis_set=orb_basis_set)
+
+       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
+
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+            npgf=npgfa, nset=nseta )
+
+       maxset=MAX(nseta,maxset)
+       maxpgf=MAX(MAXVAL(npgfa),maxpgf)
+    END DO
+
+    !   *** Initialize working density matrix ***
+
+    ! distributed rs grids require a matrix that will be changed (distribute_tasks)
+    ! whereas this is not the case for replicated grids
+    IF (distributed_rs_grids) THEN
+       ALLOCATE(deltajp_a)
+       CALL cp_dbcsr_init(deltajp_a, error=error)
+       CALL cp_dbcsr_create(deltajp_a, ' deltajp_a ', template=mat_a,error=error)
+    ELSE
+       deltajp_a => mat_a !mat_jp
+    ENDIF
+
+    ALLOCATE (basis_set_list(nkind),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DO ikind=1,nkind
+      qs_kind => qs_kind_set(ikind)
+      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,orb_basis_set=basis_set_a)
+      IF (ASSOCIATED(basis_set_a)) THEN
+        basis_set_list(ikind)%gto_basis_set => basis_set_a
+      ELSE
+        NULLIFY(basis_set_list(ikind)%gto_basis_set)
+      END IF
+    END DO
+    CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,r=rab)
+       basis_set_a => basis_set_list(ikind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
+       basis_set_b => basis_set_list(jkind)%gto_basis_set
+       IF (.NOT.ASSOCIATED(basis_set_b)) CYCLE
+       ra(:) = pbc(particle_set(iatom)%r,cell)
+       ! basis ikind
+       first_sgfa   =>  basis_set_a%first_sgf
+       la_max       =>  basis_set_a%lmax
+       la_min       =>  basis_set_a%lmin
+       npgfa        =>  basis_set_a%npgf
+       nseta        =   basis_set_a%nset
+       nsgfa        =>  basis_set_a%nsgf_set
+       rpgfa        =>  basis_set_a%pgf_radius
+       set_radius_a =>  basis_set_a%set_radius
+       kind_radius_a=   basis_set_a%kind_radius
+       sphi_a       =>  basis_set_a%sphi
+       zeta         =>  basis_set_a%zet
+       ! basis jkind
+       first_sgfb   =>  basis_set_b%first_sgf
+       lb_max       =>  basis_set_b%lmax
+       lb_min       =>  basis_set_b%lmin
+       npgfb        =>  basis_set_b%npgf
+       nsetb        =   basis_set_b%nset
+       nsgfb        =>  basis_set_b%nsgf_set
+       rpgfb        =>  basis_set_b%pgf_radius
+       set_radius_b =>  basis_set_b%set_radius
+       kind_radius_b=   basis_set_b%kind_radius
+       sphi_b       =>  basis_set_b%sphi
+       zetb         =>  basis_set_b%zet
+
+       IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) THEN
+          CYCLE
+       END IF
+
+       brow = iatom
+       bcol = jatom
+
+       CALL cp_dbcsr_get_block_p(matrix=mat_a,row=brow,col=bcol,&
+            block=jp_block_a,found=den_found_a)
+
+       IF (.NOT.ASSOCIATED(jp_block_a)) CYCLE
+
+       IF (distributed_rs_grids) THEN
+          NULLIFY (jpblock_a)
+          CALL cp_dbcsr_add_block_node ( deltajp_a, brow, bcol, jpblock_a ,error=error)
+          jpblock_a = jp_block_a
+       ELSE
+          jpblock_a => jp_block_a
+       ENDIF
+
+       IF (.NOT. map_consistent) THEN
+          IF ( ALL ( 100.0_dp*ABS(jpblock_a) < eps_rho_rspace )) CYCLE
+       END IF
+
+       CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs,dft_control,cube_info,gridlevel_info,&
+                                 iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
+                                 la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nseta,nsetb,error)
+
+    END DO
+    CALL neighbor_list_iterator_release(nl_iterator)
+
+    DEALLOCATE (basis_set_list,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    IF (distributed_rs_grids) THEN
+       CALL cp_dbcsr_finalize(deltajp_a, error=error)
+    ENDIF
+
+    ! sorts / redistributes the task list
+    CALL distribute_tasks ( rs_descs, ntasks, natom,&
+            maxset, maxpgf, tasks, dist_ab, atom_pair_send, atom_pair_recv,&
+            symmetric=.FALSE., reorder_rs_grid_ranks=.TRUE., &
+            skip_load_balance_distributed=.FALSE., error=error)
+
+    ALLOCATE(rs_current(gridlevel_info%ngrid_levels))
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
+       CALL rs_grid_zero(rs_current(igrid_level)%rs_grid)
+    ENDDO
+
+    IF (distributed_rs_grids) THEN
+        CALL rs_distribute_matrix (rs_descs, deltajp_a, atom_pair_send, atom_pair_recv, &
+             natom, scatter=.TRUE., error=error)
+    ENDIF
+
+    jpab_a => jpabt_a(:,:,0)
+    work => workt(:,:,0)
+
+    iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1
+    ikind_old = -1 ; jkind_old = -1
+
+    loop_tasks: DO itask = 1,ntasks
+
+       CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+
+       ! apparently generalised collocation not implemented correctly yet
+       CPPostcondition(tasks(4,itask).NE.2,cp_failure_level,routineP,error,failure)
+
+       IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
+
+          ikind = particle_set(iatom)%atomic_kind%kind_number
+          jkind = particle_set(jatom)%atomic_kind%kind_number
+
+          IF(iatom .NE. iatom_old ) ra(:) = pbc(particle_set(iatom)%r,cell)
+
+          brow = iatom
+          bcol = jatom
+
+          IF (ikind .NE. ikind_old ) THEN
+             CALL get_qs_kind(qs_kind_set(ikind),&
+                  softb = my_soft, &
+                  orb_basis_set=orb_basis_set)
+
+             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                  first_sgf=first_sgfa,&
+                  lmax=la_max,&
+                  lmin=la_min,&
+                  npgf=npgfa,&
+                  nset=nseta,&
+                  nsgf_set=nsgfa,&
+                  pgf_radius=rpgfa,&
+                  set_radius=set_radius_a,&
+                  sphi=sphi_a,&
+                  zet=zeta)
+          ENDIF
+
+          IF (jkind .NE. jkind_old ) THEN
+
+             CALL get_qs_kind(qs_kind_set(jkind),&
+                  softb = my_soft, &
+                  orb_basis_set=orb_basis_set)
+
+             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                  first_sgf=first_sgfb,&
+                  kind_radius=kind_radius_b,&
+                  lmax=lb_max,&
+                  lmin=lb_min,&
+                  npgf=npgfb,&
+                  nset=nsetb,&
+                  nsgf_set=nsgfb,&
+                  pgf_radius=rpgfb,&
+                  set_radius=set_radius_b,&
+                  sphi=sphi_b,&
+                  zet=zetb)
+
+          ENDIF
+
+          CALL cp_dbcsr_get_block_p(matrix=deltajp_a,row=brow,col=bcol,&
+               block=jp_block_a,found=den_found)
+
+          IF (.NOT.ASSOCIATED(jp_block_a)) &
+               CALL stop_program(routineN,moduleN,__LINE__,&
+                                 "p_block not associated in deltap")
+
+          iatom_old = iatom
+          jatom_old = jatom
+          ikind_old = ikind
+          jkind_old = jkind
+
+          atom_pair_changed = .TRUE.
+
+       ELSE
+
+          atom_pair_changed = .FALSE.
+
+       ENDIF
+
+       IF (atom_pair_changed .OR. iset_old .NE. iset .OR. jset_old .NE. jset) THEN
+
+          ncoa = npgfa(iset)*ncoset(la_max(iset))
+          sgfa = first_sgfa(1,iset)
+          ncob = npgfb(jset)*ncoset(lb_max(jset))
+          sgfb = first_sgfb(1,jset)
+          ! Decontraction step
+
+          CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
+               1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+               jp_block_a(sgfa,sgfb),SIZE(jp_block_a,1),&
+               0.0_dp,work(1,1),maxco)
+          CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
+               1.0_dp,work(1,1),maxco,&
+               sphi_b(1,sgfb),SIZE(sphi_b,1),&
+               0.0_dp,jpab_a(1,1),maxco)
+
+          iset_old = iset
+          jset_old = jset
+
+       ENDIF
+
+       rab(:) = dist_ab (:,itask)
+       rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+       rb(:) = ra(:) + rab(:)
+       zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
+
+       na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
+       na2 = ipgf*ncoset(la_max(iset))
+       nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
+       nb2 = jpgf*ncoset(lb_max(jset))
+       
+       !
+       ! here the decontracted mat_jp_{ab} is multiplied by
+       !     f_{ab} = g_{a} (dg_{b}/dr)_{idir} - (dg_{a}/dr)_{idir} g_{b}
+       scale = 1.0_dp
+       CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
+            la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+            ra,rab,rab2,scale,jpab_a,na1-1,nb1-1,&
+            rs_current(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
+            eps_rho_rspace,&
+            ga_gb_function=FUNC_ADBmDAB,&
+            idir=idir,&
+            map_consistent=map_consistent,error=error)
+
+    END DO loop_tasks
+
+    !   *** Release work storage ***
+
+    IF (distributed_rs_grids) THEN
+       CALL cp_dbcsr_deallocate_matrix ( deltajp_a ,error=error)
+    END IF
+
+    DEALLOCATE (jpabt_a,workt,tasks,dist_ab,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    IF (distributed_rs_grids) THEN
+       DEALLOCATE(atom_pair_send,atom_pair_recv,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+
+    CALL density_rs2pw(pw_env,rs_current,current_rs,current_gs,error=error)
+
+    ! Free the array of grids (grids themselves are released in density_rs2pw)
+    DEALLOCATE (rs_current,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE rt_current_low
 
 END MODULE rt_propagation_utils
