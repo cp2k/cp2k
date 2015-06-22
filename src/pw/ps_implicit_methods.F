@@ -83,6 +83,11 @@ MODULE ps_implicit_methods
                       apply_poisson_operator_dct
   END INTERFACE apply_poisson_operator
 
+  INTERFACE ps_implicit_compute_ehartree
+     MODULE PROCEDURE compute_ehartree_periodic_bc, &
+                      compute_ehartree_mixed_bc
+  END INTERFACE ps_implicit_compute_ehartree
+
   INTERFACE ps_implicit_compute_error
      MODULE PROCEDURE compute_error_periodic_bc, &
                       compute_error_mixed_bc
@@ -265,7 +270,7 @@ CONTAINS
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
-          ehartree = 0.5_dp * pw_integral_ab(density, v_new, error) 
+          CALL ps_implicit_compute_ehartree(density, v_new, ehartree, error)  
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
           ps_implicit_env%ehartree = ehartree
        ELSE
@@ -419,7 +424,7 @@ CONTAINS
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
-          ehartree = 0.5_dp * pw_integral_ab(density, v_new, error) 
+          CALL ps_implicit_compute_ehartree(density, v_new, ehartree, error)  
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
           ps_implicit_env%ehartree = ehartree
        ELSE
@@ -495,8 +500,9 @@ CONTAINS
     LOGICAL                                  :: reached_max_iter, &
                                                 reached_tol, &
                                                 use_zero_initial_guess
-    REAL(dp) :: Axvbar_avg, ehartree_rho, ehartree_rho_cstr, eta, g_avg, &
-      gminusAxvbar_avg, nabs_error, omega, pres_error, tol
+    REAL(dp)                                 :: Axvbar_avg, eta, g_avg, &
+                                                gminusAxvbar_avg, nabs_error, &
+                                                omega, pres_error, tol
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: Btxlambda_new, Btxlambda_old, &
       Bxv_bar, Bxv_new, lambda0, lambda_new, lambda_newNeta, lambda_old, &
       QSxlambda, v_bar1D, v_D, v_new1D, w
@@ -660,14 +666,7 @@ CONTAINS
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
-          ehartree_rho = accurate_sum(density%cr3d * v_new%cr3d)
-          ehartree_rho_cstr = accurate_sum(dielectric%eps%cr3d * Btxlambda_new3D * v_new%cr3d / fourpi)
-          ehartree_rho = 0.5_dp * ehartree_rho * pw_grid%dvol
-          ehartree_rho_cstr = 0.5_dp * ehartree_rho_cstr * pw_grid%dvol
-          CALL mp_sum(ehartree_rho, pw_grid%para%group)
-          CALL mp_sum(ehartree_rho_cstr, pw_grid%para%group)
-          ! minus sign is due to the internal sign convention for the electrostatic potential
-          ehartree = ehartree_rho - ehartree_rho_cstr
+          CALL ps_implicit_compute_ehartree(dielectric, density, Btxlambda_new3D, v_new, ehartree, error)  
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
           ps_implicit_env%ehartree = ehartree
        ELSE
@@ -766,8 +765,9 @@ CONTAINS
     LOGICAL                                  :: reached_max_iter, &
                                                 reached_tol, &
                                                 use_zero_initial_guess
-    REAL(dp) :: Axvbar_avg, ehartree_rho, ehartree_rho_cstr, eta, g_avg, &
-      gminusAxvbar_avg, nabs_error, omega, pres_error, tol
+    REAL(dp)                                 :: Axvbar_avg, eta, g_avg, &
+                                                gminusAxvbar_avg, nabs_error, &
+                                                omega, pres_error, tol
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: Btxlambda_new, Btxlambda_old, &
       Bxv_bar, Bxv_new, lambda0, lambda_new, lambda_newNeta, lambda_old, &
       QSxlambda, v_bar1D, v_D, v_new1D, w
@@ -944,14 +944,7 @@ CONTAINS
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit, error)
        IF (PRESENT(ehartree)) THEN
-          ehartree_rho = accurate_sum(density%cr3d * v_new%cr3d)
-          ehartree_rho_cstr = accurate_sum(dielectric%eps%cr3d * Btxlambda_new3D * v_new%cr3d / fourpi)
-          ehartree_rho = 0.5_dp * ehartree_rho * pw_grid%dvol
-          ehartree_rho_cstr = 0.5_dp * ehartree_rho_cstr * pw_grid%dvol
-          CALL mp_sum(ehartree_rho, pw_grid%para%group)
-          CALL mp_sum(ehartree_rho_cstr, pw_grid%para%group)
-          ! minus sign is due to the internal sign convention for the electrostatic potential
-          ehartree = ehartree_rho - ehartree_rho_cstr
+          CALL ps_implicit_compute_ehartree(dielectric, density, Btxlambda_new3D, v_new, ehartree, error)  
           CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree, error)
           ps_implicit_env%ehartree = ehartree
        ELSE
@@ -2001,6 +1994,91 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE ps_implicit_compute_veps
+
+! *****************************************************************************
+!> \brief Computes the Hartree energy
+!> \param density electronic density
+!> \param v Hartree potential
+!> \param ehartree Hartree energy
+!> \param error cp2k error
+!> \par History
+!>       06.2015 created [Hossein Bani-Hashemian]
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE compute_ehartree_periodic_bc(density, v, ehartree, error)
+
+    TYPE(pw_type), INTENT(IN), POINTER       :: density, v
+    REAL(dp), INTENT(OUT)                    :: ehartree
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_periodic_bc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
+! E_H = \frac{1}{2} * \int \rho * v dr
+    ehartree = 0.5_dp * pw_integral_ab(density, v, error) 
+
+    CALL timestop(handle)
+
+  END SUBROUTINE compute_ehartree_periodic_bc
+
+! *****************************************************************************
+!> \brief Computes the Hartree energy
+!> \param dielectric dielectric environment
+!> \param density electronic density
+!> \param Btxlambda B^t * \lambda (\lambda is the vector of Lagrange multipliers
+!>                  and B^t is the transpose of the boundary operator
+!> \param v Hartree potential
+!> \param ehartree Hartree energy
+!> \param error cp2k error
+!> \par History
+!>       06.2015 created [Hossein Bani-Hashemian]
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE compute_ehartree_mixed_bc(dielectric, density, Btxlambda, v, ehartree, error)
+
+    TYPE(dielectric_type), INTENT(IN), &
+      POINTER                                :: dielectric
+    TYPE(pw_type), INTENT(IN), POINTER       :: density
+    REAL(dp), ALLOCATABLE, &
+      DIMENSION(:, :, :), INTENT(IN)         :: Btxlambda
+    TYPE(pw_type), INTENT(IN), POINTER       :: v
+    REAL(dp), INTENT(OUT)                    :: ehartree
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_ehartree_mixed_bc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    REAL(dp)                                 :: dvol, ehartree_rho, &
+                                                ehartree_rho_cstr
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(pw_type), POINTER                   :: eps
+
+    CALL timeset(routineN,handle)
+
+    pw_grid => v%pw_grid
+    eps => dielectric%eps
+
+    dvol = pw_grid%dvol
+
+! E_H = \frac{1}{2} * \int \rho * v dr - \frac{1}{8 \pi} * \int Btxlambda * v dr
+! the sign of the second term depends on the sign chosen for the Lagrange multiplier 
+! term in the variational form 
+    ehartree_rho = accurate_sum(density%cr3d * v%cr3d)
+    ehartree_rho_cstr = accurate_sum(eps%cr3d * Btxlambda * v%cr3d / fourpi)
+    ehartree_rho = 0.5_dp * ehartree_rho * dvol
+    ehartree_rho_cstr = 0.5_dp * ehartree_rho_cstr * dvol
+    CALL mp_sum(ehartree_rho, pw_grid%para%group)
+    CALL mp_sum(ehartree_rho_cstr, pw_grid%para%group)
+    ehartree = ehartree_rho - ehartree_rho_cstr
+
+    CALL timestop(handle)
+
+  END SUBROUTINE compute_ehartree_mixed_bc
 
 ! *****************************************************************************
 !> \brief  Computes the (normalized) preconditioned residual norm error and the
