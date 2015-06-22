@@ -298,7 +298,8 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: message
     INTEGER(KIND=int_8)                      :: total_memory
 
-    total_memory = m_memory()/1024
+    CALL m_memory(total_memory)
+    total_memory = total_memory/1024
 
     IF (memory == 0) THEN
       message = "The memory allocation for the data object <"//TRIM(object)//&

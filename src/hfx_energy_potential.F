@@ -313,7 +313,7 @@ MODULE hfx_energy_potential
     is_anti_symmetric=cp_dbcsr_get_matrix_type(rho_ao(1)%matrix).EQ.dbcsr_type_antisymmetric
 
     IF( geometry_did_change ) THEN
-      memsize_before=m_memory()
+      CALL m_memory(memsize_before)
       CALL mp_max(memsize_before, para_env%group)
       iw = cp_print_key_unit_nr(logger,hfx_section,"HF_INFO",&
                                 extension=".scfLog",error=error)
@@ -1796,7 +1796,7 @@ MODULE hfx_energy_potential
 
 !$OMP BARRIER
 !$OMP MASTER
-    memsize_after=m_memory()
+    CALL m_memory(memsize_after)
 !$OMP END MASTER
 !$OMP BARRIER
 

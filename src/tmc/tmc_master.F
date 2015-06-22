@@ -23,7 +23,8 @@ MODULE tmc_master
   USE cp_external_control,             ONLY: external_control
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
                                              m_walltime
@@ -243,6 +244,7 @@ CONTAINS
     INTEGER :: cancel_count, handle, last_output, reactivation_cc_count, &
       reactivation_ener_count, restart_count, restarted_elem_nr, stat, &
       walltime_delay, walltime_offset, wg, worker_counter
+    INTEGER(KIND=int_8)                      :: mem
     INTEGER, DIMENSION(6)                    :: nr_of_job
     INTEGER, DIMENSION(:), POINTER           :: tree_elem_counters, &
                                                 tree_elem_heads
@@ -896,8 +898,9 @@ CONTAINS
                   "Time: ",INT(m_walltime()-run_time_start), "of",&
                   INT(tmc_env%m_env%walltime-walltime_delay-walltime_offset),&
                   "sec needed. "
+          CALL m_memory(mem)
           WRITE(tmc_env%m_env%io_unit,*)&
-                  "Memory used: ", INT(m_memory()/(1024*1024),KIND=KIND(0)), "Mbytes"
+                  "Memory used: ", INT(mem/(1024*1024),KIND=KIND(0)), "Mbytes"
           CALL m_flush(tmc_env%m_env%io_unit)
           DEALLOCATE(tree_elem_heads)
           DEALLOCATE(tree_elem_counters)

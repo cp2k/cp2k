@@ -235,7 +235,7 @@ MODULE mp2
        (mp2_env%method.NE.ri_mp2_method_gpw).AND.&
        (mp2_env%method.NE.ri_rpa_method_gpw).AND.&
        (mp2_env%method.NE.ri_mp2_laplace)) THEN
-      mem=m_memory()
+      CALL m_memory(mem)
       mem_real=(mem+1024*1024-1)/(1024*1024)
       CALL mp_max(mem_real,para_env%group)
       mp2_env%mp2_memory=mp2_env%mp2_memory-mem_real

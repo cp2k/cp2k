@@ -46,7 +46,8 @@ MODULE mp2_ri_gpw
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE input_constants,                 ONLY: use_orb_basis_set,&
                                              use_ri_aux_basis_set
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             int_8
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
                                              m_walltime
@@ -1470,6 +1471,7 @@ MODULE mp2_ri_gpw
       send_L_size, start_point, stat, sub_P_color, sub_sub_color
     INTEGER :: total_ij_block, total_ij_pairs, total_ij_pairs_blocks, &
       total_ijk, virtual, virtual_beta
+    INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, &
       new_sizes_array, num_ij_pairs, num_ijk, proc_map, proc_map_rep, &
       sizes_array_orig, sub_proc_map
@@ -1515,8 +1517,8 @@ MODULE mp2_ri_gpw
     mem_for_iaK=REAL(homo,KIND=dp)*virtual*dimen_RI*8.0_dp/(1024_dp**2)
     mem_for_aK=REAL(virtual,KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
 
-    mem_real=m_memory()
-    mem_real=(mem_real+1024*1024-1)/(1024*1024)
+    CALL m_memory(mem)
+    mem_real=(mem+1024*1024-1)/(1024*1024)
     ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
     ! has not been given back to the OS yet. 
     CALL mp_min(mem_real,para_env%group)
