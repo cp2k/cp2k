@@ -522,9 +522,10 @@ CONTAINS
     CALL kpoint_set_mo_occupation(kpoints,scf_control%smear,error)
 
     ! density matrices
-    CALL kpoint_density_matrices(kpoints,error)
+    CALL kpoint_density_matrices(kpoints,error=error)
     ! density matrices in real space
-    CALL kpoint_density_transform(kpoints,scf_env%p_mix_new,matrix_s,sab_nl,fmwork,error)
+    CALL kpoint_density_transform(kpoints,scf_env%p_mix_new,.FALSE.,&
+         matrix_s(1,1)%matrix,sab_nl,fmwork,error)
 
     CALL cp_dbcsr_deallocate_matrix(rmatrix,error=error)
     CALL cp_dbcsr_deallocate_matrix(cmatrix,error=error)

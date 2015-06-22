@@ -461,6 +461,7 @@ CPSourceFileRef,&
           CALL cp_fm_get_info(fmlocal,matrix_struct=matrix_struct,error=error)
           DO ik=1,nkp_loc
              kp => kpoint%kp_env(ik)%kpoint_env
+             ! density matrix
              IF(ASSOCIATED(kp%pmat)) THEN
                 DO is=1,SIZE(kp%pmat,2)
                    DO ic=1,SIZE(kp%pmat,1)
@@ -475,6 +476,23 @@ CPSourceFileRef,&
              DO is=1,nspin
                 DO ic=1,nc
                    CALL cp_fm_create(kp%pmat(ic,is)%matrix,matrix_struct,error=error)
+                END DO
+             END DO
+             ! energy weighted density matrix
+             IF(ASSOCIATED(kp%wmat)) THEN
+                DO is=1,SIZE(kp%wmat,2)
+                   DO ic=1,SIZE(kp%wmat,1)
+                      CALL cp_fm_release(kp%wmat(ic,is)%matrix,error)
+                   END DO
+                END DO
+                DEALLOCATE(kp%wmat,STAT=ierr)
+                CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+             END IF
+             ALLOCATE(kp%wmat(nc,nspin),STAT=ierr)
+             CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+             DO is=1,nspin
+                DO ic=1,nc
+                   CALL cp_fm_create(kp%wmat(ic,is)%matrix,matrix_struct,error=error)
                 END DO
              END DO
           END DO
@@ -788,11 +806,13 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief Calculate kpoint density matrices (rho(k), owned by kpoint groups)
 !> \param kpoint    kpoint environment
+!> \param energy_weighted  calculate energy weighted density matrix
 !> \param error     CP2K error handling
 ! *****************************************************************************
-  SUBROUTINE kpoint_density_matrices(kpoint,error)
+  SUBROUTINE kpoint_density_matrices(kpoint,energy_weighted,error)
 
     TYPE(kpoint_type), POINTER               :: kpoint
+    LOGICAL, OPTIONAL                        :: energy_weighted
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_matrices', &
@@ -801,14 +821,22 @@ CPSourceFileRef,&
     INTEGER                                  :: ikpgr, ispin, kplocal, nao, &
                                                 nmo, nspin
     INTEGER, DIMENSION(2)                    :: kp_range
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation
+    LOGICAL                                  :: failure, wtype
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, occupation
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
-    TYPE(cp_fm_type), POINTER                :: fwork
+    TYPE(cp_fm_type), POINTER                :: cpmat, fwork, pmat, rpmat
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(mo_set_type), POINTER               :: mo_set
 
     failure = .FALSE.
+
+    ! which type of density matrix
+    IF(PRESENT(energy_weighted)) THEN
+       wtype = energy_weighted
+    ELSE
+       ! default is normal density matrix
+       wtype = .FALSE.
+    END IF
 
     ! work matrix
     mo_set => kpoint%kp_env(1)%kpoint_env%mos(1,1)%mo_set
@@ -822,33 +850,51 @@ CPSourceFileRef,&
        kp => kpoint%kp_env(ikpgr)%kpoint_env
        nspin = SIZE(kp%mos,2)
        DO ispin=1,nspin
+          mo_set => kp%mos(1,ispin)%mo_set
+          IF(wtype) THEN
+             CALL get_mo_set(mo_set,eigenvalues=eigenvalues)
+          END IF
           IF(kpoint%use_real_wfn) THEN
-             mo_set => kp%mos(1,ispin)%mo_set
+             IF(wtype) THEN
+                pmat => kp%wmat(1,ispin)%matrix
+             ELSE
+                pmat => kp%pmat(1,ispin)%matrix
+             END IF
              CALL get_mo_set(mo_set,occupation_numbers=occupation)
              CALL cp_fm_to_fm(mo_set%mo_coeff,fwork,error)
              CALL cp_fm_column_scale(fwork,occupation)
-             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,&
-                             0.0_dp,kp%pmat(1,ispin)%matrix,error)
+             IF(wtype) THEN
+                CALL cp_fm_column_scale(fwork,eigenvalues)
+             END IF
+             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,0.0_dp,pmat,error)
           ELSE
-             mo_set => kp%mos(1,ispin)%mo_set
+             IF(wtype) THEN
+                rpmat => kp%wmat(1,ispin)%matrix
+                cpmat => kp%wmat(2,ispin)%matrix
+             ELSE
+                rpmat => kp%pmat(1,ispin)%matrix
+                cpmat => kp%pmat(2,ispin)%matrix
+             END IF
              CALL get_mo_set(mo_set,occupation_numbers=occupation)
              CALL cp_fm_to_fm(mo_set%mo_coeff,fwork,error)
              CALL cp_fm_column_scale(fwork,occupation)
+             IF(wtype) THEN
+                CALL cp_fm_column_scale(fwork,eigenvalues)
+             END IF
              ! Re(c)*Re(c)
-             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,&
-                             0.0_dp,kp%pmat(1,ispin)%matrix,error)
+             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,0.0_dp,rpmat,error)
              mo_set => kp%mos(2,ispin)%mo_set
              ! Im(c)*Re(c)
-             CALL cp_gemm("N","T",nao,nao,nmo,-1.0_dp,mo_set%mo_coeff,fwork,&
-                             0.0_dp,kp%pmat(2,ispin)%matrix,error)
+             CALL cp_gemm("N","T",nao,nao,nmo,-1.0_dp,mo_set%mo_coeff,fwork,0.0_dp,cpmat,error)
              ! Re(c)*Im(c)
-             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,fwork,mo_set%mo_coeff,&
-                             1.0_dp,kp%pmat(2,ispin)%matrix,error)
+             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,fwork,mo_set%mo_coeff,1.0_dp,cpmat,error)
              CALL cp_fm_to_fm(mo_set%mo_coeff,fwork,error)
              CALL cp_fm_column_scale(fwork,occupation)
+             IF(wtype) THEN
+                CALL cp_fm_column_scale(fwork,eigenvalues)
+             END IF
              ! Im(c)*Im(c)
-             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,&
-                             1.0_dp,kp%pmat(1,ispin)%matrix,error)
+             CALL cp_gemm("N","T",nao,nao,nmo,1.0_dp,mo_set%mo_coeff,fwork,1.0_dp,rpmat,error)
           END IF
        END DO
     END DO
@@ -861,16 +907,20 @@ CPSourceFileRef,&
 !> \brief generate real space desnity matrices in DBCSR format
 !> \param kpoint  Kpoint environment
 !> \param denmat  Real space (DBCSR) density matrices
-!> \param matrix_s ...
+!> \param wtype   True = energy weighted density matrix
+!>                False = normal density matrix
+!> \param tempmat DBCSR matrix to be used as template
 !> \param sab_nl ...
 !> \param fmwork  FM work matrices (kpoint group)
 !> \param error   CP2K error handling
 ! *****************************************************************************
-  SUBROUTINE kpoint_density_transform(kpoint,denmat,matrix_s,sab_nl,fmwork,error)
+  SUBROUTINE kpoint_density_transform(kpoint,denmat,wtype,tempmat,sab_nl,fmwork,error)
 
     TYPE(kpoint_type), POINTER               :: kpoint
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: denmat, matrix_s
+      POINTER                                :: denmat
+    LOGICAL, INTENT(IN)                      :: wtype
+    TYPE(cp_dbcsr_type), POINTER             :: tempmat
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -905,10 +955,8 @@ CPSourceFileRef,&
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL cp_dbcsr_init(rpmat,error=error)
     CALL cp_dbcsr_init(cpmat,error=error)
-    CALL cp_dbcsr_create(rpmat,template=matrix_s(1,1)%matrix,&
-         matrix_type=dbcsr_type_symmetric,error=error)
-    CALL cp_dbcsr_create(cpmat,template=matrix_s(1,1)%matrix,&
-         matrix_type=dbcsr_type_antisymmetric,error=error)
+    CALL cp_dbcsr_create(rpmat,template=tempmat,matrix_type=dbcsr_type_symmetric,error=error)
+    CALL cp_dbcsr_create(cpmat,template=tempmat,matrix_type=dbcsr_type_antisymmetric,error=error)
     CALL cp_dbcsr_alloc_block_from_nbl(rpmat,sab_nl,error)
     CALL cp_dbcsr_alloc_block_from_nbl(cpmat,sab_nl,error)
 
@@ -938,9 +986,15 @@ CPSourceFileRef,&
             NULLIFY(kp)
           END IF
           ! collect this density matrix on all processors
+          CPPrecondition(SIZE(fmwork)>=nc,cp_failure_level,routineP,error,failure)
           DO ic=1,nc
              IF(my_kpgrp) THEN
-                CALL cp_fm_copy_general(kp%pmat(ic,ispin)%matrix,fmwork(ic)%matrix,bcntxt,error)
+                ! choose density matrix
+                IF(wtype) THEN
+                   CALL cp_fm_copy_general(kp%wmat(ic,ispin)%matrix,fmwork(ic)%matrix,bcntxt,error)
+                ELSE
+                   CALL cp_fm_copy_general(kp%pmat(ic,ispin)%matrix,fmwork(ic)%matrix,bcntxt,error)
+                END IF
              ELSE
                 CALL cp_fm_copy_general(fmdummy,fmwork(ic)%matrix,bcntxt,error)
              END IF
@@ -981,15 +1035,15 @@ CPSourceFileRef,&
 
              IF(real_only) THEN
                 CALL cp_dbcsr_get_block_p(matrix=rpmat,row=irow,col=icol,&
-                                       block=rblock,found=found)
+                                          block=rblock,found=found)
                 CPPostcondition(found,cp_failure_level,routineP,error,failure)
                 dblock = dblock + coskl*rblock
              ELSE
                 CALL cp_dbcsr_get_block_p(matrix=rpmat,row=irow,col=icol,&
-                                       block=rblock,found=found)
+                                          block=rblock,found=found)
                 CPPostcondition(found,cp_failure_level,routineP,error,failure)
                 CALL cp_dbcsr_get_block_p(matrix=cpmat,row=irow,col=icol,&
-                                       block=cblock,found=found)
+                                          block=cblock,found=found)
                 CPPostcondition(found,cp_failure_level,routineP,error,failure)
                 dblock = dblock + coskl*rblock
                 dblock = dblock + sinkl*cblock

@@ -15,8 +15,7 @@ MODULE qs_environment_methods
   USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
-                                             dbcsr_distribution_obj
+  USE cp_dbcsr_interface,              ONLY: dbcsr_distribution_obj
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist
   USE cp_ddapc_types,                  ONLY: cp_ddapc_release
   USE cp_ddapc_util,                   ONLY: cp_ddapc_init
@@ -250,103 +249,83 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_update_s_mstruct', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, istat
     LOGICAL                                  :: do_ppl, failure
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_ks_aux_fit
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), POINTER                 :: rho_core, rho_nlcc, &
                                                 rho_nlcc_g, vppl
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    NULLIFY(para_env, dft_control,particle_set,distribution_2d, ks_env, &
-            rho_core, vppl, rho_nlcc, rho_nlcc_g, pw_env)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
+    NULLIFY(dft_control)
     CALL get_qs_env(qs_env,&
-                    ks_env=ks_env,&
-                    para_env=para_env,&
                     dft_control=dft_control,&
-                    particle_set=particle_set,&
-                    matrix_ks=matrix_ks,&
-                    matrix_ks_aux_fit=matrix_ks_aux_fit,&
-                    distribution_2d=distribution_2d,&
-                    rho_core=rho_core,&
-                    vppl=vppl,&
-                    rho_nlcc=rho_nlcc,&
-                    rho_nlcc_g=rho_nlcc_g,&
-                    pw_env=pw_env,&
                     error=error)
 
+    ! *** updates rho core ***
+    NULLIFY(rho_core)
+    CALL get_qs_env(qs_env,rho_core=rho_core,error=error)
     IF(dft_control%qs_control%gapw) THEN
-      qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
-      IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-        ! *** updates rho core ***
-        CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
-        CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-        IF (.NOT. failure) THEN
-           CALL calculate_rho_core(rho_core, &
-                qs_env%qs_charges%total_rho_core_rspace,qs_env,only_nopaw=.TRUE.,error=error)
-        END IF
-      ELSE
-        IF (ASSOCIATED(rho_core)) THEN
-          CALL pw_release(rho_core%pw,error=error)
-          DEALLOCATE(rho_core)
-        ENDIF
-      ENDIF
-      ! force analytic ppl calculation
-      dft_control%qs_control%do_ppl_method=do_ppl_analytic
+       qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
+       IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
+          CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
+          IF (.NOT. failure) THEN
+             CALL calculate_rho_core(rho_core, &
+                  qs_env%qs_charges%total_rho_core_rspace,qs_env,only_nopaw=.TRUE.,error=error)
+          END IF
+       ELSE
+          IF (ASSOCIATED(rho_core)) THEN
+             CALL pw_release(rho_core%pw,error=error)
+             DEALLOCATE(rho_core,STAT=istat)
+             CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
+       ENDIF
+       ! force analytic ppl calculation
+       dft_control%qs_control%do_ppl_method=do_ppl_analytic
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
-      !??
+       !??
     ELSE IF(dft_control%qs_control%dftb) THEN
-      !??
+       !??
     ELSE IF(dft_control%qs_control%scptb) THEN
-      !??
+       !??
     ELSE
-      ! *** updates rho core ***
-      CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
-      CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-      IF (.NOT. failure) THEN
-         CALL calculate_rho_core(rho_core, &
-              qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
-      END IF
+       CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
+       IF (.NOT. failure) THEN
+          CALL calculate_rho_core(rho_core, &
+               qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
+       END IF
     END IF
 
     ! calculate local pseudopotential on grid
     do_ppl = dft_control%qs_control%do_ppl_method==do_ppl_grid
     IF ( do_ppl ) THEN
-      CPPrecondition(ASSOCIATED(vppl),cp_failure_level,routineP,error,failure)
-      CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-      IF (.NOT. failure) THEN
-         CALL calculate_ppl_grid(vppl,qs_env,error=error)
-      END IF
+       NULLIFY(vppl)
+       CALL get_qs_env(qs_env,vppl=vppl,error=error)
+       CPPrecondition(ASSOCIATED(vppl),cp_failure_level,routineP,error,failure)
+       IF (.NOT. failure) THEN
+          CALL calculate_ppl_grid(vppl,qs_env,error=error)
+       END IF
     END IF
 
     ! compute the rho_nlcc
+    NULLIFY(rho_nlcc,rho_nlcc_g)
+    CALL get_qs_env(qs_env,rho_nlcc=rho_nlcc,rho_nlcc_g=rho_nlcc_g,error=error)
     IF (ASSOCIATED(rho_nlcc)) THEN
-      CPPrecondition(ASSOCIATED(rho_nlcc),cp_failure_level,routineP,error,failure)
-      CPPrecondition(ASSOCIATED(rho_nlcc_g),cp_failure_level,routineP,error,failure)
-      CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-      CALL calculate_rho_nlcc(rho_nlcc, qs_env,error=error)
-      CALL pw_transfer(rho_nlcc%pw,rho_nlcc_g%pw,error=error)
+       CALL calculate_rho_nlcc(rho_nlcc,qs_env,error=error)
+       CALL pw_transfer(rho_nlcc%pw,rho_nlcc_g%pw,error=error)
     ENDIF
 
     ! allocates and creates the task_list
-    CALL qs_create_task_list(qs_env, error)
+    CALL qs_create_task_list(qs_env,error)
 
     ! *** environment for ddapc ***
     IF (ASSOCIATED(qs_env%cp_ddapc_env)) THEN
        CALL cp_ddapc_release(qs_env%cp_ddapc_env,error)
     END IF
-    CALL cp_ddapc_init(qs_env, error)
+    CALL cp_ddapc_init(qs_env,error)
 
     ! *** tell ks_env ***
     CALL qs_ks_did_change(qs_env%ks_env,s_mstruct_changed=.TRUE.,error=error)
@@ -356,8 +335,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
 
     ! *** tell scf_env ***
     IF (ASSOCIATED(qs_env%scf_env)) THEN
-       CALL scf_env_did_change(qs_env%scf_env,&
-            error=error)
+       CALL scf_env_did_change(qs_env%scf_env,error=error)
     END IF
 
     CALL timestop(handle)

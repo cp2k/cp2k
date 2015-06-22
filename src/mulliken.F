@@ -37,7 +37,8 @@ MODULE mulliken
   PUBLIC :: mulliken_charges, mulliken_restraint
 
   INTERFACE mulliken_charges
-     MODULE PROCEDURE mulliken_charges_a, mulliken_charges_b, mulliken_charges_c
+     MODULE PROCEDURE mulliken_charges_a, mulliken_charges_b, mulliken_charges_c,&
+        mulliken_charges_akp, mulliken_charges_bkp, mulliken_charges_ckp
   END INTERFACE
 
 CONTAINS
@@ -286,8 +287,6 @@ END SUBROUTINE rf_deriv_check
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block, s_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 
-! here we get the numbers for charges
-
     nspin=SIZE(p_matrix)
 
     charges=0.0_dp
@@ -343,8 +342,6 @@ END SUBROUTINE rf_deriv_check
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ds_block, p_block, s_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 
-! here we get the numbers for charges
-
     nspin=SIZE(p_matrix)
 
     charges=0.0_dp
@@ -382,7 +379,6 @@ END SUBROUTINE rf_deriv_check
     CALL mp_sum(dcharges,para_env%group)
 
   END SUBROUTINE compute_dcharges
-
 
 ! *****************************************************************************
 !> \brief print the mulliken charges to scr on ionode
@@ -504,6 +500,193 @@ END SUBROUTINE rf_deriv_check
     CALL timestop(handle)
 
   END SUBROUTINE mulliken_charges_c
+
+! *****************************************************************************
+!> \brief print the mulliken charges to scr on ionode
+!> \param p_matrix_kp ...
+!> \param s_matrix_kp ...
+!> \param para_env ...
+!> \param particle_set (needed for Z)
+!> \param qs_kind_set ...
+!> \param scr unit for output
+!> \param title ...
+!> \param error ...
+!> \param p_matrix , s_matrix, para_env UNMATCHED_PROCEDURE_ARGUMENT: please check 
+!> \par History
+!>      06.2004 adapted to remove explicit matrix multiply [Joost VandeVondele]
+! *****************************************************************************
+  SUBROUTINE mulliken_charges_akp(p_matrix_kp,s_matrix_kp,para_env,particle_set, &
+                                  qs_kind_set,scr,title,error)
+
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: p_matrix_kp, s_matrix_kp
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    INTEGER                                  :: scr
+    CHARACTER(LEN=*)                         :: title
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_akp', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ic, istat, nblock, &
+                                                nspin
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, charges_im
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: p_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: s_matrix
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(p_matrix_kp),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(s_matrix_kp),cp_failure_level,routineP,error,failure)
+
+    nspin=SIZE(p_matrix)
+    CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
+    ALLOCATE(charges(nblock,nspin),charges_im(nblock,nspin),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    charges = 0.0_dp
+
+    DO ic=1,SIZE(s_matrix_kp,2)
+       NULLIFY(p_matrix,s_matrix)
+       p_matrix => p_matrix_kp(:,ic)
+       s_matrix => s_matrix_kp(1,ic)%matrix
+       charges_im = 0.0_dp
+       CALL compute_charges(p_matrix,s_matrix,charges_im,para_env)
+       charges(:,:) = charges(:,:) + charges_im(:,:)
+    END DO
+
+    CALL print_atomic_charges(particle_set,qs_kind_set,scr,title,electronic_charges=charges)
+
+    DEALLOCATE(charges,charges_im,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE mulliken_charges_akp
+
+! *****************************************************************************
+!> \brief ...
+!> \param p_matrix_kp ...
+!> \param s_matrix_kp ...
+!> \param para_env ...
+!> \param mcharge ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE mulliken_charges_bkp(p_matrix_kp,s_matrix_kp,para_env,mcharge,error)
+
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: p_matrix_kp, s_matrix_kp
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mcharge
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_bkp', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ic, istat, natom, &
+                                                nspin
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mcharge_im
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: p_matrix
+    TYPE(cp_dbcsr_type), POINTER             :: s_matrix
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    IF(ASSOCIATED(p_matrix_kp) .AND. ASSOCIATED(s_matrix_kp)) THEN
+
+       mcharge = 0.0_dp
+       natom = SIZE(mcharge,1)
+       nspin = SIZE(mcharge,2)
+       ALLOCATE(mcharge_im(natom,nspin),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       DO ic=1,SIZE(s_matrix_kp,2)
+          NULLIFY(p_matrix,s_matrix)
+          p_matrix => p_matrix_kp(:,ic)
+          s_matrix => s_matrix_kp(1,ic)%matrix
+          IF(ASSOCIATED(p_matrix) .AND. ASSOCIATED(s_matrix)) THEN
+             CALL compute_charges(p_matrix,s_matrix,mcharge_im,para_env)
+             mcharge(:,:) = mcharge(:,:) + mcharge_im(:,:)
+          END IF
+       END DO
+
+       DEALLOCATE(mcharge_im,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE mulliken_charges_bkp
+
+! *****************************************************************************
+!> \brief ...
+!> \param p_matrix_kp ...
+!> \param s_matrix_kp ...
+!> \param para_env ...
+!> \param mcharge ...
+!> \param dmcharge ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE mulliken_charges_ckp(p_matrix_kp,s_matrix_kp,para_env,&
+                                  mcharge,dmcharge,error)
+
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: p_matrix_kp, s_matrix_kp
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mcharge, dmcharge
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mulliken_charges_ckp', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ic, istat, natom, &
+                                                nder, nspin
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dmcharge_im, mcharge_im
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: p_matrix, s_matrix
+
+    CALL timeset(routineN,handle)
+
+    failure = .FALSE.
+    IF(ASSOCIATED(p_matrix_kp) .AND. ASSOCIATED(s_matrix_kp)) THEN
+
+       mcharge = 0.0_dp
+       dmcharge = 0.0_dp
+       natom = SIZE(mcharge,1)
+       nspin = SIZE(mcharge,2)
+       nder  = SIZE(dmcharge,2)
+       ALLOCATE(mcharge_im(natom,nspin),dmcharge_im(natom,nder),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       DO ic=1,SIZE(s_matrix_kp,2)
+          NULLIFY(p_matrix,s_matrix)
+          p_matrix => p_matrix_kp(:,ic)
+          s_matrix => s_matrix_kp(:,ic)
+          IF(ASSOCIATED(p_matrix) .AND. ASSOCIATED(s_matrix)) THEN
+             CALL compute_dcharges(p_matrix,s_matrix,mcharge_im,dmcharge_im,para_env)
+             mcharge(:,:) = mcharge(:,:) + mcharge_im(:,:)
+             dmcharge(:,:) = dmcharge(:,:) + dmcharge_im(:,:)
+          END IF
+       END DO
+
+       DEALLOCATE(mcharge_im,dmcharge_im,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE mulliken_charges_ckp
 
 ! *****************************************************************************
 

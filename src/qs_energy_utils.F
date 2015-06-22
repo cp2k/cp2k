@@ -22,6 +22,13 @@ MODULE qs_energy_utils
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type
   USE cp_external_control,             ONLY: external_control
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_p_type,&
+                                             cp_fm_release,&
+                                             cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE efield_utils,                    ONLY: calculate_ecore_efield
   USE et_coupling,                     ONLY: calc_et_coupling
@@ -32,7 +39,9 @@ MODULE qs_energy_utils
   USE kg_environment,                  ONLY: kg_build_neighborlist,&
                                              kg_build_subsets
   USE kinds,                           ONLY: dp
-  USE kpoint_methods,                  ONLY: kpoint_init_cell_index
+  USE kpoint_methods,                  ONLY: kpoint_density_matrices,&
+                                             kpoint_density_transform,&
+                                             kpoint_init_cell_index
   USE kpoint_types,                    ONLY: kpoint_type
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
@@ -64,7 +73,8 @@ MODULE qs_energy_utils
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              set_ks_env
   USE qs_linres_module,                ONLY: linres_calculation_low
-  USE qs_mo_types,                     ONLY: mo_set_p_type,&
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type,&
                                              mo_set_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
@@ -114,12 +124,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin
+    INTEGER                                  :: img, ispin, istat, nimg, nspin
     LOGICAL                                  :: failure, has_unit_metric, &
                                                 molecule_only
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, matrix_w, &
-                                                matrix_w_mp2
+      POINTER                                :: matrix_w_mp2
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_s, matrix_w
+    TYPE(cp_dbcsr_type), POINTER             :: matrix
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
@@ -131,31 +143,35 @@ CONTAINS
     CALL qs_ks_allocate_basics(qs_env,error)
     CALL get_qs_env(qs_env, has_unit_metric=has_unit_metric, error=error)
 
-    ! need forces ?
+    ! if need forces allocate energy weighted density matrices
     IF (calc_forces.AND..NOT.has_unit_metric) THEN
        CALL get_qs_env(qs_env,&
                        ks_env=ks_env,&
-                       has_unit_metric=has_unit_metric,&
-                       matrix_w=matrix_w,&
-                       matrix_s=matrix_s,&
+                       matrix_s_kp=matrix_s,&
                        dft_control=dft_control,&
                        error=error)
-       CALL cp_dbcsr_allocate_matrix_set(matrix_w,dft_control%nspins,error=error)
-       DO ispin=1,dft_control%nspins
-          ALLOCATE(matrix_w(ispin)%matrix)
-          CALL cp_dbcsr_init(matrix_w(ispin)%matrix,error=error)
-          CALL cp_dbcsr_copy(matrix_w(ispin)%matrix,matrix_s(1)%matrix,&
-               name="W MATRIX",error=error)
-          CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+       nspin = dft_control%nspins
+       nimg = dft_control%nimages
+       matrix => matrix_s(1,1)%matrix
+       CALL cp_dbcsr_allocate_matrix_set(matrix_w,nspin,nimg,error=error)
+       DO ispin=1,nspin
+          DO img=1,nimg
+             ALLOCATE(matrix_w(ispin,img)%matrix,STAT=istat)
+             CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+             CALL cp_dbcsr_init(matrix_w(ispin,img)%matrix,error=error)
+             CALL cp_dbcsr_copy(matrix_w(ispin,img)%matrix,matrix,name="W MATRIX",error=error)
+             CALL cp_dbcsr_set(matrix_w(ispin,img)%matrix,0.0_dp,error=error)
+          END DO
        END DO
-       CALL set_ks_env(ks_env,matrix_w=matrix_w,error=error)
+       CALL set_ks_env(ks_env,matrix_w_kp=matrix_w,error=error)
        IF (ASSOCIATED(qs_env%mp2_env)) THEN
           ! create the MP2 energy weighted density matrix
           CALL cp_dbcsr_allocate_matrix_set(matrix_w_mp2,dft_control%nspins,error=error)
-          DO ispin=1,dft_control%nspins
-             ALLOCATE(matrix_w_mp2(ispin)%matrix)
+          DO ispin=1,nspin
+             ALLOCATE(matrix_w_mp2(ispin)%matrix,STAT=istat)
+             CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
              CALL cp_dbcsr_init(matrix_w_mp2(ispin)%matrix,error=error)
-             CALL cp_dbcsr_copy(matrix_w_mp2(ispin)%matrix,matrix_s(1)%matrix,&
+             CALL cp_dbcsr_copy(matrix_w_mp2(ispin)%matrix,matrix,&
                   name="W MATRIX MP2",error=error)
              CALL cp_dbcsr_set(matrix_w_mp2(ispin)%matrix,0.0_dp,error=error)
           END DO
@@ -356,75 +372,125 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_energies_compute_matrix_w', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspin
-    LOGICAL                                  :: has_unit_metric
+    INTEGER                                  :: handle, is, ispin, istat, &
+                                                nao, nspin
+    LOGICAL                                  :: do_kpoints, failure, &
+                                                has_unit_metric
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, &
                                                 matrix_w, matrix_w_mp2, &
                                                 mo_derivs, rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_s_kp, matrix_w_kp
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: fmwork
+    TYPE(cp_fm_struct_type), POINTER         :: ao_ao_fmstruct
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_nl
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset(routineN,handle)
-    NULLIFY(dft_control, rho_ao)
+
+    failure = .FALSE.
 
     ! if calculate forces, time to compute the w matrix
     CALL get_qs_env(qs_env, has_unit_metric=has_unit_metric, error=error)
 
     IF (calc_forces.AND..NOT.has_unit_metric) THEN
-       CALL get_qs_env(qs_env,&
-                       has_unit_metric=has_unit_metric,&
-                       matrix_w=matrix_w,&
-                       ks_env=ks_env,&
-                       matrix_ks=matrix_ks,&
-                       matrix_s=matrix_s,&
-                       matrix_w_mp2=matrix_w_mp2,&
-                       mo_derivs=mo_derivs,&
-                       scf_control=scf_control,&
-                       mos=mos,&
-                       rho=rho,&
-                       dft_control=dft_control,&
-                       error=error)
+       CALL get_qs_env(qs_env, do_kpoints=do_kpoints, error=error)
 
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+       IF(do_kpoints) THEN
 
-       nspin = SIZE(mos)
-       DO ispin=1,nspin
-          mo_set => mos(ispin)%mo_set
-          IF (dft_control%roks) THEN
-             IF (scf_control%use_ot) THEN
-                IF (ispin > 1) THEN
-                   ! not very elegant, indeed ...
-                   CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+          CALL get_qs_env(qs_env, &
+                          matrix_w_kp=matrix_w_kp,&
+                          matrix_s_kp=matrix_s_kp,&
+                          sab_orb=sab_nl,&
+                          mos=mos,&
+                          kpoints=kpoints, error=error)
+
+          CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff,nao=nao)
+          CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct, nrow_global=nao, ncol_global=nao,&
+                                   template_fmstruct=mo_coeff%matrix_struct, error=error)
+
+          ALLOCATE(fmwork(2),STAT=istat)
+          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+          DO is=1,SIZE(fmwork)
+             NULLIFY(fmwork(is)%matrix)
+             CALL cp_fm_create(fmwork(is)%matrix,matrix_struct=ao_ao_fmstruct,error=error)
+          END DO
+          CALL cp_fm_struct_release(ao_ao_fmstruct,error=error)
+
+          ! energy weighted density matrices in k-space
+          CALL kpoint_density_matrices(kpoints,energy_weighted=.TRUE.,error=error)
+          ! energy weighted density matrices in real space
+          CALL kpoint_density_transform(kpoints,matrix_w_kp,.TRUE.,&
+               matrix_s_kp(1,1)%matrix,sab_nl,fmwork,error)
+
+          DO is=1,SIZE(fmwork)
+             CALL cp_fm_release(fmwork(is)%matrix,error=error)
+          END DO
+          DEALLOCATE(fmwork,STAT=istat)
+          CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+
+       ELSE
+
+          NULLIFY(dft_control, rho_ao)
+          CALL get_qs_env(qs_env,&
+                          matrix_w=matrix_w,&
+                          matrix_ks=matrix_ks,&
+                          matrix_s=matrix_s,&
+                          matrix_w_mp2=matrix_w_mp2,&
+                          mo_derivs=mo_derivs,&
+                          scf_control=scf_control,&
+                          mos=mos,&
+                          rho=rho,&
+                          dft_control=dft_control,&
+                          error=error)
+
+          CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+
+          nspin = SIZE(mos)
+          DO ispin=1,nspin
+             mo_set => mos(ispin)%mo_set
+             IF (dft_control%roks) THEN
+                IF (scf_control%use_ot) THEN
+                   IF (ispin > 1) THEN
+                      ! not very elegant, indeed ...
+                      CALL cp_dbcsr_set(matrix_w(ispin)%matrix,0.0_dp,error=error)
+                   ELSE
+                      CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
+                           matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
+                   END IF
                 ELSE
-                   CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
-                        matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
+                   CALL calculate_w_matrix(mo_set=mo_set,&
+                        matrix_ks=matrix_ks(ispin)%matrix,&
+                        matrix_p=rho_ao(ispin)%matrix,&
+                        matrix_w=matrix_w(ispin)%matrix,&
+                        error=error)
                 END IF
              ELSE
-                CALL calculate_w_matrix(mo_set=mo_set,&
-                     matrix_ks=matrix_ks(ispin)%matrix,&
-                     matrix_p=rho_ao(ispin)%matrix,&
-                     matrix_w=matrix_w(ispin)%matrix,&
-                     error=error)
+                IF (scf_control%use_ot) THEN
+                   CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
+                        matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
+                ELSE
+                   CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,error=error)
+                END IF
              END IF
-          ELSE
-             IF (scf_control%use_ot) THEN
-                CALL calculate_w_matrix_ot(mo_set,mo_derivs(ispin)%matrix,&
-                     matrix_w(ispin)%matrix,matrix_s(1)%matrix,error=error)
-             ELSE
-                CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix,error=error)
+             ! if MP2 time to update the W matrix with the MP2 contribution
+             IF(ASSOCIATED(qs_env%mp2_env)) THEN
+               CALL cp_dbcsr_add(matrix_w(ispin)%matrix, matrix_w_mp2(ispin)%matrix, 1.0_dp, -1.0_dp, error)
              END IF
-          END IF
-          ! if MP2 time to update the W matrix with the MP2 contribution
-          IF(ASSOCIATED(qs_env%mp2_env)) THEN
-            CALL cp_dbcsr_add(matrix_w(ispin)%matrix, matrix_w_mp2(ispin)%matrix, 1.0_dp, -1.0_dp, error)
-          END IF
-       END DO
+          END DO
+
+       END IF
+
     END IF
 
     CALL timestop(handle)

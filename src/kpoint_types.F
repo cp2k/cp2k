@@ -57,6 +57,7 @@ MODULE kpoint_types
 !> \param is_local  if this kpoint is calculated on a single thread
 !> \param mos       associated MOs (r/i,spin)
 !> \param pmat      associated density matrix (r/i,spin)
+!> \param wmat      associated energy weighted density matrix (r/i,spin)
 !> \author JGH
 ! *****************************************************************************
   TYPE kpoint_env_type
@@ -66,6 +67,7 @@ MODULE kpoint_types
      LOGICAL                                           :: is_local
      TYPE(mo_set_p_type), DIMENSION(:,:), POINTER      :: mos
      TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER       :: pmat
+     TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER       :: wmat
   END TYPE kpoint_env_type
  
   TYPE kpoint_env_p_type
@@ -714,6 +716,7 @@ CONTAINS
   
     NULLIFY(kp_env%mos)
     NULLIFY(kp_env%pmat)
+    NULLIFY(kp_env%wmat)
 
   END SUBROUTINE kpoint_env_create
 
@@ -754,6 +757,16 @@ CONTAINS
              END DO
           END DO
           DEALLOCATE(kp_env%pmat,STAT=ierr)
+          CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
+       END IF
+
+       IF(ASSOCIATED(kp_env%wmat)) THEN
+          DO is=1,SIZE(kp_env%wmat,2)
+             DO ic=1,SIZE(kp_env%wmat,1)
+                CALL cp_fm_release(kp_env%wmat(ic,is)%matrix,error)
+             END DO
+          END DO
+          DEALLOCATE(kp_env%wmat,STAT=ierr)
           CPPostcondition(ierr==0, cp_failure_level, routineP, error, failure)
        END IF
 

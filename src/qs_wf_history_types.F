@@ -59,6 +59,7 @@ MODULE qs_wf_history_types
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: rho_ao
+     TYPE(cp_dbcsr_p_type), DIMENSION(:,:), POINTER :: rho_ao_kp
      TYPE(cp_dbcsr_type), POINTER :: overlap
      TYPE(qs_rho_type), POINTER :: rho_frozen
      REAL(KIND = dp) :: dt
@@ -98,7 +99,7 @@ MODULE qs_wf_history_types
   TYPE qs_wf_history_type
      INTEGER :: id_nr, ref_count, memory_depth, last_state_index, &
           interpolation_method_nr, snapshot_count
-     LOGICAL :: store_wf, store_rho_r, store_rho_g, store_rho_ao,&
+     LOGICAL :: store_wf, store_rho_r, store_rho_g, store_rho_ao, store_rho_ao_kp, &
           store_overlap, store_frozen_density
      TYPE(qs_wf_snapshot_p_type), DIMENSION(:), POINTER :: past_states
   END TYPE qs_wf_history_type
@@ -152,6 +153,9 @@ SUBROUTINE wfs_release(snapshot,error)
         IF (ASSOCIATED(snapshot%rho_ao)) THEN
            CALL cp_dbcsr_deallocate_matrix_set(snapshot%rho_ao,error=error)
         END IF
+        IF (ASSOCIATED(snapshot%rho_ao_kp)) THEN
+           CALL cp_dbcsr_deallocate_matrix_set(snapshot%rho_ao_kp,error=error)
+        END IF
         IF (ASSOCIATED(snapshot%overlap)) THEN
            CALL cp_dbcsr_deallocate_matrix(snapshot%overlap,error=error)
         END IF
@@ -189,6 +193,7 @@ SUBROUTINE wfi_retain(wf_history,error)
   IF (.NOT. failure) THEN
      wf_history%ref_count=wf_history%ref_count+1
   END IF
+
 END SUBROUTINE wfi_retain
 
 ! *****************************************************************************

@@ -104,7 +104,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -127,14 +127,14 @@ CONTAINS
        NULLIFY(dft_control,rho,para_env,matrix_s,matrix_p)
        CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
             dft_control=dft_control,rho=rho,natom=natom,para_env=para_env,&
-            matrix_s=matrix_s,error=error)
+            matrix_s_kp=matrix_s,error=error)
        nspins = dft_control%nspins
-       CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
+       CALL qs_rho_get(rho, rho_ao_kp=matrix_p, error=error)
        ! Mulliken charges
        ALLOCATE(charges(natom,nspins),mcharge(natom),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        !
-       CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
+       CALL mulliken_charges(matrix_p,matrix_s,para_env,charges,error=error)
        !
        nkind = SIZE(atomic_kind_set)
        DO ikind=1,nkind

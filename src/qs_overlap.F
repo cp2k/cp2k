@@ -97,6 +97,7 @@ CONTAINS
 !> \param   sab_nl pair list (must be consistent with basis sets!)
 !> \param   calculate_forces (optional)
 !> \param   matrix_p density matrix for force calculation (optional)
+!> \param   matrixkp_p density matrix for force calculation with k_points (optional)
 !> \param   error CP2K error reporting 
 !> \date    11.03.2002
 !> \par     History
@@ -112,7 +113,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE build_overlap_matrix(ks_env, matrix_s, matrixkp_s, matrix_name,&
      nderivative, basis_set_id_a, basis_set_id_b, sab_nl, calculate_forces,&
-     matrix_p, error)
+     matrix_p, matrixkp_p, error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -126,6 +127,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_nl
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: matrixkp_p
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_overlap_matrix', &
@@ -143,7 +146,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: do_forces, do_symmetric, &
                                                 dokp, failure, found, trans, &
-                                                use_virial
+                                                use_cell_mapping, use_virial
     REAL(KIND=dp)                            :: dab, f, f0, ff, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: owork, pmat
@@ -180,10 +183,12 @@ CONTAINS
      ! test for matrices (kpoints or standard gamma point)
      IF (PRESENT(matrix_s)) THEN
         dokp = .FALSE.
+        use_cell_mapping = .FALSE.
      ELSEIF (PRESENT(matrixkp_s)) THEN
         dokp = .TRUE.
         CALL get_ks_env(ks_env=ks_env,kpoints=kpoints,error=error)
         CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
+        use_cell_mapping = (SIZE(cell_to_index) > 1)
      ELSE
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END IF
@@ -209,11 +214,6 @@ CONTAINS
      ELSE
        do_forces = .FALSE.
      END IF
-
-     IF(do_forces .AND. dokp) THEN
-       ! forces and k-points are not support yet
-       CPPostcondition(nimg==1,cp_failure_level,routineP,error,failure)
-     ENDIF
 
      IF (PRESENT(nderivative)) THEN
        nder = nderivative
@@ -248,7 +248,11 @@ CONTAINS
      ldsab = get_memory_usage(qs_kind_set,basis_set_id_a,basis_set_id_b)
      IF (do_forces) THEN
         ! we need density matrix for forces
-        CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,error,failure)
+        IF(dokp) THEN
+           CPPrecondition(PRESENT(matrixkp_p),cp_failure_level,routineP,error,failure)
+        ELSE
+           CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,error,failure)
+        END IF
         nder = MAX(nder,1)
         ALLOCATE (pmat(ldsab,ldsab),STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -301,9 +305,11 @@ CONTAINS
         scon_b       =>  basis_set_b%scon
         zetb         =>  basis_set_b%zet
 
-        IF(dokp) THEN
+        IF(use_cell_mapping) THEN
            ic = cell_to_index(cell(1),cell(2),cell(3))
            CPPostcondition(ic > 0,cp_failure_level,routineP,error,failure)
+        ELSE
+           ic = 1
         END IF
 
         IF( do_symmetric ) THEN
@@ -337,9 +343,15 @@ CONTAINS
         END DO
         IF (do_forces) THEN
            NULLIFY (p_block)
-           CALL cp_dbcsr_get_block_p(matrix=matrix_p,row=irow,col=icol,&
+           IF(dokp) THEN
+              CALL cp_dbcsr_get_block_p(matrix=matrixkp_p(1,ic)%matrix,&
+                   row=irow,col=icol,block=p_block,found=found)
+              CPPostcondition(found,cp_failure_level,routineP,error,failure)
+           ELSE
+              CALL cp_dbcsr_get_block_p(matrix=matrix_p,row=irow,col=icol,&
                    block=p_block,found=found)
               CPPostcondition(found,cp_failure_level,routineP,error,failure)
+           END IF
         END IF
         trans = do_symmetric .AND. (iatom > jatom)
 

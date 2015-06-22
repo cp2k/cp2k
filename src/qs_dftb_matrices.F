@@ -19,15 +19,16 @@ MODULE qs_dftb_matrices
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type,&
                                              dftb_control_type
+  USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       convert_offsets_to_sizes, cp_dbcsr_add, cp_dbcsr_add_block_node, &
-       cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
-       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_finalize, &
-       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, &
-       dbcsr_distribution_obj, dbcsr_type_antisymmetric, dbcsr_type_symmetric
+       convert_offsets_to_sizes, cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, &
+       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type, dbcsr_distribution_obj, &
+       dbcsr_type_antisymmetric, dbcsr_type_symmetric
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -50,6 +51,8 @@ MODULE qs_dftb_matrices
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                             kpoint_type
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_charges
   USE particle_methods,                ONLY: get_particle_set
@@ -76,7 +79,8 @@ MODULE qs_dftb_matrices
                                              get_qs_kind_set,&
                                              qs_kind_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
-  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+  USE qs_ks_types,                     ONLY: get_ks_env,&
+                                             qs_ks_env_type,&
                                              set_ks_env
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -147,15 +151,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dftb_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: after, atom_a, atom_b, handle, i, iatom, icol, ikind, inode, &
-      irow, istat, iw, jatom, jkind, l1, l2, la, last_jatom, lb, llm, lmaxi, &
-      lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, ncol, &
-      nderivatives, neighbor_list_id, ngrd, ngrdcut, nkind, nmat, nrow, spdim
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, felem, lelem, &
-                                                row_blk_sizes
+    INTEGER :: after, atom_a, atom_b, handle, i, iatom, ic, icol, ikind, img, &
+      inode, irow, istat, iw, jatom, jkind, l1, l2, la, lb, llm, lmaxi, &
+      lmaxj, m, n1, n2, n_urpoly, natom, natorb_a, natorb_b, nderivatives, &
+      ngrd, ngrdcut, nimg, nkind, nmat, spdim
+    INTEGER, DIMENSION(3)                    :: cell
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: defined, failure, found, &
-                                                hb_sr_damp, new_atom_b, &
-                                                use_virial
+                                                hb_sr_damp, use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
                                                 drp, erep, erepij, f0, f1, &
                                                 foab, fow, ga, gb, hb_para, &
@@ -173,12 +177,14 @@ CONTAINS
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(block_p_type), DIMENSION(2:4)       :: dgblocks, dsblocks
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: gamma_matrix, matrix_h, &
-                                                matrix_p, matrix_s, matrix_w
+      POINTER                                :: gamma_matrix
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_h, matrix_p, matrix_s, &
+                                                matrix_w
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -226,122 +232,87 @@ CONTAINS
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
-                    matrix_h=matrix_h,&
-                    matrix_s=matrix_s,atprop=atprop,&
+                    matrix_h_kp=matrix_h,&
+                    matrix_s_kp=matrix_s,&
+                    atprop=atprop,&
                     dft_control=dft_control,&
                     ks_env=ks_env,&
                     error=error)
     
     dftb_control => dft_control%qs_control%dftb_control
+    nimg = dft_control%nimages
     ! Allocate the overlap and Hamiltonian matrix
+    CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
     nderivatives=0
     IF(dftb_control%self_consistent .AND. calculate_forces)nderivatives=1
-    CALL setup_matrices(qs_env,nderivatives,matrix_s,"OVERLAP",error)
-    CALL setup_matrices(qs_env,0,matrix_h,"CORE HAMILTONIAN",error)
-    CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
-    CALL set_ks_env(ks_env,matrix_h=matrix_h,error=error)
+    CALL setup_matrices2(qs_env,nderivatives,nimg,matrix_s,"OVERLAP",sab_orb,error)
+    CALL setup_matrices2(qs_env,0,nimg,matrix_h,"CORE HAMILTONIAN",sab_orb,error)
+    CALL set_ks_env(ks_env,matrix_s_kp=matrix_s,error=error)
+    CALL set_ks_env(ks_env,matrix_h_kp=matrix_h,error=error)
 
     NULLIFY (dftb_potential)
-    CALL get_qs_env(qs_env=qs_env,&
-                    dftb_potential=dftb_potential,error=error)
+    CALL get_qs_env(qs_env=qs_env,dftb_potential=dftb_potential,error=error)
+    NULLIFY (particle_set)
+    CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
 
     ! gamma matrix allocation
     IF ( dftb_control%self_consistent ) THEN
-      IF(calculate_forces) THEN
-        nmat=4
-      ELSE
-        nmat=1
-      END IF
-      CALL get_qs_env(qs_env=qs_env,&
-          particle_set=particle_set,&
-          neighbor_list_id=neighbor_list_id,&
-          dbcsr_dist=dbcsr_dist,error=error)
-      natom = SIZE(particle_set)
-      nrow = natom
-      ncol = natom
-      ALLOCATE (felem(natom),lelem(natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DO iatom = 1, natom
-        felem(iatom) = iatom
-        lelem(iatom) = iatom
-      ENDDO
-      CALL get_qs_env(qs_env=qs_env,&
-                      gamma_matrix=gamma_matrix,error=error)
-
-      ALLOCATE (row_blk_sizes(natom), STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      CALL convert_offsets_to_sizes (felem, row_blk_sizes, lelem)
-
-      CALL cp_dbcsr_allocate_matrix_set(gamma_matrix,nmat,error=error)
-      ALLOCATE(gamma_matrix(1)%matrix)
-      CALL cp_dbcsr_init(gamma_matrix(1)%matrix, error=error)
-
-      CALL cp_dbcsr_create(matrix=gamma_matrix(1)%matrix, &
-           name="GAMMA MATRIX", &
-           dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
-           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-           nblks=0, nze=0, mutable_work=.TRUE., &
-           error=error)
-
-      DO i=2,nmat
-         ALLOCATE(gamma_matrix(i)%matrix)
-         CALL cp_dbcsr_init(gamma_matrix(i)%matrix, error=error)
-
-         CALL cp_dbcsr_create(matrix=gamma_matrix(i)%matrix, &
-              name="DERIVATIVE GAMMA MATRIX", &
-              dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
-              row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-              nblks=0, nze=0, mutable_work=.TRUE., &
-              error=error)
-      END DO
-
-      DEALLOCATE(row_blk_sizes)
-
-      DEALLOCATE (felem,lelem,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       IF(calculate_forces) THEN
+          nmat=4
+       ELSE
+          nmat=1
+       END IF
+       CALL get_qs_env(qs_env=qs_env,&
+                       gamma_matrix=gamma_matrix,error=error)
+       CALL setup_gamma(qs_env,nmat,gamma_matrix,sab_orb,error)
     END IF
 
     IF(calculate_forces) THEN
-      NULLIFY (rho,force,particle_set,matrix_w)
-      CALL get_qs_env(qs_env=qs_env,&
-                      particle_set=particle_set,&
-                      rho=rho,matrix_w=matrix_w,&
-                      virial=virial,&
-                      force=force,error=error)
-      CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
+       NULLIFY (rho,force,matrix_w)
+       CALL get_qs_env(qs_env=qs_env,&
+                       rho=rho,&
+                       matrix_w_kp=matrix_w,&
+                       virial=virial,&
+                       force=force,error=error)
+       CALL qs_rho_get(rho,rho_ao_kp=matrix_p,error=error)
 
-      IF (SIZE(matrix_p) == 2) THEN
-         CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,&
-              alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
-         CALL cp_dbcsr_add(matrix_w(1)%matrix,matrix_w(2)%matrix,&
-              alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
-      END IF
-      natom = SIZE (particle_set)
-      ALLOCATE (atom_of_kind(natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               atom_of_kind=atom_of_kind)
-      use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+       IF (SIZE(matrix_p,1) == 2) THEN
+          DO img=1,nimg
+             CALL cp_dbcsr_add(matrix_p(1,img)%matrix,matrix_p(2,img)%matrix,&
+                  alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+             CALL cp_dbcsr_add(matrix_w(1,img)%matrix,matrix_w(2,img)%matrix,&
+                  alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
+          END DO
+       END IF
+       natom = SIZE(particle_set)
+       ALLOCATE (atom_of_kind(natom),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                                atom_of_kind=atom_of_kind)
+       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     END IF
     ! atomic energy decomposition
     IF (atprop%energy) THEN
-      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,error=error)
-      natom = SIZE (particle_set)
+      natom = SIZE(particle_set)
       CALL atprop_array_init(atprop%atecc,natom,error)
     END IF
 
-    erep = 0._dp
+    NULLIFY(cell_to_index)
+    IF (nimg>1) THEN
+       CALL get_ks_env(ks_env=ks_env,kpoints=kpoints,error=error)
+       CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
+    END IF
 
-    CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
+    erep = 0._dp
 
     nkind = SIZE(atomic_kind_set)
 
     CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
-            iatom=iatom,jatom=jatom,inode=inode,r=rij)
+            iatom=iatom,jatom=jatom,inode=inode,r=rij,cell=cell)
        CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
-       CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind_a)
+       CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind_a)
        CALL get_dftb_atom_param(dftb_kind_a,&
               defined=defined,lmax=lmaxi,skself=skself,&
               eta=eta_a,natorb=natorb_a)
@@ -378,61 +349,53 @@ CONTAINS
        srep = dftb_param_ij%srep
        surr = dftb_param_ij%surr
 
-       IF (inode==1) last_jatom=0
-
        dr = SQRT(SUM(rij(:)**2))
        IF (NINT(dr/dgrd) <= ngrdcut) THEN
 
-         IF (jatom /= last_jatom) THEN
-           new_atom_b = .TRUE.
-           last_jatom = jatom
+         IF(nimg==1) THEN
+            ic = 1
          ELSE
-           new_atom_b = .FALSE.
+            ic = cell_to_index(cell(1),cell(2),cell(3))
+            CPPostcondition(ic > 0,cp_failure_level,routineP,error,failure)
          END IF
-         IF (new_atom_b) THEN
-           icol = MAX(iatom,jatom)
-           irow = MIN(iatom,jatom)
-           NULLIFY (sblock)
-           CALL cp_dbcsr_add_block_node(matrix=matrix_s(1)%matrix,&
-                            block_row=irow,&
-                            block_col=icol,&
-                            BLOCK=sblock,error=error)
-           NULLIFY (fblock)
-           CALL cp_dbcsr_add_block_node(matrix=matrix_h(1)%matrix,&
-                            block_row=irow,&
-                            block_col=icol,&
-                            BLOCK=fblock,error=error)
-           IF ( dftb_control%self_consistent ) THEN
-             NULLIFY (gblock)
-             CALL cp_dbcsr_add_block_node(matrix=gamma_matrix(1)%matrix,&
-                            block_row=irow,&
-                            block_col=icol,&
-                            BLOCK=gblock,error=error)
-           END IF
-           IF (calculate_forces) THEN
-             NULLIFY (pblock)
-             CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
-                  row=irow,col=icol,block=pblock,found=found)
-             CPPrecondition(ASSOCIATED(pblock),cp_failure_level,routineP,error,failure)
-             NULLIFY (wblock)
-             CALL cp_dbcsr_get_block_p(matrix=matrix_w(1)%matrix,&
-                  row=irow,col=icol,block=wblock,found=found)
-             CPPrecondition(ASSOCIATED(wblock),cp_failure_level,routineP,error,failure)
-             IF ( dftb_control%self_consistent ) THEN
+
+         icol = MAX(iatom,jatom)
+         irow = MIN(iatom,jatom)
+         NULLIFY(sblock,fblock,gblock)
+         CALL cp_dbcsr_get_block_p(matrix=matrix_s(1,ic)%matrix,&
+                row=irow,col=icol,BLOCK=sblock,found=found)
+         CPPostcondition(found,cp_failure_level,routineP,error,failure)
+         CALL cp_dbcsr_get_block_p(matrix=matrix_h(1,ic)%matrix,&
+                row=irow,col=icol,BLOCK=fblock,found=found)
+         CPPostcondition(found,cp_failure_level,routineP,error,failure)
+         IF ( dftb_control%self_consistent ) THEN
+               CALL cp_dbcsr_get_block_p(matrix=gamma_matrix(1)%matrix,&
+                   row=irow,col=icol,BLOCK=gblock,found=found)
+            CPPostcondition(found,cp_failure_level,routineP,error,failure)
+         END IF
+
+   
+         IF (calculate_forces) THEN
+            NULLIFY (pblock)
+            CALL cp_dbcsr_get_block_p(matrix=matrix_p(1,ic)%matrix,&
+                 row=irow,col=icol,block=pblock,found=found)
+            CPPrecondition(ASSOCIATED(pblock),cp_failure_level,routineP,error,failure)
+            NULLIFY (wblock)
+            CALL cp_dbcsr_get_block_p(matrix=matrix_w(1,ic)%matrix,&
+                 row=irow,col=icol,block=wblock,found=found)
+            CPPrecondition(ASSOCIATED(wblock),cp_failure_level,routineP,error,failure)
+            IF ( dftb_control%self_consistent ) THEN
                DO i=2,4
                   NULLIFY(dsblocks(i)%block)
-                  CALL cp_dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
-                             block_row=irow,&
-                             block_col=icol,&
-                             BLOCK=dsblocks(i)%block,error=error)
-                 NULLIFY (dgblocks(i)%block)
-                 CALL cp_dbcsr_add_block_node(matrix=gamma_matrix(i)%matrix,&
-                            block_row=irow,&
-                            block_col=icol,&
-                            BLOCK=dgblocks(i)%block,error=error)
+                  CALL cp_dbcsr_get_block_p(matrix=matrix_s(i,ic)%matrix,&
+                         row=irow,col=icol,BLOCK=dsblocks(i)%block,found=found)
+                  CPPostcondition(found,cp_failure_level,routineP,error,failure)
+                  NULLIFY (dgblocks(i)%block)
+                  CALL cp_dbcsr_get_block_p(matrix=gamma_matrix(i)%matrix,&
+                         row=irow,col=icol,BLOCK=dgblocks(i)%block,found=found)
+                  CPPostcondition(found,cp_failure_level,routineP,error,failure)
                END DO
-             END IF
-           END IF
+            END IF
          END IF
 
          IF (iatom == jatom .AND. dr < 0.001_dp) THEN
@@ -582,11 +545,15 @@ CONTAINS
         ENDDO
         CALL set_ks_env(ks_env,gamma_matrix=gamma_matrix,error=error)
      ENDIF
-     DO i=1,SIZE(matrix_s)
-        CALL cp_dbcsr_finalize(matrix_s(i)%matrix,error=error)
+     DO i=1,SIZE(matrix_s,1)
+        DO img=1,nimg
+           CALL cp_dbcsr_finalize(matrix_s(i,img)%matrix,error=error)
+        END DO
      ENDDO
-     DO i=1,SIZE(matrix_h)
-        CALL cp_dbcsr_finalize(matrix_h(i)%matrix,error=error)
+     DO i=1,SIZE(matrix_h,1)
+        DO img=1,nimg
+           CALL cp_dbcsr_finalize(matrix_h(i,img)%matrix,error=error)
+        END DO
      ENDDO
 
      ! set repulsive energy
@@ -599,16 +566,10 @@ CONTAINS
             extension=".Log",error=error)
        CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
        after = MIN(MAX(after,1),16)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_h(1)%matrix,4,after,qs_env,para_env,&
-            output_unit=iw,error=error)
-
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-             qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
-         DO i=2,SIZE(matrix_h)
-           CALL cp_dbcsr_write_sparse_matrix(matrix_h(i)%matrix,4,after,qs_env,para_env,&
-                output_unit=iw,error=error)
-         END DO
-       END IF
+       DO img=1,nimg
+          CALL cp_dbcsr_write_sparse_matrix(matrix_h(1,img)%matrix,4,after,qs_env,para_env,&
+               output_unit=iw,error=error)
+       END DO
 
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
@@ -620,25 +581,29 @@ CONTAINS
             extension=".Log",error=error)
        CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
        after = MIN(MAX(after,1),16)
-       CALL cp_dbcsr_write_sparse_matrix(matrix_s(1)%matrix,4,after,qs_env,para_env,&
+       DO img=1,nimg
+          CALL cp_dbcsr_write_sparse_matrix(matrix_s(1,img)%matrix,4,after,qs_env,para_env,&
              output_unit=iw,error=error)
 
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,&
                  qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
-         DO i=2,SIZE(matrix_s)
-           CALL cp_dbcsr_write_sparse_matrix(matrix_s(i)%matrix,4,after,qs_env,para_env,&
-                output_unit=iw,error=error)
-         END DO
-       END IF
+            DO i=2,SIZE(matrix_s,1)
+              CALL cp_dbcsr_write_sparse_matrix(matrix_s(i,img)%matrix,4,after,qs_env,para_env,&
+                   output_unit=iw,error=error)
+            END DO
+          END IF
+       END DO
 
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
      END IF
 
      IF (calculate_forces) THEN
-       IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,&
-               beta_scalar=-1.0_dp,error=error)
+       IF (SIZE(matrix_p,1) == 2) THEN
+          DO img=1,nimg
+             CALL cp_dbcsr_add(matrix_p(1,img)%matrix,matrix_p(2,img)%matrix,alpha_scalar=1.0_dp,&
+                  beta_scalar=-1.0_dp,error=error)
+          END DO
        END IF
        DEALLOCATE(atom_of_kind,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -664,8 +629,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
-                                                ispin, istat, natom, nkind, &
-                                                nspins, output_unit
+                                                img, ispin, istat, natom, &
+                                                nkind, nspins, output_unit
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: pc_ener, qmmm_el, zeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, occupation_numbers
@@ -673,8 +638,10 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_p1, mo_derivs
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: ks_matrix, matrix_h, &
-                                                matrix_p, matrix_s, mo_derivs
+                                                matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -702,10 +669,10 @@ CONTAINS
                     dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
-                    matrix_h=matrix_h,&
+                    matrix_h_kp=matrix_h,&
                     para_env=para_env,&
                     ks_env=ks_env,&
-                    matrix_ks=ks_matrix,&
+                    matrix_ks_kp=ks_matrix,&
                     rho=rho,&
                     energy=energy,&
                     error=error)
@@ -720,21 +687,22 @@ CONTAINS
     CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
 
     DO ispin=1,nspins
-      ! copy the core matrix into the fock matrix
-       CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,error=error)
+       DO img=1,SIZE(ks_matrix,2)
+          ! copy the core matrix into the fock matrix
+          CALL cp_dbcsr_copy(ks_matrix(ispin,img)%matrix,matrix_h(1,img)%matrix,error=error)
+       END DO
     END DO
 
     IF ( dft_control%qs_control%dftb_control%self_consistent ) THEN
       ! Mulliken charges
-      CALL get_qs_env(qs_env=qs_env,&
-           particle_set=particle_set,&
-           matrix_s=matrix_s,error=error)
-      CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
+      CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,&
+           matrix_s_kp=matrix_s,error=error)
+      CALL qs_rho_get(rho,rho_ao_kp=matrix_p,error=error)
       natom=SIZE(particle_set)
       ALLOCATE(charges(natom,nspins),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       !
-      CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges,error=error)
+      CALL mulliken_charges(matrix_p,matrix_s,para_env,charges,error=error)
       !
       ALLOCATE(mcharge(natom),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -760,14 +728,15 @@ CONTAINS
     END IF
 
     IF (qs_env%qmmm) THEN
+       CPPrecondition(SIZE(ks_matrix,2)==1,cp_failure_level,routineP,error,failure)
        DO ispin = 1, nspins
           ! If QM/MM sumup the 1el Hamiltonian
-          CALL cp_dbcsr_add(ks_matrix(ispin)%matrix,qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
+          CALL cp_dbcsr_add(ks_matrix(ispin,1)%matrix,qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
                1.0_dp,1.0_dp,error=error)
-          CALL qs_rho_get(rho, rho_ao=matrix_p, error=error)
+          CALL qs_rho_get(rho,rho_ao=matrix_p1,error=error)
           ! Compute QM/MM Energy
           CALL cp_dbcsr_trace(qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
-               matrix_p(ispin)%matrix,trace=qmmm_el,error=error)
+               matrix_p1(ispin)%matrix,trace=qmmm_el,error=error)
           energy%qmmm_el = energy%qmmm_el + qmmm_el
        END DO
        pc_ener = qs_env%ks_qmmm_env%pc_ener
@@ -798,6 +767,7 @@ CONTAINS
          "PRINT%DETAILED_ENERGY", error=error)
     ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
     IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
+       CPPrecondition(SIZE(ks_matrix,2)==1,cp_failure_level,routineP,error,failure)
        CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array,error=error)
        DO ispin=1,SIZE(mo_derivs)
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
@@ -805,7 +775,7 @@ CONTAINS
           IF(.NOT.mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
           ENDIF
-          CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff,&
+          CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin,1)%matrix,mo_coeff,&
                0.0_dp,mo_derivs(ispin)%matrix, error=error)
        ENDDO
     ENDIF
@@ -833,9 +803,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iatom, icol, ikind, indder, inode, irow, istat, j, &
-      jatom, jkind, l1, l2, la, last_jatom, lb, llm, lmaxi, lmaxj, m, n1, n2, &
-      natom, natorb_a, natorb_b, ngrd, ngrdcut, nkind
-    LOGICAL                                  :: defined, failure, new_atom_b
+      jatom, jkind, l1, l2, la, lb, llm, lmaxi, lmaxj, m, n1, n2, natom, &
+      natorb_a, natorb_b, ngrd, ngrdcut, nkind
+    LOGICAL                                  :: defined, failure, found
     REAL(KIND=dp)                            :: ddr, dgrd, dr, f0
     REAL(KIND=dp), DIMENSION(0:3)            :: skself
     REAL(KIND=dp), DIMENSION(3)              :: drij, rij
@@ -881,9 +851,6 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    ! Allocate the overlap matrix
-    CALL setup_matrices(qs_env,nderivative,matrix_s,'OVERLAP',error)
-
     NULLIFY ( atomic_kind_set, qs_kind_set, sab_orb)
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -896,9 +863,11 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     dftb_potential=dftb_potential,error=error)
 
-    CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
-
     nkind = SIZE(atomic_kind_set)
+
+    ! Allocate the overlap matrix
+    CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,error=error)
+    CALL setup_matrices1(qs_env,nderivative,matrix_s,'OVERLAP',sab_orb,error)
 
     CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
@@ -932,103 +901,100 @@ CONTAINS
        smatij => dftb_param_ij%smat
        smatji => dftb_param_ji%smat
 
-       IF (inode==1) last_jatom=0
-
        dr = SQRT(SUM(rij(:)**2))
        IF (NINT(dr/dgrd) <= ngrdcut) THEN
 
-         new_atom_b = jatom /= last_jatom
-         last_jatom = jatom
-
-         IF (new_atom_b) THEN
-           icol = MAX(iatom,jatom); irow = MIN(iatom,jatom)
+          icol = MAX(iatom,jatom); irow = MIN(iatom,jatom)
            
-           NULLIFY (sblock)
-           CALL cp_dbcsr_add_block_node(matrix=matrix_s(1)%matrix,&
-                            block_row=irow,&
-                            block_col=icol,&
-                            BLOCK=sblock,error=error)
-           IF (nderivative.gt.0) THEN
-             DO i=2,SIZE(matrix_s)
+          NULLIFY(sblock)
+          CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix,&
+               row=irow,col=icol,BLOCK=sblock,found=found)
+          CPPostcondition(found,cp_failure_level,routineP,error,failure)
+
+          IF (nderivative.gt.0) THEN
+             DO i=2,SIZE(matrix_s,1)
                 NULLIFY(dsblocks(i)%block)
-                CALL cp_dbcsr_add_block_node(matrix=matrix_s(i)%matrix,&
-                           block_row=irow,&
-                           block_col=icol,&
-                           BLOCK=dsblocks(i)%block,error=error)
+                CALL cp_dbcsr_get_block_p(matrix=matrix_s(i)%matrix,&
+                     row=irow,col=icol,BLOCK=dsblocks(i)%block,found=found)
              END DO
-           END IF
-         END IF
+          END IF
 
-         IF (iatom == jatom .AND. dr < 0.001_dp) THEN
-           ! diagonal block
-           DO i=1,natorb_a
-             sblock(i,i) = sblock(i,i) + 1._dp
-           END DO
-         ELSE
-           ! off-diagonal block
-           CALL compute_block_sk(sblock,smatij,smatji,rij,ngrd,ngrdcut,dgrd,llm,lmaxi,lmaxj,irow,iatom)
+          IF (iatom == jatom .AND. dr < 0.001_dp) THEN
+             ! diagonal block
+             DO i=1,natorb_a
+                sblock(i,i) = sblock(i,i) + 1._dp
+             END DO
+          ELSE
+             ! off-diagonal block
+             CALL compute_block_sk(sblock,smatij,smatji,rij,ngrd,ngrdcut,dgrd,&
+                                   llm,lmaxi,lmaxj,irow,iatom)
 
-           IF(nderivative.ge.1) THEN
-             n1 = SIZE(sblock,1); n2 = SIZE(sblock,2)
-             indder=1 ! used to put the 2nd derivatives in the correct matric (5=xx,8=yy,10=zz)
+             IF(nderivative.ge.1) THEN
+                n1 = SIZE(sblock,1); n2 = SIZE(sblock,2)
+                indder=1 ! used to put the 2nd derivatives in the correct matric (5=xx,8=yy,10=zz)
 
-             ALLOCATE (dsblock1(n1,n2,3),dsblock(n1,n2),dsblockm(n1,n2),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             dsblock1=0.0_dp
-             DO i=1,3
-               dsblock=0._dp; dsblockm=0.0_dp
-               drij=rij
-               f0=1.0_dp; IF ( irow == iatom ) f0=-1.0_dp
-
-               drij(i) = rij(i) - ddr * f0
-               CALL compute_block_sk(dsblockm,smatij,smatji,drij,ngrd,ngrdcut,dgrd,llm,lmaxi,lmaxj,irow,iatom)
-
-               drij(i) = rij(i) + ddr * f0
-               CALL compute_block_sk(dsblock,smatij,smatji,drij,ngrd,ngrdcut,dgrd,llm,lmaxi,lmaxj,irow,iatom)
-
-               dsblock1(:,:,i)= (dsblock+dsblockm)
-               dsblock = dsblock-dsblockm
-               dsblock = dsblock/(2.0_dp*ddr)
-
-               CPPrecondition(ASSOCIATED(dsblocks(i+1)%block),cp_failure_level,routineP,error,failure)
-               dsblocks(i+1)%block = dsblocks(i+1)%block + dsblock
-               IF(nderivative.gt.1) THEN
-                  indder=indder+5-i
-                  dsblocks(indder)%block=0.0_dp
-                  dsblocks(indder)%block=dsblocks(indder)%block+(dsblock1(:,:,i)-2.0_dp*sblock)/ddr**2
-               END IF
-             ENDDO
-
-             IF (nderivative.gt.1 ) THEN
-               DO i=1,2
-                 DO j=i+1,3
+                ALLOCATE (dsblock1(n1,n2,3),dsblock(n1,n2),dsblockm(n1,n2),STAT=istat)
+                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+                dsblock1=0.0_dp
+                DO i=1,3
                    dsblock=0._dp; dsblockm=0.0_dp
                    drij=rij
                    f0=1.0_dp; IF ( irow == iatom ) f0=-1.0_dp
+ 
+                   drij(i) = rij(i) - ddr * f0
+                   CALL compute_block_sk(dsblockm,smatij,smatji,drij,ngrd,ngrdcut,dgrd,&
+                                         llm,lmaxi,lmaxj,irow,iatom)
+ 
+                   drij(i) = rij(i) + ddr * f0
+                   CALL compute_block_sk(dsblock,smatij,smatji,drij,ngrd,ngrdcut,dgrd,&
+                                         llm,lmaxi,lmaxj,irow,iatom)
+    
+                   dsblock1(:,:,i)= (dsblock+dsblockm)
+                   dsblock = dsblock-dsblockm
+                   dsblock = dsblock/(2.0_dp*ddr)
+    
+                   CPPrecondition(ASSOCIATED(dsblocks(i+1)%block),cp_failure_level,routineP,error,failure)
+                   dsblocks(i+1)%block = dsblocks(i+1)%block + dsblock
+                   IF(nderivative.gt.1) THEN
+                      indder=indder+5-i
+                      dsblocks(indder)%block=0.0_dp
+                      dsblocks(indder)%block=dsblocks(indder)%block+&
+                              (dsblock1(:,:,i)-2.0_dp*sblock)/ddr**2
+                   END IF
+                ENDDO
 
-                   drij(i) = rij(i) - ddr * f0; drij(j) = rij(j) - ddr * f0
-                   CALL compute_block_sk(dsblockm,smatij,smatji,drij,ngrd,ngrdcut,dgrd,llm,lmaxi,lmaxj,irow,iatom)
-                   
-                   drij(i) = rij(i) + ddr * f0; drij(j) = rij(j) + ddr * f0
-                   CALL compute_block_sk(dsblock,smatij,smatji,drij,ngrd,ngrdcut,dgrd,llm,lmaxi,lmaxj,irow,iatom)
-                   
-                   indder=2+2*i+j 
-                   dsblocks(indder)%block=0.0_dp
-                   dsblocks(indder)%block=dsblocks(indder)%block+&
-                                   (dsblock+dsblockm-dsblock1(:,:,i)-dsblock1(:,:,j)+2.0_dp*sblock)/(2.0_dp*ddr**2)
-                 END DO
-               END DO   
+                IF (nderivative.gt.1 ) THEN
+                   DO i=1,2
+                      DO j=i+1,3
+                         dsblock=0._dp; dsblockm=0.0_dp
+                         drij=rij
+                         f0=1.0_dp; IF ( irow == iatom ) f0=-1.0_dp
+   
+                         drij(i) = rij(i) - ddr * f0; drij(j) = rij(j) - ddr * f0
+                         CALL compute_block_sk(dsblockm,smatij,smatji,drij,ngrd,ngrdcut,dgrd,&
+                                               llm,lmaxi,lmaxj,irow,iatom)
+                      
+                         drij(i) = rij(i) + ddr * f0; drij(j) = rij(j) + ddr * f0
+                         CALL compute_block_sk(dsblock,smatij,smatji,drij,ngrd,ngrdcut,dgrd,&
+                                               llm,lmaxi,lmaxj,irow,iatom)
+                      
+                         indder=2+2*i+j 
+                         dsblocks(indder)%block=0.0_dp
+                         dsblocks(indder)%block=dsblocks(indder)%block+(dsblock+dsblockm-&
+                                  dsblock1(:,:,i)-dsblock1(:,:,j)+2.0_dp*sblock)/(2.0_dp*ddr**2)
+                      END DO
+                   END DO   
+                END IF
+
+                DEALLOCATE (dsblock1,dsblock,dsblockm,STAT=istat)
+                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
              END IF
-
-             DEALLOCATE (dsblock1,dsblock,dsblockm,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-           END IF
-         END IF
+          END IF
        END IF
      END DO
      CALL neighbor_list_iterator_release(nl_iterator)
 
-     DO i=1,SIZE(matrix_s)
+     DO i=1,SIZE(matrix_s,1)
         CALL cp_dbcsr_finalize(matrix_s(i)%matrix,error=error)
      ENDDO
 
@@ -2318,18 +2284,21 @@ CONTAINS
 !> \param nderivative ...
 !> \param matrices ...
 !> \param mnames ...
+!> \param sab_nl ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE setup_matrices(qs_env,nderivative,matrices,mnames,error)
+  SUBROUTINE setup_matrices1(qs_env,nderivative,matrices,mnames,sab_nl,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER                                  :: nderivative
+    INTEGER, INTENT(IN)                      :: nderivative
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrices
     CHARACTER(LEN=*)                         :: mnames
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_nl
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'setup_matrices', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_matrices1', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(1)                             :: symmetry_type
@@ -2343,20 +2312,17 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    NULLIFY(particle_set, sab_orb, atomic_kind_set)
+    NULLIFY(particle_set, atomic_kind_set)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
                     particle_set=particle_set,&
-                    sab_orb=sab_orb,&
                     dbcsr_dist=dbcsr_dist,&
                     neighbor_list_id=neighbor_list_id, &
                     error=error)
@@ -2375,10 +2341,11 @@ CONTAINS
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf,error=error)
 
+    nmat = 0
     IF(nderivative==0)nmat=1
     IF(nderivative==1)nmat=4
     IF(nderivative==2)nmat=10
-
+    CPPostcondition(nmat>0,cp_failure_level,routineP,error,failure)
 
     ALLOCATE (row_blk_sizes(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -2404,6 +2371,7 @@ CONTAINS
             row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
             nblks=0, nze=0, mutable_work=.TRUE., &
             error=error)
+       CALL cp_dbcsr_alloc_block_from_nbl(matrices(i)%matrix,sab_nl,error)
     END DO
 
     DEALLOCATE (first_sgf,STAT=istat)
@@ -2413,7 +2381,197 @@ CONTAINS
 
     DEALLOCATE(row_blk_sizes)
 
-  END SUBROUTINE setup_matrices
+  END SUBROUTINE setup_matrices1
+
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param nderivative ...
+!> \param nimg ...
+!> \param matrices ...
+!> \param mnames ...
+!> \param sab_nl ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE setup_matrices2(qs_env,nderivative,nimg,matrices,mnames,sab_nl,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: nderivative, nimg
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrices
+    CHARACTER(LEN=*)                         :: mnames
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_nl
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_matrices2', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(1)                             :: symmetry_type
+    CHARACTER(LEN=default_string_length)     :: matnames
+    INTEGER                                  :: i, img, istat, natom, &
+                                                neighbor_list_id, nkind, &
+                                                nmat, nsgf
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
+    LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+
+    NULLIFY(particle_set, atomic_kind_set)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
+                    particle_set=particle_set,&
+                    dbcsr_dist=dbcsr_dist,&
+                    neighbor_list_id=neighbor_list_id, &
+                    error=error)
+
+    nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
+
+    CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
+
+    ALLOCATE (first_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (last_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    CALL get_particle_set(particle_set, qs_kind_set,&
+                          first_sgf=first_sgf,&
+                          last_sgf=last_sgf,error=error)
+
+    nmat = 0
+    IF(nderivative==0)nmat=1
+    IF(nderivative==1)nmat=4
+    IF(nderivative==2)nmat=10
+    CPPostcondition(nmat>0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (row_blk_sizes(natom), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
+
+    CALL cp_dbcsr_allocate_matrix_set(matrices,nmat,nimg,error=error)
+
+    ! Up to 2nd derivative take care to get the symmetries correct
+    DO img=1,nimg
+       DO i=1,nmat
+          IF(i.gt.1)THEN
+             matnames=TRIM(mnames)//" DERIVATIVE MATRIX DFTB"
+             symmetry_type=dbcsr_type_antisymmetric
+             IF(i.gt.4)symmetry_type=dbcsr_type_symmetric
+          ELSE
+             symmetry_type=dbcsr_type_symmetric
+             matnames=TRIM(mnames)//" MATRIX DFTB"
+          END IF
+          ALLOCATE(matrices(i,img)%matrix)
+          CALL cp_dbcsr_init(matrices(i,img)%matrix, error=error)
+          CALL cp_dbcsr_create(matrix=matrices(i,img)%matrix, &
+               name=TRIM(matnames), &
+               dist=dbcsr_dist, matrix_type=symmetry_type,&
+               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+               nblks=0, nze=0, mutable_work=.TRUE., &
+               error=error)
+          CALL cp_dbcsr_alloc_block_from_nbl(matrices(i,img)%matrix,sab_nl,error)
+       END DO
+    END DO
+
+    DEALLOCATE (first_sgf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (last_sgf,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    DEALLOCATE(row_blk_sizes)
+
+  END SUBROUTINE setup_matrices2
+
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param nmat ...
+!> \param gammat ...
+!> \param sab_nl ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE setup_gamma(qs_env,nmat,gammat,sab_nl,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: nmat
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: gammat
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_nl
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_gamma', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iatom, istat, natom, ncol, &
+                                                neighbor_list_id, nrow
+    INTEGER, DIMENSION(:), POINTER           :: felem, lelem, row_blk_sizes
+    LOGICAL                                  :: failure
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+       CALL get_qs_env(qs_env=qs_env,&
+                       particle_set=particle_set,&
+                       neighbor_list_id=neighbor_list_id,&
+                       dbcsr_dist=dbcsr_dist,&
+                       error=error)
+       natom = SIZE(particle_set)
+       nrow = natom
+       ncol = natom
+       ALLOCATE (felem(natom),lelem(natom),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO iatom = 1, natom
+          felem(iatom) = iatom
+          lelem(iatom) = iatom
+       ENDDO
+
+       ALLOCATE (row_blk_sizes(natom), STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CALL convert_offsets_to_sizes (felem, row_blk_sizes, lelem)
+ 
+       CALL cp_dbcsr_allocate_matrix_set(gammat,nmat,error=error)
+       ALLOCATE(gammat(1)%matrix,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       CALL cp_dbcsr_init(gammat(1)%matrix, error=error)
+ 
+       CALL cp_dbcsr_create(matrix=gammat(1)%matrix, &
+            name="GAMMA MATRIX", &
+            dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric,&
+            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+            nblks=0, nze=0, mutable_work=.TRUE., &
+            error=error)
+ 
+       DO i=2,nmat
+          ALLOCATE(gammat(i)%matrix)
+          CALL cp_dbcsr_init(gammat(i)%matrix, error=error)
+ 
+          CALL cp_dbcsr_create(matrix=gammat(i)%matrix, &
+               name="DERIVATIVE GAMMA MATRIX", &
+               dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
+               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+               nblks=0, nze=0, mutable_work=.TRUE., &
+               error=error)
+       END DO
+ 
+       DEALLOCATE (row_blk_sizes,felem,lelem,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+       ! setup the matrices using the neighbor list
+       DO i=1,nmat
+          CALL cp_dbcsr_alloc_block_from_nbl(gammat(i)%matrix,sab_nl,error)
+       END DO
+
+  END SUBROUTINE setup_gamma
 
 ! *****************************************************************************
 !> \brief Gets matrix elements on z axis, as they are stored in the tables

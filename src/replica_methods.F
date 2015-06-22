@@ -50,7 +50,8 @@ MODULE replica_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_wf_history_methods,           ONLY: wfi_create
+  USE qs_wf_history_methods,           ONLY: wfi_create,&
+                                             wfi_create_for_kp
   USE qs_wf_history_types,             ONLY: wfi_retain
   USE replica_types,                   ONLY: rep_env_sync,&
                                              rep_env_sync_results,&
@@ -313,7 +314,8 @@ MODULE replica_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, in_use, stat
-    LOGICAL                                  :: failure, has_unit_metric
+    LOGICAL                                  :: do_kpoints, failure, &
+                                                has_unit_metric
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -354,13 +356,17 @@ MODULE replica_methods
                       CALL wfi_retain(rep_env%wf_history(i)%wf_history,&
                            error=error)
                    ELSE
-                      CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,error=error)
+                      CALL get_qs_env(qs_env,has_unit_metric=has_unit_metric,&
+                                      do_kpoints=do_kpoints,error=error)
                       CALL wfi_create(rep_env%wf_history(i)%wf_history,&
                            interpolation_method_nr=&
                            dft_control%qs_control%wf_interpolation_method_nr,&
                            extrapolation_order = dft_control%qs_control%wf_extrapolation_order,&
                            has_unit_metric = has_unit_metric, &
                            error=error)
+                      IF(do_kpoints) THEN
+                         CALL wfi_create_for_kp(rep_env%wf_history(i)%wf_history,error=error)
+                      END IF
                    END IF
                 END DO
              ELSE

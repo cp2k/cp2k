@@ -98,7 +98,9 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p, matrix_s
+      POINTER                                :: matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrixkp_p, matrixkp_s
     TYPE(cp_dbcsr_type), POINTER             :: sm_p, sm_s
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     TYPE(cp_fm_type), POINTER                :: fm_s_half, fm_work1, fm_work2
@@ -121,7 +123,8 @@ CONTAINS
     NULLIFY (fm_work1)
     NULLIFY (fm_work2)
     NULLIFY (matrix_p)
-    NULLIFY (matrix_s)
+    NULLIFY (matrixkp_p)
+    NULLIFY (matrixkp_s)
     NULLIFY (orbpop)
     NULLIFY (particle_set)
     NULLIFY (rho)
@@ -135,7 +138,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
-                    matrix_s=matrix_s,&
+                    matrix_s_kp=matrixkp_s,&
                     particle_set=particle_set,&
                     rho=rho,&
                     scf_control=scf_control,&
@@ -145,65 +148,74 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrixkp_s),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
 
-    sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
-    CALL qs_rho_get(rho, rho_ao=matrix_p, error=error) ! Density matrices in sparse format
+    IF(SIZE(matrixkp_s,2) > 1) THEN
 
-    nspin = SIZE(matrix_p)
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+           message="Lowdin population analysis not implemented for k-points.", &
+           error=error, error_level=cp_warning_level)
 
-    ! Get the total number of contracted spherical Gaussian basis functions
-    CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
+    ELSE
 
-    ! Provide an array to store the orbital populations for each spin
-    ALLOCATE (orbpop(nsgf,nspin),STAT=stat)
-    CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-    orbpop(:,:) = 0.0_dp
+       sm_s => matrixkp_s(1,1)%matrix ! Overlap matrix in sparse format
+       CALL qs_rho_get(rho, rho_ao_kp=matrixkp_p, error=error) ! Density matrices in sparse format
 
-    ! Write headline
-    IF (output_unit > 0) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "LOWDIN POPULATION ANALYSIS"
-    END IF
+       matrix_p => matrixkp_p(:,1)
+       nspin = SIZE(matrix_p,1)
 
-    ! Provide full size work matrices
-    CALL cp_fm_struct_create(fmstruct=fmstruct,&
-                             para_env=para_env,&
-                             context=blacs_env,&
-                             nrow_global=nsgf,&
-                             ncol_global=nsgf,&
-                             error=error)
-    CALL cp_fm_create(matrix=fm_s_half,&
-                      matrix_struct=fmstruct,&
-                      name="S^(1/2) MATRIX",&
-                      error=error)
-    CALL cp_fm_create(matrix=fm_work1,&
-                      matrix_struct=fmstruct,&
-                      name="FULL WORK MATRIX 1",&
-                      error=error)
-    headline = "SYMMETRICALLY ORTHOGONALISED DENSITY MATRIX"
-    CALL cp_fm_create(matrix=fm_work2,&
-                      matrix_struct=fmstruct,&
-                      name=TRIM(headline),&
-                      error=error)
-    CALL cp_fm_struct_release(fmstruct=fmstruct,&
-                              error=error)
+       ! Get the total number of contracted spherical Gaussian basis functions
+       CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
 
-    ! Build full S^(1/2) matrix (computationally expensive)
-    CALL copy_dbcsr_to_fm(sm_s,fm_s_half,error=error)
-    CALL cp_fm_power(fm_s_half,fm_work1,0.5_dp,scf_control%eps_eigval,ndep,error=error)
-    CALL cp_assert((ndep == 0),cp_warning_level,cp_assertion_failed,routineP,&
-                   "Overlap matrix exhibits linear dependencies. At least some "//&
-                   "eigenvalues have been quenched.",only_ionode=.TRUE.)
+       ! Provide an array to store the orbital populations for each spin
+       ALLOCATE (orbpop(nsgf,nspin),STAT=stat)
+       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       orbpop(:,:) = 0.0_dp
 
-    ! Build Lowdin population matrix for each spin
-    DO ispin=1,nspin
-      sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
-      ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
-      CALL cp_dbcsr_sm_fm_multiply(sm_p,fm_s_half,fm_work1,nsgf,error=error)
-      CALL cp_gemm(transa="N",&
+       ! Write headline
+       IF (output_unit > 0) THEN
+         WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "LOWDIN POPULATION ANALYSIS"
+       END IF
+
+       ! Provide full size work matrices
+       CALL cp_fm_struct_create(fmstruct=fmstruct,&
+                                para_env=para_env,&
+                                context=blacs_env,&
+                                nrow_global=nsgf,&
+                                ncol_global=nsgf,&
+                                error=error)
+       CALL cp_fm_create(matrix=fm_s_half,&
+                         matrix_struct=fmstruct,&
+                         name="S^(1/2) MATRIX",&
+                         error=error)
+       CALL cp_fm_create(matrix=fm_work1,&
+                         matrix_struct=fmstruct,&
+                         name="FULL WORK MATRIX 1",&
+                         error=error)
+       headline = "SYMMETRICALLY ORTHOGONALISED DENSITY MATRIX"
+       CALL cp_fm_create(matrix=fm_work2,&
+                         matrix_struct=fmstruct,&
+                         name=TRIM(headline),&
+                         error=error)
+       CALL cp_fm_struct_release(fmstruct=fmstruct,&
+                                 error=error)
+
+       ! Build full S^(1/2) matrix (computationally expensive)
+       CALL copy_dbcsr_to_fm(sm_s,fm_s_half,error=error)
+       CALL cp_fm_power(fm_s_half,fm_work1,0.5_dp,scf_control%eps_eigval,ndep,error=error)
+       CALL cp_assert((ndep == 0),cp_warning_level,cp_assertion_failed,routineP,&
+                      "Overlap matrix exhibits linear dependencies. At least some "//&
+                      "eigenvalues have been quenched.",only_ionode=.TRUE.)
+
+       ! Build Lowdin population matrix for each spin
+       DO ispin=1,nspin
+         sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
+         ! Calculate S^(1/2)*P*S^(1/2) as a full matrix (Lowdin)
+         CALL cp_dbcsr_sm_fm_multiply(sm_p,fm_s_half,fm_work1,nsgf,error=error)
+         CALL cp_gemm(transa="N",&
                       transb="N",&
                       m=nsgf,&
                       n=nsgf,&
@@ -214,34 +226,36 @@ CONTAINS
                       beta=0.0_dp,&
                       matrix_c=fm_work2,&
                       error=error)
-      IF (print_level > 2) THEN
-        ! Write the full Lowdin population matrix
-        IF (nspin > 1) THEN
-          IF (ispin == 1) THEN
-            fm_work2%name = TRIM(headline)//" FOR ALPHA SPIN"
-          ELSE
-            fm_work2%name = TRIM(headline)//" FOR BETA SPIN"
-          END IF
-        END IF
-        CALL write_fm_with_basis_info(fm_work2,4,6,qs_env,para_env,&
-                                      output_unit=output_unit,error=error)
-      END IF
-      CALL cp_fm_get_diag(fm_work2,orbpop(:,ispin),error)
-    END DO ! next spin ispin
+         IF (print_level > 2) THEN
+           ! Write the full Lowdin population matrix
+           IF (nspin > 1) THEN
+             IF (ispin == 1) THEN
+               fm_work2%name = TRIM(headline)//" FOR ALPHA SPIN"
+             ELSE
+               fm_work2%name = TRIM(headline)//" FOR BETA SPIN"
+             END IF
+           END IF
+           CALL write_fm_with_basis_info(fm_work2,4,6,qs_env,para_env,&
+                                         output_unit=output_unit,error=error)
+         END IF
+         CALL cp_fm_get_diag(fm_work2,orbpop(:,ispin),error)
+       END DO ! next spin ispin
 
-    ! Write atomic populations and charges
-    IF (output_unit > 0) THEN
-      print_gop = (print_level > 1) ! Print also orbital populations
-      CALL write_orbpop(orbpop,atomic_kind_set,qs_kind_set,particle_set,output_unit,print_gop,error)
-    END IF
+       ! Write atomic populations and charges
+       IF (output_unit > 0) THEN
+         print_gop = (print_level > 1) ! Print also orbital populations
+         CALL write_orbpop(orbpop,atomic_kind_set,qs_kind_set,particle_set,output_unit,print_gop,error)
+       END IF
 
-    ! Release local working storage
-    CALL cp_fm_release(matrix=fm_s_half,error=error)
-    CALL cp_fm_release(matrix=fm_work1,error=error)
-    CALL cp_fm_release(matrix=fm_work2,error=error)
-    IF (ASSOCIATED(orbpop)) THEN
-      DEALLOCATE (orbpop,STAT=stat)
-      CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       ! Release local working storage
+       CALL cp_fm_release(matrix=fm_s_half,error=error)
+       CALL cp_fm_release(matrix=fm_work1,error=error)
+       CALL cp_fm_release(matrix=fm_work2,error=error)
+       IF (ASSOCIATED(orbpop)) THEN
+         DEALLOCATE (orbpop,STAT=stat)
+         CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+       END IF
+
     END IF
 
     CALL timestop(handle)
@@ -269,7 +283,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: headline
-    INTEGER                                  :: blk, handle, iatom, isgf, &
+    INTEGER                                  :: blk, handle, iatom, ic, isgf, &
                                                 ispin, jatom, jsgf, natom, &
                                                 nsgf, nspin, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
@@ -280,7 +294,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_iterator)                  :: iter
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_p, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: sm_p, sm_ps, sm_s
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -312,7 +326,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
-                    matrix_s=matrix_s,&
+                    matrix_s_kp=matrix_s,&
                     particle_set=particle_set,&
                     rho=rho,&
                     para_env=para_env,&
@@ -324,10 +338,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
 
-    sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
-    CALL qs_rho_get(rho, rho_ao=matrix_p, error=error) ! Density matrices in sparse format
-
-    nspin = SIZE(matrix_p)
+    CALL qs_rho_get(rho, rho_ao_kp=matrix_p, error=error) ! Density matrices in sparse format
+    nspin = SIZE(matrix_p,1)
 
     ! Get the total number of contracted spherical Gaussian basis functions
     CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
@@ -350,6 +362,7 @@ CONTAINS
 
     ! Create a DBCSR work matrix, if needed
     IF (print_level > 2) THEN
+      sm_s => matrix_s(1,1)%matrix ! Overlap matrix in sparse format
       ALLOCATE (sm_ps,STAT=stat)
       CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
       headline = "MULLIKEN NET ATOMIC ORBITAL AND OVERLAP POPULATION MATRIX"
@@ -358,53 +371,58 @@ CONTAINS
                          matrix_a=sm_s,&
                          name=TRIM(headline),&
                          error=error)
-      CALL cp_dbcsr_set(sm_ps,0.0_dp,error=error)
     END IF
 
     ! Build Mulliken population matrix for each spin
     DO ispin=1,nspin
-      sm_p => matrix_p(ispin)%matrix ! Density matrix for spin ispin in sparse format
-      ! Calculate Hadamard product of P and S as sparse matrix (Mulliken)
-      ! CALL cp_dbcsr_hadamard_product(sm_p,sm_s,sm_ps,error=error)
-      CALL cp_dbcsr_iterator_start(iter,sm_s)
-      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-        CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,s_block,blk)
-        IF (.NOT.(ASSOCIATED(s_block))) CYCLE
-        CALL cp_dbcsr_get_block_p(matrix=sm_p,&
-                               row=iatom,&
-                               col=jatom,&
-                               block=p_block,&
-                               found=found)
+      DO ic=1,SIZE(matrix_s,2)
         IF (print_level > 2) THEN
-          CALL cp_dbcsr_get_block_p(matrix=sm_ps,&
+           CALL cp_dbcsr_set(sm_ps,0.0_dp,error=error)
+        END IF
+        sm_s => matrix_s(1,ic)%matrix ! Overlap matrix in sparse format
+        sm_p => matrix_p(ispin,ic)%matrix ! Density matrix for spin ispin in sparse format
+        ! Calculate Hadamard product of P and S as sparse matrix (Mulliken)
+        ! CALL cp_dbcsr_hadamard_product(sm_p,sm_s,sm_ps,error=error)
+        CALL cp_dbcsr_iterator_start(iter,sm_s)
+        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+          CALL cp_dbcsr_iterator_next_block(iter,iatom,jatom,s_block,blk)
+          IF (.NOT.(ASSOCIATED(s_block))) CYCLE
+          CALL cp_dbcsr_get_block_p(matrix=sm_p,&
                                  row=iatom,&
                                  col=jatom,&
-                                 block=ps_block,&
+                                 block=p_block,&
                                  found=found)
-          CPPostcondition(ASSOCIATED(ps_block),cp_failure_level,routineP,error,failure)
-        END IF
+          IF (print_level > 2) THEN
+            CALL cp_dbcsr_get_block_p(matrix=sm_ps,&
+                                   row=iatom,&
+                                   col=jatom,&
+                                   block=ps_block,&
+                                   found=found)
+            CPPostcondition(ASSOCIATED(ps_block),cp_failure_level,routineP,error,failure)
+          END IF
 
-        sgfb = first_sgf_atom(jatom)
-        DO jsgf=1,SIZE(s_block,2)
-          DO isgf=1,SIZE(s_block,1)
-            ps = p_block(isgf,jsgf)*s_block(isgf,jsgf)
-            IF (ASSOCIATED(ps_block)) ps_block(isgf,jsgf) = ps
-            orbpop(sgfb,ispin) = orbpop(sgfb,ispin) + ps
-          END DO
-          sgfb = sgfb + 1
-        END DO
-        IF (iatom /= jatom) THEN
-          sgfa = first_sgf_atom(iatom)
-          DO isgf=1,SIZE(s_block,1)
-            DO jsgf=1,SIZE(s_block,2)
+          sgfb = first_sgf_atom(jatom)
+          DO jsgf=1,SIZE(s_block,2)
+            DO isgf=1,SIZE(s_block,1)
               ps = p_block(isgf,jsgf)*s_block(isgf,jsgf)
-              orbpop(sgfa,ispin) = orbpop(sgfa,ispin) + ps
+              IF (ASSOCIATED(ps_block)) ps_block(isgf,jsgf) = ps_block(isgf,jsgf) + ps
+              orbpop(sgfb,ispin) = orbpop(sgfb,ispin) + ps
             END DO
-            sgfa = sgfa + 1
+            sgfb = sgfb + 1
           END DO
-        END IF
+          IF (iatom /= jatom) THEN
+            sgfa = first_sgf_atom(iatom)
+            DO isgf=1,SIZE(s_block,1)
+              DO jsgf=1,SIZE(s_block,2)
+                ps = p_block(isgf,jsgf)*s_block(isgf,jsgf)
+                orbpop(sgfa,ispin) = orbpop(sgfa,ispin) + ps
+              END DO
+              sgfa = sgfa + 1
+            END DO
+          END IF
+        END DO
+        CALL cp_dbcsr_iterator_stop(iter)
       END DO
-      CALL cp_dbcsr_iterator_stop(iter)
 
       IF (print_level > 2) THEN
         ! Write the full Mulliken net AO and overlap population matrix

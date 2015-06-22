@@ -1,0 +1,62 @@
+@SET NREP 1
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD SCPTB
+      EXTRAPOLATION USE_GUESS
+      &SCPTB
+        DISPERSION .FALSE.
+        DO_EWALD .FALSE.
+        DO_SCC   .FALSE.
+        DO_SCP   .FALSE.
+        PARAMETER_FILE_NAME nm12_parameters.xml
+      &END SCPTB
+    &END QS
+    &SCF
+      SCF_GUESS NONE
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   1.
+      &END
+    &END SCF
+    &KPOINTS
+       SCHEME  MONKHORST-PACK  2 2 2
+       SYMMETRY ON
+       EPS_GEO 1.e-8
+       FULL_GRID OFF
+       VERBOSE F
+    &END KPOINTS
+  &END DFT
+  &SUBSYS
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END
+    &CELL
+      ABC 5.431 5.431 5.431
+      MULTIPLE_UNIT_CELL ${NREP} ${NREP} ${NREP}
+    &END CELL
+    &COORD
+     SCALED
+     Si     0.000000    0.000000    0.000000
+     Si     0.500000    0.500000    0.000000
+     Si     0.500000    0.000000    0.500000
+     Si     0.000000    0.500000    0.500000
+     Si     0.250000    0.250000    0.250000
+     Si     0.250000    0.750000    0.750000
+     Si     0.750000    0.250000    0.750000
+     Si     0.750000    0.750000    0.250000
+    &END COORD
+  &END SUBSYS
+  STRESS_TENSOR ANALYTICAL
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT Si
+  PRINT_LEVEL LOW
+  RUN_TYPE DEBUG
+&END GLOBAL
+&DEBUG
+   DEBUG_FORCES          F
+   DEBUG_STRESS_TENSOR   T
+   STOP_ON_MISMATCH      T
+   DX                1.0e-5
+&END DEBUG
