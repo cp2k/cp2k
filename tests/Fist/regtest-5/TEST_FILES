@@ -5,8 +5,8 @@ JAC_us.inp                        2     2e-11
 wat_freq.inp    8    1.0E-14    1736.710173
 wat_freq_norot.inp    8    1.0E-14    1736.710173
 wat_freq_freeze.inp    8    1.0E-14    -37.593284
-wat_mode_sel.inp         18
-wat_mode_sel_range.inp   18
+wat_mode_sel.inp                 18     2e-05                               
+wat_mode_sel_range.inp           18     7e-08                               
 ethene-vib-mode-sel-int.inp    21    1.0E-14    0.005710
 # new mode_selective tests for several restart types
 N3dye_geoopt.inp    7    1.0E-14    0.5616272352
