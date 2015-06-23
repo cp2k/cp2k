@@ -445,7 +445,7 @@ CONTAINS
           IF ( .NOT. just_energy ) THEN
             CALL qs_rho_get(rho, rho_ao_kp=matrix_p, error=error)
             IF ( calculate_forces .AND. SIZE(matrix_p,1) == 2) THEN
-              DO ic=1,SIZE(matrix_p,2)
+              DO ic=1,nimg
                 CALL cp_dbcsr_add(matrix_p(1,ic)%matrix,matrix_p(2,ic)%matrix,&
                      alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
               END DO
@@ -513,7 +513,7 @@ CONTAINS
             CALL neighbor_list_iterator_release(nl_iterator)
 
             IF ( calculate_forces .AND. SIZE(matrix_p,1) == 2) THEN
-              DO ic=1,SIZE(matrix_p,2)
+              DO ic=1,nimg
                 CALL cp_dbcsr_add(matrix_p(1,ic)%matrix,matrix_p(2,ic)%matrix,&
                               alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
               END DO
@@ -586,7 +586,7 @@ CONTAINS
             IF ( calculate_forces ) THEN
                CALL qs_rho_get(rho, rho_ao_kp=matrix_p, error=error)
                IF (SIZE(matrix_p,1) == 2) THEN
-                  DO ic=1,SIZE(matrix_p,2)
+                  DO ic=1,nimg
                      CALL cp_dbcsr_add(matrix_p(1,ic)%matrix,matrix_p(2,ic)%matrix,&
                           alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
                   END DO
@@ -594,7 +594,7 @@ CONTAINS
             END IF
             ! calculate KS matrix
             CALL mp_sum(qcharge,para_env%group)
-!deb
+
             NULLIFY(n_list)
             CALL get_qs_env(qs_env=qs_env,sab_orb=n_list,error=error)
             CALL neighbor_list_iterator_create(nl_iterator,n_list)
@@ -660,7 +660,7 @@ CONTAINS
                   force(ikind)%rho_elec(3,iat) = force(ikind)%rho_elec(3,iat) - drcharge(3,iatom)
                END DO
                IF (SIZE(matrix_p,1) == 2) THEN
-                  DO ic=1,SIZE(matrix_p,2)
+                  DO ic=1,nimg
                      CALL cp_dbcsr_add(matrix_p(1,ic)%matrix,matrix_p(2,ic)%matrix,&
                                        alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
                   END DO
@@ -682,7 +682,7 @@ CONTAINS
           END IF
        ELSE
          ! direct sum
-         IF (SIZE(matrix_p,2) > 1) THEN
+         IF (nimg > 1) THEN
             CALL cp_unimplemented_error(fromWhere=routineP, &
                  message="SCPTB direct sum electrostatic cannot be used with k-points.", &
                  error=error, error_level=cp_failure_level)
@@ -749,7 +749,7 @@ CONTAINS
             IF ( calculate_forces ) THEN
                CALL qs_rho_get(rho, rho_ao_kp=matrix_p, error=error)
                IF (SIZE(matrix_p,1) == 2) THEN
-                  DO ic=1,SIZE(matrix_p,2)
+                  DO ic=1,nimg
                      CALL cp_dbcsr_add(matrix_p(1,ic)%matrix,matrix_p(2,ic)%matrix,&
                           alpha_scalar=1.0_dp,beta_scalar=1.0_dp,error=error)
                   END DO
@@ -804,7 +804,7 @@ CONTAINS
                DEALLOCATE(drcharge,STAT=istat)
                CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
                IF (SIZE(matrix_p,1) == 2) THEN
-                  DO ic=1,SIZE(matrix_p,2)
+                  DO ic=1,nimg
                      CALL cp_dbcsr_add(matrix_p(1,ic)%matrix,matrix_p(2,ic)%matrix,&
                                        alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
                   END DO
@@ -858,7 +858,8 @@ CONTAINS
       nsize
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, lscp, &
                                                 natoms, nbasis
-    LOGICAL                                  :: defined, failure, found
+    LOGICAL                                  :: defined, do_kpoints, failure, &
+                                                found
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: adef
     REAL(KIND=dp)                            :: ak, alpha, dq, dqv, fi, rhom1
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: charges, zeta
@@ -887,9 +888,10 @@ CONTAINS
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
+         do_kpoints=do_kpoints,&
          energy=energy,force=force,para_env=para_env,error=error)
 
-    IF(SIZE(matrixkp_s,2) > 1) THEN
+    IF(do_kpoints) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
             message="SCPTB not implemented with k-points.", &
             error=error, error_level=cp_failure_level)
