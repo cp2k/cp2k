@@ -511,7 +511,6 @@ END SUBROUTINE rf_deriv_check
 !> \param scr unit for output
 !> \param title ...
 !> \param error ...
-!> \param p_matrix , s_matrix, para_env UNMATCHED_PROCEDURE_ARGUMENT: please check 
 !> \par History
 !>      06.2004 adapted to remove explicit matrix multiply [Joost VandeVondele]
 ! *****************************************************************************
