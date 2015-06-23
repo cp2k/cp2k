@@ -30,8 +30,6 @@ MODULE qs_dftb3_methods
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
-  USE qs_ks_types,                     ONLY: get_ks_env,&
-                                             qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -115,7 +113,6 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
@@ -167,7 +164,7 @@ CONTAINS
        nimg = SIZE(matrix_p,2)
        NULLIFY(cell_to_index)
        IF (nimg>1) THEN
-          NULLIFY(ks_env,kpoints)
+          NULLIFY(kpoints)
           CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
           CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
        END IF
@@ -251,7 +248,7 @@ CONTAINS
        nimg = SIZE(ks_matrix,2)
        NULLIFY(cell_to_index)
        IF (nimg>1) THEN
-          NULLIFY(ks_env,kpoints)
+          NULLIFY(kpoints)
           CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
           CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
        END IF

@@ -98,10 +98,9 @@ CONTAINS
                                                 s_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_p_type), DIMENSION(:,:), &
-      POINTER                                :: matrix_p, matrix_w, &
-                                                matrix_h, matrix_s, &
-                                                matrix_t
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_h, matrix_p, matrix_s, &
+                                                matrix_t, matrix_w
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control

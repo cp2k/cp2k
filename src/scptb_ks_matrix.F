@@ -316,11 +316,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tb_coulomb', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk, ewald_type, i, ia, iat, iatom, ic, ikind, is, istat, ja, &
-      jat, jatom, jkind, lmaxscp, nai, naj, natom, ndim, nkind, nsize, nimg, &
-      icol, irow
+    INTEGER :: blk, ewald_type, i, ia, iat, iatom, ic, icol, ikind, irow, is, &
+      istat, ja, jat, jatom, jkind, lmaxscp, nai, naj, natom, ndim, nimg, &
+      nkind, nsize
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
-    INTEGER, DIMENSION(3)                    :: periodic, cellind
+    INTEGER, DIMENSION(3)                    :: cellind, periodic
     INTEGER, DIMENSION(:), POINTER           :: atomi_list, atomj_list
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: defined, failure, found, &

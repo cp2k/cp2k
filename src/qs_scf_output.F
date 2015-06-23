@@ -475,11 +475,11 @@ END SUBROUTINE qs_scf_print_scf_summary
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_print', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: after, handle, ispin, iw, ic
+    INTEGER                                  :: after, handle, ic, ispin, iw
     LOGICAL                                  :: do_kpoints
     REAL(KIND=dp)                            :: mo_mag_max, mo_mag_min, &
                                                 orthonormality
-    TYPE(cp_dbcsr_p_type), DIMENSION(:,:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_ks, matrix_p, matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control

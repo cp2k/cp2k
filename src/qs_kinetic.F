@@ -103,7 +103,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_nl
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_p
-    TYPE(cp_dbcsr_p_type), DIMENSION(:,:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: matrixkp_p
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: eps_filter
     TYPE(cp_error_type), INTENT(inout)       :: error
