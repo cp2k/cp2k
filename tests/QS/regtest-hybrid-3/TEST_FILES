@@ -4,4 +4,4 @@ H2O-hybrid-pbe0_shortcut.inp  1
 Li-hybrid-rcam-b3lyp.inp          1     3e-08
 Ne-hybrid-rcam-b3lyp.inp          1     1e-11
 Li-hybrid-MCY3.inp                1     1e-13
-Ne-hybrid-MCY3.inp                1     2e-12
+Ne-hybrid-MCY3.inp                1     3e-12
