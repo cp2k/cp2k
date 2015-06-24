@@ -171,7 +171,7 @@ CONTAINS
        CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per,error=error)
        CALL create_resp_type(resp_env, rep_sys, error) 
        !initialize the RESP fitting, get all the keywords
-       CALL init_resp(resp_env,rep_sys,input,subsys,atomic_kind_set,&
+       CALL init_resp(resp_env,rep_sys,subsys,atomic_kind_set,&
             cell,resp_section,cons_section,rest_section,error)
        
        !print info
@@ -350,7 +350,6 @@ CONTAINS
 !> \brief intializes the resp fit. Getting the parameters
 !> \param resp_env the resp environment
 !> \param rep_sys structure for repeating input sections defining fit points
-!> \param input ...
 !> \param subsys ...
 !> \param atomic_kind_set ...
 !> \param cell parameters related to the simulation cell
@@ -360,12 +359,11 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE init_resp(resp_env,rep_sys,input,subsys,&
+  SUBROUTINE init_resp(resp_env,rep_sys,subsys,&
              atomic_kind_set,cell,resp_section,cons_section,rest_section,error)
 
     TYPE(resp_type), POINTER                 :: resp_env
     TYPE(resp_p_type), DIMENSION(:), POINTER :: rep_sys
-    TYPE(section_vals_type), POINTER         :: input
     TYPE(qs_subsys_type), POINTER            :: subsys
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set

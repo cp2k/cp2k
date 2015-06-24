@@ -54,8 +54,7 @@ CONTAINS
     INTEGER, INTENT(in)                      :: mpi_group
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    INTEGER, PARAMETER                       :: ncache_optimal = 8*1024, &
-                                                timing_flag = 0
+    INTEGER, PARAMETER                       :: ncache_optimal = 8*1024
 
     INTEGER :: i, i1, i3, i_all, i_stat, ic1, ic2, ic3, inzee, j, j2, J2stb, &
       J2stf, j3, Jp2stb, Jp2stf, lot, lzt, ma, mb, ncache, nfft
@@ -908,8 +907,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'S_PoissonSolver', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: ncache_optimal = 8*1024, &
-                                                timing_flag = 0
+    INTEGER, PARAMETER                       :: ncache_optimal = 8*1024
 
     INTEGER :: handle, i, i1, i3, i_all, i_stat, ic1, ic2, ic3, inzee, j, j2, &
       J2stb, J2stf, j3, Jp2stb, Jp2stf, lot, lzt, ma, mb, ncache, nfft
@@ -1716,8 +1714,7 @@ CONTAINS
     INTEGER, INTENT(in)                      :: mpi_group
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER, PARAMETER                       :: ncache_optimal = 8*1024, &
-                                                timing_flag = 0
+    INTEGER, PARAMETER                       :: ncache_optimal = 8*1024
 
     INTEGER :: i, i1, i3, i_all, i_stat, ic1, ic2, ic3, inzee, j, j2, J2stb, &
       J2stf, j3, Jp2stb, Jp2stf, lot, lzt, ma, mb, ncache, nfft

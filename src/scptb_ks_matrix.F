@@ -239,7 +239,7 @@ CONTAINS
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
          IF (do_scp) THEN
-            CALL scp_coulomb(qs_env,ks_matrixkp,matrixkp_s,rho,mcharge,dmcharge,calculate_forces,just_energy,error)
+            CALL scp_coulomb(qs_env,ks_matrixkp,matrixkp_s,rho,mcharge,calculate_forces,just_energy,error)
          ELSE
             CALL tb_coulomb(qs_env,ks_matrixkp,matrixkp_s,rho,mcharge,calculate_forces,just_energy,error)
          END IF
@@ -829,12 +829,11 @@ CONTAINS
 !> \param matrixkp_s ...
 !> \param rho ...
 !> \param mcharge ...
-!> \param dmcharge ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE scp_coulomb(qs_env,ks_matrixkp,matrixkp_s,rho,mcharge,dmcharge,&
+  SUBROUTINE scp_coulomb(qs_env,ks_matrixkp,matrixkp_s,rho,mcharge,&
              calculate_forces,just_energy,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -843,8 +842,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     REAL(KIND=dp), DIMENSION(:), &
       INTENT(inout)                          :: mcharge
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(in)                             :: dmcharge
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
 

@@ -106,7 +106,7 @@ CONTAINS
        END IF
        ccc = clm_d(ij, l1, 0) * clm_d(kl, l2, 0)
        IF (ABS(ccc) > EPSILON(0.0_dp)) THEN
-          chrg = eval(r, l1, l2, add, error)
+          chrg = eval(l1, l2, add, error)
           sum  = chrg
        END IF
     END IF
@@ -161,7 +161,6 @@ CONTAINS
 !>        l2   -  Quantum numbers for multipole of configuration 2
 !>        add  -  additive term
 !>
-!> \param r ...
 !> \param l1 ...
 !> \param l2 ...
 !> \param add ...
@@ -170,8 +169,7 @@ CONTAINS
 !> \date 11.2008 [tlaino]
 !> \author Teodoro Laino [tlaino]
 ! *****************************************************************************
-  FUNCTION coeff_int_3(r, l1, l2, add, error) RESULT(coeff)
-    REAL(KIND=dp), INTENT(in)                :: r
+  FUNCTION coeff_int_3(l1, l2, add, error) RESULT(coeff)
     INTEGER, INTENT(in)                      :: l1, l2
     REAL(KIND=dp), INTENT(in)                :: add
     TYPE(cp_error_type), INTENT(inout)       :: error

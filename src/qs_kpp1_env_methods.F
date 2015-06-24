@@ -288,7 +288,7 @@ CONTAINS
             error=error)/=0) THEN
           output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
                extension=".scfLog",error=error)
-          CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit, error=error)
+          CALL print_densities(rho1, rho1_tot_gspace, output_unit, error=error)
           CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
                "PRINT%TOTAL_DENSITIES", error=error)
        END IF
@@ -834,15 +834,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param kpp1_env ...
 !> \param rho1 ...
 !> \param rho1_tot_gspace ...
 !> \param output_unit ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit, error)
+  SUBROUTINE print_densities(rho1, rho1_tot_gspace, output_unit, error)
 
-    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(qs_rho_type), POINTER               :: rho1
     TYPE(pw_p_type), INTENT(IN)              :: rho1_tot_gspace
     INTEGER                                  :: output_unit

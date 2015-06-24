@@ -392,7 +392,7 @@ CONTAINS
     !   *** Allocate the matrix of coefficients for one center expansions
     IF(dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
        CALL create_oce_set(oce,error=error)
-       CALL allocate_oce_set(oce,natom,nkind,maxder,error=error)
+       CALL allocate_oce_set(oce,nkind,error=error)
        ! force analytic ppl calcuation for GAPW methods
        dft_control%qs_control%do_ppl_method=do_ppl_analytic
     ENDIF

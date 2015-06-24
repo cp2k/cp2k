@@ -244,8 +244,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
     CHARACTER(len=*), PARAMETER :: routineN = 'Surfaces_Kernel', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: n_points = 2**6, &
-                                                ncache_optimal = 8*1024, &
-                                                timing_flag = 0
+                                                ncache_optimal = 8*1024
 
     INTEGER :: i, i1, i2, i3, i_all, i_stat, ic, iend, imu, ind1, ind2, &
       inzee, ipolyord, ireim, istart, j2, j2nd, j2st, jnd1, jp2, jreim, &
@@ -1010,7 +1009,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
  p0_cell = p0_ref/(hgrid*hgrid)
 
  !Initialization of the gaussian (Beylkin)
- CALL gequad(n_gauss,p_gauss,w_gauss,ur_gauss,dr_gauss,acc_gauss)
+ CALL gequad(p_gauss,w_gauss,ur_gauss,dr_gauss,acc_gauss)
  !In order to have a range from a_range=sqrt(a1*a1+a2*a2+a3*a3)
  !(biggest length in the cube)
  !We divide the p_gauss by a_range**2 and a_gauss by a_range
@@ -1181,8 +1180,7 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
 
     CHARACTER(len=*), PARAMETER :: routineN = 'kernelfft', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: ncache_optimal = 8*1024, &
-                                                timing_flag = 0
+    INTEGER, PARAMETER                       :: ncache_optimal = 8*1024
 
     INTEGER                                  :: i, i1, i3, i_all, i_stat, &
                                                 ic1, ic2, ic3, inzee, j, j2, &
@@ -1519,16 +1517,14 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
 
 ! *****************************************************************************
 !> \brief ...
-!> \param nterms ...
 !> \param p ...
 !> \param w ...
 !> \param urange ...
 !> \param drange ...
 !> \param acc ...
 ! *****************************************************************************
-         SUBROUTINE gequad(nterms,p,w,urange,drange,acc)
+         SUBROUTINE gequad(p,w,urange,drange,acc)
 !
-    INTEGER                                  :: nterms
     REAL(KIND=dp)                            :: p(*), w(*), urange, drange, &
                                                 acc
 

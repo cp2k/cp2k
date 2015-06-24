@@ -1013,8 +1013,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_rot_mat_derivative', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp), PARAMETER              :: cI = (0.0_dp,1.0_dp), &
-                                                cone = (1.0_dp,0.0_dp), &
+    COMPLEX(KIND=dp), PARAMETER              :: cone = (1.0_dp,0.0_dp), &
                                                 czero = (0.0_dp,0.0_dp)
 
     INTEGER                                  :: handle, i, j, k

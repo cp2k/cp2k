@@ -398,7 +398,7 @@ CONTAINS
           CALL pw_pool_create_pw(pw_pool,rhor,use_data=REALDATA3D,in_space=REALSPACE,error=error)
           CALL pw_transfer(density,rhor,error=error)
           CALL cp2k_distribution_to_z_slices(rhor,poisson_env%wavelet,rhor%pw_grid,error)
-          CALL ps_wavelet_solve(poisson_env%wavelet,rhor%pw_grid,ehartree,error)
+          CALL ps_wavelet_solve(poisson_env%wavelet,rhor%pw_grid,error)
           CALL z_slices_to_cp2k_distribution(rhor,poisson_env% wavelet,rhor%pw_grid,error)
           IF (PRESENT(vhartree)) THEN
              CALL pw_transfer(rhor,vhartree,error=error)

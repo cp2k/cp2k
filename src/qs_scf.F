@@ -408,7 +408,7 @@ CONTAINS
           END IF
 
           ! another heavy weight print object, print controlled by dft_section
-          CALL qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section,.FALSE.,error=error)
+          CALL qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section,error=error)
 
           CALL qs_scf_density_mixing(scf_env,rho,para_env,diis_step,do_kpoints,error=error)
 
@@ -430,7 +430,7 @@ CONTAINS
           ! is really the last SCF step
           IF (exit_inner_loop) THEN
 
-             CALL qs_scf_inner_finalize(scf_env,scf_control,qs_env,diis_step,output_unit,error)
+             CALL qs_scf_inner_finalize(scf_env,qs_env,diis_step,output_unit,error)
 
              CALL qs_scf_check_outer_exit(qs_env,scf_env,scf_control,should_stop,&
                                          outer_loop_converged,exit_outer_loop,error)

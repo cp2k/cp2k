@@ -86,7 +86,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_se_core_matrix', &
       routineP = moduleN//':'//routineN
-    INTEGER, DIMENSION(4), PARAMETER         :: ix = (/1,3,4,2/)
 
     INTEGER :: after, atom_a, atom_b, handle, i, iatom, icol, icor, ikind, &
       inode, irow, istat, itype, iw, j, jatom, jkind, natom, natorb_a, nkind, &

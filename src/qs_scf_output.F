@@ -142,10 +142,9 @@ CONTAINS
 !> \param qs_kind_set ...
 !> \param particle_set ...
 !> \param dft_section ...
-!> \param last ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section,last,error)
+  SUBROUTINE qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section,error)
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -155,7 +154,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: dft_section
-    LOGICAL                                  :: last
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_write_mos', &

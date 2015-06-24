@@ -228,15 +228,15 @@ CONTAINS
         ELSE
            ! Exchange Terms
            IF      ( nspins == 1 ) THEN
-              CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a, ks_block_a,&
+              CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_a, ks_block_a,&
                    factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, &
                    store_int_env=store_int_env, error=error)
            ELSE IF ( nspins == 2 ) THEN
-              CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a, ks_block_a,&
+              CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_a, ks_block_a,&
                    factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, &
                    store_int_env=store_int_env, error=error)
 
-              CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_b, ks_block_b,&
+              CALL fock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_b, ks_block_b,&
                    factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, &
                    store_int_env=store_int_env, error=error)
            END IF
@@ -245,15 +245,15 @@ CONTAINS
               atom_b = atom_of_kind(jatom)
               force_ab = 0.0_dp
               IF      ( nspins == 1 ) THEN
-                 CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a,&
+                 CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_a,&
                       factor=0.5_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
                       delta=delta, error=error)
               ELSE IF ( nspins == 2 ) THEN
-                 CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_a,&
+                 CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_a,&
                       factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
                       delta=delta, error=error)
 
-                 CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_tot, p_block_b,&
+                 CALL dfock2E(se_kind_a, se_kind_b, rij, switch, size_p_block_a, p_block_b,&
                       factor=1.0_dp, anag=anag, se_int_control=se_int_control, se_taper=se_taper, force=force_ab,&
                       delta=delta, error=error)
               END IF

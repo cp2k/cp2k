@@ -638,7 +638,6 @@ CONTAINS
 !> \param rij ...
 !> \param switch ...
 !> \param isize ...
-!> \param pi_tot ...
 !> \param pi_mat ...
 !> \param fi_mat DIMENSION(isize(1), isize(2))
 !> \param factor ...
@@ -650,14 +649,12 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE fock2E(sepi, sepj, rij, switch, isize, pi_tot, pi_mat, fi_mat, factor,&
+  SUBROUTINE fock2E(sepi, sepj, rij, switch, isize, pi_mat, fi_mat, factor,&
        anag, se_int_control, se_taper, store_int_env, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
     INTEGER, DIMENSION(2), INTENT(IN)        :: isize
-    REAL(KIND=dp), DIMENSION(45, 45), &
-      INTENT(IN)                             :: pi_tot
     REAL(KIND=dp), &
       DIMENSION(isize(1), isize(2)), &
       INTENT(IN)                             :: pi_mat
@@ -733,7 +730,6 @@ CONTAINS
 !> \param rij ...
 !> \param switch ...
 !> \param isize ...
-!> \param pi_tot ...
 !> \param pi_mat ...
 !> \param factor ...
 !> \param anag ...
@@ -745,14 +741,12 @@ CONTAINS
 !> \date 04.2008 [tlaino]
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
-  SUBROUTINE dfock2E(sepi, sepj, rij, switch, isize, pi_tot, pi_mat, factor, anag,&
+  SUBROUTINE dfock2E(sepi, sepj, rij, switch, isize,  pi_mat, factor, anag,&
        se_int_control, se_taper, force, delta, error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rij
     LOGICAL, INTENT(IN)                      :: switch
     INTEGER, DIMENSION(2), INTENT(IN)        :: isize
-    REAL(KIND=dp), DIMENSION(45, 45), &
-      INTENT(IN)                             :: pi_tot
     REAL(KIND=dp), &
       DIMENSION(isize(1), isize(2)), &
       INTENT(IN)                             :: pi_mat

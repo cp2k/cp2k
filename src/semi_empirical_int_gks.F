@@ -31,7 +31,6 @@ MODULE semi_empirical_int_gks
                                              rij_threshold
   USE semi_empirical_mpole_types,      ONLY: semi_empirical_mpole_type
   USE semi_empirical_types,            ONLY: se_int_control_type,&
-                                             se_taper_type,&
                                              semi_empirical_type,&
                                              setup_se_int_control_type
 #include "./common/cp_common_uses.f90"
@@ -54,16 +53,14 @@ CONTAINS
 !> \param e1b ...
 !> \param e2a ...
 !> \param se_int_control ...
-!> \param se_taper ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rotnuc_gks (sepi,sepj,rij,e1b,e2a,se_int_control,se_taper,error)
+  SUBROUTINE rotnuc_gks (sepi,sepj,rij,e1b,e2a,se_int_control,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(45), INTENT(OUT), &
       OPTIONAL                               :: e1b, e2a
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotnuc_gks', &
@@ -110,16 +107,14 @@ CONTAINS
 !> \param rij ...
 !> \param w ...
 !> \param se_int_control ...
-!> \param se_taper ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rotint_gks (sepi,sepj,rij,w,se_int_control,se_taper,error)
+  SUBROUTINE rotint_gks (sepi,sepj,rij,w,se_int_control,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(2025), INTENT(OUT), &
       OPTIONAL                               :: w
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rotint_gks', &
@@ -168,16 +163,14 @@ CONTAINS
 !> \param de1b ...
 !> \param de2a ...
 !> \param se_int_control ...
-!> \param se_taper ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE drotnuc_gks(sepi,sepj,rij,de1b,de2a,se_int_control,se_taper,error)
+  SUBROUTINE drotnuc_gks(sepi,sepj,rij,de1b,de2a,se_int_control,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3, 45), &
       INTENT(OUT), OPTIONAL                  :: de1b, de2a
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'drotnuc_gks', &
@@ -224,16 +217,14 @@ CONTAINS
 !> \param rij ...
 !> \param dw ...
 !> \param se_int_control ...
-!> \param se_taper ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE drotint_gks(sepi,sepj,rij,dw,se_int_control,se_taper, error)
+  SUBROUTINE drotint_gks(sepi,sepj,rij,dw,se_int_control,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rij
     REAL(dp), DIMENSION(3, 2025), &
       INTENT(OUT)                            :: dw
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'drotint_gks', &
@@ -523,17 +514,15 @@ CONTAINS
 !> \param enuc ...
 !> \param denuc ...
 !> \param se_int_control ...
-!> \param se_taper ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE corecore_gks (sepi,sepj,rijv,enuc,denuc,se_int_control,se_taper,error)
+  SUBROUTINE corecore_gks (sepi,sepj,rijv,enuc,denuc,se_int_control,error)
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
     REAL(dp), INTENT(OUT), OPTIONAL          :: enuc
     REAL(dp), DIMENSION(3), INTENT(OUT), &
       OPTIONAL                               :: denuc
     TYPE(se_int_control_type), INTENT(IN)    :: se_int_control
-    TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore_gks', &

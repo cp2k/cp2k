@@ -51,15 +51,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Allocate and initialize the matrix set of oce coefficients.
 !> \param oce_set ...
-!> \param natom ...
 !> \param nkind ...
-!> \param ndim ...
 !> \param error ...
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE allocate_oce_set(oce_set,natom,nkind,ndim,error)
+  SUBROUTINE allocate_oce_set(oce_set,nkind,error)
     TYPE(oce_matrix_type), POINTER           :: oce_set
-    INTEGER, INTENT(IN)                      :: natom, nkind, ndim
+    INTEGER, INTENT(IN)                      :: nkind
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_oce_set', &

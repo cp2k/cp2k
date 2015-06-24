@@ -106,7 +106,7 @@ CONTAINS
           END IF
           ! Compute Integrals
           IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
-            CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+            CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control,error=error)
           ELSE
             IF (anag) THEN
                CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
@@ -186,7 +186,7 @@ CONTAINS
              END IF
           ELSE
              IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
-               CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+               CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control,error=error)
              ELSE
                 IF (anag) THEN
                    CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
@@ -198,7 +198,7 @@ CONTAINS
        END IF
     ELSE
        IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
-          CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
+          CALL rotint_gks (sepi,sepj,rij,w,se_int_control=se_int_control,error=error)
        ELSE
           IF (anag) THEN
              CALL rotint_ana (sepi,sepj,rij,w,se_int_control=se_int_control,se_taper=se_taper,error=error)
@@ -275,7 +275,7 @@ CONTAINS
           ! Compute Integrals
           IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
              CALL rotnuc_gks (sepi,sepj,rij,e1b=e1b,e2a=e2a,&
-                  se_int_control=se_int_control,se_taper=se_taper,error=error)
+                  se_int_control=se_int_control,error=error)
           ELSE
              IF (anag) THEN
                 CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
@@ -363,7 +363,7 @@ CONTAINS
           ELSE
              IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
                 CALL rotnuc_gks (sepi,sepj,rij,e1b=e1b,e2a=e2a,&
-                     se_int_control=se_int_control, se_taper=se_taper, error=error)
+                     se_int_control=se_int_control, error=error)
              ELSE
                 IF (anag) THEN
                    CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
@@ -378,7 +378,7 @@ CONTAINS
     ELSE
        IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
           CALL rotnuc_gks (sepi,sepj,rij,e1b=e1b,e2a=e2a,&
-               se_int_control=se_int_control, se_taper=se_taper, error=error)
+               se_int_control=se_int_control, error=error)
        ELSE
           IF (anag) THEN
              CALL rotnuc_ana (sepi, sepj, rij, e1b=e1b, e2a=e2a, itype=itype,&
@@ -424,8 +424,7 @@ CONTAINS
 
     enuc = 0.0_dp
     IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
-       CALL corecore_gks (sepi,sepj,rij,enuc=enuc,se_int_control=se_int_control,&
-            se_taper=se_taper, error=error)
+       CALL corecore_gks (sepi,sepj,rij,enuc=enuc,se_int_control=se_int_control,error=error)
     ELSE
        IF (anag) THEN
           CALL corecore_ana (sepi,sepj,rij,enuc=enuc,itype=itype,se_int_control=se_int_control,&
@@ -508,7 +507,7 @@ CONTAINS
 
     dw(:,:) = 0.0_dp
     IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
-       CALL  drotint_gks(sepi,sepj,rij,dw=dw,se_int_control=se_int_control,se_taper=se_taper,error=error)
+       CALL  drotint_gks(sepi,sepj,rij,dw=dw,se_int_control=se_int_control,error=error)
     ELSE
        IF (anag) THEN
           CALL  rotint_ana(sepi,sepj,rij,dw=dw,   se_int_control=se_int_control,se_taper=se_taper,error=error)
@@ -554,7 +553,7 @@ CONTAINS
     IF (PRESENT(de2a)) de2a(:,:) = 0.0_dp
     IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
           CALL drotnuc_gks (sepi, sepj, rij, de1b=de1b, de2a=de2a,&
-               se_int_control=se_int_control,se_taper=se_taper,error=error)
+               se_int_control=se_int_control,error=error)
     ELSE
        IF (anag) THEN
           CALL rotnuc_ana  (sepi, sepj, rij, de1b=de1b, de2a=de2a, itype=itype,&
@@ -598,8 +597,7 @@ CONTAINS
 
     denuc = 0.0_dp
     IF (se_int_control%integral_screening == do_se_IS_slater ) THEN
-       CALL corecore_gks (sepi,sepj,rij,denuc=denuc,se_int_control=se_int_control,&
-            se_taper=se_taper, error=error)
+       CALL corecore_gks (sepi,sepj,rij,denuc=denuc,se_int_control=se_int_control,error=error)
     ELSE
        IF (anag) THEN
           CALL corecore_ana (sepi,sepj,rij,denuc=denuc,itype=itype,se_int_control=se_int_control,&
