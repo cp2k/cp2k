@@ -29,6 +29,14 @@ for file in "$@"; do
    # Remove temp-files
    rm -f $tmp_file1 $tmp_file2 $tmp_file3
 
+   if grep -e "UNMATCHED_PROCEDURE_ARGUMENT" \
+           -e "UNKNOWN_DOXYGEN_COMMENT" \
+           -e "UNKNOWN_COMMENT" \
+           $file ; then
+     echo "Found doxify warnings in $file"
+     exit 42
+   fi
+
 done
 
 #EOF
