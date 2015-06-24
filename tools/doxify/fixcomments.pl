@@ -37,7 +37,6 @@ use strict;
 use warnings;
 use FindBin;
 use lib "$FindBin::RealBin/lib";
-use Log::Log4perl qw(:easy);
 use Pod::Usage qw(pod2usage);
 
 # Check options
@@ -49,20 +48,14 @@ my $DBG=0;
 if (defined($ARGV[2])) {
     $DBG = $ARGV[2];
 }
-if ($DBG == 2) {
-    Log::Log4perl->easy_init($DEBUG);
-} elsif ($DBG == 1) {
-    Log::Log4perl->easy_init({ level  => $INFO,
-                               layout => '%m%n' });
-} else {
-    Log::Log4perl->easy_init($ERROR);
+
+sub print_debug{
+    if($DBG>0){ print "DEBUG: @_\n";}
 }
 
-my $logger = get_logger();
-
-$logger->info("fixcomments.pl running with");
-$logger->info("Input:  $ARGV[0]");
-$logger->info("Output: $ARGV[1]");
+print_debug("fixcomments.pl running with");
+print_debug("Input:  $ARGV[0]");
+print_debug("Output: $ARGV[1]");
 
 # Regular expressions for matching
 my $DOXYGEN_HEADER = "^!>";
@@ -130,8 +123,8 @@ my $isFunction;
 
 initVariables();
 
-open (my $INPUT , "<" , $ARGV[0]) or $logger->logdie("Cant open $ARGV[0] $!");
-open (my $OUTPUT , ">" , $ARGV[1]) or $logger->logdie("Cant create $ARGV[1] $!");
+open (my $INPUT , "<" , $ARGV[0]) or die("Cant open $ARGV[0] $!");
+open (my $OUTPUT , ">" , $ARGV[1]) or die("Cant create $ARGV[1] $!");
 
 # While there are still lines to read in our INPUT file
 while (<$INPUT>) {
@@ -140,18 +133,18 @@ while (<$INPUT>) {
 
     # If an existing doxygen header is encountered then process
     if (matchDoxygenHeaderDefinition($currline)) {
-        $logger->debug("Matched doxygen header");
+        print_debug("Matched doxygen header");
         $currline = processDoxygenHeader($currline);
     }
 
     # Are we inside an interface block?
     # If so we don't want to add any comments here
     if ( $currline =~ m/^\s*INTERFACE\s*\n/xms ) {
-        $logger->debug("Start of INTERFACE encountered");
+        print_debug("Start of INTERFACE encountered");
         $insideInterface = 1;
     }
     if ( $currline =~ m/^\s*END\s+INTERFACE\s*\n/xms ) {
-        $logger->debug("End of INTERFACE encountered");
+        print_debug("End of INTERFACE encountered");
         $insideInterface = 0;
     }
 
@@ -160,32 +153,32 @@ while (<$INPUT>) {
     # We don't add comments to code inside an interface block
     if ((matchSubroutineDefinition($currline) || $hasAmpersand)
         && !($insideInterface)) {
-        $logger->debug("Matched subroutine definition");
+        print_debug("Matched subroutine definition");
         processSubroutineDefinition($currline);
     } else {
-        $logger->debug("Subroutine definition not matched");
+        print_debug("Subroutine definition not matched");
         if ($oldheader eq $EMPTY) {
             # No header remaining so just print out line as read
-            $logger->debug("Empty old header, writing out line:");
-            $logger->debug($currline);
+            print_debug("Empty old header, writing out line:");
+            print_debug($currline);
             print $OUTPUT $currline;
         } else {
             # Header has been processed, need to do something with remaining lines
-            $logger->debug("Non-empty old header for line:");
-            $logger->debug($currline);
+            print_debug("Non-empty old header for line:");
+            print_debug($currline);
             if (($currline =~ m/^\s*$/xms) ||
                 ($currline =~ m/\#if/xms)) {
                 # Blank line or #if line, so store for printing later
-                $logger->debug("Empty line or #if, storing for later");
+                print_debug("Empty line or #if, storing for later");
                 $leftoverlines = $leftoverlines . $currline;
             } elsif ($currline =~ m/^\s*!\s*/xms) {
                 # Have a comment so add to header
-                $logger->debug("Inline comment, adding to header");
+                print_debug("Inline comment, adding to header");
                 $oldheader = $oldheader . $currline;
             } else {
                 # If it was a MODULE or TYPE header we still need to write
                 # it back out to file.
-                $logger->debug("Writing existing non FUNCTION/SUBROUTINE header to file");
+                print_debug("Writing existing non FUNCTION/SUBROUTINE header to file");
                 print $OUTPUT $oldheader;
                 print $OUTPUT $leftoverlines;
                 print $OUTPUT $currline;
@@ -241,8 +234,8 @@ sub initVariables {
 sub matchDoxygenHeaderDefinition {
     my ($lineToProcess) = @_;
 
-    $logger->debug("Trying to match doxygen header $DOXYGEN_HEADER against line");
-    $logger->debug($lineToProcess);
+    print_debug("Trying to match doxygen header $DOXYGEN_HEADER against line");
+    print_debug($lineToProcess);
 
     my $match = 0;
 
@@ -250,7 +243,7 @@ sub matchDoxygenHeaderDefinition {
         $match = 1;
     }
 
-    $logger->debug("Doxygen header match value: $match");
+    print_debug("Doxygen header match value: $match");
     return $match;
 }
 
@@ -258,13 +251,13 @@ sub matchDoxygenHeaderDefinition {
 sub matchSubroutineDefinition {
     my ($lineToProcess) = @_;
 
-    $logger->debug("Trying to match subroutine definition against line:");
-    $logger->debug($lineToProcess);
+    print_debug("Trying to match subroutine definition against line:");
+    print_debug($lineToProcess);
 
     # Immediately discount lines with comments at the start
     my $commentPattern = '^\!';
     if ($lineToProcess =~ m/$commentPattern/xms) {
-        $logger->debug("Matched comment");
+        print_debug("Matched comment");
         return 0;
     }
     # Assume that lines contain SUBROUTINE or FUNCTION followed by space
@@ -307,7 +300,7 @@ sub matchSubroutineDefinition {
     }
 
     my $match = (($match1 || $match2) && !($match3) && !($match4));
-    $logger->debug("Subroutine definition match value: $match");
+    print_debug("Subroutine definition match value: $match");
     return $match
 }
 
@@ -315,7 +308,7 @@ sub processDoxygenHeader {
 
     my ($currline) = @_;
 
-    $logger->debug("Processing Doxygen Header");
+    print_debug("Processing Doxygen Header");
 
     # Each time we find a header we need to reset toggles and their data
     initVariables();
@@ -323,8 +316,8 @@ sub processDoxygenHeader {
 
     # Start of do-while over match on ($currline =~ m/^\s*!/i)
     do {
-        $logger->debug("Processing header line:");
-        $logger->debug($currline);
+        print_debug("Processing header line:");
+        print_debug($currline);
         # Keep the headers safe, may need them! We use the oldheader variable to
         # keep the complete headers for MODULE and TYPE intact such that we
         # can just dump them straight back out without making any changes.
@@ -336,7 +329,7 @@ sub processDoxygenHeader {
             # Get the param name
             $paramName = $1;
 
-            $logger->debug("Got header for parameter $paramName");
+            print_debug("Got header for parameter $paramName");
 
             # Cover the case where two arguments have the same name
             if (exists $params{$paramName}) {
@@ -350,37 +343,37 @@ sub processDoxygenHeader {
             initToggles();
             $hasParam = 1;
         } elsif ($currline =~ m/!>\s\\brief\s*/xms) {
-            $logger->debug("Got briefs header");
+            print_debug("Got briefs header");
             $briefs = $briefs . $currline;
             initToggles();
             $hasBrief = 1;
         } elsif ($currline =~ m/!>\s\\date*/xms) {
-            $logger->debug("Got dates header");
+            print_debug("Got dates header");
             $dates = $dates . $currline;
             initToggles();
             $hasDate = 1;
         } elsif ($currline =~ m/!>\s\\version\s*/xms) {
-            $logger->debug("Got version header");
+            print_debug("Got version header");
             $versions = $versions . $currline;
             initToggles();
             $hasVersion = 1;
         } elsif ($currline =~ m/!>\s\\par\s*/xms) {
-            $logger->debug("Got par header");
+            print_debug("Got par header");
             $pars = $pars . $currline;
             initToggles();
             $hasPar = 1;
         } elsif ($currline =~ m/!>\s\\author\s*/xms) {
-            $logger->debug("Got author header");
+            print_debug("Got author header");
             $authors = $authors . $currline;
             initToggles();
             $hasAuthor= 1;
         } elsif ($currline =~ m/!>\s\\note\s*/xms) {
-            $logger->debug("Got note header");
+            print_debug("Got note header");
             $notes = $notes . $currline;
             initToggles();
             $hasNote = 1;
         } elsif ($currline =~ m/!>\s\\retval\s*/xms) {
-            $logger->debug("Got retval header");
+            print_debug("Got retval header");
             $retVals = $retVals . $currline;
             initToggles();
             $hasRetVal = 1;
@@ -389,7 +382,7 @@ sub processDoxygenHeader {
             # like a DOXYGEN header. with a \whatever
             # Must check to see if line has already been commented.
             # We also avoid commenting a blank \param line
-            $logger->debug("Got random header");
+            print_debug("Got random header");
             if (($currline !~ m/UNKNOWN_DOXYGEN_COMMENT/xms) &&
                 ($currline !~ m/UNKNOWN_COMMENT/xms) &&
                 ($currline !~ m/!>\s*\\param\s*\n/xms)) {
@@ -410,7 +403,7 @@ sub processDoxygenHeader {
             # entries can all be multi-line.
             # The \version and \date entries should be single line and
             # thus we don't have an elsif for them.
-            $logger->debug("Got line continuation");
+            print_debug("Got line continuation");
             if ($hasParam) {
                 $params{$paramName} = $params{$paramName} . $currline;
             } elsif ($hasBrief) {
@@ -452,7 +445,7 @@ sub processDoxygenHeader {
         } elsif ($currline !~ m/^!\s*\*/xms) {
             # Any other header line that's not "***..." or a Doxygen
             # comment, ie "! some comment or other"
-            $logger->debug("Got non-doxygen line");
+            print_debug("Got non-doxygen line");
             if ($hasBrief) {
                 # Put comment in brief, replacing ! with !>
                 $currline =~ s/!/!>/xms;
@@ -479,8 +472,8 @@ sub processSubroutineDefinition {
 
     my ($currline) = @_;
 
-    $logger->debug("Processing Subroutine line:");
-    $logger->debug($currline);
+    print_debug("Processing Subroutine line:");
+    print_debug($currline);
     # functionLine will contain the procedure definition with any
     # unrequired text stripped off, $currline will still contain the actual code
     my $functionLine = $EMPTY;
@@ -513,27 +506,27 @@ sub processSubroutineDefinition {
         my $p = $_;
         $p =~ s/^\s+|\s+$//gx;
         if (($p ne $EMPTY) && ($p ne ",")) {
-        $logger->debug("Processing item $p");
+        print_debug("Processing item $p");
         if ($p eq "&") {
             # If we encounter an & then it spans multiple lines
-            $logger->debug("Got & line continuation");
+            print_debug("Got & line continuation");
             $hasAmpersand = 1;
             # Buffer the line details as we can't print out yet
             $buffer = "$buffer$currline";
         } elsif ($p eq "(") {
-            $logger->debug("Entered parentheses");
+            print_debug("Entered parentheses");
             $inParentheses = 1;
         } elsif ($p eq ")") {
-            $logger->debug("Left parentheses");
+            print_debug("Left parentheses");
             $inParentheses = 0;
         } elsif ($p eq ",") {
-            $logger->debug("Comma");
+            print_debug("Comma");
         } else {
             if ($inParentheses) {
-                $logger->debug("In parentheses, parameter: $p, previous parameter: $lelement");
+                print_debug("In parentheses, parameter: $p, previous parameter: $lelement");
                 # Must have either a parameter of a function return value
                 if (($lelement =~ m/RESULT/ixms) && ($hasRetValAsArg)) {
-                    $logger->debug("Got return parameter $p");
+                    print_debug("Got return parameter $p");
                     if ($retVals eq $EMPTY) {
                         # If the previous element was RESULT outside of
                         # parantheses then this element must be whatever
@@ -548,18 +541,18 @@ sub processSubroutineDefinition {
                     # Must be parameter
                     # Update the matched hash table so that all arguments
                     # in subroutine/function header are set as true
-                    $logger->debug("Processing parameter $p");
+                    print_debug("Processing parameter $p");
                     $matched{$p} = 1;
                     if (!(exists($params{$p})) || !(defined($params{$p})) || ($params{$p} eq $EMPTY)) {
                         # If the entry for this parameter is missing we use
                         # the standard text for a missing entry
-                        $logger->debug("Missing entry for parameter $p, creating blank");
+                        print_debug("Missing entry for parameter $p, creating blank");
                         print $OUTPUT "!> \\param $p ...\n";
                     } else {
-                        $logger->debug("Using existing entry for parameter $p");
+                        print_debug("Using existing entry for parameter $p");
                         if ($params{$p} !~ m/\\param\s*(\w+|\[.*\]\s+\w+)\s*\n/xms ) {
                             # Entry must contain some text after the parameter name
-                            $logger->debug("Using entry unchanged");
+                            print_debug("Using entry unchanged");
                             print $OUTPUT $params{$p};
                         } else {
                             if ($params{$p} =~ m/!>\s*\n$/x) {
@@ -583,11 +576,11 @@ sub processSubroutineDefinition {
                     }
                 }
             } else {
-                $logger->debug("Processing element not in parentheses: $p");
+                print_debug("Processing element not in parentheses: $p");
                 if ($lelement =~ m/(SUBROUTINE|FUNCTION)/ixms) {
                     # Previous element is FUNCTION or SUBROUTINE so this must be name
                     $procedureName = $p;
-                    $logger->debug("Got procedure name $procedureName");
+                    print_debug("Got procedure name $procedureName");
                     if ($lelement =~ m/FUNCTION/ixms) {
                         $isFunction = 1;
                     }
@@ -601,7 +594,7 @@ sub processSubroutineDefinition {
                     }
                 } elsif ($p =~ m/RESULT/ixms) {
                     # Check to see if parameter is RESULT for a FUNCTION
-                    $logger->debug("Need to get function result parameter");
+                    print_debug("Need to get function result parameter");
                     $hasRetValAsArg = 1;
                 }
             }
