@@ -751,18 +751,24 @@ fi
 
 # from here failures are likely to be bugs in cp2k
 if [[ ${nobuild} != "nobuild" ]]; then
-   echo "--------------- -------------Settings-------------------------------------"
+   echo "---------------------------- Settings ------------------------------------"
    echo "maxtasks         = ${maxtasks}"
    echo "numprocs         = ${numprocs}"
    echo "OMP_NUM_THREADS  = ${OMP_NUM_THREADS}"
    echo "cp2k_run_prefix  = ${cp2k_run_prefix}"
    echo "cp2k_run_postfix = ${cp2k_run_postfix}"
-   echo "----------------------------ARCH-file-------------------------------------"
+   echo "--------------------------- ARCH-file ------------------------------------"
    cat ${dir_base}/${cp2k_dir}/arch/${ARCH}.${cp2k_version}
-   echo "---------------------------Build-Tools------------------------------------"
+   echo "-------------------------- Build-Tools -----------------------------------"
    cd ${dir_base}/${cp2k_dir}/makefiles
    ${make} toolversions ${ARCH_SPEC} VERSION=${cp2k_version}
-   echo "-------------------------compiling cp2k-----------------------------------"
+   echo "---------------------------- Modules -------------------------------------"
+   if [ "`type -t module`" = 'function' ]; then
+      module list
+   else
+      echo "Module system not installed."
+   fi
+   echo "------------------------ compiling cp2k ----------------------------------"
    echo "${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version}"
    echo "(make output is written to ${make_out})"
    ${make} -j $((maxtasks)) ${ARCH_SPEC} VERSION=${cp2k_version} >>${make_out} 2>&1
@@ -782,7 +788,7 @@ else
 fi
 
 if [[ ${skiptest} != "skiptest" ]]; then
-   echo "-------------------------regtesting cp2k----------------------------------"
+   echo "------------------------ regtesting cp2k ---------------------------------"
    
    ###################################################################################
    #
