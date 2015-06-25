@@ -157,6 +157,10 @@ MODULE message_passing
      MODULE PROCEDURE mp_waitall_1, mp_waitall_2
   END INTERFACE
 
+  INTERFACE mp_testany
+     MODULE PROCEDURE mp_testany_1, mp_testany_2
+  END INTERFACE
+
   !
   ! interfaces to deal easily with scalars / vectors / matrice / ...
   ! of the different types (integers, doubles, logicals, characters)
@@ -1635,12 +1639,12 @@ CONTAINS
 !>      08.2011 created
 !> \author Iain Bethune
 ! *****************************************************************************
-  SUBROUTINE mp_testany(requests, completed, flag)
+  SUBROUTINE mp_testany_1(requests, completed, flag)
     INTEGER, DIMENSION(:), INTENT(inout)  :: requests
     INTEGER, INTENT(out), OPTIONAL           :: completed
     LOGICAL, INTENT(out), OPTIONAL           :: flag
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_testany', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_testany_1', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr
@@ -1657,13 +1661,53 @@ CONTAINS
 
     CALL mpi_testany_internal(count,requests,completed_l,flag_l,status,ierr)
     ! we do not check the status
-    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testany @ mp_testany" )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testany_1 @ mp_testany" )
 
     IF (PRESENT(completed)) completed = completed_l
     IF (PRESENT(flag)) flag = flag_l
 
 #endif
-  END SUBROUTINE mp_testany
+  END SUBROUTINE mp_testany_1
+
+! *****************************************************************************
+!> \brief tests for completion of the given requests
+!> \param requests ...
+!> \param completed ...
+!> \param flag ...
+!> \par History
+!>      08.2011 created
+!> \author Iain Bethune
+! *****************************************************************************
+  SUBROUTINE mp_testany_2(requests, completed, flag)
+    INTEGER, DIMENSION(:,:), INTENT(inout)   :: requests
+    INTEGER, INTENT(out), OPTIONAL           :: completed
+    LOGICAL, INTENT(out), OPTIONAL           :: flag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_testany_2', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr
+#if defined(__parallel)
+    INTEGER                                  :: completed_l, count
+    INTEGER                                  :: status(MPI_STATUS_SIZE)
+    LOGICAL                                  :: flag_l
+#endif
+
+    ierr = 0
+
+#if defined(__parallel)
+    count = SIZE(requests)
+
+    CALL mpi_testany_internal(count,requests,completed_l,flag_l,status,ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testany_2 @ mp_testany" )
+
+    IF (PRESENT(completed)) completed = completed_l
+    IF (PRESENT(flag)) flag = flag_l
+
+#endif
+  END SUBROUTINE mp_testany_2
+
 ! *****************************************************************************
 !> \brief wrapper needed to deal with interfaces as present in openmpi 1.8.1
 !>        the issue is with the rank or requests
@@ -1684,6 +1728,8 @@ CONTAINS
     INTEGER, DIMENSION(MPI_STATUS_SIZE), &
       INTENT(out)                            :: status
     INTEGER, INTENT(out)                     :: ierr
+
+    CALL mpi_testany(count,array_of_requests,index,flag,status,ierr)
 
   END SUBROUTINE mpi_testany_internal
 #endif
