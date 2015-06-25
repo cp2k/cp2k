@@ -2246,8 +2246,8 @@ CONTAINS
       print_level, tile_npts, unit_nr
     LOGICAL :: append_cube, do_dielectric_cube, do_dirichlet_bc_cube, &
       failure, has_dirichlet_bc, has_implicit_ps, print_it, &
-      print_total_density, rho_r_valid, smooth, write_ks, write_xc, &
-      xrd_interface
+      print_total_density, rho_r_valid, smooth, tile_cubes, write_ks, &
+      write_xc, xrd_interface
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: x_glbl, x_locl, y_glbl, &
                                                 y_locl, z_glbl, z_locl
     REAL(KIND=dp)                            :: q_max, rho_hard, rho_soft, &
@@ -2282,7 +2282,8 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(pw_type), POINTER                   :: v_hartree_rspace
+    TYPE(pw_type), POINTER                   :: dirichlet_tile, &
+                                                v_hartree_rspace
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: qs_kind
@@ -2835,54 +2836,95 @@ CONTAINS
           IF(append_cube) THEN
              my_pos_cube="APPEND"
           END IF
+          tile_cubes = section_get_lval(input,"DFT%PRINT%DIRICHLET_BC_CUBE%TILE_CUBES",error=error)
 
           CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
           CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+          CALL pw_zero(aux_r%pw, error=error)
+          
+          IF (.NOT. tile_cubes) THEN
 
-          CALL setup_grid_axes(auxbas_pw_pool%pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl, error)
+             CALL setup_grid_axes(auxbas_pw_pool%pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl, error)
 
-          n_cstr = SIZE(poisson_env%implicit_env%gates)
-          DO j = 1 , n_cstr
-             n_tiles = poisson_env%implicit_env%gates(j)%dirichlet_bc%n_tiles
-             smooth = poisson_env%implicit_env%gates(j)%dirichlet_bc%smooth 
-             zeta = poisson_env%implicit_env%gates(j)%dirichlet_bc%mollifier_zeta
-             IF (smooth) THEN
-                DO i = 1, n_tiles
-                   filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))//&
-                                       "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
-                   unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
-                                                extension=".cube", middle_name=filename, &
-                                                file_position=my_pos_cube, error=error)
+             NULLIFY(dirichlet_tile)
+             CALL pw_pool_create_pw(auxbas_pw_pool, dirichlet_tile, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+             CALL pw_zero(dirichlet_tile, error=error)
+             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
+                  extension=".cube", middle_name="DIRICHLET_CSTR", file_position=my_pos_cube, error=error)
 
-                   CALL pw_mollifier(auxbas_pw_pool, zeta, x_glbl, y_glbl, z_glbl, &
-                                     poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw,&
-                                     aux_r%pw, error)
+             n_cstr = SIZE(poisson_env%implicit_env%gates)
+             DO j = 1 , n_cstr
+                n_tiles = poisson_env%implicit_env%gates(j)%dirichlet_bc%n_tiles
+                smooth = poisson_env%implicit_env%gates(j)%dirichlet_bc%smooth 
+                zeta = poisson_env%implicit_env%gates(j)%dirichlet_bc%mollifier_zeta
+                IF (smooth) THEN
+                   DO i = 1, n_tiles
+                      CALL pw_mollifier(auxbas_pw_pool, zeta, x_glbl, y_glbl, z_glbl, &
+                                   poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw,&
+                                   dirichlet_tile, error)
+                      CALL pw_axpy(dirichlet_tile, aux_r%pw, error=error)
+                   END DO
+                ELSE
+                   DO i = 1, n_tiles
+                      tile_npts = poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
+                      CALL pw_copy(poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw, &
+                                   dirichlet_tile, error=error)
+                      CALL pw_axpy(dirichlet_tile, aux_r%pw, REAL(tile_npts,kind=dp), error=error)
+                   END DO
+                END IF
+             END DO
 
-                   CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
-                                stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE", error=error), &
-                                error=error)
-                   CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE", error=error)
-                END DO
-             ELSE
-                DO i = 1, n_tiles
-                   filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))//&
-                                       "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
-                   unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
-                                                extension=".cube", middle_name=filename, &
-                                                file_position=my_pos_cube, error=error)
+             CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+                                   stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE", error=error), &
+                                   error=error)
+             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE", error=error)
+             CALL pw_pool_give_back_pw(auxbas_pw_pool, dirichlet_tile, error=error)
 
-                   CALL pw_copy(poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw, &
-                                aux_r%pw, error=error)
-                   tile_npts = poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
-                   CALL pw_scale(aux_r%pw, REAL(tile_npts,kind=dp), error=error)
+          ELSE 
 
-                   CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
-                                stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE", error=error), &
-                                error=error)
-                   CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE", error=error)
-                END DO
-             END IF
-          END DO
+             CALL setup_grid_axes(auxbas_pw_pool%pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl, error)
+
+             n_cstr = SIZE(poisson_env%implicit_env%gates)
+             DO j = 1 , n_cstr
+                n_tiles = poisson_env%implicit_env%gates(j)%dirichlet_bc%n_tiles
+                smooth = poisson_env%implicit_env%gates(j)%dirichlet_bc%smooth 
+                zeta = poisson_env%implicit_env%gates(j)%dirichlet_bc%mollifier_zeta
+                IF (smooth) THEN
+                   DO i = 1, n_tiles
+                      filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))//&
+                                          "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
+                      unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
+                                   extension=".cube", middle_name=filename, file_position=my_pos_cube, error=error)
+   
+                      CALL pw_mollifier(auxbas_pw_pool, zeta, x_glbl, y_glbl, z_glbl, &
+                                   poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw, aux_r%pw, error)
+   
+                      CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+                                   stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE", error=error), &
+                                   error=error)
+                      CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE", error=error)
+                   END DO
+                ELSE
+                   DO i = 1, n_tiles
+                      filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))//&
+                                          "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
+                      unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
+                                   extension=".cube", middle_name=filename, file_position=my_pos_cube, error=error)
+   
+                      tile_npts = poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
+                      CALL pw_copy(poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw, &
+                                   aux_r%pw, error=error)
+                      CALL pw_scale(aux_r%pw, REAL(tile_npts,kind=dp), error=error)
+   
+                      CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+                                   stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE", error=error), &
+                                   error=error)
+                      CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE", error=error)
+                   END DO
+                END IF
+             END DO
+
+          END IF
 
           CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw, error=error)
        ENDIF

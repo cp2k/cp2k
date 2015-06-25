@@ -1492,6 +1492,7 @@ CONTAINS
             "the implicit Poisson solver.", &
             print_level=high_print_level,filename="",&
             error=error)
+
        CALL keyword_create(keyword, name="stride",&
             description="The stride (X,Y,Z) used to write the cube file "//&
             "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
@@ -1514,6 +1515,14 @@ CONTAINS
             "defined in the implicit Poisson solver section.", &
             print_level=high_print_level,filename="",&
             error=error)
+
+       CALL keyword_create(keyword, name="TILE_CUBES",&
+            description="Print tiles that tessellate the Dirichlet regions into cube files. If TRUE, "//&
+            "generates cube files as many as the total number of tiles.",&
+            usage="TILE_CUBES <logical>",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="stride",&
             description="The stride (X,Y,Z) used to write the cube file "//&
             "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
