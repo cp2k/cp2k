@@ -103,6 +103,7 @@
     ! compute the vector norm of the random vectorm, get it real valued as well (rnorm)
     CALL compute_norms_c(v_vec, norm, rnorm, control%pcol_group)
 
+    IF (rnorm==0) rnorm=1 ! catch case where this rank has no actual data
     CALL dbcsr_scale(vectors%input_vec, REAL(1.0, real_4)/rnorm, error=error)
 
     ! Everything prepared, initialize the Arnoldi iteration
@@ -273,6 +274,7 @@
        IF(control%converged)EXIT
 
        ! transfer normalized residdum to history and its norm to the Hessenberg matrix
+       IF (rnorm==0) rnorm=1 ! catch case where this rank has no actual data
        v_vec(:)=ar_data%f_vec(:)/rnorm; ar_data%local_history(:, j+1)=v_vec(:); ar_data%Hessenberg(j+1, j)=norm
 
        input_vec=>vectors%input_vec
@@ -522,6 +524,7 @@
     ! compute the vector norm of the reandom vectorm, get it real valued as well (rnorm)
     CALL compute_norms_c(v_vec, norm, rnorm, control%pcol_group)
 
+    IF (rnorm==0) rnorm=1 ! catch case where this rank has no actual data
     CALL dbcsr_scale(vectors%input_vec, REAL(1.0, real_4)/rnorm, error=error)
 
     CALL dbcsr_matrix_colvec_multiply(matrix(1)%matrix, vectors%input_vec, vectors%result_vec, CMPLX(1.0, 0.0, real_4), &
