@@ -43,6 +43,12 @@ mpich_sha=37c3ba2d3cd3f4ea239497d9d34bd57a663a34e2ea25099c2cbef118c9156587
 openmpi_ver=1.8.6
 openmpi_sha=167bdc76b44b7961871ea5973ffc545035d44f577152c4a9ab8d2be795ce27d1
 
+#
+# use openblas
+#
+openblas_ver=v0.2.14-0-gd0c51c4
+openblas_sha=1a897c063a57a20e3e36229db73318d80294fd29406dd96637b53e9647bcad5f
+
 # no version numbering used.
 scalapack_ver=XXXXXX
 scalapack_sha=8ecae0896a63c7980a71c22520afed6cfefb52b17c2496223026cc01caf07855
@@ -257,6 +263,20 @@ else
 fi
 #extra libs needed to link with mpif90 also applications based on C++
 mpiextralibs=""
+fi
+
+echo "================= Installing openblas ==================="
+if [ -f xianyi-OpenBLAS-${openblas_ver}.zip ]; then
+  echo "Installation already started, skipping it."
+else
+  wget http://www.cp2k.org/static/downloads/xianyi-OpenBLAS-${openblas_ver}.zip
+  echo "${openblas_sha} *xianyi-OpenBLAS-${openblas_ver}.zip" | sha256sum  --check
+  unzip xianyi-OpenBLAS-${openblas_ver}.zip >& unzip.log
+  cd xianyi-OpenBLAS-*
+  # we go for the serial version, less risky if called from an OMP region. We could use USE_THREADS=1 USE_OPENMP=1, but that's not tested
+  make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.log
+  make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.log
+  cd ..
 fi
 
 echo "================= Installing scalapack ==================="
@@ -490,6 +510,9 @@ OPTFLAGS="-O3 -march=native -ffast-math \$(PROFOPT)"
 DFLAGS="-D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
 CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1"
 
+LIB_LAPACK_OPT="-lopenblas_serial"
+LIB_LAPACK_DEBUG="-lreflapack -lrefblas"
+
 # Link to SCOTCH
 LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lptscotchparmetis -lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr ${mpiextralibs}"
 
@@ -507,7 +530,7 @@ DFLAGS   = ${DFLAGS} ${PARAFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.popt
@@ -521,7 +544,7 @@ DFLAGS   = ${DFLAGS} ${PARAFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.psmp
@@ -535,7 +558,7 @@ DFLAGS   = ${DFLAGS} ${PARAFLAGS}
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 -lfftw3_omp
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.sdbg
@@ -549,7 +572,7 @@ DFLAGS   = ${DFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.sopt
@@ -563,7 +586,7 @@ DFLAGS   = ${DFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local.ssmp
@@ -577,7 +600,7 @@ DFLAGS   = ${DFLAGS}
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS}  \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -fopenmp -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp
+LIBS     = -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 -lfftw3_omp
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_valgrind.sdbg
@@ -591,7 +614,7 @@ DFLAGS   = ${DFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} -O3  \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_valgrind.pdbg
@@ -605,7 +628,7 @@ DFLAGS   = ${DFLAGS} ${PARAFLAGS}
 FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} -O3 \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.psmp
@@ -621,7 +644,7 @@ FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/el
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
+LIBS     = -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
 EOF
 
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.ssmp
@@ -637,7 +660,7 @@ FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFL
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}
-LIBS     = -lxcf90 -lxc -lderiv -lint -lreflapack -lrefblas -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
+LIBS     = -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
 EOF
 
 echo "========================== usage ========================="
