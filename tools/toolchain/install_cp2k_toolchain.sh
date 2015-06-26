@@ -31,8 +31,17 @@ lcov_sha=c282de8d678ecbfda32ce4b5c85fc02f77c2a39a062f068bd8e774d29ddc9bf8
 gcc_ver=5.1.0
 gcc_sha=335275817b5ed845fee787e75efd76a6e240bfabbe0a0c20a81a04777e204617
 
+#
+# only one of the two should be installed, define mpichoice as needed
+#
+mpichoice=openmpi
+mpichoice=mpich
+
 mpich_ver=3.1.2
 mpich_sha=37c3ba2d3cd3f4ea239497d9d34bd57a663a34e2ea25099c2cbef118c9156587
+
+openmpi_ver=1.8.6
+openmpi_sha=167bdc76b44b7961871ea5973ffc545035d44f577152c4a9ab8d2be795ce27d1
 
 # no version numbering used.
 scalapack_ver=XXXXXX
@@ -212,6 +221,25 @@ export F90FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -
 export FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
 export CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
 
+if [ "$mpichoice" == "openmpi" ]; then
+echo "=================== Installing openmpi ====================="
+if [ -f openmpi-${openmpi_ver}.tar.gz ]; then
+  echo "Installation already started, skipping it."
+else
+  wget http://www.open-mpi.org/software/ompi/v1.8/downloads/openmpi-${openmpi_ver}.tar.gz
+  echo "${openmpi_sha} *openmpi-${openmpi_ver}.tar.gz" | sha256sum  --check
+  tar -xzf openmpi-${openmpi_ver}.tar.gz
+  cd openmpi-${openmpi_ver}
+  ./configure --prefix=${INSTALLDIR} >& config.log
+  make -j $nprocs >& make.log
+  make -j $nprocs install >& install.log
+  cd ..
+fi
+#extra libs needed to link with mpif90 also applications based on C++
+mpiextralibs=" -lmpi_cxx "
+fi
+
+if [ "$mpichoice" == "mpich" ]; then
 echo "=================== Installing mpich ====================="
 if [ -f mpich-${mpich_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
@@ -226,6 +254,9 @@ else
   make -j $nprocs >& make.log
   make -j $nprocs install >& install.log
   cd ..
+fi
+#extra libs needed to link with mpif90 also applications based on C++
+mpiextralibs=""
 fi
 
 echo "================= Installing scalapack ==================="
@@ -341,7 +372,7 @@ echo "================== Installing PT-Scotch =================="
 if [ -f scotch_${scotch_ver}.tar.gz ]; then
   echo "Installation already started, skipping it."
 else
-  wget https://gforge.inria.fr/frs/download.php/31831/scotch_6.0.0.tar.gz
+  wget  http://www.cp2k.org/static/downloads/scotch_${scotch_ver}.tar.gz
   echo "${scotch_sha} *scotch_${scotch_ver}.tar.gz" | sha256sum  --check
   tar -xzf scotch_${scotch_ver}.tar.gz
   cd scotch_${scotch_ver}/src
@@ -407,7 +438,7 @@ else
   sed 's|\(PAR_ND_LIBRARY *=\).*|\1 parmetis|' |\
   sed 's|\(SEQ_ND_LIBRARY *=\).*|\1 metis|' |\
   sed "s|\(PEXSI_DIR *=\).*|\1 ${PWD}|" |\
-  sed "s|\(CPP_LIB *=\).*|\1 -lstdc++|" |\
+  sed "s|\(CPP_LIB *=\).*|\1 -lstdc++ ${mpiextralibs}|" |\
   sed "s|\(LAPACK_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lreflapack|" |\
   sed "s|\(BLAS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lrefblas|" |\
   sed "s|\(\bMETIS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lmetis|" |\
@@ -460,7 +491,7 @@ DFLAGS="-D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1
 CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1"
 
 # Link to SCOTCH
-LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lptscotchparmetis -lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr"
+LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lptscotchparmetis -lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr ${mpiextralibs}"
 
 # Link to ParMETIS
 #LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lparmetis -lmetis"
