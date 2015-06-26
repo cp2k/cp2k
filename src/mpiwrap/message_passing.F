@@ -3091,9 +3091,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_free', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
+    INTEGER                                  :: handle, ierr
 
     ierr = 0
+    CALL mp_timeset(routineN,handle)
 
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -3106,6 +3107,7 @@ CONTAINS
 #else
     CALL mp_abort( "mp_win_free called in non parallel case" )
 #endif
+    CALL mp_timestop(handle)
   END SUBROUTINE mp_win_free
 
 ! *****************************************************************************
@@ -3118,9 +3120,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_lock_all', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
+    INTEGER                                  :: handle, ierr
 
     ierr = 0
+    CALL mp_timeset(routineN,handle)
 
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -3137,6 +3140,7 @@ CONTAINS
 #else
     CALL mp_abort( "mp_win_lock_all called in non parallel case" )
 #endif
+    CALL mp_timestop(handle)
   END SUBROUTINE mp_win_lock_all
 
 ! *****************************************************************************
@@ -3149,9 +3153,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_win_unlock_all', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr
+    INTEGER                                  :: handle, ierr
 
     ierr = 0
+    CALL mp_timeset(routineN,handle)
 
 #if defined(__parallel)
     t_start = m_walltime ( )
@@ -3168,6 +3173,7 @@ CONTAINS
 #else
     CALL mp_abort( "mp_win_unlock_all called in non parallel case" )
 #endif
+    CALL mp_timestop(handle)
   END SUBROUTINE mp_win_unlock_all
 
 #include "message_passing_i.f90"
