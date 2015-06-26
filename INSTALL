@@ -113,7 +113,8 @@ Note that you should **NOT** use libinit-1.1.3.
   * A library for small matrix multiplies can be built from the included
     source (see tools/build_libsmm/README).  Usually only the double
     precision real and perhaps complex is needed.  Link to the generated
-    libraries.
+    libraries. For a couple of architectures prebuild libsmm are
+    available at http://www.cp2k.org/static/downloads/libsmm/ .
   * Add -D__HAS_smm_dnn to the defines to make the code use the double
     precision real library.  Similarly use -D__HAS_smm_snn for single
     precision real and -D__HAS_smm_znn / -D__HAS_smm_cnn for
