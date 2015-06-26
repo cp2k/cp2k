@@ -56,7 +56,6 @@ MODULE dbcsr_dist_methods
             dbcsr_distribution_mp, dbcsr_distribution_processor,&
             dbcsr_distribution_nrows, dbcsr_distribution_ncols,&
             dbcsr_distribution_row_dist, dbcsr_distribution_col_dist,&
-            dbcsr_distribution_row_dist_obj, dbcsr_distribution_col_dist_obj,&
             dbcsr_distribution_nlocal_rows, dbcsr_distribution_nlocal_cols,&
             dbcsr_distribution_local_rows, dbcsr_distribution_local_cols,&
             dbcsr_distribution_local_rows_obj, dbcsr_distribution_local_cols_obj,&
@@ -368,20 +367,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param dist ...
-!> \retval row_dist ...
-! *****************************************************************************
-  FUNCTION dbcsr_distribution_row_dist_obj(dist) RESULT (row_dist)
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
-    TYPE(array_i1d_obj)                      :: row_dist
-
-!   ---------------------------------------------------------------------------
-
-    row_dist = dist%d%row_dist_block
-  END FUNCTION dbcsr_distribution_row_dist_obj
-
-! *****************************************************************************
-!> \brief ...
-!> \param dist ...
 !> \retval col_dist ...
 ! *****************************************************************************
   FUNCTION dbcsr_distribution_col_dist(dist) RESULT (col_dist)
@@ -392,20 +377,6 @@ CONTAINS
 
     col_dist => array_data(dist%d%col_dist_block)
   END FUNCTION dbcsr_distribution_col_dist
-
-! *****************************************************************************
-!> \brief ...
-!> \param dist ...
-!> \retval col_dist ...
-! *****************************************************************************
-  FUNCTION dbcsr_distribution_col_dist_obj(dist) RESULT (col_dist)
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
-    TYPE(array_i1d_obj)                      :: col_dist
-
-!   ---------------------------------------------------------------------------
-
-    col_dist = dist%d%col_dist_block
-  END FUNCTION dbcsr_distribution_col_dist_obj
 
 ! *****************************************************************************
 !> \brief ...

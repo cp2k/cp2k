@@ -20,15 +20,14 @@ MODULE dbcsr_dist_operations
   USE dbcsr_config,                    ONLY: max_elements_per_block
   USE dbcsr_dist_methods,              ONLY: &
        dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_col_dist_obj, dbcsr_distribution_has_threads, &
-       dbcsr_distribution_hold, dbcsr_distribution_init, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_new, &
-       dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
-       dbcsr_distribution_processor, dbcsr_distribution_release, &
-       dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
-       dbcsr_distribution_row_dist_obj, dbcsr_distribution_thread_dist
+       dbcsr_distribution_has_threads, dbcsr_distribution_hold, &
+       dbcsr_distribution_init, dbcsr_distribution_local_cols, &
+       dbcsr_distribution_local_rows, dbcsr_distribution_make_threads, &
+       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+       dbcsr_distribution_new, dbcsr_distribution_no_threads, &
+       dbcsr_distribution_nrows, dbcsr_distribution_processor, &
+       dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
+       dbcsr_distribution_row_dist, dbcsr_distribution_thread_dist
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
        dbcsr_error_type, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -863,15 +862,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ncols, npcols, nprows, nrows
-    INTEGER, DIMENSION(:), POINTER :: col_dist_data, col_img_data, &
-      col_img_data_tmp, col_vdist, row_dist_data, row_img_data, &
-      row_img_data_tmp, row_vdist
-    TYPE(array_i1d_obj)                      :: col_dist, col_image, &
-                                                row_dist, row_image
+    INTEGER, DIMENSION(:), POINTER           :: col_dist_data, col_img_data, &
+                                                col_vdist, row_dist_data, &
+                                                row_img_data, row_vdist
+    LOGICAL                                  :: new_col_dist, new_row_dist
     TYPE(dbcsr_distribution_obj)             :: new_dist
     TYPE(dbcsr_mp_obj)                       :: mp_env
 
-! true for cols, false for rows
 !   ---------------------------------------------------------------------------
 
     idid = idid+1
@@ -880,34 +877,32 @@ CONTAINS
     imgdist%i%id = idid
     CALL dbcsr_distribution_init (new_dist)
     CALL dbcsr_distribution_init (imgdist%i%main)
-    CALL array_nullify (imgdist%i%col_image)
-    CALL array_nullify (imgdist%i%row_image)
     mp_env = dbcsr_distribution_mp (dist)
     ! Determine the factors.
     nrows = dbcsr_distribution_nrows (dist)
     ncols = dbcsr_distribution_ncols (dist)
     nprows = dbcsr_mp_nprows (mp_env)
     npcols = dbcsr_mp_npcols (mp_env)
+    IF (debug_mod) WRITE (*,'(1X,A,I5,"x",I5)')routineN//"pgrid",&
+         nprows, npcols
+    !
     ! Create the new row distribution and row image distribution
     imgdist%i%row_decimation = nclusters_rows / nprows
     imgdist%i%row_multiplicity = nclusters_rows / gcd (nclusters_rows, match_row_nbins)
-
-    IF (debug_mod) WRITE (*,'(1X,A,I5,"x",I5)')routineN//"pgrid",&
-         nprows, npcols
+    new_row_dist = .FALSE.
+    !
     IF (debug_mod) WRITE (*,*)routineN//'row decimation, multiplicity',&
          imgdist%i%row_decimation, imgdist%i%row_multiplicity
     IF (debug_mod) WRITE(*,*)routineN//" nprows, match prows", nprows, match_row_nbins
     ALLOCATE (row_img_data (nrows))
-    row_img_data_tmp => row_img_data
     IF (imgdist%i%row_decimation.EQ.1 .AND. imgdist%i%row_multiplicity.EQ.1 .AND. &
          .NOT. PRESENT (match_row_pdist)) THEN
-       row_dist = dbcsr_distribution_row_dist_obj (dist)
-       CALL array_hold (row_dist)
+       row_dist_data => dbcsr_distribution_row_dist (dist)
        row_img_data(:) = 1
-       CALL array_new (row_image, row_img_data, gift=.TRUE.)
     ELSE
        IF (PRESENT (match_row_pdist)) THEN
           ALLOCATE (row_dist_data (nrows))
+          new_row_dist = .TRUE.
           IF (PRESENT (match_row_idist)) THEN
              CALL rebin_imaged_distribution (row_dist_data, row_img_data,&
                   match_row_pdist, match_row_idist,&
@@ -919,41 +914,37 @@ CONTAINS
                   nprows,&
                   imgdist%i%row_multiplicity, imgdist%i%row_decimation)
           ENDIF
-          CALL array_new (row_dist, row_dist_data, gift=.TRUE.)
        ELSE
-          row_dist = dbcsr_distribution_row_dist_obj (dist)
-          CALL array_hold (row_dist)
+          row_dist_data => dbcsr_distribution_row_dist (dist)
           CALL reimage_distribution (row_img_data,&
-               array_data (row_dist),&
+               row_dist_data,&
                nprows,&
                imgdist%i%row_multiplicity, imgdist%i%row_decimation) !the multiplicity argument is beeing ignored
        ENDIF
-       CALL array_new (row_image, row_img_data, gift=.TRUE.)
     ENDIF
     !
     ALLOCATE (row_vdist (nrows))
-    CALL make_vdistribution (nrows, row_vdist, array_data (row_dist),&
-         imgdist%i%row_decimation, row_img_data_tmp)
+    CALL make_vdistribution (nrows, row_vdist, row_dist_data,&
+         imgdist%i%row_decimation, row_img_data)
     CALL array_new (imgdist%i%vrow_dist, row_vdist, gift=.TRUE.)
     !
     ! Create the new column distribution and column image distribution
     imgdist%i%col_decimation = nclusters_cols / npcols
     imgdist%i%col_multiplicity = nclusters_cols / gcd (nclusters_cols, match_col_nbins)
-
+    new_col_dist = .FALSE.
+    !
     IF (debug_mod) WRITE (*,*)routineN//'col decimation, multiplicity',&
          imgdist%i%col_decimation, imgdist%i%col_multiplicity
     IF (debug_mod) WRITE(*,*)routineN//" npcols, match pcols", npcols, match_col_nbins
     ALLOCATE (col_img_data (ncols))
-    col_img_data_tmp => col_img_data
     IF (imgdist%i%col_decimation.EQ.1 .AND. imgdist%i%col_multiplicity.EQ.1 .AND. &
          .NOT. PRESENT (match_col_pdist)) THEN
-       col_dist = dbcsr_distribution_col_dist_obj (dist)
-       CALL array_hold (col_dist)
+       col_dist_data => dbcsr_distribution_col_dist (dist)
        col_img_data(:) = 1
-       CALL array_new (col_image, col_img_data, gift=.TRUE.)
     ELSE
        IF (PRESENT (match_col_pdist)) THEN
           ALLOCATE (col_dist_data (ncols))
+          new_col_dist = .TRUE.
           IF (PRESENT (match_col_idist)) THEN
              CALL rebin_imaged_distribution (col_dist_data, col_img_data,&
                   match_col_pdist, match_col_idist,&
@@ -965,34 +956,37 @@ CONTAINS
                   npcols,&
                   imgdist%i%col_multiplicity, imgdist%i%col_decimation)
           ENDIF
-          CALL array_new (col_dist, col_dist_data, gift=.TRUE.)
        ELSE
-          col_dist = dbcsr_distribution_col_dist_obj (dist)
-          CALL array_hold (col_dist)
+          col_dist_data => dbcsr_distribution_col_dist (dist)
           CALL reimage_distribution (col_img_data,&
-               array_data (col_dist),&
+               col_dist_data,&
                npcols,&
                imgdist%i%col_multiplicity, imgdist%i%col_decimation) !the multiplicity argument is beeing ignored
        ENDIF
-       CALL array_new (col_image, col_img_data, gift=.TRUE.)
     ENDIF
     !
     ALLOCATE (col_vdist (ncols))
-    CALL make_vdistribution (ncols, col_vdist, array_data(col_dist),&
-         imgdist%i%col_decimation, col_img_data_tmp)
+    CALL make_vdistribution (ncols, col_vdist, col_dist_data,&
+         imgdist%i%col_decimation, col_img_data)
     CALL array_new (imgdist%i%vcol_dist, col_vdist, gift=.TRUE.)
     !
     ! Copy the row & column distribution from old distribution
-    CALL dbcsr_distribution_new(new_dist,&
-         mp_env,&
-         array_data(row_dist), array_data(col_dist))
-    CALL array_release (row_dist)
-    CALL array_release (col_dist)
+    IF (new_row_dist.AND.new_col_dist) THEN
+       CALL dbcsr_distribution_new(new_dist,&
+            mp_env,&
+            row_dist_data, col_dist_data, reuse_arrays=.TRUE.)
+    ELSE
+       CALL dbcsr_distribution_new(new_dist,&
+            mp_env,&
+            row_dist_data, col_dist_data)
+       IF (new_row_dist) DEALLOCATE(row_dist_data)
+       IF (new_col_dist) DEALLOCATE(col_dist_data)
+    ENDIF
     ! Now setup the list of distributions, ... .
     ! Now finish the distribution image.
     imgdist%i%main = new_dist
-    imgdist%i%col_image = col_image
-    imgdist%i%row_image = row_image
+    CALL array_new (imgdist%i%col_image, col_img_data, gift=.TRUE.)
+    CALL array_new (imgdist%i%row_image, row_img_data, gift=.TRUE.)
     !
     imgdist%i%has_other_vl_rows = .FALSE.
     imgdist%i%has_other_vl_cols = .FALSE.
