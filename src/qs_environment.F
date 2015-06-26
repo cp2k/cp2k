@@ -418,15 +418,15 @@ CONTAINS
        CALL set_qs_env (qs_env,lri_env=lri_env,error=error)
     END IF
 
-    IF (dft_control%qs_control%do_ls_scf) THEN
-       CALL ls_scf_create(qs_env,error)
-    ENDIF
-
     transport_section => section_vals_get_subs_vals(qs_env%input,"DFT%TRANSPORT",error=error)
     CALL section_vals_get(transport_section,explicit=qs_env%do_transport,error=error)
     IF (qs_env%do_transport) THEN
        CALL transport_env_create(qs_env,error)
     END IF
+
+    IF (dft_control%qs_control%do_ls_scf) THEN
+       CALL ls_scf_create(qs_env,error)
+    ENDIF
 
     ! see if we have atomic relativistic corrections
     CALL get_qs_env(qs_env,rel_control=rel_control,error=error)

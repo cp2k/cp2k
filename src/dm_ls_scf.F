@@ -206,6 +206,7 @@ CONTAINS
                            input=input,&
                            has_unit_metric=ls_scf_env%has_unit_metric,&
                            para_env=ls_scf_env%para_env,&
+                           do_transport=ls_scf_env%do_transport,&
                            nelectron_spin=ls_scf_env%nelectron_spin,error=error)
 
     ! copy some basic stuff
@@ -791,6 +792,9 @@ CONTAINS
       ls_scf_env%eps_filter = 0.0_dp
     ENDIF
 
+    ! Turn off S inversion for transport
+    IF (ls_scf_env%do_transport) ls_scf_env%s_inversion_type = ls_s_inversion_none 
+
     SELECT CASE(ls_scf_env%s_inversion_type)
     CASE(ls_s_inversion_sign_sqrt)
         ls_scf_env%needs_s_inv=.TRUE.
@@ -940,8 +944,7 @@ CONTAINS
                                                 nelectron_spin_real, nmixing, &
                                                 nspin, unit_nr
     LOGICAL                                  :: check_convergence, diis_step, &
-                                                do_transport, failure, &
-                                                should_stop
+                                                do_transport, should_stop
     REAL(KIND=dp)                            :: energy_diff, energy_new, &
                                                 energy_old, eps_diis, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -1100,12 +1103,11 @@ CONTAINS
             IF (ls_scf_env%nspins==1) nelectron_spin_real=nelectron_spin_real/2
 
             IF (do_transport) THEN
-               CALL cp_assert(.NOT.(ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed,&
-                              routineP,"NOT YET IMPLEMENTED with S preconditioner. ", error, failure)
-
+               CALL cp_assert(.NOT.(ls_scf_env%has_s_preconditioner), cp_failure_level, cp_assertion_failed,&
+                              routineP, "NOT YET IMPLEMENTED with S preconditioner. ", only_ionode=.TRUE., error=error)
                CALL cp_assert(ls_scf_env%ls_mstruct%cluster_type .EQ. ls_cluster_atomic, cp_failure_level,&
-                              cp_assertion_failed, routineP,"NOT YET IMPLEMENTED with molecular clustering. ",& 
-                              error, failure)
+                              cp_assertion_failed, routineP, "NOT YET IMPLEMENTED with molecular clustering. ",& 
+                              only_ionode=.TRUE., error=error)
 
                ! get the current Kohn-Sham matrix (ks) and return matrix_p evaluated using an external C routine
                CALL external_scf_method(transport_env, ls_scf_env%matrix_s, matrix_mixing_old(ispin), &

@@ -135,6 +135,8 @@ MODULE dm_ls_scf_types
      INTEGER :: density_mixing_method
      TYPE(mixing_storage_type), POINTER :: mixing_store
 
+     LOGICAL :: do_transport
+
      TYPE(lib_pexsi_env) :: pexsi
 
      TYPE(cp_para_env_type), POINTER :: para_env
