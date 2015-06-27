@@ -3535,10 +3535,10 @@ MODULE dbcsr_mm_cannon
                 DO v_ci = 0, right_col_nimages-1
                    DO v_ki = 0, min_nimages-1
                       IF (left_max_norms_send(v_ri,v_ki)*right_max_norms_send(v_ki,v_ci).GE.filter_eps) CYCLE
-!$omp atomic
-                      left_gets_filtered(v_ri,v_ki,metronome) = left_gets_filtered(v_ri,v_ki,metronome)+1
-!$omp atomic
-                      right_gets_filtered(v_ki,v_ci,metronome) = right_gets_filtered(v_ki,v_ci,metronome)+1
+!!!!$omp atomic
+!!!!                      left_gets_filtered(v_ri,v_ki,metronome) = left_gets_filtered(v_ri,v_ki,metronome)+1
+!!!!!$omp atomic
+!!!!                      right_gets_filtered(v_ki,v_ci,metronome) = right_gets_filtered(v_ki,v_ci,metronome)+1
                    ENDDO
                 ENDDO
              ENDDO
@@ -3825,17 +3825,18 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_error_set(routineN//"_multrec", error_handler2, error)
        !
 !$omp parallel default (none) &
-!$omp shared (min_nimages, &
+!$omp shared (min_nimages, error, &
 !$omp         left_row_nimages,right_col_nimages, &
 !$omp         left_buffer_calc,right_buffer_calc, &
 !$omp         left_norms,right_norms, &
-!$omp         error_handler4, &           
+!$omp         error_handler4, &
 !$omp         metronome,nsteps_k,multrec) &
 !$omp private (ithread,v_ri,v_ci,v_ki,t_error) &
 !$omp reduction (+: flop)
        ithread = 0
 !$     ithread = omp_get_thread_num()
        !
+       t_error = error
        IF(ithread==0) &
             CALL dbcsr_error_set(routineN//"_multrec_master", error_handler4, t_error)
        !
@@ -3902,8 +3903,6 @@ MODULE dbcsr_mm_cannon
     ENDIF
     !
     DEALLOCATE(left_get_requests, right_get_requests)
-    !
-    t_error = error
     !
     IF (debug_mod) THEN
        v_ki = 0
