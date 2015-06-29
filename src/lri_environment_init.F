@@ -52,20 +52,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief initializes the lri env
-!> \brief qs_env the qs environment 
 !> \param qs_env ...
-!> \param atomic_kind_set ...
 !> \param force_env_section ...
 !> \param qs_kind_set ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE lri_env_init(qs_env, atomic_kind_set, force_env_section,&
-                          qs_kind_set, error)
+  SUBROUTINE lri_env_init(qs_env,force_env_section,qs_kind_set,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
@@ -78,10 +73,12 @@ CONTAINS
                                                 lmax_ikind_ri, maxl_orb, &
                                                 maxl_ri, nkind
     LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(gto_basis_set_type), POINTER        :: lri_basis_set, orb_basis_set
     TYPE(lri_environment_type), POINTER      :: lri_env
 
-    NULLIFY(lri_env)
+    NULLIFY(atomic_kind_set,lri_basis_set,lri_env,orb_basis_set)
     CALL lri_env_create(lri_env,error)
 
     ! initialize the basic basis sets (orb and ri)

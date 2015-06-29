@@ -382,8 +382,7 @@ CONTAINS
 
     ! lri env
     IF (method_id == do_method_lrigpw.OR.dft_control%qs_control%lri_optbas) THEN
-       CALL lri_env_init(qs_env, atomic_kind_set, force_env_section, &
-                         qs_kind_set, error)
+       CALL lri_env_init(qs_env, force_env_section, qs_kind_set, error)
     END IF
 
     transport_section => section_vals_get_subs_vals(qs_env%input,"DFT%TRANSPORT",error=error)

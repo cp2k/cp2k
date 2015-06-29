@@ -207,7 +207,7 @@ CONTAINS
                             iatom,jatom,ikind,jkind,calculate_forces,error)
          ELSE
            CALL lri_int_os(lri_env,lrii,ra,rb,rab,obasa,obasb,fbasa,fbasb,&
-                           iatom,jatom,ikind,calculate_forces,error)
+                           iatom,jatom,ikind,error)
          ENDIF
 
          ! construct and invert S matrix
@@ -677,18 +677,16 @@ CONTAINS
 !> \param iatom index atom A 
 !> \param jatom index atom B
 !> \param ikind kind atom A
-!> \param calculate_forces ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE lri_int_os(lri_env,lrii,ra,rb,rab,obasa,obasb,fbasa,fbasb,&
-                        iatom,jatom,ikind,calculate_forces,error)
+                        iatom,jatom,ikind,error)
     
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_int_type), POINTER              :: lrii
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rb, rab
     TYPE(gto_basis_set_type), POINTER        :: obasa, obasb, fbasa, fbasb
     INTEGER, INTENT(IN)                      :: iatom, jatom, ikind
-    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_os', &
