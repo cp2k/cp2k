@@ -146,7 +146,7 @@ CONTAINS
       IF ( opt_state%state == 2 ) THEN
         CALL calc_lri_integrals_get_objective(lri_env,lri_density,qs_env,&
                                               lri_opt,opt_state,pmatrix,para_env,&
-                                              atomic_kind_set,nkind,lri_opt%x,error)
+                                              nkind,lri_opt%x,error)
       ENDIF
 
       IF ( opt_state%state == -1 ) EXIT
@@ -549,7 +549,6 @@ CONTAINS
 !> \param opt_state state of the optimizer
 !> \param pmatrix density matrix
 !> \param para_env ...
-!> \param atomic_kind_set ...
 !> \param nkind number of atomic kinds
 !> \param x parameters to be optimized, i.e. exponents and contraction coeffs 
 !>        of the lri basis set 
@@ -558,7 +557,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE calc_lri_integrals_get_objective(lri_env,lri_density,qs_env,&
                                               lri_opt,opt_state,pmatrix,para_env,&
-                                              atomic_kind_set,nkind,x,error)
+                                              nkind,x,error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -568,8 +567,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: pmatrix
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     INTEGER, INTENT(IN)                      :: nkind
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -592,7 +589,7 @@ CONTAINS
       fbas%gcc = lri_opt%ri_gcc_orig(ikind)%gcc_orig
       CALL init_orb_basis_set(fbas,error)
     ENDDO
-    CALL lri_basis_init(lri_env,atomic_kind_set,error)
+    CALL lri_basis_init(lri_env,error)
     CALL calculate_lri_integrals(lri_env,qs_env,calculate_forces=.FALSE.,error=error)
     CALL calculate_avec(lri_env,lri_density,qs_env,pmatrix,error=error)
     IF(lri_opt%use_condition_number) THEN 

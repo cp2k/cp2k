@@ -104,7 +104,7 @@ CONTAINS
        maxl_orb = MAX(maxl_orb,lmax_ikind_orb)
        maxl_ri  = MAX(maxl_ri,lmax_ikind_ri)
     END DO
-    CALL lri_basis_init(lri_env,atomic_kind_set,error)
+    CALL lri_basis_init(lri_env,error)
 
     ! CG coefficients needed for lri integrals
     IF(ASSOCIATED(lri_env%cg_shg)) THEN
@@ -135,13 +135,10 @@ CONTAINS
 !> \brief initializes the lri basis: calculates the norm, self-overlap
 !>        and integral of the ri basis
 !> \param lri_env ...
-!> \param atomic_kind_set ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE lri_basis_init(lri_env,atomic_kind_set,error)
+  SUBROUTINE lri_basis_init(lri_env,error)
     TYPE(lri_environment_type), POINTER      :: lri_env
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'lri_basis_init', &
