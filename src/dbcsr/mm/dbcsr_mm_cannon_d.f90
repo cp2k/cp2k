@@ -9,9 +9,11 @@
 !> \param DATA ...
 !> \param local ...
 !> \param local2global ...
+!> \param max_val ...
 ! *****************************************************************************
   SUBROUTINE calc_norms_d(norms, nrows,&
-       row_p, col_i, blk_p, rbs, cbs, DATA, local, local2global)
+       row_p, col_i, blk_p, rbs, cbs, DATA, local, local2global,&
+       max_val)
     REAL(kind=sp), DIMENSION(:), INTENT(OUT) :: norms
     INTEGER, INTENT(IN)                      :: nrows
     INTEGER, DIMENSION(1:nrows+1), &
@@ -21,17 +23,21 @@
       INTENT(IN)                             :: DATA
     LOGICAL, INTENT(IN)                      :: local
     INTEGER, DIMENSION(*), INTENT(IN)        :: local2global
+    REAL(kind=sp), INTENT(OUT)               :: max_val
 
     INTEGER                                  :: blk, bp, bpe, row, row_i, &
                                                 row_size
 
 !   ---------------------------------------------------------------------------
 
+    max_val = 0
+
     !$omp parallel default(none) &
     !$omp          private (row_i, row, row_size, blk, bp, bpe) &
     !$omp          shared (nrows, local) &
     !$omp          shared (local2global, rbs, cbs, row_p, col_i, blk_p, &
-    !$omp                  data, norms)
+    !$omp                  data, norms) &
+    !$omp          reduction (max:max_val)
     !$omp do
     DO row_i = 1, nrows
        IF (local) THEN
@@ -48,6 +54,7 @@
           ELSE
              norms(blk) = 0.0_sp
           ENDIF
+          max_val = MAX(max_val,norms(blk))
        ENDDO
     ENDDO
     !$omp end do
@@ -64,9 +71,11 @@
 !> \param local ...
 !> \param local2global_rows ...
 !> \param local2global_cols ...
+!> \param max_val ...
 ! *****************************************************************************
   SUBROUTINE calc_norms_list_d(norms, nblks,&
-       blki, rbs, cbs, DATA, local, local2global_rows, local2global_cols)
+       blki, rbs, cbs, DATA, local, local2global_rows, local2global_cols,&
+       max_val)
     REAL(kind=sp), DIMENSION(:), INTENT(OUT) :: norms
     INTEGER, INTENT(IN)                      :: nblks
     INTEGER, DIMENSION(3,nblks), INTENT(IN)  :: blki
@@ -76,16 +85,20 @@
     LOGICAL, INTENT(IN)                      :: local
     INTEGER, DIMENSION(:), INTENT(IN)        :: local2global_rows
     INTEGER, DIMENSION(:), INTENT(IN)        :: local2global_cols
+    REAL(kind=sp), INTENT(OUT)               :: max_val
 
     INTEGER                                  :: blk, bp, bpe, row, col
 
 !   ---------------------------------------------------------------------------
 
+    max_val = 0
+
     !$omp parallel default(none) &
     !$omp          private (row, col, blk, bp, bpe) &
     !$omp          shared (local, nblks) &
     !$omp          shared (rbs, cbs, blki, &
-    !$omp                  data, norms, local2global_rows, local2global_cols)
+    !$omp                  data, norms, local2global_rows, local2global_cols) &
+    !$omp          reduction (max:max_val)
     !$omp do
     DO blk = 1, nblks
        IF (blki(3,blk) .NE. 0) THEN
@@ -102,6 +115,7 @@
        ELSE
           norms(blk) = 0.0_sp
        ENDIF
+       max_val = MAX(max_val,norms(blk))
     ENDDO
     !$omp end do
     !$omp end parallel

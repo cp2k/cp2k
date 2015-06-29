@@ -206,6 +206,12 @@ MODULE dbcsr_mm_cannon
     INTEGER(kind=int_4), DIMENSION(64)       :: padding
   END TYPE dbcsr_mm_multrec_type_p
 
+  INTERFACE dbcsr_switch
+     MODULE PROCEDURE dbcsr_switch_sets
+     MODULE PROCEDURE dbcsr_switch_d_ptrs
+     MODULE PROCEDURE dbcsr_switch_2d_s
+  END INTERFACE
+
   PUBLIC :: dbcsr_mm_cannon_lib_init, dbcsr_mm_cannon_lib_finalize
   PUBLIC :: dbcsr_mm_cannon_clear_mempools
   PUBLIC :: dbcsr_mm_cannon_multiply
@@ -2838,9 +2844,9 @@ MODULE dbcsr_mm_cannon
           flop_total = flop_total + flop_single
        ENDDO
 
-       CALL dbcsr_switch_sets (left_buffer_calc, left_buffer_comm)
-       CALL dbcsr_switch_sets (right_buffer_calc, right_buffer_comm)
-       CALL dbcsr_switch_d_ptrs(trs_stackbuf_calc, trs_stackbuf_comm)
+       CALL dbcsr_switch (left_buffer_calc, left_buffer_comm)
+       CALL dbcsr_switch (right_buffer_calc, right_buffer_comm)
+       CALL dbcsr_switch (trs_stackbuf_calc, trs_stackbuf_comm)
 
     ENDDO grouped_k_index
 
@@ -2970,6 +2976,7 @@ MODULE dbcsr_mm_cannon
     INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, product_pgrid, &
                                                 right_pgrid
     LOGICAL                                  :: keep_sparsity, otf_filtering
+    REAL(kind=sp)                            :: min_row_max_epss
     REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: row_max_epss
     REAL(kind=sp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: left_norms, right_norms
@@ -3300,13 +3307,19 @@ MODULE dbcsr_mm_cannon
           ENDDO
        ENDDO
        ! The counted blocks are then summed up
-       CALL mp_sum(total_row_counts, mp_group)
+       IF (dbcsr_mp_has_subgroups (left_mp_obj)) THEN
+          CALL mp_sum(total_row_counts, dbcsr_mp_my_row_group (left_mp_obj))
+       ELSE
+          CALL mp_sum(total_row_counts, mp_group)
+       ENDIF
        ! and used to determine the maximum per-block epsilon.
-       DO row = 1 , nblkrows_total
+       min_row_max_epss = HUGE(row_max_epss)
+       DO row = 1, nblkrows_total
           row_max_epss (row) &
                = REAL(filter_eps&
                / REAL(MAX(1, total_row_counts(row)), KIND=KIND(row_max_epss)),&
                KIND=KIND(row_max_epss))
+          min_row_max_epss = MIN(min_row_max_epss,row_max_epss (row))
        END DO
        !
        DEALLOCATE (row_counts, total_row_counts, stat=stat)
@@ -3315,24 +3328,20 @@ MODULE dbcsr_mm_cannon
             "Could not deallocate memory for right matrix row counts",&
             __LINE__, error=error)
        !
-       IF (nsteps_k.GT.1) THEN
-          ALLOCATE(right_max_norms_send(0:right_row_nimages-1,0:right_col_nimages-1))
-          ALLOCATE(right_max_norms_recv(0:right_row_nimages-1,0:right_col_nimages-1))
-          right_max_norms_send = HUGE(right_norms(1,1,1)) ; right_max_norms_recv = HUGE(right_norms(1,1,1))
-          ALLOCATE(left_max_norms_send(0:left_row_nimages-1,0:left_col_nimages-1))
-          ALLOCATE(left_max_norms_recv(0:left_row_nimages-1,0:left_col_nimages-1))
-          left_max_norms_send = HUGE(left_norms(1,1,1)) ; left_max_norms_recv = HUGE(left_norms(1,1,1))
-       ENDIF
+       ALLOCATE(right_max_norms_send(0:right_row_nimages-1,0:right_col_nimages-1))
+       right_max_norms_send = HUGE(right_norms(1,1,1))
+       ALLOCATE(right_max_norms_recv(0:right_row_nimages-1,0:right_col_nimages-1))
+       ALLOCATE(left_max_norms_send(0:left_row_nimages-1,0:left_col_nimages-1))
+       left_max_norms_send = HUGE(left_norms(1,1,1))
+       ALLOCATE(left_max_norms_recv(0:left_row_nimages-1,0:left_col_nimages-1))
        !
        right_norms(:,:,:) = HUGE(right_norms(1,1,1))
        DO v_ci = 1, right_col_nimages
           DO v_ki = 1, min_nimages
              CALL calculate_norms(right_set%mats(v_ki, v_ci),&
-                                  right_norms(:,v_ki,v_ci), error=error)
-             IF (nsteps_k.GT.1.AND.right_set%mats(v_ki,v_ci)%m%nblks.GT.0) THEN
-                right_max_norms_send(v_ki-1,v_ci-1) = &
-                     MAXVAL(right_norms(1:right_set%mats(v_ki,v_ci)%m%nblks,v_ki,v_ci))
-             ENDIF
+                                  right_norms(:,v_ki,v_ci),&
+                                  right_max_norms_send(v_ki-1,v_ci-1),&
+                                  error=error)
           ENDDO
        ENDDO
        !
@@ -3340,11 +3349,9 @@ MODULE dbcsr_mm_cannon
        DO v_ki = 1, min_nimages
           DO v_ri = 1, left_row_nimages
              CALL calculate_norms(left_set%mats(v_ri, v_ki),&
-                                  left_norms(:,v_ki,v_ri), error=error)
-             IF (nsteps_k.GT.1.AND.left_set%mats(v_ri,v_ki)%m%nblks.GT.0) THEN
-                left_max_norms_send(v_ri-1,v_ki-1) = &
-                     MAXVAL(left_norms(1:left_set%mats(v_ri,v_ki)%m%nblks,v_ki,v_ri))
-             ENDIF
+                                  left_norms(:,v_ki,v_ri),&
+                                  left_max_norms_send(v_ri-1,v_ki-1),&
+                                  error=error)
           ENDDO
        ENDDO
     ELSE
@@ -3432,9 +3439,53 @@ MODULE dbcsr_mm_cannon
        ENDIF
        DO metronome = 1, nsteps_k-1
           !
+          ! Left matrix transfer
+          DO v_ci = 0, left_col_nimages-1
+             v_i = v_ci*left_row_nimages
+             DO v_ri = 0, left_row_nimages-1
+                ! Calculate the process to send to
+                CALL image_calculator (left_set%image_dist,&
+                     prow=send_prow, pcol=send_pcol,&   ! output
+                     myvprow=v_ri+left_myfirstvrow,& 
+                     ! go through all my column images
+                     myvpcol=v_ci+left_myfirstvcol,&
+                     ! send to process min_nimages left in the grid
+                     vpcol_shift=-min_nimages,&
+                     shifting='0', error=error)
+                ! Calculate the process to receive from
+                CALL image_calculator (left_set%image_dist,&
+                     prow=recv_prow, pcol=recv_pcol,&
+                     myvprow=v_ri+left_myfirstvrow,&
+                     myvpcol=v_ci+left_myfirstvcol,&
+                     vpcol_shift=+min_nimages,& ! just the opposite as "send to"
+                     shifting='0', error=error)
+                !
+                ! These are column-communicator relative
+                IF (dbcsr_mp_has_subgroups (left_mp_obj)) THEN
+                   left_send_p = send_pcol
+                   left_recv_p = recv_pcol
+                ELSE
+                   left_send_p = left_pgrid (send_prow, send_pcol)
+                   left_recv_p = left_pgrid (recv_prow, recv_pcol)
+                ENDIF
+                ! Exchange indices
+                CALL mp_isendrecv(left_gets_p(v_ri,v_ci,metronome-1),left_send_p,&
+                     left_gets_p(v_ri,v_ci,metronome),left_recv_p,&
+                     grp_left,precannon_requests(1,v_ri+v_i),&
+                     precannon_requests(2,v_ri+v_i))
+                ! Exchange max norms
+                IF (otf_filtering) THEN
+                   CALL mp_isendrecv(left_max_norms_send(v_ri,v_ci),left_send_p,&
+                        left_max_norms_recv(v_ri,v_ci),left_recv_p,&
+                        grp_left,precannon_requests_norms(1,v_ri+v_i),&
+                        precannon_requests_norms(2,v_ri+v_i))
+                ENDIF
+             ENDDO
+          ENDDO
+          !
           ! Right matrix transfer
           DO v_ci = 0, right_col_nimages-1
-             v_i = v_ci*right_row_nimages
+             v_i = left_row_nimages*left_col_nimages+v_ci*right_row_nimages
              DO v_ri = 0, right_row_nimages-1
                 !
                 ! Calculate the process to send to
@@ -3476,69 +3527,27 @@ MODULE dbcsr_mm_cannon
                 ENDIF
              END DO
           ENDDO
-          !
-          ! Left matrix transfer
-          DO v_ci = 0, left_col_nimages-1
-             v_i = right_row_nimages*right_col_nimages+v_ci*left_row_nimages
-             DO v_ri = 0, left_row_nimages-1
-                ! Calculate the process to send to
-                CALL image_calculator (left_set%image_dist,&
-                     prow=send_prow, pcol=send_pcol,&   ! output
-                     myvprow=v_ri+left_myfirstvrow,& 
-                     ! go through all my column images
-                     myvpcol=v_ci+left_myfirstvcol,&
-                     ! send to process min_nimages left in the grid
-                     vpcol_shift=-min_nimages,&
-                     shifting='0', error=error)
-                ! Calculate the process to receive from
-                CALL image_calculator (left_set%image_dist,&
-                     prow=recv_prow, pcol=recv_pcol,&
-                     myvprow=v_ri+left_myfirstvrow,&
-                     myvpcol=v_ci+left_myfirstvcol,&
-                     vpcol_shift=+min_nimages,& ! just the opposite as "send to"
-                     shifting='0', error=error)
-                !
-                ! These are column-communicator relative
-                IF (dbcsr_mp_has_subgroups (left_mp_obj)) THEN
-                   left_send_p = send_pcol
-                   left_recv_p = recv_pcol
-                ELSE
-                   left_send_p = left_pgrid (send_prow, send_pcol)
-                   left_recv_p = left_pgrid (recv_prow, recv_pcol)
-                ENDIF
-                ! Exchange indices
-                CALL mp_isendrecv(left_gets_p(v_ri,v_ci,metronome-1),left_send_p,&
-                     left_gets_p(v_ri,v_ci,metronome),left_recv_p,&
-                     grp_left,precannon_requests(1,v_ri+v_i),&
-                     precannon_requests(2,v_ri+v_i))
-                ! Exchange max norms
-                IF (otf_filtering) THEN
-                   CALL mp_isendrecv(left_max_norms_send(v_ri,v_ci),left_send_p,&
-                        left_max_norms_recv(v_ri,v_ci),left_recv_p,&
-                        grp_left,precannon_requests_norms(1,v_ri+v_i),&
-                        precannon_requests_norms(2,v_ri+v_i))
-                ENDIF
-             ENDDO
-          ENDDO
           IF (otf_filtering) THEN
              CALL mp_waitall (precannon_requests_norms)
-             CALL dbcsr_switch_sp_ptrs_2d (left_max_norms_send, left_max_norms_recv)
-             CALL dbcsr_switch_sp_ptrs_2d (right_max_norms_send, right_max_norms_recv)             
+             CALL dbcsr_switch (left_max_norms_send, left_max_norms_recv)
+             CALL dbcsr_switch (right_max_norms_send, right_max_norms_recv)
+             !
 !$omp parallel do &
 !$omp default (none) &
 !$omp shared (left_max_norms_send,right_max_norms_send,min_nimages,&
-!$omp         right_col_nimages,left_row_nimages,filter_eps,metronome,&
+!$omp         min_row_max_epss,right_col_nimages,left_row_nimages,metronome,&
 !$omp         left_gets_filtered,right_gets_filtered) &
 !$omp private (v_i,v_ki,v_ci,v_ri) &
 !$omp collapse(3)
              DO v_ri = 0, left_row_nimages-1
                 DO v_ci = 0, right_col_nimages-1
                    DO v_ki = 0, min_nimages-1
-                      IF (left_max_norms_send(v_ri,v_ki)*right_max_norms_send(v_ki,v_ci).GE.filter_eps) CYCLE
-!!!!$omp atomic
-!!!!                      left_gets_filtered(v_ri,v_ki,metronome) = left_gets_filtered(v_ri,v_ki,metronome)+1
-!!!!!$omp atomic
-!!!!                      right_gets_filtered(v_ki,v_ci,metronome) = right_gets_filtered(v_ki,v_ci,metronome)+1
+                      IF (left_max_norms_send(v_ri,v_ki)*right_max_norms_send(v_ki,v_ci).GE.&
+                          min_row_max_epss) CYCLE
+!$omp atomic
+                      left_gets_filtered(v_ri,v_ki,metronome) = left_gets_filtered(v_ri,v_ki,metronome)+1
+!$omp atomic
+                      right_gets_filtered(v_ki,v_ci,metronome) = right_gets_filtered(v_ki,v_ci,metronome)+1
                    ENDDO
                 ENDDO
              ENDDO
@@ -3547,11 +3556,8 @@ MODULE dbcsr_mm_cannon
           CALL mp_waitall (precannon_requests)
        ENDDO
        DEALLOCATE(precannon_requests)
-       !
        IF (otf_filtering) THEN
           DEALLOCATE(precannon_requests_norms)
-          DEALLOCATE(right_max_norms_send,right_max_norms_recv,&
-                     left_max_norms_send,left_max_norms_recv)
        ENDIF
        CALL dbcsr_error_stop(error_handler2, error)
        ! 
@@ -3605,6 +3611,11 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_win_create_any(left_meta_orig,grp_left,left_meta_win,error)
        CALL mp_win_lock_all(left_data_win)
        CALL mp_win_lock_all(left_meta_win)
+    ENDIF
+    !
+    IF (otf_filtering) THEN
+       DEALLOCATE(right_max_norms_send,right_max_norms_recv,&
+            left_max_norms_send,left_max_norms_recv)
     ENDIF
     !
     ALLOCATE (right_get_requests(2,0:min_nimages*right_col_nimages-1))
@@ -3866,9 +3877,9 @@ MODULE dbcsr_mm_cannon
        !
        CALL dbcsr_error_stop(error_handler2, error)
 
-       CALL dbcsr_switch_sets (left_buffer_calc, left_buffer_comm)
-       CALL dbcsr_switch_sets (right_buffer_calc, right_buffer_comm)
-       CALL dbcsr_switch_d_ptrs(trs_stackbuf_calc, trs_stackbuf_comm)
+       CALL dbcsr_switch (left_buffer_calc, left_buffer_comm)
+       CALL dbcsr_switch (right_buffer_calc, right_buffer_comm)
+       CALL dbcsr_switch (trs_stackbuf_calc, trs_stackbuf_comm)
 
     ENDDO grouped_k_index
     !
@@ -4402,12 +4413,12 @@ MODULE dbcsr_mm_cannon
   END SUBROUTINE dbcsr_switch_d_ptrs
 
 ! *****************************************************************************
-!> \brief Switches pointers between two 2d arrays
+!> \brief Switches pointers between two single precision 2d arrays
 !> \param array1p_2d ...
 !> \param array2p_2d ...
 !> \author Alfio Lazzaro
 ! *****************************************************************************
-  SUBROUTINE dbcsr_switch_sp_ptrs_2d (array1p_2d, array2p_2d)
+  SUBROUTINE dbcsr_switch_2d_s (array1p_2d, array2p_2d)
     REAL(kind=sp), DIMENSION(:, :), POINTER  :: array1p_2d, array2p_2d
 
     REAL(kind=sp), DIMENSION(:, :), POINTER  :: tmp_p_2d
@@ -4415,7 +4426,7 @@ MODULE dbcsr_mm_cannon
     tmp_p_2d => array1p_2d
     array1p_2d => array2p_2d
     array2p_2d => tmp_p_2d
-  END SUBROUTINE dbcsr_switch_sp_ptrs_2d
+  END SUBROUTINE dbcsr_switch_2d_s
 
 ! *****************************************************************************
 ! The following routines are helped here to help the compiler optimize them
@@ -4462,12 +4473,14 @@ MODULE dbcsr_mm_cannon
 !>
 !> Rewritten to be very low-level.
 !> \param[in,out] matrix     DBCSR matrix for which to calculate norms
-!> \param[in] norms          Block norms
+!> \param[out] norms         Block norms
+!> \param[out] max_val       Max norm value
 !> \param[in,out] error      error
 ! *****************************************************************************
-  SUBROUTINE calculate_norms(matrix, norms, error)
+  SUBROUTINE calculate_norms(matrix, norms, max_val, error)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     REAL(kind=sp), DIMENSION(:), INTENT(OUT) :: norms
+    REAL(kind=sp), INTENT(OUT), OPTIONAL     :: max_val
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_norms', &
@@ -4477,6 +4490,7 @@ MODULE dbcsr_mm_cannon
                                                 nblks, nrows
     INTEGER, DIMENSION(1), TARGET            :: tmp
     INTEGER, DIMENSION(:), POINTER           :: local_cols, local_rows
+    REAL(kind=sp)                            :: my_max_val
 
 !   ---------------------------------------------------------------------------
 
@@ -4510,7 +4524,8 @@ MODULE dbcsr_mm_cannon
                dbcsr_get_data_p_s (matrix%m%data_area),&
                local=matrix%m%local_indexing,&
                local2global_rows=local_rows,&
-               local2global_cols=local_cols)
+               local2global_cols=local_cols,&
+               max_val=my_max_val)
        CASE (dbcsr_type_real_8)
           CALL calc_norms_list_d(norms, nblks,&
                matrix%m%coo_l, &
@@ -4519,7 +4534,8 @@ MODULE dbcsr_mm_cannon
                dbcsr_get_data_p_d (matrix%m%data_area),&
                local=matrix%m%local_indexing,&
                local2global_rows=local_rows,&
-               local2global_cols=local_cols)
+               local2global_cols=local_cols,&
+               max_val=my_max_val)
        CASE (dbcsr_type_complex_4)
           CALL calc_norms_list_c(norms, nblks,&
                matrix%m%coo_l, &
@@ -4528,7 +4544,8 @@ MODULE dbcsr_mm_cannon
                dbcsr_get_data_p_c (matrix%m%data_area),&
                local=matrix%m%local_indexing,&
                local2global_rows=local_rows,&
-               local2global_cols=local_cols)
+               local2global_cols=local_cols,&
+               max_val=my_max_val)
        CASE (dbcsr_type_complex_8)
           CALL calc_norms_list_z(norms, nblks,&
                matrix%m%coo_l, &
@@ -4537,7 +4554,8 @@ MODULE dbcsr_mm_cannon
                dbcsr_get_data_p_z (matrix%m%data_area),&
                local=matrix%m%local_indexing,&
                local2global_rows=local_rows,&
-               local2global_cols=local_cols)
+               local2global_cols=local_cols,&
+               max_val=my_max_val)
        CASE DEFAULT
           CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
                routineN, "Invalid data type.",__LINE__,error)
@@ -4551,7 +4569,8 @@ MODULE dbcsr_mm_cannon
                array_data (matrix%m%col_blk_size),&
                dbcsr_get_data_p_s (matrix%m%data_area),&
                local=matrix%m%local_indexing,&
-               local2global=local_rows)
+               local2global=local_rows,&
+               max_val=my_max_val)
        CASE (dbcsr_type_real_8)
           CALL calc_norms_d(norms, nrows,&
                matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p,&
@@ -4559,7 +4578,8 @@ MODULE dbcsr_mm_cannon
                array_data (matrix%m%col_blk_size),&
                dbcsr_get_data_p_d (matrix%m%data_area),&
                local=matrix%m%local_indexing,&
-               local2global=local_rows)
+               local2global=local_rows,&
+               max_val=my_max_val)
        CASE (dbcsr_type_complex_4)
           CALL calc_norms_c(norms, nrows,&
                matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p,&
@@ -4567,7 +4587,8 @@ MODULE dbcsr_mm_cannon
                array_data (matrix%m%col_blk_size),&
                dbcsr_get_data_p_c (matrix%m%data_area),&
                local=matrix%m%local_indexing,&
-               local2global=local_rows)
+               local2global=local_rows,&
+               max_val=my_max_val)
        CASE (dbcsr_type_complex_8)
           CALL calc_norms_z(norms, nrows,&
                matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p,&
@@ -4575,13 +4596,16 @@ MODULE dbcsr_mm_cannon
                array_data (matrix%m%col_blk_size),&
                dbcsr_get_data_p_z (matrix%m%data_area),&
                local=matrix%m%local_indexing,&
-               local2global=local_rows)
+               local2global=local_rows,&
+               max_val=my_max_val)
        CASE DEFAULT
           CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
                routineN, "Invalid data type.",__LINE__,error)
        END SELECT
     ENDIF
-       !
+    !
+    IF (PRESENT(max_val)) max_val = my_max_val
+    !
     CALL dbcsr_error_stop(error_handle, error)
   END SUBROUTINE calculate_norms
 
