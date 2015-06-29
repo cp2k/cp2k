@@ -14,14 +14,10 @@
 !>          Dorothea Golze  
 ! *****************************************************************************
 MODULE lri_environment_methods
-  USE ai_overlap,                      ONLY: overlap
-  USE ai_overlap3,                     ONLY: overlap3
-  USE ai_overlap_aabb,                 ONLY: overlap_aabb
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
+  USE basis_set_types,                 ONLY: gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
@@ -37,21 +33,25 @@ MODULE lri_environment_methods
                                              do_lri_pseudoinv_svd
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
-  USE lri_debug_integrals,             ONLY: overlap_aabb_test,&
-                                             overlap_ab_test,&
-                                             overlap_abc_test
   USE lri_environment_types,           ONLY: &
        allocate_lri_coefs, allocate_lri_ints, allocate_lri_ints_rho, &
        allocate_lri_rhos, deallocate_lri_ints, deallocate_lri_ints_rho, &
        lri_density_create, lri_density_release, lri_density_type, &
        lri_environment_type, lri_int_rho_type, lri_int_type, lri_kind_type, &
        lri_list_type, lri_rhoab_type
+  USE lri_os_integrals,                ONLY: lri_int_aabb,&
+                                             lri_int_ab,&
+                                             lri_int_aba,&
+                                             lri_int_abb
+  USE lri_shg_integrals,               ONLY: lri_int_ab_shg,&
+                                             lri_int_aba_shg,&
+                                             lri_int_abb_shg,&
+                                             precalc_angular_shg_part
   USE mathlib,                         ONLY: get_pseudo_inverse_diag,&
                                              get_pseudo_inverse_svd,&
                                              invmat_symm
   USE message_passing,                 ONLY: mp_max,&
                                              mp_sum
-  USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
   USE pw_types,                        ONLY: pw_p_type
   USE qs_collocate_density,            ONLY: calculate_lri_rho_elec
@@ -150,7 +150,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(cell, dft_control, fbasa, fbasb, lrii, lri_ints, nl_iterator, &
-            obasa, obasb, particle_set,soo_list, virial)
+         obasa, obasb, particle_set, soo_list, virial)
 
     IF ( ASSOCIATED(lri_env%soo_list) ) THEN
       soo_list => lri_env%soo_list
@@ -199,63 +199,36 @@ CONTAINS
          lrii%nfb = nfb
 
          ra(:) = pbc(particle_set(iatom)%r, cell) 
-         rb(:) = pbc(particle_set(jatom)%r, cell) 
+         rb(:) = pbc(particle_set(jatom)%r, cell)
 
-         ! calculate integrals (a,b,fa) and (a,b,fb)
-         IF(iatom == jatom.AND.dab < lri_env%delta) THEN
-           CALL lri_int_aba(lrii%abaint,ra=ra,rb=rb,rab=rab,oba=obasa,obb=obasb,&
-                            fba=fbasa, calculate_forces=.FALSE.,debug=lri_env%debug,&
-                            dmax=lrii%dmax_aba,error=error)
-           lrii%dabdaint = 0.0_dp
-           lrii%dabbint  = 0.0_dp
+         ! calculate integrals (fa,fb), (a,b), (a,b,fa) and (a,b,fb)
+         IF(lri_env%use_shg_integrals) THEN
+           CALL lri_int_shg(lri_env,lrii,ra,rb,rab,obasa,obasb,fbasa,fbasb,&
+                            iatom,jatom,ikind,jkind,calculate_forces,error)
          ELSE
-           CALL lri_int_aba(lrii%abaint,lrii%dabdaint,ra,rb,rab,obasa,obasb,fbasa,&
-                            lrii%calc_force_pair,lri_env%debug,lrii%dmax_aba,&
-                            error=error)
-           CALL lri_int_abb(lrii%abbint,lrii%dabbint,ra,rb,rab,obasa,obasb,fbasb,&
-                            lrii%calc_force_pair,lri_env%debug,lrii%dmax_abb,&
-                            error=error)
-         ENDIF
-
-         ! calculate integrals (fa,fb); for iatom=jatom this is the self-overlap
-         IF(iatom == jatom.AND.dab < lri_env%delta) THEN
-           lrii%sab(1:nfa,1:nfa)=lri_env%bas_ovlp(ikind)%ri_ovlp(1:nfa,1:nfa)
-           lrii%dsab = 0._dp
-         ELSE
-           CALL lri_int_ab(lrii%sab,lrii%dsab,ra,rb,rab,fbasa,fbasb,&
-                           lrii%calc_force_pair,lri_env%debug,&
-                           lrii%dmax_ab,error)
+           CALL lri_int_os(lri_env,lrii,ra,rb,rab,obasa,obasb,fbasa,fbasb,&
+                           iatom,jatom,ikind,calculate_forces,error)
          ENDIF
 
          ! construct and invert S matrix
-         lrii%sinv(1:nfa,1:nfa) = lri_env%bas_ovlp(ikind)%ri_ovlp(1:nfa,1:nfa)
+         lrii%sinv(1:nfa,1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa,1:nfa)
          IF(dab > lri_env%delta) THEN
            nn = nfa+nfb
            lrii%sinv(1:nfa,nfa+1:nn) = lrii%sab(1:nfa,1:nfb)
            lrii%sinv(nfa+1:nn,1:nfa) = TRANSPOSE(lrii%sab(1:nfa,1:nfb))
-           lrii%sinv(nfa+1:nn,nfa+1:nn) = lri_env%bas_ovlp(jkind)%ri_ovlp(1:nfb,1:nfb)
+           lrii%sinv(nfa+1:nn,nfa+1:nn) = lri_env%bas_prop(jkind)%ri_ovlp(1:nfb,1:nfb)
          ENDIF
          CALL inverse_lri_overlap(lri_env,lrii%sinv,error)
 
          ! calculate Sinv*n and n*Sinv*n
-         lrii%n(1:nfa) = lri_env%bas_int(ikind)%int_fbas(1:nfa)
+         lrii%n(1:nfa) = lri_env%bas_prop(ikind)%int_fbas(1:nfa)
          IF(iatom == jatom.AND.dab < lri_env%delta) THEN
            lrii%sn(1:nfa) = MATMUL(lrii%sinv(1:nfa,1:nfa),lrii%n(1:nfa))
            lrii%nsn = SUM(lrii%sn(1:nfa)*lrii%n(1:nfa))
          ELSE
-           lrii%n(nfa+1:nn) = lri_env%bas_int(jkind)%int_fbas(1:nfb)
+           lrii%n(nfa+1:nn) = lri_env%bas_prop(jkind)%int_fbas(1:nfb)
            lrii%sn(1:nn) = MATMUL(lrii%sinv(1:nn,1:nn),lrii%n(1:nn))
            lrii%nsn = SUM(lrii%sn(1:nn)*lrii%n(1:nn))
-         ENDIF
-
-         ! calculate integrals (a,b), overlap of primary basis
-         IF(iatom == jatom.AND.dab < lri_env%delta) THEN
-           lrii%soo(1:nba,1:nba) = lri_env%bas_ovlp(ikind)%orb_ovlp(1:nba,1:nba)
-           lrii%dsoo = 0._dp
-         ELSE
-           CALL lri_int_ab(lrii%soo,lrii%dsoo,ra,rb,rab,obasa,obasb,&
-                           lrii%calc_force_pair,lri_env%debug,&
-                           lrii%dmax_oo,error=error)
          ENDIF
 
          ! calculate derivative of fit coefficients, needed for update of KS matrix
@@ -690,901 +663,181 @@ CONTAINS
   END SUBROUTINE distribute_lri_density_on_the_grid
 
 ! *****************************************************************************
-!> \brief calculate integrals (a,b,fa)
-!> \param abaint integral (a,b,fa)
-!> \param dabdaint derivative of abaint with respect to A
-!> \param ra ...
-!> \param rb ...
-!> \param rab ...
-!> \param oba orbital basis at center A
-!> \param obb orbital basis at center B
-!> \param fba auxiliary basis set at center A
+!> \brief calculates the lri intergrals according to the Obara-Saika (OS)
+!>        scheme
+!> \param lri_env ...
+!> \param lrii ...
+!> \param ra position atom A
+!> \param rb position atom B
+!> \param rab distance vector
+!> \param obasa orb basis on center A
+!> \param obasb orb basis on center B
+!> \param fbasa aux basis on center A
+!> \param fbasb aux basis on center B
+!> \param iatom index atom A 
+!> \param jatom index atom B
+!> \param ikind kind atom A
 !> \param calculate_forces ...
-!> \param debug integrals are debugged by recursive routines if requested
-!> \param dmax maximal deviation between integrals when debugging
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE lri_int_aba(abaint,dabdaint,ra,rb,rab,oba,obb,fba,&
-                         calculate_forces,debug,dmax,error)
-
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: abaint
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      OPTIONAL, POINTER                      :: dabdaint
+  SUBROUTINE lri_int_os(lri_env,lrii,ra,rb,rab,obasa,obasb,fbasa,fbasb,&
+                        iatom,jatom,ikind,calculate_forces,error)
+    
+    TYPE(lri_environment_type), POINTER      :: lri_env
+    TYPE(lri_int_type), POINTER              :: lrii
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rb, rab
-    TYPE(gto_basis_set_type), POINTER        :: oba, obb, fba
-    LOGICAL, INTENT(IN)                      :: calculate_forces, debug
-    REAL(KIND=dp), INTENT(INOUT)             :: dmax
+    TYPE(gto_basis_set_type), POINTER        :: obasa, obasb, fbasa, fbasb
+    INTEGER, INTENT(IN)                      :: iatom, jatom, ikind
+    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_aba', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_os', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iset, jset, kaset, &
-                                                m1, m2, m3, ncoa, ncob, ncoc, &
-                                                nseta, nsetb, nsetca, sgfa, &
-                                                sgfb, sgfc, stat
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, lca_max, lca_min, &
-                                                npgfa, npgfb, npgfca, nsgfa, &
-                                                nsgfb, nsgfca
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
-                                                first_sgfca
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dab, dac, dbc
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: saba
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: sabda, sdaba, sdabda
-    REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b, &
-                                                set_radius_ca
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, rpgfca, sphi_a, &
-                                                sphi_b, sphi_ca, zeta, zetb, &
-                                                zetca
+    INTEGER                                  :: handle, nba, nbb, nfa, nfb
+    REAL(KIND=dp)                            :: dab
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
-    NULLIFY(la_max, la_min, lb_max, lb_min, lca_max, lca_min, npgfa, npgfb,&
-             npgfca, nsgfa, nsgfb, nsgfca) 
-    NULLIFY(first_sgfa, first_sgfb, first_sgfca, set_radius_a, set_radius_b,&
-            set_radius_ca, rpgfa, rpgfb, rpgfca, sphi_a, sphi_b, sphi_ca,&
-            zeta, zetb, zetca) 
 
-    ! basis ikind
-    first_sgfa    =>  oba%first_sgf
-    la_max        =>  oba%lmax
-    la_min        =>  oba%lmin
-    npgfa         =>  oba%npgf
-    nseta         =   oba%nset
-    nsgfa         =>  oba%nsgf_set
-    rpgfa         =>  oba%pgf_radius
-    set_radius_a  =>  oba%set_radius
-    sphi_a        =>  oba%sphi
-    zeta          =>  oba%zet
-    ! basis jkind
-    first_sgfb    =>  obb%first_sgf
-    lb_max        =>  obb%lmax
-    lb_min        =>  obb%lmin
-    npgfb         =>  obb%npgf
-    nsetb         =   obb%nset
-    nsgfb         =>  obb%nsgf_set
-    rpgfb         =>  obb%pgf_radius
-    set_radius_b  =>  obb%set_radius
-    sphi_b        =>  obb%sphi
-    zetb          =>  obb%zet
+    dab = SQRT(SUM(rab*rab))
+    nba = obasa%nsgf
+    nbb = obasb%nsgf
+    nfa = fbasa%nsgf
+    nfb = fbasb%nsgf
 
-    ! basis RI A
-    first_sgfca   =>  fba%first_sgf
-    lca_max       =>  fba%lmax
-    lca_min       =>  fba%lmin
-    npgfca        =>  fba%npgf
-    nsetca        =   fba%nset
-    nsgfca        =>  fba%nsgf_set
-    rpgfca        =>  fba%pgf_radius
-    set_radius_ca =>  fba%set_radius
-    sphi_ca       =>  fba%sphi
-    zetca         =>  fba%zet
-
-    dab = SQRT( SUM(rab**2) )
-
-    DO iset=1,nseta
-
-       ncoa = npgfa(iset)*ncoset(la_max(iset))
-       sgfa = first_sgfa(1,iset)
-
-       DO jset=1,nsetb
-
-          IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-
-          ncob = npgfb(jset)*ncoset(lb_max(jset))
-          sgfb = first_sgfb(1,jset)
-          m1=sgfa+nsgfa(iset)-1
-          m2=sgfb+nsgfb(jset)-1
-
-          ! calculate integrals abaint and derivative [d(a,b,a)/dA] dabdaint if requested
-          rac = 0._dp
-          dac = 0._dp
-          rbc = -rab
-          dbc = dab
-
-          DO kaset=1,nsetca
-
-             IF (set_radius_b(jset) + set_radius_ca(kaset) < dab) CYCLE
-
-             ncoc = npgfca(kaset)*ncoset(lca_max(kaset))
-             sgfc = first_sgfca(1,kaset)
-             m3=sgfc+nsgfca(kaset)-1
-             IF(ncoa*ncob*ncoc > 0) THEN
-                ALLOCATE(saba(ncoa,ncob,ncoc),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                saba(:,:,:)    = 0._dp
-                ! integrals
-                IF(calculate_forces) THEN
-                   ALLOCATE(sdaba(ncoa,ncob,ncoc,3),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   ALLOCATE(sabda(ncoa,ncob,ncoc,3),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   ALLOCATE(sdabda(ncoa,ncob,ncoc,3),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   sdaba(:,:,:,:) = 0._dp
-                   sabda(:,:,:,:) = 0._dp
-                   sdabda(:,:,:,:) = 0._dp
-                   CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
-                                 lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
-                                 lca_max(kaset),npgfca(kaset),zetca(:,kaset),rpgfca(:,kaset),lca_min(kaset),&
-                                 rab,dab,rac,dac,rbc,dbc,saba,sdaba,sabda,error=error)
-                   !d(a,b,a)/dA = (da/dA,b,a) + (a,b,da/dA)
-                   sdabda(:,:,:,:) = sdaba + sabda
-
-                   DO i=1,3
-                    CALL abc_contract(dabdaint(sgfa:m1,sgfb:m2,sgfc:m3,i),sdabda(:,:,:,i),& 
-                         sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_ca(:,sgfc:),&
-                         ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfca(kaset),error)
-                   ENDDO
-
-                   DEALLOCATE(sdaba,sabda,sdabda,STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                ELSE
-                   CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
-                                 lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
-                                 lca_max(kaset),npgfca(kaset),zetca(:,kaset),rpgfca(:,kaset),lca_min(kaset),&
-                                 rab,dab,rac,dac,rbc,dbc,saba,error=error)
-                ENDIF
-                ! debug if requested
-                IF(debug) THEN
-                   CALL overlap_abc_test(la_max(iset),npgfa(iset),zeta(:,iset),la_min(iset),&
-                                         lb_max(jset),npgfb(jset),zetb(:,jset),lb_min(jset),&
-                                         lca_max(kaset),npgfca(kaset),zetca(:,kaset),lca_min(kaset),&
-                                         ra,rb,ra,saba,dmax,error)
-                ENDIF
-                CALL abc_contract(abaint(sgfa:m1,sgfb:m2,sgfc:m3),saba,& 
-                     sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_ca(:,sgfc:),&
-                     ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfca(kaset),error)
-                DEALLOCATE(saba,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
-          END DO
-       END DO
-    END DO
+    !*** calculate overlap integrals; for iatom=jatom this is the self-overlap
+    IF(iatom == jatom.AND.dab < lri_env%delta) THEN
+      !*** (fa,fa)
+      lrii%sab(1:nfa,1:nfa)=lri_env%bas_prop(ikind)%ri_ovlp(1:nfa,1:nfa)
+      lrii%dsab = 0._dp
+      !*** (a,a)
+      lrii%soo(1:nba,1:nba) = lri_env%bas_prop(ikind)%orb_ovlp(1:nba,1:nba)
+      lrii%dsoo = 0._dp
+      !*** (a,a,fa)
+      CALL lri_int_aba(lrii%abaint,ra=ra,rb=rb,rab=rab,oba=obasa,obb=obasb,&
+                       fba=fbasa, calculate_forces=.FALSE.,debug=lri_env%debug,&
+                       dmax=lrii%dmax_aba,error=error)
+      lrii%dabdaint = 0.0_dp
+      lrii%dabbint  = 0.0_dp
+    ELSE
+      !*** (fa,fb)
+      CALL lri_int_ab(lrii%sab,lrii%dsab,ra,rb,rab,fbasa,fbasb,&
+                      lrii%calc_force_pair,lri_env%debug,&
+                      lrii%dmax_ab,error)
+      !*** (a,b)
+      CALL lri_int_ab(lrii%soo,lrii%dsoo,ra,rb,rab,obasa,obasb,&
+                      lrii%calc_force_pair,lri_env%debug,&
+                      lrii%dmax_oo,error=error)
+      !*** (a,b,fa)
+      CALL lri_int_aba(lrii%abaint,lrii%dabdaint,ra,rb,rab,obasa,obasb,fbasa,&
+                       lrii%calc_force_pair,lri_env%debug,lrii%dmax_aba,&
+                       error=error)
+      !*** (a,b,fb)
+      CALL lri_int_abb(lrii%abbint,lrii%dabbint,ra,rb,rab,obasa,obasb,fbasb,&
+                       lrii%calc_force_pair,lri_env%debug,lrii%dmax_abb,&
+                       error=error)
+    ENDIF
 
     CALL timestop(handle)
 
-  END SUBROUTINE lri_int_aba
-
-! *****************************************************************************
-!> \brief calculate integrals (a,b,fb)
-!> \param abbint integral (a,b,fb)
-!> \param dabbint derivative of abbint with respect to A
-!> \param ra ...
-!> \param rb ...
-!> \param rab ...
-!> \param oba orbital basis at center A
-!> \param obb orbital basis at center B
-!> \param fbb auxiliary basis set at center B
-!> \param calculate_forces ...
-!> \param debug integrals are debugged by recursive routines if requested
-!> \param dmax maximal deviation between integrals when debugging
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE lri_int_abb(abbint,dabbint,ra,rb,rab,oba,obb,fbb,calculate_forces,&
-                         debug,dmax,error)
-
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: abbint
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      OPTIONAL, POINTER                      :: dabbint
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rb, rab
-    TYPE(gto_basis_set_type), POINTER        :: oba, obb, fbb
-    LOGICAL, INTENT(IN)                      :: calculate_forces, debug
-    REAL(KIND=dp), INTENT(INOUT)             :: dmax
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_abb', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, iset, jset, kbset, &
-                                                m1, m2, m3, ncoa, ncob, ncoc, &
-                                                nseta, nsetb, nsetcb, sgfa, &
-                                                sgfb, sgfc, stat
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, lcb_max, lcb_min, &
-                                                npgfa, npgfb, npgfcb, nsgfa, &
-                                                nsgfb, nsgfcb
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
-                                                first_sgfcb
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dab, dac, dbc
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: sabb
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: sdabb
-    REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b, &
-                                                set_radius_cb
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, rpgfcb, sphi_a, &
-                                                sphi_b, sphi_cb, zeta, zetb, &
-                                                zetcb
-
-    failure = .FALSE.
-    CALL timeset(routineN,handle)
-    NULLIFY(la_max, la_min, lb_max, lb_min, lcb_max, lcb_min, npgfa, npgfb,&
-            npgfcb, nsgfa, nsgfb, nsgfcb)
-    NULLIFY(first_sgfa, first_sgfb, first_sgfcb, set_radius_a, set_radius_b,&
-            set_radius_cb, rpgfa, rpgfb, rpgfcb, sphi_a, sphi_b, sphi_cb,&
-            zeta, zetb, zetcb) 
-
-    ! basis ikind
-    first_sgfa    =>  oba%first_sgf
-    la_max        =>  oba%lmax
-    la_min        =>  oba%lmin
-    npgfa         =>  oba%npgf
-    nseta         =   oba%nset
-    nsgfa         =>  oba%nsgf_set
-    rpgfa         =>  oba%pgf_radius
-    set_radius_a  =>  oba%set_radius
-    sphi_a        =>  oba%sphi
-    zeta          =>  oba%zet
-    ! basis jkind
-    first_sgfb    =>  obb%first_sgf
-    lb_max        =>  obb%lmax
-    lb_min        =>  obb%lmin
-    npgfb         =>  obb%npgf
-    nsetb         =   obb%nset
-    nsgfb         =>  obb%nsgf_set
-    rpgfb         =>  obb%pgf_radius
-    set_radius_b  =>  obb%set_radius
-    sphi_b        =>  obb%sphi
-    zetb          =>  obb%zet
-
-    ! basis RI B
-    first_sgfcb   =>  fbb%first_sgf
-    lcb_max       =>  fbb%lmax
-    lcb_min       =>  fbb%lmin
-    npgfcb        =>  fbb%npgf
-    nsetcb        =   fbb%nset
-    nsgfcb        =>  fbb%nsgf_set
-    rpgfcb        =>  fbb%pgf_radius
-    set_radius_cb =>  fbb%set_radius
-    sphi_cb       =>  fbb%sphi
-    zetcb         =>  fbb%zet
-
-    dab = SQRT( SUM(rab**2) )
-
-    DO iset=1,nseta
-
-       ncoa = npgfa(iset)*ncoset(la_max(iset))
-       sgfa = first_sgfa(1,iset)
-
-       DO jset=1,nsetb
-
-          IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-
-          ncob = npgfb(jset)*ncoset(lb_max(jset))
-          sgfb = first_sgfb(1,jset)
-          m1=sgfa+nsgfa(iset)-1
-          m2=sgfb+nsgfb(jset)-1
-
-          ! calculate integrals abbint and derivative [d(a,b,b)/dA] dabbint if requested
-          rac = rab
-          dac = dab
-          rbc = 0._dp
-          dbc = 0._dp
-
-          DO kbset=1,nsetcb
+  END SUBROUTINE lri_int_os
  
-             IF (set_radius_a(iset) + set_radius_cb(kbset) < dab) CYCLE
-
-             ncoc = npgfcb(kbset)*ncoset(lcb_max(kbset))
-             sgfc = first_sgfcb(1,kbset)
-             m3=sgfc+nsgfcb(kbset)-1
-             IF(ncoa*ncob*ncoc > 0) THEN
-                ALLOCATE(sabb(ncoa,ncob,ncoc),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                sabb(:,:,:) = 0._dp
-                IF(calculate_forces) THEN
-                   ALLOCATE(sdabb(ncoa,ncob,ncoc,3),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   sdabb(:,:,:,:) = 0._dp
-                   CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
-                                lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
-                                lcb_max(kbset),npgfcb(kbset),zetcb(:,kbset),rpgfcb(:,kbset),lcb_min(kbset),&
-                                rab,dab,rac,dac,rbc,dbc,sabb,sdabc=sdabb,error=error)
-                   DO i=1,3
-                    CALL abc_contract(dabbint(sgfa:m1,sgfb:m2,sgfc:m3,i),sdabb(:,:,:,i),&
-                         sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_cb(:,sgfc:),&
-                         ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfcb(kbset),error)
-                   ENDDO
-                   DEALLOCATE(sdabb,STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                ELSE
-                   CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
-                                lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
-                                lcb_max(kbset),npgfcb(kbset),zetcb(:,kbset),rpgfcb(:,kbset),lcb_min(kbset),&
-                                rab,dab,rac,dac,rbc,dbc,sabb,error=error)
-                ENDIF
-                ! debug if requested
-                IF(debug) THEN
-                   CALL overlap_abc_test(la_max(iset),npgfa(iset),zeta(:,iset),la_min(iset),&
-                                         lb_max(jset),npgfb(jset),zetb(:,jset),lb_min(jset),&
-                                         lcb_max(kbset),npgfcb(kbset),zetcb(:,kbset),lcb_min(kbset),&
-                                         ra,rb,rb,sabb,dmax,error)
-                ENDIF
-                CALL abc_contract(abbint(sgfa:m1,sgfb:m2,sgfc:m3),sabb,&
-                     sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_cb(:,sgfc:),&
-                     ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfcb(kbset),error)
-                DEALLOCATE(sabb,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ENDIF
-          END DO
-
-       END DO
-    END DO
-
-    CALL timestop(handle)
-
-  END SUBROUTINE lri_int_abb
-
 ! *****************************************************************************
-!> \brief calculate overlap integrals (a,b)
-!> \param sab integral (a,b)
-!> \param dsab derivative of sab with respect to A
-!> \param ra ...
-!> \param rb ...
-!> \param rab ...
-!> \param fba basis at center A
-!> \param fbb basis at center B
+!> \brief calcuates the lri integrals using solid harmonic Gaussians
+!> \param lri_env ...
+!> \param lrii ...
+!> \param ra position of center A
+!> \param rb position of center B
+!> \param rab distance vector
+!> \param obasa orb basis on A
+!> \param obasb orb basis on B
+!> \param fbasa aux basis on A
+!> \param fbasb aux basis on B
+!> \param iatom index atom A
+!> \param jatom index atom B
+!> \param ikind kind atom A
+!> \param jkind kind atom B
 !> \param calculate_forces ...
-!> \param debug integrals are debugged by recursive routines if requested
-!> \param dmax maximal deviation between integrals when debugging
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE lri_int_ab(sab,dsab,ra,rb,rab,fba,fbb,calculate_forces,debug,&
-                        dmax,error)
-
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sab
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      OPTIONAL, POINTER                      :: dsab
+  SUBROUTINE lri_int_shg(lri_env,lrii,ra,rb,rab,obasa,obasb,fbasa,fbasb,&
+                        iatom,jatom,ikind,jkind,calculate_forces,error)
+    
+    TYPE(lri_environment_type), POINTER      :: lri_env
+    TYPE(lri_int_type), POINTER              :: lrii
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rb, rab
-    TYPE(gto_basis_set_type), POINTER        :: fba, fbb
-    LOGICAL, INTENT(IN)                      :: calculate_forces, debug
-    REAL(KIND=dp), INTENT(INOUT)             :: dmax
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_ab', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: handle, i, iset, jset, lds, m1, m2, maxco, maxcoa, maxcob, &
-      maxl, maxla, maxlb, ncoa, ncob, nseta, nsetb, sgfa, sgfb, stat
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dab
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: sint
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: devab, swork
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
-                                                zeta, zetb
-
-    failure = .FALSE.
-    CALL timeset(routineN,handle)
-    NULLIFY(la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb,&
-            first_sgfa, first_sgfb, set_radius_a, set_radius_b, rpgfa, rpgfb,&
-            sphi_a, sphi_b, zeta, zetb)
-
-    ! basis ikind
-    first_sgfa   =>  fba%first_sgf
-    la_max       =>  fba%lmax
-    la_min       =>  fba%lmin
-    npgfa        =>  fba%npgf
-    nseta        =   fba%nset
-    nsgfa        =>  fba%nsgf_set
-    rpgfa        =>  fba%pgf_radius
-    set_radius_a =>  fba%set_radius
-    sphi_a       =>  fba%sphi
-    zeta         =>  fba%zet
-    ! basis jkind
-    first_sgfb   =>  fbb%first_sgf
-    lb_max       =>  fbb%lmax
-    lb_min       =>  fbb%lmin
-    npgfb        =>  fbb%npgf
-    nsetb        =   fbb%nset
-    nsgfb        =>  fbb%nsgf_set
-    rpgfb        =>  fbb%pgf_radius
-    set_radius_b =>  fbb%set_radius
-    sphi_b       =>  fbb%sphi
-    zetb         =>  fbb%zet
-
-    CALL get_gto_basis_set(fba,maxco=maxcoa,maxl=maxla)
-    CALL get_gto_basis_set(fbb,maxco=maxcob,maxl=maxlb)
-    maxco = MAX(maxcoa,maxcob)
-    IF(calculate_forces) THEN
-     maxl = MAX(maxla+1,maxlb)
-    ELSE
-     maxl = MAX(maxla,maxlb)
-    ENDIF
-    lds = ncoset(maxl)
-    ALLOCATE(sint(maxco,maxco),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF(calculate_forces) THEN
-     !derivatives will be stored in devab(:,:,2:4)
-     ALLOCATE(swork(lds,lds,4),devab(maxco,maxco,4),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     devab = 0._dp
-    ELSE
-     ALLOCATE(swork(lds,lds,1),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
-    sint  = 0._dp
-    swork = 0._dp
-
-    dab = SQRT( SUM(rab**2) )
-
-    DO iset=1,nseta
-
-       ncoa = npgfa(iset)*ncoset(la_max(iset))
-       sgfa = first_sgfa(1,iset)
-
-       DO jset=1,nsetb
-
-          IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-
-          ncob = npgfb(jset)*ncoset(lb_max(jset))
-          sgfb = first_sgfb(1,jset)
-          m1=sgfa+nsgfa(iset)-1
-          m2=sgfb+nsgfb(jset)-1
-          sint=0._dp
-          swork = 0._dp
-
-          ! calculate integrals
-          IF(calculate_forces) THEN
-             devab = 0._dp 
-             CALL overlap(la_max(iset),la_min(iset),npgfa(iset),rpgfa(:,iset),zeta(:,iset),&
-                          lb_max(jset),lb_min(jset),npgfb(jset),rpgfb(:,jset),zetb(:,jset),&
-                          rab,dab,sint,0,.FALSE.,swork,lds,sdab=devab)
-             DO i=1,3
-              !NOTE: devab(:,:,2:4) contains all derivatives for lmin=0 to lmax=lmax 
-              !      correct after contraction (multiply with zero for elements l < lmin) 
-              CALL ab_contract(dsab(sgfa:m1,sgfb:m2,i),devab(:,:,i+1),sphi_a(:,sgfa:),&
-                   sphi_b(:,sgfb:),ncoa,ncob,nsgfa(iset),nsgfb(jset),error)
-             ENDDO
-
-          ELSE
-             CALL overlap(la_max(iset),la_min(iset),npgfa(iset),rpgfa(:,iset),zeta(:,iset),&
-                          lb_max(jset),lb_min(jset),npgfb(jset),rpgfb(:,jset),zetb(:,jset),&
-                          rab,dab,sint,0,.FALSE.,swork,lds)
-          ENDIF
-          ! debug if requested
-          IF(debug) THEN
-             CALL overlap_ab_test(la_max(iset),la_min(iset),npgfa(iset),zeta(:,iset),&
-                                  lb_max(jset),lb_min(jset),npgfb(jset),zetb(:,jset),&
-                                  ra,rb,sint,dmax,error)
-          ENDIF
-
-          CALL ab_contract(sab(sgfa:m1,sgfb:m2),sint,sphi_a(:,sgfa:),sphi_b(:,sgfb:),&
-               ncoa,ncob,nsgfa(iset),nsgfb(jset),error)
-       END DO
-    END DO
-
-    IF(calculate_forces) THEN
-     DEALLOCATE(devab,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
-
-    DEALLOCATE(sint,swork,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE lri_int_ab
-
-! *****************************************************************************
-!> \brief calculate overlap integrals (aa,bb)
-!> \param saabb integral (aa,bb)
-!> \param oba orbital basis at center A
-!> \param obb orbital basis at center B
-!> \param rab ...
-!> \param ra ...
-!> \param rb ...
-!> \param debug integrals are debugged by recursive routines if requested
-!> \param dmax maximal deviation between integrals when debugging
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE lri_int_aabb(saabb,oba,obb,rab,ra,rb,debug,dmax,error)
-
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: saabb
-    TYPE(gto_basis_set_type), POINTER        :: oba, obb
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab, ra, rb
-    LOGICAL, INTENT(IN)                      :: debug
-    REAL(KIND=dp), INTENT(INOUT)             :: dmax
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_aabb', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: handle, iset, isgfa1, jset, jsgfa2, kset, ksgfb1, lds, lset, &
-      lsgfb2, m1, m2, m3, m4, maxco, maxcoa, maxcob, maxl, maxla, maxlb, &
-      ncoa1, ncoa2, ncob1, ncob2, nseta, nsetb, sgfa1, sgfa2, sgfb1, sgfb2, &
-      stat
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb
-    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: asets_equal, bsets_equal, &
-                                                failure
-    REAL(KIND=dp)                            :: dab
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: swork
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: sint
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
-                                                zeta, zetb
-
-    failure = .FALSE.
-    CALL timeset(routineN,handle)
-    NULLIFY(la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb,&
-            first_sgfa, first_sgfb, set_radius_a, set_radius_b, rpgfa, rpgfb,&
-            sphi_a, sphi_b, zeta, zetb)
-
-    ! basis ikind
-    first_sgfa   =>  oba%first_sgf
-    la_max       =>  oba%lmax
-    la_min       =>  oba%lmin
-    npgfa        =>  oba%npgf
-    nseta        =   oba%nset
-    nsgfa        =>  oba%nsgf_set
-    rpgfa        =>  oba%pgf_radius
-    set_radius_a =>  oba%set_radius
-    sphi_a       =>  oba%sphi
-    zeta         =>  oba%zet
-    ! basis jkind
-    first_sgfb   =>  obb%first_sgf
-    lb_max       =>  obb%lmax
-    lb_min       =>  obb%lmin
-    npgfb        =>  obb%npgf
-    nsetb        =   obb%nset
-    nsgfb        =>  obb%nsgf_set
-    rpgfb        =>  obb%pgf_radius
-    set_radius_b =>  obb%set_radius
-    sphi_b       =>  obb%sphi
-    zetb         =>  obb%zet
-
-    CALL get_gto_basis_set(oba,maxco=maxcoa,maxl=maxla)
-    CALL get_gto_basis_set(obb,maxco=maxcob,maxl=maxlb)
-    maxco = MAX(maxcoa,maxcob)
-    maxla = 2*maxla
-    maxlb = 2*maxlb
-    maxl = MAX(maxla,maxlb)
-    lds = ncoset(maxl)
-    ALLOCATE(sint(maxco,maxco,maxco,maxco),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(swork(lds,lds),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    sint  = 0._dp
-    swork = 0._dp
-
-    dab = SQRT( SUM(rab**2) )
-
-    DO iset=1,nseta
-
-       ncoa1 = npgfa(iset)*ncoset(la_max(iset))
-       sgfa1 = first_sgfa(1,iset)
-       m1    = sgfa1 + nsgfa(iset)-1
-
-       DO jset=iset,nseta
-
-          ncoa2 = npgfa(jset)*ncoset(la_max(jset))
-          sgfa2 = first_sgfa(1,jset)
-          m2    = sgfa2 + nsgfa(jset)-1
-
-          DO kset=1,nsetb
-
-             ncob1 = npgfb(kset)*ncoset(lb_max(kset))
-             sgfb1 = first_sgfb(1,kset)
-             m3    = sgfb1 + nsgfb(kset)-1
-
-             DO lset=kset,nsetb
-
-                ncob2 = npgfb(lset)*ncoset(lb_max(lset))
-                sgfb2 = first_sgfb(1,lset)
-                m4=sgfb2+nsgfb(lset)-1
-
-                ! check if sets are identical to spare some integral evaluation
-                asets_equal = .FALSE.
-                IF(iset == jset) asets_equal = .TRUE.
-                bsets_equal = .FALSE.
-                IF(kset == lset) bsets_equal = .TRUE.
-                ! calculate integrals
-                CALL overlap_aabb(la_max(iset),la_min(iset),npgfa(iset),rpgfa(:,iset),zeta(:,iset),&
-                                  la_max(jset),la_min(jset),npgfa(jset),rpgfa(:,jset),zeta(:,jset),&
-                                  lb_max(kset),lb_min(kset),npgfb(kset),rpgfb(:,kset),zetb(:,kset),&
-                                  lb_max(lset),lb_min(lset),npgfb(lset),rpgfb(:,lset),zetb(:,lset),&
-                                  asets_equal,bsets_equal,rab,dab,sint,swork,lds)
-                ! debug if requested
-                IF (debug) THEN
-                   CALL overlap_aabb_test(la_max(iset),la_min(iset),npgfa(iset),zeta(:,iset),&
-                                          la_max(jset),la_min(jset),npgfa(jset),zeta(:,jset),&
-                                          lb_max(kset),lb_min(kset),npgfb(kset),zetb(:,kset),&
-                                          lb_max(lset),lb_min(lset),npgfb(lset),zetb(:,lset),&
-                                          ra,rb,sint,dmax,error)
-                ENDIF
-
-                CALL abcd_contract(saabb(sgfa1:m1,sgfa2:m2,sgfb1:m3,sgfb2:m4),sint,sphi_a(:,sgfa1:),&
-                                   sphi_a(:,sgfa2:),sphi_b(:,sgfb1:),sphi_b(:,sgfb2:),ncoa1,ncoa2,&
-                                   ncob1,ncob2,nsgfa(iset),nsgfa(jset),nsgfb(kset),nsgfb(lset),error)
-
-               ! account for the fact that some integrals are alike
-                DO isgfa1 = sgfa1,m1
-                  DO jsgfa2 = sgfa2,m2
-                    DO ksgfb1 = sgfb1,m3
-                      DO lsgfb2 = sgfb2,m4
-                         saabb(jsgfa2,isgfa1,ksgfb1,lsgfb2) = saabb(isgfa1,jsgfa2,ksgfb1,lsgfb2)
-                         saabb(isgfa1,jsgfa2,lsgfb2,ksgfb1) = saabb(isgfa1,jsgfa2,ksgfb1,lsgfb2)
-                         saabb(jsgfa2,isgfa1,lsgfb2,ksgfb1) = saabb(isgfa1,jsgfa2,ksgfb1,lsgfb2)
-                      END DO
-                    END DO
-                  END DO
-                END DO
-               
-             END DO
-          END DO
-       END DO
-    END DO
-
-    DEALLOCATE(sint,swork,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE lri_int_aabb
-
-! *****************************************************************************
-!> \brief contract overlap integrals (a,b) and transfer to spherical Gaussians
-!> \param abint ...
-!> \param sab ...
-!> \param sphi_a ...
-!> \param sphi_b ...
-!> \param ncoa ...
-!> \param ncob ...
-!> \param nsgfa ...
-!> \param nsgfb ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE ab_contract(abint,sab,sphi_a,sphi_b,ncoa,ncob,nsgfa,nsgfb,error)
-
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: abint
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: sab, sphi_a, sphi_b
-    INTEGER, INTENT(IN)                      :: ncoa, ncob, nsgfa, nsgfb
+    TYPE(gto_basis_set_type), POINTER        :: obasa, obasb, fbasa, fbasb
+    INTEGER, INTENT(IN)                      :: iatom, jatom, ikind, jkind
+    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'ab_contract', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_shg', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: m1, m2, msphia, msphib, nn, &
+    INTEGER                                  :: handle, nba, nbb, nfa, nfb, &
                                                 stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: cpp
-
-    msphia = SIZE(sphi_a,1)
-    msphib = SIZE(sphi_b,1)
-
-    m1 = SIZE(sab,1)
-    m2 = SIZE(sab,2)
-
-    nn = SIZE(abint,1)
-
-    ALLOCATE(cpp(nsgfa,m2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL dgemm("T","N",nsgfa,m2,ncoa,1._dp,sphi_a,msphia,sab,m1,0.0_dp,cpp,nsgfa)
-    CALL dgemm("N","N",nsgfa,nsgfb,ncob,1._dp,cpp,nsgfa,sphi_b,msphib,0.0_dp,&
-               abint,nn)
-
-    DEALLOCATE(cpp,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-  END SUBROUTINE ab_contract
-
-! *****************************************************************************
-!> \brief contract three-center overlap integrals (a,b,c) and transfer
-!>        to spherical Gaussians
-!> \param abcint ...
-!> \param sabc ...
-!> \param sphi_a ...
-!> \param sphi_b ...
-!> \param sphi_c ...
-!> \param ncoa ...
-!> \param ncob ...
-!> \param ncoc ...
-!> \param nsgfa ...
-!> \param nsgfb ...
-!> \param nsgfc ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE abc_contract(abcint,sabc,sphi_a,sphi_b,sphi_c,ncoa,ncob,ncoc,&
-                          nsgfa,nsgfb,nsgfc,error)
-
-    REAL(KIND=dp), DIMENSION(:, :, :)        :: abcint, sabc
-    REAL(KIND=dp), DIMENSION(:, :)           :: sphi_a, sphi_b, sphi_c
-    INTEGER, INTENT(IN)                      :: ncoa, ncob, ncoc, nsgfa, &
-                                                nsgfb, nsgfc
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'abc_contract', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, isgfc, m1, m2, m3, &
-                                                msphia, msphib, msphic, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: temp_ccc, work_cpc
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: cpc, cpp
+    REAL(KIND=dp)                            :: dab
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: scon_orba, scon_orbb, &
+                                                scon_ria, scon_rib
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: Waux_mat
 
     CALL timeset(routineN,handle)
+    NULLIFY(scon_orba,scon_orbb,scon_ria,scon_rib,Waux_mat)
+    failure = .FALSE.
 
-    msphia = SIZE(sphi_a,1)
-    msphib = SIZE(sphi_b,1)
-    msphic = SIZE(sphi_c,1)
+    dab = SQRT(SUM(rab*rab))
+    nba = obasa%nsgf
+    nbb = obasb%nsgf
+    nfa = fbasa%nsgf
+    nfb = fbasb%nsgf
 
-    m1 = SIZE(sabc,1)
-    m2 = SIZE(sabc,2)
-    m3 = SIZE(sabc,3)
+    IF(calculate_forces) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+           message="Derivatives of SHG integrals not implemented", &
+           error=error, error_level=cp_failure_level)
+      
+    ENDIF
 
-    ALLOCATE(cpp(nsgfa,m2,m3),cpc(nsgfa,m2,nsgfc),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    cpp = 0._dp
-    cpc = 0._dp
-    ALLOCATE(work_cpc(nsgfa,m2),temp_ccc(nsgfa,nsgfb),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    work_cpc(:,:) = 0._dp
-    temp_ccc(:,:) = 0._dp
-
-    CALL dgemm("T","N",nsgfa,m2*m3,ncoa,1._dp,sphi_a,msphia,sabc,m1,0.0_dp,cpp,nsgfa)
-    CALL dgemm("N","N",nsgfa*m2,nsgfc,ncoc,1._dp,cpp,nsgfa*m2,sphi_c,msphic,0.0_dp,&
-               cpc,nsgfa*m2)
-
-    DO isgfc=1,nsgfc
-     work_cpc(:,:)=cpc(:,:,isgfc)
-     CALL dgemm("N","N",nsgfa,nsgfb,ncob,1._dp,work_cpc,nsgfa,sphi_b,msphib,&
-                0.0_dp,temp_ccc,nsgfa)
-     abcint(:,:,isgfc)=temp_ccc(:,:)
-    END DO
-
-    DEALLOCATE(cpp,cpc,work_cpc,temp_ccc,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    !*** calculate overlap integrals; for iatom=jatom this is the self-overlap
+    IF(iatom == jatom.AND.dab < lri_env%delta) THEN
+      !*** (fa,fa)
+      lrii%sab(1:nfa,1:nfa)=lri_env%bas_prop(ikind)%ri_ovlp(1:nfa,1:nfa)
+      lrii%dsab = 0._dp
+      !*** (a,a)
+      lrii%soo(1:nba,1:nba) = lri_env%bas_prop(ikind)%orb_ovlp(1:nba,1:nba)
+      lrii%dsoo = 0._dp
+      !*** (a,a,fa)
+      CALL lri_int_aba(lrii%abaint,ra=ra,rb=rb,rab=rab,oba=obasa,obb=obasb,&
+                       fba=fbasa, calculate_forces=.FALSE.,debug=lri_env%debug,&
+                       dmax=lrii%dmax_aba,error=error)
+      lrii%dabdaint = 0.0_dp
+      lrii%dabbint  = 0.0_dp
+    ELSE
+      scon_orba   => lri_env%bas_prop(ikind)%scon_orb       
+      scon_orbb   => lri_env%bas_prop(jkind)%scon_orb       
+      scon_ria    => lri_env%bas_prop(ikind)%scon_ri       
+      scon_rib    => lri_env%bas_prop(jkind)%scon_ri       
+      CALL precalc_angular_shg_part(obasa,obasb,fbasa,fbasb,rab,Waux_mat,error) 
+      !*** (fa,fb)
+      CALL lri_int_ab_shg(lrii%sab,rab,fbasa,fbasb,scon_ria,scon_rib,Waux_mat,error)
+      !*** (a,b)
+      CALL lri_int_ab_shg(lrii%soo,rab,obasa,obasb,scon_orba,scon_orbb,Waux_mat,error)
+      !*** (a,b,fa)
+       CALL lri_int_aba_shg(lri_env,lrii%abaint,rab,obasa,obasb,fbasa,scon_orba,&
+                            scon_orbb,scon_ria,Waux_mat,error=error)
+      !*** (a,b,fb)
+      CALL lri_int_abb_shg(lri_env,lrii%abbint,rab,obasa,obasb,fbasb,scon_orba,&
+                           scon_orbb,scon_rib,Waux_mat,error=error)
+      DEALLOCATE(Waux_mat,STAT=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
 
     CALL timestop(handle)
 
-  END SUBROUTINE abc_contract
-
-! *****************************************************************************
-!> \brief contract four-center overlap integrals (a,b,c,d) and transfer
-!>        to spherical Gaussians
-!> \param abcdint ...
-!> \param sabcd ...
-!> \param sphi_a ...
-!> \param sphi_b ...
-!> \param sphi_c ...
-!> \param sphi_d ...
-!> \param ncoa ...
-!> \param ncob ...
-!> \param ncoc ...
-!> \param ncod ...
-!> \param nsgfa ...
-!> \param nsgfb ...
-!> \param nsgfc ...
-!> \param nsgfd ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE abcd_contract(abcdint,sabcd,sphi_a,sphi_b,sphi_c,sphi_d,ncoa,ncob,&
-                           ncoc,ncod,nsgfa,nsgfb,nsgfc,nsgfd,error)
-
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      INTENT(INOUT)                          :: abcdint
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      INTENT(IN)                             :: sabcd
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: sphi_a, sphi_b, sphi_c, sphi_d
-    INTEGER, INTENT(IN)                      :: ncoa, ncob, ncoc, ncod, &
-                                                nsgfa, nsgfb, nsgfc, nsgfd
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'abcd_contract', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, isgfc, isgfd, m1, m2, &
-                                                m3, m4, msphia, msphib, &
-                                                msphic, msphid, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: temp_cccc, work_cpcc
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: temp_cpcc, work_cppc
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: cpcc, cppc, cppp
-
-    CALL timeset(routineN,handle)
-
-    msphia = SIZE(sphi_a,1)
-    msphib = SIZE(sphi_b,1)
-    msphic = SIZE(sphi_c,1)
-    msphid = SIZE(sphi_d,1)
-
-    m1 = SIZE(sabcd,1)
-    m2 = SIZE(sabcd,2)
-    m3 = SIZE(sabcd,3)
-    m4 = SIZE(sabcd,4)
-
-    ALLOCATE(cppp(nsgfa,m2,m3,m4),cppc(nsgfa,m2,m3,nsgfd),&
-             cpcc(nsgfa,m2,nsgfc,nsgfd),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    ALLOCATE(work_cppc(nsgfa,m2,m3),temp_cpcc(nsgfa,m2,nsgfc),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    work_cppc = 0._dp
-    temp_cpcc = 0._dp
-
-    ALLOCATE(work_cpcc(nsgfa,m2),temp_cccc(nsgfa,nsgfb),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    work_cpcc = 0._dp
-    temp_cccc = 0._dp
-
-    CALL dgemm("T","N",nsgfa,m2*m3*m4,ncoa,1._dp,sphi_a,msphia,sabcd,m1,&
-               0.0_dp,cppp,nsgfa)
-    CALL dgemm("N","N",nsgfa*m2*m3,nsgfd,ncod,1._dp,cppp,nsgfa*m2*m3,&
-               sphi_d,msphid,0.0_dp,cppc,nsgfa*m2*m3)
-
-    DO isgfd=1,nsgfd
-      work_cppc(:,:,:) = cppc(:,:,:,isgfd)
-      CALL dgemm("N","N",nsgfa*m2,nsgfc,ncoc,1._dp,work_cppc,nsgfa*m2,&
-                 sphi_c,msphic,0.0_dp,temp_cpcc,nsgfa*m2)
-      cpcc(:,:,:,isgfd) = temp_cpcc(:,:,:)
-      DO isgfc=1,nsgfc
-        work_cpcc(:,:) = cpcc(:,:,isgfc,isgfd)
-        CALL dgemm("N","N",nsgfa,nsgfb,ncob,1._dp,work_cpcc,nsgfa,sphi_b,&
-                   msphib,0.0_dp,temp_cccc,nsgfa)
-        abcdint(:,:,isgfc,isgfd) = temp_cccc(:,:) 
-      END DO
-    END DO
-
-    DEALLOCATE(cpcc,cppc,cppp,stat=STAT)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(work_cpcc,work_cppc,temp_cpcc,temp_cccc,stat=STAT)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE abcd_contract
+   END SUBROUTINE lri_int_shg
 
 ! *****************************************************************************
 !> \brief calculate derivate of fit coefficients acoef with respect to 
@@ -1649,7 +902,7 @@ CONTAINS
       ! R = Sinv*abx_int 
       CALL dgemm("N","N",nba*nbb,nfa,nfa,1.0_dp,abxint_work,nba*nbb,&
                  lrii%sinv,nfa,0.0_dp,R,nba*nbb)
-      ! dlambda = soo/nsn - sn*abx_int/nsn
+      ! dlambdadp = soo/nsn - sn*abx_int/nsn
       dlambdadp(1:nba,1:nbb) = lrii%soo(1:nba,1:nbb)
       CALL dgemm("N","N",nba*nbb,1,nfa,-1.0_dp/lrii%nsn,abxint_work,nba*nbb,&
                  lrii%sn,nfa,1.0_dp/lrii%nsn,dlambdadp,nba*nbb)
@@ -1661,7 +914,7 @@ CONTAINS
       ! R = Sinv*abx_int 
       CALL dgemm("N","N",nba*nbb,nn,nn,1.0_dp,abxint_work,nba*nbb,&
                  lrii%sinv,nn,0.0_dp,R,nba*nbb)
-      ! dlambda = soo/nsn - sn*abx_int/nsn
+      ! dlambdadp = soo/nsn - sn*abx_int/nsn
       dlambdadp(1:nba,1:nbb) = lrii%soo(1:nba,1:nbb)
       CALL dgemm("N","N",nba*nbb,1,nn,-1.0_dp/lrii%nsn,abxint_work,nba*nbb,&
                  lrii%sn,nn,1.0_dp/lrii%nsn,dlambdadp,nba*nbb)

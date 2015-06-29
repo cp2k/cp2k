@@ -17,8 +17,6 @@
 MODULE qs_environment
   USE atom_kind_orbitals,              ONLY: calculate_atomic_relkin
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE basis_set_types,                 ONLY: copy_gto_basis_set,&
-                                             gto_basis_set_type
   USE bibliography,                    ONLY: Iannuzzi2006,&
                                              Iannuzzi2007,&
                                              cite_reference
@@ -97,9 +95,7 @@ MODULE qs_environment
   USE kpoint_types,                    ONLY: kpoint_type,&
                                              read_kpoint_section,&
                                              write_kpoint_info
-  USE lri_environment_types,           ONLY: lri_basis_init,&
-                                             lri_env_create,&
-                                             lri_environment_type
+  USE lri_environment_init,            ONLY: lri_env_init
   USE machine,                         ONLY: m_flush
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
@@ -135,10 +131,14 @@ MODULE qs_environment
                                              write_pgf_orb_radii,&
                                              write_ppl_radii,&
                                              write_ppnl_radii
-  USE qs_kind_types,                   ONLY: &
-       check_qs_kind_set, get_qs_kind, get_qs_kind_set, init_gapw_basis_set, &
-       init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, &
-       write_qs_kind_set
+  USE qs_kind_types,                   ONLY: check_qs_kind_set,&
+                                             get_qs_kind_set,&
+                                             init_gapw_basis_set,&
+                                             init_qs_kind_set,&
+                                             qs_kind_type,&
+                                             set_qs_kind,&
+                                             write_gto_basis_sets,&
+                                             write_qs_kind_set
   USE qs_ks_types,                     ONLY: qs_ks_env_create,&
                                              qs_ks_env_type,&
                                              qs_ks_release,&
@@ -234,8 +234,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, istat, method_id, &
-                                                natom, nkind
+    INTEGER                                  :: ikind, method_id, natom, nkind
     LOGICAL :: do_et, do_exx, do_hfx, do_kpoints, failure, mp2_present, &
       my_qmmm, qmmm_decoupl, use_ref_cell
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
@@ -244,9 +243,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: my_cell, my_cell_ref
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(gto_basis_set_type), POINTER        :: lri_basis_set, orb_basis_set
     TYPE(kpoint_type), POINTER               :: kpoints
-    TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -385,37 +382,8 @@ CONTAINS
 
     ! lri env
     IF (method_id == do_method_lrigpw.OR.dft_control%qs_control%lri_optbas) THEN
-       NULLIFY(lri_env)
-       CALL lri_env_create(lri_env,error)
-       ! initialize the basic basis sets (orb and ri)
-       CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,error=error)
-       nkind = SIZE(atomic_kind_set)
-       ALLOCATE(lri_env%orb_basis(nkind),lri_env%ri_basis(nkind),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DO ikind=1,nkind
-          NULLIFY(orb_basis_set,lri_basis_set)
-          CALL get_qs_kind(qs_kind_set(ikind),&
-                           orb_basis_set=orb_basis_set,&
-                           lri_basis_set=lri_basis_set)
-          NULLIFY(lri_env%orb_basis(ikind)%gto_basis_set)
-          NULLIFY(lri_env%ri_basis(ikind)%gto_basis_set)
-          IF (ASSOCIATED(orb_basis_set)) THEN
-             CALL copy_gto_basis_set(orb_basis_set,lri_env%orb_basis(ikind)%gto_basis_set,error)
-             CALL copy_gto_basis_set(lri_basis_set,lri_env%ri_basis(ikind)%gto_basis_set,error)
-          END IF
-       END DO
-       CALL lri_basis_init(lri_env,atomic_kind_set,error)
-       !
-       ! check for debug
-       CALL section_vals_val_get(force_env_section,"DFT%QS%LRIGPW%DEBUG_LRI_INTEGRALS",&
-                                 l_val=lri_env%debug,error=error)
-       ! how to calculate inverse/pseuodinverse of overlap
-       CALL section_vals_val_get(force_env_section,"DFT%QS%LRIGPW%LRI_OVERLAP_MATRIX",&
-                                 i_val=lri_env%lri_overlap_inv,error=error)
-       CALL section_vals_val_get(force_env_section,"DFT%QS%LRIGPW%MAX_CONDITION_NUM",&
-                                 r_val=lri_env%cond_max,error=error)
-       !
-       CALL set_qs_env (qs_env,lri_env=lri_env,error=error)
+       CALL lri_env_init(qs_env, atomic_kind_set, force_env_section, &
+                         qs_kind_set, error)
     END IF
 
     transport_section => section_vals_get_subs_vals(qs_env%input,"DFT%TRANSPORT",error=error)
@@ -676,7 +644,7 @@ CONTAINS
     END IF
     IF(dft_control%qs_control%method == "LRIGPW".OR.dft_control%qs_control%lri_optbas) THEN
        CALL get_qs_kind_set(qs_kind_set,maxlgto=maxlgto_lri,basis_set_id=use_lri_basis_set)
-       !take maxlgto from lri basis if larger (usually) 
+       !take maxlgto from lri basis if larger (usually)
        maxlgto = MAX(maxlgto,maxlgto_lri)
     END IF
     maxl = MAX(2*maxlgto,maxlppl,maxlppnl,lmax_sphere) + 1

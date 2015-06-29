@@ -22,6 +22,8 @@ MODULE orbital_pointers
 !         number l.
 ! nsoset: Number of spherical orbitals up to the angular momentum quantum
 !         number l.
+! nsoset_pm: Number of spherical orbitals up to the angular momentum quantum
+!         number l for positive m only, i.e. m >= 0
 
   
   USE kinds,                           ONLY: int_size
@@ -39,8 +41,8 @@ MODULE orbital_pointers
 
   INTEGER, SAVE :: current_maxl = -1
 
-  INTEGER, DIMENSION(:), ALLOCATABLE     :: nco,ncoset,nso,nsoset
-  INTEGER, DIMENSION(:,:), ALLOCATABLE   :: indco,indso
+  INTEGER, DIMENSION(:), ALLOCATABLE     :: nco,ncoset,nso,nsoset,nsoset_pm
+  INTEGER, DIMENSION(:,:), ALLOCATABLE   :: indco,indso,indso_inv
   INTEGER, DIMENSION(:,:), ALLOCATABLE   :: so,soset
   INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: co,coset
 
@@ -56,10 +58,12 @@ MODULE orbital_pointers
             current_maxl,&
             indco,&
             indso,&
+            indso_inv,&
             nco,&
             ncoset,&
             nso,&
             nsoset,&
+            nsoset_pm,&
             soset
 
 CONTAINS
@@ -190,11 +194,18 @@ CONTAINS
       CALL stop_memory(routineN,moduleN,__LINE__,&
                        "nsoset",(maxl+2)*int_size)
     END IF
+    ALLOCATE (nsoset_pm(-1:maxl),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "nsoset_pm",(maxl+2)*int_size)
+    END IF
 
     nsoset(-1) = 0
+    nsoset_pm(-1) = 0
 
     DO l=0,maxl
       nsoset(l) = nsoset(l-1) + nso(l)
+      nsoset_pm(l) = nsoset_pm(l-1) + l + 1
     END DO
 
     ALLOCATE (indso(2,nsoset(maxl)),STAT=istat)
@@ -202,14 +213,22 @@ CONTAINS
       CALL stop_memory(routineN,moduleN,__LINE__,&
                        "indso",2*nsoset(maxl)*int_size)
     END IF
+    ! indso_inv: inverse to indso
+    ALLOCATE (indso_inv(0:maxl,-maxl:maxl),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routineN,moduleN,__LINE__,&
+                    "indso_inv",2*(1+maxl)*(2*maxl+1)*int_size)
+    END IF
 
     indso(:,:) = 0
+    indso_inv(:,:) = 0
 
     iso = 0
     DO l=0,maxl
       DO m=-l,l
         iso = iso + 1
         indso(1:2,iso) = (/l,m/)
+        indso_inv(l,m) = iso
       END DO
     END DO
 
@@ -268,6 +287,11 @@ CONTAINS
         CALL stop_memory(routineN,moduleN,__LINE__,"indso")
       END IF
 
+      DEALLOCATE (indso_inv,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,"indso_inv")
+      END IF
+
       DEALLOCATE (nco,STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routineN,moduleN,__LINE__,"nco")
@@ -286,6 +310,11 @@ CONTAINS
       DEALLOCATE (nsoset,STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routineN,moduleN,__LINE__,"nsoset")
+      END IF
+
+      DEALLOCATE (nsoset_pm,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,"nsoset_pm")
       END IF
 
       DEALLOCATE (so,STAT=istat)

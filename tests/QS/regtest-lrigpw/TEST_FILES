@@ -13,3 +13,4 @@ O2_opt_lribas_contract.inp    46    1.0E-14    0.0107132670
 O2_debug_ints.inp                 0
 H2O_lri_stress.inp                1     6e-13
 H2O_lri_inv_autoselect.inp    1    6e-13    -17.14529622618297
+H2O_lri_shg.inp                   1

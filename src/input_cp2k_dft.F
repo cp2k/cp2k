@@ -5264,6 +5264,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="SHG_LRI_INTEGRALS",&
+            description="Uses the SHG (solid harmonic Gaussian) integral "//&
+                        "scheme instead of Obara-Saika",&
+            usage="SHG_LRI_INTEGRALS TRUE",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
   END SUBROUTINE create_lrigpw_section
 

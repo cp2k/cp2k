@@ -20,8 +20,6 @@ MODULE lri_environment_types
                                              gto_basis_set_p_type,&
                                              gto_basis_set_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: fac,&
-                                             pi
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              get_iterator_info,&
                                              neighbor_list_iterate,&
@@ -140,15 +138,29 @@ MODULE lri_environment_types
   
 ! *****************************************************************************
 
-  TYPE lri_bas_int_type
+  TYPE lri_bas_type
      ! integral of ri basis fbas
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: int_fbas
-  END TYPE lri_bas_int_type
-
-  TYPE lri_bas_overlap_type
+     ! self overlap ri basis
      REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: ri_ovlp
+     ! self overlap orb basis
      REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: orb_ovlp
-  END TYPE lri_bas_overlap_type
+     ! contraction matrix for SHG integrals ri basis
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: scon_ri
+     ! contraction matrix for SHG integrals orb basis
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: scon_orb
+  END TYPE lri_bas_type
+
+! *****************************************************************************
+
+  TYPE lri_clebsch_gordon_type
+     ! Clebsch-Gordon (CG) coefficients
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: cg_coeff
+     ! list of non-zero CG coefficients
+     INTEGER, DIMENSION(:,:,:), POINTER                      :: cg_none0_list
+     ! number of non-zero CG coefficients
+     INTEGER, DIMENSION(:,:), POINTER                        :: ncg_none0
+  END TYPE lri_clebsch_gordon_type
 
 ! *****************************************************************************
 
@@ -158,6 +170,8 @@ MODULE lri_environment_types
      INTEGER                                                 :: lri_overlap_inv
      ! flag for debugging lri integrals
      LOGICAL                                                 :: debug
+     ! flag for shg (solid haromonic Gaussian) integrals
+     LOGICAL                                                 :: use_shg_integrals
      ! parameter for inversion (autoselect); maximal condition 
      ! number up to where inversion is legal
      REAL(KIND=dp)                                           :: cond_max
@@ -173,10 +187,10 @@ MODULE lri_environment_types
      TYPE(lri_list_type), POINTER                            :: lri_ints
      ! local integral of rho**2; for optimization 
      TYPE(lri_list_type), POINTER                            :: lri_ints_rho
-     ! integral of a single contracted gaussian
-     TYPE(lri_bas_int_type), DIMENSION(:), POINTER           :: bas_int
-     ! self overlap of ri basis
-     TYPE(lri_bas_overlap_type), DIMENSION(:), POINTER       :: bas_ovlp
+     ! properties of orb and aux basis
+     TYPE(lri_bas_type), DIMENSION(:), POINTER               :: bas_prop
+     ! Clebsch-Gordon for solid harmonics
+     TYPE(lri_clebsch_gordon_type), POINTER                  :: cg_shg
   END TYPE lri_environment_type
 
 ! *****************************************************************************
@@ -238,8 +252,8 @@ MODULE lri_environment_types
   PUBLIC :: lri_env_create, lri_env_release, allocate_lri_coefs,&
             allocate_lri_ints, allocate_lri_ints_rho, lri_density_create,&
             lri_density_release,allocate_lri_rhos, allocate_lri_force_components,&
-            lri_basis_init, deallocate_lri_ints, deallocate_lri_ints_rho,&
-            deallocate_lri_force_components
+            deallocate_lri_ints, deallocate_lri_ints_rho,&
+            deallocate_lri_force_components, deallocate_bas_properties
 
 ! *****************************************************************************
 
@@ -278,8 +292,11 @@ CONTAINS
     NULLIFY(lri_env%soo_list)
     NULLIFY(lri_env%lri_ints)
     NULLIFY(lri_env%lri_ints_rho)
-    NULLIFY(lri_env%bas_int)
-    NULLIFY(lri_env%bas_ovlp)
+    NULLIFY(lri_env%bas_prop)
+    NULLIFY(lri_env%cg_shg)
+
+    ALLOCATE ( lri_env%cg_shg, stat=stat )
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
   END SUBROUTINE lri_env_create
 
@@ -335,7 +352,17 @@ CONTAINS
        IF (ASSOCIATED(lri_env%lri_ints_rho)) THEN
           CALL deallocate_lri_ints_rho(lri_env%lri_ints_rho,error)
        END IF
-       CALL deallocate_ovlp_and_int_fbas(lri_env,error)
+       CALL deallocate_bas_properties(lri_env,error)
+       IF (ASSOCIATED(lri_env%cg_shg)) THEN
+          DEALLOCATE(lri_env%cg_shg%cg_coeff,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(lri_env%cg_shg%cg_none0_list,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(lri_env%cg_shg%ncg_none0,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(lri_env%cg_shg,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
        DEALLOCATE(lri_env,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
@@ -406,286 +433,6 @@ CONTAINS
     NULLIFY(lri_density)
 
   END SUBROUTINE lri_density_release
-
-! *****************************************************************************
-!> \brief initializes the lri basis: calculates the norm, self-overlap
-!>        and integral of the ri basis
-!> \param lri_env ...
-!> \param atomic_kind_set ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE lri_basis_init(lri_env,atomic_kind_set,error)
-    TYPE(lri_environment_type), POINTER      :: lri_env
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'lri_basis_init', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ikind, nkind, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: orb_norm_r, ri_int_fbas, &
-                                                ri_norm_r, ri_norm_s
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orb_ovlp, ri_ovlp
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis, ri_basis
-
-    failure=.FALSE.
-
-    IF (ASSOCIATED(lri_env)) THEN
-       IF (ASSOCIATED(lri_env%orb_basis)) THEN
-          CPPreconditionNoFail(ASSOCIATED(lri_env%ri_basis),cp_warning_level,routineP,error)
-          nkind = SIZE(lri_env%orb_basis)
-          CALL deallocate_ovlp_and_int_fbas(lri_env,error)
-          ALLOCATE (lri_env%bas_int(nkind),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE (lri_env%bas_ovlp(nkind),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO ikind = 1, nkind
-             NULLIFY(orb_basis, ri_basis)
-             orb_basis => lri_env%orb_basis(ikind)%gto_basis_set
-             IF (ASSOCIATED(orb_basis)) THEN
-                ri_basis => lri_env%ri_basis(ikind)%gto_basis_set
-                CPPreconditionNoFail(ASSOCIATED(ri_basis),cp_warning_level,routineP,error)
-                NULLIFY(ri_norm_r)
-                CALL basis_norm_radial(ri_basis,ri_norm_r,error)
-                NULLIFY(orb_norm_r)
-                CALL basis_norm_radial(orb_basis,orb_norm_r,error)
-                NULLIFY(ri_norm_s)
-                CALL basis_norm_s_func(ri_basis,ri_norm_s,error)
-                NULLIFY(ri_int_fbas)
-                CALL basis_int(ri_basis,ri_int_fbas,ri_norm_s,error)
-                lri_env%bas_int(ikind)%int_fbas => ri_int_fbas
-                NULLIFY(ri_ovlp)
-                CALL basis_ovlp(ri_basis,ri_ovlp,ri_norm_r,error)
-                lri_env%bas_ovlp(ikind)%ri_ovlp => ri_ovlp
-                NULLIFY(orb_ovlp)
-                CALL basis_ovlp(orb_basis,orb_ovlp,orb_norm_r,error)
-                lri_env%bas_ovlp(ikind)%orb_ovlp => orb_ovlp
-                DEALLOCATE (orb_norm_r,ri_norm_r,ri_norm_s,STAT=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-             END IF
-          END DO
-       END IF
-    END IF
-
-  END SUBROUTINE lri_basis_init
-
-!*****************************************************************************
-!> \brief normalization for a contracted Gaussian s-function,
-!>        spherical = cartesian Gaussian for s-functions
-!> \param basis ...
-!> \param norm ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE basis_norm_s_func(basis,norm,error)
-
-    TYPE(gto_basis_set_type), POINTER        :: basis
-    REAL(dp), DIMENSION(:), POINTER          :: norm
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'basis_norm_s_func', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ipgf, iset, isgf, ishell, &
-                                                jpgf, l, nbas, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: aai, aaj, cci, ccj, expa, ppl
-
-    NULLIFY(norm)
-
-    nbas = basis%nsgf
-    ALLOCATE (norm(nbas),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    norm = 0._dp
-
-    DO iset=1,basis%nset
-       DO ishell=1,basis%nshell(iset)
-          l = basis%l(ishell,iset)
-          IF (l/=0) CYCLE
-          expa = 0.5_dp*REAL(2*l + 3,dp)
-          ppl = pi**(3._dp/2._dp)
-          DO isgf=basis%first_sgf(ishell,iset),basis%last_sgf(ishell,iset)
-             DO ipgf=1,basis%npgf(iset)
-                cci = basis%gcc(ipgf,ishell,iset)
-                aai = basis%zet(ipgf,iset)
-                DO jpgf=1,basis%npgf(iset)
-                   ccj = basis%gcc(jpgf,ishell,iset)
-                   aaj = basis%zet(jpgf,iset)
-                   norm(isgf) =norm(isgf) + cci*ccj*ppl/(aai+aaj)**expa
-                END DO
-             END DO
-             norm(isgf)=1.0_dp/SQRT(norm(isgf)) 
-          END DO
-       END DO
-    END DO
-
-  END SUBROUTINE basis_norm_s_func
-
-!*****************************************************************************
-!> \brief normalization for radial part of contracted spherical Gaussian 
-!>        functions
-!> \param basis ...
-!> \param norm ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE basis_norm_radial(basis,norm,error)
-
-    TYPE(gto_basis_set_type), POINTER        :: basis
-    REAL(dp), DIMENSION(:), POINTER          :: norm
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'basis_norm_radial', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ipgf, iset, isgf, ishell, &
-                                                jpgf, l, nbas, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: aai, aaj, cci, ccj, expa, ppl
-
-    NULLIFY(norm)
-
-    nbas = basis%nsgf
-    ALLOCATE (norm(nbas),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    norm = 0._dp
-
-    DO iset=1,basis%nset
-       DO ishell=1,basis%nshell(iset)
-          l = basis%l(ishell,iset)
-          expa = 0.5_dp*REAL(2*l + 3,dp)
-          ppl = fac(2*l+2)*SQRT(pi)/2._dp**REAL(2*l+3,dp)/fac(l+1)
-          DO isgf=basis%first_sgf(ishell,iset),basis%last_sgf(ishell,iset)
-             DO ipgf=1,basis%npgf(iset)
-                cci = basis%gcc(ipgf,ishell,iset)
-                aai = basis%zet(ipgf,iset)
-                DO jpgf=1,basis%npgf(iset)
-                   ccj = basis%gcc(jpgf,ishell,iset)
-                   aaj = basis%zet(jpgf,iset)
-                   norm(isgf) =norm(isgf) + cci*ccj*ppl/(aai+aaj)**expa
-                END DO
-             END DO
-             norm(isgf)=1.0_dp/SQRT(norm(isgf)) 
-          END DO
-       END DO
-    END DO
-
-  END SUBROUTINE basis_norm_radial
-
-!*****************************************************************************
-!> \brief integral over a single (contracted) lri auxiliary basis function,
-!>        integral is zero for all but s-functions               
-!> \param basis ...
-!> \param int_aux ...
-!> \param norm ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE basis_int(basis,int_aux,norm,error)
-
-    TYPE(gto_basis_set_type), POINTER        :: basis
-    REAL(dp), DIMENSION(:), POINTER          :: int_aux, norm
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'basis_int', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ipgf, iset, isgf, ishell, l, &
-                                                nbas, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: aa, cc, pp
-
-    nbas = basis%nsgf
-    ALLOCATE (int_aux(nbas),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    int_aux = 0._dp
-
-    DO iset=1,basis%nset
-       DO ishell=1,basis%nshell(iset)
-          l = basis%l(ishell,iset)
-          IF (l/=0) CYCLE
-          DO isgf=basis%first_sgf(ishell,iset),basis%last_sgf(ishell,iset)
-             DO ipgf=1,basis%npgf(iset)
-                cc = basis%gcc(ipgf,ishell,iset)
-                aa = basis%zet(ipgf,iset)
-                pp = (pi/aa)**(3._dp/2._dp)
-                int_aux(isgf) = int_aux(isgf) + norm(isgf)*cc*pp
-             END DO
-          END DO
-       END DO
-    END DO
-
-  END SUBROUTINE basis_int
-
-!*****************************************************************************
-!> \brief self-overlap of lri basis for contracted spherical Gaussians.
-!>        Overlap of radial part. Norm contains only normalization of radial
-!>        part. Norm and overlap of spherical harmonics not explicitly 
-!>        calculated since this cancels for the self-overlap anyway. 
-!> \param basis ...
-!> \param ovlp ...
-!> \param norm ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE basis_ovlp(basis,ovlp,norm,error)
-
-    TYPE(gto_basis_set_type), POINTER        :: basis
-    REAL(dp), DIMENSION(:, :), POINTER       :: ovlp
-    REAL(dp), DIMENSION(:), POINTER          :: norm
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'basis_ovlp', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ipgf, iset, isgf, ishell, &
-                                                jpgf, jset, jsgf, jshell, l, &
-                                                li, lj, nbas, stat
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: aai, aaj, cci, ccj, expa, &
-                                                m_i, m_j, norm_i, norm_j, oo, &
-                                                ppl
-
-    nbas = basis%nsgf
-    ALLOCATE (ovlp(nbas,nbas),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    ovlp = 0._dp
-
-    DO iset=1,basis%nset
-       DO ishell=1,basis%nshell(iset)
-          li = basis%l(ishell,iset)
-          DO jset=1,basis%nset
-             DO jshell=1,basis%nshell(jset)
-                lj = basis%l(jshell,jset)
-                IF (li == lj) THEN
-                   l = li
-                   expa = 0.5_dp*REAL(2*l + 3,dp)
-                   ppl = fac(2*l+2)*SQRT(pi)/2._dp**REAL(2*l+3,dp)/fac(l+1)
-                   DO isgf=basis%first_sgf(ishell,iset),basis%last_sgf(ishell,iset)
-                      m_i=basis%m(isgf)
-                      DO jsgf=basis%first_sgf(jshell,jset),basis%last_sgf(jshell,jset)
-                         m_j=basis%m(jsgf)
-                         IF(m_i == m_j) THEN
-                           DO ipgf=1,basis%npgf(iset)
-                              cci = basis%gcc(ipgf,ishell,iset)
-                              aai = basis%zet(ipgf,iset)
-                              norm_i= norm(isgf) 
-                              DO jpgf=1,basis%npgf(jset)
-                                 ccj = basis%gcc(jpgf,jshell,jset)
-                                 aaj = basis%zet(jpgf,jset)
-                                 oo = 1._dp/(aai+aaj)**expa 
-                                 norm_j= norm(jsgf) 
-                                 ovlp(isgf,jsgf) = ovlp(isgf,jsgf) + norm_i*norm_j*ppl*cci*ccj*oo
-                              END DO
-                           END DO
-                         ENDIF
-                      END DO
-                   END DO
-                END IF
-             END DO
-          END DO
-       END DO
-    END DO
-    
-  END SUBROUTINE basis_ovlp
 
 ! *****************************************************************************
 !> \brief allocate lri_ints, matrices that store LRI integrals
@@ -1177,41 +924,40 @@ CONTAINS
   END SUBROUTINE allocate_lri_force_components
  
 ! *****************************************************************************
-!> \brief deallocates one-center overlap integrals and integral of ri basis
+!> \brief deallocates one-center overlap integrals, integral of ri basis
+!>        and scon matrices
 !> \param lri_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE deallocate_ovlp_and_int_fbas (lri_env,error)
+  SUBROUTINE deallocate_bas_properties (lri_env,error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_ovlp_and_int_fbas', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_bas_properties', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
 
-    IF (ASSOCIATED(lri_env%bas_int)) THEN
-       DO i=1,SIZE(lri_env%bas_int)
-          DEALLOCATE(lri_env%bas_int(i)%int_fbas,stat=stat)
+    IF (ASSOCIATED(lri_env%bas_prop)) THEN
+       DO i=1,SIZE(lri_env%bas_prop)
+          DEALLOCATE(lri_env%bas_prop(i)%int_fbas,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(lri_env%bas_prop(i)%ri_ovlp,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(lri_env%bas_prop(i)%orb_ovlp,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(lri_env%bas_prop(i)%scon_ri,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DEALLOCATE(lri_env%bas_prop(i)%scon_orb,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END DO
-       DEALLOCATE(lri_env%bas_int,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    END IF
-    IF (ASSOCIATED(lri_env%bas_ovlp)) THEN
-       DO i=1,SIZE(lri_env%bas_ovlp)
-          DEALLOCATE(lri_env%bas_ovlp(i)%ri_ovlp,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          DEALLOCATE(lri_env%bas_ovlp(i)%orb_ovlp,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END DO
-       DEALLOCATE(lri_env%bas_ovlp,stat=stat)
+       DEALLOCATE(lri_env%bas_prop,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
-  END SUBROUTINE deallocate_ovlp_and_int_fbas
+  END SUBROUTINE deallocate_bas_properties
 
 ! *****************************************************************************
 !> \brief deallocates the given lri_ints

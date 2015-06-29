@@ -35,11 +35,11 @@ MODULE lri_optimize_ri_basis
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              dp
+  USE lri_environment_init,            ONLY: lri_basis_init
   USE lri_environment_methods,         ONLY: calculate_avec,&
                                              calculate_lri_integrals,&
                                              calculate_lri_overlap_aabb
-  USE lri_environment_types,           ONLY: lri_basis_init,&
-                                             lri_density_type,&
+  USE lri_environment_types,           ONLY: lri_density_type,&
                                              lri_environment_type,&
                                              lri_int_rho_type,&
                                              lri_int_type,&
@@ -730,14 +730,14 @@ CONTAINS
           DO isgfa=1,nfa
             DO jsgfa=1,nfa
               rhofit_sq = rhofit_sq + lrho%avec(isgfa)*lrho%avec(jsgfa)&
-                                      *lri_env%bas_ovlp(ikind)%ri_ovlp(isgfa,jsgfa)
+                                      *lri_env%bas_prop(ikind)%ri_ovlp(isgfa,jsgfa)
             ENDDO
           ENDDO
           IF(iatom /= jatom) THEN
             DO ksgfb=1,nfb
               DO lsgfb=1,nfb
                 rhofit_sq = rhofit_sq + lrho%avec(nfa+ksgfb)*lrho%avec(nfa+lsgfb)&
-                                       *lri_env%bas_ovlp(jkind)%ri_ovlp(ksgfb,lsgfb)
+                                       *lri_env%bas_prop(jkind)%ri_ovlp(ksgfb,lsgfb)
               ENDDO
             ENDDO
             DO isgfa=1,nfa
@@ -838,12 +838,12 @@ CONTAINS
         ALLOCATE(smat(nn,nn),STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDIF
-       smat(1:nfa,1:nfa) = lri_env%bas_ovlp(ikind)%ri_ovlp(1:nfa,1:nfa)
+       smat(1:nfa,1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa,1:nfa)
        IF(iatom /= jatom) THEN
          nn = nfa+nfb
          smat(1:nfa,nfa+1:nn) = lrii%sab(1:nfa,1:nfb)
          smat(nfa+1:nn,1:nfa) = TRANSPOSE(lrii%sab(1:nfa,1:nfb))
-         smat(nfa+1:nn,nfa+1:nn) = lri_env%bas_ovlp(jkind)%ri_ovlp(1:nfb,1:nfb)
+         smat(nfa+1:nn,nfa+1:nn) = lri_env%bas_prop(jkind)%ri_ovlp(1:nfb,1:nfb)
        ENDIF
 
        IF(iatom==jatom) nn=nfa
