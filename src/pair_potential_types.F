@@ -223,9 +223,9 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: D
      REAL (KIND=dp) :: E
      REAL (KIND=dp) :: F
-     REAL (KIND=dp) :: alpha
      REAL (KIND=dp) :: beta
      REAL (KIND=dp) :: rcutsq
+     LOGICAL        :: allow_oh_formation
   END TYPE siepmann_pot_type
 
 ! *****************************************************************************
@@ -390,9 +390,10 @@ CONTAINS
                (pot1%set(i)%siepmann%D       == pot2%set(i)%siepmann%D       ).AND.&
                (pot1%set(i)%siepmann%E       == pot2%set(i)%siepmann%E       ).AND.&
                (pot1%set(i)%siepmann%F       == pot2%set(i)%siepmann%F       ).AND.&
-               (pot1%set(i)%siepmann%alpha   == pot2%set(i)%siepmann%alpha   ).AND.&
                (pot1%set(i)%siepmann%beta    == pot2%set(i)%siepmann%beta    ).AND.&
-               (pot1%set(i)%siepmann%rcutsq  == pot2%set(i)%siepmann%rcutsq  )) mycompare=.TRUE.
+               (pot1%set(i)%siepmann%rcutsq  == pot2%set(i)%siepmann%rcutsq  ).AND.&
+               (pot1%set(i)%siepmann%allow_oh_formation .EQV.&
+                                   pot2%set(i)%siepmann%allow_oh_formation )) mycompare=.TRUE.
        END SELECT
        mycompare = mycompare.AND.&
                   (pot1%set(i)%rmin == pot2%set(i)%rmin ).AND.(pot1%set(i)%rmax == pot2%set(i)%rmax )
@@ -2593,13 +2594,13 @@ CONTAINS
        IF (.NOT.ASSOCIATED(siepmann_source)) RETURN
        IF (ASSOCIATED(siepmann_dest)) CALL pair_potential_siepmann_release(siepmann_dest, error=error)
        CALL pair_potential_siepmann_create(siepmann_dest, error=error)
-       siepmann_dest%B       = siepmann_source%B
-       siepmann_dest%D       = siepmann_source%D
-       siepmann_dest%E       = siepmann_source%E
-       siepmann_dest%F       = siepmann_source%F
-       siepmann_dest%alpha   = siepmann_source%alpha
-       siepmann_dest%beta    = siepmann_source%beta
-       siepmann_dest%rcutsq  = siepmann_source%rcutsq
+       siepmann_dest%B                  = siepmann_source%B
+       siepmann_dest%D                  = siepmann_source%D
+       siepmann_dest%E                  = siepmann_source%E
+       siepmann_dest%F                  = siepmann_source%F
+       siepmann_dest%beta               = siepmann_source%beta
+       siepmann_dest%rcutsq             = siepmann_source%rcutsq
+       siepmann_dest%allow_oh_formation = siepmann_source%allow_oh_formation
     END IF
   END SUBROUTINE pair_potential_siepmann_copy
 
@@ -2626,9 +2627,9 @@ CONTAINS
        siepmann%D       = 0.0_dp
        siepmann%E       = 0.0_dp
        siepmann%F       = 0.0_dp
-       siepmann%alpha   = 0.0_dp
        siepmann%beta    = 0.0_dp
        siepmann%rcutsq  = 0.0_dp
+       siepmann%allow_oh_formation = .FALSE.
     END IF
   END SUBROUTINE pair_potential_siepmann_clean
 

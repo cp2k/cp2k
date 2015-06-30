@@ -19,11 +19,16 @@ MODULE manybody_siepmann
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
                                              neighbor_kind_pairs_type
   USE fist_nonbond_env_types,          ONLY: pos_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: matvec_3x3
+  USE message_passing,                 ONLY: mp_sum
   USE pair_potential_types,            ONLY: pair_potential_pp_type,&
                                              pair_potential_single_type,&
                                              siepmann_pot_type,&
@@ -39,7 +44,8 @@ MODULE manybody_siepmann
 
   PRIVATE
   PUBLIC :: setup_siepmann_arrays, destroy_siepmann_arrays,&
-            siepmann_energy, siepmann_forces_v2, siepmann_forces_v3 
+            siepmann_energy, siepmann_forces_v2, siepmann_forces_v3,&
+            print_nr_oh_siepmann 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_siepmann'
 
 CONTAINS
@@ -58,10 +64,12 @@ CONTAINS
 !> \param cell ...
 !> \param drij ...
 !> \param particle_set ...
+!> \param nr_oh ...
 !> \author Dorothea Golze - 11.2012 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE siepmann_energy(pot_loc, siepmann, r_last_update_pbc, atom_a, atom_b,&
-             nloc_size, full_loc_list,loc_cell_v, cell_v, cell, drij, particle_set)
+             nloc_size, full_loc_list,loc_cell_v, cell_v, cell, drij, particle_set,&
+             nr_oh)
 
     REAL(KIND=dp), INTENT(OUT)               :: pot_loc
     TYPE(siepmann_pot_type), POINTER         :: siepmann
@@ -74,6 +82,7 @@ CONTAINS
     REAL(KIND=dp)                            :: drij
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    INTEGER, INTENT(INOUT)                   :: nr_oh
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'siepmann_energy', &
       routineP = moduleN//':'//routineN
@@ -85,7 +94,8 @@ CONTAINS
              full_loc_list, loc_cell_v, cell_v, siepmann%rcutsq,particle_set,&
              cell)
     Phi_ij  = siep_Phi_ij(siepmann,r_last_update_pbc,atom_a,atom_b,nloc_size,&
-              full_loc_list, loc_cell_v, cell_v, cell, siepmann%rcutsq, particle_set)
+              full_loc_list, loc_cell_v, cell_v, cell, siepmann%rcutsq,&
+              particle_set, nr_oh)
     f2     = siep_f2 (siepmann,drij)
     D = siepmann%D
     E = siepmann%E
@@ -334,12 +344,13 @@ CONTAINS
 !> \param cell ...
 !> \param rcutsq ...
 !> \param particle_set ...
+!> \param nr_oh ...
 !> \retval siep_Phi_ij ...
 !> \par History
 !>      Using a local list of neighbors
 ! *****************************************************************************
   FUNCTION siep_Phi_ij(siepmann,r_last_update_pbc,iparticle,jparticle,n_loc_size,&
-       full_loc_list, loc_cell_v, cell_v, cell, rcutsq, particle_set)
+       full_loc_list, loc_cell_v, cell_v, cell, rcutsq, particle_set,nr_oh)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     INTEGER, INTENT(IN)                      :: iparticle, jparticle, &
@@ -352,6 +363,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    INTEGER, INTENT(INOUT), OPTIONAL         :: nr_oh
     REAL(KIND=dp)                            :: siep_Phi_ij
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_Phi_ij', &
@@ -400,8 +412,15 @@ CONTAINS
         CALL stop_program(routineN,moduleN,__LINE__,&
              "No H atoms for O found")
     ELSEIF (count_h==1) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-             "Only one H atom of O atom found")
+        IF(siepmann%allow_oh_formation) THEN
+           IF(PRESENT(nr_oh)) THEN
+              nr_oh = nr_oh + 1
+           ENDIF
+           siep_Phi_ij = 0.0_dp
+        ELSE
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "Only one H atom of O atom found")
+        ENDIF
     ENDIF
  
     IF(count_h==2) THEN
@@ -508,7 +527,7 @@ CONTAINS
     IF (count_h==0) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
              "No H atoms for O found")
-    ELSEIF (count_h==1) THEN
+    ELSEIF (count_h==1.AND..NOT.siepmann%allow_oh_formation) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
              "Only one H atom of O atom found")
     ENDIF 
@@ -925,6 +944,46 @@ CONTAINS
     END IF
 
   END SUBROUTINE destroy_siepmann_arrays
+
+! *****************************************************************************
+!> \brief prints the number of OH ions
+!> \param nr_oh ...
+!> \param mm_section ...
+!> \param para_env ...
+!> \param error variable to control error logging, stopping,...
+!>        see module cp_error_handling
+! *****************************************************************************
+  SUBROUTINE print_nr_oh_siepmann(nr_oh,mm_section,para_env,error)
+    INTEGER, INTENT(INOUT)                   :: nr_oh
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_nr_oh_siepmann', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iw
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    failure = .FALSE.
+    NULLIFY(logger)
+
+    CALL mp_sum(nr_oh,para_env%group)
+    logger => cp_error_get_logger(error)
+
+    iw= cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_RUN_INFO",&
+        extension=".mmLog",error=error)
+
+    IF(iw > 0 .AND. nr_oh > 0) THEN
+      WRITE(iw,'(/,A,T71,I10,/)') " SIEPMANN: number of OH ions at surface", nr_oh
+    ENDIF
+
+    CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%PROGRAM_RUN_INFO",&
+         error=error)
+
+  END SUBROUTINE print_nr_oh_siepmann
 
 END MODULE manybody_siepmann
 

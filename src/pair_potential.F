@@ -643,7 +643,7 @@ CPSourceFileRef,&
        CASE (tersoff_type)
           nvar = 13 + nvar
        CASE (siepmann_type)
-          nvar = 6 + nvar
+          nvar = 5 + nvar
        CASE (nn_type)
           nvar = nvar
        CASE DEFAULT
@@ -755,8 +755,7 @@ CPSourceFileRef,&
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%set(1)%siepmann%D
                       pot_par(nk,3)  = potparm%pot(i,j)%pot%set(1)%siepmann%E
                       pot_par(nk,4)  = potparm%pot(i,j)%pot%set(1)%siepmann%F
-                      pot_par(nk,5)  = potparm%pot(i,j)%pot%set(1)%siepmann%alpha
-                      pot_par(nk,6)  = potparm%pot(i,j)%pot%set(1)%siepmann%beta
+                      pot_par(nk,5)  = potparm%pot(i,j)%pot%set(1)%siepmann%beta
                    CASE (nn_type)
                       ! no checks
                    CASE DEFAULT

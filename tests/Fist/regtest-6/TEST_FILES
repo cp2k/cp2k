@@ -39,3 +39,4 @@ extern_pot-test-03.inp    2    1.0E-14    -0.237349831229E+01
 #Siepmann-Sprik potential test
 siepmann_sprik_top.inp    2    1.0E-14    -0.138487875314E-01
 siepmann_sprik_fcc.inp    2    1.0E-14    -0.561022623398E-02
+siepmann_sprik_OH.inp     2

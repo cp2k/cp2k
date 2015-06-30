@@ -2659,12 +2659,14 @@ CONTAINS
    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
    IF (.NOT. failure) THEN
       CALL section_create(section,name="SIEPMANN",&
-           description="This section specifies the input parameters for the Siepmann-Sprik"//&
-                       " potential type. Consist of 4 terms: T1+T2+T3+T4. The terms T1=A/rij^alpha"//&
-                       " and T2=-C/rij^6 have to be given via the GENPOT section. The terms T3+T4"//& 
-                       " are obtained from the SIEPMANN section.",&
-           citations=(/Siepmann1995/),n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-           error=error)
+           description="This section specifies the input parameters for the"//&
+                       " Siepmann-Sprik potential type. Consists of 4 terms:"//&
+                       " T1+T2+T3+T4. The terms T1=A/rij^alpha and T2=-C/rij^6"//&
+                       " have to be given via the GENPOT section. The terms T3+T4"//& 
+                       " are obtained from the SIEPMANN section. The Siepmann-Sprik"//&
+                       " potential is designed for water-metal chemisorption.",&
+           citations=(/Siepmann1995/),n_keywords=1, n_subsections=0, repeats=.TRUE.,&
+           required=.TRUE.,error=error)
 
       NULLIFY(keyword)
  
@@ -2729,6 +2731,15 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 !
+       CALL keyword_create(keyword, name="ALLOW_OH_FORMATION",&
+            description="If water is treated at the QM level, water molecules"//&
+                        " can potentially dissociate. In that case, the T3"//&
+                        " term (dipole term) is switched off.",&
+            usage="ALLOW_OH_FORMATION TRUE",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
    END IF
  END SUBROUTINE create_Siepmann_section
 

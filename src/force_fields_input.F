@@ -1342,6 +1342,8 @@ CPSourceFileRef,&
        CALL section_vals_val_get(siepmann_section,"E",r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%E,error=error)
        CALL section_vals_val_get(siepmann_section,"F",r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%F,error=error)
        CALL section_vals_val_get(siepmann_section,"beta",r_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%beta,error=error)
+       CALL section_vals_val_get(siepmann_section,"ALLOW_OH_FORMATION",&
+            l_val=nonbonded%pot(start+isec)%pot%set(1)%siepmann%allow_oh_formation,error=error)
 
      ! ! In case it is defined override the standard specification of RCUT
       CALL section_vals_val_get ( siepmann_section, "RCUT", n_rep_val=n_rep, error=error)

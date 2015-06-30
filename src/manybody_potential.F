@@ -24,11 +24,13 @@ MODULE manybody_potential
                                              fist_nonbond_env_get,&
                                              fist_nonbond_env_type,&
                                              pos_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE manybody_eam,                    ONLY: get_force_eam
   USE manybody_quip,                   ONLY: quip_add_force_virial,&
                                              quip_energy_store_force_virial
   USE manybody_siepmann,               ONLY: destroy_siepmann_arrays,&
+                                             print_nr_oh_siepmann,&
                                              setup_siepmann_arrays,&
                                              siepmann_energy,&
                                              siepmann_forces_v2,&
@@ -68,6 +70,7 @@ CONTAINS
 !> \param pot_manybody ...
 !> \param atprop_env ...
 !> \param para_env ...
+!> \param mm_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -75,7 +78,7 @@ CONTAINS
 !> \author CJM, I-Feng W. Kuo, Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, local_particles,&
-       particle_set, cell, pot_manybody, atprop_env, para_env, error )
+       particle_set, cell, pot_manybody, atprop_env, para_env, mm_section, error )
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -86,6 +89,7 @@ CONTAINS
     TYPE(atprop_type), POINTER               :: atprop_env
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
+    TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'energy_manybody', &
@@ -94,7 +98,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, iend, ifirst, igrp, ikind, ilast, &
       ilist, indexa, ipair, iparticle, iparticle_local, istart, iunique, &
       jkind, junique, mpair, nkinds, nloc_size, npairs, nparticle, &
-      nparticle_local, nunique, stat
+      nparticle_local, nr_oh, nunique, stat
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
     LOGICAL                                  :: any_quip, any_siepmann, &
@@ -260,6 +264,7 @@ CONTAINS
     IF (any_siepmann) THEN 
        NULLIFY(glob_loc_list, glob_cell_v, glob_loc_list_a)
        CALL setup_siepmann_arrays(nonbonded, potparm, glob_loc_list, glob_cell_v, glob_loc_list_a, cell, error)
+       nr_oh = 0
        DO ilist=1,nonbonded%nlists
           neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
           npairs=neighbor_kind_pair%npairs
@@ -322,7 +327,8 @@ CONTAINS
                          IF(drij>rab2_max) CYCLE
                          drij = SQRT(drij)
                          CALL siepmann_energy(pot_loc, siepmann, r_last_update_pbc, atom_a, atom_b, nloc_size,&
-                              glob_loc_list(:,ifirst:ilast),glob_cell_v(:,ifirst:ilast), cell_v, cell, drij, particle_set)
+                              glob_loc_list(:,ifirst:ilast),glob_cell_v(:,ifirst:ilast), cell_v, cell, drij,&
+                              particle_set, nr_oh)
                          pot_manybody = pot_manybody + pot_loc 
                       END DO
                       ifirst = ilast + 1
@@ -335,6 +341,9 @@ CONTAINS
           END DO Kind_Group_Loop_2
        END DO
        CALL destroy_siepmann_arrays(glob_loc_list, glob_cell_v, glob_loc_list_a, error)
+       IF(siepmann%allow_oh_formation) THEN
+         CALL print_nr_oh_siepmann(nr_oh,mm_section,para_env,error)
+       ENDIF
     END IF
 
     CALL timestop ( handle )
