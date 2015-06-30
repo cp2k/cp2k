@@ -589,7 +589,7 @@ MODULE mp2_cphf
        force(ikind)%rho_core=0.0_dp
     ENDDO
     ! right contribution
-    CALL integrate_v_rspace(v_rspace=rho_r,p=rho_ao(1),h=matrix_ks(1),&
+    CALL integrate_v_rspace(v_rspace=rho_r,pmat=rho_ao(1),hmat=matrix_ks(1),&
                             qs_env=qs_env,calculate_forces=.TRUE.,error=error)
 
     IF(use_virial) THEN
@@ -908,7 +908,7 @@ MODULE mp2_cphf
     CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error)
     ! integrate the potential
     CALL cp_dbcsr_set(mat_mu_nu(1)%matrix,0.0_dp,error=error)
-    CALL integrate_v_rspace(rho_r, h=mat_mu_nu(1), &
+    CALL integrate_v_rspace(rho_r,hmat=mat_mu_nu(1), &
                             qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
                             basis_set_id=use_orb_basis_set,&
                             error=error)

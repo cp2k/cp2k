@@ -108,7 +108,7 @@ CONTAINS
                 !     TARGET=qs_env%et_coupling%rest_mat(1)%matrix,&
                 !     target_name="ET_RESTRAINT_MATRIX_A",error=error)
                 CALL integrate_v_rspace(becke%becke_pot,&
-                     h=qs_env%et_coupling%rest_mat(1),&
+                     hmat=qs_env%et_coupling%rest_mat(1),&
                      qs_env=qs_env,calculate_forces=.FALSE.,error=error)
                 qs_env%et_coupling%order_p=dft_control%qs_control%becke_control%becke_order_p
                 qs_env%et_coupling%e1=dft_control%qs_control%becke_control%strength
@@ -125,7 +125,7 @@ CONTAINS
                 !     TARGET=qs_env%et_coupling%rest_mat(2)%matrix,&
                 !     target_name="ET_RESTRAINT_MATRIX_B",error=error)
                 CALL integrate_v_rspace(becke%becke_pot,&
-                     h=qs_env%et_coupling%rest_mat(2),&
+                     hmat=qs_env%et_coupling%rest_mat(2),&
                      qs_env=qs_env,calculate_forces=.FALSE.,error=error)
 
              END IF

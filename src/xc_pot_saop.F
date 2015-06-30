@@ -369,9 +369,9 @@ CONTAINS
                                   alpha=1.0_dp,error=error)
           CALL pw_zero(orbital%pw,error=error)
           CALL pw_zero(orbital_g%pw,error=error)
-          CALL calculate_rho_elec(orbital_density_matrix(ispin)%matrix, &
-                                  orbital, orbital_g, &
-                                  tot_rho_psi, ks_env, error=error)
+          CALL calculate_rho_elec(matrix_p=orbital_density_matrix(ispin)%matrix, &
+                                  rho=orbital, rho_gspace=orbital_g, &
+                                  total_rho=tot_rho_psi, ks_env=ks_env, error=error)
 
           vxc_tmp(ispin)%pw%cr3d = vxc_tmp(ispin)%pw%cr3d + &
                efac * orbital%pw%cr3d
@@ -440,9 +440,9 @@ CONTAINS
                                   alpha=1.0_dp,error=error)
           CALL pw_zero(orbital%pw,error=error)
           CALL pw_zero(orbital_g%pw,error=error)
-          CALL calculate_rho_elec(orbital_density_matrix(ispin)%matrix, &
-                                  orbital, orbital_g, &
-                                  tot_rho_psi, ks_env, error=error)
+          CALL calculate_rho_elec(matrix_p=orbital_density_matrix(ispin)%matrix, &
+                                  rho=orbital, rho_gspace=orbital_g, &
+                                  total_rho=tot_rho_psi, ks_env=ks_env, error=error)
 
 !TC          CALL calculate_wavefunction(mo_coeff,orb,orbital2,orbital2_g,qs_env,error)
 !TC          write (*,*) orb, maxval(abs(orbital2%pw%cr3d-orbital%pw%cr3d))
@@ -488,8 +488,8 @@ CONTAINS
        END IF
        vxc_SAOP(ispin)%pw%cr3d = vxc_SAOP(ispin)%pw%cr3d * vxc_SAOP(ispin)%pw%pw_grid%dvol
 
-       CALL integrate_v_rspace(vxc_SAOP(ispin), rho_struct_ao(ispin), &
-                               ks_matrix(ispin), qs_env, &
+       CALL integrate_v_rspace(v_rspace=vxc_SAOP(ispin), pmat=rho_struct_ao(ispin), &
+                               hmat=ks_matrix(ispin), qs_env=qs_env, &
                                calculate_forces=.FALSE.,&
                                gapw=gapw, error=error)
 

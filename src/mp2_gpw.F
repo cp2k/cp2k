@@ -1277,7 +1277,7 @@ MODULE mp2_gpw
         ! and finally (ia|munu)
         CALL timeset(routineN//"_int",handle3)
         CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
-        CALL integrate_v_rspace(rho_r, h=mat_munu,qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
+        CALL integrate_v_rspace(rho_r,hmat=mat_munu,qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
            basis_set_id=use_orb_basis_set, pw_env_external=pw_env_sub, task_list_external=task_list_sub, error=error_sub)
         CALL timestop(handle3)
 

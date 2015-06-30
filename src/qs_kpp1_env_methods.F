@@ -414,8 +414,8 @@ CONTAINS
                 ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
                 CALL cp_dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                     p=rho_ao(ispin),&
-                     h=kpp1_env%v_ao(ispin),&
+                     pmat=rho_ao(ispin),&
+                     hmat=kpp1_env%v_ao(ispin),&
                      qs_env=qs_env,&
                      calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
 
@@ -426,8 +426,8 @@ CONTAINS
                     v_rspace_new(1)%pw%cr3d  = 2.0_dp * v_hartree_rspace%pw%cr3d
 
                     CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         p=rho_ao(ispin),&
-                         h=kpp1_env%v_ao(ispin),&
+                         pmat=rho_ao(ispin),&
+                         hmat=kpp1_env%v_ao(ispin),&
                          qs_env=qs_env,&
                          calculate_forces=.FALSE.,gapw=gapw,error=error)
                 END IF
@@ -435,8 +435,8 @@ CONTAINS
                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
                CALL cp_dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                    p=rho_ao(ispin),&
-                    h=kpp1_env%v_ao(ispin),&
+                    pmat=rho_ao(ispin),&
+                    hmat=kpp1_env%v_ao(ispin),&
                     qs_env=qs_env,&
                     calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
 
@@ -446,8 +446,8 @@ CONTAINS
                END IF
                v_rspace_new(ispin)%pw%cr3d  = v_hartree_rspace%pw%cr3d
                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                    p=rho_ao(ispin),&
-                    h=kpp1_env%v_ao(ispin),&
+                    pmat=rho_ao(ispin),&
+                    hmat=kpp1_env%v_ao(ispin),&
                     qs_env=qs_env,&
                     calculate_forces=.FALSE.,gapw=gapw,error=error)
              END IF
@@ -484,8 +484,8 @@ CONTAINS
             ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
             CALL cp_dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                 p=rho_ao(ispin),&
-                 h=kpp1_env%v_ao(ispin),&
+                 pmat=rho_ao(ispin),&
+                 hmat=kpp1_env%v_ao(ispin),&
                  qs_env=qs_env,&
                  calculate_forces=.FALSE.,gapw=gapw,error=error)
 

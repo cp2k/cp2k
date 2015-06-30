@@ -41,10 +41,12 @@ MODULE qs_collocate_density
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_copy,&
-                                             cp_dbcsr_deallocate_matrix,&
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                              cp_fm_get_info,&
@@ -133,8 +135,7 @@ MODULE qs_collocate_density
   USE task_list_methods,               ONLY: int2pair,&
                                              rs_distribute_matrix
   USE task_list_types,                 ONLY: task_list_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -1663,6 +1664,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computes the density corresponding to a given density matrix on the grid
 !> \param matrix_p ...
+!> \param matrix_p_kp ...
 !> \param rho ...
 !> \param rho_gspace ...
 !> \param total_rho ...
@@ -1683,11 +1685,13 @@ CONTAINS
 !>      both rho and rho_gspace contain the new rho
 !>      (in real and g-space respectively)
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_elec(matrix_p, rho,rho_gspace, total_rho,&
+  SUBROUTINE calculate_rho_elec(matrix_p, matrix_p_kp, rho, rho_gspace, total_rho,&
        ks_env, soft_valid, compute_tau, compute_grad, basis_set_id, der_type, idir, &
        task_list_external, pw_env_external, error)
 
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_p
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_p_kp
     TYPE(pw_p_type), INTENT(INOUT)           :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -1702,12 +1706,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: bcol, brow, ga_gb_function, handle, iatom, iatom_old, &
-      igrid_level, igrid_level_dummy, ikind, ikind_old, ipair, ipgf, iset, &
-      iset_old, itask, ithread, jatom, jatom_old, jkind, jkind_old, jpgf, &
-      jset, jset_old, lb, lbr, lbw, maxco, maxpgf, maxset, maxsgf, &
+      igrid_level, igrid_level_dummy, ikind, ikind_old, img, ipair, ipgf, &
+      iset, iset_old, itask, ithread, jatom, jatom_old, jkind, jkind_old, &
+      jpgf, jset, jset_old, lb, lbr, lbw, maxco, maxpgf, maxset, maxsgf, &
       maxsgf_set, my_basis_set_id, my_der_type, my_idir, n, na1, na2, natoms, &
-      nb1, nb2, nblock, ncoa, ncob, nr, nrlevel, nseta, nsetb, ntasks, &
-      nthread, nxy, nz, nzsize, sgfa, sgfb, stat, ub
+      nb1, nb2, nblock, ncoa, ncob, nimages, nr, nrlevel, nseta, nsetb, &
+      ntasks, nthread, nxy, nz, nzsize, sgfa, sgfb, stat, ub
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -1716,8 +1720,9 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, found, &
-      map_consistent, my_compute_grad, my_compute_tau, my_soft, use_subpatch
+    LOGICAL :: atom_pair_changed, distributed_rs_grids, do_kp, failure, &
+      found, map_consistent, my_compute_grad, my_compute_tau, my_soft, &
+      use_subpatch
     REAL(KIND=dp)                            :: eps_rho_rspace, rab2, scale, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rab_inv, rb
@@ -1727,7 +1732,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: pabt, workt
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_type), POINTER             :: deltap
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: deltap
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
@@ -1747,7 +1753,12 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
 
+    CALL timeset(routineN,handle)
+
     failure=.FALSE.
+    CPPrecondition(PRESENT(matrix_p).OR.PRESENT(matrix_p_kp),cp_failure_level,routineP,error,failure)
+    do_kp = PRESENT(matrix_p_kp)
+
     NULLIFY(qs_kind, cell, dft_control, orb_basis_set, deltap, &
          qs_kind_set, particle_set, rs_rho, pw_env, rs_descs, &
          para_env, dist_ab, la_max, la_min, &
@@ -1775,8 +1786,6 @@ CONTAINS
        my_compute_grad = .FALSE.
     ENDIF
 
-
-    CALL timeset(routineN,handle)
     my_der_type = 0
     my_idir = 0
     IF(PRESENT(der_type)) THEN
@@ -1797,29 +1806,30 @@ CONTAINS
       my_basis_set_id = use_orb_basis_set
     END IF
 
+    CALL get_ks_env(ks_env,&
+         qs_kind_set=qs_kind_set,&
+         cell=cell,&
+         dft_control=dft_control,&
+         particle_set=particle_set,&
+         para_env=para_env,&
+         pw_env=pw_env,&
+         error=error)
 
     SELECT CASE (my_basis_set_id)
     CASE (use_orb_basis_set)
       CALL get_ks_env(ks_env,&
-           qs_kind_set=qs_kind_set,&
-           cell=cell,&
-           dft_control=dft_control,&
-           particle_set=particle_set,&
-           para_env=para_env,&
            task_list=task_list,&
            task_list_soft=task_list_soft,&
-           pw_env=pw_env,error=error)
+           error=error)
     CASE (use_aux_fit_basis_set)
       CALL get_ks_env(ks_env,&
-           qs_kind_set=qs_kind_set,&
-           cell=cell,&
-           dft_control=dft_control,&
-           particle_set=particle_set,&
-           para_env=para_env,&
            task_list_aux_fit=task_list,&
            task_list_soft=task_list_soft,&
-           pw_env=pw_env,error=error)
+           error=error)
     END SELECT
+
+    nimages = dft_control%nimages
+    CPPrecondition(nimages==1.OR.do_kp,cp_failure_level,routineP,error,failure)
 
     IF (PRESENT(pw_env_external)) pw_env => pw_env_external
     IF (PRESENT(task_list_external)) task_list=>task_list_external
@@ -1900,24 +1910,42 @@ CONTAINS
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent = dft_control%qs_control%map_consistent
+
     !   *** Initialize working density matrix ***
     ! distributed rs grids require a matrix that will be changed
     ! whereas this is not the case for replicated grids
+    NULLIFY(deltap)
+    CALL cp_dbcsr_allocate_matrix_set(deltap,nimages,error=error)
     IF (distributed_rs_grids) THEN
-       NULLIFY(deltap)
-       !CALL replicate_matrix(matrix_p,deltap,target_name="DeltaP",error=error)
-       ALLOCATE(deltap)
-       CALL cp_dbcsr_init(deltap, error=error)
-       CALL cp_dbcsr_copy(deltap,matrix_p,name="DeltaP",error=error)
+       DO img=1,nimages
+          ALLOCATE(deltap(img)%matrix,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL cp_dbcsr_init(deltap(img)%matrix, error=error)
+       END DO
        ! this matrix has no strict sparsity pattern in parallel
-       !deltap%sparsity_id=-1
+       ! deltap%sparsity_id=-1
+       IF(do_kp) THEN
+          DO img=1,nimages
+             CALL cp_dbcsr_copy(deltap(img)%matrix,matrix_p_kp(img)%matrix,&
+                                name="DeltaP",error=error)
+          END DO
+       ELSE
+          CALL cp_dbcsr_copy(deltap(1)%matrix,matrix_p,name="DeltaP",error=error)
+       END IF
     ELSE
-       deltap=>matrix_p
+       IF(do_kp) THEN
+          DO img=1,nimages
+             deltap(img)%matrix => matrix_p_kp(img)%matrix
+          END DO
+       ELSE
+          deltap(1)%matrix => matrix_p
+       END IF
     ENDIF
 
     ! distribute the matrix
     IF (distributed_rs_grids) THEN
-       CALL rs_distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, natoms, scatter=.TRUE., error=error)
+       CALL rs_distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, &
+                                  natoms, nimages, scatter=.TRUE., error=error)
     ENDIF
 
     ! map all tasks on the grids
@@ -1928,12 +1956,12 @@ CONTAINS
 !$omp          shared(cell,cube_info,eps_rho_rspace,ga_gb_function, my_idir,map_consistent), &
 !$omp          shared(rs_rho,lgrid,gridlevel_info,task_list,qs_kind_set), &
 !$omp          private(igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,ikind,jkind,pab,work), &
-!$omp          private(iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
+!$omp          private(img,iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
 !$omp          private(brow,bcol,qs_kind,orb_basis_set,first_sgfa,la_max,la_min), &
 !$omp          private(npgfa,nseta,nsgfa,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
 !$omp          private(nsetb,nsgfb,sphi_b,zetb,p_block,found), &
 !$omp          private(atom_pair_changed,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp), &
-!$omp          private(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,error,lb,ub,n), &
+!$omp          private(na1,na2,nb1,nb2,scale,use_subpatch,rab_inv,ithread,error,failure,lb,ub,n), &
 !$omp          private(itask,nz,nxy,nzsize,nrlevel,nblock,lbw,lbr,nr,igrid_level_dummy)
 
     ithread = 0
@@ -1960,6 +1988,7 @@ CONTAINS
     loop_tasks: DO itask = task_list%taskstart(ipair,igrid_level), task_list%taskstop(ipair,igrid_level)
        !decode the atom pair and basis info (igrid_level_dummy equals do loop variable by construction).
        CALL int2pair(tasks(3,itask),igrid_level_dummy,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+       img = INT(tasks(7,itask))
        ikind = particle_set(iatom)%atomic_kind%kind_number
        jkind = particle_set(jatom)%atomic_kind%kind_number
 
@@ -2017,11 +2046,9 @@ CONTAINS
                   zet=zetb)
           ENDIF
 
-          CALL cp_dbcsr_get_block_p(matrix=deltap,&
+          CALL cp_dbcsr_get_block_p(matrix=deltap(img)%matrix,&
                row=brow,col=bcol,BLOCK=p_block,found=found)
-          IF (.NOT.ASSOCIATED(p_block)) & 
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "p_block not associated in deltap")
+          CPPostcondition(found,cp_failure_level,routineP,error,failure)
 
           iatom_old = iatom
           jatom_old = jatom
@@ -2202,24 +2229,31 @@ CONTAINS
     !   *** Release work storage ***
 
     IF (distributed_rs_grids) THEN
-       CALL cp_dbcsr_deallocate_matrix ( deltap ,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set ( deltap ,error=error)
+    ELSE
+       DO img=1,nimages
+          NULLIFY(deltap(img)%matrix)
+       END DO
+       DEALLOCATE (deltap,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    DEALLOCATE (pabt,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pabt")
-    DEALLOCATE (workt,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"workt")
+    DEALLOCATE (pabt,workt,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace,error=error)
 
     total_rho = pw_integrate_function(rho%pw,isign=-1,error=error)
+
     CALL timestop(handle)
+
   END SUBROUTINE calculate_rho_elec
 
 ! *****************************************************************************
 !> \brief computes the gradient of the density corresponding to a given
 !>        density matrix on the grid
 !> \param matrix_p ...
+!> \param matrix_p_kp ...
 !> \param drho ...
 !> \param drho_gspace ...
 !> \param qs_env ...
@@ -2228,10 +2262,12 @@ CONTAINS
 !> \param error ...
 !> \note  this is an alternative to calculate the gradient through FFTs
 ! *****************************************************************************
-  SUBROUTINE calculate_drho_elec(matrix_p,drho,drho_gspace,qs_env,&
+  SUBROUTINE calculate_drho_elec(matrix_p,matrix_p_kp,drho,drho_gspace,qs_env,&
              soft_valid,basis_set_id,error)
 
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_p
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: matrix_p_kp
     TYPE(pw_p_type), DIMENSION(:), &
       INTENT(INOUT)                          :: drho, drho_gspace
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -2243,10 +2279,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: bcol, brow, handle, i, iatom, iatom_old, idir, igrid_level, &
-      ikind, ikind_old, ipgf, iset, iset_old, itask, ithread, jatom, &
+      ikind, ikind_old, img, ipgf, iset, iset_old, itask, ithread, jatom, &
       jatom_old, jkind, jkind_old, jpgf, jset, jset_old, maxco, maxpgf, &
       maxset, maxsgf, maxsgf_set, my_basis_set_id, na1, na2, natoms, nb1, &
-      nb2, ncoa, ncob, nseta, nsetb, ntasks, nthread, sgfa, sgfb, stat
+      nb2, ncoa, ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb, &
+      stat
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -2255,8 +2292,8 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: atom_pair_changed, distributed_rs_grids, failure, found, &
-      map_consistent, my_soft, use_subpatch
+    LOGICAL :: atom_pair_changed, distributed_rs_grids, do_kp, failure, &
+      found, map_consistent, my_soft, use_subpatch
     REAL(KIND=dp)                            :: eps_rho_rspace, rab2, scale, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rab_inv, rb
@@ -2266,7 +2303,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: pabt, workt
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_type), POINTER             :: deltap
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: deltap
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
@@ -2287,7 +2325,13 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(task_list_type), POINTER            :: task_list, task_list_soft
 
+    CALL timeset(routineN,handle)
+
     failure=.FALSE.
+
+    CPPrecondition(PRESENT(matrix_p).OR.PRESENT(matrix_p_kp),cp_failure_level,routineP,error,failure)
+    do_kp = PRESENT(matrix_p_kp)
+
     NULLIFY(qs_kind, cell, dft_control, orb_basis_set, deltap, &
          qs_kind_set, sab_orb, particle_set, rs_rho, pw_env, rs_descs, &
          para_env, dist_ab, la_max, la_min, &
@@ -2301,37 +2345,33 @@ CONTAINS
     my_soft=.FALSE.
     IF (PRESENT(soft_valid)) my_soft = soft_valid
 
-    CALL timeset(routineN,handle)
-    !
     IF( PRESENT(basis_set_id) ) THEN
       my_basis_set_id = basis_set_id
     ELSE
       my_basis_set_id = use_orb_basis_set
     END IF
 
+    CALL get_qs_env(qs_env=qs_env,&
+         qs_kind_set=qs_kind_set,&
+         cell=cell,&
+         dft_control=dft_control,&
+         particle_set=particle_set,&
+         sab_orb=sab_orb,&
+         para_env=para_env,&
+         pw_env=pw_env,&
+         error=error)
+
     SELECT CASE (my_basis_set_id)
     CASE (use_orb_basis_set)
       CALL get_qs_env(qs_env=qs_env,&
-           qs_kind_set=qs_kind_set,&
-           cell=cell,&
-           dft_control=dft_control,&
-           particle_set=particle_set,&
-           sab_orb=sab_orb,&
-           para_env=para_env,&
            task_list=task_list,&
            task_list_soft=task_list_soft,&
-           pw_env=pw_env,error=error)
+           error=error)
     CASE (use_aux_fit_basis_set)
       CALL get_qs_env(qs_env=qs_env,&
-           qs_kind_set=qs_kind_set,&
-           cell=cell,&
-           dft_control=dft_control,&
-           particle_set=particle_set,&
-           sab_aux_fit=sab_orb,&
-           para_env=para_env,&
            task_list_aux_fit=task_list,&
            task_list_soft=task_list_soft,&
-           pw_env=pw_env,error=error)
+           error=error)
     END SELECT
 
     ! *** assign from pw_env
@@ -2349,6 +2389,9 @@ CONTAINS
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
 
     ! find maximum numbers
+    nimages = dft_control%nimages
+    CPPrecondition((nimages==1 .OR. do_kp),cp_failure_level,routineP,error,failure)
+
     natoms = SIZE( particle_set )
     maxset=0
     maxpgf=0
@@ -2394,25 +2437,40 @@ CONTAINS
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     map_consistent = dft_control%qs_control%map_consistent
+
     !   *** Initialize working density matrix ***
     ! distributed rs grids require a matrix that will be changed
     ! whereas this is not the case for replicated grids
+    ALLOCATE(deltap(nimages),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (distributed_rs_grids) THEN
-       NULLIFY(deltap)
-       ALLOCATE(deltap)
-       CALL cp_dbcsr_init(deltap, error=error)
-       CALL cp_dbcsr_copy(deltap,matrix_p,name="DeltaP",error=error)
-       !CALL replicate_matrix(matrix_p,deltap,target_name="DeltaP",error=error)
+       DO img=1,nimages
+          CALL cp_dbcsr_init(deltap(img)%matrix, error=error)
+       END DO
        ! this matrix has no strict sparsity pattern in parallel
-       !deltap%sparsity_id=-1
+       ! deltap%sparsity_id=-1
+       IF(do_kp) THEN
+          DO img=1,nimages
+             CALL cp_dbcsr_copy(deltap(img)%matrix,matrix_p_kp(img)%matrix,&
+                                name="DeltaP",error=error)
+          END DO
+       ELSE
+          CALL cp_dbcsr_copy(deltap(1)%matrix,matrix_p,name="DeltaP",error=error)
+       END IF
     ELSE
-       deltap=>matrix_p
+       IF(do_kp) THEN
+          DO img=1,nimages
+             deltap(img)%matrix => matrix_p_kp(img)%matrix
+          END DO
+       ELSE
+          deltap(1)%matrix => matrix_p
+       END IF
     ENDIF
 
     ! distribute the matrix
     IF (distributed_rs_grids) THEN
        CALL rs_distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, &
-                               natoms, scatter=.TRUE., error=error)
+                                  natoms, nimages, scatter=.TRUE., error=error)
     ENDIF
 
     ! map all tasks on the grids
@@ -2433,6 +2491,8 @@ CONTAINS
 
         !decode the atom pair and basis info
         CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+        img = INT(tasks(7,itask))
+
         ikind = particle_set(iatom)%atomic_kind%kind_number
         jkind = particle_set(jatom)%atomic_kind%kind_number
 
@@ -2490,11 +2550,9 @@ CONTAINS
                   zet=zetb)
           ENDIF
 
-          CALL cp_dbcsr_get_block_p(matrix=deltap,&
+          CALL cp_dbcsr_get_block_p(matrix=deltap(img)%matrix,&
                row=brow,col=bcol,BLOCK=p_block,found=found)
-          IF (.NOT.ASSOCIATED(p_block)) &
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "p_block not associated in deltap")
+          CPPostcondition(found,cp_failure_level,routineP,error,failure)
 
           iatom_old = iatom
           jatom_old = jatom
@@ -2603,14 +2661,19 @@ CONTAINS
         CALL rs_grid_release(rs_rho(i)%rs_grid, error=error)
       END DO
     END IF
+
     IF (distributed_rs_grids) THEN
-      CALL cp_dbcsr_deallocate_matrix ( deltap ,error=error)
+       CALL cp_dbcsr_deallocate_matrix_set ( deltap ,error=error)
+    ELSE
+       DO img=1,nimages
+          NULLIFY(deltap(img)%matrix)
+       END DO
+       DEALLOCATE (deltap,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    DEALLOCATE (pabt,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pabt")
-    DEALLOCATE (workt,STAT=stat)
-    IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"workt")
+    DEALLOCATE (pabt,workt,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 

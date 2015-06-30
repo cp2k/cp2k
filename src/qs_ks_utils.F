@@ -328,7 +328,7 @@ CONTAINS
                                       vxc(ispin)%pw%cr3d
               ! zero first ?!
               CALL cp_dbcsr_set(matrix_h(ispin)%matrix,0.0_dp,error=error)
-              CALL integrate_v_rspace(v_rspace=work_v_rspace,p=matrix_p(ispin),h=matrix_h(ispin),&
+              CALL integrate_v_rspace(v_rspace=work_v_rspace,pmat=matrix_p(ispin),hmat=matrix_h(ispin),&
                                       qs_env=qs_env,calculate_forces=calculate_forces,error=error)
               CALL pw_pool_give_back_pw(auxbas_pw_pool,vxc(ispin)%pw,error=error)
            ENDDO
@@ -660,7 +660,7 @@ CONTAINS
 
        IF (.NOT. just_energy) THEN
            ! note, orb_h (which is being pointed to with orb_h_p) is zeroed above
-           CALL integrate_v_rspace(v_rspace=work_v_rspace,p=orb_density_matrix_p,h=orb_h_p,&
+           CALL integrate_v_rspace(v_rspace=work_v_rspace,pmat=orb_density_matrix_p,hmat=orb_h_p,&
                                    qs_env=qs_env,calculate_forces=calculate_forces,error=error)
 
            ! add this to the mo_derivs
@@ -1149,7 +1149,7 @@ CONTAINS
     gapw=dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc
     DO ispin=1,SIZE(matrix_ks)
        CALL integrate_v_rspace(v_rspace=v_rspace(ispin),&
-                               h=matrix_vxc(ispin), &
+                               hmat=matrix_vxc(ispin), &
                                qs_env=qs_env, &
                                calculate_forces=.FALSE.,&
                                gapw=gapw,error=error)
@@ -1268,7 +1268,7 @@ CONTAINS
 
              ! add the xc  part due to v_rspace soft
              CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                  p=rho_ao(ispin),h=ks_matrix(ispin),&
+                  pmat=rho_ao(ispin),hmat=ks_matrix(ispin),&
                   qs_env=qs_env, &
                   calculate_forces=calculate_forces,&
                   gapw=gapw_xc,error=error)
@@ -1346,7 +1346,7 @@ CONTAINS
              ! NOTHING TO BE DONE
           END SELECT
           CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-               p=my_rho(ispin),h=ks_matrix(ispin),&
+               pmat=my_rho(ispin),hmat=ks_matrix(ispin),&
                qs_env=qs_env, &
                calculate_forces=calculate_forces,&
                gapw=gapw, error=error)
@@ -1380,8 +1380,8 @@ CONTAINS
              v_rspace%pw%cr3d = v_rspace%pw%cr3d + v_sccs_rspace%pw%cr3d
           END IF
           CALL integrate_v_rspace(v_rspace=v_rspace,&
-                                  p=my_rho(ispin),&
-                                  h=ks_matrix(ispin),&
+                                  pmat=my_rho(ispin),&
+                                  hmat=ks_matrix(ispin),&
                                   qs_env=qs_env,&
                                   calculate_forces=calculate_forces,&
                                   gapw=gapw,&
@@ -1396,7 +1396,7 @@ CONTAINS
                 v_tau_rspace(ispin)%pw%cr3d
 
            CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
-                p=rho_ao(ispin),h=ks_matrix(ispin),&
+                pmat=rho_ao(ispin),hmat=ks_matrix(ispin),&
                 qs_env=qs_env,&
                 calculate_forces=calculate_forces,compute_tau=.TRUE., &
                 gapw=gapw,&
@@ -1425,8 +1425,8 @@ CONTAINS
           ! Add potential to ks_matrix aux_fit
 
           CALL integrate_v_rspace(v_rspace=v_rspace_new_aux_fit(ispin),&
-                                  p=rho_ao_aux(ispin),&
-                                  h=matrix_ks_aux_fit(ispin),&
+                                  pmat=rho_ao_aux(ispin),&
+                                  hmat=matrix_ks_aux_fit(ispin),&
                                   qs_env=qs_env, &
                                   calculate_forces=calculate_forces,&
                                   force_adm=.TRUE.,& 

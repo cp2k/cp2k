@@ -401,8 +401,8 @@ SUBROUTINE qs_create_task_list(qs_env, error)
         CALL set_ks_env(ks_env, task_list_aux_fit=task_list, error=error)
       ENDIF
       CALL generate_qs_task_list(ks_env, task_list,&
-           reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE.,basis_set_id=use_aux_fit_basis_set, &
-                 skip_load_balance_distributed=skip_load_balance_distributed, error=error)
+             reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE.,basis_set_id=use_aux_fit_basis_set, &
+             skip_load_balance_distributed=skip_load_balance_distributed, error=error)
     END IF
 
     IF (dft_control%qs_control%do_kg) THEN

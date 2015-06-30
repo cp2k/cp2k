@@ -190,7 +190,7 @@ CONTAINS
                         name="ET_RESTRAINT_MATRIX_B", error=error)
                    CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix, 0.0_dp, error=error)
                    CALL integrate_v_rspace(v_spin_ddapc_rest_r,&
-                        h=qs_env%et_coupling%rest_mat(1),&
+                        hmat=qs_env%et_coupling%rest_mat(1),&
                         qs_env=qs_env,calculate_forces=.FALSE.,error=error)
                    qs_env%et_coupling%order_p=&
                         dft_control%qs_control%ddapc_restraint_control(1)%ddapc_restraint_control%ddapc_order_p
@@ -204,7 +204,7 @@ CONTAINS
                         name="ET_RESTRAINT_MATRIX_B", error=error)
                    CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix, 0.0_dp, error=error)
                    CALL integrate_v_rspace(v_spin_ddapc_rest_r,&
-                        h=qs_env%et_coupling%rest_mat(2),&
+                        hmat=qs_env%et_coupling%rest_mat(2),&
                         qs_env=qs_env,calculate_forces=.FALSE.,error=error)
                 END IF
              END IF

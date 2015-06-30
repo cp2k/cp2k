@@ -624,12 +624,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: max_tasks = 2000
 
-    INTEGER :: bcol, brow, curr_tasks, handle, i, iatom, iatom_old, idir2, &
-      igrid_level, iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, istat, &
-      itask, ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, &
+    INTEGER :: bcol, brow, cindex, curr_tasks, handle, i, iatom, iatom_old, &
+      idir2, igrid_level, iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, &
+      istat, itask, ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, &
       jset_old, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, na2, natom, &
-      nb1, nb2, ncoa, ncob, ngpts, nkind, nseta, nsetb, ntasks, nthread, &
-      sgfa, sgfb
+      nb1, nb2, ncoa, ncob, ngpts, nimages, nkind, nseta, nsetb, ntasks, &
+      nthread, sgfa, sgfb
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -655,9 +655,10 @@ CONTAINS
       POINTER                                :: jpabt_a, jpabt_b, jpabt_c, &
                                                 jpabt_d, workt
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_type), POINTER             :: deltajp_a, deltajp_b, &
-                                                deltajp_c, deltajp_d, mat_a, &
-                                                mat_b, mat_c, mat_d
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: deltajp_a, deltajp_b, &
+                                                deltajp_c, deltajp_d
+    TYPE(cp_dbcsr_type), POINTER             :: mat_a, mat_b, mat_c, mat_d
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
@@ -771,7 +772,7 @@ CONTAINS
     CALL reallocate(jpabt_c,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(jpabt_d,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
-    CALL reallocate(tasks,1,6,1,max_tasks)
+    CALL reallocate(tasks,1,7,1,max_tasks)
     CALL reallocate(dist_ab,1,3,1,max_tasks)
 
     tasks = 0
@@ -782,6 +783,11 @@ CONTAINS
     natom = SIZE( particle_set )
     maxset=0
     maxpgf=0
+
+    ! hard code matrix index (no kpoints)
+    nimages = dft_control%nimages
+    CPPostcondition(nimages==1,cp_failure_level,routineP,error,failure)
+    cindex = 1
 
     DO ikind=1,nkind
        qs_kind => qs_kind_set(ikind)
@@ -802,36 +808,37 @@ CONTAINS
 
     ! distributed rs grids require a matrix that will be changed (distribute_tasks)
     ! whereas this is not the case for replicated grids
+    ALLOCATE(deltajp_a(1),deltajp_b(1),deltajp_c(1),deltajp_d(1))
     IF (distributed_rs_grids) THEN
-       ALLOCATE(deltajp_a,deltajp_b,deltajp_c)
-       CALL cp_dbcsr_init(deltajp_a, error=error)
-       CALL cp_dbcsr_init(deltajp_b, error=error)
-       CALL cp_dbcsr_init(deltajp_c, error=error)
+       ALLOCATE(deltajp_a(1)%matrix,deltajp_b(1)%matrix,deltajp_c(1)%matrix)
+       CALL cp_dbcsr_init(deltajp_a(1)%matrix, error=error)
+       CALL cp_dbcsr_init(deltajp_b(1)%matrix, error=error)
+       CALL cp_dbcsr_init(deltajp_c(1)%matrix, error=error)
        IF(do_igaim) THEN
-          ALLOCATE(deltajp_d)
-          CALL cp_dbcsr_init(deltajp_d, error=error)
+          ALLOCATE(deltajp_d(1)%matrix)
+          CALL cp_dbcsr_init(deltajp_d(1)%matrix, error=error)
        ENDIF
 
-       CALL cp_dbcsr_create(deltajp_a, ' deltajp_a ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
+       CALL cp_dbcsr_create(deltajp_a(1)%matrix, ' deltajp_a ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
             cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a),&
             cp_dbcsr_get_data_size(mat_a),error=error)
             
-       CALL cp_dbcsr_create(deltajp_b, ' deltajp_b ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
+       CALL cp_dbcsr_create(deltajp_b(1)%matrix, ' deltajp_b ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
             cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a),&
             cp_dbcsr_get_data_size(mat_a),error=error)
             
-       CALL cp_dbcsr_create(deltajp_c, ' deltajp_c ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
+       CALL cp_dbcsr_create(deltajp_c(1)%matrix, ' deltajp_c ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
             cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a),&
             cp_dbcsr_get_data_size(mat_a),error=error)
             
-       IF(do_igaim) CALL cp_dbcsr_create(deltajp_d, ' deltajp_d ', cp_dbcsr_distribution (mat_a),&
+       IF(do_igaim) CALL cp_dbcsr_create(deltajp_d(1)%matrix, ' deltajp_d ', cp_dbcsr_distribution (mat_a),&
             cp_dbcsr_get_matrix_type (mat_a),cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a),&
             cp_dbcsr_get_num_blocks(mat_a), cp_dbcsr_get_data_size(mat_a),error=error)
     ELSE
-       deltajp_a => mat_a !mat_jp
-       deltajp_b => mat_b !mat_jp_rii
-       deltajp_c => mat_c !mat_jp_riii
-       IF(do_igaim) deltajp_d => mat_d !mat_d0
+       deltajp_a(1)%matrix => mat_a !mat_jp
+       deltajp_b(1)%matrix => mat_b !mat_jp_rii
+       deltajp_c(1)%matrix => mat_c !mat_jp_riii
+       IF(do_igaim) deltajp_d(1)%matrix => mat_d !mat_d0
     ENDIF
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
@@ -898,14 +905,14 @@ CONTAINS
 
        IF (distributed_rs_grids) THEN
           NULLIFY (jpblock_a,jpblock_b,jpblock_c,jpblock_d)
-          CALL cp_dbcsr_add_block_node ( deltajp_a, brow, bcol, jpblock_a ,error=error)
+          CALL cp_dbcsr_add_block_node ( deltajp_a(1)%matrix, brow, bcol, jpblock_a ,error=error)
           jpblock_a = jp_block_a
-          CALL cp_dbcsr_add_block_node ( deltajp_b, brow, bcol, jpblock_b ,error=error)
+          CALL cp_dbcsr_add_block_node ( deltajp_b(1)%matrix, brow, bcol, jpblock_b ,error=error)
           jpblock_b = jp_block_b
-          CALL cp_dbcsr_add_block_node ( deltajp_c, brow, bcol, jpblock_c ,error=error)
+          CALL cp_dbcsr_add_block_node ( deltajp_c(1)%matrix, brow, bcol, jpblock_c ,error=error)
           jpblock_c = jp_block_c
           IF(do_igaim) THEN
-              CALL cp_dbcsr_add_block_node ( deltajp_d, brow, bcol, jpblock_d ,error=error)
+              CALL cp_dbcsr_add_block_node ( deltajp_d(1)%matrix, brow, bcol, jpblock_d ,error=error)
               jpblock_d = jp_block_d
           END IF
        ELSE
@@ -923,9 +930,10 @@ CONTAINS
           END IF
        END IF
 
-       CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs,dft_control,cube_info,gridlevel_info,&
-                                 iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
-                                 la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nseta,nsetb,error)
+       CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs,&
+            dft_control,cube_info,gridlevel_info,cindex,&
+            iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
+            la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nseta,nsetb,nimages,error)
 
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
@@ -934,17 +942,17 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF (distributed_rs_grids) THEN
-       CALL cp_dbcsr_finalize(deltajp_a, error=error)
-       CALL cp_dbcsr_finalize(deltajp_b, error=error)
-       CALL cp_dbcsr_finalize(deltajp_c, error=error)
-       IF(do_igaim) CALL cp_dbcsr_finalize(deltajp_d, error=error)
+       CALL cp_dbcsr_finalize(deltajp_a(1)%matrix, error=error)
+       CALL cp_dbcsr_finalize(deltajp_b(1)%matrix, error=error)
+       CALL cp_dbcsr_finalize(deltajp_c(1)%matrix, error=error)
+       IF(do_igaim) CALL cp_dbcsr_finalize(deltajp_d(1)%matrix, error=error)
     ENDIF
 
     ! sorts / redistributes the task list
-    CALL distribute_tasks ( rs_descs, ntasks, natom,&
-            maxset, maxpgf, tasks, dist_ab, atom_pair_send, atom_pair_recv,&
-            symmetric=.FALSE., reorder_rs_grid_ranks=.TRUE., &
-            skip_load_balance_distributed=.FALSE., error=error)
+    CALL distribute_tasks ( rs_descs, ntasks, natom, maxset, maxpgf, nimages,&
+         tasks, dist_ab, atom_pair_send, atom_pair_recv,&
+         symmetric=.FALSE., reorder_rs_grid_ranks=.TRUE., &
+         skip_load_balance_distributed=.FALSE., error=error)
 
     ALLOCATE(rs_current(gridlevel_info%ngrid_levels))
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1022,13 +1030,13 @@ CONTAINS
 
     IF (distributed_rs_grids) THEN
         CALL rs_distribute_matrix (rs_descs, deltajp_a, atom_pair_send, atom_pair_recv, &
-             natom, scatter=.TRUE., error=error)
+             natom, nimages, scatter=.TRUE., error=error)
         CALL rs_distribute_matrix (rs_descs, deltajp_b, atom_pair_send, atom_pair_recv, &
-             natom, scatter=.TRUE., error=error)
+             natom, nimages, scatter=.TRUE., error=error)
         CALL rs_distribute_matrix (rs_descs, deltajp_c, atom_pair_send, atom_pair_recv, &
-             natom, scatter=.TRUE., error=error)
+             natom, nimages, scatter=.TRUE., error=error)
         IF(do_igaim) CALL rs_distribute_matrix (rs_descs, deltajp_d, atom_pair_send, atom_pair_recv, &
-             natom, scatter=.TRUE., error=error)
+             natom, nimages, scatter=.TRUE., error=error)
     ENDIF
 
     ithread = 0
@@ -1097,13 +1105,13 @@ CONTAINS
 
           ENDIF
 
-          CALL cp_dbcsr_get_block_p(matrix=deltajp_a,row=brow,col=bcol,&
+          CALL cp_dbcsr_get_block_p(matrix=deltajp_a(1)%matrix,row=brow,col=bcol,&
                block=jp_block_a,found=den_found)
-          CALL cp_dbcsr_get_block_p(matrix=deltajp_b,row=brow,col=bcol,&
+          CALL cp_dbcsr_get_block_p(matrix=deltajp_b(1)%matrix,row=brow,col=bcol,&
                block=jp_block_b,found=den_found)
-          CALL cp_dbcsr_get_block_p(matrix=deltajp_c,row=brow,col=bcol,&
+          CALL cp_dbcsr_get_block_p(matrix=deltajp_c(1)%matrix,row=brow,col=bcol,&
                block=jp_block_c,found=den_found)
-          IF(do_igaim) CALL cp_dbcsr_get_block_p(matrix=deltajp_d,row=brow,col=bcol,&
+          IF(do_igaim) CALL cp_dbcsr_get_block_p(matrix=deltajp_d(1)%matrix,row=brow,col=bcol,&
                block=jp_block_d,found=den_found)
 
           IF (.NOT.ASSOCIATED(jp_block_a)) &
@@ -1278,11 +1286,12 @@ CONTAINS
     !   *** Release work storage ***
 
     IF (distributed_rs_grids) THEN
-       CALL cp_dbcsr_deallocate_matrix ( deltajp_a ,error=error)
-       CALL cp_dbcsr_deallocate_matrix ( deltajp_b ,error=error)
-       CALL cp_dbcsr_deallocate_matrix ( deltajp_c ,error=error)
-       IF(do_igaim) CALL cp_dbcsr_deallocate_matrix ( deltajp_d ,error=error)
+       CALL cp_dbcsr_deallocate_matrix ( deltajp_a(1)%matrix ,error=error)
+       CALL cp_dbcsr_deallocate_matrix ( deltajp_b(1)%matrix ,error=error)
+       CALL cp_dbcsr_deallocate_matrix ( deltajp_c(1)%matrix ,error=error)
+       IF(do_igaim) CALL cp_dbcsr_deallocate_matrix ( deltajp_d(1)%matrix ,error=error)
     END IF
+    DEALLOCATE(deltajp_a,deltajp_b,deltajp_c,deltajp_d)
 
     IF ( nthread > 1 ) THEN
        DEALLOCATE (lgrid%r,STAT=istat)

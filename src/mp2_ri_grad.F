@@ -546,7 +546,7 @@ MODULE mp2_ri_grad
       ! 3-center forces
       CALL timeset(routineN//"_int",handle3)
       CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
-      CALL integrate_v_rspace(rho_r, h=mat_munu,p=matrix_P_munu,&
+      CALL integrate_v_rspace(rho_r,hmat=mat_munu,pmat=matrix_P_munu,&
                               qs_env=qs_env,calculate_forces=.TRUE.,compute_tau=.FALSE.,gapw=.FALSE.,&
                               basis_set_id=use_orb_basis_set, pw_env_external=pw_env_sub,&
                               task_list_external=task_list_sub, error=error_sub)

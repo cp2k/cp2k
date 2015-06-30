@@ -195,8 +195,8 @@ CONTAINS
         vxc_rho(ispin)%pw%cr3d = -vxc_rho(ispin)%pw%cr3d*vxc_rho(ispin)%pw%pw_grid%dvol*1.0_dp
 
         CALL integrate_v_rspace(v_rspace=vxc_rho(ispin), &
-             p=density_matrix(ispin), &
-             h=ks_matrix(ispin), &
+             pmat=density_matrix(ispin), &
+             hmat=ks_matrix(ispin), &
              qs_env=qs_env, &
              calculate_forces=calc_force, &
              gapw=gapw, &

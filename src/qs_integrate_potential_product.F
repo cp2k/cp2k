@@ -23,6 +23,7 @@
 !>      Joost removed incremental build feature
 !>      Joost introduced map consistent
 !>      Rewrote grid integration/collocation routines, [Joost VandeVondele,03.2007]
+!>      JGH [26.06.15] modification to allow for k-points
 !> \author Matthias Krack (03.04.2001)
 ! *****************************************************************************
 MODULE qs_integrate_potential_product
@@ -36,11 +37,12 @@ MODULE qs_integrate_potential_product
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add_block_node, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
-       cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, &
-       cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
-       cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
-       cp_dbcsr_work_create, dbcsr_distribution_has_threads
+       cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
+       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
+       cp_dbcsr_get_data_size, cp_dbcsr_get_matrix_type, &
+       cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_p_type, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_type, cp_dbcsr_work_create, &
+       dbcsr_distribution_has_threads
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
@@ -100,8 +102,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief computes matrix elements corresponding to a given potential
 !> \param v_rspace ...
-!> \param p ...
-!> \param h ...
+!> \param hmat ...
+!> \param hmat_kp ...
+!> \param pmat ...
+!> \param pmat_kp ...
 !> \param qs_env ...
 !> \param calculate_forces ...
 !> \param force_adm ... whether force of in aux. dens. matrix is calculated
@@ -116,6 +120,8 @@ CONTAINS
 !>      IAB (29-Apr-2010): Added OpenMP parallelisation to task loop
 !>                         (c) The Numerical Algorithms Group (NAG) Ltd, 2010 on behalf of the HECToR project
 !>      Some refactoring, get priorities for options correct (JGH, 04.2014)
+!>      Added options to allow for k-points
+!>      For a smooth transition we allow for old and new (vector) matrices (hmat, pmat) (JGH, 06.2015)
 !> \note
 !>     integrates a given potential (or other object on a real
 !>     space grid) = v_rspace using a multi grid technique (mgrid_*)
@@ -127,13 +133,19 @@ CONTAINS
 !>     derivatives of these matrix elements with respect to the ionic
 !>     coordinates can be computed as well
 ! *****************************************************************************
-  SUBROUTINE integrate_v_rspace(v_rspace, p, h, qs_env, calculate_forces, force_adm, ispin, &
+  SUBROUTINE integrate_v_rspace(v_rspace, hmat, hmat_kp, pmat, pmat_kp, &
+       qs_env, calculate_forces, force_adm, ispin, &
        compute_tau, gapw, basis_set_id, pw_env_external, task_list_external, error)
 
     TYPE(pw_p_type)                          :: v_rspace
+    TYPE(cp_dbcsr_p_type), INTENT(INOUT), &
+      OPTIONAL                               :: hmat
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: hmat_kp
     TYPE(cp_dbcsr_p_type), INTENT(IN), &
-      OPTIONAL                               :: p
-    TYPE(cp_dbcsr_p_type), INTENT(INOUT)     :: h
+      OPTIONAL                               :: pmat
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: pmat_kp
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: force_adm
@@ -148,11 +160,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, igrid_level, &
-      ikind, ikind_old, ilevel, ipair, ipgf, ipgf_new, iset, iset_new, &
+      ikind, ikind_old, ilevel, img, ipair, ipgf, ipgf_new, iset, iset_new, &
       iset_old, itask, ithread, jatom, jkind, jkind_old, jpgf, jpgf_new, &
       jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, &
-      my_basis_set_id, na1, na2, natom, nb1, nb2, ncoa, ncob, nkind, nseta, &
-      nsetb, nthread, offs_dv, sgfa, sgfb, stat
+      my_basis_set_id, na1, na2, natom, nb1, nb2, ncoa, ncob, nimages, nkind, &
+      nseta, nsetb, nthread, offs_dv, sgfa, sgfb, stat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -163,10 +175,10 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, failure, &
-      found, h_duplicated, map_consistent, my_compute_tau, my_force_adm, &
-      my_gapw, new_set_pair_coming, p_duplicated, pab_required, scatter, &
-      use_subpatch, use_virial
+    LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, do_kp, &
+      failure, found, h_duplicated, map_consistent, my_compute_tau, &
+      my_force_adm, my_gapw, new_set_pair_coming, p_duplicated, pab_required, &
+      scatter, use_subpatch, use_virial
     REAL(KIND=dp)                            :: admm_scal_fac, dab, &
                                                 eps_gvg_rspace, rab2, zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
@@ -186,8 +198,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: ddv
-    TYPE(cp_dbcsr_type), POINTER             :: deltap, dh
+      POINTER                                :: deltap, dhmat, htemp
+    TYPE(cp_dbcsr_type), POINTER             :: href
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
@@ -210,6 +222,16 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+    ! we test here if the provided operator matrices are consistent
+    CPPrecondition(PRESENT(hmat) .OR. PRESENT(hmat_kp),cp_failure_level,routineP,error,failure)
+    do_kp = .FALSE.
+    IF(PRESENT(hmat_kp)) do_kp = .TRUE.
+    IF(PRESENT(pmat)) THEN
+       CPPrecondition(PRESENT(hmat),cp_failure_level,routineP,error,failure)
+    ELSE IF(PRESENT(pmat_kp)) THEN
+       CPPrecondition(PRESENT(hmat_kp),cp_failure_level,routineP,error,failure)
+    END IF
+
     failure=.FALSE.
     NULLIFY(pw_env, rs_descs, tasks, dist_ab, admm_env)
 
@@ -226,15 +248,14 @@ CONTAINS
     my_force_adm = .FALSE. 
     IF (PRESENT(force_adm)) my_force_adm = force_adm
 
-
     ! this sets the basis set to be used. GAPW(==soft basis) overwrites basis_set_id
     ! default is "use_orb_basis_set"
     my_gapw = .FALSE.
     IF (PRESENT(gapw)) my_gapw = gapw
     IF (PRESENT(basis_set_id)) THEN
-      my_basis_set_id = basis_set_id
+       my_basis_set_id = basis_set_id
     ELSE
-     my_basis_set_id = use_orb_basis_set
+       my_basis_set_id = use_orb_basis_set
     END IF
 
     ! get the task lists
@@ -296,7 +317,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_v, error=error)
     DO i=1,SIZE(rs_v)
-      CALL rs_grid_retain(rs_v(i)%rs_grid,error=error)
+       CALL rs_grid_retain(rs_v(i)%rs_grid,error=error)
     END DO
 
     ! assign from pw_env
@@ -306,24 +327,30 @@ CONTAINS
     ! transform the potential on the rs_multigrids
     CALL potential_pw2rs(rs_v,v_rspace,pw_env,error)
 
+    nimages = dft_control%nimages
+    IF(nimages > 1) THEN
+       CPPrecondition(do_kp,cp_failure_level,routineP,error,failure)
+    END IF
     nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     IF (calculate_forces) THEN
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
     END IF
 
     map_consistent=dft_control%qs_control%map_consistent
     IF (map_consistent) THEN
-       eps_gvg_rspace = dft_control%qs_control%eps_rho_rspace ! needs to be consistent with rho_rspace
+       ! needs to be consistent with rho_rspace
+       eps_gvg_rspace = dft_control%qs_control%eps_rho_rspace
     ELSE
        eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
     ENDIF
 
-    pab_required = PRESENT(p) .AND. (calculate_forces .OR. .NOT. map_consistent)
+    pab_required = (PRESENT(pmat).OR.PRESENT(pmat_kp)) &
+                    .AND. (calculate_forces .OR. .NOT. map_consistent)
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
          maxco=maxco,&
@@ -337,31 +364,61 @@ CONTAINS
        ENDIF
     ENDDO
 
+    ! initialize the working hmat structures
     h_duplicated = .FALSE.
-    dh => h%matrix
+    ALLOCATE(dhmat(nimages),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF(do_kp) THEN
+       DO img=1,nimages
+          dhmat(img)%matrix => hmat_kp(img)%matrix
+       END DO
+    ELSE
+       dhmat(1)%matrix => hmat%matrix
+    END IF
     IF (distributed_grids) THEN
-       NULLIFY ( dh )
        h_duplicated = .TRUE.
-       ALLOCATE(dh)
-       CALL cp_dbcsr_init(dh, error=error)
-       CALL cp_dbcsr_create(dh, 'LocalH', &
-            cp_dbcsr_distribution (h%matrix),&
-            cp_dbcsr_get_matrix_type (h%matrix), cp_dbcsr_row_block_sizes(h%matrix),&
-            cp_dbcsr_col_block_sizes(h%matrix), cp_dbcsr_get_num_blocks(h%matrix),&
-            cp_dbcsr_get_data_size(h%matrix),&
-            error=error)
-
+       href => dhmat(1)%matrix
+       DO img=1,nimages
+          NULLIFY(dhmat(img)%matrix)
+          ALLOCATE(dhmat(img)%matrix,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL cp_dbcsr_init(dhmat(img)%matrix, error=error)
+          CALL cp_dbcsr_create(dhmat(img)%matrix, 'LocalH', &
+               cp_dbcsr_distribution (href),&
+               cp_dbcsr_get_matrix_type (href), cp_dbcsr_row_block_sizes(href),&
+               cp_dbcsr_col_block_sizes(href), cp_dbcsr_get_num_blocks(href),&
+               cp_dbcsr_get_data_size(href),&
+               error=error)
+       END DO
     END IF
 
     p_duplicated = .FALSE.
     IF ( pab_required ) THEN
-       deltap => p%matrix
+       ! initialize the working pmat structures
+       ALLOCATE(deltap(nimages),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF(do_kp) THEN
+          DO img=1,nimages
+             deltap(img)%matrix => pmat_kp(img)%matrix
+          END DO
+       ELSE
+          deltap(1)%matrix => pmat%matrix
+       END IF
        IF (distributed_grids) THEN
           p_duplicated = .TRUE.
-          NULLIFY ( deltap )
-          ALLOCATE(deltap)
-          CALL cp_dbcsr_init(deltap, error=error)
-          CALL cp_dbcsr_copy(deltap,p%matrix,name="LocalP",error=error)
+          DO img=1,nimages
+             NULLIFY(deltap(img)%matrix)
+             ALLOCATE(deltap(img)%matrix,STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             CALL cp_dbcsr_init(deltap(img)%matrix,error=error)
+          END DO
+          IF(do_kp) THEN
+             DO img=1,nimages
+                CALL cp_dbcsr_copy(deltap(img)%matrix,pmat_kp(img)%matrix,name="LocalP",error=error)
+             END DO
+          ELSE
+             CALL cp_dbcsr_copy(deltap(1)%matrix,pmat%matrix,name="LocalP",error=error)
+          END IF
        END IF
     END IF
 
@@ -375,10 +432,7 @@ CONTAINS
     IF (pab_required) THEN
        CALL reallocate(pabt,1,maxco,1,maxco,0,nthread)
     ELSE
-       IF (calculate_forces) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Need p for forces")
-       END IF
+       CPPrecondition(.NOT.calculate_forces,cp_failure_level,routineP,error,failure)
     END IF
 
     NULLIFY(hdabt,hadbt,hdab,hadb)
@@ -410,21 +464,25 @@ CONTAINS
     END DO
 
     IF (distributed_grids .AND. pab_required) THEN
-        CALL rs_distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, natom, scatter=.TRUE., error=error)
+        CALL rs_distribute_matrix (rs_descs, deltap, atom_pair_send, atom_pair_recv, &
+                                   natom, nimages, scatter=.TRUE., error=error)
     ENDIF
 
-    IF (debug_this_module) &
-      ALLOCATE(block_touched(natom,natom))
+    IF (debug_this_module) THEN
+       ALLOCATE(block_touched(natom,natom),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
 !$omp parallel default(none), &
 !$omp shared(workt,habt,hdabt,hadbt,pabt,tasks,particle_set,natom,maxset), &
-!$omp shared(maxpgf,my_basis_set_id,my_gapw,dh,ddv,deltap,use_virial,admm_scal_fac), &
+!$omp shared(maxpgf,my_basis_set_id,my_gapw,dhmat,deltap,use_virial,admm_scal_fac), &
 !$omp shared(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
 !$omp shared(map_consistent,eps_gvg_rspace,force,virial,cell,atom_of_kind,dist_ab), &
 !$omp shared(gridlevel_info,task_list,failure,block_touched,nthread,qs_kind_set), &
+!$omp shared(nimages,do_kp), &
 !$omp private(ithread,work,hab,hdab,hadb,pab,iset_old,jset_old), &
 !$omp private(ikind_old,jkind_old,iatom,jatom,iset,jset,ikind,jkind,ilevel,ipgf,jpgf), &
-!$omp private(brow,bcol,orb_basis_set,first_sgfa,la_max,la_min,npgfa,nseta,nsgfa), &
+!$omp private(img,brow,bcol,orb_basis_set,first_sgfa,la_max,la_min,npgfa,nseta,nsgfa), &
 !$omp private(rpgfa,set_radius_a,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
 !$omp private(nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,found,error,atom_a,atom_b), &
 !$omp private(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block), &
@@ -451,10 +509,12 @@ CONTAINS
     ! by a single thread for each grid level
     loop_gridlevels: DO igrid_level = 1, gridlevel_info%ngrid_levels
 
-    CALL cp_dbcsr_work_create(dh,work_mutable=.TRUE.,n=nthread,error=error)
-!$  CALL cp_assert (dbcsr_distribution_has_threads(cp_dbcsr_distribution(dh)), cp_fatal_level,&
-!$       cp_internal_error, routineN, "No thread distribution defined.",&
+    DO img=1,nimages
+       CALL cp_dbcsr_work_create(dhmat(img)%matrix,work_mutable=.TRUE.,n=nthread,error=error)
+!$  CALL cp_assert (dbcsr_distribution_has_threads(cp_dbcsr_distribution(dhmat(img)%matrix)),&
+!$       cp_fatal_level,cp_internal_error,routineN,"No thread distribution defined.",&
 !$       error=error)
+    END DO
 !$omp barrier
 
     IF (debug_this_module) THEN
@@ -469,6 +529,8 @@ CONTAINS
     loop_tasks: DO itask = task_list%taskstart(ipair,igrid_level), task_list%taskstop(ipair,igrid_level)
 
        CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+       img = INT(tasks(7,itask))
+       CPPrecondition((img==1 .OR. do_kp),cp_failure_level,routineP,error,failure)
 
        ! At the start of a block of tasks, get atom data (and kind data, if needed)
        IF (itask .EQ. task_list%taskstart(ipair,igrid_level) ) THEN
@@ -549,19 +611,15 @@ CONTAINS
           END IF
 
           NULLIFY(h_block)
-          CALL cp_dbcsr_get_block_p(dh,brow,bcol,h_block,found)
+          CALL cp_dbcsr_get_block_p(dhmat(img)%matrix,brow,bcol,h_block,found)
           IF (.NOT.ASSOCIATED(h_block)) THEN
-               CALL cp_dbcsr_add_block_node ( dh, brow, bcol, h_block ,error=error)
+             CALL cp_dbcsr_add_block_node ( dhmat(img)%matrix, brow, bcol, h_block ,error=error)
           END IF
 
           IF (pab_required) THEN
-             CALL cp_dbcsr_get_block_p(matrix=deltap,&
+             CALL cp_dbcsr_get_block_p(matrix=deltap(img)%matrix,&
                   row=brow,col=bcol,BLOCK=p_block,found=found)
-
-             IF (.NOT.ASSOCIATED(p_block)) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "p_block not associated in deltap")
-             END IF
+             CPPostcondition(found,cp_failure_level,routineP,error,failure)
           END IF
 
           IF (calculate_forces) THEN
@@ -770,41 +828,67 @@ CONTAINS
     END DO loop_pairs
 !$omp end do
 
-    CALL cp_dbcsr_finalize(dh, error=error)
+    DO img=1,nimages
+       CALL cp_dbcsr_finalize(dhmat(img)%matrix, error=error)
+    END DO
 
     END DO loop_gridlevels
 
 !$omp end parallel
 
-    IF (debug_this_module) &
-      DEALLOCATE(block_touched)
+    IF (debug_this_module) THEN
+       DEALLOCATE(block_touched,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
 
     IF ( h_duplicated ) THEN
        ! Reconstruct H matrix if using distributed RS grids
        ! note send and recv direction reversed WRT collocate
        scatter = .FALSE.
-       CALL rs_distribute_matrix (rs_descs, dh, atom_pair_recv, atom_pair_send,&
-            natom, scatter, error, h%matrix)
-       CALL cp_dbcsr_deallocate_matrix ( dh ,error=error)
+       IF(do_kp) THEN
+          CALL rs_distribute_matrix (rs_descs, dhmat, atom_pair_recv, atom_pair_send,&
+               natom, nimages, scatter, hmats=hmat_kp, error=error)
+       ELSE
+          ALLOCATE(htemp(1),STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          htemp(1)%matrix => hmat%matrix
 
+          CALL rs_distribute_matrix (rs_descs, dhmat, atom_pair_recv, atom_pair_send,&
+               natom, nimages, scatter, hmats=htemp, error=error)
+
+          NULLIFY(htemp(1)%matrix)
+          DEALLOCATE(htemp,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
+       CALL cp_dbcsr_deallocate_matrix_set ( dhmat ,error=error)
     ELSE
-       NULLIFY ( dh, ddv )
+       DO img=1,nimages
+          NULLIFY ( dhmat(img)%matrix )
+       END DO
+       DEALLOCATE(dhmat,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
-    IF ( p_duplicated ) THEN
-       CALL cp_dbcsr_deallocate_matrix ( deltap ,error=error)
-    ELSE
-       NULLIFY ( deltap )
+    IF ( pab_required ) THEN
+       IF ( p_duplicated ) THEN
+          CALL cp_dbcsr_deallocate_matrix_set ( deltap ,error=error)
+       ELSE
+          DO img=1,nimages
+             NULLIFY ( deltap(img)%matrix )
+          END DO
+          DEALLOCATE(deltap,STAT=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
     END IF
 
     !   *** Release work storage ***
 
     DEALLOCATE (habt,workt,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF ( pab_required ) THEN
        DEALLOCATE (pabt,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     IF (ASSOCIATED(rs_v)) THEN
@@ -815,7 +899,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL timestop(handle)
