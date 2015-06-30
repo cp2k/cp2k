@@ -768,6 +768,8 @@ CONTAINS
                                        log_filename=.FALSE.,error=error)
        
        CALL cp_pw_to_cube(rs%pw,print_unit,"EMD current",particles=particles,stride=stride,error=error)
+       
+       CALL cp_print_key_finished_output(print_unit,logger,dft_section,"REAL_TIME_PROPAGATION%PRINT%CURRENT",error=error)
     
        CALL pw_release(rs%pw,error=error)
        CALL pw_release(gs%pw,error=error)
