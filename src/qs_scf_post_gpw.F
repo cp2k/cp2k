@@ -2244,10 +2244,10 @@ CONTAINS
     INTEGER :: after, handle, i, iat, id, ikind, iso, ispin, istat, iw, j, l, &
       n_cstr, n_tiles, nd(3), ngto, niso, nkind, np, nr, output_unit, &
       print_level, tile_npts, unit_nr
-    LOGICAL :: append_cube, do_dielectric_cube, do_dirichlet_bc_cube, &
-      failure, has_dirichlet_bc, has_implicit_ps, print_it, &
-      print_total_density, rho_r_valid, smooth, tile_cubes, write_ks, &
-      write_xc, xrd_interface
+    LOGICAL :: append_cube, do_cstr_charge_cube, do_dielectric_cube, &
+      do_dirichlet_bc_cube, failure, has_dirichlet_bc, has_implicit_ps, &
+      print_it, print_total_density, rho_r_valid, smooth, tile_cubes, &
+      write_ks, write_xc, xrd_interface
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: x_glbl, x_locl, y_glbl, &
                                                 y_locl, z_glbl, z_locl
     REAL(KIND=dp)                            :: q_max, rho_hard, rho_soft, &
@@ -2811,6 +2811,33 @@ CONTAINS
           CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIELECTRIC CONSTANT", particles=particles,&
                stride=section_get_ivals(dft_section, "PRINT%DIELECTRIC_CUBE%STRIDE", error=error), error=error)
           CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIELECTRIC_CUBE", error=error)
+
+          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw, error=error)
+       ENDIF
+
+       ! Write Dirichlet constraint charges into a cube file
+       do_cstr_charge_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                                  "DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE",error=error),cp_p_file)
+       has_implicit_ps = .FALSE.
+       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, error=error)
+       IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_implicit_ps = .TRUE.
+
+       IF (has_implicit_ps .AND. do_cstr_charge_cube) THEN
+          append_cube = section_get_lval(input,"DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE%APPEND",error=error)
+          my_pos_cube="REWIND"
+          IF(append_cube) THEN
+             my_pos_cube="APPEND"
+          END IF
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE",&
+               extension=".cube", middle_name="dirichlet_cstr_charge", file_position=my_pos_cube, error=error)
+          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+
+          CALL pw_copy(poisson_env%implicit_env%cstr_charge, aux_r%pw, error=error)
+
+          CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles,&
+               stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_CSTR_CHARGE_CUBE%STRIDE", error=error), error=error)
+          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE", error=error)
 
           CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw, error=error)
        ENDIF

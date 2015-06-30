@@ -150,6 +150,10 @@ CONTAINS
        CALL pw_pool_create_pw(pw_pool, ps_implicit_env%v_eps, use_data=REALDATA3D, in_space=REALSPACE, error=error)
        CALL pw_zero(ps_implicit_env%v_eps, error)
 
+       NULLIFY(ps_implicit_env%cstr_charge)
+       CALL pw_pool_create_pw(pw_pool, ps_implicit_env%cstr_charge, use_data=REALDATA3D, in_space=REALSPACE, error=error)
+       CALL pw_zero(ps_implicit_env%cstr_charge, error)
+
        ps_implicit_env%ehartree = 0.0_dp
        ps_implicit_env%times_called = 0
 
@@ -715,6 +719,7 @@ CONTAINS
        ps_implicit_env%initial_lambda = lambda_new
     END IF
        
+    ps_implicit_env%cstr_charge%cr3d = Btxlambda_new3D
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)
@@ -993,6 +998,7 @@ CONTAINS
        ps_implicit_env%initial_lambda = lambda_new
     END IF
 
+    ps_implicit_env%cstr_charge%cr3d = Btxlambda_new3D
     IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
     CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps, error)

@@ -48,6 +48,7 @@ MODULE ps_implicit_types
      TYPE (dct_type)                   :: dct_env
      TYPE(pw_type), POINTER            :: initial_guess  
      TYPE(pw_type), POINTER            :: v_eps 
+     TYPE(pw_type), POINTER            :: cstr_charge
      REAL(dp), DIMENSION(:), POINTER   :: initial_lambda => NULL()
      REAL(dp)                          :: ehartree
      INTEGER                           :: times_called 
@@ -102,11 +103,14 @@ CONTAINS
                                     accept_non_compatible=.TRUE., error=error)
           CALL pw_pool_give_back_pw(pw_pool, implicit_env%v_eps, &
                                     accept_non_compatible=.TRUE., error=error)
+          CALL pw_pool_give_back_pw(pw_pool, implicit_env%cstr_charge, &
+                                    accept_non_compatible=.TRUE., error=error)
           CALL dirichlet_boundary_region_release(implicit_env%gates, &
                                                  pw_pool=pw_pool, error=error)
        ELSE
           CALL pw_release(implicit_env%initial_guess, error=error)
           CALL pw_release(implicit_env%v_eps, error=error)
+          CALL pw_release(implicit_env%cstr_charge, error=error)
           CALL dirichlet_boundary_region_release(implicit_env%gates, error=error)
        END IF
 
