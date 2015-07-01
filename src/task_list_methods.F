@@ -305,7 +305,7 @@ CONTAINS
        CALL task_list_inner_loop(task_list%tasks,task_list%dist_ab,task_list%ntasks,curr_tasks,&
                 rs_descs,dft_control,cube_info,gridlevel_info,cindex,&
                 iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
-                la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb,nimages,error)
+                la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb,error)
 
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
@@ -454,7 +454,6 @@ CONTAINS
 !> \param natoms ...
 !> \param nseta ...
 !> \param nsetb ...
-!> \param nimages ...
 !> \param error ...
 !> \par History
 !>      Joost VandeVondele: 10.2008 refactored
@@ -462,7 +461,7 @@ CONTAINS
   SUBROUTINE task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs,dft_control,&
              cube_info,gridlevel_info,cindex,&
              iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
-             la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb,nimages,error)
+             la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natoms,nseta,nsetb,error)
 
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
@@ -482,7 +481,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb
     INTEGER                                  :: maxpgf, maxset, natoms, &
-                                                nseta, nsetb, nimages
+                                                nseta, nsetb
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'task_list_inner_loop', &
