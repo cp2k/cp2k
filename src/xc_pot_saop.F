@@ -537,7 +537,7 @@ CONTAINS
 
     INTEGER                                  :: ia, iat, iatom, ikind, ir, &
                                                 ispin, mepos, na, natom, nr, &
-                                                nspins, num_pe, orb, stat
+                                                ns, nspins, num_pe, orb, stat
     INTEGER, DIMENSION(2)                    :: bo, homo, ncol, nrow
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -562,6 +562,8 @@ CONTAINS
       POINTER                                :: matrix_ks, &
                                                 orbital_density_matrix, &
                                                 rho_struct_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: ksmat, psmat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_coeff, single_mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1078,7 +1080,13 @@ CONTAINS
 
     END DO
 
-    CALL update_ks_atom(qs_env, matrix_ks,rho_struct_ao,.FALSE.,error=error)
+    ! remap pointer 
+    ns = SIZE(matrix_ks)
+    ksmat(1:ns,1:1) => matrix_ks(1:ns)
+    ns = SIZE(rho_struct_ao)
+    psmat(1:ns,1:1) => rho_struct_ao(1:ns)
+
+    CALL update_ks_atom(qs_env,ksmat,psmat,.FALSE.,error=error)
 
     !---------!
     ! Cleanup !

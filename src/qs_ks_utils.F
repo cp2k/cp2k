@@ -862,13 +862,13 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: ispin, n_electrons, &
+    INTEGER                                  :: img, ispin, n_electrons, &
                                                 output_unit
     REAL(dp)                                 :: tot1_h, tot1_s, tot_rho_r, &
                                                 trace, trace_tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r_arr
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_s, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -886,7 +886,7 @@ CONTAINS
                     qs_kind_set=qs_kind_set, &
                     cell=cell,qs_charges=qs_charges,&
                     input=input,&
-                    matrix_s=matrix_s,&
+                    matrix_s_kp=matrix_s,&
                     dft_control=dft_control,&
                     error=error)
 
@@ -896,15 +896,17 @@ CONTAINS
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
               extension=".scfLog",error=error)
 
-    CALL qs_rho_get(rho, tot_rho_r=tot_rho_r_arr, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, tot_rho_r=tot_rho_r_arr, rho_ao_kp=rho_ao, error=error)
     n_electrons = n_electrons - dft_control%charge
     tot_rho_r = accurate_sum(tot_rho_r_arr)
 
     trace=0
     IF(BTEST(cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",error=error),cp_p_file)) THEN
       DO ispin=1,dft_control%nspins
-         CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace_tmp,error=error)
-         trace=trace+trace_tmp
+         DO img=1,dft_control%nimages
+            CALL cp_dbcsr_trace(rho_ao(ispin,img)%matrix,matrix_s(1,img)%matrix,trace_tmp,error=error)
+            trace=trace+trace_tmp
+         END DO
       END DO
     ENDIF
 
@@ -1193,10 +1195,10 @@ CONTAINS
                                   v_sccs_rspace,becke,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: my_rho
     TYPE(pw_p_type), POINTER                 :: vppl_rspace
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
@@ -1218,9 +1220,11 @@ CONTAINS
     LOGICAL                                  :: do_ppl, failure, gapw, gapw_xc
     REAL(dp)                                 :: dvol
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks_aux_fit, &
+      POINTER                                :: ksmat, matrix_ks_aux_fit, &
                                                 matrix_ks_aux_fit_dft, &
                                                 rho_ao, rho_ao_aux
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: rho_ao_kp
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: v_rspace
@@ -1233,8 +1237,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY (auxbas_pw_pool, dft_control, pw_env, matrix_ks_aux_fit, &
-         v_rspace%pw, rho_aux_fit, vee, rho_ao, rho_ao_aux, &
-         matrix_ks_aux_fit_dft)
+         v_rspace%pw, rho_aux_fit, vee, rho_ao, rho_ao_kp, rho_ao_aux, &
+         ksmat, matrix_ks_aux_fit_dft)
 
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
@@ -1246,7 +1250,7 @@ CONTAINS
                     vee=vee,&
                     error=error)
 
-    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp, error=error)
     CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux, error=error)
     CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
     gapw=dft_control%qs_control%gapw
@@ -1267,8 +1271,10 @@ CONTAINS
                  v_rspace_new(ispin)%pw%cr3d
 
              ! add the xc  part due to v_rspace soft
+             rho_ao => rho_ao_kp(ispin,:)
+             ksmat => ks_matrix(ispin,:)
              CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                  pmat=rho_ao(ispin),hmat=ks_matrix(ispin),&
+                  pmat_kp=rho_ao,hmat_kp=ksmat,&
                   qs_env=qs_env, &
                   calculate_forces=calculate_forces,&
                   gapw=gapw_xc,error=error)
@@ -1345,8 +1351,10 @@ CONTAINS
           CASE ( sic_eo )
              ! NOTHING TO BE DONE
           END SELECT
+          rho_ao => my_rho(ispin,:)
+          ksmat => ks_matrix(ispin,:)
           CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-               pmat=my_rho(ispin),hmat=ks_matrix(ispin),&
+               pmat_kp=rho_ao,hmat_kp=ksmat,&
                qs_env=qs_env, &
                calculate_forces=calculate_forces,&
                gapw=gapw, error=error)
@@ -1379,9 +1387,11 @@ CONTAINS
           IF (dft_control%do_sccs) THEN
              v_rspace%pw%cr3d = v_rspace%pw%cr3d + v_sccs_rspace%pw%cr3d
           END IF
+          rho_ao => my_rho(ispin,:)
+          ksmat => ks_matrix(ispin,:)
           CALL integrate_v_rspace(v_rspace=v_rspace,&
-                                  pmat=my_rho(ispin),&
-                                  hmat=ks_matrix(ispin),&
+                                  pmat_kp=rho_ao,&
+                                  hmat_kp=ksmat,&
                                   qs_env=qs_env,&
                                   calculate_forces=calculate_forces,&
                                   gapw=gapw,&
@@ -1391,18 +1401,20 @@ CONTAINS
 
     IF (ASSOCIATED(v_tau_rspace)) THEN
        DO ispin=1,nspins
-           v_tau_rspace(ispin)%pw%cr3d =&
+          v_tau_rspace(ispin)%pw%cr3d =&
                 v_tau_rspace(ispin)%pw%pw_grid%dvol*&
                 v_tau_rspace(ispin)%pw%cr3d
 
-           CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
-                pmat=rho_ao(ispin),hmat=ks_matrix(ispin),&
-                qs_env=qs_env,&
-                calculate_forces=calculate_forces,compute_tau=.TRUE., &
-                gapw=gapw,&
-                error=error)
-           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw,&
-                error=error)
+          rho_ao => rho_ao_kp(ispin,:)
+          ksmat => ks_matrix(ispin,:)
+          CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
+               pmat_kp=rho_ao,hmat_kp=ksmat,&
+               qs_env=qs_env,&
+               calculate_forces=calculate_forces,compute_tau=.TRUE., &
+               gapw=gapw,&
+               error=error)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw,&
+               error=error)
        END DO
        DEALLOCATE(v_tau_rspace, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

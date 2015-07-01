@@ -69,7 +69,7 @@ CONTAINS
               hf_energy, just_energy,calculate_forces,use_virial,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
@@ -84,7 +84,7 @@ CONTAINS
 
     INTEGER                                  :: adiabatic_functional, &
                                                 adiabatic_model, handle, &
-                                                n_rep_hf
+                                                n_rep_hf, nimages
     LOGICAL                                  :: do_adiabatic_rescaling, &
                                                 do_hfx, failure, gapw, gapw_xc
     REAL(dp) :: adiabatic_lambda, adiabatic_omega, scale_dDFA, scale_ddW0, &
@@ -111,6 +111,9 @@ CONTAINS
                     rho_xc=rho_xc,&
                     ks_env=ks_env,&
                     error=error)
+
+    nimages = dft_control%nimages
+    CPPrecondition(nimages==1,cp_failure_level,routineP,error,failure)
 
     CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 

@@ -902,8 +902,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, ncol, nspins, &
-                                                stat
+    INTEGER                                  :: handle, ispin, ncol, ns, &
+                                                nspins, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, gapw, gapw_xc, &
                                                 lr_triplet, lsd
@@ -911,6 +911,8 @@ CONTAINS
                                                 energy_hartree_1c, fac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho1_ao, rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: ksmat, psmat
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
@@ -1248,7 +1250,13 @@ CONTAINS
 
 !         ***  Add single atom contributions to the KS matrix ***
 
-          CALL update_ks_atom(qs_env,p_env%kpp1,rho_ao,.FALSE.,.TRUE.,p_env,error)
+          ! remap pointer 
+          ns = SIZE(p_env%kpp1)
+          ksmat(1:ns,1:1) => p_env%kpp1(1:ns)
+          ns = SIZE(rho_ao)
+          psmat(1:ns,1:1) => rho_ao(1:ns)
+
+          CALL update_ks_atom(qs_env,ksmat,psmat,.FALSE.,.TRUE.,p_env,error)
 
        END IF
 

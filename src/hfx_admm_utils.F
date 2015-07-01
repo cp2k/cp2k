@@ -221,7 +221,7 @@ CONTAINS
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_ks
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), POINTER            :: energy
@@ -233,7 +233,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, irep, ispin, &
-                                                mspin, n_rep_hf, nspins, stat
+                                                mspin, n_rep_hf, nimages, &
+                                                nspins, stat
     LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, failure, &
       hfx_treat_lsd_in_core, s_mstruct_changed, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
@@ -276,6 +277,8 @@ CONTAINS
          error=error)
 
     nspins=dft_control%nspins
+    nimages=dft_control%nimages
+    CPPrecondition(nimages==1,cp_failure_level,routineP,error,failure)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -296,7 +299,7 @@ CONTAINS
       END DO
     END IF
     DO ispin = 1,nspins
-       CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(matrix_ks(ispin,1)%matrix,0.0_dp,error=error)
     END DO
 
     CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
@@ -397,7 +400,7 @@ CONTAINS
 
     ! *** Add Core-Hamiltonian-Matrix ***
     DO ispin=1,nspins
-         CALL cp_dbcsr_add(matrix_ks(ispin)%matrix,matrix_h(1)%matrix,&
+         CALL cp_dbcsr_add(matrix_ks(ispin,1)%matrix,matrix_h(1)%matrix,&
               1.0_dp,1.0_dp,error=error)
     END DO
     IF (use_virial .AND. calculate_forces) THEN

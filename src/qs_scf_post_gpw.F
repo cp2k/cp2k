@@ -7,6 +7,7 @@
 !> \brief Does all kind of post scf calculations for GPW/GAPW
 !> \par History
 !>      Started as a copy from the relevant part of qs_scf
+!>      Start to adapt for k-points [07.2015, JGH]
 !> \author Joost VandeVondele (10.2003)
 ! *****************************************************************************
 MODULE qs_scf_post_gpw
@@ -188,6 +189,8 @@ MODULE qs_scf_post_gpw
             write_available_results,&
             write_mo_free_results
 
+! *****************************************************************************
+
 CONTAINS
 
 ! *****************************************************************************
@@ -284,7 +287,6 @@ CONTAINS
     p_loc = .FALSE.
     p_loc_homo = .FALSE.
     p_loc_lumo= .FALSE.
-
 
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -1577,8 +1579,6 @@ CONTAINS
 
   END SUBROUTINE qs_scf_post_et
 
-
-
 ! *****************************************************************************
 !> \brief compute the electron localization function 
 !>
@@ -1589,7 +1589,6 @@ CONTAINS
 !> \par History
 !>      2012-07 Created [MI]
 ! *****************************************************************************
-
   SUBROUTINE qs_scf_post_elf(input, logger, qs_env, error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1692,7 +1691,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE qs_scf_post_elf
-
 
 ! *****************************************************************************
 !> \brief ...
@@ -2005,7 +2003,6 @@ CONTAINS
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-
   SUBROUTINE write_available_results(qs_env,scf_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env

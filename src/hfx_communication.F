@@ -342,7 +342,7 @@ MODULE hfx_communication
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: ks_matrix
     INTEGER, INTENT(IN)                      :: irep
     REAL(dp), INTENT(IN)                     :: scaling_factor
@@ -353,7 +353,7 @@ MODULE hfx_communication
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, ikind, istat, natom, &
-                                                nspins, stat
+                                                nimages, nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: full_ks
@@ -379,6 +379,9 @@ MODULE hfx_communication
                     error=error)
 
     nspins = dft_control%nspins
+    nimages = dft_control%nimages
+    CPPrecondition(nimages==1,cp_failure_level,routineP,error,failure)
+
     natom = SIZE(particle_set,1)
     ALLOCATE(kind_of(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -397,7 +400,7 @@ MODULE hfx_communication
     IF(scaling_factor /= 1.0_dp ) THEN
        full_ks = full_ks * scaling_factor
     END IF
-    CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1)%matrix, actual_x_data%number_of_p_entries, &
+    CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1,1)%matrix, actual_x_data%number_of_p_entries, &
                               actual_x_data%block_offset, natom, kind_of, basis_parameter, &
                               off_diag_fac=0.5_dp,error=error)
     DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
@@ -408,7 +411,7 @@ MODULE hfx_communication
       IF(scaling_factor /= 1.0_dp ) THEN
          full_ks = full_ks * scaling_factor
       END IF
-      CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(2)%matrix, actual_x_data%number_of_p_entries, &
+      CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(2,1)%matrix, actual_x_data%number_of_p_entries, &
                               actual_x_data%block_offset, natom, kind_of, basis_parameter, &
                               off_diag_fac=0.5_dp,error=error)
 

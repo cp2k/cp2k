@@ -20,9 +20,9 @@ MODULE qs_ks_atom
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
                                              cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             int_size
+  USE kinds,                           ONLY: dp
+  USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                             kpoint_type
   USE message_passing,                 ONLY: mp_bcast
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -46,7 +46,6 @@ MODULE qs_ks_atom
                                              alist_pre_align_blk,&
                                              alist_type,&
                                              get_alist
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -72,8 +71,8 @@ CONTAINS
 !>      To this end special lists are used
 !> \param qs_env qs enviroment, for the lists, the contraction coefficients and the
 !>               pre calculated integrals of the potential with the atomic orbitals
-!> \param ks KS matrix, sparse matrix
-!> \param p density matrix, sparse matrix, needed only for the forces
+!> \param ksmat KS matrix, sparse matrix
+!> \param pmat density matrix, sparse matrix, needed only for the forces
 !> \param forces switch for the calculation of the forces on atoms
 !> \param tddft switch for TDDFT linear response
 !> \param p_env perturbation theory environment
@@ -83,11 +82,11 @@ CONTAINS
 !>      the loop over the spins is done internally [03-05,MI]
 !>      Rewrite using new OCE matrices [08.02.09, jhu]
 ! *****************************************************************************
-  SUBROUTINE update_ks_atom(qs_env,ks,p,forces,tddft,p_env,error)
+  SUBROUTINE update_ks_atom(qs_env,ksmat,pmat,forces,tddft,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      INTENT(INOUT)                          :: ks, p
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: ksmat, pmat
     LOGICAL, INTENT(IN)                      :: forces
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), OPTIONAL, POINTER   :: p_env
@@ -96,14 +95,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_ks_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bo(2), handle, ia_kind, iac, iat, iatom, ibc, ikind, ip, &
+    INTEGER :: bo(2), handle, ia_kind, iac, iat, iatom, ibc, ikind, img, ip, &
       ispin, istat, ja_kind, jatom, jkind, ka_kind, kac, katom, kbc, kkind, &
       lC_int, ldCPC, lPC, max_gau, max_nsgf, maxsoc, mepos, n_cont_a, &
-      n_cont_b, nat, natom, nkind, nsetc, nsgfa, nsgfb, nsoctot, nspins, &
-      num_pe
+      n_cont_b, nat, natom, nimages, nkind, nsetc, nsgfa, nsgfb, nsoctot, &
+      nspins, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
+    INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: dista, distb, failure, found, &
                                                 my_tddft, paw_atom, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_matrix, p_matrix
@@ -129,6 +129,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
                                                 orb_basis
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -162,16 +163,23 @@ CONTAINS
            dft_control=dft_control,&
            error=error)
 
+    nspins = dft_control%nspins
+    nimages = dft_control%nimages
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
     factor = 1.0_dp
     IF (my_tddft) THEN
-       IF (dft_control%nspins == 1) THEN
-          factor = 2.0_dp
-       END IF
+       IF (nspins == 1) factor = 2.0_dp
+       CPPostcondition(nimages==1,cp_failure_level,routineP,error,failure)
     END IF
-    nspins = dft_control%nspins
+
+    ! kpoint images
+    NULLIFY(cell_to_index)
+    IF (nimages>1) THEN
+       CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
+       CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
+    END IF
 
     IF (my_tddft) THEN
        rho_atom   => p_env%local_rho_set%rho_atom_set
@@ -184,30 +192,28 @@ CONTAINS
 
     ALLOCATE (C_int_h(max_gau*max_nsgf),C_int_s(max_gau*max_nsgf),coc(max_gau*max_gau),&
               a_matrix(max_gau,max_gau),p_matrix(max_nsgf,max_nsgf),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     lC_int = max_gau
     ALLOCATE(mat_h(nspins),mat_p(nspins), STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
-                        "mat_h,mat_p")
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ispin = 1,nspins
       NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
     END DO
 
     IF(forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
-           "atom_of_kind",natom*int_size)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
       ALLOCATE(dCPC_h(max_gau,max_gau),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(dCPC_s(max_gau,max_gau),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
-            "dCPC_h,dCPC_s",2*(max_gau*max_gau)*dp_size)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ldCPC = max_gau
       ALLOCATE(PC_h(max_nsgf,max_gau,nspins),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(PC_s(max_nsgf,max_gau,nspins),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
-            "PC_h,PC_s",2*(max_nsgf*max_gau*nspins)*dp_size)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       lPC = max_nsgf
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     END IF
@@ -247,8 +253,7 @@ CONTAINS
     END DO
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
-           "basis_set_list",nkind)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -267,22 +272,29 @@ CONTAINS
        nsgfa = basis_set_a%nsgf
        nsgfb = basis_set_b%nsgf
 
+       IF(nimages>1) THEN
+          img = cell_to_index(cell_b(1),cell_b(2),cell_b(3))
+          CPPostcondition(img > 0,cp_failure_level,routineP,error,failure)
+       ELSE
+          img = 1
+       END IF
+
        DO ispin = 1,nspins
          NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
          IF (iatom <= jatom) THEN
-           CALL cp_dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
+           CALL cp_dbcsr_get_block_p(matrix=ksmat(ispin,img)%matrix,&
                 row=iatom,col=jatom,BLOCK=mat_h(ispin)%array,found=found)
          ELSE
-           CALL cp_dbcsr_get_block_p(matrix=ks(ispin)%matrix,&
+           CALL cp_dbcsr_get_block_p(matrix=ksmat(ispin,img)%matrix,&
                 row=jatom,col=iatom,BLOCK=mat_h(ispin)%array,found=found)
          END IF
 
          IF(forces) THEN
            IF (iatom <= jatom) THEN
-             CALL cp_dbcsr_get_block_p(matrix=p(ispin)%matrix,&
+             CALL cp_dbcsr_get_block_p(matrix=pmat(ispin,img)%matrix,&
                   row=iatom,col=jatom,BLOCK=mat_p(ispin)%array,found=found)
            ELSE
-             CALL cp_dbcsr_get_block_p(matrix=p(ispin)%matrix,&
+             CALL cp_dbcsr_get_block_p(matrix=pmat(ispin,img)%matrix,&
                   row=jatom,col=iatom,BLOCK=mat_p(ispin)%array,found=found)
            END IF
          END IF
@@ -406,17 +418,15 @@ CONTAINS
     END DO
 
     DEALLOCATE(basis_set_list,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(mat_h,mat_p,C_int_h,C_int_s,a_matrix,p_matrix,coc,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     IF(forces) THEN
        DEALLOCATE (atom_of_kind,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
-         "atom_of_kind")
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(DCPC_h,dCPC_s,PC_h,PC_s,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routineP,moduleN,__LINE__,&
-         "DCPC_h,dCPC_s,PC_h,PC_s")
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     CALL timestop(handle)

@@ -165,7 +165,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: excitations, handle, ispin, &
-                                                nspins, output_unit, &
+                                                ns, nspins, output_unit, &
                                                 res_etype, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: explicit, failure, gapw, &
@@ -175,6 +175,8 @@ CONTAINS
                                                 energy_hartree_1c, fac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: ksmat, psmat
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rho1_tot_gspace, &
@@ -502,7 +504,12 @@ CONTAINS
                                         .FALSE., .TRUE., p_env=p_env, error=error)
           END IF
 !         ***  Add single atom contributions to the KS matrix ***
-          CALL update_ks_atom(qs_env,k_p_p1,rho_ao,.FALSE.,.TRUE.,p_env,error)
+          ! remap pointer 
+          ns = SIZE(p_env%kpp1)
+          ksmat(1:ns,1:1) => k_p_p1(1:ns)
+          ns = SIZE(rho_ao)
+          psmat(1:ns,1:1) => rho_ao(1:ns)
+          CALL update_ks_atom(qs_env,ksmat,psmat,.FALSE.,.TRUE.,p_env,error)
        END IF
 
        CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,&

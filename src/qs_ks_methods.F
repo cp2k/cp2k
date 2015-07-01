@@ -33,9 +33,9 @@ MODULE qs_ks_methods
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
-       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
-       cp_dbcsr_name, cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_symmetric
+       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_name, cp_dbcsr_p_type, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t,&
@@ -218,7 +218,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspins
+    INTEGER                                  :: handle, img, ispin, nimages, &
+                                                ns, nspins
     LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, failure, &
       gapw, gapw_xc, hfx_treat_lsd_in_core, just_energy_xc, my_print, &
       use_virial
@@ -228,10 +229,11 @@ CONTAINS
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(becke_restraint_type), POINTER      :: becke
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: ks_matrix, ks_matrix_im, &
-      matrix_h, matrix_ks_aux_fit, matrix_ks_aux_fit_dft, &
-      matrix_ks_aux_fit_im, matrix_s, matrix_s_aux_fit, &
-      matrix_s_aux_fit_vs_orb, matrix_vxc, mo_derivs, my_rho, rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: ksmat, matrix_vxc, mo_derivs
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: ks_matrix, matrix_h, &
+                                                matrix_s, my_rho, rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -265,10 +267,8 @@ CONTAINS
          hfx_sections, input, scf_section, xc_section, matrix_h, matrix_s, &
          auxbas_pw_pool, poisson_env, pw_pools, v_rspace_new, &
          v_rspace_new_aux_fit, v_tau_rspace, v_tau_rspace_aux_fit, &
-         matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
-         matrix_ks_aux_fit_dft,&
-         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, vee, rho_nlcc, ks_env, &
-         ks_matrix, ks_matrix_im, rho, energy, rho_xc, rho_r, rho_ao, rho_core)
+         matrix_vxc, vee, rho_nlcc, ks_env, &
+         ks_matrix, rho, energy, rho_xc, rho_r, rho_ao, rho_core)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
@@ -279,16 +279,10 @@ CONTAINS
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&
                     dft_control=dft_control,&
-                    matrix_h=matrix_h,&
-                    matrix_s=matrix_s,&
+                    matrix_h_kp=matrix_h,&
+                    matrix_s_kp=matrix_s,&
+                    matrix_ks_kp=ks_matrix,&
                     matrix_vxc=matrix_vxc,&
-                    matrix_ks=ks_matrix,&
-                    matrix_ks_im=ks_matrix_im,&
-                    matrix_ks_aux_fit=matrix_ks_aux_fit,&
-                    matrix_ks_aux_fit_im=matrix_ks_aux_fit_im,&
-                    matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft,&
-                    matrix_s_aux_fit=matrix_s_aux_fit,&
-                    matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
                     pw_env=pw_env,&
                     cell=cell,&
                     para_env=para_env,&
@@ -303,10 +297,14 @@ CONTAINS
                     energy=energy,&
                     error=error)
 
-    CALL qs_rho_get(rho, rho_r=rho_r, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_r=rho_r, rho_ao_kp=rho_ao, error=error)
 
-    IF(PRESENT(ext_ks_matrix)) &
-       ks_matrix => ext_ks_matrix
+    IF(PRESENT(ext_ks_matrix)) THEN
+       ! remap pointer to allow for non-kpoint external ks matrix
+       ! ext_ks_matrix is used in linear response code
+       ns = SIZE(ext_ks_matrix)
+       ks_matrix(1:ns,1:1) => ext_ks_matrix(1:ns)
+    END IF
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -320,17 +318,18 @@ CONTAINS
     CALL section_vals_get(adiabatic_rescaling_section,explicit=do_adiabatic_rescaling,error=error)
     just_energy_xc=just_energy
     IF(do_adiabatic_rescaling) THEN
-     !! If we perform adiabatic rescaling, the xc potential has to be scaled by the xc- and
-     !! HFX-energy. Thus, let us first calculate the energy
-     just_energy_xc=.TRUE.
+       !! If we perform adiabatic rescaling, the xc potential has to be scaled by the xc- and
+       !! HFX-energy. Thus, let us first calculate the energy
+       just_energy_xc=.TRUE.
     END IF
 
+    nimages = dft_control%nimages
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(ks_matrix,1)>0,cp_failure_level,routineP,error,failure)
 
     ! Setup the possible usage of DDAPC charges
     do_ddapc = dft_control%qs_control%ddapc_restraint.OR.&
@@ -347,7 +346,7 @@ CONTAINS
     do_ppl = dft_control%qs_control%do_ppl_method == do_ppl_grid
     IF ( do_ppl ) THEN
       CPPrecondition(.NOT.gapw,cp_failure_level,routineP,error,failure)
-      CALL get_qs_env ( qs_env = qs_env, vppl = vppl_rspace, error = error )
+      CALL get_qs_env ( qs_env=qs_env, vppl=vppl_rspace, error=error )
     END IF
 
     IF(gapw_xc) THEN
@@ -400,7 +399,7 @@ CONTAINS
        END IF
 
        ! Get the total density in g-space [ions + electrons]
-       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho,error=error)
+       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, error=error)
 
        IF (my_print) THEN
           CALL print_densities(qs_env, rho, error=error)
@@ -637,11 +636,13 @@ CONTAINS
        ! calculate KG correction
        IF (dft_control%qs_control%do_kg.AND.just_energy) THEN
 
-         CALL kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, ekin_mol, &
-                             calculate_forces, error)
+          CPPrecondition(nimages==1,cp_failure_level,routineP,error,failure)
+          ksmat => ks_matrix(:,1)
+          CALL kg_ekin_subset(qs_env, ksmat, gapw, gapw_xc, ekin_mol, &
+                              calculate_forces, error)
 
-         ! substract kg corr from the total energy
-         energy%exc = energy%exc - ekin_mol
+          ! substract kg corr from the total energy
+          energy%exc = energy%exc - ekin_mol
 
        END IF  
 
@@ -662,10 +663,13 @@ CONTAINS
           END IF
 
           IF (.NOT.do_hfx) THEN
-             ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix (sets ks sparsity equal to matrix_h sparsity)
+             ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix 
+             ! (sets ks sparsity equal to matrix_h sparsity)
              DO ispin=1,nspins
-                CALL cp_dbcsr_copy(ks_matrix(ispin)%matrix,matrix_h(1)%matrix,&
-                                   name=cp_dbcsr_name(ks_matrix(ispin)%matrix),error=error)
+                DO img=1,nimages
+                   CALL cp_dbcsr_copy(ks_matrix(ispin,img)%matrix,matrix_h(1,img)%matrix,&
+                                      name=cp_dbcsr_name(ks_matrix(ispin,img)%matrix),error=error)
+                END DO
              END DO
           END IF
 
@@ -678,10 +682,12 @@ CONTAINS
                 calculate_forces,error=error)
 
           IF (dft_control%qs_control%do_kg) THEN
-            CALL kg_ekin_subset(qs_env, ks_matrix, gapw, gapw_xc, ekin_mol, &
-                                calculate_forces, error)
-            ! substract kg corr from the total energy
-            energy%exc = energy%exc - ekin_mol
+             CPPrecondition(nimages==1,cp_failure_level,routineP,error,failure)
+             ksmat => ks_matrix(:,1)
+             CALL kg_ekin_subset(qs_env, ksmat, gapw, gapw_xc, ekin_mol, &
+                                 calculate_forces, error)
+             ! substract kg corr from the total energy
+             energy%exc = energy%exc - ekin_mol
           END IF
 
        END IF  ! .NOT. just energy
@@ -719,26 +725,27 @@ CONTAINS
 
        !Calculation of Mulliken restraint, if requested
        CALL qs_ks_mulliken_restraint(energy,dft_control,just_energy,para_env,&
-            ks_matrix, matrix_s,rho,mulliken_order_p,error)
+            ks_matrix,matrix_s,rho,mulliken_order_p,error)
 
        ! Add DFT+U contribution, if requested
        IF (dft_control%dft_plus_u) THEN
-         IF (just_energy) THEN
-           CALL plus_u(qs_env=qs_env,error=error)
-         ELSE
-           CALL plus_u(qs_env=qs_env,matrix_h=ks_matrix,error=error)
-         END IF
+          CPPrecondition(nimages==1,cp_failure_level,routineP,error,failure)
+          IF (just_energy) THEN
+             CALL plus_u(qs_env=qs_env,error=error)
+          ELSE
+             ksmat => ks_matrix(:,1)
+             CALL plus_u(qs_env=qs_env,matrix_h=ksmat,error=error)
+          END IF
        ELSE
-         energy%dft_plus_u = 0.0_dp
+          energy%dft_plus_u = 0.0_dp
        END IF
 
        ! At this point the ks matrix should be up to date, filter it if requested
        DO ispin=1,nspins
-          IF(.FALSE.)WRITE(*,*) 'before',cp_dbcsr_get_occupation(ks_matrix(ispin)%matrix)
-          CALL cp_dbcsr_filter(ks_matrix(ispin)%matrix,&
-               dft_control%qs_control%eps_filter_matrix,&
-               error=error)
-          IF(.FALSE.)WRITE(*,*) 'after',cp_dbcsr_get_occupation(ks_matrix(ispin)%matrix)
+          DO img=1,nimages
+             CALL cp_dbcsr_filter(ks_matrix(ispin,img)%matrix,&
+                                  dft_control%qs_control%eps_filter_matrix,error=error)
+          END DO
        ENDDO
 
        !** merge the auxiliary KS matrix and the primary one
@@ -760,13 +767,15 @@ CONTAINS
        ! from this routine, notice that this part of the calculation in not linear scaling
        ! right now this operation is only non-trivial because of occupation numbers and the restricted keyword
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy.AND..NOT.qs_env%run_rtp) THEN
-           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
-           CALL calc_mo_derivatives(qs_env,ks_matrix,mo_derivs,error)
+          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
+          CPPrecondition(nimages==1,cp_failure_level,routineP,error,failure)
+          ksmat => ks_matrix(:,1)
+          CALL calc_mo_derivatives(qs_env,ksmat,mo_derivs,error)
        ENDIF
 
        ! deal with low spin roks
-        CALL low_spin_roks(energy,qs_env,dft_control,just_energy,&
-                                  calculate_forces,auxbas_pw_pool,error)
+       CALL low_spin_roks(energy,qs_env,dft_control,just_energy,&
+                          calculate_forces,auxbas_pw_pool,error)
 
        ! deal with sic on explicit orbitals
        CALL sic_explicit_orbitals(energy,qs_env,dft_control,poisson_env,just_energy,&
@@ -777,17 +786,17 @@ CONTAINS
 
        ! adds s2_restraint energy and orbital derivatives
        CALL qs_ks_s2_restraint(dft_control,qs_env,matrix_s,&
-            energy,calculate_forces, just_energy,error)
+            energy,calculate_forces,just_energy,error)
 
        IF ( do_ppl ) THEN
-         ! update core energy for grid based local pseudopotential
-         ecore_ppl = 0._dp
-         DO ispin=1,nspins
-           ecore_ppl = ecore_ppl+&
-              SUM(vppl_rspace%pw%cr3d*rho_r(ispin)%pw%cr3d)*vppl_rspace%pw%pw_grid%dvol
-         END DO
-         CALL mp_sum(ecore_ppl,para_env%group)
-         energy%core = energy%core + ecore_ppl
+          ! update core energy for grid based local pseudopotential
+          ecore_ppl = 0._dp
+          DO ispin=1,nspins
+             ecore_ppl = ecore_ppl+&
+                SUM(vppl_rspace%pw%cr3d*rho_r(ispin)%pw%cr3d)*vppl_rspace%pw%pw_grid%dvol
+          END DO
+          CALL mp_sum(ecore_ppl,para_env%group)
+          energy%core = energy%core + ecore_ppl
        END IF
 
        ! Sum all energy terms to obtain the total energy

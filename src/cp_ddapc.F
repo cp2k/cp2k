@@ -83,7 +83,7 @@ CONTAINS
 !>      08.2008 extended to restraint/constraint DDAPC charges [fschiff]
 ! *****************************************************************************
   SUBROUTINE qs_ks_ddapc(qs_env,auxbas_pw_pool,rho_tot_gspace,v_hartree_gspace,&
-       v_spin_ddapc_rest_r,energy,calculate_forces,  ks_matrix,just_energy,&
+       v_spin_ddapc_rest_r,energy,calculate_forces,ks_matrix,just_energy,&
        error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -93,7 +93,7 @@ CONTAINS
                                                 v_spin_ddapc_rest_r
     TYPE(qs_energy_type), POINTER            :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: ks_matrix
     LOGICAL, INTENT(in)                      :: just_energy
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -122,6 +122,9 @@ CONTAINS
     ddapc_restraint_is_spin =.FALSE.
     et_coupling_calc        =.FALSE.
     ddapc_size=0
+
+    ! no k-points
+    CPPostcondition(SIZE(ks_matrix,2)==1,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env,&
                     v_hartree_rspace=v_hartree_rspace,&
@@ -186,7 +189,7 @@ CONTAINS
                    NULLIFY(qs_env%et_coupling%rest_mat(1)%matrix)
                    ALLOCATE(qs_env%et_coupling%rest_mat(1)%matrix)
                    CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(1)%matrix, error=error)
-                   CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, ks_matrix(1)%matrix, &
+                   CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(1)%matrix, ks_matrix(1,1)%matrix, &
                         name="ET_RESTRAINT_MATRIX_B", error=error)
                    CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(1)%matrix, 0.0_dp, error=error)
                    CALL integrate_v_rspace(v_spin_ddapc_rest_r,&
@@ -200,7 +203,7 @@ CONTAINS
                    NULLIFY(qs_env%et_coupling%rest_mat(2)%matrix)
                    ALLOCATE(qs_env%et_coupling%rest_mat(2)%matrix)
                    CALL cp_dbcsr_init(qs_env%et_coupling%rest_mat(2)%matrix, error=error)
-                   CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, ks_matrix(1)%matrix, &
+                   CALL cp_dbcsr_copy(qs_env%et_coupling%rest_mat(2)%matrix, ks_matrix(1,1)%matrix, &
                         name="ET_RESTRAINT_MATRIX_B", error=error)
                    CALL cp_dbcsr_set(qs_env%et_coupling%rest_mat(2)%matrix, 0.0_dp, error=error)
                    CALL integrate_v_rspace(v_spin_ddapc_rest_r,&
