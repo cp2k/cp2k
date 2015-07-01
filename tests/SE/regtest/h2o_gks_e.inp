@@ -17,7 +17,7 @@
          LINESEARCH 3PNT
        &END OT
        &OUTER_SCF T
-         EPS_SCF 1.0E-8
+         EPS_SCF 1.0E-7
          MAX_SCF 20
        &END OUTER_SCF
       SCF_GUESS ATOMIC
