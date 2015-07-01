@@ -1,4 +1,4 @@
 test_pexsi_md.inp                11     2e-14
 test_pexsi.inp                   11     3e-13
 test_entropic_pexsi.inp          11     8e-12
-rho_mixing_pexsi.inp             11
+rho_mixing_pexsi.inp             11     4e-14
