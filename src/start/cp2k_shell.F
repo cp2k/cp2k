@@ -65,13 +65,13 @@ PROGRAM cp2k_shell
   LOGICAL                                  :: eof, harsh,failure
   INTEGER                                  :: ierr,i,iostat,shift,&
                                               shift2,env_id,last_env_id,&
-                                              n_atom,stat,n_atom2,pid
-  INTEGER                                  :: sout
+                                              n_atom,stat,n_atom2,pid,n_lines
+  INTEGER                                  :: sout, file_unit
   TYPE(cp_error_type)                      :: error
   TYPE(cp_para_env_type), POINTER          :: para_env
   TYPE(cp_logger_type), POINTER            :: logger
   CHARACTER(LEN=default_path_length)       :: cmdStr, inp_filename, out_filename
-  CHARACTER(LEN=default_string_length)     :: cmd,units
+  CHARACTER(LEN=default_string_length)     :: cmd,units,line
   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pos,pos2
   REAL(KIND=dp)                            :: e_pot,err
   REAL(KIND=dp)                            :: e_fact,pos_fact
@@ -81,7 +81,7 @@ PROGRAM cp2k_shell
   INTEGER, SAVE                            :: eof_stat
   TYPE(section_type), POINTER              :: input_declaration
 
-  CHARACTER(LEN=default_string_length), DIMENSION(42) :: helpMsg
+  CHARACTER(LEN=default_string_length), DIMENSION(43) :: helpMsg
 
   helpMsg=(/ &
   ll('Commands'),&
@@ -92,6 +92,7 @@ PROGRAM cp2k_shell
   ll(' '),&
   ll(' INFO: returns some information about cp2k.'),&
   ll(' VERSION: returns shell version. (queried by ASE to assert features & bugfixes)'),&
+  ll(' WRITE_FILE: Writes content to a file (allows for using ASE over ssh).'),&
   ll(' LOAD inp-filename [out-filename]: loads the filename, returns the env_id, or -1 in case of error'),&
   ll('   out-filename is optional and defaults to <inp-filename>.out'),&
   ll('   use "__STD_OUT__" for printing to the screen'),&
@@ -213,9 +214,30 @@ PROGRAM cp2k_shell
      CASE('VERSION')
        ! Queried by ASE. Increase version after bug-fixing or behavior changes.
         IF (para_env%source==para_env%mepos) THEN
-            WRITE(sout,'(a)',iostat=iostat) "CP2K Shell Version: 1.0"
+            WRITE(sout,'(a)',iostat=iostat) "CP2K Shell Version: 2.0"
             IF (iostat/=0) CALL mp_abort('writing version')
         END IF
+     CASE('WRITE_FILE')
+        IF (para_env%mepos==para_env%source) THEN
+           READ (*,'(a)',iostat=iostat) out_filename
+           IF (iostat/=0) CALL mp_abort('WRITE_FILE bad filename')
+           READ (*,*,iostat=iostat) n_lines
+           IF (iostat/=0) CALL mp_abort('WRITE_FILE bad number of lines')
+
+           CALL open_file(file_name=TRIM(out_filename), unit_number=file_unit,&
+                file_status="UNKNOWN",file_form="FORMATTED",file_action="WRITE")
+
+           DO i=1, n_lines
+              READ(*,'(a)',iostat=iostat) line
+              IF (iostat/=0) CALL mp_abort('WRITE_FILE read error')
+              WRITE(file_unit,'(a)',iostat=iostat) TRIM(line)
+              IF (iostat/=0) CALL mp_abort('WRITE_FILE write error')
+           END DO
+           READ(*,'(a)',iostat=iostat) line
+           IF (iostat/=0) CALL mp_abort('WRITE_FILE read error')
+           IF (TRIM(line) /= "*END") CALL mp_abort('WRITE_FILE bad end delimiter')
+           CALL close_file(unit_number=file_unit)
+        ENDIF
      CASE('LAST_ENV_ID')
         IF (para_env%source==para_env%mepos) THEN
            WRITE (sout,'(i10)',iostat=iostat) last_env_id
