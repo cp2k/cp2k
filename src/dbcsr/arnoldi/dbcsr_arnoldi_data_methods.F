@@ -133,7 +133,7 @@ CONTAINS
     CALL dbcsr_get_info(matrix=matrix(1)%matrix, distribution=distri)
     control%mp_group=distri%d%mp_env%mp%mp_group
     control%myproc=distri%d%mp_env%mp%mynode
-    CALL dbcsr_mp_grid_setup(distri%d%mp_env,force=.TRUE.)
+    CALL dbcsr_mp_grid_setup(distri%d%mp_env)
     IF(.NOT. distri%d%mp_env%mp%subgroups_defined) STOP 'arnoldi only with subgroups'
     control%pcol_group=distri%d%mp_env%mp%pcol_group
     control%prow_group=distri%d%mp_env%mp%prow_group

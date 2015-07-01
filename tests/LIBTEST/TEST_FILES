@@ -12,7 +12,6 @@ test_cp_fm_gemm_01.inp 0
 test_cp_fm_gemm_02.inp 0
 eig.inp                0
 dbcsr_mm_blas.inp      0
-dbcsr_subcomm.inp      0
 dbcsr_multistack.inp   0
 dbcsr_types.inp        0
 dbcsr_blocks_01.inp    58

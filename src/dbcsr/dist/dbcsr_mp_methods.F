@@ -9,7 +9,6 @@
 !> \date    10-2014
 ! *****************************************************************************
 MODULE dbcsr_mp_methods
-  USE dbcsr_config,                    ONLY: use_subcommunicators
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_type,&
                                              dbcsr_fatal_level,&
@@ -142,31 +141,18 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Sets up MPI cartesian process grid
 !> \param[in,out] mp_env      multiprocessor environment
-!> \param[in] force           (optional) force creation of subcommunicators
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mp_grid_setup(mp_env, force)
+  SUBROUTINE dbcsr_mp_grid_setup(mp_env)
     TYPE(dbcsr_mp_obj), INTENT(INOUT)        :: mp_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: force
 
     INTEGER                                  :: ndims, tmp_group
     INTEGER, DIMENSION(2)                    :: dims, my_pos
-    LOGICAL                                  :: should_make
     LOGICAL, DIMENSION(2)                    :: remain
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
-! Intel MPI Workaround
-!CALL dbcsr_assert (..NOT. mp_env%mp%subgroups_defined,&
-!     dbcsr_fatal_level, dbcsr_internal_error, "mp_grid_setup",&
-!     "Subcommunicators should be turned off")
 
-    IF (PRESENT (force)) THEN
-       should_make = use_subcommunicators .OR. force
-    ELSE
-       should_make = use_subcommunicators
-    ENDIF
-
-    IF (.NOT. mp_env%mp%subgroups_defined .AND. should_make) THEN
+    IF (.NOT. mp_env%mp%subgroups_defined) THEN
        ! KG workaround.
        ! This will be deleted (replaced by code in mp_new).
        ndims = 2

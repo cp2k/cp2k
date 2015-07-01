@@ -27,12 +27,12 @@ MODULE cp_dbcsr_cp2k_link
        dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
        dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-       dbcsr_get_conf_subcomm, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_filtering, &
        dbcsr_get_conf_use_mpi_rma, dbcsr_set_conf_avg_elements_images, &
        dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_external_timing, &
        dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
        dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, &
-       dbcsr_set_conf_subcomm, dbcsr_set_conf_use_comm_thread, &
+       dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_filtering, &
        dbcsr_set_conf_use_mpi_rma, dbcsr_type_no_symmetry, has_acc, has_mpi, &
        mm_driver_acc, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
        mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
@@ -91,8 +91,8 @@ CONTAINS
                                                 error_handle, max_ele_block, &
                                                 mm_driver, mm_ss
     INTEGER, DIMENSION(3)                    :: nstacks
-    LOGICAL                                  :: use_comm_thread, use_mpi_rma, &
-                                                use_subcomms
+    LOGICAL                                  :: use_comm_thread, &
+                                                use_mpi_filtering, use_mpi_rma
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(section_vals_type), POINTER         :: dbcsr_section
 
@@ -105,8 +105,6 @@ CONTAINS
     dbcsr_section => section_vals_get_subs_vals(root_section,&
       "GLOBAL%DBCSR",error=error)
     CALL section_vals_val_get(dbcsr_section,&
-         "subcommunicators", l_val=use_subcomms, error=error)
-    CALL section_vals_val_get(dbcsr_section,&
          "mm_stack_size", i_val=mm_ss, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "mm_driver", i_val=mm_driver, error=error)
@@ -117,6 +115,8 @@ CONTAINS
     CALL section_vals_val_get(dbcsr_section,&
          "n_size_mnk_stacks", i_val=nstacks(1), error=error)
     nstacks(2:3) = nstacks(1)
+    CALL section_vals_val_get(dbcsr_section,&
+         "use_mpi_filtering", l_val=use_mpi_filtering, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "use_mpi_rma", l_val=use_mpi_rma, error=error)
     CALL section_vals_val_get(dbcsr_section,&
@@ -149,7 +149,6 @@ CONTAINS
          "ACC%binning_binsize", i_val=accdrv_binning_binsize, error=error)
 
     CALL dbcsr_set_conf_mm_driver (mm_driver, error=dbcsr_error)
-    CALL dbcsr_set_conf_subcomm (use_subcomms, error=dbcsr_error)
     CALL dbcsr_set_conf_max_ele_block (max_ele_block, error=dbcsr_error)
     IF(mm_ss > 0) &
     CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=dbcsr_error)
@@ -164,6 +163,7 @@ CONTAINS
         comm_thread_load = 100
      ENDIF
 
+    CALL dbcsr_set_conf_use_mpi_filtering(use_mpi_filtering, error=dbcsr_error)
     CALL dbcsr_set_conf_use_mpi_rma(use_mpi_rma, error=dbcsr_error)
     CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
     CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=dbcsr_error)
@@ -232,8 +232,6 @@ CONTAINS
 
        IF (has_mpi) THEN
            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
-            "DBCSR| Use subcommunicators",  dbcsr_get_conf_subcomm ()
-           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
             "DBCSR| Use MPI memory allocation", dbcsr_get_conf_mpi_mem ()
            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
             "DBCSR| Use RMA algorithm", dbcsr_get_conf_use_mpi_rma ()
@@ -242,6 +240,9 @@ CONTAINS
                    "DBCSR| Use Communication thread",  dbcsr_get_conf_use_comm_thread()
               WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
                    "DBCSR| Communication thread load", dbcsr_get_conf_comm_thread_load()
+           ELSE
+              WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
+                   "DBCSR| Use MPI filtering", dbcsr_get_conf_use_mpi_filtering ()
            ENDIF
        ENDIF
 

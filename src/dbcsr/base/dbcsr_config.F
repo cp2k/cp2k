@@ -31,7 +31,6 @@ MODULE dbcsr_config
 
   PUBLIC :: dbcsr_set_default_config
 
-  PUBLIC :: dbcsr_set_conf_subcomm, dbcsr_get_conf_subcomm
   PUBLIC :: dbcsr_set_conf_mm_stacksize, dbcsr_get_conf_mm_stacksize
 
   PUBLIC :: dbcsr_get_conf_mpi_mem
@@ -41,6 +40,7 @@ MODULE dbcsr_config
   PUBLIC :: dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_nstacks, dbcsr_get_conf_nstacks
 
   PUBLIC :: dbcsr_set_conf_use_mpi_rma, dbcsr_get_conf_use_mpi_rma
+  PUBLIC :: dbcsr_set_conf_use_mpi_filtering, dbcsr_get_conf_use_mpi_filtering
   PUBLIC :: dbcsr_set_conf_use_comm_thread, dbcsr_get_conf_use_comm_thread
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_get_conf_comm_thread_load
   PUBLIC :: dbcsr_set_conf_external_timing
@@ -51,7 +51,6 @@ MODULE dbcsr_config
   !
   PUBLIC :: has_MPI
   PUBLIC :: has_acc
-  PUBLIC :: use_subcommunicators
   PUBLIC :: mm_stack_size
   PUBLIC :: mm_driver, mm_host_driver,&
             mm_driver_blas,&
@@ -63,7 +62,7 @@ MODULE dbcsr_config
             mm_name_matmul,&
             mm_name_smm,&
             mm_name_acc
-  PUBLIC :: use_mpi_rma, use_comm_thread, comm_thread_load
+  PUBLIC :: use_mpi_rma, use_mpi_filtering, use_comm_thread, comm_thread_load
   PUBLIC :: max_elements_per_block, avg_elements_images
   !
   PUBLIC :: is_initialized
@@ -125,10 +124,6 @@ MODULE dbcsr_config
   ! Now the fallback defaults are defined.  The defaults should be set
   ! by calling the dbcsr_init_conf() subroutine.
 
-  ! Allocates subcommunicators for process rows and columns.
-  ! TODO / FIXME : enforce the use of subcommunicators always
-  LOGICAL, SAVE :: use_subcommunicators = .TRUE.
-
   ! Use MPI-allocated memory.
   LOGICAL, SAVE :: use_MPI_memory = has_MPI
 
@@ -161,6 +156,9 @@ MODULE dbcsr_config
   
   ! RMA algorithm
   LOGICAL, SAVE :: use_mpi_rma = .FALSE.
+
+  ! RMA MPI filtering
+  LOGICAL, SAVE :: use_mpi_filtering = .TRUE.
 
   ! Configuration of an MPI progress thread
   LOGICAL, SAVE :: use_comm_thread = .TRUE.
@@ -255,39 +253,6 @@ CONTAINS
 
     driver = mm_driver
   END FUNCTION dbcsr_get_conf_mm_driver
-
-
-! *****************************************************************************
-!> \brief ...
-!> \param use_subcomms ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_set_conf_subcomm (use_subcomms, error)
-    LOGICAL, INTENT(IN)                      :: use_subcomms
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_subcomm', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: error_handle
-
-    CALL dbcsr_error_set(routineN, error_handle, error)
-    use_subcommunicators = use_subcomms
-    CALL dbcsr_error_stop(error_handle, error)
-  END SUBROUTINE dbcsr_set_conf_subcomm
-
-! *****************************************************************************
-!> \brief ...
-!> \retval use_subcomms ...
-! *****************************************************************************
-  FUNCTION dbcsr_get_conf_subcomm () RESULT (use_subcomms)
-    LOGICAL                                  :: use_subcomms
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_subcomm', &
-      routineP = moduleN//':'//routineN
-
-    use_subcomms = use_subcommunicators
-  END FUNCTION dbcsr_get_conf_subcomm
 
 
 ! *****************************************************************************
@@ -498,6 +463,40 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
+!> \param mpi_filtering ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_set_conf_use_mpi_filtering (mpi_filtering, error)
+    LOGICAL, INTENT(IN)                      :: mpi_filtering
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_set_conf_use_mpi_filtering', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    use_mpi_filtering = mpi_filtering
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_set_conf_use_mpi_filtering
+
+! *****************************************************************************
+!> \brief ...
+!> \retval mpi_filtering ...
+! *****************************************************************************
+  FUNCTION dbcsr_get_conf_use_mpi_filtering () RESULT (mpi_filtering)
+    LOGICAL                                  :: mpi_filtering
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_get_conf_use_mpi_filtering', &
+      routineP = moduleN//':'//routineN
+
+    mpi_filtering = use_mpi_filtering
+  END FUNCTION dbcsr_get_conf_use_mpi_filtering
+
+! *****************************************************************************
+!> \brief ...
 !> \param comm_thread ...
 !> \param error ...
 ! *****************************************************************************
@@ -627,12 +626,10 @@ CONTAINS
                                                 error_handler, max_ele_block, &
                                                 mm_driver, mm_ss
     INTEGER, DIMENSION(3)                    :: nstacks
-    LOGICAL                                  :: use_comm_thread, use_mpi_mem, &
-                                                use_subcomms
+    LOGICAL                                  :: use_comm_thread, use_mpi_mem
 
     CALL dbcsr_error_set (routineN, error_handler, error=error)
 
-    use_subcomms = dbcsr_get_conf_subcomm()
     use_mpi_mem = dbcsr_get_conf_mpi_mem()
     mm_ss = -1
     mm_driver = dbcsr_get_conf_mm_driver()
@@ -642,7 +639,6 @@ CONTAINS
     comm_thread_load = -1
 
     CALL dbcsr_set_conf_mm_driver (mm_driver, error=error)
-    CALL dbcsr_set_conf_subcomm (use_subcomms, error=error)
     CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=error)
     CALL dbcsr_set_conf_max_ele_block (max_ele_block, error=error)
     IF (mm_ss > 0) CALL dbcsr_set_conf_mm_stacksize (mm_ss, error=error)

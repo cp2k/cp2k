@@ -42,6 +42,7 @@ MODULE dbcsr_mm_cannon
                                              mm_driver,&
                                              mm_driver_acc,&
                                              use_comm_thread,&
+                                             use_mpi_filtering,&
                                              use_mpi_rma
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_copy, dbcsr_data_ensure_size, &
@@ -2942,20 +2943,17 @@ MODULE dbcsr_mm_cannon
                                                 imeta_size = 2
 
     INTEGER :: data_type, data_type_byte, dst_icol, dst_irow, dst_p, &
-      dst_pcol, dst_prow, error_handler, error_handler2, error_handler3, &
-      error_handler4, get_vcol, get_vrow, grp_left, grp_right, &
-      index_row_max_epss, ithread, left_col_mult, left_col_nimages, &
-      left_data_win, left_meta_win, left_myfirstvcol, left_myfirstvrow, &
-      left_mypcol, left_myprow, left_npcols, left_nprocs, left_nprows, &
-      left_recv_p, left_row_mult, left_row_nimages, left_send_p, metronome, &
+      error_handler, error_handler2, error_handler3, error_handler4, &
+      get_vcol, get_vrow, grp_left, grp_right, index_row_max_epss, ithread, &
+      left_col_mult, left_col_nimages, left_data_win, left_meta_win, &
+      left_myfirstvcol, left_myfirstvrow, left_mypcol, left_myprow, &
+      left_npcols, left_nprows, left_row_mult, left_row_nimages, metronome, &
       min_nimages, mynode, nblkrows_total, nsteps_k, nthreads, numnodes, &
-      nvirt_k, output_unit, recv_pcol, recv_prow, right_col_mult, &
-      right_col_nimages
-    INTEGER :: right_data_win, right_meta_win, right_myfirstvcol, &
-      right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
-      right_nprocs, right_nprows, right_recv_p, right_row_mult, &
-      right_row_nimages, right_send_p, row, send_pcol, send_prow, size_guess, &
-      src_vcol, src_vrow, stat, v_ci, v_i, v_ki, v_ri
+      nvirt_k, output_unit, recv_p, right_col_mult, right_col_nimages, &
+      right_data_win, right_meta_win, right_myfirstvcol, right_myfirstvrow
+    INTEGER :: right_mypcol, right_myprow, right_npcols, right_nprows, &
+      right_row_mult, right_row_nimages, row, send_p, size_guess, src_vcol, &
+      src_vrow, stat, v_ci, v_i, v_ki, v_ri
     INTEGER(kind=mp_address_kind) :: left_data_size, left_max_data, &
       left_max_meta, left_meta_size, right_data_size, right_max_data, &
       right_max_meta, right_meta_size
@@ -2973,7 +2971,6 @@ MODULE dbcsr_mm_cannon
                                                 right_gets_filtered, &
                                                 right_gets_p
     INTEGER, DIMENSION(:), POINTER           :: left_meta_get, right_meta_get
-    INTEGER, DIMENSION(:, :), POINTER        :: left_pgrid, right_pgrid
     LOGICAL                                  :: keep_sparsity, otf_filtering
     REAL(kind=sp)                            :: min_row_max_epss
     REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: row_max_epss
@@ -3016,7 +3013,7 @@ MODULE dbcsr_mm_cannon
 !$omp shared (nthreads)
 !$omp master
     nthreads = 1
-    !$  nthreads = OMP_GET_NUM_THREADS ()
+!$  nthreads = OMP_GET_NUM_THREADS ()
 !$omp end master
 !$omp end parallel
     !
@@ -3070,13 +3067,20 @@ MODULE dbcsr_mm_cannon
     right_mypcol      = dbcsr_mp_mypcol(right_mp_obj)
     right_myfirstvrow = right_myprow*right_row_nimages
     right_myfirstvcol = right_mypcol*right_col_nimages
-    left_pgrid => dbcsr_mp_pgrid (left_mp_obj)
-    right_pgrid => dbcsr_mp_pgrid (right_mp_obj)
+    grp_right = dbcsr_mp_my_col_group (right_mp_obj)
+    grp_left = dbcsr_mp_my_row_group (left_mp_obj)
     CALL dbcsr_mp_grid_setup (product_mp_obj)
     CALL dbcsr_mp_grid_setup (left_mp_obj)
     CALL dbcsr_mp_grid_setup (right_mp_obj)
     !
     ! Dummy checks
+    ! subcommunicators
+    CALL dbcsr_assert (dbcsr_mp_has_subgroups (right_mp_obj),&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "RMA requires rows subcommunicators for right matrix!",__LINE__,error)
+    CALL dbcsr_assert (dbcsr_mp_has_subgroups (left_mp_obj),&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "RMA requires columns subcommunicators for left matrix!",__LINE__,error)
     ! left/right matching
     CALL dbcsr_assert (left_col_nimages, "EQ", right_row_mult,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -3102,22 +3106,6 @@ MODULE dbcsr_mm_cannon
     dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,left_row_nimages*left_col_nimages)
     dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,right_row_nimages*right_col_nimages)
     dbcsr_mpi_statistics%nprocs = numnodes
-    !
-    ! Set the communicators for right and left
-    IF (dbcsr_mp_has_subgroups (right_mp_obj)) THEN
-       grp_right = dbcsr_mp_my_col_group (right_mp_obj)
-       right_nprocs = right_nprows
-    ELSE
-       grp_right = dbcsr_mp_group (right_mp_obj)
-       right_nprocs = numnodes
-    ENDIF
-    IF (dbcsr_mp_has_subgroups (left_mp_obj)) THEN
-       grp_left = dbcsr_mp_my_row_group (left_mp_obj)
-       left_nprocs = left_npcols
-    ELSE
-       grp_left = dbcsr_mp_group (left_mp_obj)
-       left_nprocs = numnodes
-    END IF
     !
     ! The main transfer loop goes through the virtual rows/columns.
     ! The number of steps may be smaller if the grid dimension is very
@@ -3159,83 +3147,59 @@ MODULE dbcsr_mm_cannon
     ENDDO
     !
     ! Exchange size data
-    ALLOCATE (all_right_gets(4,right_row_nimages,right_col_nimages,0:right_nprocs-1))
-    ALLOCATE (all_left_gets(4,left_row_nimages,left_col_nimages,0:left_nprocs-1))    
+    ALLOCATE (all_right_gets(4,right_row_nimages,right_col_nimages,0:right_nprows-1))
+    ALLOCATE (all_left_gets(4,left_row_nimages,left_col_nimages,0:left_npcols-1))    
     CALL mp_allgather(local_right_gets,all_right_gets,grp_right)
     CALL mp_allgather(local_left_gets,all_left_gets,grp_left)
     !
-    ALLOCATE (right_gets(4, 0:nvirt_k-1, 0:right_col_nimages*right_npcols-1))
+    ALLOCATE (right_gets(4,0:nvirt_k-1,right_myfirstvcol:right_myfirstvcol+right_col_nimages-1))
     right_gets = -1
     right_max_data = 0 ; right_max_meta = 0
-    ALLOCATE (left_gets(4, 0:left_row_nimages*left_nprows-1, 0:nvirt_k-1))
+    ALLOCATE (left_gets(4,left_myfirstvrow:left_myfirstvrow+left_row_nimages-1,0:nvirt_k-1))
     left_gets = -1
     left_max_data = 0 ; left_max_meta = 0
     !
-!$omp parallel default(none) &
-!$omp          private (size_guess, ithread, &
-!$omp                   src_vcol, src_vrow, dst_prow, dst_pcol, &
-!$omp                   dst_irow, dst_icol, dst_p) &
-!$omp          firstprivate (error) &
-!$omp          shared (right_col_nimages, right_npcols, &
-!$omp                  right_row_nimages, right_nprows, &
-!$omp                  right_set, right_mp_obj, right_pgrid, &
-!$omp                  right_gets, all_right_gets, &
-!$omp                  left_col_nimages, left_npcols, &
-!$omp                  left_row_nimages, left_nprows, &
-!$omp                  left_set, left_mp_obj, left_pgrid, &
-!$omp                  left_gets, all_left_gets, product_matrix) &
-!$omp          reduction(max:right_max_data, right_max_meta, &
-!$omp                        left_max_data, left_max_meta)
-    !
     ! Translate the all_sizes to account for pre-distribution.  This
     ! is just done to simplify lookups.
-!$omp do collapse(2)
-    DO src_vcol = 0, right_col_nimages*right_npcols-1
-       DO src_vrow = 0, right_row_nimages*right_nprows-1
+    DO src_vcol = right_myfirstvcol, right_myfirstvcol+right_col_nimages-1
+       DO src_vrow = 0, nvirt_k-1
           ! Calculate what was shifted.  The right_src_v{row,col} are
           ! the "source" rows/columns; the right_dst are the shifted
           ! targets where the data was placed in make_images.
           CALL image_calculator(right_set%image_dist,&
-               prow = dst_prow, pcol = dst_pcol,&
+               prow = dst_p, &
                rowi = dst_irow, coli = dst_icol,&
                myvprow = src_vrow, myvpcol = src_vcol,&
                shifting = 'r', error=error)
-          IF (dbcsr_mp_has_subgroups (right_mp_obj)) THEN
-             dst_p = dst_prow
-          ELSE
-             dst_p = right_pgrid (dst_prow, dst_pcol)
-          ENDIF
           right_gets(:, src_vrow, src_vcol) =&
                all_right_gets(:, dst_irow, dst_icol, dst_p)
           right_max_data = MAX(right_max_data,right_gets(idata_size,src_vrow,src_vcol))
           right_max_meta = MAX(right_max_meta,right_gets(imeta_size,src_vrow,src_vcol))
        ENDDO
     ENDDO
-!$omp end do
     !
-!$omp do collapse(2)
-    DO src_vcol = 0, left_col_nimages*left_npcols-1
-       DO src_vrow = 0, left_row_nimages*left_nprows-1
+    DO src_vcol = 0, nvirt_k-1
+       DO src_vrow = left_myfirstvrow, left_myfirstvrow+left_row_nimages-1
           ! Calculate what was shifted.  The left_src_v{row,col} are
           ! the "source" rows/columns; the left_dst are the shifted
           ! targets where the data was placed in make_images.
           CALL image_calculator(left_set%image_dist,&
-               prow = dst_prow, pcol = dst_pcol,&
+               pcol = dst_p,&
                rowi = dst_irow, coli = dst_icol,&
                myvprow = src_vrow, myvpcol = src_vcol,&
                shifting = 'l', error=error)
-          IF (dbcsr_mp_has_subgroups (left_mp_obj)) THEN
-             dst_p = dst_pcol
-          ELSE
-             dst_p = left_pgrid (dst_prow, dst_pcol)
-          ENDIF
           left_gets(:, src_vrow, src_vcol) =&
                all_left_gets(:, dst_irow, dst_icol, dst_p)
           left_max_data = MAX(left_max_data,left_gets(idata_size,src_vrow,src_vcol))
           left_max_meta = MAX(left_max_meta,left_gets(imeta_size,src_vrow,src_vcol))
        ENDDO
     ENDDO
-!$omp end do
+    DEALLOCATE(all_right_gets,all_left_gets)
+    !
+!$omp parallel default(none) &
+!$omp          private (size_guess, ithread) &
+!$omp          firstprivate (error) &
+!$omp          shared (product_matrix)
     !
     ! Setup product work areas
     !
@@ -3254,8 +3218,6 @@ MODULE dbcsr_mm_cannon
     CALL ensure_array_size(product_matrix%m%wms(ithread)%col_i, ub=1, error=error)
     CALL ensure_array_size(product_matrix%m%wms(ithread)%blk_p, ub=1, error=error)
 !$omp end parallel
-    !
-    DEALLOCATE(all_right_gets,all_left_gets)
     !
     ! update capacity of memory-pools
     IF (mm_driver == mm_driver_acc) THEN
@@ -3352,7 +3314,6 @@ MODULE dbcsr_mm_cannon
 !$omp end parallel do
        min_row_max_epss = REAL(filter_eps/REAL(index_row_max_epss,KIND=KIND(row_max_epss)),&
             KIND=KIND(row_max_epss))
-       !
        DEALLOCATE (row_counts, total_row_counts, stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
             dbcsr_internal_error, routineN,&
@@ -3384,73 +3345,47 @@ MODULE dbcsr_mm_cannon
        ENDDO
        !
        ! Exchange max norms
-       ALLOCATE (all_right_max_norms(right_row_nimages,right_col_nimages,0:right_nprocs-1))
-       ALLOCATE (all_left_max_norms(left_row_nimages,left_col_nimages,0:left_nprocs-1))
-       CALL mp_allgather(right_max_norms,all_right_max_norms,grp_right)
-       CALL mp_allgather(left_max_norms,all_left_max_norms,grp_left)
-       DEALLOCATE(right_max_norms,left_max_norms)
-       !
-       ALLOCATE(right_max_norms(0:nvirt_k-1, 0:right_col_nimages*right_npcols-1))
-       right_max_norms = HUGE(right_norms(1,1,1))
-       ALLOCATE(left_max_norms(0:left_row_nimages*left_nprows-1, 0:nvirt_k-1))
-       left_max_norms = HUGE(left_norms(1,1,1))
-
-!$omp parallel default(none) &
-!$omp private(src_vcol,src_vrow,dst_p, &
-!$omp         dst_prow, dst_pcol, dst_irow, dst_icol) &
-!$omp firstprivate(error) &
-!$omp shared (right_col_nimages, right_npcols, &
-!$omp         right_row_nimages, right_nprows, &
-!$omp         right_set, right_mp_obj, right_pgrid, &
-!$omp         right_max_norms, all_right_max_norms, &
-!$omp         left_col_nimages, left_npcols, &
-!$omp         left_row_nimages, left_nprows, &
-!$omp         left_set, left_mp_obj, left_pgrid, &
-!$omp         left_max_norms, all_left_max_norms)
-!$omp do collapse(2)
-       DO src_vcol = 0, right_col_nimages*right_npcols-1
-          DO src_vrow = 0, right_row_nimages*right_nprows-1
-             ! Calculate what was shifted.  The right_src_v{row,col} are
-             ! the "source" rows/columns; the right_dst are the shifted
-             ! targets where the data was placed in make_images.
-             CALL image_calculator(right_set%image_dist,&
-                  prow = dst_prow, pcol = dst_pcol,&
-                  rowi = dst_irow, coli = dst_icol,&
-                  myvprow = src_vrow, myvpcol = src_vcol,&
-                  shifting = 'r', error=error)
-             IF (dbcsr_mp_has_subgroups (right_mp_obj)) THEN
-                dst_p = dst_prow
-             ELSE
-                dst_p = right_pgrid (dst_prow, dst_pcol)
-             ENDIF
-             right_max_norms(src_vrow, src_vcol) = all_right_max_norms(dst_irow, dst_icol, dst_p)
+       IF (use_mpi_filtering) THEN
+          ALLOCATE (all_right_max_norms(right_row_nimages,right_col_nimages,0:right_nprows-1))
+          ALLOCATE (all_left_max_norms(left_row_nimages,left_col_nimages,0:left_npcols-1))
+          CALL mp_allgather(right_max_norms,all_right_max_norms,grp_right)
+          CALL mp_allgather(left_max_norms,all_left_max_norms,grp_left)
+          DEALLOCATE(right_max_norms,left_max_norms)
+          !
+          ALLOCATE(right_max_norms(0:nvirt_k-1,right_myfirstvcol:right_myfirstvcol+right_col_nimages-1))
+          right_max_norms = HUGE(right_norms(1,1,1))
+          ALLOCATE(left_max_norms(left_myfirstvrow:left_myfirstvrow+left_row_nimages-1,0:nvirt_k-1))
+          left_max_norms = HUGE(left_norms(1,1,1))
+          !
+          DO src_vcol = right_myfirstvcol, right_myfirstvcol+right_col_nimages-1
+             DO src_vrow = 0, nvirt_k-1
+                ! Calculate what was shifted.  The right_src_v{row,col} are
+                ! the "source" rows/columns; the right_dst are the shifted
+                ! targets where the data was placed in make_images.
+                CALL image_calculator(right_set%image_dist,&
+                     prow = dst_p,&
+                     rowi = dst_irow, coli = dst_icol,&
+                     myvprow = src_vrow, myvpcol = src_vcol,&
+                     shifting = 'r', error=error)
+                right_max_norms(src_vrow, src_vcol) = all_right_max_norms(dst_irow, dst_icol, dst_p)
+             ENDDO
           ENDDO
-       ENDDO
-!$omp end do
-       !
-!$omp do collapse(2)
-       DO src_vcol = 0, left_col_nimages*left_npcols-1
-          DO src_vrow = 0, left_row_nimages*left_nprows-1
-             ! Calculate what was shifted.  The left_src_v{row,col} are
-             ! the "source" rows/columns; the left_dst are the shifted
-             ! targets where the data was placed in make_images.
-             CALL image_calculator(left_set%image_dist,&
-                  prow = dst_prow, pcol = dst_pcol,&
-                  rowi = dst_irow, coli = dst_icol,&
-                  myvprow = src_vrow, myvpcol = src_vcol,&
-                  shifting = 'l', error=error)
-             IF (dbcsr_mp_has_subgroups (left_mp_obj)) THEN
-                dst_p = dst_pcol
-             ELSE
-                dst_p = left_pgrid (dst_prow, dst_pcol)
-             ENDIF
-             left_max_norms(src_vrow, src_vcol) = all_left_max_norms(dst_irow, dst_icol, dst_p)
+          !
+          DO src_vcol = 0, nvirt_k-1
+             DO src_vrow = left_myfirstvrow, left_myfirstvrow+left_row_nimages-1
+                ! Calculate what was shifted.  The left_src_v{row,col} are
+                ! the "source" rows/columns; the left_dst are the shifted
+                ! targets where the data was placed in make_images.
+                CALL image_calculator(left_set%image_dist,&
+                     pcol = dst_p,&
+                     rowi = dst_irow, coli = dst_icol,&
+                     myvprow = src_vrow, myvpcol = src_vcol,&
+                     shifting = 'l', error=error)
+                left_max_norms(src_vrow, src_vcol) = all_left_max_norms(dst_irow, dst_icol, dst_p)
+             ENDDO
           ENDDO
-       ENDDO
-!$omp end do
-!$omp end parallel
-       !
-       DEALLOCATE(all_right_max_norms,all_left_max_norms)
+          DEALLOCATE(all_right_max_norms,all_left_max_norms)
+       ENDIF
     ELSE
        !
        ! These arrays must be valid when passed to called subroutines.
@@ -3512,18 +3447,10 @@ MODULE dbcsr_mm_cannon
        right_gets_filtered = 0 ; left_gets_filtered = 0
        !
        CALL dbcsr_error_set(routineN//"_precannon", error_handler2, error)
-       IF (dbcsr_mp_has_subgroups (right_mp_obj)) THEN
-          right_gets_p(:,:,0) = right_myprow
-       ELSE
-          right_gets_p(:,:,0) = mynode
-       ENDIF
-       IF (dbcsr_mp_has_subgroups (left_mp_obj)) THEN
-          left_gets_p(:,:,0) = left_mypcol
-       ELSE
-          left_gets_p(:,:,0) = mynode
-       END IF
+       right_gets_p(:,:,0) = right_myprow
+       left_gets_p(:,:,0) = left_mypcol
        !
-       IF (otf_filtering) THEN
+       IF (otf_filtering.AND.use_mpi_filtering) THEN
           ALLOCATE(left_max_norms_recv(0:left_row_nimages-1,0:min_nimages-1))
           ALLOCATE(right_max_norms_recv(0:min_nimages-1,0:right_col_nimages-1))
        ENDIF
@@ -3539,7 +3466,7 @@ MODULE dbcsr_mm_cannon
              DO v_ri = 0, left_row_nimages-1
                 ! Calculate the process to send to
                 CALL image_calculator (left_set%image_dist,&
-                     prow=send_prow, pcol=send_pcol,&   ! output
+                     pcol=send_p,&   ! output
                      myvprow=v_ri+left_myfirstvrow,& 
                      ! go through all my column images
                      myvpcol=v_ci+left_myfirstvcol,&
@@ -3548,27 +3475,19 @@ MODULE dbcsr_mm_cannon
                      shifting='0', error=error)
                 ! Calculate the process to receive from
                 CALL image_calculator (left_set%image_dist,&
-                     prow=recv_prow, pcol=recv_pcol,&
+                     pcol=recv_p,&
                      myvprow=v_ri+left_myfirstvrow,&
                      myvpcol=v_ci+left_myfirstvcol,&
                      vpcol_shift=+min_nimages,& ! just the opposite as "send to"
                      shifting='0', error=error)
                 !
-                ! These are column-communicator relative
-                IF (dbcsr_mp_has_subgroups (left_mp_obj)) THEN
-                   left_send_p = send_pcol
-                   left_recv_p = recv_pcol
-                ELSE
-                   left_send_p = left_pgrid (send_prow, send_pcol)
-                   left_recv_p = left_pgrid (recv_prow, recv_pcol)
-                ENDIF
                 ! Exchange indices
-                CALL mp_isendrecv(left_gets_p(v_ri,v_ci,metronome-1),left_send_p,&
-                     left_gets_p(v_ri,v_ci,metronome),left_recv_p,&
+                CALL mp_isendrecv(left_gets_p(v_ri,v_ci,metronome-1),send_p,&
+                     left_gets_p(v_ri,v_ci,metronome),recv_p,&
                      grp_left,precannon_requests(1,v_ri+v_i),&
                      precannon_requests(2,v_ri+v_i))
                 ! Exchange max norms
-                IF (otf_filtering.AND.v_ci.LT.min_nimages) THEN
+                IF (otf_filtering.AND.use_mpi_filtering.AND.v_ci.LT.min_nimages) THEN
                    CALL image_calculator (left_set%image_dist,&
                         vprow=get_vrow,vpcol=get_vcol,&
                         myvprow=v_ri+left_myfirstvrow,&
@@ -3589,7 +3508,7 @@ MODULE dbcsr_mm_cannon
                 !
                 ! Calculate the process to send to
                 CALL image_calculator (right_set%image_dist,&
-                     prow=send_prow, pcol=send_pcol,&   ! output
+                     prow=send_p,&   ! output
                      ! myvprow goes through all of my (process row) images
                      myvprow=v_ri+right_myfirstvrow,&
                      myvpcol=v_ci+right_myfirstvcol,&
@@ -3598,27 +3517,19 @@ MODULE dbcsr_mm_cannon
                      shifting='0', error=error)
                 ! Calculate the process to receive from
                 CALL image_calculator (right_set%image_dist,&
-                     prow=recv_prow, pcol=recv_pcol,&
+                     prow=recv_p,&
                      myvprow=v_ri+right_myfirstvrow,&
                      myvpcol=v_ci+right_myfirstvcol,&
                      vprow_shift=+min_nimages,& ! just the opposite as "send to"
                      shifting='0', error=error)
                 !
-                ! These are row-communicator relative
-                IF (dbcsr_mp_has_subgroups (right_mp_obj)) THEN
-                   right_send_p = send_prow
-                   right_recv_p = recv_prow
-                ELSE
-                   right_send_p = right_pgrid (send_prow, send_pcol)
-                   right_recv_p = right_pgrid (recv_prow, recv_pcol)
-                ENDIF
                 ! Exchange indices
-                CALL mp_isendrecv(right_gets_p(v_ri,v_ci,metronome-1),right_send_p,&
-                     right_gets_p(v_ri,v_ci,metronome),right_recv_p,&
+                CALL mp_isendrecv(right_gets_p(v_ri,v_ci,metronome-1),send_p,&
+                     right_gets_p(v_ri,v_ci,metronome),recv_p,&
                      grp_right,precannon_requests(1,v_ri+v_i),&
                      precannon_requests(2,v_ri+v_i))
                 ! Exchange max norms
-                IF (otf_filtering.AND.v_ri.LT.min_nimages) THEN
+                IF (otf_filtering.AND.use_mpi_filtering.AND.v_ri.LT.min_nimages) THEN
                    CALL image_calculator (right_set%image_dist,&
                         vprow=get_vrow, vpcol=get_vcol,&
                         myvprow=v_ri+right_myfirstvrow,&
@@ -3631,7 +3542,7 @@ MODULE dbcsr_mm_cannon
                 ENDIF
              END DO
           ENDDO
-          IF (otf_filtering) THEN
+          IF (otf_filtering.AND.use_mpi_filtering) THEN
              !
 !$omp parallel do &
 !$omp default (none) &
@@ -3657,9 +3568,13 @@ MODULE dbcsr_mm_cannon
           CALL mp_waitall (precannon_requests)
        ENDDO
        DEALLOCATE(precannon_requests)
-       IF (otf_filtering) THEN
+       IF (otf_filtering.AND.use_mpi_filtering) THEN
           DEALLOCATE(left_max_norms_recv,right_max_norms_recv)
        ENDIF
+       IF (otf_filtering) THEN
+          DEALLOCATE(right_max_norms,left_max_norms)
+       ENDIF
+       !
        CALL dbcsr_error_stop(error_handler2, error)
        ! 
        ! Set the original data buffers and corresponding windows
@@ -3671,6 +3586,15 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_data_init(right_meta_orig)
        CALL dbcsr_data_new(right_meta_orig,data_type=dbcsr_type_int_4,&
                            data_size=INT(right_meta_size),memory_type=memtype_mpi_buffer)
+       !
+       ! Set the left matrix buffers
+       !
+       CALL dbcsr_data_init(left_data_orig)
+       CALL dbcsr_data_new(left_data_orig,data_type=data_type,&
+                           data_size=INT(left_data_size),memory_type=memtype_mpi_buffer)
+       CALL dbcsr_data_init(left_meta_orig)
+       CALL dbcsr_data_new(left_meta_orig,data_type=dbcsr_type_int_4,&
+                           data_size=INT(left_meta_size),memory_type=memtype_mpi_buffer)
        DO v_ci = 1, right_col_nimages
           DO v_ri = 1, right_row_nimages
              CALL dbcsr_data_copy(right_data_orig,right_set%mats(v_ri,v_ci)%m%data_area,&
@@ -3681,15 +3605,6 @@ MODULE dbcsr_mm_cannon
                                   INT(local_right_gets(imeta_displ,v_ri,v_ci))+1)
           ENDDO
        ENDDO
-       !
-       ! Set the left matrix buffers
-       !
-       CALL dbcsr_data_init(left_data_orig)
-       CALL dbcsr_data_new(left_data_orig,data_type=data_type,&
-                           data_size=INT(left_data_size),memory_type=memtype_mpi_buffer)
-       CALL dbcsr_data_init(left_meta_orig)
-       CALL dbcsr_data_new(left_meta_orig,data_type=dbcsr_type_int_4,&
-                           data_size=INT(left_meta_size),memory_type=memtype_mpi_buffer)
        DO v_ci = 1, left_col_nimages
           DO v_ri = 1, left_row_nimages
              CALL dbcsr_data_copy(left_data_orig,left_set%mats(v_ri,v_ci)%m%data_area,&
@@ -3700,6 +3615,7 @@ MODULE dbcsr_mm_cannon
                                   INT(local_left_gets(imeta_displ,v_ri,v_ci))+1)
           ENDDO
        ENDDO
+       DEALLOCATE(local_right_gets,local_left_gets)       
        !
        ! Create the windows
        ! Right:
@@ -3713,11 +3629,6 @@ MODULE dbcsr_mm_cannon
        CALL mp_win_lock_all(left_data_win)
        CALL mp_win_lock_all(left_meta_win)
     ENDIF
-    !
-    IF (otf_filtering) THEN
-       DEALLOCATE(right_max_norms,left_max_norms)
-    ENDIF
-    DEALLOCATE(local_right_gets,local_left_gets)
     !
     ALLOCATE (right_get_requests(2,0:min_nimages*right_col_nimages-1))
     right_get_requests = mp_request_null

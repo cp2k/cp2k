@@ -36,13 +36,13 @@ MODULE dbcsr_api
        dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
        dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_nstacks, dbcsr_get_conf_subcomm, &
-       dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_rma, &
+       dbcsr_get_conf_nstacks, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_get_conf_use_mpi_filtering, dbcsr_get_conf_use_mpi_rma, &
        dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
        dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
        dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_nstacks, dbcsr_set_conf_subcomm, &
-       dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_rma, &
+       dbcsr_set_conf_nstacks, dbcsr_set_conf_use_comm_thread, &
+       dbcsr_set_conf_use_mpi_filtering, dbcsr_set_conf_use_mpi_rma, &
        dbcsr_set_default_config, has_acc, has_mpi, mm_driver_acc, &
        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
        mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
@@ -243,8 +243,8 @@ MODULE dbcsr_api
             dbcsr_get_conf_mm_stacksize,&
             dbcsr_get_conf_mpi_mem,&
             dbcsr_get_conf_nstacks,&
-            dbcsr_get_conf_subcomm,&
             dbcsr_get_conf_use_mpi_rma,&
+            dbcsr_get_conf_use_mpi_filtering,&
             dbcsr_get_conf_use_comm_thread,&
             dbcsr_get_data_p,&
             dbcsr_get_data_size,&
@@ -321,8 +321,8 @@ MODULE dbcsr_api
             dbcsr_set_conf_mm_stacksize,&
             dbcsr_set_conf_avg_elements_images,&
             dbcsr_set_conf_nstacks,&
-            dbcsr_set_conf_subcomm,&
             dbcsr_set_conf_use_mpi_rma,&
+            dbcsr_set_conf_use_mpi_filtering,&
             dbcsr_set_conf_use_comm_thread,&
             dbcsr_set_diag,&
             dbcsr_sum_replicated,&
