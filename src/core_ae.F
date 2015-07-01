@@ -70,12 +70,14 @@ CONTAINS
 !> \param particle_set ...
 !> \param sab_orb ...
 !> \param sac_ae ...
+!> \param nimages ...
+!> \param cell_to_index ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, error)
+             qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, nimages, cell_to_index, error)
 
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_h, matrix_p
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
@@ -91,21 +93,24 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb, sac_ae
+    INTEGER, INTENT(IN)                      :: nimages
+    INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ae', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, atom_c, handle, iatom, icol, ikind, inode, &
-      irow, iset, jatom, jkind, jset, katom, kkind, last_jatom, ldai, ldsab, &
+    INTEGER :: atom_a, atom_b, atom_c, handle, iatom, icol, ikind, img, &
+      inode, irow, iset, jatom, jkind, jset, katom, kkind, ldai, ldsab, &
       maxco, maxder, maxl, maxnset, maxsgf, na_plus, natom, nb_plus, ncoa, &
       ncob, nij, nkind, nseta, nsetb, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(3)                    :: cellind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, new_atom_b
+    LOGICAL                                  :: dokp, failure, found
     REAL(KIND=dp)                            :: alpha_c, core_charge, &
                                                 core_radius, dab, dac, dbc, &
                                                 f0, rab2, rac2, rbc2, zeta_c
@@ -137,16 +142,20 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
+    dokp = (nimages > 1)
+
     ALLOCATE (atom_of_kind(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
     IF (calculate_forces) THEN
-       IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+       IF (SIZE(matrix_p,1) == 2) THEN
+          DO img=1,nimages
+             CALL cp_dbcsr_add(matrix_p(1,img)%matrix, matrix_p(2,img)%matrix, &
                          alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
-          CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+             CALL cp_dbcsr_add(matrix_p(2,img)%matrix, matrix_p(1,img)%matrix, &
                          alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
+          END DO
        END IF
     END IF
 
@@ -184,7 +193,7 @@ CONTAINS
     CALL neighbor_list_iterator_create(nl_iterator,sab_orb)
     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
-                              iatom=iatom,jatom=jatom,r=rab)
+                              iatom=iatom,jatom=jatom,r=rab,cell=cellind)
        basis_set_a => basis_set_list(ikind)%gto_basis_set
        IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
        basis_set_b => basis_set_list(jkind)%gto_basis_set
@@ -214,14 +223,12 @@ CONTAINS
        sphi_b       =>  basis_set_b%sphi
        zetb         =>  basis_set_b%zet
 
-       IF(inode==1) last_jatom = 0
        dab = SQRT(SUM(rab*rab))
 
-       IF (jatom /= last_jatom) THEN
-          new_atom_b = .TRUE.
-          last_jatom = jatom
+       IF(dokp) THEN
+          img = cell_to_index(cellind(1),cellind(2),cellind(3))
        ELSE
-          new_atom_b = .FALSE.
+          img = 1
        END IF
 
        ! *** Use the symmetry of the first derivatives ***
@@ -232,49 +239,46 @@ CONTAINS
        END IF
 
        ! *** Create matrix blocks for a new matrix block column ***
-       IF (new_atom_b) THEN
-          IF (iatom <= jatom) THEN
-             irow = iatom
-             icol = jatom
-          ELSE
-             irow = jatom
-             icol = iatom
-          END IF
-          NULLIFY(h_block)
-          CALL cp_dbcsr_get_block_p(matrix=matrix_h(1)%matrix,&
+       IF (iatom <= jatom) THEN
+          irow = iatom
+          icol = jatom
+       ELSE
+          irow = jatom
+          icol = iatom
+       END IF
+       NULLIFY(h_block)
+       CALL cp_dbcsr_get_block_p(matrix=matrix_h(1,img)%matrix,&
                row=irow,col=icol,BLOCK=h_block,found=found)
-          IF (calculate_forces) THEN
-             NULLIFY(p_block)
-             CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
+       IF (calculate_forces) THEN
+          NULLIFY(p_block)
+          CALL cp_dbcsr_get_block_p(matrix=matrix_p(1,img)%matrix,&
                   row=irow,col=icol,BLOCK=p_block,found=found)
-             CPPostcondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
-             ! *** Decontract density matrix block ***
-             DO iset=1,nseta
-                ncoa = npgfa(iset)*ncoset(la_max(iset))
-                sgfa = first_sgfa(1,iset)
-                DO jset=1,nsetb
-                   ncob = npgfb(jset)*ncoset(lb_max(jset))
-                   sgfb = first_sgfb(1,jset)
-                   nij=jset+(iset-1)*maxnset
-                   IF (iatom <= jatom) THEN
-                      CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                              1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                              p_block(sgfa,sgfb),SIZE(p_block,1),&
-                              0.0_dp,work(1,1),SIZE(work,1))
-                   ELSE
-                      CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
-                              1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                              p_block(sgfb,sgfa),SIZE(p_block,1),&
-                              0.0_dp,work(1,1),SIZE(work,1))
-                   END IF
-                   CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                           1.0_dp,work(1,1),SIZE(work,1),&
-                           sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                           0.0_dp,pab(1,1,nij),SIZE(pab,1))
-                END DO
+          CPPostcondition(ASSOCIATED(p_block),cp_failure_level,routineP,error,failure)
+          ! *** Decontract density matrix block ***
+          DO iset=1,nseta
+             ncoa = npgfa(iset)*ncoset(la_max(iset))
+             sgfa = first_sgfa(1,iset)
+             DO jset=1,nsetb
+                ncob = npgfb(jset)*ncoset(lb_max(jset))
+                sgfb = first_sgfb(1,jset)
+                nij=jset+(iset-1)*maxnset
+                IF (iatom <= jatom) THEN
+                   CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
+                           1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                           p_block(sgfa,sgfb),SIZE(p_block,1),&
+                           0.0_dp,work(1,1),SIZE(work,1))
+                ELSE
+                   CALL dgemm("N","T",ncoa,nsgfb(jset),nsgfa(iset),&
+                           1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                           p_block(sgfb,sgfa),SIZE(p_block,1),&
+                           0.0_dp,work(1,1),SIZE(work,1))
+                END IF
+                CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
+                        1.0_dp,work(1,1),SIZE(work,1),&
+                        sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                        0.0_dp,pab(1,1,nij),SIZE(pab,1))
              END DO
-          END IF
-
+          END DO
        END IF
 
        ! loop over all kinds for pseudopotential  atoms
@@ -363,7 +367,6 @@ CONTAINS
                    END IF
                 END DO
              END DO
-!            sac_ae_neighbor_node => next(sac_ae_neighbor_node)
           END DO
        END DO
        ! *** Contract nuclear attraction integrals
@@ -409,11 +412,13 @@ CONTAINS
     IF (calculate_forces) THEN
        ! *** If LSD, then recover alpha density and beta density     ***
        ! *** from the total density (1) and the spin density (2)     ***
-       IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+       IF (SIZE(matrix_p,1) == 2) THEN
+          DO img=1,nimages
+             CALL cp_dbcsr_add(matrix_p(1,img)%matrix, matrix_p(2,img)%matrix, &
                          alpha_scalar= 0.5_dp, beta_scalar=0.5_dp,error=error)
-          CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+             CALL cp_dbcsr_add(matrix_p(2,img)%matrix, matrix_p(1,img)%matrix, &
                          alpha_scalar=-1.0_dp, beta_scalar=1.0_dp,error=error)
+          END DO
        END IF
     END IF
 

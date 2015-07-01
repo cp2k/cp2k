@@ -391,6 +391,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao, rho_xc_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: rho_ao_kp
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -459,9 +461,10 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
                                      para_env=para_env,error=error)
         CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
       ELSE
-        CALL qs_rho_get(rho_struct, rho_ao=rho_ao, error=error)
+        CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp, error=error)
         DO ispin=1,nspins
-           CALL calculate_rho_elec(matrix_p=rho_ao(ispin)%matrix,&
+           rho_ao => rho_ao_kp(ispin,:)
+           CALL calculate_rho_elec(matrix_p_kp=rho_ao,&
                 rho=rho_r(ispin),&
                 rho_gspace=rho_g(ispin),&
                 total_rho=tot_rho_r(ispin),&
@@ -473,10 +476,11 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
 
       ! if needed compute also the gradient of the density
       IF (dft_control%drho_by_collocation) THEN
-         CALL qs_rho_get(rho_struct, rho_ao=rho_ao, error=error)
+         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp, error=error)
          DO ispin=1,nspins
            CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
-           CALL calculate_drho_elec(matrix_p=rho_ao(ispin)%matrix,&
+           rho_ao => rho_ao_kp(ispin,:)
+           CALL calculate_drho_elec(matrix_p_kp=rho_ao,&
              drho=drho_r(3*(ispin-1)+1:3*ispin),&
              drho_gspace=drho_g(3*(ispin-1)+1:3*ispin),&
              qs_env=qs_env,soft_valid=gapw,error=error)
@@ -490,10 +494,11 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
             CALL stop_program(routineN,moduleN,__LINE__,&
              "LRIGPW not implemented for meta-GGAs")
          ENDIF
-         CALL qs_rho_get(rho_struct, rho_ao=rho_ao, error=error)
+         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp, error=error)
          DO ispin=1,nspins
             CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
-            CALL calculate_rho_elec(matrix_p=rho_ao(ispin)%matrix,&
+            rho_ao => rho_ao_kp(ispin,:)
+            CALL calculate_rho_elec(matrix_p_kp=rho_ao,&
                  rho=tau_r(ispin),&
                  rho_gspace=tau_g(ispin),&
                  total_rho=dum, &  ! presumably not meaningful

@@ -77,12 +77,15 @@ CONTAINS
 !> \param sab_orb ...
 !> \param sap_ppnl ...
 !> \param eps_ppnl ...
+!> \param nimages ...
+!> \param cell_to_index ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, error)
+             qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
+             nimages, cell_to_index, error)
 
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_h, matrix_p
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
@@ -99,24 +102,26 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb, sap_ppnl
     REAL(KIND=dp), INTENT(IN)                :: eps_ppnl
+    INTEGER, INTENT(IN)                      :: nimages
+    INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ppnl', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, atom_c, first_col, handle, i, iab, iac, iatom, &
-      ibc, icol, ikind, ilist, inode, irow, iset, j, jatom, jkind, jneighbor, &
-      kac, katom, kbc, kkind, l, last_iatom, last_jatom, lc_max, lc_min, &
-      ldai, ldsab, lppnl, maxco, maxder, maxl, maxlgto, maxlppnl, maxppnl, &
-      maxsgf, mepos, na, natom, nb, ncoa, ncoc, nkind, nlist, nneighbor, &
-      nnode, np, nppnl, nprjc, nseta, nsgfa, nthread, prjc, sgfa, stat
+      ibc, icol, ikind, ilist, img, inode, irow, iset, j, jatom, jkind, &
+      jneighbor, kac, katom, kbc, kkind, l, lc_max, lc_min, ldai, ldsab, &
+      lppnl, maxco, maxder, maxl, maxlgto, maxlppnl, maxppnl, maxsgf, mepos, &
+      na, natom, nb, ncoa, ncoc, nkind, nlist, nneighbor, nnode, np, nppnl, &
+      nprjc, nseta, nsgfa, nthread, prjc, sgfa, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, &
                                                 nprj_ppnl, nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, found, &
-                                                new_atom_pair, ppnl_present
+    LOGICAL                                  :: dokp, failure, found, &
+                                                ppnl_present
     REAL(KIND=dp)                            :: dac, f0, ppnl_radius
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sab, work
@@ -156,16 +161,20 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       natom = SIZE(particle_set)
 
+      dokp = (nimages > 1)
+
       ALLOCATE (atom_of_kind(natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
 
       IF (calculate_forces) THEN
-         IF (SIZE(matrix_p) == 2) THEN
-            CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+         IF (SIZE(matrix_p,1) == 2) THEN
+            DO img=1,nimages
+               CALL cp_dbcsr_add(matrix_p(1,img)%matrix, matrix_p(2,img)%matrix, &
                            alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
-            CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+               CALL cp_dbcsr_add(matrix_p(2,img)%matrix, matrix_p(1,img)%matrix, &
                            alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
+            END DO
          END IF
       END IF
 
@@ -350,18 +359,16 @@ CONTAINS
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &                                                                                      
-!$OMP SHARED  (nl_iterator, basis_set, atom_of_kind, matrix_h, &
+!$OMP SHARED  (nl_iterator, dokp, basis_set, atom_of_kind, matrix_h, cell_to_index,&
 !$OMP          matrix_p, sap_int, nkind, eps_ppnl, force, virial, use_virial, calculate_forces) &
 !$OMP PRIVATE (mepos, ikind, jkind, iatom, jatom, nlist, ilist, nnode, inode, cell_b, rab, &
-!$OMP          iab, atom_a, atom_b, last_iatom, last_jatom, f0, irow, icol, h_block, &
+!$OMP          iab, atom_a, atom_b, f0, irow, icol, h_block, &
 !$OMP          found, error, p_block, iac, ibc, alist_ac, alist_bc, acint, bcint, &
-!$OMP          achint, bchint, na, np, nb, katom, atom_c, j, fa, fb, rbc, rac, new_atom_pair, &
-!$OMP          kkind, kac, kbc, i)
+!$OMP          achint, bchint, na, np, nb, katom, atom_c, j, fa, fb, rbc, rac, &
+!$OMP          kkind, kac, kbc, i, img)
 
       mepos=0
 !$    mepos=omp_get_thread_num()
-      last_iatom = 0
-      last_jatom = 0
 
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos)==0)
          CALL get_iterator_info(nl_iterator,mepos=mepos,ikind=ikind,jkind=jkind,iatom=iatom,&
@@ -372,14 +379,6 @@ CONTAINS
          atom_a = atom_of_kind(iatom)
          atom_b = atom_of_kind(jatom)
 
-         IF (iatom == last_iatom .AND. jatom == last_jatom) THEN
-            new_atom_pair = .FALSE.
-         ELSE
-            new_atom_pair = .TRUE.
-            last_jatom = jatom
-            last_iatom = iatom
-         END IF
-
          ! *** Use the symmetry of the first derivatives ***
          IF (iatom == jatom) THEN
             f0 = 1.0_dp
@@ -387,22 +386,25 @@ CONTAINS
             f0 = 2.0_dp
          END IF
 
+         IF(dokp) THEN
+            img = cell_to_index(cell_b(1),cell_b(2),cell_b(3))
+         ELSE
+            img = 1
+         END IF
+
          ! *** Create matrix blocks for a new matrix block column ***
-         IF (new_atom_pair) THEN
-            IF (iatom <= jatom) THEN
-               irow = iatom
-               icol = jatom
-            ELSE
-               irow = jatom
-               icol = iatom
-            END IF
-            NULLIFY(h_block)
-            CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,irow,icol,h_block,found)
-            !CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
-            IF (calculate_forces) THEN
-               NULLIFY(p_block)
-               CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,p_block,found)
-            END IF
+         IF (iatom <= jatom) THEN
+            irow = iatom
+            icol = jatom
+         ELSE
+            irow = jatom
+            icol = iatom
+         END IF
+         NULLIFY(h_block)
+         CALL cp_dbcsr_get_block_p(matrix_h(1,img)%matrix,irow,icol,h_block,found)
+         IF (calculate_forces) THEN
+            NULLIFY(p_block)
+            CALL cp_dbcsr_get_block_p(matrix_p(1,img)%matrix,irow,icol,p_block,found)
          END IF
 
          ! loop over all kinds for projector atom
@@ -492,11 +494,13 @@ CONTAINS
       IF (calculate_forces) THEN
          ! *** If LSD, then recover alpha density and beta density     ***
          ! *** from the total density (1) and the spin density (2)     ***
-         IF (SIZE(matrix_p) == 2) THEN
-            CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+         IF (SIZE(matrix_p,1) == 2) THEN
+            DO img=1,nimages
+               CALL cp_dbcsr_add(matrix_p(1,img)%matrix, matrix_p(2,img)%matrix, &
                            alpha_scalar= 0.5_dp, beta_scalar=0.5_dp,error=error)
-            CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+               CALL cp_dbcsr_add(matrix_p(2,img)%matrix, matrix_p(1,img)%matrix, &
                            alpha_scalar=-1.0_dp, beta_scalar=1.0_dp,error=error)
+            END DO
          END IF
       END IF
 

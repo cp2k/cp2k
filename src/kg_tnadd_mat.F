@@ -81,7 +81,7 @@ CONTAINS
                     qs_kind_set, atomic_kind_set, particle_set, sab_orb, dbcsr_dist, error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_p
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
@@ -103,11 +103,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nexp_max = 10
 
-    INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, icol, ikind, imol, &
-      inode, irow, iset, istat, jatom, jkind, jmol, jset, katom, kkind, kmol, &
-      last_iatom, last_jatom, ldai, ldsab, maxco, maxder, maxl, maxlgto, &
-      maxnset, maxpol, maxsgf, mepos, natom, ncoa, ncob, nder, ngau, nkind, &
-      npol, nseta, nsetb, nthread, sgfa, sgfb, stat
+    INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, icol, ikind, img, &
+      imol, inode, irow, iset, istat, jatom, jkind, jmol, jset, katom, kkind, &
+      kmol, last_iatom, last_jatom, ldai, ldsab, maxco, maxder, maxl, &
+      maxlgto, maxnset, maxpol, maxsgf, mepos, natom, ncoa, ncob, nder, ngau, &
+      nkind, npol, nseta, nsetb, nthread, sgfa, sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER :: atom_to_molecule, col_blk_sizes, &
       la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, &
@@ -140,15 +140,15 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sac_kin
 
-    NULLIFY(matrix_kg)
-
-    failure = .FALSE.
     IF (calculate_forces) THEN
       CALL timeset(routineN//"_forces",handle)
     ELSE
       CALL timeset(routineN,handle)
     ENDIF
 
+    failure = .FALSE.
+
+    NULLIFY(matrix_kg)
     IF (ASSOCIATED(kg_env%tnadd_mat)) THEN
        CALL cp_dbcsr_deallocate_matrix_set(kg_env%tnadd_mat,error)
     ENDIF
@@ -164,11 +164,13 @@ CONTAINS
 
     IF (calculate_forces) THEN
        nder = 1
-       IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+       IF (SIZE(matrix_p,1) == 2) THEN
+          DO img=1,SIZE(matrix_p,2)
+             CALL cp_dbcsr_add(matrix_p(1,img)%matrix, matrix_p(2,img)%matrix, &
                          alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
-          CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+             CALL cp_dbcsr_add(matrix_p(2,img)%matrix, matrix_p(1,img)%matrix, &
                          alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
+          END DO
        END IF
     ELSE
        nder = 0
@@ -331,8 +333,9 @@ CONTAINS
           CALL cp_dbcsr_get_block_p(matrix_kg(1)%matrix,irow,icol,h_block,found)
           IF(ASSOCIATED(h_block)) THEN
           IF (calculate_forces) THEN
+             CPPrecondition(SIZE(matrix_p,2)==1,cp_failure_level,routineP,error,failure)
              NULLIFY(p_block)
-             CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,p_block,found)
+             CALL cp_dbcsr_get_block_p(matrix_p(1,1)%matrix,irow,icol,p_block,found)
              IF(ASSOCIATED(p_block)) THEN
                 DO iset=1,nseta
                    ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -517,11 +520,13 @@ CONTAINS
     IF (calculate_forces) THEN
        ! *** If LSD, then recover alpha density and beta density     ***
        ! *** from the total density (1) and the spin density (2)     ***
-       IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+       IF (SIZE(matrix_p,1) == 2) THEN
+          DO img=1,SIZE(matrix_p,2)
+             CALL cp_dbcsr_add(matrix_p(1,img)%matrix, matrix_p(2,img)%matrix, &
                          alpha_scalar= 0.5_dp, beta_scalar=0.5_dp,error=error)
-          CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+             CALL cp_dbcsr_add(matrix_p(2,img)%matrix, matrix_p(1,img)%matrix, &
                          alpha_scalar=-1.0_dp, beta_scalar=1.0_dp,error=error)
+          END DO
        END IF
     END IF
 

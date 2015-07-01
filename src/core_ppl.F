@@ -10,6 +10,7 @@
 !>      - adapted for PPL [jhu, 2009-02-23]
 !>      - OpenMP added [Iain Bethune, Fiona Reid, 2013-11-13]
 !>      - Bug fix: correct orbital pointer range [07.2014,JGH]
+!>      - k-point aware [07.2015,JGH]
 ! *****************************************************************************
 MODULE core_ppl
 
@@ -74,12 +75,14 @@ CONTAINS
 !> \param particle_set ...
 !> \param sab_orb ...
 !> \param sac_ppl ...
+!> \param nimages ...
+!> \param cell_to_index ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, error)
+             qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, nimages, cell_to_index, error)
 
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_h, matrix_p
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
@@ -95,25 +98,28 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb, sac_ppl
+    INTEGER, INTENT(IN)                      :: nimages
+    INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_ppl', &
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nexp_max = 10
 
-    INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, icol, ikind, inode, &
-      irow, iset, jatom, jkind, jset, katom, kkind, last_iatom, last_jatom, &
-      ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlppl, maxnset, maxsgf, &
-      mepos, natom, ncoa, ncob, nexp_lpot, nexp_ppl, nkind, nseta, nsetb, &
-      nthread, sgfa, sgfb, stat
+    INTEGER :: atom_a, atom_b, atom_c, handle, i, iatom, icol, ikind, img, &
+      inode, irow, iset, jatom, jkind, jset, katom, kkind, ldai, ldsab, &
+      maxco, maxder, maxl, maxlgto, maxlppl, maxnset, maxsgf, mepos, natom, &
+      ncoa, ncob, nexp_lpot, nexp_ppl, nkind, nseta, nsetb, nthread, sgfa, &
+      sgfb, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(3)                    :: cellind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, nct_lpot, npgfa, &
                                                 npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     INTEGER, DIMENSION(nexp_max)             :: nct_ppl
-    LOGICAL                                  :: failure, found, lpotextended, &
-                                                new_atom_pair
+    LOGICAL                                  :: dokp, failure, found, &
+                                                lpotextended
     REAL(KIND=dp)                            :: alpha, dab, dac, dbc, f0, &
                                                 ppl_radius
     REAL(KIND=dp), ALLOCATABLE, &
@@ -148,16 +154,20 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
+    dokp = (nimages > 1)
+
     ALLOCATE (atom_of_kind(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
     IF (calculate_forces) THEN
-       IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+       IF (SIZE(matrix_p,1) == 2) THEN
+          DO img=1,nimages
+             CALL cp_dbcsr_add(matrix_p(1,img)%matrix, matrix_p(2,img)%matrix, &
                          alpha_scalar= 1.0_dp, beta_scalar=1.0_dp,error=error)
-          CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+             CALL cp_dbcsr_add(matrix_p(2,img)%matrix, matrix_p(1,img)%matrix, &
                          alpha_scalar=-2.0_dp, beta_scalar=1.0_dp,error=error)
+          END DO
        END IF
     END IF
 
@@ -190,21 +200,21 @@ CONTAINS
 
 !$OMP PARALLEL &
 !$OMP DEFAULT (NONE) &                                                                                      
-!$OMP SHARED  (nl_iterator, basis_set_list, calculate_forces, force, use_virial,&                             
-!$OMP          matrix_h, matrix_p,virial, atomic_kind_set, qs_kind_set, particle_set,&
-!$OMP           sab_orb, sac_ppl, nthread, ncoset, nkind,&
+!$OMP SHARED  (nl_iterator, basis_set_list, calculate_forces, force, use_virial, &                             
+!$OMP          matrix_h, matrix_p, virial, atomic_kind_set, qs_kind_set, particle_set, &
+!$OMP          sab_orb, sac_ppl, nthread, ncoset, nkind, cell_to_index, &
 !$OMP          atom_of_kind, ldsab,  maxnset, maxder, &                                                       
-!$OMP          maxlgto, nder, maxco) &                                                                        
+!$OMP          maxlgto, nder, maxco, dokp) &                                                                        
 !$OMP PRIVATE (ikind, jkind, inode, iatom, jatom, rab, basis_set_a, basis_set_b, atom_a, &                   
-!$OMP          atom_b, first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a,&                                    
-!$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b,&                 
-!$OMP          zetb, last_iatom, last_jatom, new_atom_pair, dab, irow, icol, h_block, found, iset, ncoa, &                  
+!$OMP          atom_b, first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, &                                    
+!$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &                 
+!$OMP          zetb, dab, irow, icol, h_block, found, iset, ncoa, &                  
 !$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &                       
 !$OMP          gth_potential, alpha, cexp_ppl, lpotextended, &
 !$OMP          ppl_radius, nexp_lpot, nexp_ppl, alpha_ppl, alpha_lpot, nct_ppl, &                            
 !$OMP          nct_lpot, cval_ppl, cval_lpot, ap_iterator, rac, dac, rbc, dbc, &                             
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &                                   
-!$OMP          f0, failure, katom, ppl_work, atom_c,&                                                        
+!$OMP          f0, failure, katom, ppl_work, atom_c, cellind, img, &                                                        
 !$OMP          error, stat, ldai)                 
 
         mepos=0
@@ -226,12 +236,10 @@ CONTAINS
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       END IF
       
-    last_iatom = 0
-    last_jatom = 0
     DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos)==0)
 
        CALL get_iterator_info(nl_iterator,mepos=mepos,ikind=ikind,jkind=jkind,inode=inode,&
-                              iatom=iatom,jatom=jatom,r=rab)
+                              iatom=iatom,jatom=jatom,r=rab,cell=cellind)
 
        basis_set_a => basis_set_list(ikind)%gto_basis_set
        IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
@@ -266,12 +274,10 @@ CONTAINS
 
        dab = SQRT(SUM(rab*rab))
 
-       IF (iatom == last_iatom .AND. jatom == last_jatom) THEN
-          new_atom_pair = .FALSE.
+       IF(dokp) THEN
+          img = cell_to_index(cellind(1),cellind(2),cellind(3))
        ELSE
-          new_atom_pair = .TRUE.
-          last_jatom = jatom
-          last_iatom = iatom
+          img = 1
        END IF
 
        ! *** Use the symmetry of the first derivatives ***
@@ -282,20 +288,19 @@ CONTAINS
        END IF
 
        ! *** Create matrix blocks for a new matrix block column ***
-       IF (new_atom_pair) THEN
-          IF (iatom <= jatom) THEN
-             irow = iatom
-             icol = jatom
-          ELSE
-             irow = jatom
-             icol = iatom
-          END IF
-          NULLIFY(h_block)
-          CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,irow,icol,h_block,found)
-          IF(ASSOCIATED(h_block)) THEN
+       IF (iatom <= jatom) THEN
+          irow = iatom
+          icol = jatom
+       ELSE
+          irow = jatom
+          icol = iatom
+       END IF
+       NULLIFY(h_block)
+       CALL cp_dbcsr_get_block_p(matrix_h(1,img)%matrix,irow,icol,h_block,found)
+       IF(ASSOCIATED(h_block)) THEN
           IF (calculate_forces) THEN
              NULLIFY(p_block)
-             CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,p_block,found)
+             CALL cp_dbcsr_get_block_p(matrix_p(1,img)%matrix,irow,icol,p_block,found)
              IF(ASSOCIATED(p_block)) THEN
                 DO iset=1,nseta
                    ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -325,12 +330,11 @@ CONTAINS
                 END DO
              ENDIF
           END IF
-          END IF
        END IF
 
        hab = 0._dp
 
-       ! loop over all kinds for pseudopotential  atoms
+       ! loop over all kinds for pseudopotential atoms
        DO kkind=1,nkind
 
           CALL get_qs_kind(qs_kind_set(kkind),gth_potential=gth_potential)
@@ -481,11 +485,13 @@ CONTAINS
     IF (calculate_forces) THEN
        ! *** If LSD, then recover alpha density and beta density     ***
        ! *** from the total density (1) and the spin density (2)     ***
-       IF (SIZE(matrix_p) == 2) THEN
-          CALL cp_dbcsr_add(matrix_p(1)%matrix, matrix_p(2)%matrix, &
+       IF (SIZE(matrix_p,1) == 2) THEN
+          DO img=1,nimages
+             CALL cp_dbcsr_add(matrix_p(1,img)%matrix, matrix_p(2,img)%matrix, &
                          alpha_scalar= 0.5_dp, beta_scalar=0.5_dp,error=error)
-          CALL cp_dbcsr_add(matrix_p(2)%matrix, matrix_p(1)%matrix, &
+             CALL cp_dbcsr_add(matrix_p(2,img)%matrix, matrix_p(1,img)%matrix, &
                          alpha_scalar=-1.0_dp, beta_scalar=1.0_dp,error=error)
+          END DO
        END IF
     END IF
 
