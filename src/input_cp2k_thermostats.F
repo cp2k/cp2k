@@ -130,7 +130,7 @@ CONTAINS
           CALL keyword_release(keyword,error=error)
        END IF
 
-       CALL create_nose_section(nose_section, my_coupled_thermostat, error=error)
+       CALL create_nose_section(nose_section, error=error)
        CALL section_add_subsection(section, nose_section, error=error)
        CALL section_release(nose_section,error=error)
 
@@ -215,7 +215,7 @@ CONTAINS
           CALL keyword_release(keyword,error=error)
        END IF
 
-       CALL create_nose_section(nose_section, my_coupled_thermostat, error=error)
+       CALL create_nose_section(nose_section, error=error)
        CALL section_add_subsection(section, nose_section, error=error)
        CALL section_release(nose_section,error=error)
 
@@ -307,11 +307,11 @@ CONTAINS
           CALL keyword_release(keyword,error=error)
        END IF
 
-       CALL create_nose_section(nose_section, my_coupled_thermostat, error=error)
+       CALL create_nose_section(nose_section, error=error)
        CALL section_add_subsection(section, nose_section, error=error)
        CALL section_release(nose_section,error=error)
 
-       CALL create_csvr_section(csvr_section, my_coupled_thermostat, error=error)
+       CALL create_csvr_section(csvr_section, error=error)
        CALL section_add_subsection(section, csvr_section, error=error)
        CALL section_release(csvr_section,error=error)
 
@@ -458,14 +458,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param section will contain the ewald section
-!> \param coupled_thermostat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author gloria
 ! *****************************************************************************
-  SUBROUTINE create_nose_section(section, coupled_thermostat, error)
+  SUBROUTINE create_nose_section(section, error)
     TYPE(section_type), POINTER              :: section
-    LOGICAL, INTENT(IN)                      :: coupled_thermostat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_nose_section', &
@@ -658,14 +656,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param section will contain the ewald section
-!> \param coupled_thermostat ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author teo [tlaino] - University of Zurich - 09.2007
 ! *****************************************************************************
-  SUBROUTINE create_csvr_section(section, coupled_thermostat, error)
+  SUBROUTINE create_csvr_section(section, error)
     TYPE(section_type), POINTER              :: section
-    LOGICAL, INTENT(IN)                      :: coupled_thermostat
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_csvr_section', &
