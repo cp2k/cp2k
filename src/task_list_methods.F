@@ -124,9 +124,9 @@ CONTAINS
     INTEGER, PARAMETER                       :: max_tasks = 2000
 
     INTEGER :: cindex, curr_tasks, handle, i, iatom, iatom_old, igrid_level, &
-      igrid_level_old, ikind, inode, ipair, ipgf, iset, jatom, jatom_old, &
-      jkind, jpgf, jset, maxpgf, maxset, my_basis_set_id, natoms, nimages, &
-      nkind, nseta, nsetb, stat
+      igrid_level_old, ikind, img, img_old, inode, ipair, ipgf, iset, jatom, &
+      jatom_old, jkind, jpgf, jset, maxpgf, maxset, my_basis_set_id, natoms, &
+      nimages, nkind, nseta, nsetb, stat
     INTEGER, DIMENSION(3)                    :: cellind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb
@@ -352,13 +352,14 @@ CONTAINS
     ALLOCATE (task_list%npairs(SIZE(rs_descs)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1
+    iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1 ; img_old = -1
     ipair = 0
     task_list%npairs = 0
 
     DO i=1,task_list%ntasks
        CALL int2pair(task_list%tasks(3,i),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,&
                      natoms,maxset,maxpgf)
+       img = INT(task_list%tasks(7,i))
        IF (igrid_level .NE. igrid_level_old) THEN
           IF (igrid_level_old .NE. -1) THEN
              task_list%npairs(igrid_level_old) = ipair
@@ -367,10 +368,12 @@ CONTAINS
           igrid_level_old = igrid_level
           iatom_old = iatom
           jatom_old = jatom
-       ELSE IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
+          img_old   = img
+       ELSE IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old .OR. img .NE. img_old) THEN
           ipair = ipair + 1
           iatom_old = iatom
           jatom_old = jatom
+          img_old   = img
        END IF
     END DO
     ! Take care of the last iteration
@@ -387,7 +390,7 @@ CONTAINS
     ALLOCATE (task_list%taskstop(MAXVAL(task_list%npairs),SIZE(rs_descs)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1
+    iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1 ; img_old = -1
     ipair = 0
     task_list%taskstart = 0
     task_list%taskstop = 0
@@ -395,6 +398,7 @@ CONTAINS
     DO i=1,task_list%ntasks
        CALL int2pair(task_list%tasks(3,i),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,&
                      natoms,maxset,maxpgf)
+       img = INT(task_list%tasks(7,i))
        IF (igrid_level .NE. igrid_level_old) THEN
           IF (igrid_level_old .NE. -1) THEN
              task_list%taskstop(ipair,igrid_level_old) = i - 1
@@ -404,12 +408,14 @@ CONTAINS
           igrid_level_old = igrid_level
           iatom_old = iatom
           jatom_old = jatom
-       ELSE IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
+          img_old   = img
+       ELSE IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old .OR. img .NE. img_old) THEN
           ipair = ipair + 1
           task_list%taskstart(ipair,igrid_level) = i
           task_list%taskstop(ipair-1,igrid_level) = i - 1
           iatom_old = iatom
           jatom_old = jatom
+          img_old   = img
        END IF
     END DO
     ! Take care of the last iteration
@@ -1199,9 +1205,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_load_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: cost, dest, handle, i, iatom, ilevel, iopt, ipgf, iset, itask, &
-      itask_start, itask_stop, jatom, jpgf, jset, li, maxdest, ncpu, &
-      ndest_pair, nopt, nshort, rank
+    INTEGER :: cost, dest, handle, i, iatom, ilevel, img, img_old, iopt, &
+      ipgf, iset, itask, itask_start, itask_stop, jatom, jpgf, jset, li, &
+      maxdest, ncpu, ndest_pair, nopt, nshort, rank
     INTEGER(KIND=int_8)                      :: bit_pattern, ipair, &
                                                 ipair_old, natom8
     INTEGER(KIND=int_8), ALLOCATABLE, &
@@ -1225,6 +1231,7 @@ CONTAINS
     ! first find the tasks that deal with the same atom pair
     itask_stop=0
     ipair_old=HUGE(ipair_old)
+    img_old = -1
     ALLOCATE (all_dests(0))
     ALLOCATE (INDEX(0))
 
@@ -1235,12 +1242,14 @@ CONTAINS
        itask_stop =itask_start
        IF(itask_stop>ntasks) EXIT
        CALL int2pair(tasks(3,itask_stop),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
+       img_old=INT(tasks(7,itask_stop))
        ipair_old=(iatom-1)*natom8+(jatom-1)
        DO
           IF(itask_stop+1>ntasks) EXIT
           CALL int2pair(tasks(3,itask_stop+1),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
           ipair=(iatom-1)*natom8+(jatom-1)
-          IF (ipair==ipair_old) THEN
+          img=INT(tasks(7,itask_stop+1))
+          IF (ipair==ipair_old .AND. img==img_old) THEN
              itask_stop=itask_stop+1
           ELSE
              EXIT
