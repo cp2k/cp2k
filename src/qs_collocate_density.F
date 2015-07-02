@@ -1711,7 +1711,7 @@ CONTAINS
       jpgf, jset, jset_old, lb, lbr, lbw, maxco, maxpgf, maxset, maxsgf, &
       maxsgf_set, my_basis_set_id, my_der_type, my_idir, n, na1, na2, natoms, &
       nb1, nb2, nblock, ncoa, ncob, nimages, nr, nrlevel, nseta, nsetb, &
-      ntasks, nthread, nxy, nz, nzsize, sgfa, sgfb, stat, ub
+      ntasks, nthread, nxy, nz, nzsize, sgfa, sgfb, stat, ub, img_old
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -1956,7 +1956,7 @@ CONTAINS
 !$omp          shared(cell,cube_info,eps_rho_rspace,ga_gb_function, my_idir,map_consistent), &
 !$omp          shared(rs_rho,lgrid,gridlevel_info,task_list,qs_kind_set), &
 !$omp          private(igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,ikind,jkind,pab,work), &
-!$omp          private(img,iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
+!$omp          private(img,img_old,iatom_old,jatom_old,iset_old,jset_old,ikind_old,jkind_old), &
 !$omp          private(brow,bcol,qs_kind,orb_basis_set,first_sgfa,la_max,la_min), &
 !$omp          private(npgfa,nseta,nsgfa,sphi_a,zeta,first_sgfb,lb_max,lb_min,npgfb), &
 !$omp          private(nsetb,nsgfb,sphi_b,zetb,p_block,found), &
@@ -1970,7 +1970,7 @@ CONTAINS
     work => workt(:,:,ithread)
 
     iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1
-    ikind_old = -1 ; jkind_old = -1
+    ikind_old = -1 ; jkind_old = -1 ; img_old = -1
 
     ! Loop over each gridlevel first, then loop and load balance over atom pairs
     ! We only need a single lgrid, which we sum back onto the rsgrid after each
@@ -1992,7 +1992,7 @@ CONTAINS
        ikind = particle_set(iatom)%atomic_kind%kind_number
        jkind = particle_set(jatom)%atomic_kind%kind_number
 
-       IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
+       IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old .OR. img .NE. img_old) THEN
 
           IF (iatom .NE. iatom_old) ra(:) = pbc(particle_set(iatom)%r,cell)
 
@@ -2054,6 +2054,7 @@ CONTAINS
           jatom_old = jatom
           ikind_old = ikind
           jkind_old = jkind
+          img_old   = img
           atom_pair_changed = .TRUE.
 
        ELSE
@@ -2178,7 +2179,8 @@ CONTAINS
     END DO loop_pairs
 !$omp end do
 
-    ! Now sum the thread-local grids back into the rs_grid (in parallel, each thread writes to a section of the rs_grid at a time)
+    ! Now sum the thread-local grids back into the rs_grid 
+    ! (in parallel, each thread writes to a section of the rs_grid at a time)
     IF (nthread > 1) THEN
         nz = (1 + rs_rho(igrid_level)%rs_grid%ub_local(3) &
                 - rs_rho(igrid_level)%rs_grid%lb_local(3))
@@ -2283,7 +2285,7 @@ CONTAINS
       jatom_old, jkind, jkind_old, jpgf, jset, jset_old, maxco, maxpgf, &
       maxset, maxsgf, maxsgf_set, my_basis_set_id, na1, na2, natoms, nb1, &
       nb2, ncoa, ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb, &
-      stat
+      stat, img_old
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -2486,7 +2488,7 @@ CONTAINS
       END DO
 
       iatom_old = -1 ; jatom_old = -1 ; iset_old = -1 ; jset_old = -1
-      ikind_old = -1 ; jkind_old = -1
+      ikind_old = -1 ; jkind_old = -1 ; img_old = -1
       loop_tasks: DO itask=1,ntasks
 
         !decode the atom pair and basis info
@@ -2496,7 +2498,7 @@ CONTAINS
         ikind = particle_set(iatom)%atomic_kind%kind_number
         jkind = particle_set(jatom)%atomic_kind%kind_number
 
-        IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
+        IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old .OR. img .NE. img_old) THEN
 
           IF (iatom .NE. iatom_old) ra(:) = pbc(particle_set(iatom)%r,cell)
 
@@ -2558,6 +2560,7 @@ CONTAINS
           jatom_old = jatom
           ikind_old = ikind
           jkind_old = jkind
+          img_old   = img
           atom_pair_changed = .TRUE.
 
         ELSE
@@ -2609,7 +2612,7 @@ CONTAINS
         nb2 = jpgf*ncoset(lb_max(jset))
 
         ! takes the density matrix symmetry in account, i.e. off-diagonal blocks need to be mapped 'twice'
-        IF (iatom == jatom) THEN
+        IF (iatom == jatom .AND. img == 1) THEN
           scale = 1.0_dp
         ELSE
           scale = 2.0_dp
