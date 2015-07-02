@@ -40,7 +40,6 @@ MODULE input_keyword_types
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_keyword_types'
-  LOGICAL, PARAMETER, PUBLIC  :: enable_color_tags=.FALSE.
 
   INTEGER, PARAMETER, PUBLIC :: usage_string_length=default_string_length*2
   INTEGER, SAVE, PRIVATE :: last_keyword_id=0
@@ -723,7 +722,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_describe_html', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: c_string, color_tag, my_unit
+    CHARACTER(len=default_string_length)     :: c_string, my_unit
     INTEGER                                  :: i, iref
     LOGICAL                                  :: any_description, failure
 
@@ -732,12 +731,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
     CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       color_tag='<font color="#000000">'
-       IF (enable_color_tags.AND.keyword%supported_feature) THEN
-          color_tag='<font color="#00CC00">'
-       END IF
        WRITE(unit_nr,'(a)') '<TR><TD WITDH="20%">'// &
-            '<A NAME="'//TRIM(keyword%names(1))//'"><u>'//TRIM(color_tag)//TRIM(keyword%names(1))//'</font></u></A>'// &
+            '<A NAME="'//TRIM(keyword%names(1))//'"><u>'//TRIM(keyword%names(1))//'</u></A>'// &
             '<TD WIDTH="80%">'
        WRITE(unit_nr,'(a)') '<TR><TD WIDTH="20%"><TD WIDTH="80%">'//TRIM(keyword%usage)
        WRITE(unit_nr,'(a)') '<TR><TD WIDTH="20%"><TD WIDTH="80%"><i>'//TRIM(a2s(keyword%description))//'</i>'

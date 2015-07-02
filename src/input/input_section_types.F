@@ -18,10 +18,14 @@ MODULE input_section_types
        cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
        cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
        cp_sll_val_set_el_at, cp_sll_val_type
-  USE input_keyword_types,             ONLY: &
-       enable_color_tags, keyword_describe, keyword_describe_html, &
-       keyword_p_type, keyword_release, keyword_retain, keyword_type, &
-       keyword_typo_match, write_keyword_xml
+  USE input_keyword_types,             ONLY: keyword_describe,&
+                                             keyword_describe_html,&
+                                             keyword_p_type,&
+                                             keyword_release,&
+                                             keyword_retain,&
+                                             keyword_type,&
+                                             keyword_typo_match,&
+                                             write_keyword_xml
   USE input_val_types,                 ONLY: lchar_t,&
                                              no_t,&
                                              val_create,&
@@ -433,7 +437,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_html', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=100)                       :: color_tag
     CHARACTER(LEN=1000)                      :: local_prefix
     CHARACTER(LEN=256), DIMENSION(50), SAVE  :: location, name
     CHARACTER(LEN=default_path_length)       :: message
@@ -453,11 +456,7 @@ CONTAINS
        WRITE(unit_nr,FMT='(A)') &
             '<META NAME="keywords" contents="scientific,computing,chemistry,physics,'//&
             'documentation,help,manual,Fortran,parallel">'
-       color_tag='<font color="#000000">'
-       IF (enable_color_tags.AND.section%supported_feature) THEN
-          color_tag='<font color="#00CC00">'
-       END IF
-       WRITE(unit_nr,FMT='(A)') "<H1> Section "//TRIM(color_tag)//section%name//"</font> </H1>"
+       WRITE(unit_nr,FMT='(A)') "<H1> Section "//section%name//" </H1>"
        WRITE(unit_nr,FMT='(A)') ' <A HREF="index.html">Index of all sections</A>. This section is located at '
        DO idepth=1,depth
           WRITE(unit_nr,FMT='(A)',ADVANCE="NO") '<A HREF="'//TRIM(location(idepth))//'">'//TRIM(name(idepth))//'</A>%'
@@ -486,13 +485,9 @@ CONTAINS
        IF (section%n_subsections>0) THEN
           WRITE(unit_nr,FMT='(A)') "<UL>"
           DO isub=1,section%n_subsections
-             color_tag='<font color="#0000FF">'
-             IF (enable_color_tags.AND.section%subsections(isub)%section%supported_feature) THEN
-                color_tag='<font color="#00CC00">'
-             END IF
              WRITE(unit_nr,FMT='(A)') &
                   '<LI><A HREF="'//TRIM(local_prefix)//"~"//TRIM(section%subsections(isub)%section%name)//".html"//'">'// &
-                  TRIM(color_tag)//TRIM(section%subsections(isub)%section%name)//'</font> </A>'
+                  TRIM(section%subsections(isub)%section%name)//' </A>'
           END DO
           WRITE(unit_nr,FMT='(A)') "</UL>"
        ELSE
@@ -506,13 +501,9 @@ CONTAINS
           WRITE(unit_nr,FMT='(A)') "<UL>"
           DO ikeyword=-1,section%n_keywords
              IF (ASSOCIATED(section%keywords(ikeyword)%keyword)) THEN
-                color_tag='<font color="#0000FF">'
-                IF (enable_color_tags.AND.section%keywords(ikeyword)%keyword%supported_feature) THEN
-                   color_tag='<font color="#00CC00">'
-                END IF
                 WRITE(unit_nr,FMT='(A)') &
                      '<LI><A HREF="#'//TRIM(section%keywords(ikeyword)%keyword%names(1))//'">'//&
-                     TRIM(color_tag)//TRIM(section%keywords(ikeyword)%keyword%names(1))//"</font> </A>"
+                     TRIM(section%keywords(ikeyword)%keyword%names(1))//" </A>"
              END IF
           END DO
           WRITE(unit_nr,FMT='(A)') "</UL>"
@@ -555,7 +546,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_index_html', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=100)                       :: color_tag
     CHARACTER(LEN=1000)                      :: local_prefix
     INTEGER                                  :: isub
     LOGICAL                                  :: failure
@@ -564,12 +554,8 @@ CONTAINS
     IF (ASSOCIATED(section)) THEN
        CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
-       color_tag='<font color="#0000FF">'
-       IF (enable_color_tags.AND.section%supported_feature) THEN
-          color_tag='<font color="#00CC00">'
-       END IF
        WRITE(unit_nr,FMT='(A)') &
-            '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//TRIM(color_tag)//TRIM(section%name)//"</font></A>"
+            '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//TRIM(section%name)//"</A>"
        IF (section%n_subsections>0) THEN
           WRITE(unit_nr,FMT='(A)') "<UL>"
           DO isub=1,section%n_subsections

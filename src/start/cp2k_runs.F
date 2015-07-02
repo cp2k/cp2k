@@ -82,8 +82,7 @@ MODULE cp2k_runs
   USE input_cp2k_global,               ONLY: create_global_section
   USE input_cp2k_read,                 ONLY: empty_initial_variables,&
                                              read_input
-  USE input_keyword_types,             ONLY: enable_color_tags,&
-                                             keyword_release
+  USE input_keyword_types,             ONLY: keyword_release
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
        section_describe_html, section_describe_index_html, section_release, &
@@ -1006,14 +1005,6 @@ CONTAINS
        WRITE(unit_nr,FMT='(A)') '<A HREF="units.html">List of unites</A> organized into groups based on the physical quantity '//&
             "they measure. The units can be used to specify an alternative unit of measurement for keyword values, for which a "//&
             "default unit has been explicitly defined."
-
-       IF (enable_color_tags) THEN
-          WRITE(unit_nr,FMT='(A)') "<H2>Color convention</H2>"
-          WRITE(unit_nr,FMT='(A)') &
-               "Sections and Keywords supported in the current released version of cp2k are marked "//&
-               "with green color. Keywords or Sections specifically designed for the development version or still "//&
-               "in a development status (not ready for the released version) are marked with black/blue color."
-       END IF
 
        WRITE(unit_nr,FMT='(A)') "<H2>Internal Input Preprocessor</H2>"
        WRITE(unit_nr,FMT='(A)') "Before the input is parsed, the input is run through a very simple internal preprocessor."
