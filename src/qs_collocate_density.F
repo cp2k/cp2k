@@ -1706,12 +1706,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: bcol, brow, ga_gb_function, handle, iatom, iatom_old, &
-      igrid_level, igrid_level_dummy, ikind, ikind_old, img, ipair, ipgf, &
-      iset, iset_old, itask, ithread, jatom, jatom_old, jkind, jkind_old, &
-      jpgf, jset, jset_old, lb, lbr, lbw, maxco, maxpgf, maxset, maxsgf, &
-      maxsgf_set, my_basis_set_id, my_der_type, my_idir, n, na1, na2, natoms, &
-      nb1, nb2, nblock, ncoa, ncob, nimages, nr, nrlevel, nseta, nsetb, &
-      ntasks, nthread, nxy, nz, nzsize, sgfa, sgfb, stat, ub, img_old
+      igrid_level, igrid_level_dummy, ikind, ikind_old, img, img_old, ipair, &
+      ipgf, iset, iset_old, itask, ithread, jatom, jatom_old, jkind, &
+      jkind_old, jpgf, jset, jset_old, lb, lbr, lbw, maxco, maxpgf, maxset, &
+      maxsgf, maxsgf_set, my_basis_set_id, my_der_type, my_idir, n, na1, na2, &
+      natoms, nb1, nb2, nblock, ncoa, ncob, nimages, nr, nrlevel, nseta, &
+      nsetb, ntasks, nthread, nxy, nz, nzsize, sgfa, sgfb, stat, ub
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -2281,11 +2281,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: bcol, brow, handle, i, iatom, iatom_old, idir, igrid_level, &
-      ikind, ikind_old, img, ipgf, iset, iset_old, itask, ithread, jatom, &
-      jatom_old, jkind, jkind_old, jpgf, jset, jset_old, maxco, maxpgf, &
-      maxset, maxsgf, maxsgf_set, my_basis_set_id, na1, na2, natoms, nb1, &
-      nb2, ncoa, ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, sgfb, &
-      stat, img_old
+      ikind, ikind_old, img, img_old, ipgf, iset, iset_old, itask, ithread, &
+      jatom, jatom_old, jkind, jkind_old, jpgf, jset, jset_old, maxco, &
+      maxpgf, maxset, maxsgf, maxsgf_set, my_basis_set_id, na1, na2, natoms, &
+      nb1, nb2, ncoa, ncob, nimages, nseta, nsetb, ntasks, nthread, sgfa, &
+      sgfb, stat
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &

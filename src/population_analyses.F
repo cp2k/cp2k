@@ -357,7 +357,9 @@ CONTAINS
 
     ! Write headline
     IF (output_unit > 0) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") "MULLIKEN POPULATION ANALYSIS"
+       WRITE(UNIT=output_unit,FMT="(/,T2,A)") &
+          '!-----------------------------------------------------------------------------!'
+       WRITE (UNIT=output_unit,FMT="(T22,A)") "Mulliken Population Analysis"
     END IF
 
     ! Create a DBCSR work matrix, if needed
@@ -428,9 +430,9 @@ CONTAINS
         ! Write the full Mulliken net AO and overlap population matrix
         IF (nspin > 1) THEN
           IF (ispin == 1) THEN
-             CALL cp_dbcsr_setname(sm_ps,TRIM(headline)//" FOR ALPHA SPIN")
+             CALL cp_dbcsr_setname(sm_ps,TRIM(headline)//" For Alpha Spin")
           ELSE
-             CALL cp_dbcsr_setname(sm_ps,TRIM(headline)//" FOR BETA SPIN")
+             CALL cp_dbcsr_setname(sm_ps,TRIM(headline)//" For Beta Spin")
           END IF
         END IF
         CALL cp_dbcsr_write_sparse_matrix(sm_ps,4,6,qs_env,para_env,&
@@ -456,6 +458,11 @@ CONTAINS
     IF (ALLOCATED(first_sgf_atom)) THEN
       DEALLOCATE (first_sgf_atom,STAT=stat)
       CPPostconditionNoFail((stat == 0),cp_warning_level,routineP,error)
+    END IF
+
+    IF (output_unit > 0) THEN
+       WRITE(UNIT=output_unit,FMT="(T2,A)") &
+          '!-----------------------------------------------------------------------------!'
     END IF
 
     CALL timestop(handle)
@@ -527,18 +534,18 @@ CONTAINS
     IF (nspin == 1) THEN
       IF (print_orbital_contributions) THEN
         WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
-          "# Orbital  AO symbol  Orbital population                Net charge"
+          "# Orbital  AO symbol  Orbital population                            Net charge"
       ELSE
         WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
-          "#  Atom  Element  Kind  Atomic population                Net charge"
+          "#  Atom  Element  Kind  Atomic population                           Net charge"
       END IF
     ELSE
       IF (print_orbital_contributions) THEN
         WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
-          "# Orbital  AO symbol  Orbital population (alpha,beta)   Net charge  Spin moment"
+          "# Orbital  AO symbol  Orbital population (alpha,beta)  Net charge  Spin moment"
       ELSE
         WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
-          "#  Atom  Element  Kind  Atomic population (alpha,beta)   Net charge  Spin moment"
+          "#  Atom  Element  Kind  Atomic population (alpha,beta) Net charge  Spin moment"
       END IF
     END IF
 
@@ -577,7 +584,7 @@ CONTAINS
                 IF (print_orbital_contributions) THEN
                   IF (isgf == 1) WRITE (UNIT=output_unit,FMT="(A)") ""
                   WRITE (UNIT=output_unit,&
-                         FMT="(T2,I9,2X,A2,1X,A,T29,2(1X,F12.6),T69,F12.6)")&
+                         FMT="(T2,I9,2X,A2,1X,A,T29,2(1X,F12.6),T68,F12.6)")&
                     iao,element_symbol,sgf_symbol(isgf),orbpop(iao,1:2),&
                     orbpop(iao,1)-orbpop(iao,2)
                 END IF
@@ -591,13 +598,13 @@ CONTAINS
           totsumorbpop(1) = totsumorbpop(1) + sumorbpop(1)
           totsumorbpop(3) = totsumorbpop(3) + zeff - sumorbpop(1)
           WRITE (UNIT=output_unit,&
-                 FMT="(T2,I7,5X,A2,2X,I6,T30,F12.6,T56,F12.6)")&
+                 FMT="(T2,I7,5X,A2,2X,I6,T30,F12.6,T68,F12.6)")&
             iatom,element_symbol,ikind,sumorbpop(1),zeff-sumorbpop(1)
         ELSE
           totsumorbpop(1:2) = totsumorbpop(1:2) + sumorbpop(1:2)
           totsumorbpop(3) = totsumorbpop(3) + zeff - sumorbpop(1) - sumorbpop(2)
           WRITE (UNIT=output_unit,&
-                 FMT="(T2,I7,5X,A2,2X,I6,T29,4(1X,F12.6))")&
+                 FMT="(T2,I7,5X,A2,2X,I6,T28,4(1X,F12.6))")&
             iatom,element_symbol,ikind,sumorbpop(1:2),&
             zeff-sumorbpop(1)-sumorbpop(2),sumorbpop(3)
         END IF
@@ -608,11 +615,11 @@ CONTAINS
     IF (print_orbital_contributions) WRITE (UNIT=output_unit,FMT="(A)") ""
     IF (nspin == 1) THEN
       WRITE (UNIT=output_unit,&
-             FMT="(T2,A,T30,F12.6,T56,F12.6,/)")&
+             FMT="(T2,A,T42,F12.6,T68,F12.6,/)")&
         "# Total charge",totsumorbpop(1),totsumorbpop(3)
     ELSE
       WRITE (UNIT=output_unit,&
-             FMT="(T2,A,T29,4(1X,F12.6),/)")&
+             FMT="(T2,A,T28,4(1X,F12.6),/)")&
         "# Total charge and spin",totsumorbpop(1:2),totsumorbpop(3),&
         totsumorbpop(1)-totsumorbpop(2)
     END IF

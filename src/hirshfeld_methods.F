@@ -16,7 +16,6 @@ MODULE hirshfeld_methods
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE hirshfeld_types,                 ONLY: get_hirshfeld_info,&
@@ -107,10 +106,10 @@ CONTAINS
     WRITE (UNIT=unit_nr,FMT="(T28,A)") "Hirshfeld Charges"
     IF (nspin == 1) THEN
        WRITE (UNIT=unit_nr,FMT="(/,T3,A,A)")&
-          "#Atom  Element  Kind "," Ref Charge     Population                     Net charge"
+          "#Atom  Element  Kind "," Ref Charge     Population                    Net charge"
     ELSE
        WRITE (UNIT=unit_nr,FMT="(/,T3,A,A)")&
-          "#Atom  Element  Kind "," Ref Charge     Population        Spin moment  Net charge"
+          "#Atom  Element  Kind "," Ref Charge     Population       Spin moment  Net charge"
     END IF
     tc1 = 0.0_dp
     DO iatom=1,natom
@@ -119,16 +118,16 @@ CONTAINS
        refc = hirshfeld_env%charges(iatom)
        CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff)
        IF (nspin == 1) THEN
-          WRITE (UNIT=unit_nr,FMT="(i7,T15,A2,T20,i3,T27,F8.3,T42,F8.3,T73,F8.3)") &
+          WRITE (UNIT=unit_nr,FMT="(i7,T15,A2,T20,i3,T27,F8.3,T42,F8.3,T72,F8.3)") &
             iatom,element_symbol,ikind,refc,charges(iatom,1),zeff-charges(iatom,1)
        ELSE
-          WRITE (UNIT=unit_nr,FMT="(i7,T15,A2,T20,i3,T27,F8.3,T36,2F8.3,T61,F8.3,T73,F8.3)") &
+          WRITE (UNIT=unit_nr,FMT="(i7,T15,A2,T20,i3,T27,F8.3,T36,2F8.3,T61,F8.3,T72,F8.3)") &
             iatom,element_symbol,ikind,refc,charges(iatom,1),charges(iatom,2),&
             charges(iatom,1)-charges(iatom,2),zeff-SUM(charges(iatom,:))
        END IF
        tc1 = tc1 + (zeff-SUM(charges(iatom,:)))
     END DO
-    WRITE (UNIT=unit_nr,FMT="(/,T3,A,T73,F8.3)") "Total Charge ",tc1
+    WRITE (UNIT=unit_nr,FMT="(/,T3,A,T72,F8.3)") "Total Charge ",tc1
     WRITE(unit_nr,'(T2,A)') '!-----------------------------------------------------------------------------!'
 
   END SUBROUTINE write_hirshfeld_charges
@@ -228,15 +227,13 @@ CONTAINS
     INTEGER                                  :: is, stat
     LOGICAL                                  :: failure, rho_r_valid
     REAL(KIND=dp)                            :: tnfun
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), POINTER                 :: rhonorm
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
 
-    NULLIFY(rho_ao, rho_r)
+    NULLIFY(rho_r)
     failure = .FALSE.
     ! normalization function on grid
     CALL calculate_hirshfeld_normalization(qs_env,hirshfeld_env,error)
@@ -248,11 +245,11 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho=rho,error=error)
-    CALL qs_rho_get(rho, rho_ao=rho_ao, rho_r=rho_r, rho_r_valid=rho_r_valid, error=error)
+    CALL qs_rho_get(rho, rho_r=rho_r, rho_r_valid=rho_r_valid, error=error)
     CALL pw_env_get(pw_env=pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,rhonorm%pw,use_data=REALDATA3D,error=error)
     ! loop over spins
-    DO is=1,SIZE(rho_ao)
+    DO is=1,SIZE(rho_r)
       IF(rho_r_valid) THEN
         CALL hfun_scale(rhonorm%pw%cr3d,rho_r(is)%pw%cr3d,&
                         hirshfeld_env%fnorm%pw%cr3d,error)
@@ -340,15 +337,13 @@ CONTAINS
     INTEGER                                  :: iat, iloop, is, natom, stat
     LOGICAL                                  :: failure, rho_r_valid
     REAL(KIND=dp)                            :: res, tnfun
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), POINTER                 :: rhonorm
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
 
-    NULLIFY(rho_ao, rho_r)
+    NULLIFY(rho_r)
     failure = .FALSE.
 
     natom = SIZE(charges,1)
@@ -359,7 +354,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho=rho,error=error)
-    CALL qs_rho_get(rho, rho_r=rho_r, rho_ao=rho_ao, rho_r_valid=rho_r_valid, error=error)
+    CALL qs_rho_get(rho, rho_r=rho_r, rho_r_valid=rho_r_valid, error=error)
     CALL pw_env_get(pw_env=pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,rhonorm%pw,use_data=REALDATA3D,error=error)
     !
@@ -371,7 +366,7 @@ CONTAINS
        tnfun = pw_integrate_function(hirshfeld_env%fnorm%pw,error=error)
        tnfun = ABS(tnfun - SUM(hirshfeld_env%charges))
        ! loop over spins
-       DO is=1,SIZE(rho_ao)
+       DO is=1,SIZE(rho_r)
          IF(rho_r_valid) THEN
            CALL hfun_scale(rhonorm%pw%cr3d,rho_r(is)%pw%cr3d,&
                            hirshfeld_env%fnorm%pw%cr3d,error)
