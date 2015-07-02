@@ -1512,7 +1512,8 @@ CONTAINS
        ! dirichlet type constraints
        CALL cp_print_key_section_create(print_key,"dirichlet_bc_cube",&
             description="Controls the printing of cube files with Dirichlet type (boundary) regions "//&
-            "defined in the implicit Poisson solver section.", &
+            "defined in the implicit Poisson solver section. Note that the generated cube files are "//&
+            "meant to be used only for visualization purposes and the values have no physical meaning.", &
             print_level=high_print_level,filename="",&
             error=error)
 
