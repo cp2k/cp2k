@@ -75,7 +75,7 @@ CONTAINS
        CALL section_create(section,name="constraint",&
             description="Section specifying information regarding how to impose constraints"// &
             " on the system.",&
-            n_keywords=0, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=2, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection, keyword, print_key)
@@ -182,7 +182,7 @@ CONTAINS
        NULLIFY( keyword)
        CALL section_create(section,name="COLVAR_RESTART",&
             description="Specify restart position only for COLVAR restraints.",&
-            n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -222,7 +222,7 @@ CONTAINS
        NULLIFY( keyword)
        CALL section_create(section,name="FIX_ATOM_RESTART",&
             description="Specify restart position only for FIXED_ATOMS restraints.",&
-            n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -262,7 +262,7 @@ CONTAINS
        NULLIFY(subsection, keyword)
        CALL section_create(subsection,name="RESTRAINT",&
             description="Activate and specify information on restraint instead of constraint",&
-            n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="K",&
@@ -303,7 +303,7 @@ CONTAINS
        CALL section_create(section,name="COLLECTIVE",&
             description="Used to constraint collective (general) degrees of freedom, "//&
             "writing langrangian multipliers to file.",&
-            n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_subsections=0, repeats=.TRUE., &
             error=error)
        NULLIFY(keyword)
 
@@ -318,14 +318,14 @@ CONTAINS
             description="Specifies the index of the molecule kind (in input file order)"//&
             "on which the constraint will be applied."//&
             " MOLECULE and MOLNAME keyword exclude themself mutually.",&
-            usage="MOLECULE {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+            usage="MOLECULE {integer}",  n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLNAME",&
             variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecule on which the constraint will be applied.",&
-            usage="MOLNAME {character}", required=.TRUE., n_var=1, type_of_var=char_t, error=error)
+            usage="MOLNAME {character}",  n_var=1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -402,7 +402,7 @@ CONTAINS
             description="This section is used to constraint the overall atomic position (X,Y,Z). In case "//&
             "a restraint is specified the value of the TARGET is considered to be the value of the "//&
             "coordinates at the beginning of the run or alternatively the corresponding value in the section: "//&
-            "FIX_ATOM_RESTART.",n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,error=error)
+            "FIX_ATOM_RESTART.",n_keywords=3, n_subsections=0, repeats=.TRUE., error=error)
        NULLIFY(keyword)
 
        ! Section Parameter
@@ -422,14 +422,14 @@ CONTAINS
                           "Fix X-Z components",&
                           "Fix Y-Z components",&
                           "Fix the full components of the atomic position."),&
-            repeats=.FALSE.,required=.FALSE., error=error)
+            repeats=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        ! Integer
        CALL keyword_create(keyword, name="LIST",&
             description="Specifies a list of atoms to freeze.",&
-            usage="LIST {integer} {integer} .. {integer}", required=.TRUE.,repeats=.TRUE.,&
+            usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -437,7 +437,7 @@ CONTAINS
        CALL keyword_create(keyword, name="MOLNAME",&
             variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecule to fix",&
-            usage="MOLNAME WAT MEOH", required=.TRUE., repeats=.TRUE.,&
+            usage="MOLNAME WAT MEOH",  repeats=.TRUE.,&
             n_var=-1,type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -451,7 +451,7 @@ CONTAINS
             enum_desc=s2a("fix nothing",&
             "only the MM atoms itself",&
             "the full molecule/residue that contains a MM atom (i.e. some QM atoms might be fixed as well)"),&
-            default_i_val=do_constr_none,repeats=.FALSE.,required=.TRUE.,error=error)
+            default_i_val=do_constr_none,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -463,7 +463,7 @@ CONTAINS
             "only the QM atoms itself",&
             "the full molecule/residue that contains a QM atom (i.e. some MM atoms might be fixed as well)"),&
             enum_i_vals=(/do_constr_none,do_constr_atomic,do_constr_molec/),&
-            default_i_val=do_constr_none,repeats=.FALSE.,required=.TRUE.,error=error)
+            default_i_val=do_constr_none,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -510,7 +510,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="g3x3",&
             description="This section is used to set 3x3 (3 atoms and 3 distances) constraints.",&
-            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=3, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -520,14 +520,14 @@ CONTAINS
             variants=(/"MOL"/),&
             description="Specifies the molecule kind number on which constraint will be applied."//&
             " MOLECULE and MOLNAME keyword exclude themself mutually.",&
-            usage="MOL {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+            usage="MOL {integer}",  n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLNAME",&
             variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecule on which the constraint will be applied.",&
-            usage="MOLNAME {character}", required=.TRUE., n_var=1, type_of_var=char_t, error=error)
+            usage="MOLNAME {character}",  n_var=1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -593,7 +593,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="HBONDS",&
             description="This section is used to set bonds constraints involving Hydrogen atoms",&
-            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword)
@@ -610,7 +610,7 @@ CONTAINS
             description="Specifies the indexes of the molecule kind (in input file order)"//&
             "on which the constraint will be applied."//&
             " MOLECULE and MOLNAME keyword exclude themself mutually.",&
-            usage="MOLECULE {integer} .. {integer} ", required=.TRUE., n_var=-1,&
+            usage="MOLECULE {integer} .. {integer} ",  n_var=-1,&
             type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -618,7 +618,7 @@ CONTAINS
        CALL keyword_create(keyword, name="MOLNAME",&
             variants=(/"SEGNAME"/),&
             description="Specifies the names of the molecule on which the constraint will be applied.",&
-            usage="MOLNAME {character} .. {character} ", required=.TRUE., n_var=-1,&
+            usage="MOLNAME {character} .. {character} ",  n_var=-1,&
             type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -672,7 +672,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="g4x6",&
             description="This section is used to set 4x6 (4 atoms and 6 distances) constraints.",&
-            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=3, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -682,14 +682,14 @@ CONTAINS
             variants=(/"MOL"/),&
             description="Specifies the molecule number on which constraint will be applied."//&
             " MOLECULE and MOLNAME keyword exclude themself mutually.",&
-            usage="MOL {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+            usage="MOL {integer}",  n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLNAME",&
             variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecule on which the constraint will be applied.",&
-            usage="MOLNAME {character}", required=.TRUE., n_var=1, type_of_var=char_t, error=error)
+            usage="MOLNAME {character}",  n_var=1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -755,7 +755,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="virtual_site",&
             description="This section is used to set a virtual interaction-site constraint.",&
-            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=3, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -765,14 +765,14 @@ CONTAINS
             variants=(/"MOL"/),&
             description="Specifies the molecule number on which constraint will be applied."//&
             " MOLECULE and MOLNAME keyword exclude themself mutually.",&
-            usage="MOL {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+            usage="MOL {integer}",  n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLNAME",&
             variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecule on which the constraint will be applied.",&
-            usage="MOLNAME {character}", required=.TRUE., n_var=1, type_of_var=char_t, error=error)
+            usage="MOLNAME {character}",  n_var=1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

@@ -67,7 +67,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"HF",&
             description="Sets up the Hartree-Fock parameters if requested ",&
-            n_keywords=5, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=5, n_subsections=2, repeats=.TRUE., &
             citations=(/Guidon2008,Guidon2009/),&
             error=error)
 
@@ -163,7 +163,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"LOAD_BALANCE",&
             description="Parameters influencing the load balancing of the HF",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             citations=(/guidon2008/),&
             error=error)
 
@@ -250,7 +250,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"INTERACTION_POTENTIAL",&
             description="Sets up interaction potential if requested ",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             citations=(/guidon2008,guidon2009/),&
             error=error)
 
@@ -314,7 +314,7 @@ CONTAINS
        CALL keyword_create(keyword, name="CUTOFF_RADIUS",&
             description="Determines cutoff radius for the truncated 1/r potential. "//&
                         "Only valid when doing truncated calculation",&
-            usage="CUTOFF_RADIUS 10.0",required=.TRUE.,type_of_var=real_t,&! default_r_val=10.0_dp,&
+            usage="CUTOFF_RADIUS 10.0",type_of_var=real_t,&! default_r_val=10.0_dp,&
             unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -359,7 +359,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"SCREENING",&
             description="Sets up screening parameters if requested ",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             citations=(/guidon2008,guidon2009/),&
             error=error)
 
@@ -447,7 +447,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"PERIODIC",&
             description="Sets up periodic boundary condition parameters if requested ",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             citations=(/guidon2008,guidon2009/),&
             error=error)
        NULLIFY(keyword)
@@ -491,7 +491,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"MEMORY",&
             description="Sets up memory parameters for the storage of the ERI's if requested ",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             citations=(/guidon2008/),&
             error=error)
        NULLIFY(keyword)

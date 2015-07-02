@@ -191,7 +191,7 @@ CONTAINS
        IF (PRESENT(print_level)) my_print_level=print_level
 
        CALL section_create(print_key_section,name=name,description=description,&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=2, n_subsections=0, repeats=.FALSE.,&
             citations=citations, error=error)
 
        NULLIFY(keyword, subsection)
@@ -221,7 +221,7 @@ CONTAINS
             "separately in ADD_LAST (this mean that each iteration level (MD, GEO_OPT, etc..), "//&
             "though equal to 0, might print the last iteration). If an iteration level is specified "//&
             "that is not present in the flow of the calculation it is just ignored.",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=2, n_subsections=0, repeats=.FALSE.,&
             citations=citations, error=error)
 
        ! Enforce the presence or absence of both.. or give an error

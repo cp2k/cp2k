@@ -405,9 +405,8 @@ CPSourceFileRef,&
 CPSourceFileRef,&
                   only_ionode=.TRUE.)
           END IF
-          ! Let's remove the section and set it as required.
+          ! Let's remove the section
           CALL section_vals_remove_values(thermo_baro_section, error)
-          thermo_baro_section%section%required = .TRUE.
        END IF
     END IF
 

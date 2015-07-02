@@ -71,7 +71,7 @@ CONTAINS
        CALL section_create(section,name="MIXED",&
             description="This section contains all information to run with a hamiltonian "//&
                         "defined by a mixing of force_evals",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword, subsection)
 
@@ -115,12 +115,12 @@ CONTAINS
        ! Double force_eval
        CALL section_create(subsection,name="LINEAR",&
             description="Linear combination between two force_eval:  F= lambda F1 + (1-lambda) F2",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword, name="LAMBDA",&
             description="Specify the mixing parameter lambda in the formula.",&
             usage="lambda <REAL>", type_of_var=real_t,&
-            required=.TRUE.,error=error)
+            error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -128,12 +128,12 @@ CONTAINS
 
        CALL section_create(subsection,name="COUPLING",&
             description="Coupling between two force_eval: E=(E1+E2 - sqrt((E1-E2)**2+4*H12**2))/2",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword, name="COUPLING_PARAMETER",&
             description="Coupling parameter H12 used in the coupling",&
             usage="COUPLING_PARAMETER <REAL>", type_of_var=real_t,&
-            required=.TRUE.,error=error)
+            error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -141,12 +141,12 @@ CONTAINS
 
        CALL section_create(subsection,name="RESTRAINT",&
             description="Restraint between two force_eval: E = E1 + k*(E1-E2-t)**2",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword, name="RESTRAINT_TARGET",&
             description="Target value of the restraint (t) ",&
             usage="RESTRAINT_TARGET <REAL>", type_of_var=real_t,&
-            required=.TRUE.,error=error)
+            error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -154,7 +154,7 @@ CONTAINS
             description="Strength of the restraint (k) in "//&
             "k*(E1-E2-t)**2" ,&
             usage="RESTRAINT_STRENGTH <REAL>", type_of_var=real_t,&
-            required=.TRUE.,error=error)
+            error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,subsection,error=error)
@@ -163,11 +163,11 @@ CONTAINS
        ! Multiple force_eval
        CALL section_create(subsection,name="GENERIC",&
             description="User driven coupling between two or more force_eval.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword, name="MIXING_FUNCTION",&
             description="Specifies the mixing functional form in mathematical notation.",&
-            usage="MIXING_FUNCTION (E1+E2-LOG(E1/E2))", required=.TRUE., type_of_var=lchar_t,&
+            usage="MIXING_FUNCTION (E1+E2-LOG(E1/E2))",  type_of_var=lchar_t,&
             n_var=1, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -176,21 +176,21 @@ CONTAINS
             description="Defines the variables of the functional form. To allow an efficient"//&
             " mapping the order of the energy variables will be considered identical to the"//&
             " order of the force_eval in the force_eval_order list.",&
-            usage="VARIABLES x", required=.TRUE., type_of_var=char_t,&
+            usage="VARIABLES x",  type_of_var=char_t,&
             n_var=-1, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PARAMETERS",&
             description="Defines the parameters of the functional form",&
-            usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
+            usage="PARAMETERS a b D",  type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VALUES",&
             description="Defines the values of parameter of the functional form",&
-            usage="VALUES ", required=.TRUE., type_of_var=real_t,&
+            usage="VALUES ",  type_of_var=real_t,&
             n_var=-1, repeats=.TRUE., unit_str="internal_cp2k", error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -198,7 +198,7 @@ CONTAINS
        CALL keyword_create(keyword, name="UNITS",&
             description="Optionally, allows to define valid CP2K unit strings for each parameter value. "//&
                         "It is assumed that the corresponding parameter value is specified in this unit.",&
-            usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", required=.FALSE., type_of_var=char_t,&
+            usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K",  type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -225,30 +225,30 @@ CONTAINS
             " The default is to have a mapping 1-1 between atom index (i.e. all force_eval share the same"//&
             " geometrical structure). The mapping is based on defining fragments and the mapping the "//&
             " fragments between the several force_eval and the mixed force_eval",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        ! Mixed force_eval
        CALL section_create(sub2section,name="FORCE_EVAL_MIXED",&
             description="Defines the fragments for the mixed force_eval (reference)",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL section_create(sub3section,name="FRAGMENT",&
             description="Fragment definition",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
             description="Defines the index of the fragment defined",&
-            usage="<INTEGER>",  type_of_var=integer_t, n_var=1, required=.TRUE.,error=error)
+            usage="<INTEGER>",  type_of_var=integer_t, n_var=1, error=error)
        CALL section_add_keyword(sub3section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Starting and ending atomic index defining one fragment must be provided",&
             usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, repeats=.TRUE.,&
-            required=.TRUE.,error=error)
+            error=error)
        CALL section_add_keyword(sub3section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -261,7 +261,7 @@ CONTAINS
        CALL section_create(sub2section,name="FORCE_EVAL",&
             description="Defines the fragments and the mapping for each force_eval (an integer index (ID) "//&
             "needs to be provided as parameter)",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="DEFINE_FRAGMENTS",&
@@ -276,25 +276,25 @@ CONTAINS
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
             description="Defines the index of the force_eval for which fragments and mappings are provided",&
-            usage="<INTEGER>",  type_of_var=integer_t, n_var=1, required=.TRUE.,error=error)
+            usage="<INTEGER>",  type_of_var=integer_t, n_var=1, error=error)
        CALL section_add_keyword(sub2section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL section_create(sub3section,name="FRAGMENT",&
             description="Fragment definition",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
             description="Defines the index of the fragment defined",&
-            usage="<INTEGER>",  type_of_var=integer_t, n_var=1, required=.FALSE.,error=error)
+            usage="<INTEGER>",  type_of_var=integer_t, n_var=1, error=error)
        CALL section_add_keyword(sub3section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Starting and ending atomic index defining one fragment must be provided",&
             usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, repeats=.FALSE.,&
-            required=.TRUE.,error=error)
+            error=error)
        CALL section_add_keyword(sub3section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -302,7 +302,7 @@ CONTAINS
             description="Provides the index of the fragment of the MIXED force_eval mapped on the"//&
             " locally defined fragment.",&
             usage="MAP <INTEGER>", type_of_var=integer_t, n_var=1, repeats=.FALSE.,&
-            required=.TRUE.,error=error)
+            error=error)
        CALL section_add_keyword(sub3section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -342,7 +342,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="print",&
             description="Section of possible print options in MIXED env.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        NULLIFY(print_key)

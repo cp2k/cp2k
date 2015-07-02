@@ -92,7 +92,7 @@ CONTAINS
     CALL section_create(section,name="GLOBAL",&
          description="Section with general information regarding which kind "//&
          "of simulation to perform an parameters for the whole PROGRAM",&
-         n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+         n_keywords=7, n_subsections=0, repeats=.FALSE., &
          error=error)
 
     NULLIFY(keyword)
@@ -535,7 +535,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="MACHINE_ARCH",&
          description="Configuration options for the machine architecture.",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., &
          error=error)
     !
     NULLIFY(keyword)
@@ -673,7 +673,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="DBCSR",&
          description="Configuration options for the DBCSR library.",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., &
          citations=(/Borstnik2014/), error=error)
 
     NULLIFY (keyword)
@@ -781,7 +781,7 @@ CONTAINS
     NULLIFY(subsection)
     CALL section_create(subsection,name="ACC",&
          description="Configuration options for the ACC-Driver.",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., &
          error=error)
 
     CALL keyword_create(keyword, name="priority_buffers",&
@@ -877,7 +877,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="FM",&
          description="Configuration options for the full matrices.",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., &
          error=error)
 
     NULLIFY (keyword)

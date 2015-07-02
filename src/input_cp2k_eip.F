@@ -66,14 +66,14 @@ CONTAINS
        CALL section_create(section,name="EIP", &
             description="This section contains all information to run an "//&
             "Empirical Interatomic Potential (EIP) calculation.", &
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE., &
+            n_keywords=1, n_subsections=1, repeats=.FALSE.,  &
             error=error)
 
        NULLIFY(subsection, keyword)
 
        CALL keyword_create(keyword, name="EIP_MODEL", &
             description="Selects the empirical interaction potential model", &
-            usage="EIP_MODEL BAZANT", required=.TRUE., type_of_var=enum_t, &
+            usage="EIP_MODEL BAZANT",  type_of_var=enum_t, &
             n_var=1, repeats=.FALSE., variants=(/"EIP-MODEL"/), &
             enum_c_vals=s2a("BAZANT", "EDIP", "LENOSKY"), &
             enum_i_vals=(/use_bazant_eip, use_bazant_eip, use_lenosky_eip/), &
@@ -119,7 +119,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section, name="PRINT", &
             description="Section of possible print options in EIP code.", &
-            n_keywords=0, n_subsections=6, repeats=.FALSE., required=.TRUE., &
+            n_keywords=0, n_subsections=6, repeats=.FALSE.,  &
             error=error)
 
        NULLIFY(print_key)

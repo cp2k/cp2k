@@ -314,8 +314,7 @@
      </ul>
      <ul class="none">
       <li>
-       This section can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated
-       and can<xsl:if test="@required = 'yes'">not</xsl:if> be optional.
+       This section can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated.
       </li>
      </ul>
      <xsl:if test="count(REFERENCE) > 0">
@@ -523,14 +522,7 @@
      <td class="l">
      </td>
      <td class="r">
-      This
-      <xsl:if test="@required = 'yes'">
-       required
-      </xsl:if>
-      <xsl:if test="@required = 'no'">
-       optional
-      </xsl:if>
-      keyword can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated
+      This keyword can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated
       and it expects
       <xsl:if test="DATA_TYPE/N_VAR = -1">
        a list of <xsl:value-of select="DATA_TYPE/@kind"/>s.

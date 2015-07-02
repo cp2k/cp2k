@@ -76,7 +76,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="band",&
             description="The section that controls a BAND run",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             citations=(/Elber1987,Jonsson1998,Jonsson2000_1,Jonsson2000_2,Wales2004/),&
             error=error)
        NULLIFY(keyword, print_key, subsection, subsubsection)
@@ -171,7 +171,7 @@ CONTAINS
        ! Convergence_control
        CALL section_create(subsection,name="CONVERGENCE_CONTROL",&
             description="Setup parameters to control the convergence criteria for BAND",&
-            repeats=.FALSE., required=.FALSE., error=error)
+            repeats=.FALSE.,  error=error)
        CALL keyword_create(keyword, name="MAX_DR",&
             description="Tolerance on the maximum value of the displacement on the BAND.",&
             usage="MAX_DR {real}",&
@@ -206,7 +206,7 @@ CONTAINS
        ! CI-NEB section
        CALL section_create(subsection,name="CI_NEB",&
             description="Controls parameters for CI-NEB type calculation only.",&
-            repeats=.FALSE., required=.FALSE., error=error)
+            repeats=.FALSE.,  error=error)
        CALL keyword_create(keyword, name="NSTEPS_IT",&
             description="Specify the number of steps of IT-NEB to perform before "//&
             "switching on the CI algorithm",&
@@ -219,7 +219,7 @@ CONTAINS
        ! String Method section
        CALL section_create(subsection,name="STRING_METHOD",&
             description="Controls parameters for String Method type calculation only.",&
-            repeats=.FALSE., required=.FALSE., error=error)
+            repeats=.FALSE.,  error=error)
 
        CALL keyword_create(keyword, name="SPLINE_ORDER",&
             description="Specify the oder of the spline used in the String Method.",&
@@ -238,7 +238,7 @@ CONTAINS
        ! Optimization section
        CALL section_create(subsection,name="optimize_band",&
             description="Specify the optimization method for the band",&
-            repeats=.TRUE., required=.TRUE., error=error)
+            repeats=.TRUE.,  error=error)
        CALL create_opt_band_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -247,7 +247,7 @@ CONTAINS
        ! different replica used in the BAND
        CALL section_create(subsection,name="replica",&
             description="Specify coordinates and velocities (possibly) of the replica",&
-            repeats=.TRUE., required=.TRUE., error=error)
+            repeats=.TRUE.,  error=error)
        ! Colvar
        CALL keyword_create(keyword, name="COLLECTIVE",&
             description="Specifies the value of the collective variables used in the projected"//&
@@ -367,7 +367,7 @@ CONTAINS
        ! MD optimization section
        CALL section_create(subsection,name="MD",&
             description="Activate the MD based optimization procedure for BAND",&
-            repeats=.FALSE., required=.TRUE., error=error)
+            repeats=.FALSE.,  error=error)
 
        CALL keyword_create(keyword, name="MAX_STEPS",&
             description="Specify the maximum number of MD steps",&
@@ -401,7 +401,7 @@ CONTAINS
        ! Temp_control
        CALL section_create(subsubsection,name="TEMP_CONTROL",&
             description="Setup parameters to control the temperature during a BAND MD run.",&
-            repeats=.FALSE., required=.TRUE., error=error)
+            repeats=.FALSE.,  error=error)
        CALL keyword_create(keyword, name="TEMPERATURE",&
             description="Specify the target temperature",&
             type_of_var=real_t,unit_str="K",error=error)
@@ -429,7 +429,7 @@ CONTAINS
        ! Vel_control
        CALL section_create(subsubsection,name="VEL_CONTROL",&
             description="Setup parameters to control the velocity during a BAND MD run.",&
-            repeats=.FALSE., required=.TRUE., error=error)
+            repeats=.FALSE.,  error=error)
        CALL keyword_create(keyword, name="ANNEALING",&
             description="Specify the annealing coefficient",&
             default_r_val=1.0_dp, error=error)
@@ -459,7 +459,7 @@ CONTAINS
        ! DIIS optimization section
        CALL section_create(subsection,name="DIIS",&
             description="Activate the DIIS based optimization procedure for BAND",&
-            repeats=.FALSE., required=.TRUE., error=error)
+            repeats=.FALSE.,  error=error)
 
        CALL keyword_create(keyword, name="MAX_SD_STEPS",&
             description="Specify the maximum number of SD steps to perform"//&

@@ -73,7 +73,7 @@ SUBROUTINE create_almo_scf_section(section,error)
             " (ALMOs). ALMO methods are currently restricted to closed-shell molecular systems.",&
             n_keywords=4, n_subsections=3, repeats=.FALSE.,&
             citations=(/Khaliullin2013/),&
-            required=.FALSE., error=error)
+             error=error)
 
        NULLIFY (keyword)
 
@@ -596,7 +596,7 @@ SUBROUTINE create_almo_eda_section(section,error)
             "Not yet fully implemented.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE.,&
             citations=(/Khaliullin2007,Khaliullin2008/),&
-            required=.FALSE., error=error)
+             error=error)
 
        NULLIFY (keyword)
    
@@ -656,19 +656,19 @@ SUBROUTINE create_optimizer_section(section,optimizer_id,error)
           CALL section_create(section,"ALMO_OPTIMIZER_DIIS",&
                description="Controls the iterative DIIS-accelerated optimization of block-diagonal ALMOs.",&
                n_keywords=3, n_subsections=0, repeats=.FALSE.,&
-               required=.FALSE., error=error)
+                error=error)
           optimizer_type=optimizer_diis
        CASE(optimizer_block_diagonal_pcg)
           CALL section_create(section,"ALMO_OPTIMIZER_PCG",&
                description="Controls the PCG optimization of block-diagonal ALMOs.",&
                n_keywords=6, n_subsections=0, repeats=.FALSE.,&
-               required=.FALSE., error=error)
+                error=error)
           optimizer_type=optimizer_pcg
        CASE(optimizer_xalmo_pcg)
           CALL section_create(section,"XALMO_OPTIMIZER_PCG",&
                description="Controls the PCG optimization of extended ALMOs.",&
                n_keywords=6, n_subsections=0, repeats=.FALSE.,&
-               required=.FALSE., error=error)
+                error=error)
           optimizer_type=optimizer_pcg
        CASE DEFAULT
           CPErrorMessage(cp_failure_level,routineP,"No default values allowed",error)
@@ -788,7 +788,7 @@ SUBROUTINE create_optimizer_section(section,optimizer_id,error)
 !!                        "Allows uninterrupted development of the code "//&
 !!                        "by keeping untested keywords neatly separated from those publicly available",&
 !!            n_keywords=3, n_subsections=0, repeats=.FALSE.,&
-!!            required=.FALSE., error=error)
+!!             error=error)
 !!
 !!       NULLIFY (keyword)
 !!   

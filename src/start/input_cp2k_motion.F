@@ -84,8 +84,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="motion",&
             description="This section defines a set of tool connected with the motion of the nuclei.",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=1, n_subsections=1, repeats=.FALSE., error=error)
 
        NULLIFY(subsection)
 
@@ -170,8 +169,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="mc",&
             description="This section sets parameters to set up a MonteCarlo calculation.",&
-            n_keywords=10, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=10, n_subsections=2, repeats=.FALSE., error=error)
 
        NULLIFY(keyword,subsection)
 
@@ -313,21 +311,21 @@ CONTAINS
        CALL keyword_create(keyword, name="PRESSURE",&
             description="The pressure for NpT simulations, in bar.",&
             usage="PRESSURE {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+            type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TEMPERATURE",&
             description="The temperature of the simulation, in Kelvin.",&
             usage="TEMPERATURE {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+            type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VIRIAL_TEMPS",&
             description="The temperatures you wish to compute the virial coefficient for.  Only used if ensemble=VIRIAL.",&
             usage="VIRIAL_TEMPS {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -341,7 +339,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ETA",&
             description="The free energy bias (in Kelvin) for swapping a molecule of each type into this box.",&
             usage="ETA {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -398,36 +396,35 @@ CONTAINS
             description="Parameters for Aggregation Volume Bias Monte Carlo (AVBMC) "//&
             "which explores cluster formation and destruction. "//&
             "Chen and Siepmann, J. Phys. Chem. B 105, 11275-11282 (2001).",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=5, n_subsections=0, repeats=.FALSE., error=error)
 
        NULLIFY(keyword )
 
        CALL keyword_create(keyword, name="PBIAS",&
             description="The probability of swapping to an inner region in an AVBMC swap move for each molecule type.",&
             usage="PBIAS {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="AVBMC_ATOM",&
             description="The target atom for an AVBMC swap move for each molecule type.",&
             usage="AVBMC_ATOM {integer} {integer} ... ",&
-            n_var=-1,type_of_var=integer_t,required=.TRUE.,error=error)
+            n_var=-1,type_of_var=integer_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="AVBMC_RMIN",&
             description="The inner radius for an AVBMC swap move, in angstroms for every molecule type.",&
             usage="AVBMC_RMIN {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="AVBMC_RMAX",&
             description="The outer radius for an AVBMC swap move, in angstroms, for every molecule type.",&
             usage="AVBMC_RMAX {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -460,8 +457,7 @@ CONTAINS
 
        CALL section_create(section,name="move_probabilities",&
             description="Parameters for fraction of moves performed for each move type.",&
-            n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=5, n_subsections=2, repeats=.FALSE., error=error)
 
        NULLIFY(keyword,subsection )
 
@@ -475,7 +471,7 @@ CONTAINS
        CALL keyword_create(keyword, name="PMTRANS",&
             description="The probability of attempting a molecule translation.",&
             usage="PMTRANS {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+            type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -489,7 +485,7 @@ CONTAINS
        CALL keyword_create(keyword, name="PMTRAION",&
             description="The probability of attempting a conformational change.",&
             usage="PMTRAION {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+            type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -544,43 +540,42 @@ CONTAINS
        CALL section_create(section,name="mol_probabilities",&
             description="Probabilities of attempting various moves types on "//&
             "the various molecular types present in the simulation.",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=5, n_subsections=0, repeats=.FALSE., error=error)
 
        NULLIFY(keyword )
 
        CALL keyword_create(keyword, name="PMAVBMC_MOL",&
             description="The probability of attempting an AVBMC swap move on each molecule type.",&
             usage="PMAVBMC_MOL {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMSWAP_MOL",&
             description="The probability of attempting a molecule swap of a given molecule type.",&
             usage="PMSWAP_MOL {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMROT_MOL",&
             description="The probability of attempting a molecule rotation of a given molecule type.",&
             usage="PMROT_MOL {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMTRAION_MOL",&
             description="The probability of attempting a conformational change of a given molecule type.",&
             usage="PMTRAION_MOL {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PMTRANS_MOL",&
             description="The probability of attempting a molecule translation of a given molecule type.",&
             usage="PMTRANS_MOL {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -613,8 +608,7 @@ CONTAINS
        CALL section_create(section,name="BOX_PROBABILITIES",&
             description="Probabilities of attempting various moves types on "//&
             "the box.",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=2, n_subsections=0, repeats=.FALSE., error=error)
 
        NULLIFY(keyword )
 
@@ -661,8 +655,7 @@ CONTAINS
 
        CALL section_create(section,name="MOVE_UPDATES",&
             description="Frequency for updating move maximum displacements.",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=2, n_subsections=0, repeats=.FALSE., error=error)
 
        NULLIFY(keyword )
 
@@ -709,8 +702,7 @@ CONTAINS
 
        CALL section_create(section,name="max_displacements",&
             description="The maximum displacements for all attempted moves.",&
-            n_keywords=1, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=1, n_subsections=2, repeats=.FALSE., error=error)
 
        NULLIFY(subsection)
 
@@ -751,43 +743,42 @@ CONTAINS
        CALL section_create(section,name="mol_displacements",&
             description="Maximum displacements for every move type that requires "//&
             "a value for each molecular type in the simulation.",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=5, n_subsections=0, repeats=.FALSE., error=error)
 
        NULLIFY(keyword )
 
        CALL keyword_create(keyword, name="RMBOND",&
             description="Maximum bond length displacement, in angstroms, for each molecule type.",&
             usage="RMBOND {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMANGLE",&
             description="Maximum bond angle displacement, in degrees, for each molecule type.",&
             usage="RMANGLE {real} {real} ...",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMDIHEDRAL",&
             description="Maximum dihedral angle distplacement, in degrees, for each molecule type.",&
             usage="RMDIHEDRAL {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMROT",&
             description="Maximum rotational displacement, in degrees, for each molecule type.",&
             usage="RMROT {real} {real} ... ",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMTRANS",&
             description="Maximum translational displacement, in angstroms, for each molecule type.",&
             usage="RMTRANS {real} {real} ...",&
-            n_var=-1,type_of_var=real_t, required=.TRUE., error=error)
+            n_var=-1,type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -820,15 +811,14 @@ CONTAINS
        CALL section_create(section,name="BOX_DISPLACEMENTS",&
             description="Maximum displacements for any move that is performed on each" // &
             " simulation box.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
 
        NULLIFY(keyword )
 
        CALL keyword_create(keyword, name="RMVOLUME",&
             description="Maximum volume displacement, in angstrom**3.",&
             usage="RMVOLUME {real}",&
-            type_of_var=real_t, required=.TRUE., error=error)
+            type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -864,8 +854,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name=label, description=description,&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=1, n_subsections=1, repeats=.FALSE., error=error)
 
        NULLIFY(keyword)
        IF (.NOT.just_optimizers) THEN
@@ -962,8 +951,7 @@ CONTAINS
           NULLIFY(subsection)
           CALL section_create(subsection,name="PRINT",&
                description="Controls the printing properties during a geometry optimization run",&
-               n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
-               error=error)
+               n_keywords=0, n_subsections=1, repeats=.TRUE., error=error)
           NULLIFY(print_key)
           CALL cp_print_key_section_create(print_key,"program_run_info",&
                description="Controls the printing of basic information during the Geometry Optimization", &
@@ -1008,8 +996,7 @@ CONTAINS
     NULLIFY(subsection)
     CALL section_create(subsection,name="PRINT",&
          description="Controls the printing properties during a shell-core optimization procedure",&
-         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
-         error=error)
+         n_keywords=0, n_subsections=1, repeats=.TRUE., error=error)
     NULLIFY(print_key)
     CALL cp_print_key_section_create(print_key,"program_run_info",&
          description="Controls the printing of basic information during the Optimization", &
@@ -1098,8 +1085,7 @@ CONTAINS
     NULLIFY(subsection)
     CALL section_create(subsection,name="PRINT",&
          description="Controls the printing properties during a geometry optimization run",&
-         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
-         error=error)
+         n_keywords=0, n_subsections=1, repeats=.TRUE., error=error)
     NULLIFY(print_key)
     CALL cp_print_key_section_create(print_key,"program_run_info",&
          description="Controls the printing of basic information during the Geometry Optimization", &
@@ -1144,8 +1130,7 @@ CONTAINS
        NULLIFY(section,keyword,subsection, subsection2)
        CALL section_create(section,name="TRANSITION_STATE",&
             description="Specifies parameters to perform a transition state search",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=0, n_subsections=1, repeats=.FALSE., error=error)
 
        CALL keyword_create(keyword, name="METHOD",&
             description="Specify which kind of method to use for locating transition states",&
@@ -1160,8 +1145,7 @@ CONTAINS
 
        CALL section_create(subsection,name="DIMER",&
             description="Specifies parameters for Dimer Method",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=0, n_subsections=1, repeats=.FALSE., error=error)
 
        CALL keyword_create(keyword, name="DR",&
             description="This keyword sets the value for the DR parameter.",&
@@ -1192,8 +1176,7 @@ CONTAINS
        NULLIFY(subsection3)
        CALL section_create(subsection3,name="PRINT",&
             description="Controls the printing properties during the dimer rotation optimization run",&
-            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
-            error=error)
+            n_keywords=0, n_subsections=1, repeats=.TRUE., error=error)
        NULLIFY(print_key)
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
@@ -1223,8 +1206,7 @@ CONTAINS
        CALL section_create(subsection2,name="DIMER_VECTOR",&
             description="Specifies the initial dimer vector (used frequently to restart DIMER calculations)."//&
             " If not provided the starting orientation of the dimer is chosen randomly.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=0, n_subsections=1, repeats=.FALSE., error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specify on each line the components of the dimer vector.",repeats=.TRUE.,&
             usage="{Real} {Real} {Real}", type_of_var=real_t, n_var=-1, error=error)
@@ -1264,8 +1246,7 @@ CONTAINS
        NULLIFY(section,keyword,print_key)
        CALL section_create(section,name="BFGS",&
             description="Provides parameters to tune the BFGS optimization",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=0, n_subsections=1, repeats=.FALSE., error=error)
 
        CALL keyword_create(keyword, name="TRUST_RADIUS",&
             description="Trust radius used in BFGS. Previously set to 0.1. "//&
@@ -1340,8 +1321,7 @@ CONTAINS
        NULLIFY(section,subsection,subsubsection,keyword)
        CALL section_create(section,name="CG",&
             description="Provides parameters to tune the conjugate gradient optimization",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=0, n_subsections=1, repeats=.FALSE., error=error)
 
        CALL keyword_create(keyword, name="MAX_STEEP_STEPS",&
             description="Maximum number of steepest descent steps before starting the"//&
@@ -1371,8 +1351,7 @@ CONTAINS
        ! Line Search section
        CALL section_create(subsection,name="LINE_SEARCH",&
             description="Provides parameters to tune the line search during the conjugate gradient optimization",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=0, n_subsections=1, repeats=.FALSE., error=error)
 
        CALL keyword_create(keyword, name="TYPE",&
             description="1D line search algorithm to be used with the CG optimizer,"//&
@@ -1395,8 +1374,7 @@ CONTAINS
        NULLIFY(subsubsection)
        CALL section_create(subsubsection,name="2PNT",&
             description="Provides parameters to tune the line search for the two point based line search.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=0, n_subsections=1, repeats=.FALSE., error=error)
 
        CALL keyword_create(keyword, name="MAX_ALLOWED_STEP",&
             description="Max allowed value for the line search step.",&
@@ -1419,8 +1397,7 @@ CONTAINS
        NULLIFY(subsubsection)
        CALL section_create(subsubsection,name="GOLD",&
             description="Provides parameters to tune the line search for the gold search.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=0, n_subsections=1, repeats=.FALSE., error=error)
 
        CALL keyword_create(keyword, name="INITIAL_STEP",&
             description="Initial step size used, e.g. for bracketing or minimizers. "//&
@@ -1483,7 +1460,7 @@ CONTAINS
        NULLIFY(section,keyword)
        CALL section_create(section,name="LBFGS",&
             description="Provides parameters to tune the limited memory BFGS (LBFGS) optimization",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE.,&
             citations=(/Byrd1995/),&
             error=error)
 
@@ -1557,42 +1534,41 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="FLEXIBLE_PARTITIONING",&
             description="This section sets up flexible_partitioning",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=1, n_subsections=1, repeats=.FALSE., error=error)
 
        NULLIFY(keyword,print_key)
 
        CALL keyword_create(keyword, name="CENTRAL_ATOM",&
             description="Specifies the central atom.",&
-            usage="CENTRAL_ATOM {integer}", required=.TRUE.,&
+            usage="CENTRAL_ATOM {integer}",&
             n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="INNER_ATOMS",&
             description="Specifies the list of atoms that should remain close to the central atom.",&
-            usage="INNER_ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+            usage="INNER_ATOMS {integer} {integer} .. {integer}",&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="OUTER_ATOMS",&
             description="Specifies the list of atoms that should remain far from the central atom.",&
-            usage="OUTER_ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+            usage="OUTER_ATOMS {integer} {integer} .. {integer}",&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="INNER_RADIUS",&
             description="radius of the inner wall",&
-            usage="INNER_RADIUS {real} ", required=.TRUE., type_of_var=real_t, &
+            usage="INNER_RADIUS {real} ", type_of_var=real_t, &
             n_var=1, unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="OUTER_RADIUS",&
             description="radius of the outer wall",&
-            usage="OUTER_RADIUS {real} ", required=.TRUE., type_of_var=real_t, &
+            usage="OUTER_RADIUS {real} ", type_of_var=real_t, &
             n_var=1, unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1664,8 +1640,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="DRIVER",&
             description="This section defines the parameters needed to run in i-PI driver mode.",&
-            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=3, n_subsections=0, repeats=.FALSE., error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="unix",&
@@ -1719,8 +1694,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="PINT",&
             description="The section that controls a path integral run",&
-            n_keywords=11, n_subsections=8, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=11, n_subsections=8, repeats=.FALSE., error=error)
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="p",&
@@ -1797,8 +1771,7 @@ CONTAINS
        NULLIFY(subsection,subsubsection)
        CALL section_create(subsection,name="NORMALMODE",&
             description="Controls the normal mode transformation",&
-            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=3, n_subsections=0, repeats=.FALSE., error=error)
        CALL keyword_create(keyword, name="Q_CENTROID",&
             description="Value of the thermostat mass of centroid degree of freedom",&
             repeats=.FALSE., default_r_val=-1.0_dp,error=error)
@@ -1819,8 +1792,7 @@ CONTAINS
 
        CALL section_create(subsection,name="staging",&
             description="The section that controls the staging transformation",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=2, n_subsections=0, repeats=.FALSE., error=error)
        CALL keyword_create(keyword, name="j",&
             description="Value of the j parameter for the staging transformation",&
             repeats=.FALSE., default_i_val=2,error=error)
@@ -1837,7 +1809,7 @@ CONTAINS
        CALL section_create( subsection, name="BEADS",&
             description="Sets positions and velocities of the beads",&
             n_keywords=0, n_subsections=2,&
-            repeats=.FALSE., required=.FALSE., error=error )
+            repeats=.FALSE., error=error )
        CALL create_coord_section(subsubsection,"BEADS",error=error)
        CALL section_add_subsection(subsection,subsubsection,error=error)
        CALL section_release(subsubsection,error=error)
@@ -1850,7 +1822,7 @@ CONTAINS
        CALL section_create( subsection, name="NOSE",&
             description="Controls the Nose-Hoover thermostats",&
             n_keywords=1, n_subsections=2,&
-            repeats=.FALSE., required=.FALSE., error=error )
+            repeats=.FALSE., error=error )
        CALL keyword_create(keyword, name="nnos",&
             description="length of nose-hoover chain. 0 means no thermostat",&
             repeats=.FALSE., default_i_val=2,error=error)
@@ -1871,7 +1843,7 @@ CONTAINS
 
        CALL section_create( subsection, name="INIT",&
             description="Controls the initialization if the beads are not present",&
-            repeats=.FALSE., required=.FALSE., error=error)
+            repeats=.FALSE., error=error)
 
        CALL keyword_create(keyword, name="LEVY_POS_SAMPLE",&
             description="Sample bead positions assuming free particle "//&
@@ -1944,8 +1916,7 @@ CONTAINS
 
        CALL section_create(subsection,name="PRINT",&
             description="Controls the path integral-specific output",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
 
        NULLIFY(print_key)
 
@@ -2024,8 +1995,7 @@ CONTAINS
     CALL section_create(section,name="HELIUM",&
          description="The section that controls optional helium solvent"// &
          " environment (highly experimental, not for general use yet)",&
-         n_keywords=11, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
-         error=error)
+         n_keywords=11, n_subsections=4, repeats=.FALSE., error=error)
 
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -2097,8 +2067,7 @@ CONTAINS
     NULLIFY(subsection)
     CALL section_create(subsection,name="M-SAMPLING",&
          description="Permutation cycle length sampling settings",&
-         n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-         error=error)
+         n_keywords=2, n_subsections=0, repeats=.FALSE., error=error)
     CALL keyword_create(keyword, name="M-VALUE", &
          description="Value of m treated in a special way",&
          repeats=.FALSE.,&
@@ -2164,8 +2133,7 @@ CONTAINS
 
     CALL section_create(subsection,name="RDF",&
          description="Radial distribution function generation settings",&
-         n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-         error=error)
+         n_keywords=2, n_subsections=0, repeats=.FALSE., error=error)
     CALL keyword_create(keyword, name="MAXR", &
          description="Maximum RDF range, defaults to unit cell size",&
          repeats=.FALSE.,type_of_var=real_t,&
@@ -2185,8 +2153,7 @@ CONTAINS
     NULLIFY(subsection)
     CALL section_create(subsection,name="RHO",&
          description="Density distribution settings",&
-         n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-         error=error)
+         n_keywords=2, n_subsections=0, repeats=.FALSE., error=error)
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
          description="Whether or not to actually calculate densities "//&
          "(requires significant amount of memory, depending on the value of NBIN)",&
@@ -2215,8 +2182,7 @@ CONTAINS
     NULLIFY(subsubsection)
     CALL section_create(subsubsection,name="CUBE_DATA",&
          description="Density data used for restarts",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-         error=error)
+         n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
          description="Cubefile data", &
          repeats=.TRUE., usage="{Real} ...",&
@@ -2236,8 +2202,7 @@ CONTAINS
 
     CALL section_create(subsection,name="PERM",&
          description="Permutation state used for restart",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-         error=error)
+         n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
          description="Specify particle index permutation for every "// &
          "helium atom",repeats=.TRUE.,usage="{Integer} ...",&
@@ -2250,8 +2215,7 @@ CONTAINS
     CALL section_create(subsection,name="FORCE",&
          description="Forces exerted by the helium on the solute system"//&
          " (used for restarts)",&
-         n_keywords=0, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+         n_keywords=0, n_subsections=0, repeats=.FALSE., error=error)
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
          description="Number of real values should be 3 * "//&
          "<num_solute_atoms> * <num_solute_beads>", repeats=.TRUE., &
@@ -2264,8 +2228,7 @@ CONTAINS
 
     CALL section_create(subsection,name="RNG_STATE",&
          description="Random number generator state for all processors",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-         error=error)
+         n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
          description="Three real arrays of DIMENSION(3,2) times two RNG "//&
          "streams - 36 real values per processor",&
@@ -2278,8 +2241,7 @@ CONTAINS
 
     CALL section_create(subsection,name="PRINT",&
          description="The section that controls the output of the helium code",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-         error=error)
+         n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
 
     ! *************************************************************************
     !> Printkeys for properites output

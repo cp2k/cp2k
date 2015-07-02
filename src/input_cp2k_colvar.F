@@ -77,7 +77,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="COLVAR",&
             description="This section specifies the nature of the collective variables.",&
-            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., &
             error=error)
        NULLIFY(subsection, print_key)
 
@@ -86,7 +86,7 @@ CONTAINS
 
        CALL section_create(subsection,name="PRINT",&
             description="Controls the printing of the colvar specifications",&
-            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., &
             error=error)
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
@@ -131,7 +131,7 @@ CONTAINS
        CALL section_create(section,name="COLVAR_FUNC_INFO",&
             description="Specify further data possibly used by colvars, depending "//&
             "on the starting geometry, for computing the functions value.",&
-            n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -291,7 +291,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="coordination",&
             description="Section to define the coordination number as a collective variable.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection, keyword)
@@ -299,7 +299,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS_FROM",&
             variants=(/"POINTS_FROM"/),&
             description="Specify indexes of atoms/points building the coordination variable. ",&
-            usage="ATOMS_FROM {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            usage="ATOMS_FROM {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -307,7 +307,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS_TO",&
             variants=(/"POINTS_TO"/),&
             description="Specify indexes of atoms/points building the coordination variable. ",&
-            usage="ATOMS_TO {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            usage="ATOMS_TO {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -316,21 +316,21 @@ CONTAINS
             variants=(/"POINTS_TO_B"/),&
             description="For the CV given by the multiplication of two coorination numbers,"//&
             " here specify indexes of the third set of atoms/points. ",&
-            usage="ATOMS_TO_B {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            usage="ATOMS_TO_B {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="KINDS_FROM",&
             description="Specify alternatively kinds of atoms building the coordination variable.",&
-            usage="KINDS_FROM {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            usage="KINDS_FROM {CHAR} {CHAR} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="KINDS_TO",&
             description="Specify alternatively kinds of atoms building the coordination variable.",&
-            usage="KINDS_TO {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            usage="KINDS_TO {CHAR} {CHAR} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -338,7 +338,7 @@ CONTAINS
        CALL keyword_create(keyword, name="KINDS_TO_B",&
             description="For the CV given by the multiplication of two coorination numbers,"//&
            " here specify alternatively kinds of atoms building the coordination variable.",&
-            usage="KINDS_TO_B {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            usage="KINDS_TO_B {CHAR} {CHAR} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -432,14 +432,14 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="CONDITIONED_DISTANCE",&
             description="Section to define the conditioned distance as a collective variable.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection, keyword)
 
        CALL keyword_create(keyword, name="ATOMS_DISTANCE",&
             description="Specify indexes of atoms/points from which the distance is computed. ",&
-            usage="ATOMS_DISTANCE {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            usage="ATOMS_DISTANCE {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -448,7 +448,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS_FROM",&
             variants=(/"POINTS_FROM"/),&
             description="Specify indexes of atoms/points building the coordination variable. ",&
-            usage="ATOMS_FROM {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            usage="ATOMS_FROM {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -456,7 +456,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS_TO",&
             variants=(/"POINTS_TO"/),&
             description="Specify indexes of atoms/points building the coordination variable. ",&
-            usage="ATOMS_TO {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            usage="ATOMS_TO {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -464,14 +464,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="KINDS_FROM",&
             description="Specify alternatively kinds of atoms building the coordination variable.",&
-            usage="KINDS_FROM {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            usage="KINDS_FROM {CHAR} {CHAR} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="KINDS_TO",&
             description="Specify alternatively kinds of atoms building the coordination variable.",&
-            usage="KINDS_TO {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            usage="KINDS_TO {CHAR} {CHAR} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -547,7 +547,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="population",&
             description="Section to define the population of specie as a collective variable.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection, keyword)
@@ -555,7 +555,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS_FROM",&
             variants=(/"POINTS_FROM"/),&
             description="Specify indexes of atoms/points building the coordination variable. ",&
-            usage="ATOMS_FROM {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            usage="ATOMS_FROM {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -563,21 +563,21 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS_TO",&
             variants=(/"POINTS_TO"/),&
             description="Specify indexes of atoms/points building the coordination variable. ",&
-            usage="ATOMS_TO {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            usage="ATOMS_TO {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="KINDS_FROM",&
             description="Specify alternatively kinds of atoms building the coordination variable.",&
-            usage="KINDS_FROM {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            usage="KINDS_FROM {CHAR} {CHAR} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="KINDS_TO",&
             description="Specify alternatively kinds of atoms building the coordination variable.",&
-            usage="KINDS_TO {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            usage="KINDS_TO {CHAR} {CHAR} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -655,7 +655,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        CALL section_create(section,name="GYRATION_RADIUS",&
             description="Section to define the gyration radius as a collective variable.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection, keyword)
@@ -663,14 +663,14 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS",&
             variants=(/"POINTS"/),&
             description="Specify indexes of atoms/points defyining the gyration radius variable. ",&
-            usage="ATOMS {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            usage="ATOMS {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="KINDS",&
             description="Specify alternatively kinds of atoms defining the gyration radius.",&
-            usage="KINDS {CHAR} {CHAR} ..",required=.FALSE.,repeats=.TRUE.,&
+            usage="KINDS {CHAR} {CHAR} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -709,7 +709,7 @@ CONTAINS
        CALL section_create(section,name="DISTANCE_FUNCTION",&
             description="Section to define functions between two distances as collective variables."//&
             " The function is defined as d1+coeff*d2",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -717,7 +717,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS",&
             variants=(/"POINTS"/),&
             description="Specifies the indexes of atoms/points for the two bonds d1=(1-2) d2=(3-4).",&
-            usage="ATOMS {integer} {integer} {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS {integer} {integer} {integer} {integer}",&
             n_var=4, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -725,7 +725,7 @@ CONTAINS
        CALL keyword_create(keyword, name="COEFFICIENT",&
             description="Specifies the coefficient in the function for the constraint."//&
             " -1.0 has to be used for distance difference, 1.0 for distance addition",&
-            usage="COEFFICIENT {real}",required=.TRUE.,&
+            usage="COEFFICIENT {real}",&
             type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -772,7 +772,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="torsion",&
             description="Section to define the torsion as a collective variables.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -780,7 +780,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS",&
             variants=(/"POINTS"/),&
             description="Specifies the indexes of atoms/points defining the torsion.",&
-            usage="ATOMS {integer} {integer} {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS {integer} {integer} {integer} {integer}",&
             n_var=4, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -819,7 +819,7 @@ CONTAINS
        CALL section_create(section,name="bond_rotation",&
             description="Section to define the rotation of a bond/line with respect to"//&
                  "another bond/line",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -827,7 +827,7 @@ CONTAINS
        CALL keyword_create(keyword, name="P1_BOND1",&
             description="Specifies the index of atom/point defining the first point"//&
             "of the first bond/line.",&
-            usage="P1_BOND1 {integer}",required=.TRUE.,&
+            usage="P1_BOND1 {integer}",&
             n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -835,7 +835,7 @@ CONTAINS
        CALL keyword_create(keyword, name="P2_BOND1",&
             description="Specifies the index of atom/point defining the second point"//&
             "of the first bond/line.",&
-            usage="P2_BOND1 {integer}",required=.TRUE.,&
+            usage="P2_BOND1 {integer}",&
             n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -843,7 +843,7 @@ CONTAINS
        CALL keyword_create(keyword, name="P1_BOND2",&
             description="Specifies the index of atom/point defining the first point"//&
             "of the second bond/line.",&
-            usage="P1_BOND2 {integer}",required=.TRUE.,&
+            usage="P1_BOND2 {integer}",&
             n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -851,7 +851,7 @@ CONTAINS
        CALL keyword_create(keyword, name="P2_BOND2",&
             description="Specifies the index of atom/point defining the second point"//&
             "of the second bond/line.",&
-            usage="P2_BOND2 {integer}",required=.TRUE.,&
+            usage="P2_BOND2 {integer}",&
             n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -889,14 +889,14 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="angle",&
             description="Section to define the angle as a collective variables.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS",&
             variants=(/"POINTS"/),&
             description="Specifies the indexes of atoms/points defining the angle.",&
-            usage="ATOMS {integer} {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS {integer} {integer} {integer}",&
             n_var=3, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -934,14 +934,14 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="distance",&
             description="Section to define the distance as a collective variables.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS",&
             variants=(/"POINTS"/),&
             description="Specifies the indexes of atoms/points defining the distance.",&
-            usage="ATOMS {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS {integer} {integer}",&
             n_var=2, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -990,14 +990,14 @@ CONTAINS
             "position ((X-X(0))^2+(Y-Y(0))^2+(Z-Z(0))^2) or part of its components as a collective variable."//&
             "If absolute_position is specified, instead the CV is represented by the "//&
             "instantaneous position of the atom (only available for X, Y or Z components).",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOM",&
             variants=(/"POINT"/),&
             description="Specifies the index of the atom/point.",&
-            usage="ATOM {integer}",required=.TRUE.,&
+            usage="ATOM {integer}",&
             n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1062,14 +1062,14 @@ CONTAINS
             description="Section to define the cross term (XA-XA(0))*(XB-XB(0))+(XA-XA(0))*(YB-YB(0))"//&
             " or part of its components as a collective variable. The final term is given by the product "//&
             " of the components of A with the components of B.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="ATOMS",&
             variants=(/"POINTS"/),&
             description="Specifies the index of the atoms/points A and B.",&
-            usage="ATOMS {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS {integer} {integer}",&
             n_var=2, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1135,19 +1135,19 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="u",&
             description="Section to define the energy as a generalized collective variable.",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection, keyword)
        CALL section_create(subsection,name="MIXED",&
             description="This section allows to use any function of the energy subsystems "//&
                         " in a mixed_env calculation as a collective variable.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="ENERGY_FUNCTION",&
             description="Specifies the functional form of the collective variable in mathematical notation.",&
-            usage="ENERGY_FUNCTION (E1+E2-LOG(E1/E2))", required=.TRUE., type_of_var=lchar_t,&
+            usage="ENERGY_FUNCTION (E1+E2-LOG(E1/E2))",  type_of_var=lchar_t,&
             n_var=1, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1156,21 +1156,21 @@ CONTAINS
             description="Defines the variables of the functional form. To allow an efficient"//&
             " mapping the order of the energy variables will be considered identical to the"//&
             " order of the force_eval in the force_eval_order list.",&
-            usage="VARIABLES x", required=.TRUE., type_of_var=char_t,&
+            usage="VARIABLES x",  type_of_var=char_t,&
             n_var=-1, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PARAMETERS",&
             description="Defines the parameters of the functional form",&
-            usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
+            usage="PARAMETERS a b D",  type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VALUES",&
             description="Defines the values of parameter of the functional form",&
-            usage="VALUES ", required=.TRUE., type_of_var=real_t,&
+            usage="VALUES ",  type_of_var=real_t,&
             n_var=-1, repeats=.TRUE., unit_str="internal_cp2k", error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1178,7 +1178,7 @@ CONTAINS
        CALL keyword_create(keyword, name="UNITS",&
             description="Optionally, allows to define valid CP2K unit strings for each parameter value. "//&
                         "It is assumed that the corresponding parameter value is specified in this unit.",&
-            usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", required=.FALSE., type_of_var=char_t,&
+            usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K",  type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1228,7 +1228,7 @@ CONTAINS
        CALL section_create(section,name="distance_point_plane",&
             description="Section to define the distance of a point from a plane "//&
             "as a collective variables.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword, subsection)
 
@@ -1243,7 +1243,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS_PLANE",&
             variants=(/"POINTS_PLANE"/),&
             description="Specifies the indexes of atoms/points defining the plane.",&
-            usage="ATOMS_PLANE <INTEGER> <INTEGER> <INTEGER>",required=.TRUE.,&
+            usage="ATOMS_PLANE <INTEGER> <INTEGER> <INTEGER>",&
             n_var=3, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1251,7 +1251,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOM_POINT",&
             variants=(/"POINT_POINT"/),&
             description="Specifies the atom/point index defining the point.",&
-            usage="ATOM_POINT <INTEGER>",required=.TRUE.,&
+            usage="ATOM_POINT <INTEGER>",&
             n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1291,14 +1291,14 @@ CONTAINS
        CALL section_create(section,name="angle_plane_plane",&
             description="This section defines the angle between two planes "//&
             "as a collective variables.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword, subsection)
 
        CALL section_create(subsection,name="PLANE",&
             description="This section defines the plane. When using this colvar, "//&
             "two plane section must be defined!",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="DEF_TYPE",&
@@ -1316,7 +1316,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the indexes of 3 atoms/points defining the plane.",&
-            usage="ATOMS <INTEGER> <INTEGER> <INTEGER>",required=.TRUE.,&
+            usage="ATOMS <INTEGER> <INTEGER> <INTEGER>",&
             n_var=3, type_of_var=integer_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1324,7 +1324,7 @@ CONTAINS
        CALL keyword_create(keyword, name="NORMAL_VECTOR",&
             description="Alternatively to 3 atoms/points one can define one of the two, "//&
             "planes by defining its NORMAL vector.",&
-            usage="NORMAL_VECTOR 0.0 1.0 0.0",required=.TRUE.,&
+            usage="NORMAL_VECTOR 0.0 1.0 0.0",&
             n_var=3, type_of_var=real_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1362,7 +1362,7 @@ CONTAINS
        CALL section_create(section,name="POINT",&
             description="Enables the possibility to use geometrical centers instead of single atoms"//&
             " to define colvars",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -1380,21 +1380,21 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the indexes of atoms defining the geometrical center",&
-            usage="ATOMS {integer} {integer} {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS {integer} {integer} {integer} {integer}",&
             n_var=-1, type_of_var=integer_t, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WEIGHTS",&
             description="Specifies the weights for a weighted geometrical center. Default is 1/natoms for every atom",&
-            usage="WEIGHTS {real} {real} {real} {real}",required=.FALSE.,&
+            usage="WEIGHTS {real} {real} {real} {real}",&
             n_var=-1, type_of_var=real_t, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="XYZ",&
             description="Specifies the xyz of the fixed point (if the case)",&
-            usage="XYZ {real} {real} {real}",required=.TRUE.,&
+            usage="XYZ {real} {real} {real}",&
             n_var=3, type_of_var=real_t, unit_str="bohr",&
             repeats=.FALSE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1428,7 +1428,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="qparm",&
             description="Section to define the Q parameter (crystalline order parameter) as a collective variable.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -1436,7 +1436,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS_FROM",&
             variants=(/"POINTS_FROM"/),&
             description="Specify indexes of atoms/points building the coordination variable. ",&
-            usage="ATOMS_FROM {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            usage="ATOMS_FROM {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1444,21 +1444,21 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS_TO",&
             variants=(/"POINTS_TO"/),&
             description="Specify indexes of atoms/points building the coordination variable. ",&
-            usage="ATOMS_TO {integer} {integer} ..",required=.TRUE.,repeats=.TRUE.,&
+            usage="ATOMS_TO {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RCUT",&
             description="Specifies the distance cutoff for neighbors.",&
-            usage="RCUT {real}",required=.TRUE.,&
+            usage="RCUT {real}",&
             n_var=1, unit_str="angstrom",type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="L",&
             description="Specifies the L spherical harmonics from Ylm.",&
-            usage="L {integer}",required=.TRUE.,&
+            usage="L {integer}",&
             n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1504,21 +1504,21 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="hydronium",&
             description="Section to define the formation of a hydronium as a collective variable.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="OXYGENS",&
             description="Specify indexes of atoms building the coordination variable. ",&
-            usage="OXYGENS {integer} {integer} ..",required=.TRUE., repeats=.TRUE.,&
+            usage="OXYGENS {integer} {integer} ..", repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="HYDROGENS",&
             description="Specify indexes of atoms building the coordination variable. ",&
-            usage="HYDROGENS {integer} {integer} ..",required=.TRUE., repeats=.TRUE.,&
+            usage="HYDROGENS {integer} {integer} ..", repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1643,7 +1643,7 @@ CONTAINS
             " given reference configurations. For 2 configurations the colvar is equal to:"//&
             " ss = (RMSDA-RMSDB)/(RMSDA+RMSDB), while if only 1 configuration is given, then the"//&
             " colvar is just the RMSD from that frame.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection, subsubsection)
@@ -1665,21 +1665,21 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specify indexes of atoms building the subset. ",&
-            usage="ATOMS {integer} {integer} ..",required=.FALSE.,repeats=.TRUE.,&
+            usage="ATOMS {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="WEIGHTS",&
             description="Specify weights of atoms building the subset. ",&
-            usage="weightS {real} {real} ..",required=.FALSE.,repeats=.TRUE.,&
+            usage="weightS {real} {real} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL section_create(subsection,name="FRAME",&
             description="Specify coordinates of the frame (number of frames can be either 1 or 2)",&
-            repeats=.TRUE., required=.TRUE., error=error)
+            repeats=.TRUE.,  error=error)
 
        CALL keyword_create(keyword, name="COORD_FILE_NAME",&
             description="Name of the xyz file with coordinates (alternative to &COORD section)",&
@@ -1725,7 +1725,7 @@ CONTAINS
             "Constraining this colvar, allows to sample the space orthogonal to the reaction path, "//&
             "both in the Q-dimensional colvar and 3N-Q remaining coordinates. "//&
             "For the details of the function see cited literature.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             citations=(/Branduardi2007/), &
             error=error)
 
@@ -1758,7 +1758,7 @@ CONTAINS
             "Constraining this colvar, allows to sample the space equidistant to the reaction path, "//&
             "both in the Q-dimensional colvar and 3N-Q remaining coordinates. "//&
             "For the details of the function see cited literature.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             citations=(/Branduardi2007/), &
             error=error)
 
@@ -1823,14 +1823,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specify indexes of atoms building the subset. ",&
-            usage="ATOMS {integer} {integer} ..",required=.FALSE.,repeats=.TRUE.,&
+            usage="ATOMS {integer} {integer} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL section_create(subsection,name="FRAME",&
             description="Specify coordinates of the frame",&
-            repeats=.TRUE., required=.FALSE., error=error)
+            repeats=.TRUE.,  error=error)
 
        CALL keyword_create(keyword, name="COORD_FILE_NAME",&
             description="Name of the xyz file with coordinates (alternative to &COORD section)",&
@@ -1868,7 +1868,7 @@ CONTAINS
             "The shape of the space orthogonal to the reaction path is defined by this choice. "//&
             "In the limit of large values, it is given by the plane orthogonal to the path."//&
             "In practice, modest values are required for stable numerical integration.",&
-            usage="LAMBDA {real}",required=.TRUE.,&
+            usage="LAMBDA {real}",&
             type_of_var=real_t,default_r_val=5.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1876,7 +1876,7 @@ CONTAINS
        CALL keyword_create(keyword, name="STEP_SIZE",&
             description="Step size in the numerical integration, "//&
             "a few thousand points are common, and the proper number also depends on LAMBDA.",&
-            usage="STEP_SIZE {real}",required=.TRUE.,&
+            usage="STEP_SIZE {real}",&
             type_of_var=real_t,default_r_val=0.01_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1899,14 +1899,14 @@ CONTAINS
        CALL keyword_create(keyword,name="RANGE",&
             description="The range of of the grid of the COLVAR.",&
             usage="RANGE <REAL> <REAL>",&
-            n_var=2,type_of_var=real_t,repeats=.TRUE.,required=.TRUE.,&
+            n_var=2,type_of_var=real_t,repeats=.TRUE.,&
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="GRID_SPACING",&
             description="Distance between two gridpoints for the grid on the COLVAR",&
-            usage="STEP_SIZE {real}",required=.TRUE.,repeats=.TRUE.,&
+            usage="STEP_SIZE {real}",repeats=.TRUE.,&
             type_of_var=real_t,default_r_val=0.01_dp, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1941,7 +1941,7 @@ CONTAINS
        CALL section_create(section,name="COMBINE_COLVAR",&
             description="Allows the possibility to combine several COLVARs into one COLVAR "//&
             "with a generic function.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -1975,14 +1975,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="PARAMETERS",&
             description="Defines the parameters of the functional form",&
-            usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
+            usage="PARAMETERS a b D",  type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VALUES",&
             description="Defines the values of  parameter of the functional form",&
-            usage="VALUES ", required=.TRUE., type_of_var=real_t,&
+            usage="VALUES ",  type_of_var=real_t,&
             n_var=-1, repeats=.TRUE., unit_str="internal_cp2k", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2029,7 +2029,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="coord",&
             description="The positions for "//TRIM(name)//" used for restart",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 
@@ -2066,7 +2066,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="wc",&
             description="Section to define the hbond wannier centre as a collective variables.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword, subsection)
 
@@ -2081,7 +2081,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS",&
             variants=(/"POINTS"/),&
             description="Specifies the indexes of atoms/points defining the bond (Od, H, Oa).",&
-            usage="ATOMS {integer} {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS {integer} {integer} {integer}",&
             n_var=3, type_of_var=integer_t,repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2120,7 +2120,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="hbp",&
             description="Section to define the hbond wannier centre as a collective variables.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword, subsection)
 
@@ -2149,7 +2149,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS",&
             variants=(/"POINTS"/),&
             description="Specifies the indexes of atoms/points defining the bond (Od, H, Oa).",&
-            usage="ATOMS {integer} {integer} {integer}",required=.TRUE.,&
+            usage="ATOMS {integer} {integer} {integer}",&
             n_var=3, type_of_var=integer_t,repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2190,7 +2190,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="RING_PUCKERING",&
             description="Section to define general ring puckering collective variables.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -2199,7 +2199,7 @@ CONTAINS
             variants=(/"POINTS"/),&
             description="Specifies the indexes of atoms/points defining the ring."//&
             "At least 4 Atoms are needed.",&
-            usage="ATOMS {integer} {integer} {integer} ..",required=.TRUE.,&
+            usage="ATOMS {integer} {integer} {integer} ..",&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

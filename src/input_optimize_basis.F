@@ -62,7 +62,7 @@ CONTAINS
     CALL section_create(section,name="OPTIMIZE_BASIS",&
          description="describes a basis optimization job, in which an ADMM like approach is used to"//&
          " find the best exponents and/or coefficients to match a given training set.",&
-         repeats=.FALSE., required=.TRUE., error=error)
+         repeats=.FALSE.,  error=error)
     NULLIFY(keyword, subsection)
 
     CALL keyword_create(keyword, name="BASIS_TEMPLATE_FILE",&
@@ -179,7 +179,7 @@ CONTAINS
     CALL section_create(section,name="FIT_KIND",&
          description="specicifies the atomic kinds to be fitted and the basis"//&
          " sets associated with the kind.",&
-         repeats=.TRUE., required=.TRUE., error=error)
+         repeats=.TRUE.,  error=error)
 
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
          description="The name of the kind described in this section.",&
@@ -270,7 +270,7 @@ CONTAINS
          description="This section can be used to create subsets of a basis "//&
          " which will be fitted at the same time. This is especially useful if connected"//&
          " bsis sets e.g. TZVP, DZVP, SZV should be fitted. ",&
-         repeats=.TRUE., required=.FALSE., error=error)
+         repeats=.TRUE.,  error=error)
 
     CALL keyword_create(keyword, name="REFERENCE_SET",&
          description="Specifies the reference basis ID which is used as template to create the new set. "//&
@@ -316,7 +316,7 @@ CONTAINS
     CALL section_create(section,name="CONSTRAIN_EXPONENTS",&
          description="specicifies contraints for the exponents to be fitted."//&
          " Only a single constraint can be applied to an exponent",&
-         repeats=.TRUE., required=.TRUE., error=error)
+         repeats=.TRUE.,  error=error)
 
     CALL keyword_create(keyword, name="USE_EXP",&
          description="Defines the exponent to be constraint. The two integers indicate "//&
@@ -364,19 +364,19 @@ CONTAINS
     CALL section_create(section,name="TRAINING_FILES",&
          description="specicifies the location in which the files necessary for"//&
          " fitting procedure are located. Each Training set needs a reptition of this section.",&
-         repeats=.TRUE., required=.TRUE., error=error)
+         repeats=.TRUE.,  error=error)
 
     CALL keyword_create(keyword,name="DIRECTORY",&
          description="the directory in which the files are placed",&
          usage="DIRECTORY /my/path",&
-         required=.FALSE.,default_lc_val=".",error=error)
+         default_lc_val=".",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword,name="INPUT_FILE_NAME",&
          description="the filename of the input file used to run the original calcuation",&
          usage="INPUT_FILE_NAME my_input.inp",&
-         required=.TRUE.,default_lc_val="input.inp",error=error)
+         default_lc_val="input.inp",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     
@@ -403,7 +403,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="OPTIMIZATION",&
          description="sets the parameters for optimizition, output frequency and restarts",&
-         repeats=.FALSE., required=.FALSE., error=error)
+         repeats=.FALSE.,  error=error)
 
     CALL keyword_create(keyword, name="ACCURACY",&
          description="Final accuracy requested in optimization (RHOEND)",&

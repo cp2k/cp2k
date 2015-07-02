@@ -92,7 +92,7 @@ CONTAINS
     IF (.NOT.  failure) THEN
        CALL section_create(root_section,name="__ROOT__",&
             description="input file of cp2k",n_keywords=0, n_subsections=10,&
-            repeats=.FALSE., required=.FALSE.,  error=error)
+            repeats=.FALSE., error=error)
        NULLIFY(section)
 
        CALL create_global_section(section,error=error)
@@ -171,8 +171,7 @@ CONTAINS
 
     CALL section_create(section,name="TEST",&
          description="Tests to perform on the supported libraries.",&
-         n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-         error=error)
+         n_keywords=7, n_subsections=0, repeats=.FALSE., error=error)
 
     NULLIFY(keyword, print_key)
     CALL keyword_create(keyword, name="MEMORY",&
@@ -300,8 +299,7 @@ CONTAINS
 
     CALL section_create(section,name="DEBUG",&
          description="Section to setup parameters for debug runs.",&
-         n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-         error=error)
+         n_keywords=7, n_subsections=0, repeats=.FALSE., error=error)
 
     NULLIFY (keyword,print_key)
 
@@ -373,8 +371,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="MULTIPLE_FORCE_EVALS",&
          description="Describes how to handle multiple force_evals.",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-         error=error)
+         n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
 
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="FORCE_EVAL_ORDER",&
@@ -421,8 +418,7 @@ CONTAINS
        CALL section_create(section,name="EXT_RESTART",&
             description="Section for external restart, specifies an external "//&
             "input file where to take positions,...",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="RESTART_FILE_NAME",variants=(/"EXTERNAL_FILE"/),&
@@ -660,7 +656,7 @@ CONTAINS
          description="Describes a farming job, in which multiple inputs are executed."//newline//&
          "The RUN_TYPE in the global section has to be set to NONE for FARMING."//newline//&
          "The different groups are executed in parallel. The jobs inside the same groups in series.",&
-         repeats=.FALSE., required=.TRUE., error=error)
+         repeats=.FALSE., error=error)
     NULLIFY(keyword, print_key)
 
     CALL keyword_create(keyword, name="MASTER_SLAVE",&
@@ -714,26 +710,26 @@ CONTAINS
     NULLIFY(sub_section)
     CALL section_create(sub_section,name="JOB",&
          description="description of the jobs to be executed",&
-         repeats=.TRUE., required=.TRUE., error=error)
+         repeats=.TRUE., error=error)
 
     CALL keyword_create(keyword,name="DIRECTORY",&
          description="the directory in which the job should be executed",&
          usage="DIRECTORY /my/path",&
-         required=.TRUE.,default_lc_val=".",error=error)
+         default_lc_val=".",error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword,name="INPUT_FILE_NAME",&
          description="the filename of the input file",&
          usage="INPUT_FILE_NAME my_input.inp",&
-         required=.TRUE.,default_lc_val="input.inp",error=error)
+         default_lc_val="input.inp",error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword,name="OUTPUT_FILE_NAME",&
          description="the filename of the output file, if not specified will use the project name in the &GLOBAL section.",&
          usage="OUTPUT_FILE_NAME my_input.inp",&
-         required=.FALSE.,default_lc_val="",error=error)
+         default_lc_val="",error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -818,7 +814,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="RS_PW_TRANSFER",&
          description="Describes how to benchmark the rs_pw_transfer routines.",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         n_keywords=1, n_subsections=0, repeats=.FALSE.,&
          error=error)
 
     NULLIFY(keyword)
@@ -877,7 +873,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="PW_TRANSFER",&
          description="Benchmark and test the pw_transfer routines.",&
-         n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+         n_keywords=1, n_subsections=0, repeats=.TRUE.,&
          error=error)
 
     NULLIFY(keyword)
@@ -920,7 +916,7 @@ CONTAINS
          description="Expert use only, leave the default..."//&
                      "Can be used to set the distribution for ray-distributed FFT.",&
          usage="PW_GRID_LAYOUT",&
-         repeats=.FALSE.,required=.FALSE.,n_var=2,&
+         repeats=.FALSE.,n_var=2,&
          default_i_vals=(/-1,-1/),&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -963,7 +959,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="CP_FM_GEMM",&
          description="Benchmark and test the cp_fm_gemm routines by multiplying C=A*B  ",&
-         n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+         n_keywords=1, n_subsections=0, repeats=.TRUE.,&
          error=error)
 
     NULLIFY(keyword)
@@ -1058,7 +1054,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="EIGENSOLVER",&
          description="Benchmark and test the eigensolver routines.",&
-         n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+         n_keywords=1, n_subsections=0, repeats=.TRUE.,&
          error=error)
 
     NULLIFY(keyword)
@@ -1125,7 +1121,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="CP_DBCSR",&
          description="Benchmark and test the cp_dbcsr routines",&
-         n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+         n_keywords=1, n_subsections=0, repeats=.TRUE.,&
          error=error)
 
     NULLIFY(keyword)

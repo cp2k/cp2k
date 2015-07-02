@@ -85,7 +85,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="mm",&
             description="This section contains all information to run a MM calculation.",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection)
@@ -133,7 +133,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="print",&
             description="Section of possible print options in MM code.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        NULLIFY(print_key, keyword)
@@ -250,7 +250,7 @@ CONTAINS
        CALL section_create(section,name="FORCEFIELD",&
             description="Section specifying information regarding how to set up properly"// &
             " a force_field for the classical calculations.",&
-            n_keywords=2, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=2, n_subsections=2, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection,keyword)
@@ -421,7 +421,7 @@ CONTAINS
        CALL section_create(section,name="SPLINE",&
             description="specifies parameters to set up the splines used in the"//&
             " nonboned interactions (both pair body potential and many body potential)",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -509,13 +509,13 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TORSION",&
             description="Specifies the torsion potential of the MM system.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kinds involved in the tors.",&
-            usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}",  type_of_var=char_t,&
             n_var=4, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -538,21 +538,21 @@ CONTAINS
 
        CALL keyword_create(keyword, name="K",&
             description="Defines the force constant of the potential",&
-            usage="K {real}", required=.TRUE., type_of_var=real_t,&
+            usage="K {real}",  type_of_var=real_t,&
             n_var=1, unit_str="hartree",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PHI0",&
             description="Defines the phase of the potential.",&
-            usage="PHI0 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="PHI0 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="rad", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="M",&
             description="Defines the multiplicity of the potential.",&
-            usage="M {integer}", required=.TRUE., type_of_var=integer_t,&
+            usage="M {integer}",  type_of_var=integer_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -583,13 +583,13 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="IMPROPER",&
             description="Specifies the improper torsion potential of the MM system.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kinds involved in the improper tors.",&
-            usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}",  type_of_var=char_t,&
             n_var=4, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -612,14 +612,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="K",&
             description="Defines the force constant of the potential",&
-            usage="K {real}", required=.TRUE., type_of_var=real_t,&
+            usage="K {real}",  type_of_var=real_t,&
             n_var=1, unit_str="hartree*rad^-2",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PHI0",&
             description="Defines the phase of the potential.",&
-            usage="PHI0 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="PHI0 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="rad", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -652,13 +652,13 @@ CONTAINS
             description="Specifies the out of plane bend potential of the MM system."//&
             "(Only defined for atom quadruples which are also defined as an improper"//&
             " pattern in the topology.)",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kinds involved in the opbend.",&
-            usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}",  type_of_var=char_t,&
             n_var=4, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -681,14 +681,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="K",&
             description="Defines the force constant of the potential",&
-            usage="K {real}", required=.TRUE., type_of_var=real_t,&
+            usage="K {real}",  type_of_var=real_t,&
             n_var=1, unit_str="hartree*rad^-2",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PHI0",&
             description="Defines the phase of the potential.",&
-            usage="PHI0 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="PHI0 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="rad", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -720,14 +720,14 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BEND",&
             description="Specifies the bend potential of the MM system.",&
-            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword,subsection)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kinds involved in the bend.",&
-            usage="ATOMS {KIND1} {KIND2} {KIND3}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2} {KIND3}",  type_of_var=char_t,&
             n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -761,7 +761,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="K",&
             description="Defines the force constant of the potential",&
-            usage="K {real}", required=.TRUE., type_of_var=real_t,&
+            usage="K {real}",  type_of_var=real_t,&
             n_var=1, unit_str="hartree*rad^-2",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -806,7 +806,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="THETA0",&
             description="Defines the equilibrium angle.",&
-            usage="THETA0 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="THETA0 {real}",  type_of_var=real_t,&
             n_var=1, unit_str='rad',error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -851,19 +851,19 @@ CONTAINS
           CALL section_create(section,name=TRIM(label),&
                description="Specifies the Urey-Bradley potential between the external atoms"//&
                " defining the angle",&
-               n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+               n_keywords=1, n_subsections=0, repeats=.FALSE., &
                error=error)
 
        ELSE
           tag = " Bond "
           CALL section_create(section,name=TRIM(label),&
                description="Specifies the bond potential",&
-               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+               n_keywords=1, n_subsections=0, repeats=.TRUE., &
                error=error)
 
           CALL keyword_create(keyword, name="ATOMS",&
                description="Defines the atomic kinds involved in the bond.",&
-               usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+               usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
                n_var=2, error=error)
           CALL section_add_keyword(section,keyword,error=error)
           CALL keyword_release(keyword,error=error)
@@ -900,7 +900,7 @@ CONTAINS
             description="Defines the force constant of the potential. "//&
             "For MORSE potentials 2 numbers are expected. "//&
             "For QUARTIC potentials 3 numbers are expected.",&
-            usage="K {real}", required=.TRUE., type_of_var=real_t,&
+            usage="K {real}",  type_of_var=real_t,&
             n_var=-1, unit_str="internal_cp2k",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -914,7 +914,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="R0",&
             description="Defines the equilibrium distance.",&
-            usage="R0 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="R0 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="bohr", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -946,14 +946,14 @@ CONTAINS
        CALL section_create(section,name="charges",&
             description="Allow to specify an array of classical charges, thus avoiding the"//&
             " packing and permitting the usage of different charges for same atomic types.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Value of the charge for the individual atom. Order MUST reflect"//&
             " the one specified for the geometry.", repeats=.TRUE., usage="{Real}", &
-            type_of_var=real_t, required=.TRUE., error=error)
+            type_of_var=real_t,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -983,21 +983,21 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="charge",&
             description="This section specifies the charge of the MM atoms",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOM",&
             description="Defines the atomic kind of the charge.",&
-            usage="ATOM {KIND1}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOM {KIND1}",  type_of_var=char_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CHARGE",&
             description="Defines the charge of the MM atom in electron charge unit.",&
-            usage="CHARGE {real}", required=.TRUE., type_of_var=real_t,&
+            usage="CHARGE {real}",  type_of_var=real_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1029,21 +1029,21 @@ CONTAINS
        CALL section_create(section,name="QUADRUPOLE",&
             description="This section specifies that we will perform an SCF quadrupole calculation of the MM atoms. "//&
                         "Needs KEYWORD POL_SCF in POISSON secton",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOM",&
             description="Defines the atomic kind of the SCF quadrupole.",&
-            usage="ATOM {KIND1}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOM {KIND1}",  type_of_var=char_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CPOL",&
             description="Defines the isotropic polarizability of the MM atom.",&
-            usage="CPOL {real}", required=.TRUE., type_of_var=real_t,&
+            usage="CPOL {real}",  type_of_var=real_t,&
             n_var=1, unit_str='internal_cp2k', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1076,21 +1076,21 @@ CONTAINS
        CALL section_create(section,name="DIPOLE",&
             description="This section specifies that we will perform an SCF dipole calculation of the MM atoms. "//&
                         "Needs KEYWORD POL_SCF in POISSON secton",&
-            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., &
             error=error)
 
        NULLIFY(subsection,keyword)
 
        CALL keyword_create(keyword, name="ATOM",&
             description="Defines the atomic kind of the SCF dipole.",&
-            usage="ATOM {KIND1}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOM {KIND1}",  type_of_var=char_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="APOL",&
             description="Defines the isotropic polarizability of the MM atom.",&
-            usage="APOL {real}", required=.TRUE., type_of_var=real_t,&
+            usage="APOL {real}",  type_of_var=real_t,&
             n_var=1, unit_str='angstrom^3', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1124,14 +1124,14 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="DAMPING",&
             description="This section specifies optional electric field damping for the polarizable atoms. ",&
-            n_keywords=4, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=4, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOM",&
             description="Defines the atomic kind for this damping function.",&
-            usage="ATOM {KIND1}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOM {KIND1}",  type_of_var=char_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1139,28 +1139,28 @@ CONTAINS
 
        CALL keyword_create(keyword, name="TYPE",&
             description="Defines the damping type.",&
-            usage="TYPE {string}", required=.TRUE., type_of_var=char_t,&
+            usage="TYPE {string}",  type_of_var=char_t,&
             n_var=1, default_c_val="TANG-TOENNIES", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ORDER",&
             description="Defines the order for this damping.",&
-            usage="ORDER {integer}", required=.TRUE., type_of_var=integer_t,&
+            usage="ORDER {integer}",  type_of_var=integer_t,&
             n_var=1, default_i_val=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BIJ",&
             description="Defines the BIJ parameter for this damping.",&
-            usage="BIJ {real}", required=.TRUE., type_of_var=real_t,&
+            usage="BIJ {real}",  type_of_var=real_t,&
             n_var=1, unit_str='angstrom^-1', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CIJ",&
             description="Defines the CIJ parameter for this damping.",&
-            usage="CIJ {real}", required=.TRUE., type_of_var=real_t,&
+            usage="CIJ {real}",  type_of_var=real_t,&
             n_var=1, unit_str='', error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1191,7 +1191,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section, name="SHELL",&
             description="This section specifies the parameters for shell-model potentials",&
-            n_keywords=6, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=6, n_subsections=0, repeats=.TRUE., &
             citations=(/Dick1958,Mitchell1993,Devynck2012/),&
             error=error)
 
@@ -1231,7 +1231,6 @@ CONTAINS
             variants=s2a("K2","SPRING"),&
             description="Force constant k2 of the spring potential 1/2*k2*r^2 + 1/24*k4*r^4 "//&
                         "binding a core-shell pair when a core-shell potential is employed.",&
-            required=.TRUE.,&
             repeats=.FALSE.,&
             usage="K2_SPRING {real}",&
             default_r_val=-1.0_dp,&
@@ -1245,7 +1244,6 @@ CONTAINS
             description="Force constant k4 of the spring potential 1/2*k2*r^2 + 1/24*k4*r^4 "//&
                         "binding a core-shell pair when a core-shell potential is employed. "//&
                         "By default a harmonic spring potential is used, i.e. k4 is zero.",&
-            required=.FALSE.,&
             repeats=.FALSE.,&
             usage="K4_SPRING {real}",&
             default_r_val=0.0_dp,&
@@ -1301,7 +1299,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="nonbonded14",&
             description="This section specifies the input parameters for 1-4 NON-BONDED interactions.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection)
@@ -1349,7 +1347,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="nonbonded",&
             description="This section specifies the input parameters for NON-BONDED interactions.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection)
@@ -1436,7 +1434,7 @@ CONTAINS
        CALL section_create(section,name="neighbor_lists",&
             description="This section specifies the input parameters for the construction of"//&
             " neighbor lists.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="VERLET_SKIN",&
@@ -1497,42 +1495,42 @@ CONTAINS
             "The function parser recognizes the (single argument) Fortran 90 intrinsic functions "//&
             "abs, exp, log10, log, sqrt, sinh, cosh, tanh, sin, cos, tan, asin, acos, atan. "//&
             "Parsing for INTRINSIC functions is CASE INsensitive.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the generic potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the functional form in mathematical notation.",&
-            usage="FUNCTION  a*EXP(-b*x^2)/x+D*log10(x)", required=.TRUE., type_of_var=lchar_t,&
+            usage="FUNCTION  a*EXP(-b*x^2)/x+D*log10(x)",  type_of_var=lchar_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VARIABLES",&
             description="Defines the variable of the functional form.",&
-            usage="VARIABLES x", required=.TRUE., type_of_var=char_t,&
+            usage="VARIABLES x",  type_of_var=char_t,&
             n_var=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PARAMETERS",&
             description="Defines the parameters of the functional form",&
-            usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
+            usage="PARAMETERS a b D",  type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VALUES",&
             description="Defines the values of parameter of the functional form",&
-            usage="VALUES ", required=.TRUE., type_of_var=real_t,&
+            usage="VALUES ",  type_of_var=real_t,&
             n_var=-1, repeats=.TRUE., unit_str="internal_cp2k", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1540,7 +1538,7 @@ CONTAINS
        CALL keyword_create(keyword, name="UNITS",&
             description="Optionally, allows to define valid CP2K unit strings for each parameter value. "//&
                         "It is assumed that the corresponding parameter value is specified in this unit.",&
-            usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", required=.FALSE., type_of_var=char_t,&
+            usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K",  type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1556,14 +1554,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
+            " full range generate by the spline",  usage="RMIN {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
+            " full range generate by the spline",  usage="RMAX {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1595,13 +1593,13 @@ CONTAINS
        CALL section_create(section,name="EAM",&
             description="This section specifies the input parameters for EAM potential type.",&
             citations=(/Foiles1986/),n_keywords=1, n_subsections=0, repeats=.TRUE., &
-            required=.TRUE., error=error)
+             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1653,7 +1651,7 @@ CONTAINS
                         "Requires linking with quip library from <a href=""http://www.libatoms.org"" "//&
                         "target=""_blank"">http://www.libatoms.org</a> .",&
             citations=(/QUIP_ref/),n_keywords=1, n_subsections=0, repeats=.TRUE., &
-            required=.TRUE., error=error)
+             error=error)
 
        NULLIFY(keyword)
 
@@ -1662,7 +1660,7 @@ CONTAINS
             "For more than 2 elements, &QUIP section must be repeated until each element "//&
             "has been mentioned at least once. Set IGNORE_MISSING_CRITICAL_PARAMS to T "//&
             "in enclosing &FORCEFIELD section to avoid having to list every pair of elements separately.",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1685,7 +1683,7 @@ CONTAINS
        CALL keyword_create(keyword, name="CALC_ARGS",&
             description="Specifies the potential calculation arguments for the QUIP potential.",&
             usage="CALC_ARGS",default_c_vals=(/""/), &
-            n_var=-1,type_of_var=char_t, required=.FALSE., error=error)
+            n_var=-1,type_of_var=char_t,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1717,28 +1715,28 @@ CONTAINS
        CALL section_create(section,name="lennard-jones",&
             description="This section specifies the input parameters for LENNARD-JONES potential type."//&
             "Functional form: V(r) = 4.0 * EPSILON * [(SIGMA/r)^12-(SIGMA/r)^6].",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPSILON",&
             description="Defines the EPSILON parameter of the LJ potential",&
-            usage="EPSILON {real}", required=.TRUE., type_of_var=real_t,&
+            usage="EPSILON {real}",  type_of_var=real_t,&
             n_var=1, unit_str="K_e", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SIGMA",&
             description="Defines the SIGMA parameter of the LJ potential",&
-            usage="SIGMA {real}", required=.TRUE., type_of_var=real_t,&
+            usage="SIGMA {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1754,14 +1752,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
+            " full range generate by the spline",  usage="RMIN {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
+            " full range generate by the spline",  usage="RMAX {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1793,35 +1791,35 @@ CONTAINS
        CALL section_create(section,name="williams",&
             description="This section specifies the input parameters for WILLIAMS potential type."//&
             "Functional form: V(r) = A*EXP(-B*r) - C / r^6 .",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="A",&
             description="Defines the A parameter of the Williams potential",&
-            usage="A {real}", required=.TRUE., type_of_var=real_t,&
+            usage="A {real}",  type_of_var=real_t,&
             n_var=1, unit_str="K_e", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="B",&
             description="Defines the B parameter of the Williams potential",&
-            usage="B {real}", required=.TRUE., type_of_var=real_t,&
+            usage="B {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom^-1",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="C",&
             description="Defines the C parameter of the Williams potential",&
-            usage="C {real}", required=.TRUE., type_of_var=real_t,&
+            usage="C {real}",  type_of_var=real_t,&
             n_var=1, unit_str="K_e*angstrom^6",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1837,14 +1835,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
+            " full range generate by the spline",  usage="RMIN {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
+            " full range generate by the spline",  usage="RMAX {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1876,48 +1874,48 @@ CONTAINS
        CALL section_create(section,name="goodwin",&
             description="This section specifies the input parameters for GOODWIN potential type."//&
             "Functional form: V(r) = EXP(M*(-(r/DC)**MC+(D/DC)**MC))*VR0*(D/r)**M.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VR0",&
             description="Defines the VR0 parameter of the Goodwin potential",&
-            usage="VR0 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="VR0 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="K_e",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="D",&
             description="Defines the D parameter of the Goodwin potential",&
-            usage="D {real}", required=.TRUE., type_of_var=real_t,&
+            usage="D {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="DC",&
             description="Defines the DC parameter of the Goodwin potential",&
-            usage="DC {real}", required=.TRUE., type_of_var=real_t,&
+            usage="DC {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="M",&
             description="Defines the M parameter of the Goodwin potential",&
-            usage="M {real}", required=.TRUE., type_of_var=integer_t,&
+            usage="M {real}",  type_of_var=integer_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MC",&
             description="Defines the MC parameter of the Goodwin potential",&
-            usage="MC {real}", required=.TRUE., type_of_var=integer_t,&
+            usage="MC {real}",  type_of_var=integer_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1933,14 +1931,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
+            " full range generate by the spline",  usage="RMIN {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
+            " full range generate by the spline",  usage="RMAX {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1972,14 +1970,14 @@ CONTAINS
        CALL section_create(section,name="ipbv",&
             description="This section specifies the input parameters for IPBV potential type."//&
             "Functional form: Implicit table function.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the IPBV nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1995,14 +1993,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
+            " full range generate by the spline",  usage="RMIN {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
+            " full range generate by the spline",  usage="RMAX {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2035,14 +2033,14 @@ CONTAINS
             description="This section specifies the input parameters for BMHFT potential type."//&
             "Functional form: V(r) = A * EXP(-B*r) - C/r^6 - D/r^8."//&
             "Values available inside cp2k only for the Na/Cl pair.",&
-            citations=(/Tosi1964a,Tosi1964b/),n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            citations=(/Tosi1964a,Tosi1964b/),n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the BMHFT nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2050,7 +2048,7 @@ CONTAINS
        CALL keyword_create(keyword, name="MAP_ATOMS",&
             description="Defines the kinds for which internally is defined the BMHFT nonbond potential"//&
             " at the moment only Na and Cl.",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2064,42 +2062,42 @@ CONTAINS
 
        CALL keyword_create(keyword, name="A",&
             description="Defines the A parameter of the Fumi-Tosi Potential",&
-            usage="A {real}", required=.TRUE., type_of_var=real_t,&
+            usage="A {real}",  type_of_var=real_t,&
             n_var=1, unit_str="hartree",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="B",&
             description="Defines the B parameter of the Fumi-Tosi Potential",&
-            usage="B {real}", required=.TRUE., type_of_var=real_t,&
+            usage="B {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom^-1",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="C",&
             description="Defines the C parameter of the Fumi-Tosi Potential",&
-            usage="C {real}", required=.TRUE., type_of_var=real_t,&
+            usage="C {real}",  type_of_var=real_t,&
             n_var=1, unit_str="hartree*angstrom^6",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="D",&
             description="Defines the D parameter of the Fumi-Tosi Potential",&
-            usage="D {real}", required=.TRUE., type_of_var=real_t,&
+            usage="D {real}",  type_of_var=real_t,&
             n_var=1, unit_str="hartree*angstrom^8",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
+            " full range generate by the spline",  usage="RMIN {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
+            " full range generate by the spline",  usage="RMAX {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2134,14 +2132,14 @@ CONTAINS
             "where f_order(r)=1-exp(-BD * r) * \sum_{k=0}^order (BD * r)^k / k! ."//&
             "(Tang-Toennies damping function)"//&
             "No values available inside cp2k.",&
-            citations=(/Tosi1964a,Tosi1964b/),n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            citations=(/Tosi1964a,Tosi1964b/),n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the BMHFTD nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2149,7 +2147,7 @@ CONTAINS
        CALL keyword_create(keyword, name="MAP_ATOMS",&
             description="Defines the kinds for which internally is defined the BMHFTD nonbond potential"//&
             " at the moment no species included.",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2163,56 +2161,56 @@ CONTAINS
 
        CALL keyword_create(keyword, name="A",&
             description="Defines the A parameter of the dispersion-damped Fumi-Tosi Potential",&
-            usage="A {real}", required=.TRUE., type_of_var=real_t,&
+            usage="A {real}",  type_of_var=real_t,&
             n_var=1, unit_str="hartree",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="B",&
             description="Defines the B parameter of the dispersion-damped Fumi-Tosi Potential",&
-            usage="B {real}", required=.TRUE., type_of_var=real_t,&
+            usage="B {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom^-1",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="C",&
             description="Defines the C parameter of the dispersion-damped Fumi-Tosi Potential",&
-            usage="C {real}", required=.TRUE., type_of_var=real_t,&
+            usage="C {real}",  type_of_var=real_t,&
             n_var=1, unit_str="hartree*angstrom^6",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="D",&
             description="Defines the D parameter of the dispersion-damped Fumi-Tosi Potential",&
-            usage="D {real}", required=.TRUE., type_of_var=real_t,&
+            usage="D {real}",  type_of_var=real_t,&
             n_var=1, unit_str="hartree*angstrom^8",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="BD",&
             description="Defines the BD parameter of the dispersion-damped Fumi-Tosi Potential",&
-            usage="D {real}", required=.TRUE., type_of_var=real_t,&
+            usage="D {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom^-1",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ORDER",&
             description="Defines the order for this damping.",&
-            usage="ORDER {integer}", required=.TRUE., type_of_var=integer_t,&
+            usage="ORDER {integer}",  type_of_var=integer_t,&
             n_var=1, default_i_val=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
+            " full range generate by the spline",  usage="RMIN {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
+            " full range generate by the spline",  usage="RMAX {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2249,56 +2247,56 @@ CONTAINS
             "<li>V(r) = Sum_n POLY1(n)*r<sup>n</sup> for r<sub>1</sub> &le; r &lt; r<sub>2</sub></li>"//&
             "<li>V(r) = Sum_n POLY2(n)*r<sup>n</sup> for r<sub>2</sub> &le; r &lt; r<sub>3</sub></li>"//&
             "<li>V(r) = -C/r<sup>6</sup> for r &ge; r<sub>3</sub></li></ul>",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="A",&
             description="Defines the A parameter of the Buckingham potential",&
-            usage="A {real}", required=.TRUE., type_of_var=real_t,&
+            usage="A {real}",  type_of_var=real_t,&
             n_var=1, unit_str="K_e", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="B",&
             description="Defines the B parameter of the Buckingham potential",&
-            usage="B {real}", required=.TRUE., type_of_var=real_t,&
+            usage="B {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom^-1",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="C",&
             description="Defines the C parameter of the Buckingham  potential",&
-            usage="C {real}", required=.TRUE., type_of_var=real_t,&
+            usage="C {real}",  type_of_var=real_t,&
             n_var=1, unit_str="K_e*angstrom^6",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="R1",&
             description="Defines the upper bound of the first range ",&
-            usage="R1 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="R1 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="R2",&
             description="Defines the upper bound of the second range ",&
-            usage="R2 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="R2 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="R3",&
             description="Defines the upper bound of the third range ",&
-            usage="R3 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="R3 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2330,14 +2328,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
+            " full range generate by the spline",  usage="RMIN {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
+            " full range generate by the spline",  usage="RMAX {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2370,77 +2368,77 @@ CONTAINS
             description="This section specifies the input parameters for"//&
             " Buckingham plus Morse potential type "//&
             " Functional Form: V(r) = F0*(B1+B2)*EXP([A1+A2-r]/[B1+B2])-C/r^6+D*{EXP[-2*beta*(r-R0)]-2*EXP[-beta*(r-R0)]}.",&
-            citations=(/Yamada2000/),n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            citations=(/Yamada2000/),n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="F0",&
             description="Defines the f0 parameter of Buckingham+Morse potential",&
-            usage="F0 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="F0 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="K_e*angstrom^-1", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="A1",&
             description="Defines the A1 parameter of Buckingham+Morse potential",&
-            usage="A1 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="A1 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="A2",&
             description="Defines the A2 parameter of Buckingham+Morse potential",&
-            usage="A2 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="A2 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="B1",&
             description="Defines the B1 parameter of Buckingham+Morse potential",&
-            usage="B1 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="B1 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="B2",&
             description="Defines the B2 parameter of Buckingham+Morse potential",&
-            usage="B2 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="B2 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="C",&
             description="Defines the C parameter of Buckingham+Morse  potential",&
-            usage="C {real}", required=.TRUE., type_of_var=real_t,&
+            usage="C {real}",  type_of_var=real_t,&
             n_var=1, unit_str="K_e*angstrom^6",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="D",&
             description="Defines the amplitude for the Morse part ",&
-            usage="D {real}", required=.TRUE., type_of_var=real_t,&
+            usage="D {real}",  type_of_var=real_t,&
             n_var=1, unit_str="K_e",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="R0",&
             description="Defines the equilibrium distance for the Morse part ",&
-            usage="R0 {real}", required=.TRUE., type_of_var=real_t,&
+            usage="R0 {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="Beta",&
             description="Defines the width for the Morse part ",&
-            usage="Beta {real}", required=.TRUE., type_of_var=real_t,&
+            usage="Beta {real}",  type_of_var=real_t,&
             n_var=1, unit_str="angstrom^-1",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2456,14 +2454,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RMIN",&
             description="Defines the lower bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMIN {real}", &
+            " full range generate by the spline",  usage="RMIN {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RMAX",&
             description="Defines the upper bound of the potential. If not set the range is the"//&
-            " full range generate by the spline", required=.TRUE., usage="RMAX {real}", &
+            " full range generate by the spline",  usage="RMAX {real}", &
             type_of_var=real_t,  unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2493,21 +2491,21 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TERSOFF",&
             description="This section specifies the input parameters for Tersoff potential type.",&
-            citations=(/Tersoff1988/),n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            citations=(/Tersoff1988/),n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="A",&
             description="Defines the A parameter of Tersoff potential",&
-            usage="A {real}", required=.FALSE., type_of_var=real_t,&
+            usage="A {real}",  type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=1.8308E3_dp,&
                                            unit_str="eV",&
                                            error=error),&
@@ -2517,7 +2515,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="B",&
             description="Defines the B parameter of Tersoff potential",&
-            usage="B {real}", required=.FALSE., type_of_var=real_t,&
+            usage="B {real}",  type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=4.7118E2_dp,&
                                            unit_str="eV",&
                                            error=error),&
@@ -2527,7 +2525,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="lambda1",&
             description="Defines the lambda1 parameter of Tersoff potential",&
-            usage="lambda1 {real}", required=.FALSE., type_of_var=real_t,&
+            usage="lambda1 {real}",  type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=2.4799_dp,&
                                           unit_str="angstrom^-1",&
                                           error=error),&
@@ -2537,7 +2535,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="lambda2",&
             description="Defines the lambda2 parameter of Tersoff potential",&
-            usage="lambda2 {real}", required=.FALSE., type_of_var=real_t,&
+            usage="lambda2 {real}",  type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=1.7322_dp,&
                                           unit_str="angstrom^-1",&
                                           error=error),&
@@ -2547,7 +2545,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="alpha",&
             description="Defines the alpha parameter of Tersoff potential",&
-            usage="alpha {real}", required=.FALSE., type_of_var=real_t,&
+            usage="alpha {real}",  type_of_var=real_t,&
             default_r_val=0.0_dp,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2555,7 +2553,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="beta",&
             description="Defines the beta parameter of Tersoff potential",&
-            usage="beta {real}", required=.FALSE., type_of_var=real_t,&
+            usage="beta {real}",  type_of_var=real_t,&
             default_r_val=1.0999E-6_dp,&
             n_var=1, unit_str="", error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2563,7 +2561,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="n",&
             description="Defines the n parameter of Tersoff potential",&
-            usage="n {real}", required=.FALSE., type_of_var=real_t,&
+            usage="n {real}",  type_of_var=real_t,&
             default_r_val=7.8734E-1_dp,&
             n_var=1, unit_str="", error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2571,7 +2569,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="c",&
             description="Defines the c parameter of Tersoff potential",&
-            usage="c {real}", required=.FALSE., type_of_var=real_t,&
+            usage="c {real}",  type_of_var=real_t,&
             default_r_val=1.0039E5_dp,&
             n_var=1, unit_str="", error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2579,7 +2577,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="d",&
             description="Defines the d parameter of Tersoff potential",&
-            usage="d {real}", required=.FALSE., type_of_var=real_t,&
+            usage="d {real}",  type_of_var=real_t,&
             default_r_val=1.6218E1_dp,&
             n_var=1, unit_str="", error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2587,7 +2585,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="h",&
             description="Defines the h parameter of Tersoff potential",&
-            usage="h {real}", required=.FALSE., type_of_var=real_t,&
+            usage="h {real}",  type_of_var=real_t,&
             default_r_val=-5.9826E-1_dp,&
             n_var=1, unit_str="", error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -2595,7 +2593,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="lambda3",&
             description="Defines the lambda3 parameter of Tersoff potential",&
-            usage="lambda3 {real}", required=.FALSE., type_of_var=real_t,&
+            usage="lambda3 {real}",  type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=1.7322_dp,&
                                           unit_str="angstrom^-1",&
                                           error=error),&
@@ -2605,7 +2603,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="bigR",&
             description="Defines the bigR parameter of Tersoff potential",&
-            usage="bigR {real}", required=.FALSE., type_of_var=real_t,&
+            usage="bigR {real}",  type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=2.85_dp,&
                                           unit_str="angstrom",&
                                           error=error),&
@@ -2615,7 +2613,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="bigD",&
             description="Defines the D parameter of Tersoff potential",&
-            usage="bigD {real}", required=.FALSE., type_of_var=real_t,&
+            usage="bigD {real}",  type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=0.15_dp,&
                                           unit_str="angstrom",&
                                           error=error),&
@@ -2629,7 +2627,7 @@ CONTAINS
             " bigD and bigR. But it is necessary to define it when using the tersoff "//&
             " in conjuction with other potentials (for the same atomic pair) in order to have"//&
             " the same consistent definition of RCUT for all potentials.",&
-            usage="RCUT {real}",required=.TRUE., type_of_var=real_t,&
+            usage="RCUT {real}", type_of_var=real_t,&
             n_var=1, unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2666,20 +2664,20 @@ CONTAINS
                        " are obtained from the SIEPMANN section. The Siepmann-Sprik"//&
                        " potential is designed for water-metal chemisorption.",&
            citations=(/Siepmann1995/),n_keywords=1, n_subsections=0, repeats=.TRUE.,&
-           required=.TRUE.,error=error)
+           error=error)
 
       NULLIFY(keyword)
  
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kind involved in the nonbond potential",&
-            usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="B",&
             description="Defines the B parameter of Siepmann potential",&
-            usage="B {real}", required=.FALSE., type_of_var=real_t,&
+            usage="B {real}",  type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=0.6_dp,&
                                            unit_str="angstrom",&
                                            error=error),&
@@ -2689,7 +2687,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="D",&
             description="Defines the D parameter of Siepmann potential",&
-            usage="D {real}", required=.FALSE., type_of_var=real_t,&
+            usage="D {real}",  type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=3.688388_dp,&
                                            unit_str="internal_cp2k",&
                                            error=error),&
@@ -2699,7 +2697,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="E",&
             description="Defines the E parameter of Siepmann potential",&
-            usage="E {real}", required=.FALSE., type_of_var=real_t,&
+            usage="E {real}",  type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=9.069025_dp,&
                                            unit_str="internal_cp2k",&
                                            error=error),&
@@ -2709,21 +2707,21 @@ CONTAINS
 
        CALL keyword_create(keyword, name="F",&
             description="Defines the F parameter of Siepmann potential",&
-            usage="B {real}", required=.FALSE., type_of_var=real_t,&
+            usage="B {real}",  type_of_var=real_t,&
             default_r_val=13.3_dp,n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 !
        CALL keyword_create(keyword, name="beta",&
             description="Defines the beta parameter of Siepmann potential",&
-            usage="beta {real}", required=.FALSE., type_of_var=real_t,&
+            usage="beta {real}",  type_of_var=real_t,&
             default_r_val=10.0_dp, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 !
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of Siepmann potential",&
-            usage="RCUT {real}", required=.FALSE., type_of_var=real_t,&
+            usage="RCUT {real}",  type_of_var=real_t,&
             default_r_val=cp_unit_to_cp2k(value=3.2_dp,&
                                            unit_str="angstrom",&
                                            error=error),&
@@ -2780,7 +2778,6 @@ CONTAINS
                         "The latter normally requires that the CELL is periodic NONE.",&
             usage="PERIODIC {logical}",&
             repeats=.FALSE.,&
-            required=.FALSE.,&
             n_var=1,&
             default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,&
             error=error)
@@ -2809,7 +2806,6 @@ CONTAINS
             description="Fixed reference point for the calculations of the electrostatic moment.",&
             usage="REFERENCE_POINT x y z", &
             repeats=.FALSE.,&
-            required=.FALSE.,&
             n_var=3,default_r_vals=(/0._dp,0._dp,0._dp/),&
             type_of_var=real_t, &
             unit_str='bohr',&

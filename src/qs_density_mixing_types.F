@@ -485,7 +485,6 @@ CONTAINS
                           n_keywords=16,&
                           n_subsections=0,&
                           repeats=.FALSE.,&
-                          required=.FALSE.,&
                           error=error)
 
       NULLIFY (keyword)
@@ -509,7 +508,6 @@ CONTAINS
       CALL keyword_create(keyword,&
                           name="METHOD",&
                           description="Mixing method to be applied",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           usage="METHOD KERKER_MIXING",&
                           default_i_val=default_mix,&
@@ -535,7 +533,6 @@ CONTAINS
       CALL keyword_create(keyword,&
                           name="ALPHA",&
                           description="Fraction of new density to be included",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -551,7 +548,6 @@ CONTAINS
                              "introduced to suppress charge sloshing: rho_mix(g) ="//&
                              "rho_in(g) + alpha*g^2/(g^2 + beta^2)*(rho_out(g)-"//&
                              "rho_in(g))",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -565,7 +561,6 @@ CONTAINS
       CALL keyword_create(keyword,&
                           name="PULAY_ALPHA",&
                           description="Fraction of new density to be added to the Pulay expansion",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -578,7 +573,6 @@ CONTAINS
       CALL keyword_create(keyword,&
                           name="PULAY_BETA",&
                           description="Fraction of residual contribution to be added to Pulay expansion",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -605,7 +599,6 @@ CONTAINS
       CALL keyword_create(keyword,&
                           name="BROY_W0",&
                           description=" w0 parameter used in Broyden mixing",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -618,7 +611,6 @@ CONTAINS
       CALL keyword_create(keyword,&
                           name="BROY_WREF",&
                           description="",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -631,7 +623,6 @@ CONTAINS
       CALL keyword_create(keyword,&
                           name="BROY_WMAX",&
                           description="",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -646,7 +637,6 @@ CONTAINS
                           description="Regularization parameter to stabilize "//&
                           "the inversion of the residual matrix {Yn^t Yn} in the "//&
                           "multisecant mixing scheme (noise)",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -661,7 +651,6 @@ CONTAINS
                           description="Upper bound for the magnitude of the "//&
                           "unpredicted step size in the update by the "//&
                           "multisecant mixing scheme",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -676,7 +665,6 @@ CONTAINS
                           description="Control factor for the magnitude of the "//&
                           "unpredicted step size in the update by the "//&
                           "multisecant mixing scheme",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -704,7 +692,6 @@ CONTAINS
                           description="Restricts the G-space mixing to lower part of G-vector spectrum,"//&
                           " up to a G0, by assigning the exponent of the Gaussian that can be "//&
                           "represented by vectors smaller than G0 within a certain accuracy. ",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&

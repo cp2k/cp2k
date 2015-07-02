@@ -78,7 +78,7 @@ CONTAINS
     CALL section_create(section,name="force_eval",&
          description="parameters needed to calculate energy and forces and"//&
          " describe the system you want to analyze.",&
-         n_keywords=1, n_subsections=9, repeats=.TRUE., required=.TRUE.,&
+         n_keywords=1, n_subsections=9, repeats=.TRUE., &
          error=error)
 
     NULLIFY(subsection)
@@ -190,34 +190,34 @@ CONTAINS
        CALL section_create(section,name="EXTERNAL_POTENTIAL",&
             description="Section controlling the presence of an external potential dependent "//&
             " on the atomic positions (X,Y,Z)",&
-            n_keywords=7, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=7, n_subsections=0, repeats=.TRUE., &
             error=error)
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS_LIST",&
             description="Specifies the atoms on which the external potential will act",&
-            usage="ATOMS_LIST {INT} {INT} ..",required=.FALSE.,repeats=.TRUE.,&
+            usage="ATOMS_LIST {INT} {INT} ..",repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="FUNCTION",&
             description="Specifies the functional form in mathematical notation. Variables must be the atomic "//&
-            "coordinates (X,Y,Z).",usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", required=.TRUE.,&
+            "coordinates (X,Y,Z).",usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", &
             type_of_var=lchar_t, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PARAMETERS",&
             description="Defines the parameters of the functional form",&
-            usage="PARAMETERS a b D", required=.TRUE., type_of_var=char_t,&
+            usage="PARAMETERS a b D",  type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="VALUES",&
             description="Defines the values of  parameter of the functional form",&
-            usage="VALUES ", required=.TRUE., type_of_var=real_t,&
+            usage="VALUES ",  type_of_var=real_t,&
             n_var=-1, repeats=.TRUE., unit_str="internal_cp2k", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -225,7 +225,7 @@ CONTAINS
        CALL keyword_create(keyword, name="UNITS",&
             description="Optionally, allows to define valid CP2K unit strings for each parameter value. "//&
                         "It is assumed that the corresponding parameter value is specified in this unit.",&
-            usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K", required=.FALSE., type_of_var=char_t,&
+            usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K",  type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -271,7 +271,7 @@ CONTAINS
        CALL section_create(section,name="RESCALE_FORCES",&
             description="Section controlling the rescaling of forces. Useful when"//&
             " starting from quite bad geometries with unphysically large forces.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 
@@ -318,7 +318,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="PRINT",&
             description="Properties that you want to output and that are common to all methods",&
-            n_keywords=0, n_subsections=5, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=5, repeats=.FALSE., &
             error=error)
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
@@ -337,7 +337,6 @@ CONTAINS
                                        "for the printing of the forces",&
                            usage="NDIGITS 6",&
                            default_i_val=8,&
-                           required=.FALSE.,&
                            repeats=.FALSE.,&
                            error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
@@ -385,7 +384,6 @@ CONTAINS
                                        "for the printing of the stress tensor",&
                            usage="NDIGITS 6",&
                            default_i_val=8,&
-                           required=.FALSE.,&
                            repeats=.FALSE.,&
                            error=error)
        CALL section_add_keyword(print_key,keyword,error=error)

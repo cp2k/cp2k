@@ -518,17 +518,17 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, erro
               cons_info%fixed_mol_restraint(msize_old+1:msize)=cons_info%fixed_mol_restraint(msize_old+1)
               cons_info%fixed_mol_k0(msize_old+1:msize)=cons_info%fixed_mol_k0(msize_old+1)
            END IF
-           CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",n_rep_val=nrep,&
-                i_rep_section=ig,error=error)
-           IF (nrep==1) THEN
+           CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",i_rep_section=ig,&
+                                     n_rep_val=nrep,explicit=explicit,error=error)
+           IF (nrep==1 .AND. explicit) THEN
               CPPostcondition(cons_info%freeze_mm==do_constr_none,cp_failure_level,routineP,error,failure)
               CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",i_val=cons_info%freeze_mm,&
                    i_rep_section=ig,error=error)
               cons_info%freeze_mm_type = itype
            END IF
-           CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",n_rep_val=nrep,i_rep_section=ig,&
-                error=error)
-           IF (nrep==1) THEN
+           CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",i_rep_section=ig,&
+                n_rep_val=nrep,explicit=explicit,error=error)
+           IF (nrep==1 .AND. explicit) THEN
               CPPostcondition(cons_info%freeze_qm==do_constr_none,cp_failure_level,routineP,error,failure)
               CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",i_val=cons_info%freeze_qm,&
                    i_rep_section=ig,error=error)

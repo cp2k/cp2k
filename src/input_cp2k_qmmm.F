@@ -106,7 +106,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="qmmm",&
             description="Input for QM/MM calculations.",&
-            n_keywords=6, n_subsections=3, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=6, n_subsections=3, repeats=.FALSE., &
             citations=(/Laino2005,Laino2006/),&
             error=error)
 
@@ -229,7 +229,7 @@ CONTAINS
        CALL keyword_create(keyword, name="DELTA_CHARGE",&
             description="Additional net charge relative to that specified in DFT section.  Used automatically by force mixing",&
             usage="DELTA_CHARGE q",default_i_val=0,&
-            n_var=1,type_of_var=integer_t,repeats=.FALSE.,required=.FALSE.,error=error)
+            n_var=1,type_of_var=integer_t,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -303,7 +303,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="MM_KIND",&
          description="Information about the MM kind in the QM/MM scheme",&
-         n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+         n_keywords=2, n_subsections=0, repeats=.TRUE., &
          error=error)
 
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -368,7 +368,7 @@ CONTAINS
             " For GEO_OPT this means "//&
             " only MOTION&GEO_OPT&TYPE CG, MOTION&GEO_OPT&CG&LINE_SEARCH&TYPE 2PNT, and "//&
             " MOTION&GEO_OPT&CG&LINE_SEARCH&2PNT&LINMIN_GRAD_ONLY T",&
-         n_keywords=5, n_subsections=3, repeats=.FALSE., required=.FALSE.,&
+         n_keywords=5, n_subsections=3, repeats=.FALSE., &
          citations=(/Bernstein2009,Bernstein2012/),&
          error=error)
 
@@ -386,7 +386,7 @@ CONTAINS
         enum_desc=s2a("No momentum conservation", &
                       "Equal force on each atom",&
                       "Equal acceleration on each atom"),&
-        default_i_val=do_fm_mom_conserv_equal_a, required=.FALSE., error=error)
+        default_i_val=do_fm_mom_conserv_equal_a,  error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -398,7 +398,7 @@ CONTAINS
         enum_desc=s2a("Apply to QM core region", &
                       "Apply to full QM (dynamics) region",&
                       "Apply to QM+buffer regions"),&
-        default_i_val=do_fm_mom_conserv_QM, required=.FALSE., error=error)
+        default_i_val=do_fm_mom_conserv_QM,  error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -430,7 +430,7 @@ CONTAINS
         " user) instead of from full QM core region (specified by user + hysteretic "//&
         " selection + unbreakable bonds)",&
         usage="QM_EXTENDED_SEED_IS_ONLY_CORE_LIST <logical>",n_var=1,type_of_var=logical_t,&
-        default_l_val=.FALSE., repeats = .FALSE., required = .FALSE., error=error)
+        default_l_val=.FALSE., repeats = .FALSE., error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -448,21 +448,21 @@ CONTAINS
     CALL keyword_create(keyword, name="QM_KIND_ELEMENT_MAPPING",&
          description="Mapping from elements to QM_KINDs for adaptively included atoms.",&
          usage="QM_KIND_ELEMENT_MAPPING {El} {QM_KIND}",&
-         n_var=2,type_of_var=char_t,repeats=.TRUE.,required=.TRUE.,error=error)
+         n_var=2,type_of_var=char_t,repeats=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="MAX_N_QM",&
          description="Maximum number of QM atoms, for detection of runaway adaptive selection.",&
          usage="MAX_N_QM int",default_i_val=300,&
-         n_var=1,type_of_var=integer_t,repeats=.FALSE.,required=.FALSE.,error=error)
+         n_var=1,type_of_var=integer_t,repeats=.FALSE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="ADAPTIVE_EXCLUDE_MOLECULES",&
          description="List of molecule names to exclude from adaptive regions (e.g. big things like proteins)",&
          usage="ADAPTIVE_EXCLUDE_MOLECULES molec1 molec2 ...",&
-         n_var=-1,type_of_var=char_t,repeats=.FALSE.,required=.FALSE.,error=error)
+         n_var=-1,type_of_var=char_t,repeats=.FALSE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -470,7 +470,7 @@ CONTAINS
          description="Additional net charge in extended region relative to core (core charge is "//&
          " specified in DFT section, as usual for a convetional QM/MM calculation)",&
          usage="EXTENDED_DELTA_CHARGE q",default_i_val=0,&
-         n_var=1,type_of_var=integer_t,repeats=.FALSE.,required=.FALSE.,error=error)
+         n_var=1,type_of_var=integer_t,repeats=.FALSE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -478,7 +478,7 @@ CONTAINS
     NULLIFY(subsection)
     CALL section_create(subsection,name="QM_NON_ADAPTIVE",&
          description="List of atoms always in QM region, non-adaptively",&
-         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+         n_keywords=0, n_subsections=1, repeats=.TRUE., &
          error=error)
 
     NULLIFY(qm_kinds_subsection)
@@ -493,7 +493,7 @@ CONTAINS
     NULLIFY(subsection)
     CALL section_create(subsection,name="BUFFER_NON_ADAPTIVE",&
          description="List of atoms always in buffer region, non-adaptively, and any needed LINK sections",&
-         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+         n_keywords=0, n_subsections=1, repeats=.TRUE., &
          error=error)
 
     NULLIFY(qm_kinds_subsection)
@@ -517,7 +517,7 @@ CONTAINS
     CALL section_create(subsection,name="BUFFER_LINKS",&
          description="Information about possible links for automatic covalent bond breaking for the buffer QM/MM calculation."//&
          "Ignored - need to implement buffer selection by atom and walking of connectivity data.",&
-         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+         n_keywords=0, n_subsections=1, repeats=.TRUE., &
          error=error)
 
     NULLIFY(link_subsection)
@@ -533,20 +533,20 @@ CONTAINS
     CALL section_create(subsection,name="RESTART_INFO",&
             description="This section provides information about old force-mixing indices and labels, "//&
             "for restarts.", &
-         n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+         n_keywords=2, n_subsections=0, repeats=.FALSE., &
          error=error)
 
       CALL keyword_create(keyword, name="INDICES",&
           description="Indices of atoms in previous step QM regions.", &
           usage="INDICES 1 2 ...", &
-          n_var=-1,type_of_var=integer_t,repeats=.TRUE.,required=.TRUE.,error=error)
+          n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
       CALL section_add_keyword(subsection,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="LABELS",&
           description="Labels of atoms in previous step QM regions.", &
           usage="LABELS 1 1 ...", &
-          n_var=-1,type_of_var=integer_t,repeats=.TRUE.,required=.TRUE.,error=error)
+          n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
       CALL section_add_keyword(subsection,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
@@ -556,7 +556,7 @@ CONTAINS
       ! PRINT subsection, with keys for neighbor list
        CALL section_create(subsection,name="print",&
             description="Section of possible print options in FORCE_MIXING.",&
-            n_keywords=0, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=2, repeats=.FALSE., &
             error=error)
        NULLIFY(print_key)
        CALL cp_print_key_section_create(print_key,"SUBCELL",&
@@ -603,7 +603,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="QM_KIND",&
          description="Information about the QM kind in the QM/MM scheme",&
-         n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+         n_keywords=3, n_subsections=0, repeats=.TRUE., &
          error=error)
 
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -646,7 +646,7 @@ CONTAINS
        CALL section_create(section,name="WALLS",&
             description="Enables Walls for the QM box. This can be used to avoid that QM "//&
             " atoms move out of the QM box.",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="WALL_SKIN",&
@@ -709,7 +709,7 @@ CONTAINS
             description="Inclusion of polarization effects within the image charge "//&
                         "approach for systems where QM molecules are physisorbed on e.g. metal "//&
                         "surfaces described by MM. QM box size has to be equal to MM box size.",&
-            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., &
             citations=(/Golze2013/),&
             error=error)
 
@@ -795,7 +795,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="PERIODIC",&
             description="Specify parameters for QM/MM periodic boundary conditions calculations",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Laino2006/),&
             error=error)
 
@@ -874,7 +874,7 @@ CONTAINS
             description="This section is used to set up the decoupling of QM periodic images with "//&
             "the use of density derived atomic point charges. Switched on by default even if not "//&
             "explicitly given. Can be switched off if e.g. QM and MM box are of the same size.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -967,7 +967,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="FORCEFIELD",&
             description="Specify information on the QM/MM forcefield",&
-            n_keywords=0, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=0, n_subsections=2, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="MULTIPLE_POTENTIAL",&
@@ -1014,7 +1014,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="NONBONDED",&
             description="Specify information on the QM/MM non-bonded forcefield",&
-            n_keywords=0, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=0, n_subsections=2, repeats=.TRUE., &
             error=error)
 
        CALL create_LJ_section(subsection, error=error)
@@ -1061,7 +1061,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="LINK",&
             description="Specify information on the QM/MM link treatment",&
-            n_keywords=7, n_subsections=2, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=7, n_subsections=2, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="QM_INDEX",&
@@ -1154,7 +1154,7 @@ CONTAINS
        CALL section_create(subsection,name="MOVE_MM_CHARGE",&
             description="Specify information to move a classical charge before the"//&
             " QM/MM energies and forces evaluation",&
-            n_keywords=4, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=4, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="ATOM_INDEX_1",&
@@ -1199,7 +1199,7 @@ CONTAINS
        CALL section_create(subsection,name="ADD_MM_CHARGE",&
             description="Specify information to add a classical charge before the"//&
             " QM/MM energies and forces evaluation",&
-            n_keywords=5, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=5, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="ATOM_INDEX_1",&
@@ -1275,7 +1275,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="interpolator",&
             description="kind of interpolation used between the multigrids",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, print_key)
@@ -1388,7 +1388,7 @@ CONTAINS
        NULLIFY(keyword, print_key)
        CALL section_create(section,name="print",&
             description="Section of possible print options specific of the QMMM code.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        NULLIFY(print_key)

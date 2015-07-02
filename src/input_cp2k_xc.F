@@ -89,7 +89,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="xc_functional",&
             description="The xc functional to use",&
-            n_keywords=0, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=0, n_subsections=4, repeats=.FALSE., &
             citations=(/Ortiz1994,Becke1988,Perdew1996,Zhang1998,Lee1988, &
                         Heyd2004,Vosko1980, Goedecker1996,Perdew1981,&
                         Tao2003,Wellendorff2012/),&
@@ -112,7 +112,7 @@ CONTAINS
 
        CALL section_create(subsection,name="BECKE88",&
             description="Uses the Becke 88 exchange functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Becke1988/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -131,7 +131,7 @@ CONTAINS
 
        CALL section_create(subsection,name="LYP_ADIABATIC",&
             description="Uses the LYP correlation functional in an adiabatic fashion",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Lee1988/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -150,7 +150,7 @@ CONTAINS
 
        CALL section_create(subsection,name="BECKE88_LR_ADIABATIC",&
             description="Uses the Becke 88 longrange exchange functional in an adiabatic fashion",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Becke1988/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -179,7 +179,7 @@ CONTAINS
 
        CALL section_create(subsection,name="BECKE88_LR",&
             description="Uses the Becke 88 longrange exchange functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Becke1988/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -203,7 +203,7 @@ CONTAINS
 
        CALL section_create(subsection,name="LYP",&
             description="Uses the LYP functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Lee1988/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -221,7 +221,7 @@ CONTAINS
 
        CALL section_create(subsection,name="PADE",&
             description="Uses the PADE functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Goedecker1996/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -234,7 +234,7 @@ CONTAINS
 
        CALL section_create(subsection,name="HCTH",&
             description="Uses the HCTH class of functionals",&
-            n_keywords=0, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.TRUE., &
             error=error)
        CALL keyword_create(keyword,name="PARAMETER_SET",&
             description="Which version of the parameters should be used",&
@@ -254,7 +254,7 @@ CONTAINS
 
        CALL section_create(subsection,name="OPTX",&
             description="Uses the OPTX functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -285,7 +285,7 @@ CONTAINS
 
        CALL section_create(subsection,name="CS1",&
             description="Uses the CS1 functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -298,7 +298,7 @@ CONTAINS
        CALL section_create(subsection,name="XGGA",&
             description="Uses one of the XGGA functionals (optimized versions of "//&
             "some of these functionals might be available outside this section).",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -328,7 +328,7 @@ CONTAINS
             "some of these functionals might be available outside this section). "//&
             "These functionals are needed for the computation of the kinetic "//&
             "energy in the Kim-Gordon method.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -356,7 +356,7 @@ CONTAINS
 
        CALL section_create(subsection,name="P86C",&
             description="Uses the P86C functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -373,7 +373,7 @@ CONTAINS
 
        CALL section_create(subsection,name="PW92",&
             description="Uses the PerdewWang correlation functional.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -401,7 +401,7 @@ CONTAINS
 
        CALL section_create(subsection,name="PZ81",&
             description="Uses the PZ functional.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             citations=(/Perdew1981,Ortiz1994/), error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -429,7 +429,7 @@ CONTAINS
 
        CALL section_create(subsection,name="TFW",&
             description="Uses the TFW functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -441,7 +441,7 @@ CONTAINS
 
        CALL section_create(subsection,name="TF",&
             description="Uses the TF functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -453,7 +453,7 @@ CONTAINS
 
        CALL section_create(subsection,name="VWN",&
             description="Uses the VWN functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Vosko1980/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -484,7 +484,7 @@ CONTAINS
 
        CALL section_create(subsection,name="XALPHA",&
             description="Uses the XALPHA (SLATER) functional.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -507,7 +507,7 @@ CONTAINS
 
        CALL section_create(subsection,name="TPSS",&
             description="Uses the TPSS functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Tao2003/), error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -529,7 +529,7 @@ CONTAINS
 
        CALL section_create(subsection,name="PBE",&
             description="Uses the PBE functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Perdew1996,Zhang1998,Perdew2008/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -563,7 +563,7 @@ CONTAINS
 
        CALL section_create(subsection,name="XWPBE",&
             description="Uses the short range PBE functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Heyd2004/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -591,7 +591,7 @@ CONTAINS
 
        CALL section_create(subsection,name="BECKE97",&
             description="Uses the Becke 97 exchange correlation functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Becke1997,Grimme2006/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -623,7 +623,7 @@ CONTAINS
        CALL section_create(subsection,name="BECKE_ROUSSEL",&
             description="Becke Roussel exchange hole model. Can be used"//&
             "as long range correction with a truncated coulomb potential",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/BeckeRoussel1989,Proynov2007/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -653,7 +653,7 @@ CONTAINS
 
        CALL section_create(subsection,name="LDA_HOLE_T_C_LR",&
             description="LDA exchange hole model in truncated coulomb potential",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -675,7 +675,7 @@ CONTAINS
 
        CALL section_create(subsection,name="PBE_HOLE_T_C_LR",&
             description="PBE exchange hole model in trucanted coulomb potential",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -697,7 +697,7 @@ CONTAINS
 
        CALL section_create(subsection,name="GV09",&
             description="Combination of three different exchange hole models",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -724,7 +724,7 @@ CONTAINS
 
       CALL section_create(subsection,name="BEEF",& !rk: BEEF Exchange
             description="Uses the BEEFvdW exchange functional",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             citations=(/Wellendorff2012/),&
             error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
@@ -768,7 +768,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        NULLIFY(keyword)
        CALL section_create(section, name, description,&
-                           n_keywords=3, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+                           n_keywords=3, n_subsections=0, repeats=.FALSE., &
             citations=(/Marques2012/), error=error)
        CALL keyword_create(keyword,"_SECTION_PARAMETERS_",&
             description="activates the functional",&
@@ -779,7 +779,7 @@ CONTAINS
             description="names of the functionals, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc:manual ."//&
                         "The precise list of available functionals depends on the version of libxc interfaced (currently 2.0.1).",&
             usage=usage,&
-            required=.TRUE.,type_of_var=char_t,n_var=-1,error=error)
+            type_of_var=char_t,n_var=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="SCALE",&
@@ -823,13 +823,13 @@ CONTAINS
             "to potentials that are not derived from an xc functional, but rather are "//&
             "modelled directly. Therefore there is no consistent xc energy available. "//&
             "To still get an energy expression, see ENERGY below",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection,keyword)
        CALL section_create(subsection,name="SAOP",&
             description="Uses the SAOP potential",&
-            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=3, n_subsections=0, repeats=.TRUE., &
             error=error)
        CALL keyword_create(keyword,name="ALPHA",&
             description="Value of the alpha parameter (default = 1.19).",&
@@ -892,7 +892,7 @@ CONTAINS
             "corrections to the normal XC functionals. This can be more functionals "//&
             "or simple empirical pair potentials. ",&
             citations=(/grimme2006,Tran2013/),&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection,keyword)
@@ -911,11 +911,11 @@ CONTAINS
 
        CALL section_create(subsection,name="PAIR_POTENTIAL",&
             description="Information on the pair potential to calculate dispersion",&
-            n_keywords=5, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=5, n_subsections=0, repeats=.TRUE., &
             error=error)
        CALL keyword_create(keyword,name="R_CUTOFF",&
             description="Range of potential. The cutoff will be 2 times this value",&
-            usage="R_CUTOFF 24.0", default_r_val=20.0_dp,required=.FALSE.,&
+            usage="R_CUTOFF 24.0", default_r_val=20.0_dp,&
             unit_str="angstrom",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -933,7 +933,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="PARAMETER_FILE_NAME",&
             description="Name of the parameter file, may include a path",&
-            usage="PARAMETER_FILE_NAME <FILENAME>",required=.FALSE.,&
+            usage="PARAMETER_FILE_NAME <FILENAME>",&
             default_lc_val="DISPERSION_PARAMETERS",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -942,24 +942,24 @@ CONTAINS
             //"For available D3 and D3(BJ) parameters see: "&
             //"http://www.thch.uni-bonn.de/tc/downloads/DFT-D3/functionals.html, "&
             //"http://www.thch.uni-bonn.de/tc/downloads/DFT-D3/functionalsbj.html",&
-            usage="REFERENCE_FUNCTIONAL <functional>",required=.FALSE.,&
+            usage="REFERENCE_FUNCTIONAL <functional>",&
             type_of_var=char_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="SCALING",&
             description="XC Functional dependent scaling parameter, if set to zero CP2K attempts"//&
                         " to guess the xc functional that is in use and sets the associated scaling parameter.",&
-            usage="SCALING 0.2", default_r_val=0._dp,required=.FALSE.,error=error)
+            usage="SCALING 0.2", default_r_val=0._dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="EXP_PRE",&
             description="Prefactor in exponential damping factor (DFT-D2 potential)",&
-            usage="EXP_PRE 20.", default_r_val=20._dp,required=.FALSE.,error=error)
+            usage="EXP_PRE 20.", default_r_val=20._dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="EPS_CN",&
             description="Cutoff value for coordination number function (DFT-D3 method)",&
-            usage="EPS_CN 1.e-6_dp", default_r_val=1.e-6_dp,required=.FALSE.,error=error)
+            usage="EPS_CN 1.e-6_dp", default_r_val=1.e-6_dp,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="D3_SCALING",&
@@ -967,7 +967,7 @@ CONTAINS
                         " if set to zero CP2K attempts"//&
                         " to guess the xc functional from REFERENCE_FUNCTIONAL and sets the associated scaling parameter.",&
             usage="D3_SCALING 1.0 1.0 1.0", n_var=3, &
-            default_r_vals=(/0.0_dp,0.0_dp,0.0_dp/),required=.FALSE.,error=error)
+            default_r_vals=(/0.0_dp,0.0_dp,0.0_dp/),error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="D3BJ_SCALING",&
@@ -975,7 +975,7 @@ CONTAINS
                         " if set to zero CP2K attempts"//&
                         " to guess the xc functional from REFERENCE_FUNCTIONAL and sets the associated scaling parameter.",&
             usage="D3BJ_SCALING 1.0 1.0 1.0 1.0", n_var=4, &
-            default_r_vals=(/0.0_dp,0.0_dp,0.0_dp,0.0_dp/),required=.FALSE.,error=error)
+            default_r_vals=(/0.0_dp,0.0_dp,0.0_dp,0.0_dp/),error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CALCULATE_C9_TERM",&
@@ -1006,14 +1006,14 @@ CONTAINS
        ! Set coordination numbers by atom kinds
        CALL keyword_create(keyword, name="KIND_COORDINATION_NUMBERS",&
             description="Specifies the coordination number for a kind for the C9 term in DFT-D3.",&
-            usage="KIND_COORDINATION_NUMBERS CN kind ", required=.FALSE., repeats=.TRUE.,&
+            usage="KIND_COORDINATION_NUMBERS CN kind ",  repeats=.TRUE.,&
             n_var=-1,type_of_var=char_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        ! Set coordination numbers by atom numbers
        CALL keyword_create(keyword, name="ATOM_COORDINATION_NUMBERS",&
             description="Specifies the coordination number of a set of atoms for the C9 term in DFT-D3.",&
-            usage="ATOM_COORDINATION_NUMBERS CN atom1 atom2 ... ", required=.FALSE., repeats=.TRUE.,&
+            usage="ATOM_COORDINATION_NUMBERS CN atom1 atom2 ... ",  repeats=.TRUE.,&
             n_var=-1,type_of_var=char_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1022,7 +1022,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMPARM",&
             description="Specifies parameters for atom types (in atomic units). If "//&
             "not provided default parameters are used (DFT-D2).",&
-            usage="ATOMPARM <ELEMENT> <C6_parameter> <vdw_radii>", required=.FALSE., &
+            usage="ATOMPARM <ELEMENT> <C6_parameter> <vdw_radii>",  &
             repeats=.TRUE., n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1041,7 +1041,7 @@ CONTAINS
        NULLIFY(subsection,keyword)
        CALL section_create(subsection,name="NON_LOCAL",&
             description="Information on the non local dispersion functional",&
-            n_keywords=0, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword,name="TYPE",&
@@ -1067,20 +1067,20 @@ CONTAINS
             description="Name of the kernel data file, may include a path."//&
                         "vdW_kernel_table.dat is for DRSLL and LMKLL and"//&
                         "rVV10_kernel_table.dat is for rVV10.",&
-            usage="KERNEL_FILE_NAME <FILENAME>",required=.FALSE.,&
+            usage="KERNEL_FILE_NAME <FILENAME>",&
             default_lc_val="vdW_kernel_table.dat",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CUTOFF",&
             description="The cutoff of the FFT grid used in the calculation "//&
             "of the nonlocal vdW functional [Ry].",&
-            usage="CUTOFF 300",required=.FALSE.,&
+            usage="CUTOFF 300",&
             default_r_val=-1._dp,unit_str="Ry",error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,name="PARAMETERS",&
             description="Parameters b and C of the rVV10 functional",&
-            usage="PARAMETERS 6.3 0.0093",required=.FALSE.,&
+            usage="PARAMETERS 6.3 0.0093",&
             type_of_var=real_t,default_r_vals=(/6.3_dp,0.0093_dp/),n_var=2,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1115,7 +1115,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"xc",&
             description="Parameters needed for the calculation of the eXchange and Correlation potential",&
-            n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=5, n_subsections=2, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection,keyword)
@@ -1163,7 +1163,7 @@ CONTAINS
 
        CALL section_create(subsection, name="xc_grid",&!FM to do
             description="The xc parameters used when calculating the xc on the grid",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword, name="xc_smooth_rho",&
             description="The density smoothing used for the xc calculation",&
@@ -1249,7 +1249,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"ADIABATIC_RESCALING",&
             description="Parameters for self interation corrected hybrid functionals",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(&

@@ -740,12 +740,12 @@ CONTAINS
           qmmm_section => section_vals_get_subs_vals3(force_env_sections,"QMMM",&
                i_rep_section=i_force_eval(iforce_eval),error=error)
           CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
-               c_val=basis_set_file_name , ignore_required=.TRUE., error=error)
+               c_val=basis_set_file_name, error=error)
           CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
-               c_val=potential_file_name , ignore_required=.TRUE., error=error)
+               c_val=potential_file_name, error=error)
 
           CALL section_vals_val_get(qmmm_section,"MM_POTENTIAL_FILE_NAME",&
-               c_val=mm_potential_file_name, ignore_required=.TRUE., error=error)
+               c_val=mm_potential_file_name, error=error)
           ! SUBSYS - If any
           subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
                i_rep_section=i_force_eval(iforce_eval),error=error)

@@ -78,7 +78,7 @@ CONTAINS
             "NONPERIODIC_SYS and PERIODIC_SYS do not request a nonperiodic or periodic "//&
             "solution, they only determine the sampling of the fitting points. All "//&
             "restraints are harmonic!",&
-            n_keywords=2, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=2, n_subsections=2, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -172,7 +172,7 @@ CONTAINS
             description="specifies a linear constraint on the fitted charges."//&
                         "This can be used to give equal values to equivalent atoms." //&
                         "sum over atom_list c_i * q_i = t",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -197,7 +197,7 @@ CONTAINS
        CALL keyword_create(keyword,name="ATOM_LIST",&
             description="Defines the list of atoms involved in this constraint",&
             usage="ATOM_LIST 3 4",&
-            type_of_var=integer_t, n_var=-1,required=.TRUE.,repeats=.TRUE.,&
+            type_of_var=integer_t, n_var=-1,repeats=.TRUE.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -239,7 +239,7 @@ CONTAINS
             description="specifies a restraint on the fitted charges."//&
                         "This can be used to restrain values to zero." //&
                         "s*(sum over atom_list q_i - t)**2",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -261,7 +261,7 @@ CONTAINS
        CALL keyword_create(keyword,name="ATOM_LIST",&
             description="Defines the list of atoms involved in this restraint",&
             usage="ATOM_LIST 3 4",&
-            type_of_var=integer_t, n_var=-1, required=.TRUE.,repeats=.TRUE.,&
+            type_of_var=integer_t, n_var=-1, repeats=.TRUE.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -309,7 +309,7 @@ CONTAINS
                         "Poisson solvers, it only affects the sampling of grid points. "//&
                         "All grid points in the shell defined by rmin and rmax are accepted "//&
                         "for fitting.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword)
@@ -371,7 +371,7 @@ CONTAINS
        CALL keyword_create(keyword, name="RMAX_KIND",&
             description="Specifies the maximum distance a fit point is away from an atom "//&
                         "of a given kind",&
-            usage="RMAX 2.5 Br", required=.FALSE., repeats=.TRUE.,&
+            usage="RMAX 2.5 Br",  repeats=.TRUE.,&
             n_var=-1,type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -379,7 +379,7 @@ CONTAINS
        CALL keyword_create(keyword, name="RMIN_KIND",&
             description="Specifies the minimum distance a fit point is away from an atom "//&
                         "of a given kind",&
-            usage="RMIN 2.1 Br", required=.FALSE., repeats=.TRUE.,&
+            usage="RMIN 2.1 Br",  repeats=.TRUE.,&
             n_var=-1,type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -415,7 +415,7 @@ CONTAINS
                        "surfaces. This section can only be used with periodic  "//&
                         "Poisson solver and cell. To see, which grid points were "//&
                         "used, switch on COORD_FIT_POINTS in the PRINT section.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -425,7 +425,7 @@ CONTAINS
                         "the region for the RESP fitting. The list should "//&
                         "contain indexes of atoms of the first surface layer." ,&
             usage="ATOM_LIST 1 2 3 or 1..3",&
-            type_of_var=integer_t, n_var=-1,required=.TRUE.,repeats=.TRUE.,&
+            type_of_var=integer_t, n_var=-1,repeats=.TRUE.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -436,7 +436,7 @@ CONTAINS
             "of 3 to 5 Angstroms above the surface which is defined by atom indexes given "//&
             "in ATOM_LIST.",&
             usage="RANGE <real> <real>",unit_str="angstrom",n_var=2,type_of_var=real_t,&
-            required=.TRUE.,error=error)
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -496,7 +496,7 @@ CONTAINS
        NULLIFY(print_key, keyword)
        CALL section_create(section,name="print",&
             description="Section of possible print options specific for the RESP code.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&

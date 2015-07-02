@@ -60,8 +60,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="TMC",&
             description="A parallelized MC algorithm, presampling the configurations, espacially the Markov chain elements",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=1, n_subsections=1, repeats=.FALSE., error=error)
 
        NULLIFY(keyword, subsection)
 
@@ -105,7 +104,7 @@ CONTAINS
             name="NUM_MC_ELEM",&
             description="the minimum Markov Chain elements, to be sampled",&
             usage="NUM_MC_ELEM {INTEGER}",&
-            default_i_val=-1, required=.TRUE., error=error)
+            default_i_val=-1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -124,7 +123,7 @@ CONTAINS
                         "IDEAL_GAS (constant configuration energy E=0.0), ",&
             usage="TASK_TYPE {OPTION}",&
             default_c_val="", lone_keyword_c_val=tmc_default_unspecified_name,&
-            required=.FALSE., error=error)
+             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -144,7 +143,7 @@ CONTAINS
                         "do NOT use keyword NR_TEMPERATURE",&
             usage="TEMPERATURE {REAL} |OR| TEMPERATURE {REAL} {REAL} ...",&
             default_r_vals=(/330.0_dp/), &
-            n_var=-1,type_of_var=real_t,required=.TRUE.,error=error)
+            n_var=-1,type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -184,7 +183,7 @@ CONTAINS
             "to compensate the potential difference of the approximate potential.", &
             usage="SUB_BOX {REAL} {REAL} {REAL} OR SUB_BOX {REAL} for cubic",&
             default_r_vals=(/-1.0_dp/), &
-            n_var=-1,type_of_var=real_t,required=.FALSE.,error=error)
+            n_var=-1,type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -280,7 +279,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ENERGY_FILE_NAME",&
             description="input file name for the exact potential energy calculation.",&
             usage="ENERGY_FILE_NAME {filename}",&
-            default_c_val="", required=.TRUE., error=error)
+            default_c_val="", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -288,7 +287,7 @@ CONTAINS
 !            description="input file name for the approximate potential for Nested Monte Carlo.",&
 !            usage="NMC_FILE_NAME {filename}",&
 !            default_c_val="",lone_keyword_c_val=tmc_default_unspecified_name,&
-!            required=.FALSE., error=error)
+!             error=error)
 !       CALL section_add_keyword(section,keyword,error=error)
 !       CALL keyword_release(keyword,error=error)
 
@@ -403,7 +402,7 @@ CONTAINS
             description="This section specifies the TMC move types, "//&
                         "which are performed within the nested Monte Carlo (NMC). "//&
                         "thus using the approximate potential.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
       NULLIFY(keyword)
@@ -421,7 +420,7 @@ CONTAINS
            description="input file name for the approximate potential for Nested Monte Carlo.",&
            usage="NMC_FILE_NAME {filename}",&
            default_c_val="",lone_keyword_c_val=tmc_default_unspecified_name,&
-           required=.FALSE., error=error)
+            error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
@@ -430,14 +429,14 @@ CONTAINS
                        "(considering the ration between the selected other moves)"//&
                        "the probabilities of the move types in the NMC section "//&
                        "defines only the weight within the NMC steps",&
-           usage="PROB {real}", required=.FALSE., type_of_var=real_t,&
+           usage="PROB {real}",  type_of_var=real_t,&
            default_r_val=1.0_dp, error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
       CALL keyword_create(keyword, name="INIT_ACC_PROB",&
            description="Defines the initial probability of accepting the move. ",&
-           usage="INIT_ACC_PROB {real}", required=.FALSE., type_of_var=real_t,&
+           usage="INIT_ACC_PROB {real}",  type_of_var=real_t,&
            default_r_val=0.5_dp, n_var=1, error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
@@ -481,7 +480,7 @@ CONTAINS
                         "PT_SWAP Parallel Tempering swap, "//&
                         "VOL_MOVE volume change, "//&
                         "ATOM_SWAP swaps two atoms of different type.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -500,7 +499,7 @@ CONTAINS
                         "PROT_REORDER [], "//&
                         "VOL_MOVE [A], "//&
                         "ATOM_SWAP",&
-            usage="SIZE {real}", required=.FALSE., type_of_var=real_t,&
+            usage="SIZE {real}",  type_of_var=real_t,&
             default_r_val=-1.0_dp, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -508,14 +507,14 @@ CONTAINS
        CALL keyword_create(keyword, name="PROB",&
             description="Defines the probability of the move "//&
                         "(considering the ration between the selected moves)",&
-            usage="PROB {real}", required=.FALSE., type_of_var=real_t,&
+            usage="PROB {real}",  type_of_var=real_t,&
             default_r_val=1.0_dp, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="INIT_ACC_PROB",&
             description="Defines the initial probability of accepting the move. ",&
-            usage="INIT_ACC_PROB {real}", required=.FALSE., type_of_var=real_t,&
+            usage="INIT_ACC_PROB {real}",  type_of_var=real_t,&
             default_r_val=0.23_dp, n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -523,7 +522,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS",&
             description="Defines the atomic kinds involved in the move. "//&
                         "Up to now only used for the atom swap.",&
-            usage="ATOMS {KIND1} {KIND2} ... ", required=.FALSE., type_of_var=char_t,&
+            usage="ATOMS {KIND1} {KIND2} ... ",  type_of_var=char_t,&
             n_var=-1, repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -555,8 +554,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TMC_ANALYSIS",&
             description="Analysing the Markov Chain elments with the specified methods",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=1, n_subsections=1, repeats=.FALSE., error=error)
 
        CALL create_TMC_ana_kinds(section=section, error=error)
     END IF
@@ -588,8 +586,7 @@ CONTAINS
        CALL section_create(section,name="TMC_ANALYSIS_FILES",&
             description="Analysing the Markov Chain elments with the specified methods, "//&
                         "reading form default or specified files",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=1, n_subsections=1, repeats=.FALSE., error=error)
 
        CALL create_TMC_ana_kinds(section=section, error=error)
 
@@ -609,7 +606,7 @@ CONTAINS
                         "do NOT use keyword NR_TEMPERATURE",&
             usage="TEMPERATURE {REAL} |OR| TEMPERATURE {REAL} {REAL} ...",&
             default_r_vals=(/330.0_dp/), &
-            n_var=-1,type_of_var=real_t,required=.TRUE.,error=error)
+            n_var=-1,type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -619,7 +616,7 @@ CONTAINS
                         "created by standard parallel MC (e.g. using TMC farming ",&
             usage="DIRECTORIES {DIR1/} {DIR2/} ...",&
             default_c_vals=(/"./"/), &
-            n_var=-1,type_of_var=char_t,required=.FALSE.,error=error)
+            n_var=-1,type_of_var=char_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -628,7 +625,7 @@ CONTAINS
                         "to get initial configuration with dimensions and cell",&
             usage="FORCE_ENV_FILE {filename}",&
             default_c_val="",lone_keyword_c_val="",&
-            required=.FALSE., error=error)
+             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -636,7 +633,7 @@ CONTAINS
             description="file name for analysing the position file",&
             usage="POSITION_FILE {filename}",&
             default_c_val="",lone_keyword_c_val="",&
-            required=.FALSE., error=error)
+             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -644,7 +641,7 @@ CONTAINS
             description="file name for analysing the cell file",&
             usage="CELL_FILE {filename}",&
             default_c_val="",lone_keyword_c_val="",&
-            required=.FALSE., error=error)
+             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -652,7 +649,7 @@ CONTAINS
             description="file name for analysing the dipole file",&
             usage="DIPOLE_FILE {filename}",&
             default_c_val="",lone_keyword_c_val="",&
-            required=.FALSE., error=error)
+             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -703,7 +700,7 @@ CONTAINS
            description="Enables/disables the reading and writing of "//&
                        " analysis restart files ", &
            usage="RESTART {LOGICAL}",&
-           default_l_val=.TRUE., lone_keyword_l_val=.TRUE., required=.FALSE., &
+           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,  &
            error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
@@ -711,7 +708,7 @@ CONTAINS
       CALL keyword_create(keyword, name="PREFIX_ANA_FILES",&
             description="specifies a prefix for all analysis files.",&
             usage="ANA_FILES_PREFIX {prefix}",&
-            default_c_val="", required=.FALSE., error=error)
+            default_c_val="",  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -719,7 +716,7 @@ CONTAINS
            name="DENSITY",&
            description="Mass density in the simulation cell, or if specified in sub cubes",&
            usage="DENSITY or DENSITY {INTEGER} {INTEGER} {INTEGER}",&
-           default_i_vals=(/1/), required=.FALSE., &
+           default_i_vals=(/1/),  &
            n_var=-1,type_of_var=integer_t,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
@@ -729,7 +726,7 @@ CONTAINS
            description="Radial Distribution Function for each pair of atoms"//&
                        "using the amount of specified bins within MAX(cell_lenght)/2",&
            usage="G_R or G_R {INTEGER}",&
-           default_i_val=-1, lone_keyword_i_val=-1, required=.FALSE., &
+           default_i_val=-1, lone_keyword_i_val=-1,  &
            error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
@@ -740,7 +737,7 @@ CONTAINS
                        "Following flag specifies if they should be written. "//&
                        "Class. Dip. Mom. are also used to unfold the exact dipole moment. ",&
            usage="CLASSICAL_DIPOLE_MOMENTS or CLASSICAL_DIPOLE_MOMENTS {LOGICAL}",&
-           default_l_val=.TRUE., lone_keyword_l_val=.TRUE., required=.FALSE., &
+           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.,  &
            error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
@@ -759,7 +756,7 @@ CONTAINS
                        "all the same energy. ", &
            usage="DIPOLE_ANALYSIS or DIPOLE_ANALYSIS {type}",&
            default_c_val="", lone_keyword_c_val=tmc_default_unspecified_name,&
-           required=.FALSE., error=error)
+            error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
@@ -767,7 +764,7 @@ CONTAINS
            name="DEVIATION",&
            description="Calculates the deviation of the position from the last configuration",&
            usage="DEVIATION {LOGICAL}",&
-           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., required=.FALSE., &
+           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,  &
            error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)

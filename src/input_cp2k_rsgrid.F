@@ -55,7 +55,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="RS_GRID",&
             description="Set options that influence how the realspace grids are being distributed in parallel runs.",&
-            n_keywords=5, n_subsections=0, repeats=.TRUE., required=.FALSE.,error=error)
+            n_keywords=5, n_subsections=0, repeats=.TRUE., error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="DISTRIBUTION_TYPE",&
@@ -76,7 +76,7 @@ CONTAINS
                         "If a given distribution can not be satisfied, a replicated grid will result."//&
                         "Also see LOCK_DISTRIBUTION.",&
             usage="DISTRIBUTION_LAYOUT",&
-            repeats=.FALSE.,required=.FALSE.,n_var=3,&
+            repeats=.FALSE.,n_var=3,&
             default_i_vals=(/-1,-1,-1/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)

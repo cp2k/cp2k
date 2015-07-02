@@ -73,7 +73,7 @@ CONTAINS
        CALL section_create(section,name="free_energy",&
             description="Controls the calculation of free energy and free energy derivatives"//&
             " with different possible methods",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="METHOD",&
@@ -84,7 +84,7 @@ CONTAINS
             enum_desc=s2a("Metadynamics",&
                           "Umbrella Integration",&
                           "Alchemical Change"),&
-            default_i_val=do_fe_meta,repeats=.FALSE.,required=.FALSE.,error=error)
+            default_i_val=do_fe_meta,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -136,7 +136,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="metadyn",&
             description="This section sets parameters to set up a calculation of metadynamics.",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., &
             citations=(/VandenCic2006/),error=error)
 
        NULLIFY(subsection,keyword,print_key)
@@ -335,7 +335,7 @@ CONTAINS
 
        CALL section_create(subsection,name="print",&
             description="Controls the printing properties during an metadynamics run",&
-            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., &
             error=error)
        NULLIFY(print_key)
 
@@ -417,7 +417,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="MULTIPLE_WALKERS",&
             description="Enables and configures the metadynamics using multiple walkers.",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection,keyword)
@@ -430,14 +430,14 @@ CONTAINS
 
        CALL keyword_create(keyword, name="WALKER_ID",&
             description="Sets the walker ID for the local metadynamics run.",&
-            usage="WALKER_ID <INTEGER>",type_of_var=integer_t,required=.TRUE.,&
+            usage="WALKER_ID <INTEGER>",type_of_var=integer_t,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NUMBER_OF_WALKERS",&
             description="Sets the total number of walkers in the metadynamic run.",&
-            usage="NUMBER_OF_WALKERS <INTEGER>",type_of_var=integer_t,required=.TRUE.,&
+            usage="NUMBER_OF_WALKERS <INTEGER>",type_of_var=integer_t,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -461,7 +461,7 @@ CONTAINS
             description="Specify the basename for the NUMBER_OF_WALKERS files used to "//&
             "communicate between the walkers. Absolute path can be input as well "//&
             "together with the filename. One file will be created for each spawned hill.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Specified the communication filename for each walker.",repeats=.TRUE.,&
@@ -497,12 +497,12 @@ CONTAINS
        CALL section_create(section,name="ALCHEMICAL_CHANGE",&
             description="Controls the calculation of delta free energies"//&
             " with the alchemical change method.",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="PARAMETER",&
             description="Defines the perturbing parameter of the alchemical change tranformation",&
-            usage="PARAMETERS k", required=.TRUE., type_of_var=char_t,&
+            usage="PARAMETERS k",  type_of_var=char_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -554,7 +554,7 @@ CONTAINS
        CALL section_create(section,name="umbrella_integration",&
             description="Controls the calculation of free energy derivatives"//&
             " with the umbrella integration method.",&
-            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection)
@@ -595,7 +595,7 @@ CONTAINS
        CALL section_create(section,name="SPAWNED_HILLS_POS",&
             description="The position of the spawned hills during metadynamics."//&
             "Used for RESTART.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -613,7 +613,7 @@ CONTAINS
             "in those directions. The latter can be used to combine spawned "//&
             "hills from multiple 1D metadynamics runs in one multidimensional "//&
             "metadynamics run.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -627,7 +627,7 @@ CONTAINS
        CALL section_create(section,name="SPAWNED_HILLS_HEIGHT",&
             description="The height of the spawned hills during metadynamics."//&
             "Used for RESTART.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -641,7 +641,7 @@ CONTAINS
        CALL section_create(section,name="SPAWNED_HILLS_INVDT",&
             description="The inverse of the DELTA_T parameter used for Well-Tempered metadynamics."//&
             "Used for RESTART.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -657,7 +657,7 @@ CONTAINS
        CALL section_create(section,name="EXT_LAGRANGE_SS0",&
             description="Colvar position within an extended Lagrangian formalism."//&
             "Used for RESTART.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -671,7 +671,7 @@ CONTAINS
        CALL section_create(section,name="EXT_LAGRANGE_VVP",&
             description="Colvar velocities within an extended Lagrangian formalism."//&
             "Used for RESTART.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -685,7 +685,7 @@ CONTAINS
        CALL section_create(section,name="EXT_LAGRANGE_SS",&
             description="Colvar Theta within an extended Lagrangian formalism."//&
             "Used for RESTART.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -699,7 +699,7 @@ CONTAINS
        CALL section_create(section,name="EXT_LAGRANGE_FS",&
             description="Colvar force within an extended Lagrangian formalism."//&
             "Used for RESTART.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -737,7 +737,7 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="METAVAR",&
             description="This section specify the nature of the collective variables.",&
-            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -782,7 +782,7 @@ CONTAINS
        NULLIFY(wall_section, subsection)
        CALL section_create(wall_section,name="WALL",&
             description="Controls the activation of walls on COLVAR during a metadynamic run.",&
-            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="TYPE",&
@@ -809,7 +809,7 @@ CONTAINS
        ! Reflective wall
        CALL section_create(subsection,name="REFLECTIVE",&
             description="Parameters controlling the reflective wall",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="DIRECTION",&
@@ -827,7 +827,7 @@ CONTAINS
        ! Quadratic wall
        CALL section_create(subsection,name="QUADRATIC",&
             description="Parameters controlling the quadratic wall",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="DIRECTION",&
@@ -853,7 +853,7 @@ CONTAINS
        ! Quartic wall
        CALL section_create(subsection,name="QUARTIC",&
             description="Parameters controlling the quartic wall",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="DIRECTION",&
@@ -879,7 +879,7 @@ CONTAINS
        ! Gaussian wall
        CALL section_create(subsection,name="GAUSSIAN",&
             description="Parameters controlling the gaussian wall.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="WW",&
@@ -930,7 +930,7 @@ CONTAINS
        CALL section_create(section,name="UVAR",&
             description="This section specify the nature of the collective variables"//&
             " used in computing the free energy.",&
-            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -968,7 +968,7 @@ CONTAINS
        CALL section_create(section,name="CONVERGENCE_CONTROL",&
             description="This section specify parameters controlling the convergence"//&
             " of the free energy.",&
-            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)

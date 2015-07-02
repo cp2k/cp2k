@@ -918,7 +918,7 @@ CONTAINS
                                                 ipart, last_atom, nrep, &
                                                 thermo1
     INTEGER, DIMENSION(:), POINTER           :: atom_index1
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: explicit, failure
     TYPE(molecule_type), POINTER             :: molecule
 
     failure = .FALSE.
@@ -928,8 +928,9 @@ CONTAINS
        label1            = "QM_SUBSYS"
        label2            = "MM_SUBSYS"
     END IF
-    CALL section_vals_val_get(region_sections,TRIM(label1),n_rep_val=nrep,i_rep_section=ig,error=error)
-    IF (nrep==1) THEN
+    CALL section_vals_val_get(region_sections,TRIM(label1),i_rep_section=ig,&
+                              n_rep_val=nrep,explicit=explicit,error=error)
+    IF (nrep==1 .AND. explicit) THEN
        IF (ASSOCIATED(qmmm_env)) THEN
           atom_index1          => qmmm_env%mm_atom_index
           IF (subsys_qm) THEN

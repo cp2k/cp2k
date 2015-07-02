@@ -103,7 +103,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,TRIM(my_label),&
             description="Input parameters needed to set up the "//TRIM(my_label)//".",&
-            n_keywords=6, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=6, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -158,7 +158,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="CELL_FILE_NAME",&
             description="Possibility to read the cell from an external file ",&
-            repeats=.FALSE., usage="CELL_FILE_NAME <CHARACTER>",required=.TRUE.,&
+            repeats=.FALSE., usage="CELL_FILE_NAME <CHARACTER>",&
             type_of_var=lchar_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -253,7 +253,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="RNG_INIT",&
             description="Information to initialize the parallel random number generator streams",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 
@@ -290,7 +290,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="subsys",&
             description="a subsystem: coordinates, topology, molecules and cell",&
-            n_keywords=0, n_subsections=9, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=9, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection)
@@ -375,7 +375,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="print",&
             description="Controls printings related to the subsys",&
-            n_keywords=0, n_subsections=9, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=9, repeats=.FALSE., &
             error=error)
 
        CALL cp_print_key_section_create(print_key,"atomic_coordinates",&
@@ -626,13 +626,13 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="multipoles",&
             description="Specifies the dipoles and quadrupoles for particles.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
        CALL section_create(subsection,name="dipoles",&
             description="Specifies the dipoles of the particles.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="The dipole components for each atom in the format:"//&
@@ -646,7 +646,7 @@ CONTAINS
 
        CALL section_create(subsection,name="quadrupoles",&
             description="Specifies the quadrupoles of the particles.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="The quadrupole components for each atom in the format:"//&
@@ -696,7 +696,7 @@ CONTAINS
             description="Print the position vectors in Cartesian coordinates of the atoms specified "//&
                         "by a list of their indices",&
             usage="POSITION {integer} {integer} {integer}..{integer}",n_var=-1,repeats=.TRUE.,&
-            required=.FALSE.,type_of_var=integer_t,error=error)
+            type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -704,13 +704,13 @@ CONTAINS
             description="Print the position vectors in scaled coordinates of the atoms specified "//&
                         "by a list of their indices",&
             usage="POSITION_SCALED {integer} {integer} {integer}..{integer}",n_var=-1,repeats=.TRUE.,&
-            required=.FALSE.,type_of_var=integer_t,error=error)
+            type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword,name="DISTANCE",variants=(/"DIS"/),&
             description="Print the distance between the atoms a and b specified by their indices",&
-            usage="DISTANCE {integer} {integer}",n_var=2,repeats=.TRUE.,required=.FALSE.,&
+            usage="DISTANCE {integer} {integer}",n_var=2,repeats=.TRUE.,&
             type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -718,7 +718,7 @@ CONTAINS
        CALL keyword_create(keyword,name="ANGLE",variants=(/"ANG"/),&
             description="Print the angle formed by the atoms specified by their indices",&
             usage="ANGLE {integer} {integer} {integer}",n_var=3, repeats=.TRUE.,&
-            required=.FALSE., type_of_var=integer_t, error=error)
+             type_of_var=integer_t, error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -726,7 +726,7 @@ CONTAINS
             description="Print the dihedral angle between the planes defined by the atoms (a,b,c) and "//&
             "the atoms (b,c,d) specified by their indices",&
             usage="DIHEDRAL_ANGLE {integer}  {integer} {integer} {integer}",n_var=4,&
-            repeats=.TRUE.,required=.FALSE.,type_of_var=integer_t,error=error)
+            repeats=.TRUE.,type_of_var=integer_t,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
@@ -757,7 +757,7 @@ CONTAINS
        CALL section_create(section,name="velocity",&
             description="The velocities for simple systems or "//&
                         "the centroid mode in PI runs, xyz format by default",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="PINT_UNIT",&
@@ -774,7 +774,7 @@ CONTAINS
             description="The atomic velocities in the format:"//&
             "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p>"//&
             "The same order as for the atomic coordinates is assumed.",&
-            repeats=.TRUE.,required=.TRUE., usage="{Real} {Real} {Real}",&
+            repeats=.TRUE., usage="{Real} {Real} {Real}",&
             type_of_var=real_t, n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -807,7 +807,7 @@ CONTAINS
        CALL section_create(section,name="shell_velocity",&
             description="The velocities of shells for shell-model potentials, "//&
             "in xyz format  ",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 
@@ -815,7 +815,7 @@ CONTAINS
             description="The shell particle velocities in the format:"//&
             "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p>"//&
             "The same order as for the shell particle coordinates is assumed.",&
-            repeats=.TRUE.,required=.TRUE., usage="{Real} {Real} {Real}",&
+            repeats=.TRUE., usage="{Real} {Real} {Real}",&
             type_of_var=real_t, n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -848,7 +848,7 @@ CONTAINS
        CALL section_create(section,name="core_velocity",&
             description="The velocities of cores for shell-model potentials, "//&
             "in xyz format  ",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 
@@ -856,7 +856,7 @@ CONTAINS
             description="The core particle velocities in the format:"//&
             "<p><tt><big>v<sub>x</sub> v<sub>y</sub> v<sub>z</sub></big></tt></p>"//&
             "The same order as for the core particle coordinates is assumed.",&
-            repeats=.TRUE.,required=.TRUE., usage="{Real} {Real} {Real}",&
+            repeats=.TRUE., usage="{Real} {Real} {Real}",&
             type_of_var=real_t, n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -887,7 +887,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="potential",&
             description="Section used to specify Potentials.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -921,7 +921,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="kg_potential",&
             description="Section used to specify KG Potentials.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -955,7 +955,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="basis",&
             description="Section used to specify a general basis set for QM calculations.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -1014,7 +1014,7 @@ CONTAINS
             description="The coordinates for simple systems (like the QM ones)"//&
             " xyz format by default. More complex systems should be given with"//&
             " an external pdb file.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="UNIT",&
@@ -1068,7 +1068,7 @@ CONTAINS
        CALL section_create(section,name="shell_coord",&
             description="The shell coordinates for the shell-model potentials"//&
             " xyz format with an additional column for the index of the corresponding particle",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="UNIT",&
@@ -1123,7 +1123,7 @@ CONTAINS
        CALL section_create(section,name="core_coord",&
             description="The core coordinates for the shell-model potentials"//&
             " xyz format with an additional column for the index of the corresponding particle",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="UNIT",&
@@ -1179,7 +1179,7 @@ CONTAINS
 
        CALL section_create(section,name="kind",&
             description="The description of the kind of the atoms (mostly for QM)",&
-            n_keywords=19, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=19, n_subsections=1, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -1194,7 +1194,7 @@ CONTAINS
             variants=s2a("AUXILIARY_BASIS_SET", "AUX_BASIS"),&
             description="The auxliliary basis set (GTO type)",&
             usage="AUX_BASIS_SET DZVP", default_c_val=" ", &
-            n_var=1, required=.FALSE., error=error)
+            n_var=1,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1202,7 +1202,7 @@ CONTAINS
             variants=s2a("RI_MP2_BASIS_SET","RI_RPA_BASIS_SET", "RI_AUX_BASIS"),&
             description="The RI auxliliary basis set used in WF_CORRELATION (GTO type)",&
             usage="RI_AUX_BASIS_SET DZVP", default_c_val=" ", &
-            n_var=1, required=.FALSE., error=error)
+            n_var=1,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1221,7 +1221,7 @@ CONTAINS
             variants=s2a("LRI_BASIS"),&
             description="The local resolution of identity basis set (GTO type)",&
             usage="LRI_BASIS_SET DZVP", default_c_val=" ", &
-            n_var=1, required=.FALSE., error=error)
+            n_var=1,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1230,7 +1230,7 @@ CONTAINS
             description="The auxliliary basis set (GTO type) for auxiliary density matrix method",&
             usage="AUX_FIT_BASIS_SET DZVP", default_c_val=" ", &
             citations=(/Guidon2010/),&
-            n_var=1, required=.FALSE., error=error)
+            n_var=1,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1250,14 +1250,14 @@ CONTAINS
             description="The primary Gaussian basis set (NONE implies no basis used, meaningful with GHOST)",&
             usage="BASIS_SET DZVP", default_c_val=" ", &
             citations=(/VandeVondele2005a,VandeVondele2007/),&
-            n_var=1, required=.FALSE., error=error)
+            n_var=1,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="ELEC_CONF",&
             description="Specifies the electronic configration used in construction the "// &
                         "atomic initial guess (see the pseudo potential file for the default values.",&
-            usage="ELEC_COND n_elec(s)  n_elec(p)  n_elec(d)  ... ", required=.TRUE.,&
+            usage="ELEC_COND n_elec(s)  n_elec(p)  n_elec(d)  ... ", &
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1275,7 +1275,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="CORE_CORRECTION",&
             description="Corrects the effective nuclear charge",&
-            usage="CORE_CORRECTION 1.0", n_var=1, required=.FALSE., &
+            usage="CORE_CORRECTION 1.0", n_var=1,  &
             default_r_val=0.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1294,7 +1294,7 @@ CONTAINS
             description="The mass of the atom "//&
             "(if negative or non present it is inferred from the element symbol)",&
             usage="MASS 2.0", type_of_var=real_t,n_var=1,&
-            required=.FALSE.,error=error)
+            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1319,7 +1319,7 @@ CONTAINS
             description="The region where the hard density is supposed to be confined"//&
                         "(GAPW)(in Bohr, default is 1.2 for H and 1.512 otherwise)",&
             usage="HARD_EXP_RADIUS 0.9", type_of_var=real_t,n_var=1,&
-            required=.FALSE., error=error)
+             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1336,7 +1336,7 @@ CONTAINS
             "the hard compensation density is confined."//&
             "should be less than HARD_EXP_RADIUS (GAPW)(Bohr, default equals HARD_EXP_RADIUS)",&
             usage="RHO_EXP_RADIUS 0.9", type_of_var=real_t,n_var=1,&
-            required=.FALSE., error=error)
+             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1481,7 +1481,6 @@ CONTAINS
                           n_keywords=0,&
                           n_subsections=2,&
                           repeats=.FALSE.,&
-                          required=.FALSE.,&
                           error=error)
 
       NULLIFY (keyword,subsection)
@@ -1500,14 +1499,12 @@ CONTAINS
                           n_keywords=3,&
                           n_subsections=0,&
                           repeats=.FALSE.,&
-                          required=.TRUE.,&
                           error=error)
 
       CALL keyword_create(keyword,&
                           name="NEL",&
                           description="Orbital ccupation change per angular momentum quantum number."//&
                           "In unrestricted calculations applied to spin alpha.",&
-                          required=.TRUE.,&
                           repeats=.FALSE.,&
                           n_var=-1,&
                           default_i_val=-1,&
@@ -1521,7 +1518,6 @@ CONTAINS
                           variants=(/"L"/),&
                           description="Angular momentum quantum number of the"//&
                                       "orbitals whose occupation is changed",&
-                          required=.TRUE.,&
                           repeats=.FALSE.,&
                           n_var=-1,&
                           default_i_val=-1,&
@@ -1536,7 +1532,6 @@ CONTAINS
                           description="Principal quantum number of the"//&
                                       "orbitals whose occupation is changed. "//&
                                       "Default is the first not occupied",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=-1,&
                           default_i_val=0,&
@@ -1551,14 +1546,12 @@ CONTAINS
                           n_keywords=3,&
                           n_subsections=0,&
                           repeats=.FALSE.,&
-                          required=.FALSE.,&
                           error=error)
 
       CALL keyword_create(keyword,&
                           name="NEL",&
                           description="Orbital ccupation change per angular momentum quantum number."//&
                           "Applied to spin beta and active only in unrestricted calculations.",&
-                          required=.TRUE.,&
                           repeats=.FALSE.,&
                           n_var=-1,&
                           default_i_val=-1,&
@@ -1572,7 +1565,6 @@ CONTAINS
                           description="Angular momentum quantum number of the"//&
                                       "orbitals of beta spin whose occupation is changed."//&
                                       "Active only for unrestricted calculations",&
-                          required=.TRUE.,&
                           repeats=.FALSE.,&
                           n_var=-1,&
                           default_i_val=-1,&
@@ -1587,7 +1579,6 @@ CONTAINS
                                       "orbitals of beta spin whose occupation is changed. "//&
                                       "Default is the first not occupied."//&
                                       "Active only for unrestricted calculations",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=-1,&
                           default_i_val=0,&
@@ -1629,7 +1620,7 @@ CONTAINS
        CALL section_create(section,name="TOPOLOGY",&
             description="Section specifying information regarding how to handle the topology"// &
             " for classical runs.",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, print_key)
@@ -1683,7 +1674,7 @@ CONTAINS
        CALL keyword_create(keyword, name="COORD_FILE_NAME",&
             variants=s2a("COORD_FILE"),&
             description="Specifies the filename that contains coordinates.",&
-            usage="COORD_FILE_NAME <FILENAME>",required=.TRUE.,type_of_var=lchar_t,&
+            usage="COORD_FILE_NAME <FILENAME>",type_of_var=lchar_t,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1713,7 +1704,6 @@ CONTAINS
                            variants=s2a("NATOMS","NATOM"),&
                            description="Optionally define the number of atoms read from an external file "//&
                                        "(see COORD_FILE_NAME) if the COORD_FILE_FORMAT CP2K is used",&
-                           required=.FALSE.,&
                            repeats=.FALSE.,&
                            n_var=1,&
                            type_of_var=integer_t,&
@@ -1874,12 +1864,12 @@ CONTAINS
             "applied to all bond kinds. When this section is present the 1-2 exclusion "//&
             "is applied ONLY to the bonds defined herein. This section allows ONLY fine tuning of 1-2 "//&
             "interactions. ",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="BOND",&
             description="Specify the atom kinds involved in the bond for which 1-2 exclusion holds.",&
-            usage="BOND {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
+            usage="BOND {KIND1} {KIND2}",  type_of_var=char_t,&
             n_var=2, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1910,7 +1900,7 @@ CONTAINS
        CALL section_create(section,"CENTER_COORDINATES",&
             description="Allows centering the coordinates of the system in the box. "//&
             "The centering point can be defined by the user.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -1956,13 +1946,13 @@ CONTAINS
        CALL section_create(section,name="MOL_SET",&
             description="Specify the connectivity of a full system specifying the connectivity"//&
             " of the fragments of the system.",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        ! MOLECULES
        CALL section_create(subsection,name="MOLECULE",&
             description="Specify information about the connectivity of single molecules",&
-            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=2, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="NMOL",&
@@ -1979,16 +1969,16 @@ CONTAINS
        CALL section_create(subsection,name="MERGE_MOLECULES",&
             description="Enables the creation of connecting bridges (bonds, angles, torsions, impropers)"//&
             " between the two or more molecules defined with independent connectivity.",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL section_create(subsubsection,name="bonds",&
             description="Defines new bonds",n_keywords=2, n_subsections=0, repeats=.FALSE.,&
-            required=.TRUE.,error=error)
+            error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Two integer indexes per line defining the new bond."//&
             " Indexes must be relative to the full system and not to the single molecules",&
-            repeats=.TRUE.,required=.TRUE.,&
+            repeats=.TRUE.,&
             usage="{Integer} {Integer}", type_of_var=integer_t, n_var=2, error=error)
        CALL section_add_keyword(subsubsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1997,7 +1987,7 @@ CONTAINS
 
        CALL section_create(subsubsection,name="angles",&
             description="Defines new angles",n_keywords=2, n_subsections=0,&
-            repeats=.FALSE., required=.TRUE.,error=error)
+            repeats=.FALSE., error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Three integer indexes per line defining the new angle"//&
             " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
@@ -2009,7 +1999,7 @@ CONTAINS
 
        CALL section_create(subsubsection,name="torsions",&
             description="Defines new torsions",n_keywords=2, n_subsections=0,&
-            repeats=.FALSE., required=.TRUE.,error=error)
+            repeats=.FALSE., error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Four integer indexes per line defining the new torsion"//&
             " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
@@ -2021,7 +2011,7 @@ CONTAINS
 
        CALL section_create(subsubsection,name="impropers",&
             description="Defines new impropers",n_keywords=2, n_subsections=0,&
-            repeats=.FALSE., required=.TRUE.,error=error)
+            repeats=.FALSE., error=error)
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
             description="Four integer indexes per line defining the new improper"//&
             " Indexes must be relative to the full system and not to the single molecules",repeats=.TRUE.,&
@@ -2062,7 +2052,7 @@ CONTAINS
        NULLIFY(keyword,subsection)
        CALL section_create(section,name="GENERATE",&
             description="Setup of keywords controlling the generation of the connectivity",&
-            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=2, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="REORDER",&
@@ -2119,7 +2109,7 @@ CONTAINS
        CALL section_create(subsection,name="BOND",&
             description="Section used to add/remove  bonds in the connectivity."//&
             " Useful for systems with a complex connectivity, difficult to find out automatically.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -2135,7 +2125,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies two atomic index united by a covalent bond",&
             usage="ATOMS {integer} {integer}", type_of_var=integer_t, n_var=2,&
-            required=.TRUE., repeats=.TRUE.,error=error)
+             repeats=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2146,7 +2136,7 @@ CONTAINS
        CALL section_create(subsection,name="ANGLE",&
             description="Section used to add/remove angles in the connectivity."//&
             " Useful for systems with a complex connectivity, difficult to find out automatically.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -2162,7 +2152,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies two atomic index united by a covalent bond",&
             usage="ATOMS {integer} {integer} {integer} ", type_of_var=integer_t, n_var=3,&
-            required=.TRUE., repeats=.TRUE.,error=error)
+             repeats=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2173,7 +2163,7 @@ CONTAINS
        CALL section_create(subsection,name="TORSION",&
             description="Section used to add/remove torsion in the connectivity."//&
             " Useful for systems with a complex connectivity, difficult to find out automatically.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -2189,7 +2179,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies two atomic index united by a covalent bond",&
             usage="ATOMS {integer} {integer} {integer} {integer} ", type_of_var=integer_t, n_var=4,&
-            required=.TRUE., repeats=.TRUE.,error=error)
+             repeats=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2200,7 +2190,7 @@ CONTAINS
        CALL section_create(subsection,name="IMPROPER",&
             description="Section used to add/remove improper in the connectivity."//&
             " Useful for systems with a complex connectivity, difficult to find out automatically.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -2216,7 +2206,7 @@ CONTAINS
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies two atomic index united by a covalent bond",&
             usage="ATOMS {integer} {integer} {integer} {integer} ", type_of_var=integer_t, n_var=4,&
-            required=.TRUE., repeats=.TRUE.,error=error)
+             repeats=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2226,12 +2216,12 @@ CONTAINS
        ! ISOLATED ATOMS
        CALL section_create(subsection,name="ISOLATED_ATOMS",&
             description=" This section specifies the  atoms that one considers isolated. Useful when present "//&
-            " ions in solution.",n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            " ions in solution.",n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        CALL keyword_create(keyword, name="LIST",&
             description="Specifies a list of atomic indexes of the isolated ion",&
             usage="LIST {integer}", type_of_var=integer_t, n_var=-1,&
-            required=.TRUE., repeats=.TRUE.,error=error)
+             repeats=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2272,7 +2262,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="print",&
             description="Section of possible print options in GENERATE code.",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=0, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        NULLIFY(print_key)
@@ -2320,7 +2310,7 @@ CONTAINS
        CALL keyword_create(keyword, name="CONN_FILE_NAME",&
             variants=(/"CONN_FILE"/),&
             description="Specifies the filename that contains the molecular connectivity.",&
-            usage="CONN_FILE_NAME <FILENAME>",required=.TRUE.,type_of_var=lchar_t,error=error)
+            usage="CONN_FILE_NAME <FILENAME>",type_of_var=lchar_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -2389,7 +2379,6 @@ CONTAINS
                           n_keywords=3,&
                           n_subsections=1,&
                           repeats=.FALSE.,&
-                          required=.FALSE.,&
                           error=error)
 
       NULLIFY (keyword)
@@ -2408,7 +2397,6 @@ CONTAINS
                           name="L",&
                           description="Angular momentum quantum number of the"//&
                                       "orbitals to which the correction is applied",&
-                          required=.TRUE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=integer_t,&
@@ -2421,7 +2409,6 @@ CONTAINS
       CALL keyword_create(keyword,&
                           name="U_MINUS_J",&
                           description="Effective parameter U(eff) = U - J",&
-                          required=.TRUE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -2436,7 +2423,6 @@ CONTAINS
                           name="U_RAMPING",&
                           description="Increase the effective U parameter stepwise using the specified "//&
                                       "increment until the target value given by U_MINUS_J is reached.",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -2451,7 +2437,6 @@ CONTAINS
                           name="EPS_U_RAMPING",&
                           description="Threshold value (SCF convergence) for incrementing the effective "//&
                                       "U value when U ramping is active.",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -2465,7 +2450,6 @@ CONTAINS
                           name="INIT_U_RAMPING_EACH_SCF",&
                           description="Set the initial U ramping value to zero before each wavefunction optimisation. "//&
                                       "The default is to apply U ramping only for the initial wavefunction optimisation.",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           default_l_val=.FALSE.,&
                           lone_keyword_l_val=.TRUE.,&
@@ -2485,7 +2469,6 @@ CONTAINS
                           n_keywords=5,&
                           n_subsections=0,&
                           repeats=.FALSE.,&
-                          required=.FALSE.,&
                           error=error)
 
       CALL keyword_create(keyword,&
@@ -2503,7 +2486,6 @@ CONTAINS
                           variants=(/"M"/),&
                           description="Select orbitals and occupation order. An input of 1 to 2*L+1 integer values in "//&
                                       "the range -L to L defining the M values of the spherical orbitals is expected.",&
-                          required=.TRUE.,&
                           repeats=.FALSE.,&
                           n_var=-1,&
                           type_of_var=integer_t,&
@@ -2517,7 +2499,6 @@ CONTAINS
                           name="EPS_SCF",&
                           description="The occupation constraint is enforced until this threshold value "//&
                                       "for the SCF convergence criterion is reached",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=real_t,&
@@ -2530,7 +2511,6 @@ CONTAINS
       CALL keyword_create(keyword,&
                           name="MAX_SCF",&
                           description="The occupation constraint is applied for this number of initial SCF iterations",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           n_var=1,&
                           type_of_var=integer_t,&
@@ -2543,7 +2523,6 @@ CONTAINS
       CALL keyword_create(keyword,&
                           name="SMEAR",&
                           description="The occupation constraint is applied with smearing",&
-                          required=.FALSE.,&
                           repeats=.FALSE.,&
                           default_l_val=.FALSE.,&
                           lone_keyword_l_val=.TRUE.,&

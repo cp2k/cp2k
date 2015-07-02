@@ -68,7 +68,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"LS_SCF",&
             description="Specifies the parameters of the linear scaling SCF routines",&
-            n_keywords=24, n_subsections=3, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=24, n_subsections=3, repeats=.FALSE., &
             citations=(/VandeVondele2012/),error=error)
 
        NULLIFY (keyword,subsection)
@@ -313,7 +313,7 @@ CONTAINS
 
        CALL section_create(section,"CHEBYSHEV",&
             description="Specifies the parameters needed for the chebyshev expansion based properties.",&
-            n_keywords=24, n_subsections=3, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=24, n_subsections=3, repeats=.FALSE., &
             error=error)
 
        NULLIFY (keyword)
@@ -398,7 +398,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"CURVY_STEPS",&
             description="Specifies the parameters of the linear scaling SCF routines",&
-            n_keywords=24, n_subsections=3, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=24, n_subsections=3, repeats=.FALSE., &
             citations=(/Shao2003/),&
             error=error)
 
@@ -486,7 +486,7 @@ CONTAINS
            "and PEXSI is applicable to insulating and metallic systems. The value of EPS_PGF_ORB "//&
            "(in QS input section) defines the sparsity of the matrices sent to PEXSI and EPS_FILTER "//&
            "is overwritten with 0.",&
-           n_keywords=17, repeats=.FALSE.,required=.FALSE.,citations=(/Lin2009,Lin2013/),error=error)
+           n_keywords=17, repeats=.FALSE.,citations=(/Lin2009,Lin2013/),error=error)
        NULLIFY (keyword)
 
        CALL keyword_create(keyword, name="TEMPERATURE",&

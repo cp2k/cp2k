@@ -347,8 +347,7 @@ CPSourceFileRef,&
        ! RESPA
        tmp_section => section_vals_get_subs_vals(md_section,"RESPA",error=error)
        CALL section_vals_get(tmp_section, explicit=simpar%do_respa, error=error)
-       CALL section_vals_val_get(tmp_section,"FREQUENCY",i_val=simpar%n_time_steps,&
-            ignore_required=.TRUE.,error=error)
+       CALL section_vals_val_get(tmp_section,"FREQUENCY",i_val=simpar%n_time_steps,error=error)
        simpar%multi_time_switch = simpar%do_respa
 
        ! CORE-SHELL MODEL
@@ -365,8 +364,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(tmp_section,"TEMP_SLOW",r_val=simpar%temp_slow,error=error)
        CALL section_vals_val_get(tmp_section,"TEMP_TOL_FAST",r_val=simpar%temp_tol_fast,error=error)
        CALL section_vals_val_get(tmp_section,"TEMP_TOL_SLOW",r_val=simpar%temp_tol_slow,error=error)
-       CALL section_vals_val_get(tmp_section,"N_RESP_FAST",i_val=simpar%n_resp_fast,&
-            ignore_required=.TRUE.,error=error)
+       CALL section_vals_val_get(tmp_section,"N_RESP_FAST",i_val=simpar%n_resp_fast,error=error)
 
        ! VELOCITY SOFTENING
        tmp_section => section_vals_get_subs_vals(md_section,"VELOCITY_SOFTENING",error=error)

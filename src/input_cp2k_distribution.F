@@ -56,7 +56,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="DISTRIBUTION",&
             description="can be used used to tune the parallel distribution of the data",&
-            n_keywords=2, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=2, n_subsections=2, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword)

@@ -74,7 +74,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"WF_CORRELATION",&
             description="Sets up the Wavefunction-based Correlation parameters if requested ",&
-            n_keywords=8, n_subsections=6, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=8, n_subsections=6, repeats=.TRUE., &
             citations=(/DelBen2012,DelBen2013,DelBen2015/),&
             error=error)
 
@@ -246,7 +246,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"DIRECT_CANONICAL",&
             description="Parameters influencing the direct canonical method",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword)
@@ -287,7 +287,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"RI_MP2",&
             description="Parameters influencing the RI MP2 method",&
-            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., &
             citations=(/DelBen2013/),&
             error=error)
 
@@ -308,7 +308,7 @@ CONTAINS
                         "of the unrelaxed MP2 density matrix has to be "//&
                         "calculated with a canonical reformulation based "//&
                         "on the occupied eigenvalues differences.",&
-            usage="EPS_CANONICAL 1.0E-8",required=.FALSE.,type_of_var=real_t,&
+            usage="EPS_CANONICAL 1.0E-8",type_of_var=real_t,&
             default_r_val=1.0E-7_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -353,7 +353,7 @@ CONTAINS
             description="Parameters influencing the optimization of the RI MP2 basis. "//&
                         "Only exponents of non-contracted auxiliary basis can be optimized. "//&
                         "An initial RI auxiliary basis has to be specified.",&
-            n_keywords=6, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=6, n_subsections=0, repeats=.FALSE., &
             citations=(/DelBen2013/),&
             error=error)
 
@@ -445,7 +445,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"RI_LAPLACE",&
             description="Parameters influencing the RI-SOS-MP2-Laplace method",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., &
             citations=(/DelBen2013/),&
             error=error)
 
@@ -498,7 +498,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"RI_RPA",&
             description="Parameters influencing the RI RPA method",&
-            n_keywords=2, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=2, n_subsections=1, repeats=.FALSE., &
             citations=(/DelBen2013,DelBen2015/),&
             error=error)
 
@@ -598,7 +598,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"RI_G0W0",&
             description="Parameters influencing the RI-G0W0 method",&
-            n_keywords=12, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=12, n_subsections=0, repeats=.FALSE., &
             citations=(/DelBen2013/),&
             error=error)
 
@@ -797,27 +797,27 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"WFC_GPW",&
             description="Parameters for the GPW approach in Wavefunction-based Correlation methods",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="EPS_GRID",&
             description="Determines a threshold for the GPW based integration",&
-            usage="EPS_GRID 1.0E-9 ",required=.FALSE.,type_of_var=real_t,&
+            usage="EPS_GRID 1.0E-9 ",type_of_var=real_t,&
             default_r_val=1.0E-8_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="EPS_FILTER",&
             description="Determines a threshold for the DBCSR based multiply (usually 10 times smaller than EPS_GRID).",&
-            usage="EPS_FILTER 1.0E-10 ",required=.FALSE.,type_of_var=real_t,&
+            usage="EPS_FILTER 1.0E-10 ",type_of_var=real_t,&
             default_r_val=1.0E-9_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CUTOFF",&
             description="The cutoff of the finest grid level in the MP2 gpw integration.",&
-            usage="CUTOFF 300",required=.FALSE.,type_of_var=real_t,&
+            usage="CUTOFF 300",type_of_var=real_t,&
             default_r_val=300.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -825,7 +825,7 @@ CONTAINS
        CALL keyword_create(keyword, name="REL_CUTOFF",&
             variants=(/"RELATIVE_CUTOFF"/),&
             description="Determines the grid at which a Gaussian is mapped.",&
-            usage="REL_CUTOFF 50",required=.FALSE.,type_of_var=real_t,&
+            usage="REL_CUTOFF 50",type_of_var=real_t,&
             default_r_val=50.0_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -878,7 +878,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"CPHF",&
             description="Parameters influencing the solution of the Z-vector equations in MP2 gradients calculations.",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., &
             citations=(/DelBen2013/),&
             error=error)
 
@@ -897,7 +897,7 @@ CONTAINS
             description="Convergence threshold for the solution of the Z-vector equations. "//&
                         "The Z-vector equations have the form of a linear system of equations Ax=b, "//&
                         "convergence is achieved when |Ax-b|<=EPS_CONV.",&
-            usage="EPS_CONV 1.0E-6",required=.FALSE.,type_of_var=real_t,&
+            usage="EPS_CONV 1.0E-6",type_of_var=real_t,&
             default_r_val=1.0E-4_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -927,7 +927,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"INTERACTION_POTENTIAL",&
             description="Parameters the interaction potential in computing the biel integrals",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword)
@@ -954,7 +954,7 @@ CONTAINS
        CALL keyword_create(keyword, name="TRUNCATION_RADIUS",&
             description="Determines truncation radius for the truncated TShPSC potential. "//&
                         "Only valid when doing truncated calculation",&
-            usage="TRUNCATION_RADIUS 10.0",required=.FALSE.,type_of_var=real_t,&
+            usage="TRUNCATION_RADIUS 10.0",type_of_var=real_t,&
             default_r_val=10.0_dp,&
             unit_str="angstrom",error=error)
        CALL section_add_keyword(section,keyword,error=error)

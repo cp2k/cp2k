@@ -755,7 +755,7 @@ CONTAINS
     ! Let's treat the case of Multiple force_eval
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
     CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%FORCE_EVAL_ORDER",&
-         i_vals=my_i_force_eval,ignore_required=.TRUE.,error=error)
+         i_vals=my_i_force_eval,error=error)
     ALLOCATE(i_force_eval(nforce_eval),stat=stat)
     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
     IF (nforce_eval>0) THEN

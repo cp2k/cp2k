@@ -53,7 +53,7 @@ CONTAINS
        CALL section_create(section,name="ATOMIC",&
             description="Controls the calculation of atomic properties. "//&
                         "Printing is controled by FORCE_EVAL / PRINT / PROGRAM_RUN_INFO",&
-            repeats=.FALSE., required=.FALSE.,&
+            repeats=.FALSE., &
             citations=(/Kikuchi2009/),&
             error=error)
 
@@ -63,7 +63,6 @@ CONTAINS
             description="Calculate atomic energies ",&
             usage="ENERGY {logical}",&
             repeats=.FALSE.,&
-            required=.FALSE.,&
             n_var=1,&
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&
@@ -75,7 +74,6 @@ CONTAINS
             description="Calculate atomic pressure tensors ",&
             usage="PRESSURE {logical}",&
             repeats=.FALSE.,&
-            required=.FALSE.,&
             n_var=1,&
             default_l_val=.FALSE.,&
             lone_keyword_l_val=.TRUE.,&

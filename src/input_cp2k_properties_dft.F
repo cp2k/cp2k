@@ -83,7 +83,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="PROPERTIES",&
             description="This section is used to set up the PROPERTIES calculation.",&
-            n_keywords=4, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=4, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        NULLIFY (subsection,keyword)
@@ -152,7 +152,7 @@ CONTAINS
        CALL section_create(section,name="linres",&
             description="The linear response is used to calculate one of the "//&
             " following properties: nmr, epr, raman, ... ",&
-            n_keywords=5, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=5, n_subsections=2, repeats=.FALSE., &
             citations=(/Putrino2000/),&
             error=error)
 
@@ -249,7 +249,7 @@ CONTAINS
        CALL section_release(subsection,error=error)
 
        CALL section_create(subsection,"PRINT","printing of information during the linear response calculation",&
-            error=error,repeats=.FALSE.,required=.FALSE.)
+            repeats=.FALSE.,error=error)
 
        CALL cp_print_key_section_create(print_key,"program_run_info",&
             description="Controls the printing of basic iteration information during the LINRES calculation", &
@@ -302,7 +302,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="current",&
             description="The induced current density is calculated by DFPT.",&
-            n_keywords=4, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=4, n_subsections=1, repeats=.FALSE., &
             citations=(/Sebastiani2001,Weber2009/),&
             error=error)
 
@@ -409,7 +409,7 @@ CONTAINS
        NULLIFY(subsection)
        CALL section_create(subsection,name="PRINT",&
             description="print results of induced current density calculation",&
-            error=error,repeats=.FALSE.,required=.FALSE.)
+            repeats=.FALSE.,error=error)
 
        CALL cp_print_key_section_create(print_key,"CURRENT_CUBES",&
             description="Controls the printing of the induced current density (not working yet).", &
@@ -508,7 +508,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="nmr",&
             description="The chemical shift is calculated by DFPT.",&
-            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=5, n_subsections=1, repeats=.FALSE., &
             citations=(/Weber2009/),&
             error=error)
 
@@ -562,7 +562,7 @@ CONTAINS
        NULLIFY(subsection)
        CALL section_create(subsection,name="PRINT",&
             description="print results of nmr calculation",&
-            error=error,repeats=.FALSE.,required=.FALSE.)
+            repeats=.FALSE.,error=error)
 
        CALL cp_print_key_section_create(print_key,"RESPONSE_FUNCTION_CUBES",&
             description="Controls the printing of the response functions ", &
@@ -670,7 +670,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="spinspin",&
             description="Compute indirect spin-spin coupling constants.",&
-            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=5, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -727,7 +727,7 @@ CONTAINS
        NULLIFY(subsection)
        CALL section_create(subsection,name="PRINT",&
             description="print results of the indirect spin-spin calculation",&
-            error=error,repeats=.FALSE.,required=.FALSE.)
+            repeats=.FALSE.,error=error)
 
        CALL cp_print_key_section_create(print_key,"K_MATRIX",&
             description="Controls the printing of the indirect spin-spin matrix",&
@@ -786,7 +786,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="EPR",&
             description="The g tensor is calculated by DFPT ",&
-            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=5, n_subsections=1, repeats=.FALSE., &
             citations=(/Weber2009/),&
             error=error)
 
@@ -809,7 +809,7 @@ CONTAINS
        NULLIFY(subsection)
        CALL section_create(subsection,name="PRINT",&
             description="print results of epr calculation",&
-            error=error,repeats=.FALSE.,required=.FALSE.)
+            repeats=.FALSE.,error=error)
 
        CALL cp_print_key_section_create(print_key,"NABLAVKS_CUBES",&
             description="Controls the printing of the components of nabla v_ks ", &
@@ -935,7 +935,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="POLAR",&
             description="Compute polarizabilities.",&
-            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=5, n_subsections=1, repeats=.FALSE., &
             citations=(/Putrino2002/),&
             error=error)
 
@@ -961,7 +961,7 @@ CONTAINS
        NULLIFY(subsection)
        CALL section_create(subsection,name="PRINT",&
             description="print results of the polarizability calculation",&
-            error=error,repeats=.FALSE.,required=.FALSE.)
+            repeats=.FALSE.,error=error)
 
        CALL cp_print_key_section_create(print_key,"POLAR_MATRIX",&
             description="Controls the printing of the polarizabilities",&
@@ -1006,7 +1006,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,"ET_COUPLING",&
             description="specifies the two constraints/restraints for extracting ET coupling elements",&
-            n_keywords=1, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=4, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection)
@@ -1075,7 +1075,7 @@ CONTAINS
        CALL section_create(section,TRIM(ADJUSTL(section_name)),&
             description="Use DDAPC charges in a restraint (check code for details),"//&
             " section can be repeated, but only one constraint is possible at the moment.",&
-            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=7, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword, name="STRENGTH",&
@@ -1103,7 +1103,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the list of atoms that is summed in the restraint",&
-            usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+            usage="ATOMS {integer} {integer} .. {integer}", &
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -61,7 +61,7 @@ CONTAINS
        CALL section_create(section,"TRANSPORT",&
             description="Specifies the parameters for transport, sets parameters for the OMEN code, "//&
                         "see also http://www.nano-tcad.ethz.ch/ ",&
-            n_keywords=19, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=19, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY (keyword)

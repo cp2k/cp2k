@@ -63,7 +63,7 @@ CONTAINS
 
     CALL section_create(section,name="print",&
          description="Controls the printing properties during an MD run",&
-         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+         n_keywords=0, n_subsections=1, repeats=.TRUE., &
          error=error)
 
     CALL cp_print_key_section_create(print_key,"TRAJECTORY",&

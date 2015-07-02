@@ -79,7 +79,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="MD",&
             description="This section defines the whole set of parameters needed perform an MD run.",&
-            n_keywords=13, n_subsections=6, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=13, n_subsections=6, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -318,8 +318,7 @@ CONTAINS
             "Langevin MD involving sub-regions can be found in articles by "//&
             "Kantorovitch et al. All the references can be found in the links below.",&
             citations=(/Ricci2003, Kantorovich2008, Kantorovich2008a/),&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=0, n_subsections=1, repeats=.FALSE., error=error)
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="gamma",&
@@ -372,8 +371,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="print",&
             description="Controls the printing properties during an MD run",&
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=0, n_subsections=1, repeats=.FALSE., error=error)
        NULLIFY(print_key, keyword)
 
        CALL keyword_create(keyword, name="FORCE_LAST",&
@@ -484,7 +482,7 @@ CONTAINS
             " If force_evals share the same subsys, it's enough then to specify the "//&
             " subsys in the force_eval corresponding at the first index in the multiple_force_eval list."//&
             " Can be used to speedup classical and ab initio MD simulations.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             citations=(/Tuckerman1992,Guidon2008/),&
             error=error)
 
@@ -525,7 +523,7 @@ CONTAINS
        CALL section_create(section,name="REFTRAJ",&
             description="Loads an external trajectory file and performs analysis on the"//&
             " loaded snapshots.",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, print_key, subsection)
@@ -583,8 +581,7 @@ CONTAINS
 
        CALL section_create(subsection,name="print",&
        description="The section that controls the output of a reftraj run",&
-       n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-       error=error)
+       n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
 
        NULLIFY(print_key)
          CALL cp_print_key_section_create(print_key,"msd_kind",&
@@ -643,8 +640,7 @@ CONTAINS
        CALL section_create(section,name="MSD",&
             description="Loads an external trajectory file and performs analysis on the"//&
             " loaded snapshots.",&
-            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=3, n_subsections=0, repeats=.FALSE., error=error)
 
        NULLIFY(keyword, subsection)
 
@@ -736,7 +732,7 @@ CONTAINS
             description="Parameters for Multi-Scale Shock Technique (MSST) "//&
             "which simulate the effect of a steady planar shock on a unit cell. "//&
             "Reed et. al. Physical Review Letters 90, 235503 (2003).",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword )
@@ -811,8 +807,7 @@ CONTAINS
 
        CALL section_create(section,name="shell",&
             description="Parameters of shell model in adiabatic dynamics.",&
-            n_keywords=4, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=4, n_subsections=1, repeats=.FALSE., error=error)
 
        NULLIFY(keyword,thermo_section)
 
@@ -886,7 +881,7 @@ CONTAINS
 
        CALL section_create(section,name="ADIABATIC_DYNAMICS",&
             description="Parameters used in canonical adiabatic free energy sampling (CAFES).",&
-            n_keywords=5, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=5, n_subsections=2, repeats=.FALSE.,&
             citations=(/VandeVondele2002/),&
             error=error)
 
@@ -1029,7 +1024,7 @@ CONTAINS
             "The theory behind Langevin MD using different regions can be found in "//&
             "articles by Kantorovitch et al. listed below.", &
             citations=(/Kantorovich2008, Kantorovich2008a/), &
-            n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE., error=error)
+            n_keywords=0, n_subsections=1, repeats=.FALSE., error=error)
 
        NULLIFY(region_section)
        NULLIFY(keyword,subsection)
@@ -1053,13 +1048,13 @@ CONTAINS
 
        CALL section_create(region_section,name="DEFINE_REGION",&
             description="This section provides the possibility to define arbitrary region ", &
-            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE., error=error)
+            n_keywords=3, n_subsections=0, repeats=.TRUE.,  error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="LIST",&
             description="Specifies a list of atoms belonging to the region.",&
             usage="LIST {integer} {integer} .. {integer}", &
-            required=.TRUE., repeats=.TRUE., n_var=-1, type_of_var=integer_t, error=error)
+             repeats=.TRUE., n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(region_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1096,7 +1091,7 @@ CONTAINS
        CALL section_create(subsection,name="PRINT",&
             description="Collects all print_keys for thermal_regions",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., &
-            required=.TRUE., error=error)
+             error=error)
 
        CALL cp_print_key_section_create(print_key,"TEMPERATURE",&
             description="Controls output of temperature per region.", &
@@ -1154,7 +1149,6 @@ CONTAINS
                            n_keywords=1,&
                            n_subsections=1,&
                            repeats=.FALSE.,&
-                           required=.FALSE.,&
                            error=error)
 
        CALL keyword_create(keyword,&
@@ -1181,7 +1175,6 @@ CONTAINS
                            n_keywords=1,&
                            n_subsections=0,&
                            repeats=.FALSE.,&
-                           required=.TRUE.,&
                            error=error)
 
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
@@ -1193,7 +1186,6 @@ CONTAINS
                                        "Weight</big></tt></p>",&
                            usage="{{Integer} {Real} {Real} {Real} {Real}}",&
                            repeats=.TRUE.,&
-                           required=.FALSE.,&
                            type_of_var=lchar_t,&
                            error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
@@ -1230,8 +1222,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="Averages",&
             description="Controls the calculation of the averages during an MD run.",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            n_keywords=1, n_subsections=1, repeats=.FALSE., error=error)
        NULLIFY(keyword, print_key, subsection)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -1292,7 +1283,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="RESTART_AVERAGES",&
             description="Stores information for restarting averages.",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 

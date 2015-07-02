@@ -58,7 +58,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="OPTIMIZE_INPUT",&
          description="describes an input optimization job, in which parameters in input files get optimized.",&
-         repeats=.FALSE., required=.TRUE., error=error)
+         repeats=.FALSE.,  error=error)
     NULLIFY(keyword)
 
     CALL keyword_create(keyword, name="METHOD",&
@@ -68,7 +68,6 @@ CONTAINS
          enum_desc=s2a("Perform a force matching minimization."),&
          enum_i_vals=(/opt_force_matching/), &
          default_i_val=opt_force_matching,&
-         required=.TRUE.,&
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -115,13 +114,12 @@ CONTAINS
     NULLIFY(sub_section)
     CALL section_create(sub_section,name="VARIABLE",&
          description="Defines initial values for variables and their labels",&
-         n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+         n_subsections=0, repeats=.TRUE., &
          error=error)
 
        CALL keyword_create(keyword, name="VALUE",&
             description="Initial value of the variable",&
             usage="VALUE 0.0",&
-            required=.TRUE.,&
             type_of_var=real_t, unit_str="internal_cp2k",error=error)
        CALL section_add_keyword(sub_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -136,7 +134,6 @@ CONTAINS
        CALL keyword_create(keyword, name="LABEL",&
             description="The label used in the input file, i.e. ${LABEL} will be replaced by the VALUE specified.",&
             usage="LABEL PRM01",&
-            required=.TRUE.,&
             type_of_var=char_t,&
             error=error)
        CALL section_add_keyword(sub_section,keyword,error=error)
@@ -153,13 +150,13 @@ CONTAINS
     NULLIFY(sub_section)
     CALL section_create(sub_section,name="FORCE_MATCHING",&
          description="Specify the force matching input.",&
-         repeats=.TRUE., required=.TRUE., error=error)
+         repeats=.TRUE.,  error=error)
 
          CALL keyword_create(keyword,name="OPTIMIZE_FILE_NAME",&
               description="the filename of the input file which contains the parameters to be optimized",&
               usage="OPTIMIZE_FILE_NAME my_input.inp",&
               default_lc_val="",&
-              required=.TRUE.,error=error)
+              error=error)
          CALL section_add_keyword(sub_section,keyword,error=error)
          CALL keyword_release(keyword,error=error)
 

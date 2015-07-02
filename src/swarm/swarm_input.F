@@ -53,12 +53,11 @@ MODULE swarm_input
     CALL section_create(swarm_section,name="SWARM",&
          description="Section to control swarm runs. "//&
          "The swarm framework provides a common ground for master/worker algorithms.",&
-         repeats=.FALSE., required=.TRUE., error=error)
+         repeats=.FALSE., error=error)
 
     CALL keyword_create(keyword, name="BEHAVIOR",&
          description="Which behaviour should control the swarm.",&
          usage="BEHAVIOR <STRING>",&
-         required=.TRUE.,&
          default_i_val=swarm_do_glbopt,&
          enum_c_vals=s2a("GLOBAL_OPT"),&
          enum_desc=s2a("Runs global geometry optimisation"),&
@@ -71,7 +70,7 @@ MODULE swarm_input
         description="Number of workers used for swarm. "//&
         "Of the total number of processors one is used for the master, "//&
         "the remaining processors should be divisible by the number of workers.",&
-        type_of_var=integer_t,required=.TRUE.,error=error)
+        type_of_var=integer_t,error=error)
     CALL section_add_keyword(swarm_section, keyword, error=error)
     CALL keyword_release(keyword, error=error)
 
@@ -91,7 +90,7 @@ MODULE swarm_input
 
     CALL section_create(print_section,name="PRINT",&
          description="Controls the printing properties during a global optimization run",&
-         n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,error=error)
+         n_keywords=0, n_subsections=1, repeats=.TRUE., error=error)
 
     CALL cp_print_key_section_create(printkey,"WORKER_RUN_INFO",&
                description="Controls the printing of the worker's basic information during the global optimization", &

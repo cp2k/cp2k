@@ -71,7 +71,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="VIBRATIONAL_ANALYSIS",&
             description="Section to setup parameters to perform a Normal Modes analysis.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword, subsection)
 
@@ -149,8 +149,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="PRINT",&
             description="Section controlling the print information during a vibrational "//&
-            "analysis.",n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
+            "analysis.",n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
        NULLIFY(keyword, print_key)
 
        CALL cp_print_key_section_create(print_key,"BANNER",&
@@ -217,7 +216,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="MODE_SELECTIVE",&
             description="All parameters needed for to run a mode selective vibrational analysis",&
-            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=5, n_subsections=1, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword,name="FREQUENCY",&
@@ -239,7 +238,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the list of atoms which should be displaced for the Initial guess",&
-            usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+            usage="ATOMS {integer} {integer} .. {integer}", &
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -289,8 +288,7 @@ CONTAINS
 
        CALL section_create(subsection, name="PRINT",&
             description="Controls the printing mode selective vibrational analysis",&
-            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
-            error=error)
+            n_keywords=0, n_subsections=1, repeats=.TRUE., error=error)
 
        CALL cp_print_key_section_create(print_key,"MS_RESTART",&
             description="Controls the printing of the Mode Selective Restart file.", &
@@ -330,7 +328,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="INVOLVED_ATOMS",&
             description="All parameters needed for the tracking of modes dominated by the motion of selected atoms ",&
-            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL keyword_create(keyword,name="RANGE",&
@@ -345,7 +343,7 @@ CONTAINS
        CALL keyword_create(keyword, name="INVOLVED_ATOMS",&
             description="Specifies the list of atoms on which the tracked eigenvector should have the highest value "//&
             "similar to looking for the vibration of a set of atoms",&
-            usage="INVOLVED_ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+            usage="INVOLVED_ATOMS {integer} {integer} .. {integer}", &
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -316,8 +316,8 @@ CONTAINS
 
     ! Coordinates and Velocities
     work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-    CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
-    CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
+    CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
+    CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
     conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
     IF (.NOT.write_binary_restart_file) THEN
        CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE_FORMAT",&
@@ -361,8 +361,8 @@ CONTAINS
     IF (.NOT.write_binary_restart_file) THEN
        IF (ASSOCIATED(shell_particles)) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"SHELL_COORD",error=error)
-          CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
-          CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
+          CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
+          CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
           conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
           CALL section_coord_val_set(work_section, shell_particles, molecules, &
                                      conv_factor, scale, cell, shell=.TRUE., error=error)
@@ -373,8 +373,8 @@ CONTAINS
        END IF
        IF (ASSOCIATED(core_particles)) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"CORE_COORD",error=error)
-          CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,ignore_required=.TRUE.,error=error)
-          CALL section_vals_val_get(work_section,"SCALED",l_val=scale,ignore_required=.TRUE.,error=error)
+          CALL section_vals_val_get(work_section,"UNIT",c_val=unit_str,error=error)
+          CALL section_vals_val_get(work_section,"SCALED",l_val=scale,error=error)
           conv_factor = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
           CALL section_coord_val_set(work_section, core_particles, molecules, &
                                      conv_factor, scale, cell, shell=.TRUE., error=error)

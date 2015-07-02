@@ -71,13 +71,13 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="KPOINTS",&
             description="Sets up the kpoints.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY (keyword)
        CALL keyword_create(keyword, name="SCHEME",&
             description="Kpoint scheme to be used. ",&
-            usage="SCHEME {KPMETHOD}{integer} {integer} ..",required=.TRUE.,&
+            usage="SCHEME {KPMETHOD}{integer} {integer} ..",&
             n_var=-1, type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

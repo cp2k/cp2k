@@ -87,8 +87,7 @@ CONTAINS
 
        CALL section_create(section,name="THERMOSTAT_SLOW",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
-            error=error)
+            n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
        NULLIFY(keyword)
 
        IF (.NOT.my_coupled_thermostat) THEN
@@ -173,8 +172,7 @@ CONTAINS
 
        CALL section_create(section,name="THERMOSTAT_FAST",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
-            error=error)
+            n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
        NULLIFY(keyword)
 
        IF (.NOT.my_coupled_thermostat) THEN
@@ -262,8 +260,7 @@ CONTAINS
 
        CALL section_create(section,name="THERMOSTAT",&
             description="Specify thermostat type and parameters controlling the thermostat.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.NOT.my_coupled_thermostat,&
-            error=error)
+            n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
        NULLIFY(keyword)
 
        IF (.NOT.my_coupled_thermostat) THEN
@@ -357,7 +354,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL section_create(section,name="PRINT",&
             description="Collects all print_keys for thermostat",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        CALL cp_print_key_section_create(print_key,"THERMOSTAT_INFO",&
@@ -411,13 +408,13 @@ CONTAINS
        CALL section_create(section,name="DEFINE_REGION",&
             description="This section provides the possibility to define arbitrary region "//&
             " for the "//TRIM(label)//".",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="LIST",&
             description="Specifies a list of atoms to thermostat.",&
-            usage="LIST {integer} {integer} .. {integer}", required=.TRUE.,repeats=.TRUE.,&
+            usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE.,&
             n_var=-1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -425,7 +422,7 @@ CONTAINS
        CALL keyword_create(keyword, name="MOLNAME",&
             variants=(/"SEGNAME"/),&
             description="Specifies the name of the molecules to thermostat",&
-            usage="MOLNAME WAT MEOH", required=.TRUE., repeats=.TRUE.,&
+            usage="MOLNAME WAT MEOH",  repeats=.TRUE.,&
             n_var=-1,type_of_var=char_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -439,7 +436,7 @@ CONTAINS
             enum_desc=s2a("Thermostat nothing",&
                           "Only the MM atoms itself",&
                           "The full molecule/residue that contains a MM atom"),&
-            default_i_val=do_constr_none,repeats=.FALSE.,required=.TRUE.,error=error)
+            default_i_val=do_constr_none,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -451,7 +448,7 @@ CONTAINS
                           "Only the QM atoms itself",&
                           "The full molecule/residue that contains a QM atom"),&
             enum_i_vals=(/do_constr_none,do_constr_atomic,do_constr_molec/),&
-            default_i_val=do_constr_none,repeats=.FALSE.,required=.TRUE.,error=error)
+            default_i_val=do_constr_none,repeats=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -484,7 +481,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="nose",&
             description="paramameters of the Nose Hoover thermostat chain",&
-            citations=(/Nose1984a,Nose1984b/),required=.NOT.coupled_thermostat,error=error)
+            citations=(/Nose1984a,Nose1984b/),error=error)
 
        NULLIFY(keyword,subsection)
        CALL keyword_create(keyword, name="length",&
@@ -565,7 +562,7 @@ CONTAINS
        CALL section_create(section,name="GLE",&
             description="paramameters of the gle thermostat. This section can be generated "//&
                         " from https://epfl-cosmo.github.io/gle4md/index.html?page=matrix ",&
-            citations=(/Ceriotti2009,Ceriotti2009b/),required=.FALSE.,error=error)
+            citations=(/Ceriotti2009,Ceriotti2009b/),error=error)
 
        NULLIFY(keyword, subsection)
 
@@ -587,7 +584,7 @@ CONTAINS
             "cristalline and liquid compounds. Generated with the parameters set kv_4-4.a"//&
             "centered on w_0=40 cm^-1.", usage="A_LIST real real real", &
              type_of_var=real_t, unit_str="internal_cp2k",&
-             n_var=-1, repeats=.TRUE., required=.FALSE., &
+             n_var=-1, repeats=.TRUE.,  &
 !             default_r_vals=(/ &
 !    1.859575861256e+2_dp,  2.726385349840e-1_dp,  1.152610045461e+1_dp, -3.641457826260e+1_dp,  2.317337581602e+2_dp, &
 !   -2.780952471206e-1_dp,  8.595159180871e-5_dp,  7.218904801765e-1_dp, -1.984453934386e-1_dp,  4.240925758342e-1_dp, &
@@ -601,7 +598,7 @@ CONTAINS
        CALL keyword_create(keyword,name="C_LIST",&
             description="C matrix", usage="C_LIST real real real", &
             unit_str="K_e",&
-            type_of_var=real_t, n_var=-1, repeats=.TRUE., required=.FALSE., &
+            type_of_var=real_t, n_var=-1, repeats=.TRUE.,  &
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -645,7 +642,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="s",&
             description="The s variable for GLE used for restart",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 
@@ -684,7 +681,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="csvr",&
             description="Parameters of the canonical sampling through velocity rescaling thermostat.",&
-            citations=(/Bussi2007/),required=.NOT.coupled_thermostat,error=error)
+            citations=(/Bussi2007/),error=error)
 
        NULLIFY(keyword, subsection)
 
@@ -738,7 +735,7 @@ CONTAINS
             " other ensembles.  Also tested with FIXED_ATOMS constraints, but"//&
             " may not work with other constraints (restraints should be OK, but"//&
             " haven't been well tested)",&
-            citations=(/Jones2011/),required=.TRUE.,error=error)
+            citations=(/Jones2011/),error=error)
 
        NULLIFY(keyword, subsection)
 
@@ -802,7 +799,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name=TRIM(sec_name),&
             description="Information to initialize the Ad-Langevin thermostat DOF "//TRIM(sec_name),&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 
@@ -839,7 +836,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="THERMOSTAT_ENERGY",&
             description="Information to initialize the CSVR thermostat energy.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 
@@ -877,7 +874,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="force",&
             description="The forces for "//TRIM(name)//" used for restart",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 
@@ -915,7 +912,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="mass",&
             description="The masses for "//TRIM(name)//" used for restart",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 
@@ -953,7 +950,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="velocity",&
             description="The velocities for "//TRIM(name)//" used for restart",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 
@@ -991,7 +988,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="coord",&
             description="The positions for "//TRIM(name)//" used for restart",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
        NULLIFY(keyword)
 

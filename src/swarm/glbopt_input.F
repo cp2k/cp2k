@@ -58,7 +58,7 @@ MODULE glbopt_input
          repeats=.FALSE., error=error)
 
     CALL keyword_create(keyword, name="METHOD",&
-         description="Methods to use for optimization.", required=.TRUE.,&
+         description="Methods to use for optimization.",&
          default_i_val=glbopt_do_minhop,&
          enum_c_vals=s2a("MINIMA_HOPPING","MINIMA_CRAWLING"),&
          enum_desc=s2a("Runs Minima-Hopping algorithm.",&

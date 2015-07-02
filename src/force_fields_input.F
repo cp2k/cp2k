@@ -1524,14 +1524,12 @@ CPSourceFileRef,&
           damping_list(start_damp+isec_damp)%atm_name2=atm_name
           CALL uppercase(damping_list(start_damp+isec_damp)%atm_name2)
           CALL section_vals_val_get(tmp_section,"TYPE",i_rep_section=isec_damp,&
-               c_val=atm_name,ignore_required=.TRUE.,&
-               error=error)
+               c_val=atm_name,error=error)
           damping_list(start_damp+isec_damp)%dtype=atm_name
           CALL uppercase(damping_list(start_damp+isec_damp)%dtype)
 
           CALL section_vals_val_get(tmp_section,"ORDER",i_rep_section=isec_damp,&
-               i_val=damping_list(start_damp+isec_damp)%order,&
-               ignore_required=.TRUE., error=error)
+               i_val=damping_list(start_damp+isec_damp)%order, error=error)
           CALL section_vals_val_get(tmp_section,"BIJ",i_rep_section=isec_damp,&
                r_val=damping_list(start_damp+isec_damp)%bij, error=error)
           CALL section_vals_val_get(tmp_section,"CIJ",i_rep_section=isec_damp,&

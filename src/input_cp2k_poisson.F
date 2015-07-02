@@ -110,7 +110,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="poisson",&
             description="Sets up the poisson resolutor.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -188,7 +188,7 @@ CONTAINS
        CALL section_create(section,name="MULTIPOLE",&
             description="This section is used to set up the decoupling of QM periodic images with "//&
             "the use of density derived atomic point charges.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -268,7 +268,7 @@ CONTAINS
                         "Note that exact results are only guaranteed if the unit cell is "//&
                         "twice as large as charge density (and serious artefacts can result "//&
                         "if the cell is much smaller).",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             citations=(/Martyna1999/),&
             error=error)
 
@@ -317,7 +317,7 @@ SUBROUTINE create_ewald_section(section,error)
   IF (.NOT. failure) THEN
     CALL section_create(section,name="ewald",&
          description="Ewald parameters controlling electrostatic only for CLASSICAL MM.",&
-         n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         n_keywords=7, n_subsections=0, repeats=.FALSE., &
          citations=(/Ewald1921,Darden1993,Essmann1995,Toukmaji1996,Laino2008/),&
          error=error)
 
@@ -409,7 +409,7 @@ SUBROUTINE create_ewald_section(section,error)
     NULLIFY(subsection)
     CALL section_create(subsection,name="MULTIPOLES",&
          description="Enables the use of multipoles in the treatment of the electrostatics.",&
-         n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+         n_keywords=0, n_subsections=1, repeats=.FALSE., &
          citations=(/Aguado2003,Laino2008/), error=error)
 
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -452,7 +452,7 @@ SUBROUTINE create_ewald_section(section,error)
     CALL keyword_create(keyword, name="MAX_IPOL_ITER",&
          description="Specify the maximum number of iterations for induced "//&
          "dipoles",&
-         usage="MAX_IPOL_ITER {int}",required=.FALSE., type_of_var=integer_t,&
+         usage="MAX_IPOL_ITER {int}", type_of_var=integer_t,&
             n_var=1, default_i_val=0,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -460,7 +460,7 @@ SUBROUTINE create_ewald_section(section,error)
     CALL keyword_create(keyword, name="EPS_POL",&
          description="Specify the rmsd threshold for the derivatives "//&
          "of the energy towards the Cartesian dipoles components",&
-         usage="EPS_POL {real}",required=.FALSE., type_of_var=real_t,&
+         usage="EPS_POL {real}", type_of_var=real_t,&
             n_var=1, default_r_val=0.5e-07_dp,error=error)
     CALL section_add_keyword(subsection,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -471,7 +471,7 @@ SUBROUTINE create_ewald_section(section,error)
     NULLIFY(subsection)
     CALL section_create(subsection,name="PRINT",&
          description="Controls printing of Ewald properties",&
-         n_keywords=0, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+         n_keywords=0, n_subsections=1, repeats=.FALSE., &
          error=error)
     NULLIFY(print_key)
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
@@ -510,7 +510,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="interpolator",&
             description="controls the interpolation for the G-space term",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=5, n_subsections=0, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword, print_key)
@@ -602,7 +602,7 @@ END SUBROUTINE create_ewald_section
                   "(but only PERIODIC XZ)."//&
                   "It does not require very large unit cells, only that the density goes to zero on the faces of the cell."//&
                   "The use of PREFERRED_FFT_LIBRARY FFTSG is required",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., &
             citations=(/Genovese2006,Genovese2007/),&
             error=error)
 
@@ -644,7 +644,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="IMPLICIT",&
             description="Parameters for the implicit (generalized) Poisson solver.",&
-            n_keywords=4, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=4, n_subsections=2, repeats=.FALSE., &
             error=error)
 
        NULLIFY(subsection, keyword)
@@ -720,7 +720,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="DIELECTRIC", &
             description="Parameters for the dielectric constant function as proposed in the SCCS model.", &
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.FALSE., &
+            n_keywords=5, n_subsections=0, repeats=.FALSE.,  &
             error=error)
 
        NULLIFY(keyword)
@@ -793,7 +793,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="DIRICHLET_BC", &
             description="Parameters for creating Dirichlet type boundary conditions.",&
-            n_keywords=1, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=1, n_subsections=4, repeats=.FALSE., &
             error=error)
 
        NULLIFY(keyword)
@@ -849,7 +849,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="AA_PLANAR", &
             description="Parameters for creating axis-aligned planar (rectangular) Dirichlet boundary region.",&
-            n_keywords=9, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=9, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -864,14 +864,14 @@ END SUBROUTINE create_ewald_section
             enum_c_vals=s2a( 'XY', 'YZ' , 'XZ'), &
             enum_i_vals=(/ xy_aligned_rectangle, yz_aligned_rectangle, xz_aligned_rectangle /), &
             description="The coordinate plane that the region is parallel to.", &
-            usage="PARALLEL_PLANE <plane>", required=.TRUE., &
+            usage="PARALLEL_PLANE <plane>",  &
             type_of_var=enum_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
        CALL keyword_create(keyword, name="INTERCEPT", &
             description="The intercept of the rectangle's plane.", &
-            usage="INTERCEPT <real>", unit_str="angstrom", required=.TRUE., &
+            usage="INTERCEPT <real>", unit_str="angstrom",  &
             type_of_var=real_t, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
@@ -943,7 +943,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="PLANAR", &
             description="Parameters for creating an arbitrary planar Dirichlet boundary region.",&
-            n_keywords=7, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=7, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -1022,7 +1022,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="XAA_CYLINDRICAL", &
             description="Parameters for creating x-axis-aligned cylindrical Dirichlet boundary region.",&
-            n_keywords=9, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=9, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)
@@ -1113,7 +1113,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="AA_CUBOIDAL", &
             description="Parameters for creating axis-aligned cuboidal region where a fixed voltage is applied.",&
-            n_keywords=7, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            n_keywords=7, n_subsections=0, repeats=.TRUE., &
             error=error)
 
        NULLIFY(keyword)

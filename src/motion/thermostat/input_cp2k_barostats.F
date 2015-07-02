@@ -70,7 +70,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="barostat",&
             description="Parameters of barostat.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,error=error)
+            n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
 
        NULLIFY(keyword,subsection,thermo_section)
        CALL keyword_create(keyword, name="PRESSURE",&
@@ -154,8 +154,7 @@ CONTAINS
        NULLIFY(print_key)
        CALL section_create(section,name="PRINT",&
             description="Collects all print_keys for barostat",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
+            n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
 
        CALL cp_print_key_section_create(print_key,"ENERGY",&
             description="Controls the output of kinetic energy, and potential energy "//&
