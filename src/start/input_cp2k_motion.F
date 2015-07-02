@@ -1904,7 +1904,7 @@ CONTAINS
             description="Initial seed for the (pseudo)random number "//&
             "generator that controls Levy walk for bead positions.",&
             usage="LEVY_SEED <INTEGER>",default_i_val=1234,&
-            supported_feature=.TRUE.,repeats=.FALSE., error=error)
+            repeats=.FALSE., error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RANDOMIZE_POS",&

@@ -93,7 +93,7 @@ MODULE input_keyword_types
      CHARACTER,DIMENSION(:),POINTER :: description => Null()
      INTEGER, POINTER, DIMENSION(:) :: citations
      INTEGER :: type_of_var,n_var
-     LOGICAL :: repeats, required, supported_feature
+     LOGICAL :: repeats, required
      TYPE(enumeration_type), POINTER :: enum
      TYPE(cp_unit_type), POINTER :: unit
      TYPE(val_type), POINTER :: default_value
@@ -139,7 +139,6 @@ CONTAINS
 !> \param enum_desc ...
 !> \param unit_str ...
 !> \param citations ...
-!> \param supported_feature ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
@@ -151,7 +150,7 @@ CONTAINS
        lone_keyword_val, lone_keyword_l_val, lone_keyword_r_val, lone_keyword_c_val,&
        lone_keyword_i_val, lone_keyword_l_vals, lone_keyword_r_vals, &
        lone_keyword_c_vals, lone_keyword_i_vals, enum_c_vals, enum_i_vals, &
-       enum,enum_strict,enum_desc,unit_str,citations,supported_feature,error)
+       enum,enum_strict,enum_desc,unit_str,citations,error)
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(len=*), INTENT(in)             :: name, description
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: usage
@@ -198,7 +197,6 @@ CONTAINS
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: unit_str
     INTEGER, DIMENSION(:), INTENT(in), &
       OPTIONAL                               :: citations
-    LOGICAL, INTENT(in), OPTIONAL            :: supported_feature
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_create', &
@@ -261,8 +259,6 @@ CONTAINS
        IF (PRESENT(repeats)) keyword%repeats=repeats
        keyword%required=.FALSE.
        IF (PRESENT(required)) keyword%required=required
-       keyword%supported_feature=.FALSE.
-       IF (PRESENT(supported_feature)) keyword%supported_feature=supported_feature
 
        NULLIFY(keyword%enum)
        IF (PRESENT(enum)) THEN

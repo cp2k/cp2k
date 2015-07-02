@@ -148,7 +148,6 @@ CONTAINS
 !> \param filename ...
 !> \param common_iter_levels ...
 !> \param citations ...
-!> \param supported_feature ...
 !> \param unit_str specifies an unit of measure for output quantity. If not
 !>        provided the control is totally left to how the output was coded
 !>        (i.e. USERS have no possibility to change it)
@@ -158,7 +157,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
        print_level,each_iter_names,each_iter_values,add_last,filename,&
-       common_iter_levels,citations,supported_feature,unit_str,error)
+       common_iter_levels,citations,unit_str,error)
     TYPE(section_type), POINTER              :: print_key_section
     CHARACTER(len=*), INTENT(IN)             :: name, description
     INTEGER, INTENT(IN), OPTIONAL            :: print_level
@@ -170,7 +169,6 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: filename
     INTEGER, INTENT(IN), OPTIONAL            :: common_iter_levels
     INTEGER, DIMENSION(:), OPTIONAL          :: citations
-    LOGICAL, INTENT(IN), OPTIONAL            :: supported_feature
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: unit_str
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -194,7 +192,7 @@ CONTAINS
 
        CALL section_create(print_key_section,name=name,description=description,&
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            citations=citations, supported_feature=supported_feature, error=error)
+            citations=citations, error=error)
 
        NULLIFY(keyword, subsection)
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -204,15 +202,14 @@ CONTAINS
             enum_c_vals=s2a("on","off","silent","low","medium","high","debug"),&
             enum_i_vals=(/ silent_print_level-1,debug_print_level+1,&
             silent_print_level, low_print_level,&
-            medium_print_level,high_print_level,debug_print_level/),&
-            supported_feature=supported_feature,error=error)
+            medium_print_level,high_print_level,debug_print_level/), error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="__CONTROL_VAL",&
             description=' hidden parameter that controls storage, printing,...'//&
             ' of the print_key',&
-            default_i_val=cp_out_default, supported_feature=supported_feature,error=error)
+            default_i_val=cp_out_default,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -225,7 +222,7 @@ CONTAINS
             "though equal to 0, might print the last iteration). If an iteration level is specified "//&
             "that is not present in the flow of the calculation it is just ignored.",&
             n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            citations=citations, supported_feature=supported_feature, error=error)
+            citations=citations, error=error)
 
        ! Enforce the presence or absence of both.. or give an error
        check = (PRESENT(each_iter_names)).EQV.(PRESENT(each_iter_values))
@@ -246,7 +243,7 @@ CONTAINS
           CALL keyword_create(keyword, name=TRIM(each_possible_labels(i_each)),&
                description=TRIM(each_desc_labels(i_each)),&
                usage=TRIM(each_possible_labels(i_each))//" <INTEGER>",&
-               default_i_val=my_value, supported_feature=supported_feature, error=error)
+               default_i_val=my_value, error=error)
           CALL section_add_keyword(subsection,keyword,error=error)
           CALL keyword_release(keyword,error=error)
        END DO
@@ -270,7 +267,7 @@ CONTAINS
             enum_desc=s2a("Do not mark last iteration specifically",&
                             "Mark last iteration with its iteration number",&
                             "Mark last iteration with lowercase letter l"),&
-            default_i_val=my_add_last,supported_feature=supported_feature,error=error)
+            default_i_val=my_add_last,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -281,7 +278,7 @@ CONTAINS
             " in the same file (no extra information about the actual"//&
             " iteration level is written to the file)",&
             usage="COMMON_ITERATION_LEVELS <INTEGER>",&
-            default_i_val=my_comm_iter_levels, supported_feature=supported_feature,error=error)
+            default_i_val=my_comm_iter_levels,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -299,15 +296,14 @@ CONTAINS
             ' Please note that this can lead to clashes of'//&
             ' filenames.',&
             usage="FILENAME ./filename ",&
-            default_lc_val=my_filename, supported_feature=supported_feature,error=error)
+            default_lc_val=my_filename,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="LOG_PRINT_KEY",&
             description="This keywords enables the logger for the print_key (a message is printed on "//&
             "screen everytime data, controlled by this print_key, are written)",&
-            usage="LOG_PRINT_KEY <LOGICAL>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,&
-            supported_feature=supported_feature, error=error)
+            usage="LOG_PRINT_KEY <LOGICAL>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -315,8 +311,7 @@ CONTAINS
           CALL keyword_create(keyword, name="UNIT",&
                description='Specify the unit of measurement for the quantity in output. '//&
                "All available CP2K units can be used.",&
-               usage="UNIT angstrom",default_c_val=TRIM(unit_str),supported_feature=supported_feature,&
-               error=error)
+               usage="UNIT angstrom",default_c_val=TRIM(unit_str),error=error)
           CALL section_add_keyword(print_key_section,keyword,error=error)
           CALL keyword_release(keyword,error=error)
        END IF

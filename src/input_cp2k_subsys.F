@@ -766,7 +766,6 @@ CONTAINS
             "All available CP2K units can be used.",&
             usage="UNIT angstrom*au_t^-1",&
             default_c_val="bohr*au_t^-1",&
-            supported_feature=.FALSE.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1021,14 +1020,14 @@ CONTAINS
        CALL keyword_create(keyword, name="UNIT",&
              description='Specify the unit of measurement for the coordinates in input'//&
              "All available CP2K units can be used.",&
-             usage="UNIT angstrom",default_c_val="angstrom",supported_feature=.TRUE.,&
+             usage="UNIT angstrom",default_c_val="angstrom",&
              error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SCALED",&
              description='Specify if the coordinateds in input are scaled.',&
-             usage="SCALED F",default_l_val=.FALSE.,supported_feature=.TRUE.,&
+             usage="SCALED F",default_l_val=.FALSE.,&
              lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1075,14 +1074,14 @@ CONTAINS
        CALL keyword_create(keyword, name="UNIT",&
              description='Specify the unit of measurement for the coordinates in input'//&
              "All available CP2K units can be used.",&
-             usage="UNIT angstrom",default_c_val="angstrom",supported_feature=.TRUE.,&
+             usage="UNIT angstrom",default_c_val="angstrom",&
              error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SCALED",&
              description='Specify if the coordinateds in input are scaled.',&
-             usage="SCALED F",default_l_val=.FALSE.,supported_feature=.TRUE.,&
+             usage="SCALED F",default_l_val=.FALSE.,&
              lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1130,14 +1129,14 @@ CONTAINS
        CALL keyword_create(keyword, name="UNIT",&
              description='Specify the unit of measurement for the coordinates in input'//&
              "All available CP2K units can be used.",&
-             usage="UNIT angstrom",default_c_val="angstrom",supported_feature=.TRUE.,&
+             usage="UNIT angstrom",default_c_val="angstrom",&
              error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="SCALED",&
              description='Specify if the coordinateds in input are scaled.',&
-             usage="SCALED F",default_l_val=.FALSE.,supported_feature=.TRUE.,&
+             usage="SCALED F",default_l_val=.FALSE.,&
              lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

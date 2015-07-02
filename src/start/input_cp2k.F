@@ -92,7 +92,7 @@ CONTAINS
     IF (.NOT.  failure) THEN
        CALL section_create(root_section,name="__ROOT__",&
             description="input file of cp2k",n_keywords=0, n_subsections=10,&
-            repeats=.FALSE., required=.FALSE., supported_feature=.TRUE., error=error)
+            repeats=.FALSE., required=.FALSE.,  error=error)
        NULLIFY(section)
 
        CALL create_global_section(section,error=error)
@@ -374,7 +374,7 @@ CONTAINS
     CALL section_create(section,name="MULTIPLE_FORCE_EVALS",&
          description="Describes how to handle multiple force_evals.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-         supported_feature=.TRUE.,error=error)
+         error=error)
 
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="FORCE_EVAL_ORDER",&
@@ -382,7 +382,7 @@ CONTAINS
          " this does not need to be specified in this list, because it that takes into account only the real"//&
          " energy contributions",&
          usage="FORCE_EVAL_ORDER <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1,&
-         default_i_vals=(/1/), supported_feature=.TRUE.,error=error)
+         default_i_vals=(/1/), error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -390,7 +390,7 @@ CONTAINS
          description="Specify if force_eval have different subsys. In case they share the same subsys,"//&
          " it needs to be specified only in the MIXED force_eval (if using MIXED) or"//&
          " in the force_eval corresponding to first force_eval of the previous order (when not using MIXED).",&
-         default_l_val=.FALSE., lone_keyword_l_val=.TRUE., supported_feature=.TRUE., error=error)
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,  error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -422,14 +422,14 @@ CONTAINS
             description="Section for external restart, specifies an external "//&
             "input file where to take positions,...",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            supported_feature=.TRUE.,error=error)
+            error=error)
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="RESTART_FILE_NAME",variants=(/"EXTERNAL_FILE"/),&
             description="Specifies the name of restart file (or any other input file)"//&
                         " to be read. Only fields relevant to a restart will be used"//&
                         " (unless switched off with the keywords in this section)",&
-            default_lc_val=" ", supported_feature=.TRUE.,error=error)
+            default_lc_val=" ", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -438,9 +438,7 @@ CONTAINS
                            description="Specifies the name of an additional restart file "//&
                            "from which selected input sections are read in binary format "//&
                            "(see SPLIT_RESTART_FILE).",&
-                           default_lc_val="",&
-                           supported_feature=.TRUE.,&
-                           error=error)
+                           default_lc_val="",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -449,157 +447,157 @@ CONTAINS
             " restartable keywords, unless explicitly defined. For example setting"//&
             " this keyword to .FALSE. does not restart any quantity. If, at the "//&
             " same time, one keyword is set to .TRUE. only that quantity will be"//&
-            " restarted.", default_l_val=.TRUE., supported_feature=.TRUE.,error=error)
+            " restarted.", default_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_COUNTERS",&
             description="Restarts the counters in MD schemes",&
-            type_of_var=logical_t, lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t, lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_POS",&
             description="Takes the positions from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_VEL",&
             description="Takes the velocities from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_RANDOMG",&
             description="Restarts the random number generator from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART_SHELL_POS",&
             description="Takes the positions of the shells from the external file (only if shell-model)",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_CORE_POS",&
             description="Takes the positions of the cores from the external file (only if shell-model)",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_OPTIMIZE_INPUT_VARIABLES",&
             description="Restart with the optimize input variables",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RESTART_SHELL_VELOCITY",&
             description="Takes the velocities of the shells from the external file (only if shell-model)",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_CORE_VELOCITY",&
             description="Takes the velocities of the shells from the external file (only if shell-model)",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_BAROSTAT",&
             description="Restarts the barostat from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_BAROSTAT_THERMOSTAT",&
             description="Restarts the barostat thermostat from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_SHELL_THERMOSTAT",&
             description="Restarts the shell thermostat from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_THERMOSTAT",&
             description="Restarts the nose thermostats of the particles "//&
             "from the EXTERNAL file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_CELL",&
             description="Restarts the cell (and cell_ref) "//&
             "from the EXTERNAL file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_METADYNAMICS",&
             description="Restarts hills from a previous metadynamics run "//&
             "from the EXTERNAL file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_WALKERS",&
             description="Restarts walkers informations from a previous metadynamics run "//&
             "from the EXTERNAL file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_BAND",&
             description="Restarts positions and velocities of the Band.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_QMMM",&
             description="Restarts the following specific QMMM info: translation vectors.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_CONSTRAINT",&
             description="Restarts constraint section. It's necessary when doing restraint"//&
             " calculation to have a perfect energy conservation. For constraints only it's"//&
             " use is optional.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_BSSE",&
             description="Restarts information for BSSE calculations.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_DIMER",&
             description="Restarts information for DIMER geometry optimizations.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_AVERAGES",&
             description="Restarts information for AVERAGES.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_RTP",&
             description="Restarts information for REAL TIME PROPAGATION and EHRENFEST DYNAMICS.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="CUSTOM_PATH",&
             description="Restarts the given path from the EXTERNAL file. Allows a major flexibility for restarts.",&
-            type_of_var=char_t,repeats=.TRUE., supported_feature=.TRUE.,error=error)
+            type_of_var=char_t,repeats=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        ! PIMD
        CALL keyword_create(keyword, name="RESTART_PINT_POS",&
             description="Restart bead positions from PINT%BEADS%COORD.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_PINT_VEL",&
             description="Restart bead velocities from PINT%BEADS%VELOCITY.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_PINT_NOSE",&
             description="Restart Nose thermostat for beads from PINT%NOSE.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_PINT_GLE",&
             description="Restart GLE thermostat for beads from PINT%GLE.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -607,27 +605,27 @@ CONTAINS
        ! PIMC
        CALL keyword_create(keyword, name="RESTART_HELIUM_POS",&
             description="Restart helium positions from PINT%HELIUM%COORD.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_HELIUM_PERMUTATION",&
             description="Restart helium permutation state from PINT%HELIUM%PERM.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_HELIUM_FORCE",&
             description="Restart helium forces exerted on the solute from PINT%HELIUM%FORCE.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_HELIUM_RNG",&
             description="Restarts helium random number generators from PINT%HELIUM%RNG_STATE.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,error=error)
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="RESTART_HELIUM_DENSITIES",&
             description="Restarts helium density distributions from PINT%HELIUM%RHO.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,supported_feature=.TRUE.,&
+            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,&
             default_l_val=.FALSE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -662,7 +660,7 @@ CONTAINS
          description="Describes a farming job, in which multiple inputs are executed."//newline//&
          "The RUN_TYPE in the global section has to be set to NONE for FARMING."//newline//&
          "The different groups are executed in parallel. The jobs inside the same groups in series.",&
-         repeats=.FALSE., required=.TRUE., supported_feature=.TRUE.,error=error)
+         repeats=.FALSE., required=.TRUE., error=error)
     NULLIFY(keyword, print_key)
 
     CALL keyword_create(keyword, name="MASTER_SLAVE",&
@@ -670,72 +668,72 @@ CONTAINS
          "This is most useful to load-balance if not all jobs have the same length, "//&
          "and a lot of CPUs/groups are availabe.",&
          usage="MASTER_SLAVE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
-         supported_feature=.TRUE.,error=error)
+         error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="NGROUPS",variants=(/"NGROUP"/),&
          description="Gives the preferred number of working groups.",&
-         usage="ngroups 4", type_of_var=integer_t, supported_feature=.TRUE.,error=error)
+         usage="ngroups 4", type_of_var=integer_t, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="GROUP_SIZE",&
          description="Gives the preferred size of a working group, "//&
          "groups will always be equal or larger than this size.",&
-         usage="group_size 2", default_i_val=8, supported_feature=.TRUE.,error=error)
+         usage="group_size 2", default_i_val=8, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="GROUP_PARTITION",&
          description="gives the exact number of processors for each group.",&
-         usage="group_partition  2 2 4 2 4 ", type_of_var=integer_t, n_var=-1, supported_feature=.TRUE.,error=error)
+         usage="group_partition  2 2 4 2 4 ", type_of_var=integer_t, n_var=-1, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="MAX_JOBS_PER_GROUP",&
          variants=(/"MAX_JOBS"/),&
          description="maximum number of jobs executed per group",&
-         usage="max_step 4", default_i_val=HUGE(0)/32768, supported_feature=.TRUE.,error=error)
+         usage="max_step 4", default_i_val=HUGE(0)/32768, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="CYCLE",&
          description="If farming should process all jobs in a cyclic way, stopping only if MAX_JOBS_PER_GROUP is exceeded." ,&
          usage="CYCLE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
-         supported_feature=.TRUE.,error=error)
+         error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="WAIT_TIME",&
          description="Time to wait [s] for a new task if no task is currently available, make this zero if no clock is available",&
-         usage="WAIT_TIME 0.1",default_r_val=0.5_dp, supported_feature=.TRUE.,error=error)
+         usage="WAIT_TIME 0.1",default_r_val=0.5_dp, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     NULLIFY(sub_section)
     CALL section_create(sub_section,name="JOB",&
          description="description of the jobs to be executed",&
-         repeats=.TRUE., required=.TRUE., supported_feature=.TRUE.,error=error)
+         repeats=.TRUE., required=.TRUE., error=error)
 
     CALL keyword_create(keyword,name="DIRECTORY",&
          description="the directory in which the job should be executed",&
          usage="DIRECTORY /my/path",&
-         required=.TRUE.,default_lc_val=".",supported_feature=.TRUE.,error=error)
+         required=.TRUE.,default_lc_val=".",error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword,name="INPUT_FILE_NAME",&
          description="the filename of the input file",&
          usage="INPUT_FILE_NAME my_input.inp",&
-         required=.TRUE.,default_lc_val="input.inp",supported_feature=.TRUE.,error=error)
+         required=.TRUE.,default_lc_val="input.inp",error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword,name="OUTPUT_FILE_NAME",&
          description="the filename of the output file, if not specified will use the project name in the &GLOBAL section.",&
          usage="OUTPUT_FILE_NAME my_input.inp",&
-         required=.FALSE.,default_lc_val="",supported_feature=.TRUE.,error=error)
+         required=.FALSE.,default_lc_val="",error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -743,7 +741,7 @@ CONTAINS
          description="An ID used to indentify a job in DEPENDENCIES. "//&
          "JOB_IDs do not need to be unique, dependencies will be on all jobs with a given ID. "//&
          "If no JOB_ID is given, the index of the &JOB section in the input file will be used. ",&
-         usage="JOB_ID 13", type_of_var=integer_t, supported_feature=.TRUE.,error=error)
+         usage="JOB_ID 13", type_of_var=integer_t, error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -759,7 +757,7 @@ CONTAINS
          "Additionally, note that, on some file systems, "//&
          " output (restart) files might not be immediately available on all compute nodes,"//&
          "potentially resulting in unexpected failures.", &
-         usage="DEPENDENCIES 13 1 7",type_of_var=integer_t, n_var=-1, supported_feature=.TRUE.,error=error)
+         usage="DEPENDENCIES 13 1 7",type_of_var=integer_t, n_var=-1, error=error)
     CALL section_add_keyword(sub_section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section, sub_section, error=error)
@@ -768,14 +766,14 @@ CONTAINS
     CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
          description="controls the printing of FARMING specific output",&
          print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-         supported_feature=.TRUE.,error=error)
+         error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
 
     CALL keyword_create(keyword, name="DO_RESTART",&
          description="Restart a farming job (and should pick up where the previous left off)",&
          usage="DO_RESTART",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
-         supported_feature=.TRUE.,error=error)
+         error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -790,7 +788,7 @@ CONTAINS
     CALL cp_print_key_section_create(print_key,"RESTART",&
          description="controls the printing of the restart for FARMING.",&
          print_level=low_print_level,add_last=add_last_numeric,filename="FARMING",&
-         supported_feature=.TRUE.,error=error)
+         error=error)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
 

@@ -53,7 +53,7 @@ MODULE swarm_input
     CALL section_create(swarm_section,name="SWARM",&
          description="Section to control swarm runs. "//&
          "The swarm framework provides a common ground for master/worker algorithms.",&
-         repeats=.FALSE., required=.TRUE., supported_feature=.TRUE.,error=error)
+         repeats=.FALSE., required=.TRUE., error=error)
 
     CALL keyword_create(keyword, name="BEHAVIOR",&
          description="Which behaviour should control the swarm.",&

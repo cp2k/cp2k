@@ -10,7 +10,6 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE input_cp2k_check
-  USE cp2k_info,                       ONLY: id_cp2k_version
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
@@ -20,21 +19,19 @@ MODULE input_cp2k_check
                                              cp_unit_set_type
   USE input_constants,                 ONLY: &
        do_region_global, do_thermo_al, do_thermo_csvr, do_thermo_gle, &
-       do_thermo_nose, do_thermo_same_as_part, id_release_version, &
-       npt_f_ensemble, npt_i_ensemble, vdw_nl_LMKLL, xc_funct_b3lyp, &
-       xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, &
-       xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
-       xc_funct_pbe0, xc_funct_tpss, xc_funct_xwpbe, xc_none, &
-       xc_vdw_fun_nonloc
+       do_thermo_nose, do_thermo_same_as_part, npt_f_ensemble, &
+       npt_i_ensemble, vdw_nl_LMKLL, xc_funct_b3lyp, xc_funct_beefvdw, &
+       xc_funct_blyp, xc_funct_bp, xc_funct_hcth120, xc_funct_no_shortcut, &
+       xc_funct_olyp, xc_funct_pade, xc_funct_pbe, xc_funct_pbe0, &
+       xc_funct_tpss, xc_funct_xwpbe, xc_none, xc_vdw_fun_nonloc
   USE input_keyword_types,             ONLY: keyword_type
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
-       section_type, section_vals_check_release, section_vals_create, &
-       section_vals_get, section_vals_get_subs_vals, &
-       section_vals_get_subs_vals3, section_vals_release, &
-       section_vals_remove_values, section_vals_set_subs_vals, &
-       section_vals_type, section_vals_val_get, section_vals_val_set, &
-       section_vals_val_unset
+       section_type, section_vals_create, section_vals_get, &
+       section_vals_get_subs_vals, section_vals_get_subs_vals3, &
+       section_vals_release, section_vals_remove_values, &
+       section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
+       section_vals_val_set, section_vals_val_unset
   USE input_val_types,                 ONLY: logical_t
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -79,8 +76,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iforce_eval, &
                                                 nforce_eval
-    LOGICAL                                  :: enable_unsupported_features, &
-                                                explicit, explicit_mix, &
+    LOGICAL                                  :: explicit, explicit_mix, &
                                                 failure
     TYPE(section_vals_type), POINTER         :: section, section1, section2, &
                                                 section3, sections
@@ -134,12 +130,6 @@ CONTAINS
           END IF
        END DO
 
-       ! Check for unsupported features for release version
-       IF (id_cp2k_version==id_release_version) THEN
-          CALL section_vals_val_get(input_file,"GLOBAL%ENABLE_UNSUPPORTED_FEATURES",&
-               l_val=enable_unsupported_features, error=error)
-          CALL section_vals_check_release(input_file,enable_unsupported_features,error)
-       END IF
     END IF
     CALL timestop(handle)
   END SUBROUTINE check_cp2k_input

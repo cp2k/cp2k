@@ -72,13 +72,13 @@ CONTAINS
        CALL section_create(section,name="VIBRATIONAL_ANALYSIS",&
             description="Section to setup parameters to perform a Normal Modes analysis.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            supported_feature=.TRUE.,error=error)
+            error=error)
        NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="DX",&
             description="Specify the increment to be used to construct the HESSIAN with "//&
             "finite difference method",&
-            default_r_val=1.0E-2_dp, unit_str="bohr", supported_feature=.TRUE.,error=error)
+            default_r_val=1.0E-2_dp, unit_str="bohr", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -87,7 +87,7 @@ CONTAINS
             "environment (for parallel runs). "//&
             "In case of mode selective calculations more than one replica will start"//&
             " a block Davidson algorithm to track more than only one frequency",&
-            default_i_val=1, supported_feature=.TRUE.,error=error)
+            default_i_val=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -105,13 +105,13 @@ CONTAINS
 
        CALL keyword_create(keyword, name="FULLY_PERIODIC",&
             description="Avoids to clean rotations from the Hessian matrix.",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., supported_feature=.TRUE.,error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="INTENSITIES",&
             description="Calculation of the IR-Intensities. Calculation of dipols has to be specified explicitly ",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., supported_feature=.TRUE., error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE.,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -150,7 +150,7 @@ CONTAINS
        CALL section_create(section,name="PRINT",&
             description="Section controlling the print information during a vibrational "//&
             "analysis.",n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            supported_feature=.TRUE.,error=error)
+            error=error)
        NULLIFY(keyword, print_key)
 
        CALL cp_print_key_section_create(print_key,"BANNER",&
@@ -163,14 +163,14 @@ CONTAINS
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing basic info about the vibrational method", &
             print_level=medium_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-            supported_feature=.TRUE., error=error)
+             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"MOLDEN_VIB",&
             description="Controls the printing for visualization in molden format", &
             print_level=low_print_level,add_last=add_last_numeric,filename="VIBRATIONS",&
-            supported_feature=.TRUE., error=error)
+             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -178,11 +178,11 @@ CONTAINS
             description="Controls the printing basic info during the cleaning of the "//&
             "rotational degrees of freedom.", &
             print_level=debug_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-            supported_feature=.TRUE., error=error)
+             error=error)
        ! Print_key keywords
        CALL keyword_create(keyword, name="COORDINATES",&
             description="Prints atomic coordinates after rotation",&
-            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., supported_feature=.TRUE.,error=error)
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(section,print_key,error=error)

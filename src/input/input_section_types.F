@@ -68,8 +68,7 @@ MODULE input_section_types
             section_vals_get, section_vals_get_subs_vals, section_vals_val_get, section_vals_list_get,&
             section_vals_write, section_vals_add_values, section_vals_get_subs_vals2,&
             section_vals_val_set, section_vals_val_unset, section_vals_get_subs_vals3,&
-            section_vals_set_subs_vals, section_vals_duplicate, section_vals_remove_values,&
-            section_vals_check_release
+            section_vals_set_subs_vals, section_vals_duplicate, section_vals_remove_values
   PUBLIC :: write_section_xml
 
   PUBLIC :: section_get_ival,&
@@ -106,7 +105,7 @@ MODULE input_section_types
 !> \author fawzi
 ! *****************************************************************************
   TYPE section_type
-     LOGICAL :: frozen, required, repeats, supported_feature
+     LOGICAL :: frozen, required, repeats
      INTEGER :: id_nr,ref_count, n_keywords, n_subsections
      CHARACTER(len=default_string_length)        :: name
      CHARACTER,DIMENSION(:),POINTER              :: description=>Null()
@@ -150,20 +149,18 @@ CONTAINS
 !> \param required if this section is required (and thus it cannot be
 !>        totally default). Defaults to false.
 !> \param citations ...
-!> \param supported_feature ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE section_create(section,name,description,n_keywords,&
-       n_subsections, repeats, required, citations, supported_feature, error)
+       n_subsections, repeats, required, citations, error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(len=*), INTENT(in)             :: name, description
     INTEGER, INTENT(in), OPTIONAL            :: n_keywords, n_subsections
     LOGICAL, INTENT(in), OPTIONAL            :: repeats, required
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: citations
-    LOGICAL, INTENT(in), OPTIONAL            :: supported_feature
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_create', &
@@ -201,11 +198,9 @@ CONTAINS
 
        section%frozen=.FALSE.
        section%required=.FALSE.
-       section%supported_feature=.FALSE.
        section%repeats=.FALSE.
        IF (PRESENT(required)) section%required=required
        IF (PRESENT(repeats)) section%repeats=repeats
-       IF (PRESENT(supported_feature)) section%supported_feature=supported_feature
 
        NULLIFY(section%citations)
        IF (PRESENT(citations)) THEN
@@ -1941,117 +1936,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE section_vals_val_unset
-
-! *****************************************************************************
-!> \brief Checks if all sections or keywords defined have been supported for
-!>      release version
-!> \param section_vals the section to check for released features
-!> \param enable_unsupported_features ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \author Teodoro Laino [tlaino] - University of Zurich - 01.2008
-!> \note
-!>      skips required sections which weren't read
-! *****************************************************************************
-  RECURSIVE SUBROUTINE section_vals_check_release(section_vals,enable_unsupported_features,error)
-    TYPE(section_vals_type), POINTER         :: section_vals
-    LOGICAL, INTENT(IN)                      :: enable_unsupported_features
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_check_release', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i_rep_s, ik, isec, nr, nval, &
-                                                output_unit
-    LOGICAL                                  :: check_key, defaultSection, &
-                                                failure
-    TYPE(cp_error_type)                      :: suberror
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: section
-    TYPE(section_vals_type), POINTER         :: sval
-
-    failure=.FALSE.
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    output_unit= cp_logger_get_default_io_unit(logger)
-
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
-    CALL cp_error_init(suberror,template_error=error)
-    IF (.NOT. failure) THEN
-       CALL section_vals_get(section_vals, n_repetition=nr, section=section, error=error)
-       DO i_rep_s=1,nr
-          defaultSection=(SIZE(section_vals%values,2)==0)
-          IF (.NOT.(section%required.AND.defaultSection)) THEN
-             IF (.NOT.section%supported_feature) THEN
-                IF (output_unit>0) THEN
-                   WRITE(output_unit,'(/)')
-                   WRITE(output_unit,'(T2,"RELEASE_ERROR|",1X,A)')&
-                        "Section <"//TRIM(section%name)//"> is not supported for CP2K release version."
-                   IF (enable_unsupported_features) THEN
-                      WRITE(output_unit,'(T2,"RELEASE_ERROR|",1X,A)')&
-                           "Calculation continues but the results could be totally meaningless!"
-                   ELSE
-                      WRITE(output_unit,'(T2,"RELEASE_ERROR|",1X,A)')&
-                           "You may consider to enable the keyword: GLOBAL%ENABLE_UNSUPPORTED_FEATURES or"
-                      WRITE(output_unit,'(T2,"RELEASE_ERROR|",1X,A)')"download a Development Version!"
-                   END IF
-                END IF
-                IF (.NOT.enable_unsupported_features)  failure = .TRUE.
-             END IF
-             DO ik=-1,section%n_keywords
-                keyword => section%keywords(ik)%keyword
-                IF (ASSOCIATED(keyword)) THEN
-                   CALL section_vals_val_get(section_vals,keyword%names(1),i_rep_s,n_rep_val=nval,error=error)
-                   check_key = .FALSE.
-                   IF (i_rep_s<=SIZE(section_vals%values,2)) THEN
-                      vals  => section_vals%values(ik,i_rep_s)%list
-                      new_pos => vals
-                      IF (ASSOCIATED(new_pos)) THEN
-                         ! Keyword was parsed
-                         check_key = .TRUE.
-                      END IF
-                   ELSEIF (.NOT.keyword%required.AND.ASSOCIATED(keyword%default_value)) THEN
-                      ! Keyword was not parsed but a default value is present
-                      check_key = .TRUE.
-                   END IF
-                   IF ((check_key).AND.(.NOT.keyword%supported_feature)) THEN
-                      IF (output_unit>0) THEN
-                         WRITE(output_unit,'(T2,"RELEASE_ERROR|",2X,A)')&
-                              "Keyword <"//TRIM(keyword%names(1))//"> is not supported for CP2K release version."
-                         IF (enable_unsupported_features) THEN
-                            WRITE(output_unit,'(T2,"RELEASE_ERROR|",2X,A)')&
-                                 "Calculation continues but the results could be totally meaningless!"
-                         ELSE
-                            WRITE(output_unit,'(T2,"RELEASE_ERROR|",2X,A)')&
-                                 "You may consider to enable the keyword: GLOBAL%ENABLE_UNSUPPORTED_FEATURES or"
-                            WRITE(output_unit,'(T2,"RELEASE_ERROR|",2X,A)')"download a Development Version!"
-                         END IF
-                      END IF
-                      IF (.NOT.enable_unsupported_features)  failure = .TRUE.
-                   END IF
-                END IF
-             END DO
-             IF (.NOT.failure) THEN
-                IF (ASSOCIATED(section_vals%subs_vals)) THEN
-                   DO isec=1,SIZE(section_vals%subs_vals,1)
-                      sval => section_vals%subs_vals(isec,i_rep_s)%section_vals
-                      IF (ASSOCIATED(sval)) THEN
-                         ! Section was parsed
-                         CALL section_vals_check_release(sval,enable_unsupported_features,error)
-                      END IF
-                   END DO
-                END IF
-             END IF
-             CPPrecondition(.NOT.failure,cp_failure_level,routineP,error,failure)
-          END IF
-       END DO
-    END IF
-    CALL cp_error_dealloc_ref(suberror)
-
-  END SUBROUTINE section_vals_check_release
 
 ! *****************************************************************************
 !> \brief writes the values in the given section in a way that is suitable to

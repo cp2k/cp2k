@@ -58,7 +58,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="OPTIMIZE_INPUT",&
          description="describes an input optimization job, in which parameters in input files get optimized.",&
-         repeats=.FALSE., required=.TRUE., supported_feature=.TRUE.,error=error)
+         repeats=.FALSE., required=.TRUE., error=error)
     NULLIFY(keyword)
 
     CALL keyword_create(keyword, name="METHOD",&
@@ -153,7 +153,7 @@ CONTAINS
     NULLIFY(sub_section)
     CALL section_create(sub_section,name="FORCE_MATCHING",&
          description="Specify the force matching input.",&
-         repeats=.TRUE., required=.TRUE., supported_feature=.TRUE.,error=error)
+         repeats=.TRUE., required=.TRUE., error=error)
 
          CALL keyword_create(keyword,name="OPTIMIZE_FILE_NAME",&
               description="the filename of the input file which contains the parameters to be optimized",&
@@ -191,7 +191,7 @@ CONTAINS
               description="Gives the preferred size of a working group, "//&
               "groups will always be equal or larger than this size."//&
               "Usually this should take the number of cores per socket into account for good performance.",&
-              usage="group_size 2", default_i_val=6, supported_feature=.TRUE.,error=error)
+              usage="group_size 2", default_i_val=6, error=error)
          CALL section_add_keyword(sub_section,keyword,error=error)
          CALL keyword_release(keyword,error=error)
 
