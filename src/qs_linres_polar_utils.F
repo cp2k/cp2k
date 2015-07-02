@@ -13,6 +13,8 @@
 !> \note
 ! *****************************************************************************
 MODULE qs_linres_polar_utils
+  USE bibliography,                    ONLY: Luber2014,&
+                                             cite_reference
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
@@ -273,6 +275,8 @@ CONTAINS
                       error=error)
 !
     IF(do_raman) THEN
+
+        CALL cite_reference(Luber2014)
     
         CALL get_polar_env(polar_env=polar_env,&
                       psi1_dBerry=psi1_dBerry, &

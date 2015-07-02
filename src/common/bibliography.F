@@ -72,7 +72,7 @@ MODULE bibliography
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
        Rayson2009, Grimme2011, Fattebert2002, Andreussi2012,           &
        Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
-       QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009
+       QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009, Luber2014
 
 CONTAINS
 
@@ -2958,6 +2958,31 @@ CONTAINS
           "DI 10.1038/NPHYS1185",&
           "ER"),&
           DOI="10.1038/NPHYS1185")
+
+     CALL add_reference(key=Luber2014, ISI_record=s2a(&
+          "PT J",&
+          "AU Luber, S",&
+          "   Iannuzzi, M",&
+          "   Hutter, J",&
+          "AF Luber, Sandra",&
+          "   Iannuzzi, Marcella",&
+          "   Hutter, Juerg",&
+          "TI Raman spectra from ab initio molecular dynamics and its application to",&
+          "   liquid S-methyloxirane",&
+          "SO JOURNAL OF CHEMICAL PHYSICS",&
+          "RI Hutter, Juerg/E-9244-2011",&
+          "SN 0021-9606",&
+          "EI 1089-7690",&
+          "PD SEP 7",&
+          "PY 2014",&
+          "VL 141",&
+          "IS 9",&
+          "AR 094503",&
+          "DI 10.1063/1.4894425",&
+          "UT WOS:000342207400024",&
+          "PM 25194377",&
+          "ER"),&
+          DOI="10.1063/1.4894425")
 
   END SUBROUTINE add_all_references
 

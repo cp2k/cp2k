@@ -11,7 +11,8 @@
 ! *****************************************************************************
 MODULE input_cp2k_properties_dft
 
-  USE bibliography,                    ONLY: Putrino2000,&
+  USE bibliography,                    ONLY: Luber2014,&
+                                             Putrino2000,&
                                              Putrino2002,&
                                              Sebastiani2001,&
                                              Weber2009
@@ -951,6 +952,7 @@ CONTAINS
        CALL keyword_create(keyword, name="DO_RAMAN",&
             description="Compute the electric-dipole--electric-dipole polarizability",&
             usage="DO_RAMAN F",&
+            citations=(/Luber2014/),&
             default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
