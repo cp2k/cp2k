@@ -131,7 +131,7 @@
      </ul>
      <ul class="none">
       <li>
-       This section cannot be repeated and can be optional.
+       This section cannot be repeated.
       </li>
      </ul>
      <ul class="none">
