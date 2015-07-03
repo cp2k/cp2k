@@ -24,7 +24,7 @@
 !          DERIVATIVE_METHOD cd5
         &END DIELECTRIC
         &DIRICHLET_BC
-          DEBUG .FALSE.
+          VERBOSE_OUTPUT .FALSE.
           &AA_PLANAR
             v_D       0.0
             PARALLEL_PLANE YZ
