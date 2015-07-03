@@ -18,3 +18,8 @@ Ar_mixed_aa_planar-ns_cell.inp
 
 # Fixed NaNs in ACOS
 Ar_mixed_planar.inp
+
+# perform less fft/dct
+Ar_mixed_aa_planar.inp
+Ar_mixed_planar.inp
+Ar_mixed_aa_planar-ns_cell.inp
