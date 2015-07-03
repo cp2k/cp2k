@@ -51,7 +51,7 @@ C      4.920000    1.419800    0.000000
     &PROPERTIES
       &RESP
        STRIDE 3 
-       &PERIODIC_SYS
+       &SLAB_SAMPLING
         RANGE 1.0 3.0
         LENGTH 1.0
         ATOM_LIST 1..8 

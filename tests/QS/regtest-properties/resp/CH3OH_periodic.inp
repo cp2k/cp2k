@@ -59,7 +59,7 @@ H  0.8395  -1.0657  0.0000
   &END SUBSYS
     &PROPERTIES
       &RESP
-        &NONPERIODIC_SYS
+        &SPHERE_SAMPLING
          RMIN 2.1
          RMAX 2.5
         &END

@@ -10,6 +10,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE input_cp2k_resp
+  USE bibliography,                    ONLY: Golze2015
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              high_print_level,&
@@ -74,11 +75,9 @@ CONTAINS
             "Poisson solver and a periodic cell, the periodic RESP routines are "//&
             "used. If the Hartree potential matches with the one of an isolated "//&
             "system (i.e. isolated Poisson solver and big, nonperiodic cells), "//&
-            "the nonperiodic RESP routines are automatically used. The subsections "//&
-            "NONPERIODIC_SYS and PERIODIC_SYS do not request a nonperiodic or periodic "//&
-            "solution, they only determine the sampling of the fitting points. All "//&
-            "restraints are harmonic!",&
-            n_keywords=2, n_subsections=2, repeats=.FALSE., &
+            "the nonperiodic RESP routines are automatically used. All restraints "//&
+            "are harmonic!",&
+            n_keywords=2, n_subsections=2, repeats=.FALSE., citations=(/Golze2015/),& 
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -132,11 +131,11 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_nonperiodic_sys_section(subsection,error)
+       CALL create_sphere_sampling_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_periodic_sys_section(subsection,error)
+       CALL create_slab_sampling_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -281,18 +280,18 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief specifies the parameter for sampling the resp fitting points for 
-!>        non-periodic systems 
+!>        molecular structures; sampling in spheres around the atoms 
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Dorothea Golze
 ! *****************************************************************************
-  SUBROUTINE create_nonperiodic_sys_section(section,error)
+  SUBROUTINE create_sphere_sampling_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
-      routineN = 'create_nonperiodic_sys_section', &
+      routineN = 'create_sphere_sampling_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -302,15 +301,13 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="NONPERIODIC_SYS",&
+       CALL section_create(section,name="SPHERE_SAMPLING",&
             description="Specifies the parameter for sampling the RESP fitting points "//&
-                        "for non-periodic systems, i.e. systems that do not involve " //&
-                        "surfaces. This section can be used with periodic and nonperiodic "//&
-                        "Poisson solvers, it only affects the sampling of grid points. "//&
-                        "All grid points in the shell defined by rmin and rmax are accepted "//&
-                        "for fitting.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., &
-            error=error)
+                        "for molecular structures, i.e. systems that do not involve " //&
+                        "surfaces. Fitting points are sampled in spheres around the "//&
+                        "atom. All grid points in the shell defined by rmin and rmax "//&
+                        "are accepted for fitting.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
 
        NULLIFY(keyword)
 
@@ -386,20 +383,21 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE create_nonperiodic_sys_section
+  END SUBROUTINE create_sphere_sampling_section
+
 ! *****************************************************************************
 !> \brief specifies the parameter for sampling the resp fitting points for 
-!>        periodic systems, i.e. systems that involve surfaces 
+!>        slab-like periodic systems, i.e. systems that involve surfaces 
 !> \param section the section to create
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Dorothea Golze
 ! *****************************************************************************
-  SUBROUTINE create_periodic_sys_section(section,error)
+  SUBROUTINE create_slab_sampling_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_periodic_sys_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_slab_sampling_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -409,10 +407,10 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="PERIODIC_SYS",&
+       CALL section_create(section,name="SLAB_SAMPLING",&
             description="Specifies the parameter for sampling the RESP fitting "//&
-                        "points for periodic systems, i.e. systems that involve " //&
-                       "surfaces. This section can only be used with periodic  "//&
+                        "points for slab-like periodic systems, i.e. systems that "//&
+                        "involve surfaces. This section can only be used with periodic  "//&
                         "Poisson solver and cell. To see, which grid points were "//&
                         "used, switch on COORD_FIT_POINTS in the PRINT section.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., &
@@ -470,7 +468,7 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE create_periodic_sys_section
+  END SUBROUTINE create_slab_sampling_section
 
 ! *****************************************************************************
 !> \brief create the resp print section 
