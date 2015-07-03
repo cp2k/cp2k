@@ -263,7 +263,7 @@ CONTAINS
 
     ! parsing DIRICHLET_BC subsection
     dbc_section => section_vals_get_subs_vals(ps_implicit_section, "DIRICHLET_BC", error=error)
-    CALL section_vals_val_get(dbc_section, "DEBUG", l_val=params%dbc_params%debug, error=error)
+    CALL section_vals_val_get(dbc_section, "VERBOSE_OUTPUT", l_val=params%dbc_params%verbose_output, error=error)
     aa_planar_section => section_vals_get_subs_vals(dbc_section, "AA_PLANAR", error=error)
     planar_section => section_vals_get_subs_vals(dbc_section, "PLANAR", error=error)
     xaa_cylindrical_section => section_vals_get_subs_vals(dbc_section, "XAA_CYLINDRICAL", error=error)

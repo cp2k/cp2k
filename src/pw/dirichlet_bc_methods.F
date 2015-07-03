@@ -80,7 +80,7 @@ CONTAINS
       n_aa_cuboidal, n_aa_planar, n_dbcs, n_planar, n_xaa_cylindrical, unit_nr
     INTEGER, DIMENSION(3)                    :: n_prtn
     INTEGER, DIMENSION(:), POINTER           :: xaa_cylindrical_nsides
-    LOGICAL                                  :: debug, smooth
+    LOGICAL                                  :: smooth, verbose
     REAL(dp)                                 :: base_radius, v_D, zeta
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: x_glbl, x_locl, y_glbl, &
                                                 y_locl, z_glbl, z_locl
@@ -97,7 +97,7 @@ CONTAINS
        unit_nr = -1
     ENDIF   
 
-    debug = poisson_params%dbc_params%debug
+    verbose = poisson_params%dbc_params%verbose_output
 
     n_aa_planar = poisson_params%dbc_params%n_aa_planar
     n_aa_cuboidal = poisson_params%dbc_params%n_aa_cuboidal
@@ -139,10 +139,10 @@ CONTAINS
                                    poisson_params%dbc_params%aa_planar_yxtnt(:,j), &
                                    poisson_params%dbc_params%aa_planar_zxtnt(:,j), &
                                    v_D, smooth, zeta, dbc_id, dbcs(j)%dirichlet_bc, &
-                                   debug, error)
+                                   verbose, error)
 
          CALL dirichlet_bc_partition(v_D, smooth, zeta, n_prtn, pw_pool, x_glbl, y_glbl, z_glbl, &
-                                     x_locl, y_locl, z_locl, dbcs(j)%dirichlet_bc, debug, error)
+                                     x_locl, y_locl, z_locl, dbcs(j)%dirichlet_bc, verbose, error)
       END DO
 
       l = n_aa_planar
@@ -164,10 +164,10 @@ CONTAINS
                                    poisson_params%dbc_params%aa_cuboidal_yxtnt(:,j - l), &
                                    poisson_params%dbc_params%aa_cuboidal_zxtnt(:,j - l), &
                                    v_D, smooth, zeta, dbc_id, dbcs(j)%dirichlet_bc, &
-                                   debug, error)
+                                   verbose, error)
 
          CALL dirichlet_bc_partition(v_D, smooth, zeta, n_prtn, pw_pool, x_glbl, y_glbl, z_glbl, &
-                                     x_locl, y_locl, z_locl, dbcs(j)%dirichlet_bc, debug, error)
+                                     x_locl, y_locl, z_locl, dbcs(j)%dirichlet_bc, verbose, error)
       END DO
 
       l = n_aa_planar + n_aa_cuboidal
@@ -189,10 +189,10 @@ CONTAINS
                                    poisson_params%dbc_params%planar_Bvtx(:,j - l), &
                                    poisson_params%dbc_params%planar_Cvtx(:,j - l), &
                                    v_D, smooth, zeta, dbc_id, dbcs(j)%dirichlet_bc, &
-                                   debug, error)
+                                   verbose, error)
 
          CALL dirichlet_bc_partition(v_D, smooth, zeta, n_prtn, pw_pool, x_glbl, y_glbl, z_glbl, &
-                                     x_locl, y_locl, z_locl, dbcs(j)%dirichlet_bc, debug, error)
+                                     x_locl, y_locl, z_locl, dbcs(j)%dirichlet_bc, verbose, error)
       END DO
 
       l = n_aa_planar + n_aa_cuboidal + n_planar
@@ -217,7 +217,7 @@ CONTAINS
                                    x_locl, y_locl, z_locl, &
                                    poisson_params%dbc_params%xaa_cylindrical_xxtnt(:,j), &
                                    base_center, base_radius, v_D, smooth, zeta, n_prtn, &
-                                   dbcs(ind_start : ind_end), apx_type, debug, error)
+                                   dbcs(ind_start : ind_end), apx_type, verbose, error)
 
          l = l + xaa_cylindrical_nsides(j)
       END DO
@@ -248,7 +248,7 @@ CONTAINS
 !> \param y_locl y grid vetor of the simulation box local to this process 
 !> \param z_locl z grid vetor of the simulation box local to this process 
 !> \param dirichlet_bc the dirichlet_bc object to be partitioned 
-!> \param debug whether or not to print out the coordinates of the vertices
+!> \param verbose whether or not to print out the coordinates of the vertices
 !> \param error cp2k error
 !>
 !> \par History
@@ -256,7 +256,7 @@ CONTAINS
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE dirichlet_bc_partition(v_D, smooth, zeta, n_prtn, pw_pool, x_glbl, y_glbl, z_glbl, &
-                                    x_locl, y_locl, z_locl, dirichlet_bc, debug, error)
+                                    x_locl, y_locl, z_locl, dirichlet_bc, verbose, error)
 
     REAL(dp), INTENT(IN)                     :: v_D
     LOGICAL, INTENT(IN)                      :: smooth
@@ -268,7 +268,7 @@ CONTAINS
                                                 x_locl, y_locl, z_locl
     TYPE(dirichlet_bc_type), INTENT(INOUT), &
       POINTER                                :: dirichlet_bc
-    LOGICAL, INTENT(IN)                      :: debug
+    LOGICAL, INTENT(IN)                      :: verbose
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dirichlet_bc_partition', &
@@ -310,7 +310,7 @@ CONTAINS
       dirichlet_bc%n_tiles = n_tiles
   
       ALLOCATE(dirichlet_bc%tiles(n_tiles))
-      IF ((unit_nr .GT. 0) .AND. debug) WRITE(unit_nr,'(T7,A,I5)') "number of partitions : ", n_tiles
+      IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr,'(T7,A,I5)') "number of partitions : ", n_tiles
   
       DO k = 1, n_tiles
          ALLOCATE(dirichlet_bc%tiles(k)%tile)
@@ -331,7 +331,7 @@ CONTAINS
                                 use_data=REALDATA3D, in_space=REALSPACE, error=error)
          CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw, error=error)
   
-         IF ((unit_nr .GT. 0) .AND. debug) THEN 
+         IF ((unit_nr .GT. 0) .AND. verbose) THEN 
             WRITE(unit_nr,'(T7,A,I5)') "tile", k
             DO i = 1, 4
                WRITE(unit_nr,'(T10,A,I1,3F10.3)') "   vertex ", i, &
@@ -347,7 +347,7 @@ CONTAINS
          CALL cs_rectangle_release(rectangle_tmp, error)
       END DO
   
-      IF ((unit_nr .GT. 0) .AND. debug) WRITE(unit_nr, '(T3,A)') REPEAT('=', 78) 
+      IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr, '(T3,A)') REPEAT('=', 78) 
 
       DO k = 1, n_tiles
          CALL cs_rectangle_release(tiles(k)%tile%rectangle, error)
@@ -362,7 +362,7 @@ CONTAINS
       dirichlet_bc%n_tiles = n_tiles
       ALLOCATE(dirichlet_bc%tiles(n_tiles))
       dirichlet_bc%tiles = tiles
-      IF ((unit_nr .GT. 0) .AND. debug) WRITE(unit_nr,'(T7,A,I5)') "number of partitions : ", n_tiles
+      IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr,'(T7,A,I5)') "number of partitions : ", n_tiles
   
       DO k = 1, n_tiles
          ! update id and initialize missing info 
@@ -376,7 +376,7 @@ CONTAINS
                                 use_data=REALDATA3D, in_space=REALSPACE, error=error)
          CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw, error=error)
   
-         IF ((unit_nr .GT. 0) .AND. debug) THEN 
+         IF ((unit_nr .GT. 0) .AND. verbose) THEN 
             WRITE(unit_nr,'(T7,A,I5)') "tile", k
             DO i = 1, 8
                WRITE(unit_nr,'(T10,A,I1,3F10.3)') &
@@ -392,7 +392,7 @@ CONTAINS
          dirichlet_bc%tiles(k)%tile%npts = tile_npts
       END DO
   
-      IF ((unit_nr .GT. 0) .AND. debug) WRITE(unit_nr, '(T3,A)') REPEAT('=', 78) 
+      IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr, '(T3,A)') REPEAT('=', 78) 
 
       DEALLOCATE(tiles)
 
@@ -428,7 +428,7 @@ CONTAINS
 !>               z interval (defining the region) should be partitioned into
 !> \param dbcs  the x-axis-aligned cylindrical gate region to be created
 !> \param apx_type the type of the n-gonal prism approximating the cylinder
-!> \param debug whether or not to print out the coordinates of the vertices
+!> \param verbose whether or not to print out the coordinates of the vertices
 !> \param error cp2k error
 !> \par History
 !>       08.2014 created [Hossein Bani-Hashemian]
@@ -437,7 +437,7 @@ CONTAINS
   SUBROUTINE create_xaa_cylindrical_dbc(pw_pool, &
                        x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl, &
                        x_xtnt, base_center, base_radius, v_D, smooth, zeta, &
-                       n_prtn, dbcs, apx_type, debug, error)
+                       n_prtn, dbcs, apx_type, verbose, error)
 
     TYPE(pw_pool_type), POINTER              :: pw_pool
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
@@ -451,7 +451,7 @@ CONTAINS
     TYPE(dirichlet_bc_p_type), &
       DIMENSION(:), INTENT(INOUT)            :: dbcs
     INTEGER, INTENT(IN), OPTIONAL            :: apx_type
-    LOGICAL, INTENT(IN)                      :: debug
+    LOGICAL, INTENT(IN)                      :: verbose
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_xaa_cylindrical_dbc', &
@@ -561,8 +561,8 @@ CONTAINS
 
        dbcs(j)%dirichlet_bc%n_tiles = 1
 
-       IF ((unit_nr .GT. 0) .AND. debug) THEN 
-          WRITE(unit_nr, '(T3,A,A)') "======== debug ", REPEAT('=', 63)
+       IF ((unit_nr .GT. 0) .AND. verbose) THEN 
+          WRITE(unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
           WRITE(unit_nr,'(T7,A,I5,T20,A,I5,A)') "edge", j, "of the", n_dbcs, &
                                                 "-gonal prism approximating the cylinder" 
           DO i = 1, 4
@@ -572,7 +572,7 @@ CONTAINS
        END IF
 
        CALL dirichlet_bc_partition(v_D, smooth, zeta, n_prtn, pw_pool, x_glbl, y_glbl, z_glbl, &
-                                   x_locl, y_locl, z_locl, dbcs(j)%dirichlet_bc, debug, error)
+                                   x_locl, y_locl, z_locl, dbcs(j)%dirichlet_bc, verbose, error)
     END DO
 
     CALL timestop(handle)
@@ -592,14 +592,14 @@ CONTAINS
 !> \param zeta the mollifier's width
 !> \param dbc_id unique ID for the planar Dirichlet region
 !> \param dirichlet_bc the dirichlet_bc object to be created 
-!> \param debug whether or not to print out the coordinates of the vertices
+!> \param verbose whether or not to print out the coordinates of the vertices
 !> \param error cp2k error
 !> \par History
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE create_aa_planar_dbc(x_glbl, y_glbl, z_glbl, x_xtnt, y_xtnt, z_xtnt, &
-                       v_D, smooth, zeta, dbc_id, dirichlet_bc, debug, error)
+                       v_D, smooth, zeta, dbc_id, dirichlet_bc, verbose, error)
 
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       INTENT(IN)                             :: x_glbl, y_glbl, z_glbl
@@ -610,7 +610,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: dbc_id
     TYPE(dirichlet_bc_type), INTENT(INOUT), &
       POINTER                                :: dirichlet_bc
-    LOGICAL, INTENT(IN)                      :: debug
+    LOGICAL, INTENT(IN)                      :: verbose
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_aa_planar_dbc', &
@@ -656,8 +656,8 @@ CONTAINS
                            forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
     IF (n_forb_xtnts .GT. 0) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "The given extents for the Dirichlet part of the boundary are outside "//&
-                      "the range of the simulation cell.", error)
+                      "The given extents for the Dirichlet region are outside the range of "//&
+                      "the simulation cell.", error)
     END IF 
 
     xxtnt_fst = find_fst_ge(x_glbl, x_xtnt(1))
@@ -704,8 +704,8 @@ CONTAINS
                       "Try the input section PLANAR or AA_CUBOIDAL instead.",error)
     END IF
       
-    IF ((unit_nr .GT. 0) .AND. debug) THEN 
-       WRITE(unit_nr, '(T3,A,A)') "======== debug ", REPEAT('=', 63)
+    IF ((unit_nr .GT. 0) .AND. verbose) THEN 
+       WRITE(unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
        DO i = 1, 4
           WRITE(unit_nr,'(T10,A,I1,3F10.3)') "   vertex ", i, &
                                    angstrom * dirichlet_bc%rectangle%vertices(:,i)
@@ -729,14 +729,14 @@ CONTAINS
 !> \param zeta the mollifier's width
 !> \param dbc_id unique ID for the planar Dirichlet region
 !> \param dirichlet_bc the dirichlet_bc object to be created 
-!> \param debug whether or not to print out the coordinates of the vertices
+!> \param verbose whether or not to print out the coordinates of the vertices
 !> \param error cp2k error
 !> \par History
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE create_arbitrary_planar_dbc(x_glbl, y_glbl, z_glbl, A, B, C, v_D, &
-                       smooth, zeta, dbc_id, dirichlet_bc, debug, error)
+                       smooth, zeta, dbc_id, dirichlet_bc, verbose, error)
 
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       INTENT(IN)                             :: x_glbl, y_glbl, z_glbl
@@ -747,7 +747,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: dbc_id
     TYPE(dirichlet_bc_type), INTENT(INOUT), &
       POINTER                                :: dirichlet_bc
-    LOGICAL, INTENT(IN)                      :: debug
+    LOGICAL, INTENT(IN)                      :: verbose
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_arbitrary_planar_dbc', &
@@ -834,8 +834,8 @@ CONTAINS
     dirichlet_bc%smooth = smooth
     dirichlet_bc%mollifier_zeta = zeta
 
-    IF ((unit_nr .GT. 0) .AND. debug) THEN 
-       WRITE(unit_nr, '(T3,A,A)') "======== debug ", REPEAT('=', 63)
+    IF ((unit_nr .GT. 0) .AND. verbose) THEN 
+       WRITE(unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
        DO i = 1, 4
           WRITE(unit_nr,'(T10,A,I1,3F10.3)') "   vertex ", i, &
                                    angstrom * dirichlet_bc%rectangle%vertices(:,i)
@@ -859,14 +859,14 @@ CONTAINS
 !> \param zeta the mollifier's width
 !> \param dbc_id unique ID for the planar Dirichlet region
 !> \param dirichlet_bc the dirichlet_bc object to be created 
-!> \param debug whether or not to print out the coordinates of the vertices
+!> \param verbose whether or not to print out the coordinates of the vertices
 !> \param error cp2k error
 !> \par History
 !>       12.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE create_aa_cuboidal_dbc(x_glbl, y_glbl, z_glbl, x_xtnt, y_xtnt, z_xtnt, &
-                       v_D, smooth, zeta, dbc_id, dirichlet_bc, debug, error)
+                       v_D, smooth, zeta, dbc_id, dirichlet_bc, verbose, error)
 
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       INTENT(IN)                             :: x_glbl, y_glbl, z_glbl
@@ -877,7 +877,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: dbc_id
     TYPE(dirichlet_bc_type), INTENT(INOUT), &
       POINTER                                :: dirichlet_bc
-    LOGICAL, INTENT(IN)                      :: debug
+    LOGICAL, INTENT(IN)                      :: verbose
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_aa_cuboidal_dbc', &
@@ -923,8 +923,8 @@ CONTAINS
                            forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
     IF (n_forb_xtnts .GT. 0) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "The given extents for the Dirichlet part of the boundary are outside "//&
-                      "the range of the simulation cell.", error)
+                      "The given extents for the Dirichlet region are outside the range of "//&
+                      "the simulation cell.", error)
     END IF 
 
     xxtnt_fst = find_fst_ge(x_glbl, x_xtnt(1))
@@ -945,7 +945,7 @@ CONTAINS
         (ABS(y_xtnt(1)-y_xtnt(2)) .LE. small_value) .OR. &
         (ABS(x_xtnt(1)-x_xtnt(2)) .LE. small_value)) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                      "According to the given extents, the gate's geometry is not a cuboid. "//&
+                      "According to the given extents, the region's geometry is not a cuboid. "//&
                       "Try the input section AA_PLANAR instead.",error)
     END IF
 
@@ -962,8 +962,8 @@ CONTAINS
     CALL cs_box_create(dirichlet_bc%box, box_vtx, error)
     dirichlet_bc%n_tiles = 1
 
-    IF ((unit_nr .GT. 0) .AND. debug) THEN 
-       WRITE(unit_nr, '(T3,A,A)') "======== debug ", REPEAT('=', 63)
+    IF ((unit_nr .GT. 0) .AND. verbose) THEN 
+       WRITE(unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
        DO i = 1, 8
           WRITE(unit_nr,'(T10,A,I1,3F10.3)') "   vertex ", i, angstrom * dirichlet_bc%box%vertices(:,i)
        END DO

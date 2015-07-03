@@ -28,7 +28,7 @@ MODULE dirichlet_bc_types
 
 ! main types
   TYPE :: dirichlet_bc_parameters
-     LOGICAL                                  :: debug
+     LOGICAL                                  :: verbose_output
 
      INTEGER                                  :: n_aa_planar
      REAL(KIND=dp), DIMENSION(:,:), POINTER   :: aa_planar_xxtnt => NULL()

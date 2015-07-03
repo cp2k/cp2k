@@ -798,10 +798,10 @@ END SUBROUTINE create_ewald_section
 
        NULLIFY(keyword)
 
-       CALL keyword_create(keyword, name="DEBUG", &
+       CALL keyword_create(keyword, name="VERBOSE_OUTPUT", &
             description="Print out the values of the electrostatic potential at Dirichlet regions, "// &
             "as well as the coordinates of the vertices defining the regions and their tessellations.", &
-            usage="DEBUG <logical>", default_l_val=.FALSE., error=error)
+            usage="VERBOSE_OUTPUT <logical>", default_l_val=.FALSE., error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 

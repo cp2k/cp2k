@@ -678,13 +678,13 @@ CONTAINS
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
        END IF
 
-! debugging
-       IF (poisson_params%dbc_params%debug) THEN
+! verbose output
+       IF (poisson_params%dbc_params%verbose_output) THEN
           v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
           CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
           CALL mp_sum(Bxv_new, pw_grid%para%group)
           IF (outp_unit .GT. 0) THEN
-             WRITE(outp_unit, '(T3,A,A)') "======== debug ", REPEAT('=', 63)
+             WRITE(outp_unit, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
              WRITE(outp_unit, '(T25,A)') "Drgn       tile      vhartree"
              WRITE(outp_unit, '(T24,A)') REPEAT('-', 32)
              nt_tot = 1
@@ -959,13 +959,13 @@ CONTAINS
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
        END IF
 
-! debugging
-       IF (poisson_params%dbc_params%debug) THEN
+! verbose output
+       IF (poisson_params%dbc_params%verbose_output) THEN
           v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%cr3d, (/data_size/))
           CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
           CALL mp_sum(Bxv_new, pw_grid%para%group)
           IF (outp_unit .GT. 0) THEN
-             WRITE(outp_unit, '(T3,A)') "======== debug "//REPEAT('=', 63)
+             WRITE(outp_unit, '(T3,A)') "======== verbose "//REPEAT('=', 61)
              WRITE(outp_unit, '(T25,A)') "Drgn       tile      vhartree"
              WRITE(outp_unit, '(T24,A)') REPEAT('-', 32)
              nt_tot = 1
