@@ -15,6 +15,8 @@ MODULE qs_resp
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE bibliography,                    ONLY: Golze2015,&
+                                             cite_reference
   USE cell_types,                      ONLY: cell_type,&
                                              pbc,&
                                              use_perd_none,&
@@ -95,7 +97,7 @@ MODULE qs_resp
 
   TYPE resp_type
    LOGICAL                                :: equal_charges, itc,& 
-                                             nonperiodic_sys, rheavies
+                                             molecular_sys, rheavies
    INTEGER                                :: nres, ncons,&
                                              nrest_sec, ncons_sec,&
                                              npoints, stride(3), my_fit,&
@@ -201,6 +203,7 @@ CONTAINS
         CALL calc_resp_matrix_nonper(qs_env,resp_env,atomic_kind_set, particles,cell,&
                                      resp_env%matrix,resp_env%rhs,natom,error)   
        CASE(use_perd_xyz)
+        CALL cite_reference(Golze2015) 
         CALL calc_resp_matrix_periodic(qs_env,resp_env,rep_sys,particles,cell,natom, error)
        CASE DEFAULT
         CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -277,7 +280,7 @@ CONTAINS
      
     resp_env%equal_charges=.FALSE.
     resp_env%itc=.FALSE.
-    resp_env%nonperiodic_sys=.FALSE.
+    resp_env%molecular_sys=.FALSE.
     resp_env%rheavies=.FALSE.
  
     resp_env%box_hi=0.0_dp
@@ -378,30 +381,29 @@ CONTAINS
     INTEGER                                  :: handle, i, nrep, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list_cons, my_stride
     LOGICAL                                  :: explicit, failure
-    TYPE(section_vals_type), POINTER         :: nonperiodic_section, &
-                                                periodic_section
+    TYPE(section_vals_type), POINTER         :: slab_section, sphere_section
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(atom_list_cons, my_stride, nonperiodic_section, periodic_section)
+    NULLIFY(atom_list_cons, my_stride, sphere_section, slab_section)
     failure=.FALSE.
 
     ! get the subsections
-    nonperiodic_section=>section_vals_get_subs_vals(resp_section,"NONPERIODIC_SYS",&
+    sphere_section=>section_vals_get_subs_vals(resp_section,"SPHERE_SAMPLING",&
                                                             error=error)
-    periodic_section=>section_vals_get_subs_vals(resp_section,"PERIODIC_SYS",&
+    slab_section=>section_vals_get_subs_vals(resp_section,"SLAB_SAMPLING",&
                                                             error=error)
     cons_section=>section_vals_get_subs_vals(resp_section,"CONSTRAINT",&
                                                              error=error)
     rest_section=>section_vals_get_subs_vals(resp_section,"RESTRAINT",&
                                                             error=error)
 
-    ! get and set the parameters for nonperiodic (non-surface) systems
-    CALL get_parameter_nonperiodic_sys(resp_env, nonperiodic_section, cell, &
+    ! get and set the parameters for molecular (non-surface) systems
+    CALL get_parameter_molecular_sys(resp_env, sphere_section, cell, &
          atomic_kind_set, error)
 
     ! get the parameter for periodic/surface systems
-    CALL section_vals_get(periodic_section, explicit=explicit, n_repetition=nrep, error=error)
+    CALL section_vals_get(slab_section, explicit=explicit, n_repetition=nrep, error=error)
     IF(explicit) THEN
      ALLOCATE(rep_sys(nrep), stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
@@ -409,22 +411,22 @@ CONTAINS
       ALLOCATE(rep_sys(i)%p_resp, stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
       NULLIFY(rep_sys(i)%p_resp%range_surf, rep_sys(i)%p_resp%atom_surf_list)
-      CALL section_vals_val_get(periodic_section,"RANGE",r_vals=rep_sys(i)%p_resp%range_surf,&
+      CALL section_vals_val_get(slab_section,"RANGE",r_vals=rep_sys(i)%p_resp%range_surf,&
                                 i_rep_section=i, error=error)
-      CALL section_vals_val_get(periodic_section,"LENGTH", r_val=rep_sys(i)%p_resp%length,&
+      CALL section_vals_val_get(slab_section,"LENGTH", r_val=rep_sys(i)%p_resp%length,&
                                 i_rep_section=i, error=error)
-      CALL section_vals_val_get(periodic_section,"SURF_DIRECTION",&
+      CALL section_vals_val_get(slab_section,"SURF_DIRECTION",&
                                 i_rep_section=i, i_val=rep_sys(i)%p_resp%my_fit,error=error)
       IF(ANY(rep_sys(i)%p_resp%range_surf<0.0_dp)) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
-             "Numbers in RANGE in PERIODIC_SYS cannot be negative.")
+             "Numbers in RANGE in SLAB_SAMPLING cannot be negative.")
       ENDIF
       IF(rep_sys(i)%p_resp%length<=EPSILON(0.0_dp)) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
-             "Parameter LENGTH in PERIODIC_SYS has to be larger than zero.")
+             "Parameter LENGTH in SLAB_SAMPLING has to be larger than zero.")
       ENDIF
       !list of atoms specifing the surface
-      CALL build_atom_list(periodic_section,subsys,rep_sys(i)%p_resp%atom_surf_list,rep=i,error=error)
+      CALL build_atom_list(slab_section,subsys,rep_sys(i)%p_resp%atom_surf_list,rep=i,error=error)
      ENDDO
     ENDIF
      
@@ -483,25 +485,24 @@ CPSourceFileRef,&
 ! *****************************************************************************
 !> \brief getting the parameters for nonperiodic/non-surface systems
 !> \param resp_env the resp environment
-!> \param nonperiodic_section input section setting parameters for sampling
+!> \param sphere_section input section setting parameters for sampling
 !>        fitting in spheres around the atom
 !> \param cell parameters related to the simulation cell
 !> \param atomic_kind_set ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE get_parameter_nonperiodic_sys(resp_env,nonperiodic_section,cell,&
+  SUBROUTINE get_parameter_molecular_sys(resp_env,sphere_section,cell,&
              atomic_kind_set,error)
 
     TYPE(resp_type), POINTER                 :: resp_env
-    TYPE(section_vals_type), POINTER         :: nonperiodic_section
+    TYPE(section_vals_type), POINTER         :: sphere_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'get_parameter_nonperiodic_sys', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_parameter_molecular_sys', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: symbol
@@ -518,15 +519,15 @@ CPSourceFileRef,&
     nrep_rmax=0
     nkind=SIZE(atomic_kind_set)
 
-    CALL section_vals_get(nonperiodic_section, explicit=explicit, error=error)
+    CALL section_vals_get(sphere_section, explicit=explicit, error=error)
     IF(explicit) THEN
-      resp_env%nonperiodic_sys=.TRUE.
-      CALL section_vals_val_get(nonperiodic_section,"RMIN",r_val=rmin,&
+      resp_env%molecular_sys=.TRUE.
+      CALL section_vals_val_get(sphere_section,"RMIN",r_val=rmin,&
                                                                     error=error)
-      CALL section_vals_val_get(nonperiodic_section,"RMAX",r_val=rmax,&
+      CALL section_vals_val_get(sphere_section,"RMAX",r_val=rmax,&
                                                                     error=error)
-      CALL section_vals_val_get(nonperiodic_section,"RMIN_KIND", n_rep_val=nrep_rmin, error=error)
-      CALL section_vals_val_get(nonperiodic_section,"RMAX_KIND", n_rep_val=nrep_rmax, error=error)
+      CALL section_vals_val_get(sphere_section,"RMIN_KIND", n_rep_val=nrep_rmin, error=error)
+      CALL section_vals_val_get(sphere_section,"RMAX_KIND", n_rep_val=nrep_rmax, error=error)
       ALLOCATE(resp_env%rmin_kind(nkind),stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
       ALLOCATE(resp_env%rmax_kind(nkind),stat=stat)
@@ -534,7 +535,7 @@ CPSourceFileRef,&
       resp_env%rmin_kind(:)=rmin
       resp_env%rmax_kind(:)=rmax
       DO j=1, nrep_rmin
-       CALL section_vals_val_get(nonperiodic_section,"RMIN_KIND", i_rep_val=j,&
+       CALL section_vals_val_get(sphere_section,"RMIN_KIND", i_rep_val=j,&
                        c_vals=tmpstringlist, error=error)
        DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -547,7 +548,7 @@ CPSourceFileRef,&
        ENDDO
       ENDDO
       DO j=1, nrep_rmax
-       CALL section_vals_val_get(nonperiodic_section,"RMAX_KIND", i_rep_val=j,&
+       CALL section_vals_val_get(sphere_section,"RMAX_KIND", i_rep_val=j,&
                        c_vals=tmpstringlist, error=error)
        DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -562,27 +563,27 @@ CPSourceFileRef,&
       
       resp_env%box_hi=(/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
       resp_env%box_low=0.0_dp
-      CALL section_vals_val_get(nonperiodic_section,"X_HI",explicit=explicit,error=error)
-      IF (explicit) CALL section_vals_val_get(nonperiodic_section,"X_HI",&
+      CALL section_vals_val_get(sphere_section,"X_HI",explicit=explicit,error=error)
+      IF (explicit) CALL section_vals_val_get(sphere_section,"X_HI",&
                                       r_val=resp_env%box_hi(1),error=error)
-      CALL section_vals_val_get(nonperiodic_section,"X_LOW",explicit=explicit,error=error)
-      IF (explicit) CALL section_vals_val_get(nonperiodic_section,"X_LOW",&
+      CALL section_vals_val_get(sphere_section,"X_LOW",explicit=explicit,error=error)
+      IF (explicit) CALL section_vals_val_get(sphere_section,"X_LOW",&
                                       r_val=resp_env%box_low(1),error=error)
-      CALL section_vals_val_get(nonperiodic_section,"Y_HI",explicit=explicit,error=error)
-      IF (explicit) CALL section_vals_val_get(nonperiodic_section,"Y_HI",&
+      CALL section_vals_val_get(sphere_section,"Y_HI",explicit=explicit,error=error)
+      IF (explicit) CALL section_vals_val_get(sphere_section,"Y_HI",&
                                       r_val=resp_env%box_hi(2),error=error)
-      CALL section_vals_val_get(nonperiodic_section,"Y_LOW",explicit=explicit,error=error)
-      IF (explicit) CALL section_vals_val_get(nonperiodic_section,"Y_LOW",&
+      CALL section_vals_val_get(sphere_section,"Y_LOW",explicit=explicit,error=error)
+      IF (explicit) CALL section_vals_val_get(sphere_section,"Y_LOW",&
                                       r_val=resp_env%box_low(2),error=error)
-      CALL section_vals_val_get(nonperiodic_section,"Z_HI",explicit=explicit,error=error)
-      IF (explicit) CALL section_vals_val_get(nonperiodic_section,"Z_HI",&
+      CALL section_vals_val_get(sphere_section,"Z_HI",explicit=explicit,error=error)
+      IF (explicit) CALL section_vals_val_get(sphere_section,"Z_HI",&
                                       r_val=resp_env%box_hi(3),error=error)
-      CALL section_vals_val_get(nonperiodic_section,"Z_LOW",explicit=explicit,error=error)
-      IF (explicit) CALL section_vals_val_get(nonperiodic_section,"Z_LOW",&
+      CALL section_vals_val_get(sphere_section,"Z_LOW",explicit=explicit,error=error)
+      IF (explicit) CALL section_vals_val_get(sphere_section,"Z_LOW",&
                                       r_val=resp_env%box_low(3),error=error)
     ENDIF
 
-  END SUBROUTINE get_parameter_nonperiodic_sys
+  END SUBROUTINE get_parameter_molecular_sys
 
 ! *****************************************************************************
 !> \brief building atom lists for different sections of RESP
@@ -623,9 +624,9 @@ CPSourceFileRef,&
                                           n_rep_val=n_var,error=error)
     num_atom=0
     DO i=1,n_var
-    CALL section_vals_val_get(section,"ATOM_LIST",i_rep_section=irep,&
-                               i_rep_val=i,i_vals=indexes,error=error)
-    num_atom=num_atom + SIZE(indexes)
+     CALL section_vals_val_get(section,"ATOM_LIST",i_rep_section=irep,&
+                                i_rep_val=i,i_vals=indexes,error=error)
+     num_atom=num_atom + SIZE(indexes)
     ENDDO 
     ALLOCATE(atom_list(num_atom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -694,8 +695,9 @@ CPSourceFileRef,&
                                                 now, np(3), p, stat
     LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: not_in_range
-    REAL(KIND=dp)                            :: dh(3,3), dvol, r(3), rmax, &
-                                                rmin, vec(3), vec_pbc(3), vj
+    REAL(KIND=dp)                            :: delta, dh(3,3), dvol, r(3), &
+                                                rmax, rmin, vec(3), &
+                                                vec_pbc(3), vj
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dist
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_type), DIMENSION(:), &
@@ -707,6 +709,7 @@ CPSourceFileRef,&
 
     NULLIFY(logger,input,particle_set,print_key,resp_section,v_hartree_pw)
     failure=.FALSE.
+    delta = 1.0E-13_dp
 
     IF (.NOT.cell%orthorhombic) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -714,10 +717,10 @@ CPSourceFileRef,&
             " implemented for orthorhombic cells!", &
             error=error, error_level=cp_failure_level)
     END IF
-    IF(.NOT.resp_env%nonperiodic_sys) THEN
+    IF(.NOT.resp_env%molecular_sys) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
              "Nonperiodic solution for RESP charges (i.e. nonperiodic"//&
-             " Poisson solver) can only be used with section NONPERIODC_SYS")
+             " Poisson solver) can only be used with section SPHERE_SAMPLING")
     ENDIF
     CALL get_qs_env(qs_env,&
                     input=input,&
@@ -787,8 +790,8 @@ CPSourceFileRef,&
              EXIT
             ENDIF
           ENDDO
-          IF(dist(i)<rmin+1.0E-13_dp) not_in_range(i,1)=.TRUE.
-          IF(dist(i)>rmax-1.0E-13_dp) not_in_range(i,2)=.TRUE.
+          IF(dist(i)<rmin+delta) not_in_range(i,1)=.TRUE.
+          IF(dist(i)>rmax-delta) not_in_range(i,2)=.TRUE.
        ENDDO
        ! check if the point is sufficiently close and  far. if OK, we can use
        ! the point for fitting, add/subtract 1.0E-13 to get rid of rounding errors when shifting atoms 
@@ -989,8 +992,8 @@ CPSourceFileRef,&
       stat
     LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: not_in_range
-    REAL(KIND=dp)                            :: dh(3,3), r(3), rmax, rmin, &
-                                                vec_pbc(3)
+    REAL(KIND=dp)                            :: delta, dh(3,3), r(3), rmax, &
+                                                rmin, vec_pbc(3)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dist
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1003,9 +1006,10 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(atomic_kind_set,v_hartree_pw,para_env,logger,input,particle_set,&
             resp_section)   
+    failure=.FALSE.
+    delta = 1.0E-13_dp
  
     CALL get_qs_env(qs_env,&
                     input=input,&
@@ -1059,7 +1063,7 @@ CPSourceFileRef,&
        r(3)=p*dh(3,3)+k*dh(3,2)+l*dh(3,1)
        r(2)=p*dh(2,3)+k*dh(2,2)+l*dh(2,1)
        r(1)=p*dh(1,3)+k*dh(1,2)+l*dh(1,1)
-       IF(resp_env%nonperiodic_sys) THEN
+       IF(resp_env%molecular_sys) THEN
          not_in_range=.FALSE.
          DO m=1,natom
             vec_pbc = pbc(r,particles%els(m)%r,cell)
@@ -1073,8 +1077,8 @@ CPSourceFileRef,&
                EXIT
               ENDIF
             ENDDO
-            IF(dist(m)<rmin+1.0E-13_dp) not_in_range(m,1)=.TRUE.
-            IF(dist(m)>rmax-1.0E-13_dp) not_in_range(m,2)=.TRUE.
+            IF(dist(m)<rmin+delta) not_in_range(m,1)=.TRUE.
+            IF(dist(m)>rmax-delta) not_in_range(m,2)=.TRUE.
          ENDDO
          IF(ANY(not_in_range(:,1)).OR.ALL(not_in_range(:,2))) CYCLE
        ELSE
@@ -1091,22 +1095,22 @@ CPSourceFileRef,&
               vec_pbc = pbc(r,particles%els(iatom)%r,cell)
              END SELECT
              SELECT CASE(rep_sys(i)%p_resp%my_fit)
-             !subtract 1.0E-13 to get rid of rounding errors when shifting atoms 
+             !subtract delta=1.0E-13 to get rid of rounding errors when shifting atoms 
              CASE(do_resp_x_dir, do_resp_minus_x_dir)
-              IF(ABS(vec_pbc(3))<rep_sys(i)%p_resp%length-1.0E-13_dp)       in_z=1
-              IF(ABS(vec_pbc(2))<rep_sys(i)%p_resp%length-1.0E-13_dp)       in_y=1
-              IF(vec_pbc(1)>rep_sys(i)%p_resp%range_surf(1)+1.0E-13_dp.AND.&              
-                  vec_pbc(1)<rep_sys(i)%p_resp%range_surf(2)-1.0E-13_dp)    in_x=1 
+              IF(ABS(vec_pbc(3))<rep_sys(i)%p_resp%length-delta)       in_z=1
+              IF(ABS(vec_pbc(2))<rep_sys(i)%p_resp%length-delta)       in_y=1
+              IF(vec_pbc(1)>rep_sys(i)%p_resp%range_surf(1)+delta.AND.&              
+                  vec_pbc(1)<rep_sys(i)%p_resp%range_surf(2)-delta)    in_x=1 
              CASE(do_resp_y_dir,do_resp_minus_y_dir)
-              IF(ABS(vec_pbc(3))<rep_sys(i)%p_resp%length-1.0E-13_dp)       in_z=1
-              IF(vec_pbc(2)>rep_sys(i)%p_resp%range_surf(1)+1.0E-13_dp.AND.&              
-                  vec_pbc(2)<rep_sys(i)%p_resp%range_surf(2)-1.0E-13_dp)    in_y=1 
-              IF(ABS(vec_pbc(1))<rep_sys(i)%p_resp%length-1.0E-13_dp)       in_x=1
+              IF(ABS(vec_pbc(3))<rep_sys(i)%p_resp%length-delta)       in_z=1
+              IF(vec_pbc(2)>rep_sys(i)%p_resp%range_surf(1)+delta.AND.&              
+                  vec_pbc(2)<rep_sys(i)%p_resp%range_surf(2)-delta)    in_y=1 
+              IF(ABS(vec_pbc(1))<rep_sys(i)%p_resp%length-delta)       in_x=1
              CASE(do_resp_z_dir, do_resp_minus_z_dir)
-              IF(vec_pbc(3)>rep_sys(i)%p_resp%range_surf(1)+1.0E-13_dp.AND.&              
-                  vec_pbc(3)<rep_sys(i)%p_resp%range_surf(2)-1.0E-13_dp)    in_z=1 
-              IF(ABS(vec_pbc(2))<rep_sys(i)%p_resp%length-1.0E-13_dp)       in_y=1
-              IF(ABS(vec_pbc(1))<rep_sys(i)%p_resp%length-1.0E-13_dp)       in_x=1
+              IF(vec_pbc(3)>rep_sys(i)%p_resp%range_surf(1)+delta.AND.&              
+                  vec_pbc(3)<rep_sys(i)%p_resp%range_surf(2)-delta)    in_z=1 
+              IF(ABS(vec_pbc(2))<rep_sys(i)%p_resp%length-delta)       in_y=1
+              IF(ABS(vec_pbc(1))<rep_sys(i)%p_resp%length-delta)       in_x=1
              END SELECT
              IF(in_z*in_y*in_x==1) EXIT
           ENDDO
@@ -1524,7 +1528,7 @@ CPSourceFileRef,&
                                                                     resp_env%rheavies_strength
      ENDIF
      WRITE(output_unit,'(T3,A,T66,3I5)') "Stride: ",resp_env%stride
-     IF(resp_env%nonperiodic_sys) THEN
+     IF(resp_env%molecular_sys) THEN
        IF(ALL(resp_env%rmin_kind==resp_env%rmin_kind(1)))& 
         WRITE(output_unit,'(T3,A,T71,F10.5)') "Rmin [angstrom]: ",resp_env%rmin_kind(1)*conv
        IF(ALL(resp_env%rmax_kind==resp_env%rmax_kind(1)))& 
