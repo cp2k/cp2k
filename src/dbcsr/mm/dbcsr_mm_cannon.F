@@ -2943,17 +2943,17 @@ MODULE dbcsr_mm_cannon
                                                 imeta_size = 2
 
     INTEGER :: data_type, data_type_byte, dst_icol, dst_irow, dst_p, &
-      error_handler, error_handler2, error_handler3, error_handler4, &
-      get_vcol, get_vrow, grp_left, grp_right, index_row_max_epss, ithread, &
-      left_col_mult, left_col_nimages, left_data_win, left_meta_win, &
-      left_myfirstvcol, left_myfirstvrow, left_mypcol, left_myprow, &
-      left_npcols, left_nprows, left_row_mult, left_row_nimages, metronome, &
-      min_nimages, mynode, nblkrows_total, nsteps_k, nthreads, numnodes, &
-      nvirt_k, output_unit, recv_p, right_col_mult, right_col_nimages, &
-      right_data_win, right_meta_win, right_myfirstvcol, right_myfirstvrow
-    INTEGER :: right_mypcol, right_myprow, right_npcols, right_nprows, &
-      right_row_mult, right_row_nimages, row, send_p, size_guess, src_vcol, &
-      src_vrow, stat, v_ci, v_i, v_ki, v_ri
+      error_handler, error_handler2, error_handler3, get_vcol, get_vrow, &
+      grp_left, grp_right, index_row_max_epss, ithread, left_col_mult, &
+      left_col_nimages, left_data_win, left_meta_win, left_myfirstvcol, &
+      left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, &
+      left_row_mult, left_row_nimages, metronome, min_nimages, mynode, &
+      nblkrows_total, nsteps_k, nthreads, numnodes, nvirt_k, output_unit, &
+      recv_p, right_col_mult, right_col_nimages, right_data_win, &
+      right_meta_win, right_myfirstvcol, right_myfirstvrow, right_mypcol
+    INTEGER :: right_myprow, right_npcols, right_nprows, right_row_mult, &
+      right_row_nimages, row, send_p, size_guess, src_vcol, src_vrow, stat, &
+      v_ci, v_i, v_ki, v_ri
     INTEGER(kind=mp_address_kind) :: left_data_size, left_max_data, &
       left_max_meta, left_meta_size, right_data_size, right_max_data, &
       right_max_meta, right_meta_size
@@ -3852,7 +3852,6 @@ MODULE dbcsr_mm_cannon
 !$omp         left_row_nimages,right_col_nimages, &
 !$omp         left_buffer_calc,right_buffer_calc, &
 !$omp         left_norms,right_norms, &
-!$omp         error_handler4, &
 !$omp         metronome,nsteps_k,multrec) &
 !$omp private (ithread,v_ri,v_ci,v_ki) &
 !$omp firstprivate (error) &
@@ -3860,15 +3859,14 @@ MODULE dbcsr_mm_cannon
        ithread = 0
 !$     ithread = omp_get_thread_num()
        !
-       IF(ithread==0) &
-            CALL dbcsr_error_set(routineN//"_multrec_master", error_handler4, error)
-       !
        IF(metronome==nsteps_k) &
             CALL dbcsr_mm_multrec_phaseout(multrec(ithread)%p, error)
        !
        DO v_ri = 1, left_row_nimages
           DO v_ci = 1, right_col_nimages
              DO v_ki = 1, min_nimages
+                IF (left_buffer_calc%mats(v_ri,v_ki)%m%index(dbcsr_slot_size).EQ.dbcsr_num_slots.OR.&
+                     right_buffer_calc%mats(v_ki,v_ci)%m%index(dbcsr_slot_size).EQ.dbcsr_num_slots) CYCLE
                 CALL dbcsr_mm_multrec_multiply(multrec(ithread)%p,&
                      left=left_buffer_calc%mats(v_ri, v_ki)%m,&
                      right=right_buffer_calc%mats(v_ki, v_ci)%m,&
@@ -3878,8 +3876,6 @@ MODULE dbcsr_mm_cannon
              ENDDO
           ENDDO
        ENDDO
-       !
-       IF(ithread==0) CALL dbcsr_error_stop(error_handler4, error)
        !
        IF(metronome==nsteps_k) THEN
           CALL dbcsr_mm_multrec_finalize(multrec(ithread)%p, error)
