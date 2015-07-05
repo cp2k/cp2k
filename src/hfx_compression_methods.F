@@ -146,12 +146,14 @@ MODULE hfx_compression_methods
       IF( use_disk_storage ) THEN
         !! write to file
         WRITE(container%unit) container%current%data
+        !$OMP ATOMIC
         memory_usage = memory_usage + 1
         container%file_counter = container%file_counter + 1
       ELSE
         !! Allocate new list entry
         ALLOCATE(container%current%next, STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        !$OMP ATOMIC
         memory_usage = memory_usage + 1
         container%current%next%next => NULL()
         container%current => container%current%next

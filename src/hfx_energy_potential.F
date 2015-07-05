@@ -166,7 +166,8 @@ MODULE hfx_energy_potential
       ncos_max, nints, nkind, nneighbors, nseta, nsetb, nsgf_max, nspins, pa, &
       sgfb, shm_task_counter, shm_total_bins, sphi_a_u1, sphi_a_u2, &
       sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, &
-      sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, stat, swap_id, unit_id
+      sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, stat, swap_id, tmp_i4, &
+      unit_id
     INTEGER(int_8) :: atom_block, counter, estimate_to_store_int, &
       max_val_memory, mb_size_buffers, mb_size_f, mb_size_p, &
       mem_compression_counter, mem_compression_counter_disk, mem_eris, &
@@ -425,7 +426,7 @@ MODULE hfx_energy_potential
 !$OMP         spherical_estimate,nbits,buffer_left,buffer_start,buffer_size,max_contraction_val,tmp_r_1,tmp_r_2,&
 !$OMP         tmp_screen_pgf1,tmp_screen_pgf2,cartesian_estimate,bintime_stop,iw,memsize_after,storage_counter_integrals,&
 !$OMP         stor_count_int_disk,stor_count_max_val,ene_x_aa,ene_x_bb,mb_size_p,mb_size_f,mb_size_buffers,afac,ene_x_aa_diag,&
-!$OMP         ene_x_bb_diag,act_atomic_block_offset,act_set_offset,j,handle_dist_ks,tmp_i8,dft_control,bin)
+!$OMP         ene_x_bb_diag,act_atomic_block_offset,act_set_offset,j,handle_dist_ks,tmp_i8,tmp_i4,dft_control,bin)
 
 
     ln_10 = LOG(10.0_dp)
@@ -1413,9 +1414,10 @@ MODULE hfx_energy_potential
                 ! ** is of the order of CACHE_SIZE
                 mem_compression_counter = 0
                 DO i=1,n_threads
+                  !$OMP ATOMIC READ
+                  tmp_i4 = x_data(irep,i)%memory_parameter%actual_memory_usage
                   mem_compression_counter = mem_compression_counter + &
-                                            x_data(irep,i)%memory_parameter%actual_memory_usage *&
-                                            memory_parameter%cache_size
+                                            tmp_i4 * memory_parameter%cache_size
                 END DO
                 IF(mem_compression_counter > memory_parameter%max_compression_counter) THEN
                   buffer_overflow = .TRUE.
@@ -1456,8 +1458,9 @@ MODULE hfx_energy_potential
             END IF
 
             IF( use_disk_storage ) THEN
-              mem_compression_counter_disk = memory_parameter%actual_memory_usage_disk *&
-                                             memory_parameter%cache_size
+              !$OMP ATOMIC READ
+              tmp_i4 = memory_parameter%actual_memory_usage_disk
+              mem_compression_counter_disk = tmp_i4 * memory_parameter%cache_size
               IF(mem_compression_counter_disk > memory_parameter%max_compression_counter_disk) THEN
                 buffer_overflow = .TRUE.
                 use_disk_storage = .FALSE.
@@ -1804,9 +1807,10 @@ MODULE hfx_energy_potential
 !$OMP MASTER
     shm_mem_compression_counter = 0
     DO i=1,n_threads
+      !$OMP ATOMIC READ
+      tmp_i4 = x_data(irep,i)%memory_parameter%actual_memory_usage
       shm_mem_compression_counter = shm_mem_compression_counter + &
-                                    x_data(irep,i)%memory_parameter%actual_memory_usage *&
-                                    memory_parameter%cache_size
+                                    tmp_i4 * memory_parameter%cache_size
     END DO
 !$OMP END MASTER
 !$OMP BARRIER

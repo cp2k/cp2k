@@ -142,7 +142,8 @@ MODULE hfx_derivatives
       ncos_max, nints, nkind, nneighbors, nseta, nsetb, nsgf_max, nspins, &
       sgfb, shm_task_counter, shm_total_bins, sphi_a_u1, sphi_a_u2, &
       sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, &
-      sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, stat, swap_id, unit_id
+      sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, stat, swap_id, tmp_i4, &
+      unit_id
     INTEGER(int_8) :: atom_block, counter, estimate_to_store_int, &
       max_val_memory, mem_compression_counter, mem_eris, mem_max_val, &
       my_current_counter, my_istart, n_processes, nblocks, ncpu, &
@@ -385,7 +386,7 @@ MODULE hfx_derivatives
 !$OMP  sgfb,spherical_estimate,spherical_estimate_virial,sphi_a_ext,sphi_a_ext_set,sphi_a_u1,sphi_a_u2,sphi_a_u3,&
 !$OMP  sphi_b,sphi_b_ext,sphi_b_ext_set,sphi_b_u1,sphi_b_u2,sphi_b_u3,sphi_c_ext,sphi_c_ext_set,&
 !$OMP  sphi_c_u1,sphi_c_u2,sphi_c_u3,sphi_d_ext,sphi_d_ext_set,sphi_d_u1,sphi_d_u2,sphi_d_u3,&
-!$OMP  stat,storage_counter_integrals,stor_count_max_val,swap_id,symm_fac,t2,tmp_block,tmp_i8,&
+!$OMP  stat,storage_counter_integrals,stor_count_max_val,swap_id,symm_fac,t2,tmp_block,tmp_i8, tmp_i4,&
 !$OMP  tmp_index,tmp_r_1,tmp_r_2,tmp_screen_pgf1,tmp_screen_pgf2,tmp_task_list,tmp_task_list_cost,tmp_virial,&
 !$OMP  treat_forces_in_core,use_disk_storage,zeta,zetb,zetc,zetd)
 
@@ -1216,9 +1217,10 @@ MODULE hfx_derivatives
                 ! ** is of the order of CACHE_SIZE
                 mem_compression_counter = 0
                 DO i=1,n_threads
+                  !$OMP ATOMIC READ
+                  tmp_i4=qs_env%x_data(irep,i)%memory_parameter%actual_memory_usage
                   mem_compression_counter = mem_compression_counter + &
-                                            qs_env%x_data(irep,i)%memory_parameter%actual_memory_usage *&
-                                            memory_parameter%cache_size
+                                            tmp_i4 * memory_parameter%cache_size
                 END DO
                 IF(mem_compression_counter + memory_parameter%final_comp_counter_energy &
                                       > memory_parameter%max_compression_counter) THEN
