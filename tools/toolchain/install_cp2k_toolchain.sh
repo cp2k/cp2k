@@ -345,9 +345,12 @@ else
   # we dont know the version
   cd scalapack_installer_*
   SLROOT=${PWD}
-  # needs fixing for compile options, we use echo as mpirun command to avoid testing,
-  # yet download blas / lapack... whole installer is a bit serial as well (and fails with --make="make -j32"
-  ./setup.py --mpirun=echo --downblas --downlapack >& make.log
+  # We use echo as mpirun command to avoid testing scalapack,
+  # (lapack is still tested, and the --notesting flag causes lapack/blas not to be build, seemingly.)
+  # yet download blas / lapack... whole installer is a bit serial as well (and fails with --make="make -j32")
+  # also, doesn't seem to stop if something goes wrong in the build process..
+  # finally, we should avoid -ffast-math as this seems to cause problems
+  ./setup.py --mpirun=echo --downblas --downlapack --fcflags="$FCFLAGS -fno-fast-math" --ccflags="$CFLAGS -fno-fast-math" --ldflags_c="$LDFLAGS -fno-fast-math" --ldflags_fc="$LDFLAGS -fno-fast-math" >& make.log
   # copy libraries where we like them
   cp install/lib/* ${INSTALLDIR}/lib/
   cd ..
