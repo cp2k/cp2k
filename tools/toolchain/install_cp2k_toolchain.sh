@@ -375,7 +375,8 @@ else
   checksum libint-${libint_ver}.tar.gz
   tar -xzf libint-${libint_ver}.tar.gz
   cd libint-${libint_ver}
-  ./configure  --prefix=${INSTALLDIR} --with-libint-max-am=5 --with-libderiv-max-am1=4 --with-cc-optflags="$CFLAGS" --with-cxx-optflags="$CXXFLAGS" >& config.log
+  # hack for -with-cc (needed for -fsanitize=thread that also needs to be passed to the linker, but seemingly ldflags is ignored by libint's configure)
+  ./configure  --prefix=${INSTALLDIR} --with-libint-max-am=5 --with-libderiv-max-am1=4 --with-cc="gcc $CFLAGS" --with-cc-optflags="$CFLAGS" --with-cxx-optflags="$CXXFLAGS" >& config.log
   make -j $nprocs >&  make.log
   make install >& install.log
   cd ..
