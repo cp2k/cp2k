@@ -277,8 +277,8 @@ MODULE dbcsr_mm_cannon
                                                 total_nfiltered
     INTEGER(KIND=int_8), DIMENSION(2)        :: max_recv_data, min_recv_data, &
                                                 total_recv_data
-    INTEGER(KIND=int_8), DIMENSION(2, SIZE(&
-      dbcsr_mpi_size_limits)+1)              :: total_recv_breakdown
+    INTEGER(KIND=int_8), DIMENSION(SIZE(&
+      dbcsr_mpi_size_limits)+1, 2, 2)        :: total_recv_breakdown
 
      CALL dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
 
@@ -321,7 +321,7 @@ MODULE dbcsr_mm_cannon
         min_recv_data=0
      ENDIF
 
-     total_recv_breakdown(:,:)=dbcsr_mpi_statistics%data_size_breakdown(:,:)
+     total_recv_breakdown(:,:,:)=dbcsr_mpi_statistics%data_size_breakdown(:,:,:)
      CALL mp_sum(total_recv_breakdown,group)
 
      IF (output_unit>0) THEN
@@ -341,17 +341,17 @@ MODULE dbcsr_mm_cannon
                MAXVAL(max_recv_data(:))
           WRITE (output_unit,'(A,T30,I20)') "  average",average
 
-          WRITE (output_unit,'(A)') " MPI breakdown data size (bytes):"
-          WRITE (output_unit,'(A,I8,T40,I10)') "             size <= ",dbcsr_mpi_size_limits(1),&
-               SUM(total_recv_breakdown(:,1))
+          WRITE (output_unit,'(A)') " MPI breakdown and total data size (bytes):"
+          WRITE (output_unit,'(A,I8,T40,I10,T55,I20)') "             size <= ",dbcsr_mpi_size_limits(1),&
+               SUM(total_recv_breakdown(1,1,:)),SUM(total_recv_breakdown(1,2,:))
           DO ilimit=2,SIZE(dbcsr_mpi_size_limits)
-             WRITE (output_unit,'(A,I8,A,I8,T40,I10)') "  ",dbcsr_mpi_size_limits(ilimit-1),&
+             WRITE (output_unit,'(A,I8,A,I8,T40,I10,T55,I20)') "  ",dbcsr_mpi_size_limits(ilimit-1),&
                   " < size <= ",dbcsr_mpi_size_limits(ilimit),&
-                  SUM(total_recv_breakdown(:,ilimit))
+                  SUM(total_recv_breakdown(ilimit,1,:)),SUM(total_recv_breakdown(ilimit,2,:))
           ENDDO
           ilimit=SIZE(dbcsr_mpi_size_limits)
-          WRITE (output_unit,'(A,I8,A,T40,I10)') "  ",dbcsr_mpi_size_limits(ilimit),&
-               " < size    ",SUM(total_recv_breakdown(:,ilimit+1))
+          WRITE (output_unit,'(A,I8,A,T40,I10,T55,I20)') "  ",dbcsr_mpi_size_limits(ilimit),&
+               " < size    ",SUM(total_recv_breakdown(ilimit+1,1,:)),SUM(total_recv_breakdown(ilimit+1,2,:))
        ENDIF
 
        isqrt=NINT(SQRT(REAL(last_mpi_ranks_used,KIND=real_8)))
@@ -2137,7 +2137,6 @@ MODULE dbcsr_mm_cannon
     dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,left_row_nimages*left_col_nimages)
     dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,right_row_nimages*right_col_nimages)
     dbcsr_mpi_statistics%nprocs = numnodes
-
     !
     ! Exchange size data
     ALLOCATE (my_sizes(4, MAX (left_row_nimages, right_row_nimages),&
@@ -2592,7 +2591,7 @@ MODULE dbcsr_mm_cannon
              dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
              CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1,:),&
                   INT(dbcsr_data_get_size(right_data_rp),KIND=mp_address_kind),&
-                  dbcsr_mpi_statistics%data_size_breakdown(1,:),data_type_byte)
+                  dbcsr_mpi_statistics%data_size_breakdown(:,:,1),data_type_byte)
              CALL count_mpi_statistics(dbcsr_mpi_statistics%index_size(1,:),&
                   INT(SIZE(right_index_rp),KIND=mp_address_kind))
              CALL dbcsr_error_stop(error_handler2, error)
@@ -2721,7 +2720,7 @@ MODULE dbcsr_mm_cannon
              dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
              CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(2,:),&
                   INT(dbcsr_data_get_size(left_data_rp),KIND=mp_address_kind),&
-                  dbcsr_mpi_statistics%data_size_breakdown(2,:),data_type_byte)
+                  dbcsr_mpi_statistics%data_size_breakdown(:,:,2),data_type_byte)
              CALL count_mpi_statistics(dbcsr_mpi_statistics%index_size(2,:),&
                   INT(SIZE(left_index_rp),KIND=mp_address_kind))
              CALL dbcsr_error_stop(error_handler2, error)
@@ -3699,7 +3698,7 @@ MODULE dbcsr_mm_cannon
                         right_get_requests(1,v_ri+v_i),error=error)
                    CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1,:),&
                         right_gets(idata_size,get_vrow,get_vcol),&
-                        dbcsr_mpi_statistics%data_size_breakdown(1,:),data_type_byte)
+                        dbcsr_mpi_statistics%data_size_breakdown(:,:,1),data_type_byte)
                    CALL mp_rget(right_meta_get,right_gets_p(v_ri,v_ci,metronome),&
                         right_meta_win,right_gets(imeta_displ,get_vrow,get_vcol),&
                         right_get_requests(2,v_ri+v_i))
@@ -3779,7 +3778,7 @@ MODULE dbcsr_mm_cannon
                         left_get_requests(1,v_ri+v_i),error=error)
                    CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(2,:),&
                         left_gets(idata_size,get_vrow,get_vcol),&
-                        dbcsr_mpi_statistics%data_size_breakdown(2,:),data_type_byte)
+                        dbcsr_mpi_statistics%data_size_breakdown(:,:,2),data_type_byte)
                    CALL mp_rget(left_meta_get,left_gets_p(v_ri,v_ci,metronome),&
                         left_meta_win,left_gets(imeta_displ,get_vrow,get_vcol),&
                         left_get_requests(2,v_ri+v_i))
@@ -3952,7 +3951,7 @@ MODULE dbcsr_mm_cannon
     INTEGER(KIND=int_8), DIMENSION(:), &
       INTENT(INOUT)                          :: mpi_statistics
     INTEGER(KIND=int_8), INTENT(IN)          :: data_size
-    INTEGER(KIND=int_8), DIMENSION(:), &
+    INTEGER(KIND=int_8), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: size_breakdown
     INTEGER, INTENT(IN), OPTIONAL            :: element_size_bytes
 
@@ -3970,13 +3969,15 @@ MODULE dbcsr_mm_cannon
        nlimits=SIZE(dbcsr_mpi_size_limits)
        ! check for oversize messages
        IF (data_size_bytes.GT.dbcsr_mpi_size_limits(nlimits)) THEN
-          size_breakdown(nlimits+1)=size_breakdown(nlimits+1)+1
+          size_breakdown(nlimits+1,1)=size_breakdown(nlimits+1,1)+1
+          size_breakdown(nlimits+1,2)=size_breakdown(nlimits+1,2)+data_size_bytes
           RETURN
        ENDIF
        llimit=0
        DO ilimit = 1, nlimits
           IF (data_size_bytes.GE.llimit.AND.data_size_bytes.LE.dbcsr_mpi_size_limits(ilimit)) THEN
-             size_breakdown(ilimit)=size_breakdown(ilimit)+1
+             size_breakdown(ilimit,1)=size_breakdown(ilimit,1)+1
+             size_breakdown(ilimit,2)=size_breakdown(ilimit,2)+data_size_bytes
              RETURN
           ENDIF
           llimit=dbcsr_mpi_size_limits(ilimit)
