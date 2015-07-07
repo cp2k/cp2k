@@ -660,19 +660,21 @@ CONTAINS
        END IF
 
        ! This is just a deallocation for printing MO_CUBES or TDDFPT
-       IF(compute_lumos .AND. .NOT.do_kpoints) THEN
-          DO ispin=1,dft_control%nspins
-             DEALLOCATE(unoccupied_evals(ispin)%array,stat=istat)
+       IF (.NOT. do_kpoints) THEN
+          IF(compute_lumos) THEN
+             DO ispin=1,dft_control%nspins
+                DEALLOCATE(unoccupied_evals(ispin)%array,stat=istat)
+                CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+                IF (.NOT.dft_control%do_tddfpt_calculation) &
+                     CALL cp_fm_release(unoccupied_orbs(ispin)%matrix,error=error)
+             ENDDO
+             DEALLOCATE(unoccupied_evals,stat=istat)
              CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-             IF (.NOT.dft_control%do_tddfpt_calculation) &
-                  CALL cp_fm_release(unoccupied_orbs(ispin)%matrix,error=error)
-          ENDDO
-          DEALLOCATE(unoccupied_evals,stat=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          IF (.NOT.dft_control%do_tddfpt_calculation) THEN
-            DEALLOCATE(unoccupied_orbs,stat=istat)
-            CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          END IF
+             IF (.NOT.dft_control%do_tddfpt_calculation) THEN
+               DEALLOCATE(unoccupied_orbs,stat=istat)
+               CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+             END IF
+          ENDIF
        ENDIF
 
        !stm images
