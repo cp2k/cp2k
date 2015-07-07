@@ -41,6 +41,11 @@ lcov_ver=1.11
 
 #gcc_ver=4.9.2
 gcc_ver=5.1.0
+# should we build a toolchain to be used with tsan (-fsanitize=thread), 
+# this is not for normal (production) use, but suitable for
+# finding/testing/debugging threading issues during development
+# values : yes / no
+enable_tsan=no
 
 #
 # only one of the two should be installed, define mpichoice as needed
@@ -183,15 +188,52 @@ else
   ${GCCROOT}/configure --prefix=${INSTALLDIR}  --enable-languages=c,c++,fortran --disable-multilib --disable-bootstrap --enable-lto --enable-plugins >& config.log
   make -j $nprocs >& make.log
   make -j $nprocs install >& install.log
+
+  if [ "$enable_tsan" == "yes" ]; then
+    # now the tricky bit... we need to recompile in particular libgomp with -fsanitize=thread.. there is not configure option for this (as far as I know). 
+    # we need to go in the build tree and recompile / reinstall with proper options...
+    # this is likely to break for later version of gcc, tested with 5.1.0
+    # based on https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55374#c10
+    cd x86_64*/libgfortran
+    make clean >& clean.log
+    make -j $nprocs CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread "  FCFLAGS="-g -O2 -fsanitize=thread" CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " LDFLAGS="-B`pwd`/../libsanitizer/tsan/.libs/ -Wl,-rpath,`pwd`/../libsanitizer/tsan/.libs/ -fsanitize=thread" >& make.log
+    make install >& install.log
+    cd ../libgomp
+    make clean >& clean.log
+    make -j $nprocs CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread "  FCFLAGS="-g -O2 -fsanitize=thread" CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " LDFLAGS="-B`pwd`/../libsanitizer/tsan/.libs/ -Wl,-rpath,`pwd`/../libsanitizer/tsan/.libs/ -fsanitize=thread" >& make.log
+    make install >& install.log
+    cd $GCCROOT/obj/
+  else
+    TSANFLAGS=""
+  fi
+
   cd ../..
+
 fi
 
-# lsan suppressions for known leaks are created as well, this might need to be adjusted for the versions of the software employed
+if [ "$enable_tsan" == "yes" ]; then
+   TSANFLAGS="-fsanitize=thread"
+else
+   TSANFLAGS=""
+fi
+
+# lsan & tsan suppressions for known leaks are created as well, this might need to be adjusted for the versions of the software employed
 cat << EOF > ${INSTALLDIR}/lsan.supp
 # known leak either related to mpi or scalapack  (e.g. showing randomly for Fist/regtest-7-2/UO2-2x2x2-genpot_units.inp)
 leak:__cp_fm_types_MOD_cp_fm_write_unformatted
 # leaks related to PEXSI
 leak:PPEXSIDFTDriver
+# tsan bugs likely related to gcc
+# PR66756
+deadlock:_gfortran_st_open
+mutex:_gfortran_st_open
+# PR66761
+race:do_spin
+race:gomp_team_end
+# bugs related to removing/filtering blocks in DBCSR.. to be fixed
+race:__dbcsr_block_access_MOD_dbcsr_remove_block
+race:__dbcsr_operations_MOD_dbcsr_filter_anytype
+race:__dbcsr_transformations_MOD_dbcsr_make_untransposed_blocks
 EOF
 
 # now we need these tools and compiler to be in the path
@@ -210,17 +252,19 @@ else
 fi 
 CP2KINSTALLDIR=${INSTALLDIR} ; export CP2KINSTALLDIR
 LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp ; export LSAN_OPTIONS
+TSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp ; export TSAN_OPTIONS
 EOF
 SETUPFILE=${INSTALLDIR}/setup
 source ${SETUPFILE}
 
 # set some flags, leading to nice stack traces on crashes, yet, are optimized
-export CFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
-export FFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
-export F77FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
-export F90FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
-export FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
-export CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math"
+export CFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+export FFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+export F77FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+export F90FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+export FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+export CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
+export LDFLAGS=" $TSANFLAGS"
 
 if [ "$mpichoice" == "openmpi" ]; then
 echo "=================== Installing openmpi ====================="
@@ -260,6 +304,16 @@ fi
 mpiextralibs=""
 fi
 
+libsmm=""
+#
+# currently openblas is not thread safe (neither serial nor omp version), 
+# so ssmp and psmp codes need to link to netlib versions
+# the default for LIB_LAPACK_OPT is overwritten if openblas is installed
+#
+LIB_LAPACK_DEBUG="-lreflapack -lrefblas"
+LIB_LAPACK_OPT="$LIB_LAPACK_DEBUG"
+
+
 echo "================= Installing openblas ==================="
 if [ -f xianyi-OpenBLAS-${openblas_ver}.zip ]; then
   echo "Installation already started, skipping it."
@@ -272,12 +326,16 @@ else
   # Unfortunately, neither is thread-safe (i.e. the CP2K ssmp and psmp version need to link to something else, the omp version is unused)
   make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.serial.log
   make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.serial.log
-  make clean >& clean.log
-  make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} >& make.omp.log
-  make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} install >& install.omp.log
+  # make clean >& clean.log
+  # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} >& make.omp.log
+  # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} install >& install.omp.log
   cd ..
 fi
+LIB_LAPACK_OPT="-lopenblas_serial"
 
+if [ "$enable_tsan" == "yes" ]; then
+  echo "TSAN build ... not downloading libsmm"
+else
 #
 # Here we attempt to determine which libsmm to download, and do that if it exists.
 # We use info on the architecture / core from the openblas build.
@@ -294,7 +352,6 @@ openblas_conf=`echo ${rootdir}/build/*OpenBLAS*/Makefile.conf`
 if [ -f "$openblas_conf" ]; then
  openblas_libcore=`grep 'LIBCORE=' $openblas_conf | cut -f2 -d=`
  openblas_arch=`grep 'ARCH=' $openblas_conf | cut -f2 -d=`
- libsmm=""
  libsmm_libcore=libsmm_dnn_${openblas_libcore}.a
  tst=`libsmm_exists $libsmm_libcore`
  if [ "$tst" == "0" ]; then
@@ -316,6 +373,7 @@ else
  # info not found
  echo "Not found: $openblas_conf"
  false
+fi
 fi
 
 # we know what to get, proceed with install
@@ -563,20 +621,14 @@ mkdir -p ${INSTALLDIR}/arch
 #
 WFLAGS="-Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable -Wunused-variable -Wconversion -Werror"
 DEBFLAGS="-fcheck=bounds,do,recursion,pointer -fsanitize=leak"
-BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1"
+BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1 $TSANFLAGS"
 PARAFLAGS="-D__parallel -D__SCALAPACK -D__LIBPEXSI -D__MPI_VERSION=3 -D__ELPA2"
 CUDAFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA"
 OPTFLAGS="-O3 -march=native -ffast-math \$(PROFOPT)"
 DFLAGS="-D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
 DFLAGSOPT="$LIBSMMFLAG -D__MAX_CONTR=4"
-CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1"
+CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1 $TSANFLAGS"
 
-#
-# currently openblas is not thread safe (neither serial nor omp version), 
-# so ssmp and psmp codes need to link to netlib versions
-#
-LIB_LAPACK_OPT="-lopenblas_serial"
-LIB_LAPACK_DEBUG="-lreflapack -lrefblas"
 
 # Link to SCOTCH
 LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lptscotchparmetis -lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr ${mpiextralibs}"
@@ -663,7 +715,7 @@ AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} $DFLAGSOPT
 FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS}  \$(DFLAGS) \$(WFLAGS)
-LDFLAGS  = -fopenmp -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
+LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = -lxcf90 -lxc -lderiv -lint $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp
 EOF
