@@ -772,7 +772,7 @@ CONTAINS
     CALL reallocate(jpabt_c,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(jpabt_d,1,maxco,1,maxco,0,nthread-1)
     CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
-    CALL reallocate(tasks,1,7,1,max_tasks)
+    CALL reallocate(tasks,1,6,1,max_tasks)
     CALL reallocate(dist_ab,1,3,1,max_tasks)
 
     tasks = 0
@@ -933,7 +933,7 @@ CONTAINS
        CALL task_list_inner_loop(tasks, dist_ab, ntasks, curr_tasks, rs_descs,&
             dft_control,cube_info,gridlevel_info,cindex,&
             iatom,jatom,rpgfa,rpgfb,zeta,zetb,kind_radius_b,set_radius_a,set_radius_b,ra,rab,&
-            la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nseta,nsetb,error)
+            la_max,la_min,lb_max,lb_min,npgfa,npgfb,maxpgf,maxset,natom,nimages,nseta,nsetb,error)
 
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
@@ -1051,7 +1051,8 @@ CONTAINS
 
     loop_tasks: DO itask = 1,ntasks
 
-       CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
+       CALL int2pair(tasks(3,itask),igrid_level,cindex,iatom,jatom,iset,jset,ipgf,jpgf,&
+                     nimages,natom,maxset,maxpgf)
 
        ! apparently generalised collocation not implemented correctly yet
        CPPostcondition(tasks(4,itask).NE.2,cp_failure_level,routineP,error,failure)

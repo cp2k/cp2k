@@ -180,7 +180,8 @@ CONTAINS
       my_force_adm, my_gapw, new_set_pair_coming, p_duplicated, pab_required, &
       scatter, use_subpatch, use_virial
     REAL(KIND=dp)                            :: admm_scal_fac, dab, &
-                                                eps_gvg_rspace, rab2, zetp
+                                                eps_gvg_rspace, rab2, scalef, &
+                                                zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
                                                 rab_inv, rb
     REAL(KIND=dp), DIMENSION(3, 3)           :: my_virial_a, my_virial_b
@@ -488,7 +489,7 @@ CONTAINS
 !$omp private(force_a,force_b,my_virial_a,my_virial_b,atom_pair_changed,h_block), &
 !$omp private(p_block,ncoa,sgfa,ncob,sgfb,rab,rab2,ra,rb,zetp,dab,igrid_level), &
 !$omp private(na1,na2,nb1,nb2,use_subpatch,rab_inv,new_set_pair_coming,atom_pair_done), &
-!$omp private(iset_new,jset_new,ipgf_new,jpgf_new), &
+!$omp private(iset_new,jset_new,ipgf_new,jpgf_new,scalef), &
 !$omp private(itask)
 
     ithread = 0
@@ -528,8 +529,8 @@ CONTAINS
     loop_pairs: DO ipair = 1, task_list%npairs(igrid_level)
     loop_tasks: DO itask = task_list%taskstart(ipair,igrid_level), task_list%taskstop(ipair,igrid_level)
 
-       CALL int2pair(tasks(3,itask),ilevel,iatom,jatom,iset,jset,ipgf,jpgf,natom,maxset,maxpgf)
-       img = INT(tasks(7,itask))
+       CALL int2pair(tasks(3,itask),ilevel,img,iatom,jatom,iset,jset,ipgf,jpgf,&
+                     nimages,natom,maxset,maxpgf)
        CPPrecondition((img==1 .OR. do_kp),cp_failure_level,routineP,error,failure)
 
        ! At the start of a block of tasks, get atom data (and kind data, if needed)
@@ -771,7 +772,8 @@ CONTAINS
        new_set_pair_coming=.FALSE.
        atom_pair_done = .FALSE.
        IF (itask < task_list%taskstop(ipair,igrid_level))  THEN
-          CALL int2pair(tasks(3,itask+1),ilevel,iatom,jatom,iset_new,jset_new,ipgf_new,jpgf_new,natom,maxset,maxpgf)
+          CALL int2pair(tasks(3,itask+1),ilevel,img,iatom,jatom,iset_new,jset_new,ipgf_new,jpgf_new,&
+                        nimages,natom,maxset,maxpgf)
           IF (iset_new .NE. iset .OR. jset_new .NE. jset) THEN
              new_set_pair_coming=.TRUE.
           ENDIF
@@ -806,20 +808,21 @@ CONTAINS
 
        IF (atom_pair_done) THEN
 !$omp critical(force_critical)
+          IF (iatom == jatom) THEN
+             scalef = 1.0_dp
+          ELSE
+             scalef = 2.0_dp
+          END IF
           IF (calculate_forces) THEN
              force(ikind)%rho_elec(:,atom_a) =&
-                  force(ikind)%rho_elec(:,atom_a) + 2.0_dp*admm_scal_fac*force_a(:)
-             IF (iatom /= jatom ) THEN
-                force(jkind)%rho_elec(:,atom_b) =&
-                     force(jkind)%rho_elec(:,atom_b) + 2.0_dp*admm_scal_fac*force_b(:)
-             END IF
+                  force(ikind)%rho_elec(:,atom_a) + scalef*admm_scal_fac*force_a(:)
+             force(jkind)%rho_elec(:,atom_b) =&
+                  force(jkind)%rho_elec(:,atom_b) + scalef*admm_scal_fac*force_b(:)
           ENDIF
           IF (use_virial) THEN
              IF (use_virial .AND. calculate_forces) THEN
-                virial%pv_virial = virial%pv_virial + 2.0_dp*admm_scal_fac*my_virial_a
-                IF (iatom /= jatom) THEN
-                   virial%pv_virial = virial%pv_virial + 2.0_dp*admm_scal_fac*my_virial_b
-                END IF
+                virial%pv_virial = virial%pv_virial + scalef*admm_scal_fac*my_virial_a
+                virial%pv_virial = virial%pv_virial + scalef*admm_scal_fac*my_virial_b
              END IF
           END IF
 !$omp end critical (force_critical)

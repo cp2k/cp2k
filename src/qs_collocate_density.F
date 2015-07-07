@@ -1951,7 +1951,7 @@ CONTAINS
     ! map all tasks on the grids
 
 !$omp parallel default(none), &
-!$omp          shared(ntasks,tasks,natoms,maxset,maxpgf,particle_set,pabt,workt), &
+!$omp          shared(ntasks,tasks,nimages,natoms,maxset,maxpgf,particle_set,pabt,workt), &
 !$omp          shared(my_basis_set_id,my_soft,deltap,maxco,dist_ab,ncoset,nthread), &
 !$omp          shared(cell,cube_info,eps_rho_rspace,ga_gb_function, my_idir,map_consistent), &
 !$omp          shared(rs_rho,lgrid,gridlevel_info,task_list,qs_kind_set), &
@@ -1987,8 +1987,8 @@ CONTAINS
     loop_pairs: DO ipair = 1, task_list%npairs(igrid_level)
     loop_tasks: DO itask = task_list%taskstart(ipair,igrid_level), task_list%taskstop(ipair,igrid_level)
        !decode the atom pair and basis info (igrid_level_dummy equals do loop variable by construction).
-       CALL int2pair(tasks(3,itask),igrid_level_dummy,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
-       img = INT(tasks(7,itask))
+       CALL int2pair(tasks(3,itask),igrid_level_dummy,img,iatom,jatom,iset,jset,ipgf,jpgf,&
+                     nimages,natoms,maxset,maxpgf)
        ikind = particle_set(iatom)%atomic_kind%kind_number
        jkind = particle_set(jatom)%atomic_kind%kind_number
 
@@ -2492,8 +2492,8 @@ CONTAINS
       loop_tasks: DO itask=1,ntasks
 
         !decode the atom pair and basis info
-        CALL int2pair(tasks(3,itask),igrid_level,iatom,jatom,iset,jset,ipgf,jpgf,natoms,maxset,maxpgf)
-        img = INT(tasks(7,itask))
+        CALL int2pair(tasks(3,itask),igrid_level,img,iatom,jatom,iset,jset,ipgf,jpgf,&
+                      nimages,natoms,maxset,maxpgf)
 
         ikind = particle_set(iatom)%atomic_kind%kind_number
         jkind = particle_set(jatom)%atomic_kind%kind_number
