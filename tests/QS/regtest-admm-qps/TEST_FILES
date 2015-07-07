@@ -1,7 +1,7 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-CH4-ADMMS-stress-tensor-analytical.inp    1     1e-11
+CH4-ADMMS-stress-tensor-analytical.inp    1     8e-10                               
 CH4-ADMMS-stress-tensor-numerical.inp    1     9e-10
 H2O-ADMMP-OPTX.inp    1    1e-13    -16.85527517093382
 H2O-ADMMS.inp    1    1e-13    -16.85334183947312
