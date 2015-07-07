@@ -1309,7 +1309,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cluster_cost, inds_tmp, &
                                                 nat_cluster, ncluster_new, piv
     LOGICAL                                  :: found
-    REAL(KIND=dp)                            :: balance, conv
+    REAL(KIND=dp)                            :: balance, balance_new, conv
 
     natoms=SIZE(coord, 2)
     ! This is a bit of an arbitrary choice, simply a try to avoid too many clusters on large systems and too few for balancing on
@@ -1326,18 +1326,21 @@ CONTAINS
     ELSE
        ALLOCATE(cluster_cost(nsplits), ncluster_new(nsplits), inds_tmp(natoms), piv(natoms), nat_cluster(nsplits))
        ! initialise some values
-       cluster_cost=0; seed=300; found=.TRUE.
+       cluster_cost=0; seed=300; found=.TRUE. ; min_seed=seed
        CALL kmeans(nsplits, coord, scaled_coord, cell, cluster_inds, nat_cluster, seed, conv, error)
+       balance=MAXVAL(REAL(nat_cluster))/MINVAL(REAL(nat_cluster))
+
        ! If the system is small enough try to do better in terms of balancing number of atoms per cluster
        ! by changing the seed for the initial guess
-       IF(natoms.lt.1000.AND. MAXVAL(REAL(nat_cluster))/MINVAL(REAL(nat_cluster)).gt.1.1)THEN
+       IF(natoms.lt.1000.AND. balance.gt.1.1)THEN
           found=.FALSE.
           DO i=1, 5
-             balance=MAXVAL(REAL(nat_cluster))/MINVAL(REAL(nat_cluster))
-             IF(MAXVAL(REAL(nat_cluster))/MINVAL(REAL(nat_cluster)).gt.1.1)THEN
+             IF(balance.gt.1.1)THEN
                  CALL kmeans(nsplits, coord, scaled_coord, cell, cluster_inds, nat_cluster, seed+i*40, conv, error)
-                 IF(MAXVAL(REAL(nat_cluster))/MINVAL(REAL(nat_cluster)).LT.balance)THEN
-                    min_seed=seed+i*40; balance=MAXVAL(REAL(nat_cluster))/MINVAL(REAL(nat_cluster))
+                 balance_new=MAXVAL(REAL(nat_cluster))/MINVAL(REAL(nat_cluster))
+                 IF(balance_new.LT.balance)THEN
+                    balance=balance_new
+                    min_seed=seed+i*40; 
                  END IF
              ELSE
                  found=.TRUE.
