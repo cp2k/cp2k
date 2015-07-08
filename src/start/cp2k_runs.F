@@ -461,8 +461,6 @@ CONTAINS
           CALL pw_cuda_finalize()
           CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=output_unit, error=error)
 
-          CALL cp_error_propagate_error(suberror,routineP,&
-               "cp2k ending run", error=error,failure=failure)
           IF (prog_name_id==do_cp2k) THEN
              f_env%force_env => force_env ! for mc
              CALL globenv_retain(globenv,error=error)!mc

@@ -87,7 +87,6 @@ CONTAINS
                                                 output_unit, unit_mat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: unit_conv
-    TYPE(cp_error_type)                      :: suberror
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: b, c, d
     TYPE(cp_logger_type), POINTER            :: logger
@@ -140,8 +139,7 @@ CONTAINS
     WannierCentres%WannierHamDiag=0.0_dp
       ! try to print the matrix
 
-    CALL cp_error_init(suberror,template_error=error)
-       unit_mat=cp_print_key_unit_nr(logger,loc_print_section,&
+    unit_mat=cp_print_key_unit_nr(logger,loc_print_section,&
        "WANNIER_STATES",extension=".whks",&
        ignore_should_output=.FALSE.,error=error)
     IF (unit_mat > 0) THEN
@@ -160,10 +158,8 @@ CONTAINS
     END DO
 
     IF (unit_mat > 0) WRITE(unit_mat,*)
-    CALL cp_error_reset(suberror)
     CALL cp_print_key_finished_output(unit_mat,logger,loc_print_section,&
                 "WANNIER_STATES",error=error)
-    CALL cp_error_dealloc_ref(suberror)
     IF (output_unit>0) THEN
       WRITE(output_unit,*)""
       WRITE(output_unit,*)"NUMBER OF Wannier STATES  ", ns

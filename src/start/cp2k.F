@@ -72,7 +72,7 @@ PROGRAM cp2k
   INTEGER                              :: output_unit,l,mpi_mapping_method
   INTEGER                              :: ierr, n_arg, i_arg
   LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
-                                          permissive,has_mpi_mapping
+                                          has_mpi_mapping
   LOGICAL                              :: run_it, force_run, has_input, xml, print_version, print_license
   TYPE(section_type), POINTER          :: input_declaration
   TYPE(cp_error_type)                  :: error
@@ -94,7 +94,6 @@ PROGRAM cp2k
   has_mpi_mapping =.FALSE.
   run_it     =.TRUE.
   force_run  =.FALSE.
-  permissive =.FALSE.
   print_version =.FALSE.
   print_license =.FALSE.
   command_line_error=.FALSE.
@@ -119,8 +118,6 @@ PROGRAM cp2k
         i_arg=i_arg+1
         CALL m_getarg(i_arg,arg_att)
         SELECT CASE(arg_att)
-        CASE("--permissive-echo")
-           permissive=.TRUE.
         CASE("--check","-c")
            check=.TRUE.
            run_it=.FALSE.
@@ -201,11 +198,6 @@ PROGRAM cp2k
            END IF
         END SELECT
      END DO arg_loop
-     IF (permissive) THEN
-        run_it=.FALSE.
-        echo_input=.TRUE.
-        check=.TRUE.
-     END IF
      IF ((run_it.OR.force_run.OR.check.OR.echo_input).AND.&
          (.NOT.has_input).AND.(.NOT.command_line_error)) THEN
        WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
@@ -233,7 +225,7 @@ PROGRAM cp2k
            REPEAT(" ",l)//" [-i] <input_file>",&
            REPEAT(" ",l)//" [-mpi-mapping|--mpi-mapping] <method>",&
            REPEAT(" ",l)//" [-o] <output_file>",&
-           REPEAT(" ",l)//" [--permissive-echo] [-r|-run] [--xml]"
+           REPEAT(" ",l)//" [-r|-run] [--xml]"
          WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A,/,/,T2,A,/,/,(T3,A))")&
            "starts the CP2K program, see <http://www.cp2k.org/>",&
            "The easiest way is "//TRIM(arg_att)//" <input_file>",&
@@ -252,9 +244,6 @@ PROGRAM cp2k
            "                    starting point for browsing",&
            "--license         : prints the CP2K license",&
            "--mpi-mapping     : applies a given MPI reordering to CP2K",&
-           "--permissive-echo : ignores unknown keywords and sections in the input",&
-           "                    and echoes it, you cannot run, you have to run the",&
-           "                    dumped input",&
            "--run, -r         : forces a CP2K run regardless of other specified flags",&
            "--version, -v     : prints the CP2K version and the SVN revision number",&
            "--xml             : dumps the whole CP2K input structure as a XML file",&
@@ -301,7 +290,7 @@ PROGRAM cp2k
 
         IF (check) THEN
            CALL check_input(input_declaration,input_file_name,output_file_name,&
-                echo_input=echo_input,permissive=permissive,ierr=ierr)
+                echo_input=echo_input,ierr=ierr)
            IF (default_para_env%source==default_para_env%mepos) THEN
               IF (ierr==0) THEN
                 IF (.NOT. echo_input) THEN

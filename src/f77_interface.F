@@ -1575,26 +1575,23 @@ CPSourceFileRef,&
 !>        defaults made explicit
 !> \param mpi_comm the mpi communicator (if not given it uses the default
 !>        one)
-!> \param permissive ...
 !> \param ierr error control, if different from 0 there was an error
 !> \author fawzi
 ! *****************************************************************************
   SUBROUTINE check_input(input_declaration, input_file_path,output_file_path,&
-       echo_input,mpi_comm,permissive,ierr)
+       echo_input,mpi_comm,ierr)
     TYPE(section_type), POINTER              :: input_declaration
     CHARACTER(len=*), INTENT(in)             :: input_file_path, &
                                                 output_file_path
     LOGICAL, INTENT(in), OPTIONAL            :: echo_input
     INTEGER, INTENT(in), OPTIONAL            :: mpi_comm
-    LOGICAL, INTENT(in), OPTIONAL            :: permissive
     INTEGER, INTENT(out)                     :: ierr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_input', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-    LOGICAL                                  :: failure, my_echo_input, &
-                                                my_permissive
+    LOGICAL                                  :: failure, my_echo_input
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1602,8 +1599,6 @@ CPSourceFileRef,&
 
     failure=.FALSE.
     my_echo_input=.FALSE.
-    my_permissive=.FALSE.
-    IF (PRESENT(permissive)) my_permissive=permissive
     IF (PRESENT(echo_input)) my_echo_input=echo_input
 
     IF (PRESENT(mpi_comm)) THEN
@@ -1635,11 +1630,9 @@ CPSourceFileRef,&
 
     input_file => read_input(input_declaration, input_file_path,initial_variables=empty_initial_variables, &
                                             para_env=para_env,error=error)
-    IF (my_permissive) CALL cp_error_reset(error)
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
        CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=unit_nr,error=error)
-       IF (my_permissive) CALL cp_error_reset(error)
        IF (my_echo_input.AND.para_env%mepos==para_env%source) THEN
           CALL section_vals_write(input_file,&
                unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.),hide_root=.TRUE.,&

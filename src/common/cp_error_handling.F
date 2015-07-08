@@ -56,11 +56,11 @@ MODULE cp_error_handling
 
   !API
   PUBLIC :: cp_error_init, cp_error_dealloc_ref, cp_error_set,&
-       cp_error_get, cp_error_reset, cp_error_get_level,&
+       cp_error_get, cp_error_get_level,&
        cp_error_get_print_level, cp_error_get_nr,&
        cp_error_get_logger, cp_error_get_stop_level,&
        cp_error_handle_error,&
-       cp_error_message, cp_error_propagate_error,&
+       cp_error_message,&
        cp_error_check, cp_error_synchronize_error
 
 #ifdef FD_DEBUG
@@ -184,33 +184,6 @@ CONTAINS
        CALL cp_logger_retain(error%logger)
     END IF
   END SUBROUTINE cp_error_init
-
-! *****************************************************************************
-!> \brief if the optional parameter error is present resets its level and
-!>      error_nr to 0 (is tipically called when you want to discard the
-!>      previous errors stored in error, i.e. not often)
-!> \param error the error you want to reset
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-!>      @version 2.2002
-! *****************************************************************************
-  SUBROUTINE cp_error_reset(error)
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    IF (PRESENT(error)) THEN
-       IF (.NOT. error%initialized) THEN
-          CALL cp_log(cp_get_default_logger(), CP_FAILURE_LEVEL,  &
-               'cp_error_handling:cp_error_reset:1', &
-               'error structure not initialized')
-          CALL cp_error_common_stop('cp_error_reset',&
-               'error structure not initialized')
-       END IF
-       error%error_nr=0
-       error%level=0
-    END IF
-  END SUBROUTINE cp_error_reset
 
 ! *****************************************************************************
 !> \brief routine to set the various components of the error structure
@@ -607,64 +580,6 @@ CONTAINS
        IF (debug_this_module) PRINT *, "assertion checked, in "//fromWhere//" msg="//message
     END IF
   END SUBROUTINE cp_assert
-
-! *****************************************************************************
-!> \brief if the internal error iError of a subroutine has an error levele
-!>      that is at least failure_level(i.e. if there was a serious error
-!>      in the subroutine) propagates the error to the actual error
-!>      (i.e. sets error to the same error than iError) and sets failure
-!>      to true if a failure more severe than warning happened
-!> \param iError the error object that comes from the subroutine
-!> \param fromWhere ...
-!> \param message ...
-!> \param error the error object in the actual routine
-!> \param failure if iError has an error it is set to true
-!> \param failure_level starting with which error level propagation happens
-!>            (defaults to cp_warning_level)
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-!>      @version 1.2002
-! *****************************************************************************
-  SUBROUTINE cp_error_propagate_error(iError, fromWhere, message, error, &
-       failure, failure_level)
-    TYPE(cp_error_type), INTENT(in)          :: iError
-    CHARACTER(len=*)                         :: fromWhere
-    CHARACTER(len=*), OPTIONAL               :: message
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    LOGICAL, INTENT(inout), OPTIONAL         :: failure
-    INTEGER, INTENT(in), OPTIONAL            :: failure_level
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_error_propagate_error', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: f_level
-
-    f_level=cp_warning_level
-    IF (PRESENT(failure_level)) f_level=failure_level
-    IF (cp_error_get_level(iError) /= 0 .AND. iError%level>f_level) THEN
-       IF (PRESENT(failure)) &
-            failure=.TRUE.
-       IF (PRESENT(error)) THEN
-          IF (error%level < iError%level) THEN
-             error%level=iError%level
-             error%error_nr=iError%error_nr
-          END IF
-          error%info=iError%info
-       END IF
-       IF (debug_this_module) THEN
-          IF (iError%level >= cp_error_get_print_level(error)) THEN
-             IF (PRESENT(message)) THEN
-                CALL cp_error_message(iError%level, fromWhere,"propagated error "//&
-                     message, error)
-             ELSE
-                CALL cp_error_message(iError%level, fromWhere,"propagated error",error)
-             END IF
-          END IF
-       ENDIF
-    END IF
-  END SUBROUTINE cp_error_propagate_error
 
 ! *****************************************************************************
 !> \brief comodity call to signat that something is not implemented

@@ -1487,7 +1487,6 @@ CONTAINS
     INTEGER                                  :: ik, irk, irs, len_key, &
                                                 my_index, tmp_index
     LOGICAL                                  :: failure, valRequested
-    TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
@@ -1568,15 +1567,9 @@ CONTAINS
                routineP,"Value requested, but no value set getting value from "//&
                "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
                TRIM(section%name),error,failure)
-          CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
           CALL val_get(my_val,l_val=l_val,i_val=i_val,r_val=r_val,&
                c_val=c_val,l_vals=l_vals,i_vals=i_vals,r_vals=r_vals,&
-               c_vals=c_vals,error=sub_error)
-          IF (cp_error_get_level(sub_error)/=0)&
-               CALL cp_error_propagate_error(sub_error,routineP,&
-               "getting value from  keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
-               TRIM(section%name),error=error,failure=failure)
-          CALL cp_error_dealloc_ref(sub_error)
+               c_vals=c_vals,error=error)
        END IF
 
     END IF
@@ -1699,7 +1692,6 @@ CONTAINS
     INTEGER                                  :: ik, irk, irs, len_key, &
                                                 my_index, tmp_index
     LOGICAL                                  :: failure, valSet
-    TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
@@ -1770,24 +1762,17 @@ CONTAINS
                "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
                TRIM(section%name),error,failure)
           CPPrecondition(valSet,cp_failure_level,routineP,error,failure)
-          CALL cp_error_init(sub_error,template_error=error,&
-               stop_level=cp_fatal_level)
           IF (keyword%type_of_var==lchar_t) THEN
              CALL val_create(my_val, lc_val=c_val, lc_vals_ptr=c_vals_ptr,&
-                  error=sub_error)
+                  error=error)
           ELSE
              CALL val_create(my_val,l_val=l_val,i_val=i_val,r_val=r_val,&
                   c_val=c_val,l_vals_ptr=l_vals_ptr,i_vals_ptr=i_vals_ptr,&
                   r_vals_ptr=r_vals_ptr,&
-                  c_vals_ptr=c_vals_ptr,enum=keyword%enum,error=sub_error)
+                  c_vals_ptr=c_vals_ptr,enum=keyword%enum,error=error)
           END IF
-          CPPostcondition(ASSOCIATED(my_val),cp_failure_level,routineP,sub_error,failure)
+          CPPostcondition(ASSOCIATED(my_val),cp_failure_level,routineP,error,failure)
           CPPostcondition(my_val%type_of_var==keyword%type_of_var,cp_failure_level,routineP,error,failure)
-          IF(cp_error_get_level(sub_error)/=0)&
-               CALL cp_error_propagate_error(sub_error,routineP,&
-               "setting value from  keyword "//TRIM(keyword_name(my_index:len_key))//&
-               " of section "// TRIM(section%name),error=error,failure=failure)
-          CALL cp_error_dealloc_ref(sub_error)
        END IF
     END IF
     IF (.NOT.failure) THEN
@@ -1935,7 +1920,6 @@ CONTAINS
     LOGICAL                                  :: defaultSection, explicit, &
                                                 failure, my_hide_defaults, &
                                                 my_hide_root
-    TYPE(cp_error_type)                      :: suberror
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
@@ -1950,7 +1934,6 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
     CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
-    CALL cp_error_init(suberror,template_error=error)
     IF ((.NOT.failure).AND.(unit_nr>0)) THEN
        CALL section_vals_get(section_vals, explicit=explicit, n_repetition=nr, section=section,&
             error=error)
@@ -1994,10 +1977,6 @@ CONTAINS
                                ELSE
                                   val => new_pos%first_el
                                END IF
-                               IF (cp_error_get_level(suberror)/=0)&
-                                    CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
-                                    message="for val "// TRIM(keyword%names(1))//" in section "//&
-                                    TRIM(section%name),error=error, failure=failure)
                                IF (keyword%names(1)/='_DEFAULT_KEYWORD_'.AND.&
                                     keyword%names(1)/='_SECTION_PARAMETERS_') THEN
                                   WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",a,' ')",advance="NO")&
@@ -2007,21 +1986,12 @@ CONTAINS
                                   WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
                                END IF
                                CALL val_write(val,unit_nr=unit_nr,unit=keyword%unit,&
-                                    fmt=myfmt,error=suberror)
-                               IF (cp_error_get_level(suberror)/=0)&
-                                    CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
-                                    message="for val "// TRIM(keyword%names(1))//" in section "//&
-                                    TRIM(section%name),error=error, failure=failure)
-                               IF (failure) EXIT
+                                    fmt=myfmt,error=error)
                             END DO
                          ELSEIF (ASSOCIATED(keyword%default_value)) THEN
                             ! Section was not parsed but default for the keywords may exist
                             IF (my_hide_defaults) CYCLE
                             val => keyword%default_value
-                            IF (cp_error_get_level(suberror)/=0)&
-                                 CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
-                                 message="for val "// TRIM(keyword%names(1))//" in section "//&
-                                 TRIM(section%name),error=error, failure=failure)
                             IF (keyword%names(1)/='_DEFAULT_KEYWORD_'.AND.&
                                  keyword%names(1)/='_SECTION_PARAMETERS_') THEN
                                WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//",a,' ')",advance="NO")&
@@ -2031,12 +2001,7 @@ CONTAINS
                                WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
                             END IF
                             CALL val_write(val,unit_nr=unit_nr,unit=keyword%unit,&
-                                 fmt=myfmt,error=suberror)
-                            IF (cp_error_get_level(suberror)/=0)&
-                                 CALL cp_error_propagate_error(suberror, fromWhere=routineP,&
-                                 message="for val "// TRIM(keyword%names(1))//" in section "//&
-                                 TRIM(section%name),error=error, failure=failure)
-                            IF (failure) EXIT
+                                 fmt=myfmt,error=error)
                          END IF
                       END IF
                    END IF
@@ -2061,7 +2026,6 @@ CONTAINS
           END DO
        END IF
     END IF
-    CALL cp_error_dealloc_ref(suberror)
 
   END SUBROUTINE section_vals_write
 

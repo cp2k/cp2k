@@ -96,9 +96,10 @@ CONTAINS
     CHARACTER(len=max_line_length)           :: token
     INTEGER                                  :: desc_level, handle, ik, irs, &
                                                 is, nsub, output_unit
-    LOGICAL :: at_end, compatible_end, failure, root_sect, skip_description, &
-      skip_help, suberror_happened, whole_section
-    TYPE(cp_error_type)                      :: suberror
+    LOGICAL                                  :: at_end, compatible_end, &
+                                                failure, root_sect, &
+                                                skip_description, skip_help, &
+                                                whole_section
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: last_val, new_val, &
                                                 previous_last, previous_list
@@ -116,7 +117,6 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    CALL cp_error_init(suberror,stop_level=cp_fatal_level,template_error=error)
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
 
@@ -161,10 +161,7 @@ CONTAINS
                n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
                enum=keyword%enum,unit=keyword%unit,&
                default_units=default_units,&
-               parser=parser,error=suberror)
-          CALL cp_error_propagate_error(suberror,routineP,"parsing section "//&
-               TRIM(section%name)//" parameters",error=error)
-          CALL cp_error_reset(suberror)
+               parser=parser,error=error)
           IF (.NOT.failure) THEN
              NULLIFY(new_val)
              CALL cp_sll_val_create(new_val,el,error=error)
@@ -174,11 +171,7 @@ CONTAINS
        END IF
        DO WHILE (.NOT.failure)
           CALL parser_get_object(parser,token,newline=.TRUE.,&
-               lower_to_upper=.TRUE.,at_end=at_end,error=suberror)
-          CALL cp_error_propagate_error(suberror,routineP,&
-               "parsing section "// TRIM(section%name),&
-               error=error,failure=failure)
-          CALL cp_error_reset(suberror)
+               lower_to_upper=.TRUE.,at_end=at_end,error=error)
           IF (at_end) THEN
              CALL cp_assert(.not.root_sect,cp_failure_level,&
                   cp_assertion_failed,routineP,&
@@ -194,14 +187,14 @@ CONTAINS
                 compatible_end=.TRUE.
                 IF (parser_test_next_token(parser,error=error)/="EOL") THEN
                    CALL parser_get_object(parser,token,newline=.FALSE.,&
-                        lower_to_upper=.TRUE.,error=suberror)
+                        lower_to_upper=.TRUE.,error=error)
                    IF (token/="SECTION".and.token/=section%name) THEN
                       compatible_end=.FALSE.
                    END IF
                 END IF
                 IF (parser_test_next_token(parser,error=error)/="EOL") THEN
                    CALL parser_get_object(parser,token,newline=.FALSE.,&
-                        lower_to_upper=.TRUE.,error=suberror)
+                        lower_to_upper=.TRUE.,error=error)
                    IF (token/=section%name) THEN
                       PRINT *,TRIM(token),"/=",TRIM(section%name)
                       compatible_end=.FALSE.
@@ -212,13 +205,7 @@ CONTAINS
                         routineP,"non-compatible end of section "//TRIM(section%name)//" "//&
                         TRIM(parser_location(parser,error=error)),error,failure)
                    skip_description=.TRUE.
-                ELSE
-                   CALL cp_error_propagate_error(suberror,routineP,&
-                        "parsing end of section "// TRIM(section%name),&
-                        error=error)
-                   CALL cp_error_reset(suberror)
                 END IF
-                !              call cp_error_dealloc_ref(suberror)
                 !              RETURN
                 EXIT
              END IF
@@ -227,17 +214,7 @@ CONTAINS
                 !              PRINT *,"parsing subsection "//TRIM(section%subsections(is)%section%name)&
                 !                   //" of section "// TRIM(section%name)
                 CALL section_vals_parse(section_vals%subs_vals(is,irs)%section_vals,&
-                     default_units=default_units,parser=parser,error=suberror)
-                suberror_happened=.FALSE.
-                CALL cp_error_propagate_error(suberror,routineP,&
-                     "parsing subsection "//TRIM(section%subsections(is)%section%name)&
-                     //" of section "// TRIM(section%name),&
-                     error=error,failure=suberror_happened)
-                CALL cp_error_reset(suberror)
-                IF (.NOT. failure .AND. suberror_happened) THEN
-                   skip_description=.TRUE.
-                   skip_help=.TRUE.
-                END IF
+                     default_units=default_units,parser=parser,error=error)
              ELSE
                 ! this should be an error (failure)
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -246,11 +223,7 @@ CONTAINS
                 nSub=1
                 DO WHILE (nSub>0)
                    CALL parser_get_object(parser,token,newline=.TRUE.,&
-                        lower_to_upper=.TRUE.,error=suberror)
-                   CALL cp_error_propagate_error(suberror,routineP,&
-                        "parsing end of section "// TRIM(section%name),&
-                        error=error,failure=failure)
-                   CALL cp_error_reset(suberror)
+                        lower_to_upper=.TRUE.,error=error)
                    IF (failure) EXIT
                    IF (token(1:1)==parser%section_character) THEN
                       IF (token=="&END") THEN
@@ -273,7 +246,7 @@ CONTAINS
                 DO WHILE (parser_test_next_token(parser,error=error)=="STR")
                    whole_section=.FALSE.
                    CALL parser_get_object(parser,token,newline=.FALSE.,&
-                        lower_to_upper=.TRUE.,error=suberror)
+                        lower_to_upper=.TRUE.,error=error)
                    keyword => section_get_keyword(section,token,error=error)
                    IF (.NOT.ASSOCIATED(keyword)) THEN
                       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
@@ -309,11 +282,7 @@ CONTAINS
                       CALL val_create_parsing(el,type_of_var=keyword%type_of_var,&
                            n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
                            enum=keyword%enum,unit=keyword%unit,&
-                           default_units=default_units,parser=parser,error=suberror)
-                      CALL cp_error_propagate_error(suberror,routineP,"parsing keyword "//&
-                           TRIM(token)//" in section "// TRIM(section%name),&
-                           error=error)
-                      CALL cp_error_reset(suberror)
+                           default_units=default_units,parser=parser,error=error)
                       IF (.NOT.failure.AND.ASSOCIATED(el)) THEN
                          NULLIFY(new_val)
                          CALL cp_sll_val_create(new_val,el,error=error)
@@ -372,7 +341,6 @@ CONTAINS
           END IF
        END IF
     END IF
-    CALL cp_error_dealloc_ref(suberror)
     CALL timestop(handle)
   END SUBROUTINE section_vals_parse
 
@@ -415,7 +383,6 @@ CONTAINS
     LOGICAL, DIMENSION(:), POINTER           :: l_val_p
     REAL(kind=dp)                            :: r_val
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_val_p
-    TYPE(cp_error_type)                      :: suberror
     TYPE(cp_sll_char_type), POINTER          :: c_first, c_last, c_new
     TYPE(cp_sll_int_type), POINTER           :: i_first, i_last, i_new
     TYPE(cp_sll_logical_type), POINTER       :: l_first, l_last, l_new
@@ -424,7 +391,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CALL cp_error_init(suberror,stop_level=cp_fatal_level,template_error=error)
     CPPrecondition(.NOT.ASSOCIATED(val),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        SELECT CASE(type_of_var)
@@ -468,11 +434,7 @@ CONTAINS
                 CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
                 IF (.NOT.failure) THEN
                    DO i=1,n_var
-                      CALL parser_get_object(parser,l_val_p(i),error=suberror)
-                      CALL cp_error_propagate_error(suberror,routineP,error=error,&
-                           failure=failure)
-                      CALL cp_error_reset(suberror)
-                      IF (failure) EXIT
+                      CALL parser_get_object(parser,l_val_p(i),error=error)
                    END DO
                 END IF
              END IF
@@ -519,10 +481,7 @@ CONTAINS
                 CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
                 IF (.NOT.failure) THEN
                    DO i=1,n_var
-                      CALL parser_get_object(parser,i_val_p(i),error=suberror)
-                      CALL cp_error_propagate_error(suberror,routineP,error=error,failure=failure)
-                      CALL cp_error_reset(suberror)
-                      IF (failure) EXIT
+                      CALL parser_get_object(parser,i_val_p(i),error=error)
                    END DO
                 END IF
              END IF
@@ -572,9 +531,6 @@ CONTAINS
                 IF (.NOT.failure) THEN
                    DO i=1,n_var
                       CALL get_r_val(r_val_p(i), parser, unit, default_units, c_val, error)
-                      CALL cp_error_propagate_error(suberror,routineP,error=error,failure=failure)
-                      CALL cp_error_reset(suberror)
-                      IF (failure) EXIT
                    END DO
                 END IF
              END IF
@@ -623,11 +579,7 @@ CONTAINS
                 CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
                 IF (.NOT.failure) THEN
                    DO i=1,n_var
-                      CALL parser_get_object(parser,c_val_p(i),error=suberror)
-                      CALL cp_error_propagate_error(suberror,routineP,error=error,&
-                           failure=failure)
-                      CALL cp_error_reset(suberror)
-                      IF (failure) EXIT
+                      CALL parser_get_object(parser,c_val_p(i),error=error)
                    END DO
                 END IF
              END IF
@@ -706,11 +658,8 @@ CONTAINS
                 CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
                 IF (.NOT.failure) THEN
                    DO i=1,n_var
-                      CALL parser_get_object(parser,c_val,error=suberror)
-                      i_val_p(i)=enum_c2i(enum,c_val,error=suberror)
-                      CALL cp_error_propagate_error(suberror,routineP,error=error,failure=failure)
-                      CALL cp_error_reset(suberror)
-                      IF (failure) EXIT
+                      CALL parser_get_object(parser,c_val,error=error)
+                      i_val_p(i)=enum_c2i(enum,c_val,error=error)
                    END DO
                 END IF
              END IF
@@ -734,7 +683,6 @@ CPSourceFileRef,&
        ENDIF
     END IF
 
-    CALL cp_error_dealloc_ref(suberror)
     CALL timestop(handle)
 
   END SUBROUTINE val_create_parsing
