@@ -29,7 +29,7 @@ K2.inp                            1     1e-12
 H2.inp             1
 # printing of structure data
 H2O-geoopt.inp    1    4e-14    -17.15265558923487
-H2O-fixed.inp    1    1.0E-14    -17.15247383311388
+H2O-fixed.inp                     1     2e-14             -17.15247383311388
 h2o_dip_berry.inp    17    1.0E-14    2.91646264
 h2o_dip_iso.inp    17    1.0E-14    2.88539712
 #pre-processor
