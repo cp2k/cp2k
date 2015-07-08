@@ -17,6 +17,8 @@ MODULE qs_rho_atom_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
   USE kinds,                           ONLY: dp
+  USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                             kpoint_type
   USE lebedev,                         ONLY: deallocate_lebedev_grids,&
                                              get_number_of_lebedev_grid,&
                                              init_lebedev_grids,&
@@ -493,7 +495,7 @@ MODULE qs_rho_atom_methods
   SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, rho_atom_set,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_ao
     TYPE(rho_atom_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_atom_set
@@ -502,13 +504,14 @@ MODULE qs_rho_atom_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_atom_coeff', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bo(2), handle, i, iac, iatom, ibc, icol, ikind, irow, ispin, &
-      istat, jatom, jkind, kac, katom, kbc, kkind, max_gau, max_nsgf, maxsoc, &
-      mepos, n_cont_a, n_cont_b, nat_kind, natom, nkind, nsatbas, nsetc, &
-      nsgfa, nsgfb, nsoctot, nspins, num_pe
+    INTEGER :: bo(2), handle, i, iac, iatom, ibc, icol, ikind, img, irow, &
+      ispin, istat, jatom, jkind, kac, katom, kbc, kkind, max_gau, max_nsgf, &
+      maxsoc, mepos, n_cont_a, n_cont_b, nat_kind, natom, nimages, nkind, &
+      nsatbas, nsetc, nsgfa, nsgfb, nsoctot, nspins, num_pe
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: a_list, list_a, list_b
+    INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: dista, distab, distb, &
                                                 failure, found, paw_atom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: p_matrix
@@ -527,6 +530,7 @@ MODULE qs_rho_atom_methods
       DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
                                                 orb_basis_set
+    TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -564,7 +568,14 @@ MODULE qs_rho_atom_methods
 
     IF (PRESENT(rho_atom_set)) rho_atom => rho_atom_set
 
-    nspins=dft_control%nspins
+    nspins = dft_control%nspins
+    nimages = dft_control%nimages
+
+    NULLIFY(cell_to_index)
+    IF (nimages > 1) THEN
+       CALL get_qs_env(qs_env=qs_env,kpoints=kpoints,error=error)
+       CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index,error=error)
+    END IF
 
     ALLOCATE(p_block_spin(nspins),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -636,9 +647,16 @@ MODULE qs_rho_atom_methods
           icol = iatom
        ENDIF
 
+       IF(nimages > 1) THEN
+          img = cell_to_index(cell_b(1),cell_b(2),cell_b(3))
+          CPPostcondition(img > 0,cp_failure_level,routineP,error,failure)
+       ELSE
+          img = 1
+       END IF
+
        DO ispin = 1,nspins
           NULLIFY(p_block_spin(ispin)%r_coef)
-          CALL cp_dbcsr_get_block_p(matrix=rho_ao(ispin)%matrix,&
+          CALL cp_dbcsr_get_block_p(matrix=rho_ao(ispin,img)%matrix,&
                row=irow,col=icol,BLOCK=p_block_spin(ispin)%r_coef,&
                found=found)
           pmax = pmax+MAXVAL(ABS(p_block_spin(ispin)%r_coef))

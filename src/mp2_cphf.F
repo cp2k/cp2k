@@ -751,7 +751,7 @@ MODULE mp2_cphf
 
     INTEGER                                  :: handle, i_global, iiB, irep, &
                                                 j_global, jjB, ncol_local, &
-                                                nrow_local
+                                                nrow_local, ns
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: failure, &
                                                 my_recalc_hfx_integrals
@@ -759,6 +759,8 @@ MODULE mp2_cphf
                                                 total_rho
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_work_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: mat_2d, rho_ao_2d
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
     NULLIFY(ks_env, rho_work_ao)
@@ -920,7 +922,11 @@ MODULE mp2_cphf
     ! save old EX energy
     ex_energy=energy%ex
     DO irep=1, n_rep_hf
-      CALL integrate_four_center(qs_env, mat_mu_nu, energy, rho_work_ao, hfx_sections,&
+      ns = SIZE(rho_work_ao)
+      rho_ao_2d(1:ns,1:1) => rho_work_ao(1:ns)
+      ns = SIZE(mat_mu_nu)
+      mat_2d(1:ns,1:1) => mat_mu_nu(1:ns)
+      CALL integrate_four_center(qs_env, mat_2d, energy, rho_ao_2d, hfx_sections,&
                                  para_env, my_recalc_hfx_integrals, irep, .TRUE.,&
                                  ispin=1, error=error)
     END DO

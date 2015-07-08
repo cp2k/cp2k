@@ -1631,7 +1631,7 @@ MODULE admm_methods
 ! *****************************************************************************
   SUBROUTINE scale_dm(qs_env, rho_ao_orb, scale_back, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_ao_orb
     LOGICAL, INTENT(IN)                      :: scale_back
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1639,7 +1639,7 @@ MODULE admm_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_dm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin
+    INTEGER                                  :: handle, img, ispin
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(dft_control_type), POINTER          :: dft_control
 
@@ -1656,11 +1656,13 @@ MODULE admm_methods
     IF (admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. &
                  .NOT. admm_env%charge_constrain ) THEN
       DO ispin=1, dft_control%nspins
-        IF(scale_back) THEN
-          CALL cp_dbcsr_scale(rho_ao_orb(ispin)%matrix, 1.0_dp/admm_env%gsi(ispin), error=error)     
-        ELSE
-          CALL cp_dbcsr_scale(rho_ao_orb(ispin)%matrix, admm_env%gsi(ispin), error=error)
-        END IF
+        DO img=1, dft_control%nimages
+          IF(scale_back) THEN
+            CALL cp_dbcsr_scale(rho_ao_orb(ispin,img)%matrix, 1.0_dp/admm_env%gsi(ispin), error=error)     
+          ELSE
+            CALL cp_dbcsr_scale(rho_ao_orb(ispin,img)%matrix, admm_env%gsi(ispin), error=error)
+          END IF
+        END DO
       END DO
     END IF
 

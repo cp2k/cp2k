@@ -383,16 +383,17 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_update_rho', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, nspins
+    INTEGER                                  :: handle, img, ispin, nimg, &
+                                                nspins
     LOGICAL                                  :: failure, gapw, gapw_xc
     REAL(KIND=dp)                            :: dum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r, tot_rho_r_xc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: rho_ao, rho_xc_ao
+      POINTER                                :: rho_ao
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: rho_ao_kp
+      POINTER                                :: rho_ao_kp, rho_xc_ao
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -440,7 +441,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
 
       IF (PRESENT(task_list_external)) task_list => task_list_external 
 
-      nspins=dft_control%nspins
+      nspins = dft_control%nspins
+      nimg = dft_control%nimages
       gapw = dft_control%qs_control%gapw
       gapw_xc = dft_control%qs_control%gapw_xc
 
@@ -512,18 +514,18 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
      ! GAPW o GAPW_XC require the calculation of hard and soft local densities
       IF(gapw ) THEN
          CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
-         CALL qs_rho_get(rho_struct, rho_ao=rho_ao, error=error)
+         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp, error=error)
          IF(PRESENT(local_rho_set)) THEN
-            CALL calculate_rho_atom_coeff(qs_env,rho_ao,local_rho_set%rho_atom_set,error=error)
+            CALL calculate_rho_atom_coeff(qs_env,rho_ao_kp,local_rho_set%rho_atom_set,error=error)
          ELSE
-            CALL calculate_rho_atom_coeff(qs_env,rho_ao,error=error)
+            CALL calculate_rho_atom_coeff(qs_env,rho_ao_kp,error=error)
          ENDIF
       ENDIF
       IF(gapw_xc) THEN
          CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
          CALL get_qs_env(qs_env=qs_env,rho_xc=rho_xc,error=error)
          CALL qs_rho_get(rho_xc,&
-                         rho_ao=rho_xc_ao,&
+                         rho_ao_kp=rho_xc_ao,&
                          rho_r=rho_xc_r,&
                          rho_g=rho_xc_g,&
                          tot_rho_r=tot_rho_r_xc,&
@@ -531,13 +533,16 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
                          tau_r=tau_xc_r,&
                          tau_g=tau_xc_g,&
                          error=error)
-         CALL calculate_rho_atom_coeff(qs_env,rho_ao,error=error)
+         CALL calculate_rho_atom_coeff(qs_env,rho_ao_kp,error=error)
          ! copy rho_ao into rho_xc_ao
          DO ispin=1,nspins
-           CALL cp_dbcsr_copy(rho_xc_ao(ispin)%matrix, rho_ao(ispin)%matrix, error=error)
+            DO img=1,nimg
+               CALL cp_dbcsr_copy(rho_xc_ao(ispin,img)%matrix,rho_ao_kp(ispin,img)%matrix, error=error)
+            END DO
          END DO
          DO ispin=1,nspins
-           CALL calculate_rho_elec(matrix_p=rho_xc_ao(ispin)%matrix,&
+           rho_ao => rho_xc_ao(ispin,:)
+           CALL calculate_rho_elec(matrix_p_kp=rho_ao,&
                 rho=rho_xc_r(ispin),&
                 rho_gspace=rho_xc_g(ispin),&
                 total_rho=tot_rho_r_xc(ispin),&
@@ -547,7 +552,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
          ! if needed compute also the gradient of the density
          IF (dft_control%drho_by_collocation) THEN
             DO ispin=1,nspins
-              CALL calculate_drho_elec(matrix_p=rho_xc_ao(ispin)%matrix,&
+              rho_ao => rho_xc_ao(ispin,:)
+              CALL calculate_drho_elec(matrix_p_kp=rho_ao,&
                 drho=rho_xc_r(3*(ispin-1)+1:3*ispin),&
                 drho_gspace=drho_xc_g(3*(ispin-1)+1:3*ispin),&
                 qs_env=qs_env,soft_valid=gapw_xc,error=error)
@@ -557,7 +563,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
          ! if needed compute also the kinetic energy density
          IF (dft_control%use_kinetic_energy_density) THEN
            DO ispin=1,nspins
-             CALL calculate_rho_elec(matrix_p=rho_xc_ao(ispin)%matrix,&
+             rho_ao => rho_xc_ao(ispin,:)
+             CALL calculate_rho_elec(matrix_p_kp=rho_ao,&
                  rho=tau_xc_r(ispin),&
                  rho_gspace=tau_xc_g(ispin),&
                  total_rho=dum, &  ! presumably not meaningful

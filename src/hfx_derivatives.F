@@ -114,7 +114,7 @@ MODULE hfx_derivatives
                                      irep, use_virial, adiabatic_rescale_factor, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_ao
     TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -252,7 +252,7 @@ MODULE hfx_derivatives
     IF(ASSOCIATED(qs_env%mp2_env)) with_mp2_density=.TRUE.
 
     IF(with_mp2_density) CALL get_qs_env(qs_env, matrix_p_mp2=rho_ao_mp2, error=error)
-    is_anti_symmetric=cp_dbcsr_get_matrix_type(rho_ao(1)%matrix).EQ.dbcsr_type_antisymmetric
+    is_anti_symmetric=cp_dbcsr_get_matrix_type(rho_ao(1,1)%matrix).EQ.dbcsr_type_antisymmetric
 
     CALL get_qs_env(qs_env,&
                     admm_env=admm_env,&
@@ -525,7 +525,7 @@ MODULE hfx_derivatives
 
     !! Get the full density from all the processors
     CALL timeset(routineN//"_getP",handle_getP)
-    CALL get_full_density(para_env, full_density, rho_ao(1)%matrix, shm_number_of_p_entries,&
+    CALL get_full_density(para_env, full_density, rho_ao(1,1)%matrix, shm_number_of_p_entries,&
                           shm_block_offset, natom, &
                           kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
                           antisymmetric=is_anti_symmetric,error=error)
@@ -543,7 +543,7 @@ MODULE hfx_derivatives
     IF(nspins == 2) THEN
       ALLOCATE(full_density_beta(shm_block_offset(ncpu+1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      CALL get_full_density(para_env, full_density_beta, rho_ao(2)%matrix, shm_number_of_p_entries,&
+      CALL get_full_density(para_env, full_density_beta, rho_ao(2,1)%matrix, shm_number_of_p_entries,&
                             shm_block_offset, natom, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
                             antisymmetric=is_anti_symmetric,error=error)

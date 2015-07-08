@@ -136,7 +136,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_ao
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -326,7 +326,7 @@ CONTAINS
 
     IF (gapw) THEN
        ! need to rebuild the coeff !
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+       CALL qs_rho_get(rho, rho_ao_kp=rho_ao, error=error)
        CALL calculate_rho_atom_coeff(qs_env,rho_ao,error=error)
        CALL prepare_gapw_den(qs_env,do_rho0=.TRUE.,error=error)
     END IF

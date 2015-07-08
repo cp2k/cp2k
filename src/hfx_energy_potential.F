@@ -132,10 +132,10 @@ MODULE hfx_energy_potential
                                    ispin, error, do_exx)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: ks_matrix
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: rho_ao
     TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -163,11 +163,11 @@ MODULE hfx_energy_potential
     INTEGER :: kind_kind_idx, kkind, kset, l_max, latom, latom_block, &
       latom_end, latom_start, lkind, lset, ma, max_am, max_pgf, max_set, mb, &
       my_bin_id, my_bin_size, my_thread_id, n_threads, natom, nbits, ncob, &
-      ncos_max, nints, nkind, nneighbors, nseta, nsetb, nsgf_max, nspins, pa, &
-      sgfb, shm_task_counter, shm_total_bins, sphi_a_u1, sphi_a_u2, &
-      sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, sphi_c_u2, &
-      sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, stat, swap_id, tmp_i4, &
-      unit_id
+      ncos_max, nints, nkimages, nkind, nneighbors, nseta, nsetb, nsgf_max, &
+      nspins, pa, sgfb, shm_task_counter, shm_total_bins, sphi_a_u1, &
+      sphi_a_u2, sphi_a_u3, sphi_b_u1, sphi_b_u2, sphi_b_u3, sphi_c_u1, &
+      sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, sphi_d_u3, stat, swap_id, &
+      tmp_i4, unit_id
     INTEGER(int_8) :: atom_block, counter, estimate_to_store_int, &
       max_val_memory, mb_size_buffers, mb_size_f, mb_size_p, &
       mem_compression_counter, mem_compression_counter_disk, mem_eris, &
@@ -283,7 +283,7 @@ MODULE hfx_energy_potential
 
     logger => cp_error_get_logger(error)
 
-    is_anti_symmetric=cp_dbcsr_get_matrix_type(rho_ao(1)%matrix).EQ.dbcsr_type_antisymmetric
+    is_anti_symmetric=cp_dbcsr_get_matrix_type(rho_ao(1,1)%matrix).EQ.dbcsr_type_antisymmetric
 
     IF( geometry_did_change ) THEN
       CALL m_memory(memsize_before)
@@ -426,7 +426,7 @@ MODULE hfx_energy_potential
 !$OMP         spherical_estimate,nbits,buffer_left,buffer_start,buffer_size,max_contraction_val,tmp_r_1,tmp_r_2,&
 !$OMP         tmp_screen_pgf1,tmp_screen_pgf2,cartesian_estimate,bintime_stop,iw,memsize_after,storage_counter_integrals,&
 !$OMP         stor_count_int_disk,stor_count_max_val,ene_x_aa,ene_x_bb,mb_size_p,mb_size_f,mb_size_buffers,afac,ene_x_aa_diag,&
-!$OMP         ene_x_bb_diag,act_atomic_block_offset,act_set_offset,j,handle_dist_ks,tmp_i8,tmp_i4,dft_control,bin)
+!$OMP         ene_x_bb_diag,act_atomic_block_offset,act_set_offset,j,handle_dist_ks,tmp_i8,tmp_i4,dft_control,nkimages,bin)
 
 
     ln_10 = LOG(10.0_dp)
@@ -497,6 +497,7 @@ MODULE hfx_energy_potential
                     error=error)
 
     natom = SIZE(particle_set,1)
+    nkimages = dft_control%nimages
 
     ALLOCATE(kind_of(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -597,7 +598,7 @@ MODULE hfx_energy_potential
 !$OMP MASTER
     !! Calculate helper array that stores if a certain atomic pair is associated in the KS matrix
     IF( geometry_did_change ) THEN
-      CALL get_atomic_block_maps(ks_matrix(1)%matrix,basis_parameter,kind_of,&
+      CALL get_atomic_block_maps(ks_matrix(1,1)%matrix,basis_parameter,kind_of,&
                                  shm_master_x_data%is_assoc_atomic_block,&
                                  shm_master_x_data%number_of_p_entries ,&
                                  para_env, &
@@ -688,7 +689,7 @@ MODULE hfx_energy_potential
     ! ** Convert into MB's
     subtr_size_mb = subtr_size_mb * 8_int_8/1024_int_8/1024_int_8
 
-    ! ** Subtracting all these buffers from from MAX_MEMORY yields the amount
+    ! ** Subtracting all these buffers from MAX_MEMORY yields the amount
     ! ** of RAM that is left for the compressed integrals. When using threads
     ! ** all the available memory is shared among all n_threads. i.e. the faster
     ! ** ones can steal from the slower ones
@@ -706,9 +707,8 @@ MODULE hfx_energy_potential
       integral_caches_disk        => actual_x_data%integral_caches_disk
     END IF
 
-
     IF(geometry_did_change) THEN
-     memory_parameter%ram_counter = HUGE(memory_parameter%ram_counter)
+      memory_parameter%ram_counter = HUGE(memory_parameter%ram_counter)
     END IF
 
     IF( geometry_did_change) THEN
@@ -727,7 +727,6 @@ MODULE hfx_energy_potential
     !! get storage epsilon
     eps_storage = eps_schwarz*memory_parameter%eps_storage_scaling
 
-
     !! If we have a hybrid functional, we may need only a fraction of exact exchange
     hf_fraction = general_parameter%fraction
 
@@ -745,10 +744,9 @@ MODULE hfx_energy_potential
     END IF
     logger => cp_error_get_logger(error)
 
-
     private_lib = actual_x_data%lib
 
-    !! Helper array to map local basis function indeces to global ones
+    !! Helper array to map local basis function indices to global ones
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     last_sgf_global(0)=0
@@ -766,14 +764,14 @@ MODULE hfx_energy_potential
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF( .NOT. treat_lsd_in_core .OR. nspins == 1 ) THEN
       CALL timeset(routineN//"_getP",handle_getP)
-      CALL get_full_density(para_env, full_density, rho_ao(ispin)%matrix, shm_number_of_p_entries,&
+      CALL get_full_density(para_env, full_density, rho_ao(ispin,1)%matrix, shm_number_of_p_entries,&
                             shm_master_x_data%block_offset, natom, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., antisymmetric=is_anti_symmetric,& 
                             error=error)
 
       IF(nspins == 2) THEN
         ALLOCATE(full_density_beta(shm_block_offset(ncpu+1)),STAT=stat)
-        CALL get_full_density(para_env, full_density_beta, rho_ao(2)%matrix, shm_number_of_p_entries,&
+        CALL get_full_density(para_env, full_density_beta, rho_ao(2,1)%matrix, shm_number_of_p_entries,&
                               shm_master_x_data%block_offset, natom,  &
                               kind_of, basis_parameter, get_max_vals_spin=.FALSE.,antisymmetric=is_anti_symmetric,&
                               error=error)
@@ -801,10 +799,10 @@ MODULE hfx_energy_potential
     ELSE
       IF( do_p_screening ) THEN
         CALL timeset(routineN//"_getP",handle_getP)
-        CALL get_full_density(para_env, full_density, rho_ao(1)%matrix, shm_number_of_p_entries,&
+        CALL get_full_density(para_env, full_density, rho_ao(1,1)%matrix, shm_number_of_p_entries,&
                               shm_master_x_data%block_offset, natom,  &
                               kind_of, basis_parameter,  get_max_vals_spin=.TRUE., &
-                              rho_beta=rho_ao(2)%matrix, antisymmetric=is_anti_symmetric, error=error)
+                              rho_beta=rho_ao(2,1)%matrix, antisymmetric=is_anti_symmetric, error=error)
         CALL timestop(handle_getP)
 
         !! Calculate the max values of the density matrix actual_pmax stores the data from the actual density matrix
@@ -825,7 +823,7 @@ MODULE hfx_energy_potential
         END IF
       END IF
       ! ** Now get the density(ispin)
-      CALL get_full_density(para_env, full_density, rho_ao(ispin)%matrix, shm_number_of_p_entries,&
+      CALL get_full_density(para_env, full_density, rho_ao(ispin,1)%matrix, shm_number_of_p_entries,&
                             shm_master_x_data%block_offset, natom, &
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE., antisymmetric=is_anti_symmetric, error=error)
     END IF
@@ -1296,7 +1294,7 @@ MODULE hfx_energy_potential
                       shm_is_assoc_atomic_block(katom,jatom)>=1 .AND. &
                       shm_is_assoc_atomic_block(latom,jatom)>=1 ) ) CYCLE
 
-            !! calculate symmetry_factor accordin to degeneracy of atomic quartet
+            !! calculate symmetry_factor according to degeneracy of atomic quartet
             symm_fac = 0.5_dp
             IF(iatom==jatom) symm_fac = symm_fac*2.0_dp
             IF(katom==latom) symm_fac = symm_fac*2.0_dp
@@ -1916,7 +1914,7 @@ MODULE hfx_energy_potential
     IF( distribute_fock_matrix) THEN
       !! Distribute the current KS-matrix to all the processes
       CALL timeset(routineN//"_dist_KS",handle_dist_ks)
-      CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(ispin)%matrix, shm_number_of_p_entries, &
+      CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(ispin,1)%matrix, shm_number_of_p_entries, &
                                 shm_block_offset, natom, kind_of, basis_parameter, &
                                 off_diag_fac=0.5_dp,diag_fac=afac,error=error)
 
@@ -1925,7 +1923,7 @@ MODULE hfx_energy_potential
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       IF( .NOT. treat_lsd_in_core ) THEN
         IF(nspins == 2) THEN
-          CALL distribute_ks_matrix(para_env, full_ks_beta, ks_matrix(2)%matrix, shm_number_of_p_entries, &
+          CALL distribute_ks_matrix(para_env, full_ks_beta, ks_matrix(2,1)%matrix, shm_number_of_p_entries, &
                                     shm_block_offset, natom, kind_of, basis_parameter, &
                                     off_diag_fac=0.5_dp, diag_fac=afac, error=error)
           NULLIFY(full_ks_beta)
@@ -1939,20 +1937,20 @@ MODULE hfx_energy_potential
 
     IF( distribute_fock_matrix) THEN
       !! ** Calculate the exchange energy
-      CALL cp_dbcsr_trace(ks_matrix(ispin)%matrix, rho_ao(ispin)%matrix, &
+      CALL cp_dbcsr_trace(ks_matrix(ispin,1)%matrix, rho_ao(ispin,1)%matrix, &
                           ene_x_aa, error=error)
       !for ADMMS, we need the exchange matrix k(d) for both spins 
       IF( dft_control%do_admm ) THEN
-        CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, ks_matrix(ispin)%matrix, &
+        CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, ks_matrix(ispin,1)%matrix, &
                            name="HF exch. part of matrix_ks_aux_fit for ADMMS", error=error) 
       END IF
 
       IF( nspins == 2 .AND. .NOT. treat_lsd_in_core ) THEN
-        CALL cp_dbcsr_trace(ks_matrix(2)%matrix, rho_ao(2)%matrix, &
+        CALL cp_dbcsr_trace(ks_matrix(2,1)%matrix, rho_ao(2,1)%matrix, &
                             ene_x_bb, error=error)
         !for ADMMS, we need the exchange matrix k(d) for both spins
         IF( dft_control%do_admm ) THEN
-          CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(2)%matrix, ks_matrix(2)%matrix, &
+          CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(2)%matrix, ks_matrix(2,1)%matrix, &
                              name="HF exch. part of matrix_ks_aux_fit for ADMMS", error=error)          
         END IF
       END IF

@@ -232,15 +232,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ikind, irep, ispin, &
-                                                mspin, n_rep_hf, nimages, &
-                                                nspins, stat
+    INTEGER                                  :: handle, ikind, img, irep, &
+                                                ispin, mspin, n_rep_hf, &
+                                                nimages, ns, nspins, stat
     LOGICAL :: distribute_fock_matrix, do_adiabatic_rescaling, failure, &
       hfx_treat_lsd_in_core, s_mstruct_changed, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: hf_energy
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h, &
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_1d, &
       matrix_ks_aux_fit, matrix_ks_aux_fit_hfx, matrix_ks_aux_fit_im, &
-      matrix_ks_im, matrix_ks_orb, rho_ao_orb
+      matrix_ks_im, rho_ao_1d
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_h, matrix_ks_orb, &
+                                                rho_ao_orb
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -265,7 +268,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
          input=input,&
-         matrix_h=matrix_h,&
+         matrix_h_kp=matrix_h,&
          para_env=para_env,&
          pw_env=pw_env,&
          virial=virial,&
@@ -278,7 +281,6 @@ CONTAINS
 
     nspins=dft_control%nspins
     nimages=dft_control%nimages
-    CPPrecondition(nimages==1,cp_failure_level,routineP,error,failure)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -299,7 +301,9 @@ CONTAINS
       END DO
     END IF
     DO ispin = 1,nspins
-       CALL cp_dbcsr_set(matrix_ks(ispin,1)%matrix,0.0_dp,error=error)
+       DO img=1,nimages
+          CALL cp_dbcsr_set(matrix_ks(ispin,img)%matrix,0.0_dp,error=error)
+       END DO
     END DO
 
     CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf,error=error)
@@ -329,31 +333,32 @@ CONTAINS
        
        ! fetch the correct matrices for normal HFX or ADMM
        IF( dft_control%do_admm ) THEN
-          CALL get_qs_env(qs_env=qs_env,matrix_ks_aux_fit=matrix_ks_orb,&
+          CALL get_qs_env(qs_env=qs_env,matrix_ks_aux_fit=matrix_ks_1d,&
                           rho_aux_fit=rho_orb,error=error)
+          ns = SIZE(matrix_ks_1d)
+          matrix_ks_orb(1:ns,1:1) => matrix_ks_1d(1:ns)
        ELSE
-          CALL get_qs_env(qs_env=qs_env,matrix_ks=matrix_ks_orb,rho=rho_orb,error=error)
+          CALL get_qs_env(qs_env=qs_env,matrix_ks_kp=matrix_ks_orb,rho=rho_orb,error=error)
        END IF
-       CALL qs_rho_get(rho_struct=rho_orb,rho_ao=rho_ao_orb,error=error)
+       CALL qs_rho_get(rho_struct=rho_orb,rho_ao_kp=rho_ao_orb,error=error)
        ! Finally the real hfx calulation
        DO ispin = 1,mspin
-          CALL integrate_four_center(qs_env, matrix_ks_orb ,energy,rho_ao_orb,hfx_sections,&
-                                     para_env, s_mstruct_changed, irep, distribute_fock_matrix,&
-                                     ispin=ispin, error=error)
+          CALL integrate_four_center(qs_env,matrix_ks_orb,energy,rho_ao_orb,hfx_sections,&
+                                     para_env,s_mstruct_changed,irep,distribute_fock_matrix,&
+                                     ispin=ispin,error=error)
        END DO
     
        IF( calculate_forces .AND. .NOT. do_adiabatic_rescaling ) THEN
           !Scale auxiliary density matrix for ADMMP (see Merlot2014) with gsi(ispin) to scale force
           IF( dft_control%do_admm ) THEN
-            CALL scale_dm(qs_env, rho_ao_orb, scale_back=.FALSE., error=error) 
+            CALL scale_dm(qs_env, rho_ao_orb,scale_back=.FALSE.,error=error) 
           END IF
-          CALL derivatives_four_center(qs_env, rho_ao_orb, hfx_sections, &
-                                       para_env, irep, use_virial, error=error)
+          CALL derivatives_four_center(qs_env,rho_ao_orb,hfx_sections, &
+                                       para_env,irep,use_virial,error=error)
           !Scale auxiliary density matrix for ADMMP back with 1/gsi(ispin) 
           IF( dft_control%do_admm ) THEN
             CALL scale_dm(qs_env, rho_ao_orb, scale_back=.TRUE., error=error)
           END IF
-
        END IF
 
        !! If required, the calculation of the forces will be done later with adiabatic rescaling
@@ -367,15 +372,21 @@ CONTAINS
              CALL cp_dbcsr_set(matrix_ks_im(ispin)%matrix,0.0_dp,error=error)
           END DO
           IF( dft_control%do_admm ) THEN
-             matrix_ks_orb => matrix_ks_aux_fit_im
+             ! matrix_ks_orb => matrix_ks_aux_fit_im
+             ns = SIZE(matrix_ks_aux_fit_im)
+             matrix_ks_orb(1:ns,1:1) => matrix_ks_aux_fit_im(1:ns)
              DO ispin = 1,nspins
                 CALL cp_dbcsr_set(matrix_ks_aux_fit_im(ispin)%matrix,0.0_dp,error=error)
              END DO
           ELSE
-             matrix_ks_orb => matrix_ks_im
+             ! matrix_ks_orb => matrix_ks_im
+             ns = SIZE(matrix_ks_im)
+             matrix_ks_orb(1:ns,1:1) => matrix_ks_im(1:ns)
           END IF
 
-          CALL qs_rho_get(rho_orb, rho_ao_im=rho_ao_orb, error=error)
+          CALL qs_rho_get(rho_orb, rho_ao_im=rho_ao_1d, error=error)
+          ns = SIZE(rho_ao_1d)
+          rho_ao_orb(1:ns,1:1) => rho_ao_1d(1:ns)
 
           DO ispin = 1,mspin
              CALL integrate_four_center(qs_env, matrix_ks_orb ,energy,rho_ao_orb,hfx_sections,&
@@ -400,8 +411,10 @@ CONTAINS
 
     ! *** Add Core-Hamiltonian-Matrix ***
     DO ispin=1,nspins
-         CALL cp_dbcsr_add(matrix_ks(ispin,1)%matrix,matrix_h(1)%matrix,&
-              1.0_dp,1.0_dp,error=error)
+       DO img=1,nimages
+          CALL cp_dbcsr_add(matrix_ks(ispin,img)%matrix,matrix_h(1,img)%matrix,&
+               1.0_dp,1.0_dp,error=error)
+       END DO
     END DO
     IF (use_virial .AND. calculate_forces) THEN
          virial%pv_virial = virial%pv_virial - virial%pv_fock_4c

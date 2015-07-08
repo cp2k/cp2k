@@ -635,7 +635,10 @@ CONTAINS
     CALL section_vals_val_get(xc_section_orig,"TAU_CUTOFF",&
          r_val=tau_cut,error=error)
 
-    CALL calculate_rho_atom_coeff(qs_env, rho_struct_ao,error=error)
+    ! remap pointer 
+    ns = SIZE(rho_struct_ao)
+    psmat(1:ns,1:1) => rho_struct_ao(1:ns)
+    CALL calculate_rho_atom_coeff(qs_env,psmat,error=error)
     CALL prepare_gapw_den(qs_env, error=error)
 
     ALLOCATE(mo_coeff(nspins), single_mo_coeff(nspins), &
@@ -867,7 +870,10 @@ CONTAINS
                 ! This calculates the CPC and density on the grids for every atom even though
                 ! we need it only for iatom at the moment. It seems that to circumvent this,
                 ! the routines must be adapted to calculate just iatom
-                CALL calculate_rho_atom_coeff(qs_env, orbital_density_matrix, &
+                ! remap pointer 
+                ns = SIZE(orbital_density_matrix)
+                psmat(1:ns,1:1) => orbital_density_matrix(1:ns)
+                CALL calculate_rho_atom_coeff(qs_env,psmat, &
                                               local_rho_set%rho_atom_set,error=error)
                 CALL prepare_gapw_den(qs_env,local_rho_set,.FALSE.,error)
 
@@ -970,7 +976,10 @@ CONTAINS
                 ! This calculates the CPC and density on the grids for every atom even though
                 ! we need it only for iatom at the moment. It seems that to circumvent this,
                 ! the routines must be adapted to calculate just iatom
-                CALL calculate_rho_atom_coeff(qs_env, orbital_density_matrix, &
+                ! remap pointer 
+                ns = SIZE(orbital_density_matrix)
+                psmat(1:ns,1:1) => orbital_density_matrix(1:ns)
+                CALL calculate_rho_atom_coeff(qs_env,psmat, &
                                               local_rho_set%rho_atom_set,error=error)
                 CALL prepare_gapw_den(qs_env,local_rho_set,.FALSE.,error)
 

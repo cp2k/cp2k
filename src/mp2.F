@@ -1129,11 +1129,13 @@ MODULE mp2
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_exx', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, irep, n_rep_hf
+    INTEGER                                  :: handle, i, irep, n_rep_hf, ns
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_ks_2d, rho_ao_2d
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
@@ -1181,7 +1183,11 @@ MODULE mp2
     ELSE
 
       DO irep = 1,n_rep_hf
-        CALL integrate_four_center(qs_env, matrix_ks, energy, rho_ao, hfx_sections,&
+        ns = SIZE(rho_ao)
+        rho_ao_2d(1:ns,1:1) => rho_ao(1:ns)
+        ns = SIZE(matrix_ks)
+        matrix_ks_2d(1:ns,1:1) => matrix_ks(1:ns)
+        CALL integrate_four_center(qs_env, matrix_ks_2d, energy, rho_ao_2d, hfx_sections,&
                                    para_env, .TRUE., irep, .TRUE.,&
                                    ispin=1, error=error, do_exx=.TRUE.)
       END DO
@@ -1229,7 +1235,7 @@ MODULE mp2
     INTEGER                                  :: dimen, gw_corr_lev_occ, &
                                                 gw_corr_lev_virt, homo, irep, &
                                                 ispin, myfun, n_rep_hf, nmo, &
-                                                stat
+                                                ns, stat
     LOGICAL                                  :: do_hfx, failure
     REAL(KIND=dp)                            :: hfx_fraction, t1, t2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1238,6 +1244,8 @@ MODULE mp2
       POINTER                                :: matrix_ks, &
                                                 matrix_sigma_x_minus_vxc, &
                                                 rho_ao
+    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
+      POINTER                                :: matrix_ks_2d, rho_ao_2d
     TYPE(cp_dbcsr_type)                      :: matrix_tmp, matrix_tmp_2, &
                                                 mo_coeff_b
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -1323,7 +1331,11 @@ MODULE mp2
 
     ! add here HFX (=Sigma_exchange) to matrix_sigma_x_minus_vxc
     DO irep = 1,n_rep_hf
-      CALL integrate_four_center(qs_env,matrix_ks,energy_dummy,rho_ao,hfx_sections,&
+      ns = SIZE(rho_ao)
+      rho_ao_2d(1:ns,1:1) => rho_ao(1:ns)
+      ns = SIZE(matrix_ks)
+      matrix_ks_2d(1:ns,1:1) => matrix_ks(1:ns)
+      CALL integrate_four_center(qs_env,matrix_ks_2d,energy_dummy,rho_ao_2d,hfx_sections,&
                                  para_env,.TRUE.,irep,.TRUE.,&
                                  ispin=1,error=error,do_exx=.TRUE.)
     END DO
