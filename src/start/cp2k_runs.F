@@ -169,8 +169,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_run', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: f_env_handle, ierr, iter_level, method_name_id, new_env_id, &
-      prog_name_id, run_type_id, unit_nr
+    INTEGER                                  :: f_env_handle, ierr, &
+                                                iter_level, method_name_id, &
+                                                new_env_id, prog_name_id, &
+                                                run_type_id
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
     TYPE(cp_error_type)                      :: error, suberror
