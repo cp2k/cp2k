@@ -93,64 +93,63 @@ CONTAINS
                                                 n_frags, root_section
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       NULLIFY(bsse_section, n_frags, Em, conf)
-       logger => cp_error_get_logger(error)
-       root_section => force_env%root_section
-       bsse_section => section_vals_get_subs_vals(force_env%force_env_section,"BSSE",error=error)
-       n_frags => section_vals_get_subs_vals(bsse_section,"FRAGMENT",error=error)
-       CALL section_vals_get(n_frags,n_repetition=Num_of_Frag,error=error)
+    NULLIFY(bsse_section, n_frags, Em, conf)
+    logger => cp_error_get_logger(error)
+    root_section => force_env%root_section
+    bsse_section => section_vals_get_subs_vals(force_env%force_env_section,"BSSE",error=error)
+    n_frags => section_vals_get_subs_vals(bsse_section,"FRAGMENT",error=error)
+    CALL section_vals_get(n_frags,n_repetition=Num_of_Frag,error=error)
 
-       ! Number of configurations
-       num_of_conf = 0
-       DO k = 1, Num_of_frag
-          num_of_conf = num_of_conf + FACT(Num_of_frag) / (FACT(k)*FACT(Num_of_frag-k))
+    ! Number of configurations
+    num_of_conf = 0
+    DO k = 1, Num_of_frag
+      num_of_conf = num_of_conf + FACT(Num_of_frag) / (FACT(k)*FACT(Num_of_frag-k))
+    END DO
+    ALLOCATE(conf(num_of_conf,Num_of_frag),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(Em(num_of_conf), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL gen_Nbody_conf(Num_of_frag, conf)
+
+    should_stop = .FALSE.
+    istart      = 0
+    fragment_energies_section => section_vals_get_subs_vals(bsse_section,"FRAGMENT_ENERGIES",error=error)
+    CALL section_vals_get(fragment_energies_section, explicit=explicit, error=error)
+    IF (explicit) THEN
+       CALL section_vals_val_get(fragment_energies_section,"_DEFAULT_KEYWORD_",n_rep_val=istart,error=error)
+       DO i = 1, istart
+          CALL section_vals_val_get(fragment_energies_section,"_DEFAULT_KEYWORD_",r_val=Em(i),&
+               i_rep_val=i, error=error)
        END DO
-       ALLOCATE(conf(num_of_conf,Num_of_frag),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(Em(num_of_conf), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL gen_Nbody_conf(Num_of_frag, conf)
-
-       should_stop = .FALSE.
-       istart      = 0
-       fragment_energies_section => section_vals_get_subs_vals(bsse_section,"FRAGMENT_ENERGIES",error=error)
-       CALL section_vals_get(fragment_energies_section, explicit=explicit, error=error)
-       IF (explicit) THEN
-          CALL section_vals_val_get(fragment_energies_section,"_DEFAULT_KEYWORD_",n_rep_val=istart,error=error)
-          DO i = 1, istart
-             CALL section_vals_val_get(fragment_energies_section,"_DEFAULT_KEYWORD_",r_val=Em(i),&
-                  i_rep_val=i, error=error)
-          END DO
-       END IF
-       ! Setup the iteration level for BSSE
-       CALL cp_add_iter_level(logger%iter_info,"BSSE",error=error)
-       CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=istart,error=error)
-
-       ! Evaluating the energy of the N-body cluster terms
-       DO i = istart+1, num_of_conf
-          CALL cp_iterate(logger%iter_info,last=(i==num_of_conf),iter_nr=i,error=error)
-          CALL eval_bsse_energy(conf(i,:),Em(i),force_env, n_frags, &
-               root_section,globenv, should_stop, error=error)
-          IF (should_stop) EXIT
-
-          ! If no signal was received in the inner loop let's check also at this stage
-          CALL external_control(should_stop,"BSSE",globenv=globenv,error=error)
-          IF (should_stop) EXIT
-
-          ! Dump Restart info only if the calculation of the energy of a configuration
-          ! ended nicely..
-          CALL section_vals_val_set(fragment_energies_section,"_DEFAULT_KEYWORD_",r_val=Em(i),&
-               i_rep_val=i,error=error)
-          CALL write_bsse_restart(bsse_section, root_section, error=error)
-       END DO
-       IF (.NOT.should_stop) CALL dump_bsse_results(conf, Em, num_of_frag,  bsse_section, error)
-       CALL cp_rm_iter_level(logger%iter_info,"BSSE",error=error)
-       DEALLOCATE(Em,   stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(conf, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    ! Setup the iteration level for BSSE
+    CALL cp_add_iter_level(logger%iter_info,"BSSE",error=error)
+    CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=istart,error=error)
+
+    ! Evaluating the energy of the N-body cluster terms
+    DO i = istart+1, num_of_conf
+       CALL cp_iterate(logger%iter_info,last=(i==num_of_conf),iter_nr=i,error=error)
+       CALL eval_bsse_energy(conf(i,:),Em(i),force_env, n_frags, &
+            root_section,globenv, should_stop, error=error)
+       IF (should_stop) EXIT
+
+       ! If no signal was received in the inner loop let's check also at this stage
+       CALL external_control(should_stop,"BSSE",globenv=globenv,error=error)
+       IF (should_stop) EXIT
+
+       ! Dump Restart info only if the calculation of the energy of a configuration
+       ! ended nicely..
+       CALL section_vals_val_set(fragment_energies_section,"_DEFAULT_KEYWORD_",r_val=Em(i),&
+            i_rep_val=i,error=error)
+       CALL write_bsse_restart(bsse_section, root_section, error=error)
+    END DO
+    IF (.NOT.should_stop) CALL dump_bsse_results(conf, Em, num_of_frag,  bsse_section, error)
+    CALL cp_rm_iter_level(logger%iter_info,"BSSE",error=error)
+    DEALLOCATE(Em,   stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(conf, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
   END SUBROUTINE do_bsse_calculation
 
 ! *****************************************************************************
@@ -189,46 +188,45 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em_loc
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       NULLIFY(conf_loc, Em_loc)
-       should_stop = .FALSE.
-       ! Count the number of subconfiguration to evaluate..
-       Num_of_sub_frag = COUNT(conf == 1)
-       Num_of_sub_conf = 0
-       IF (Num_of_sub_frag == 1) THEN
-          CALL eval_bsse_energy_low(force_env, conf, conf, n_frags, root_section, globenv, Em, error)
-       ELSE
-          my_energy = 0.0_dp
-          DO k = 1, Num_of_sub_frag
-             Num_of_sub_conf = Num_of_sub_conf + &
-                  FACT(Num_of_sub_frag) / (FACT(k)*FACT(Num_of_sub_frag-k))
-          END DO
-          ALLOCATE(conf_loc(Num_of_sub_conf,Num_of_sub_frag), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(Em_loc(Num_of_sub_conf), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          Em_loc = 0.0_dp
-          CALL gen_Nbody_conf(Num_of_sub_frag, conf_loc)
-          CALL make_plan_conf(conf, conf_loc)
-          DO i = 1, Num_of_sub_conf
-             CALL eval_bsse_energy_low(force_env, conf, conf_loc(i,:), n_frags,&
-                  root_section,globenv, Em_loc(i), error)
-             CALL external_control(should_stop,"BSSE",globenv=globenv,error=error)
-             IF (should_stop) EXIT
-          END DO
-          ! Energy
-          k = COUNT(conf == 1)
-          DO i =  1, Num_of_sub_conf
-             j = COUNT(conf_loc(i,:) == 1)
-             my_energy = my_energy + (-1.0_dp)**(k+j) * Em_loc(i)
-          END DO
-          Em = my_energy
-          DEALLOCATE(Em_loc, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(conf_loc, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
+    NULLIFY(conf_loc, Em_loc)
+    should_stop = .FALSE.
+    ! Count the number of subconfiguration to evaluate..
+    Num_of_sub_frag = COUNT(conf == 1)
+    Num_of_sub_conf = 0
+    IF (Num_of_sub_frag == 1) THEN
+       CALL eval_bsse_energy_low(force_env, conf, conf, n_frags, root_section, globenv, Em, error)
+    ELSE
+       my_energy = 0.0_dp
+       DO k = 1, Num_of_sub_frag
+          Num_of_sub_conf = Num_of_sub_conf + &
+                            FACT(Num_of_sub_frag) / (FACT(k)*FACT(Num_of_sub_frag-k))
+       END DO
+       ALLOCATE(conf_loc(Num_of_sub_conf,Num_of_sub_frag), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(Em_loc(Num_of_sub_conf), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       Em_loc = 0.0_dp
+       CALL gen_Nbody_conf(Num_of_sub_frag, conf_loc)
+       CALL make_plan_conf(conf, conf_loc)
+       DO i = 1, Num_of_sub_conf
+          CALL eval_bsse_energy_low(force_env, conf, conf_loc(i,:), n_frags,&
+               root_section,globenv, Em_loc(i), error)
+          CALL external_control(should_stop,"BSSE",globenv=globenv,error=error)
+          IF (should_stop) EXIT
+       END DO
+       ! Energy
+       k = COUNT(conf == 1)
+       DO i =  1, Num_of_sub_conf
+          j = COUNT(conf_loc(i,:) == 1)
+          my_energy = my_energy + (-1.0_dp)**(k+j) * Em_loc(i)
+       END DO
+       Em = my_energy
+       DEALLOCATE(Em_loc, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(conf_loc, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+
   END SUBROUTINE eval_bsse_energy
 
 ! *****************************************************************************
@@ -281,98 +279,98 @@ CONTAINS
     CALL section_vals_get(n_frags,n_repetition=num_of_frag,error=error)
     CPPostcondition(SIZE(conf)==num_of_frag,cp_failure_level,routineP,error,failure)
     NULLIFY(subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, tmplist,&
-         force_env_section )
+           force_env_section )
     CALL force_env_get(force_env, force_env_section=force_env_section, error=error)
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
     bsse_section   => section_vals_get_subs_vals(force_env_section,"BSSE",error=error)
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     dft_section    => section_vals_get_subs_vals(force_env_section,"DFT",error=error)
-    IF (.NOT.failure) THEN
-       ALLOCATE(my_conf(SIZE(conf)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       my_conf = conf
-       CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env,&
-            cell=cell, error=error)
-       CALL cp_subsys_get(subsys, particles=particles, error=error)
-       isize = 0
-       ALLOCATE(atom_index(isize),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i = 1, num_of_frag
-          IF (conf(i) == 1) THEN
-             !
-             ! Get the list of atoms creating the present fragment
-             !
-             old_size=isize
-             CALL section_vals_val_get(n_frags, "LIST", i_rep_section=i, n_rep_val=n_rep, error=error)
-             IF (n_rep /= 0) THEN
-                DO ir = 1, n_rep
-                   CALL section_vals_val_get(n_frags, "LIST", i_rep_section=i, i_rep_val=ir, i_vals=tmplist, error=error)
-                   CALL reallocate(atom_index,1,isize+SIZE(tmplist))
-                   atom_index(isize+1:isize+SIZE(tmplist)) = tmplist
-                   isize = SIZE(atom_index)
-                END DO
-             END IF
-             my_conf(i) = isize - old_size
-             CPPostcondition(conf(i)/=0,cp_failure_level,routineP,error,failure)
-          END IF
-       END DO
-       CALL conf_info_setup(present_charge, present_multpl, conf, conf_loc, bsse_section,&
-            dft_section, error)
-       !
-       ! Get names and modify the ghost ones
-       !
-       ALLOCATE(atom_type(isize), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO j = 1, isize
-          my_targ = atom_index(j)
-          DO k = 1, SIZE(particles%els)
-             CALL get_atomic_kind(particles%els(k)%atomic_kind, atom_list=atom_list, name=name)
-             IF (ANY(atom_list == my_targ)) EXIT
-          END DO
-          atom_type(j) = name
-       END DO
-       DO i = 1, SIZE(conf_loc)
-          IF (my_conf(i) /= 0 .AND. conf_loc(i) == 0) THEN
-             DO j = SUM(my_conf(1:i-1))+1, SUM(my_conf(1:i))
-                atom_type(j) = TRIM(atom_type(j))//"_ghost"
+
+    ALLOCATE(my_conf(SIZE(conf)), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    my_conf = conf
+    CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env,&
+         cell=cell, error=error)
+    CALL cp_subsys_get(subsys, particles=particles, error=error)
+    isize = 0
+    ALLOCATE(atom_index(isize),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, num_of_frag
+       IF (conf(i) == 1) THEN
+          !
+          ! Get the list of atoms creating the present fragment
+          !
+          old_size=isize
+          CALL section_vals_val_get(n_frags, "LIST", i_rep_section=i, n_rep_val=n_rep, error=error)
+          IF (n_rep /= 0) THEN
+             DO ir = 1, n_rep
+               CALL section_vals_val_get(n_frags, "LIST", i_rep_section=i, i_rep_val=ir, i_vals=tmplist, error=error)
+               CALL reallocate(atom_index,1,isize+SIZE(tmplist))
+               atom_index(isize+1:isize+SIZE(tmplist)) = tmplist
+               isize = SIZE(atom_index)
              END DO
           END IF
+          my_conf(i) = isize - old_size
+          CPPostcondition(conf(i)/=0,cp_failure_level,routineP,error,failure)
+      END IF
+    END DO
+    CALL conf_info_setup(present_charge, present_multpl, conf, conf_loc, bsse_section,&
+        dft_section, error)
+    !
+    ! Get names and modify the ghost ones
+    !
+    ALLOCATE(atom_type(isize), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO j = 1, isize
+       my_targ = atom_index(j)
+       DO k = 1, SIZE(particles%els)
+          CALL get_atomic_kind(particles%els(k)%atomic_kind, atom_list=atom_list, name=name)
+          IF (ANY(atom_list == my_targ)) EXIT
        END DO
-       CALL dump_bsse_info(atom_index, atom_type, conf, conf_loc, bsse_section,&
-                           present_charge, present_multpl,  error)
-       !
-       ! Let's start setting up environments and calculations
-       !
-       energy = 0.0_dp
-       IF (method_name_id == do_qs) THEN
-          CALL create_small_subsys(subsys_loc, big_subsys=subsys,&
-               small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&
-               sub_atom_kind_name=atom_type,para_env=para_env,&
-               force_env_section=force_env_section,subsys_section=subsys_section,error=error)
-
-          CALL qs_env_create(qs_env, globenv,error=error)
-          CALL qs_init(qs_env, para_env, globenv, root_section, cp_subsys=subsys_loc,&
-               force_env_section=force_env_section, subsys_section=subsys_section,&
-               use_motion_section=.FALSE., error=error)
-          CALL cp_subsys_release(subsys_loc,error=error)
-
-          !
-          ! Evaluate Energy
-          !
-          CALL qs_energies(qs_env, error=error)
-          CALL get_qs_env(qs_env, energy=qs_energy, error=error)
-          energy = qs_energy%total
-          CALL qs_env_release(qs_env,error=error)
-       ELSE
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       atom_type(j) = name
+    END DO
+    DO i = 1, SIZE(conf_loc)
+       IF (my_conf(i) /= 0 .AND. conf_loc(i) == 0) THEN
+          DO j = SUM(my_conf(1:i-1))+1, SUM(my_conf(1:i))
+             atom_type(j) = TRIM(atom_type(j))//"_ghost"
+          END DO
        END IF
-       DEALLOCATE(atom_index, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(atom_type, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(my_conf, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    CALL dump_bsse_info(atom_index, atom_type, conf, conf_loc, bsse_section,&
+                       present_charge, present_multpl,  error)
+    !
+    ! Let's start setting up environments and calculations
+    !
+    energy = 0.0_dp
+    IF (method_name_id == do_qs) THEN
+       CALL create_small_subsys(subsys_loc, big_subsys=subsys,&
+            small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&
+            sub_atom_kind_name=atom_type,para_env=para_env,&
+            force_env_section=force_env_section,subsys_section=subsys_section,error=error)
+
+       CALL qs_env_create(qs_env, globenv,error=error)
+       CALL qs_init(qs_env, para_env, globenv, root_section, cp_subsys=subsys_loc,&
+            force_env_section=force_env_section, subsys_section=subsys_section,&
+            use_motion_section=.FALSE., error=error)
+       CALL cp_subsys_release(subsys_loc,error=error)
+
+       !
+       ! Evaluate Energy
+       !
+       CALL qs_energies(qs_env, error=error)
+       CALL get_qs_env(qs_env, energy=qs_energy, error=error)
+       energy = qs_energy%total
+       CALL qs_env_release(qs_env,error=error)
+    ELSE
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF
+    DEALLOCATE(atom_index, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(atom_type, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(my_conf, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
   END SUBROUTINE eval_bsse_energy_low
 
 ! *****************************************************************************
@@ -410,35 +408,33 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger)
-    IF (.NOT.failure) THEN
-        logger => cp_error_get_logger(error)
-        iw=cp_print_key_unit_nr(logger,bsse_section,"PRINT%PROGRAM_RUN_INFO",&
-                                         extension=".log",error=error)
-        IF (iw>0) THEN
-          WRITE (conf_s,fmt="(1000I0)",iostat=istat)conf ;
-          IF(istat.NE.0) conf_s="exceeded"
-          CALL compress(conf_s,full=.TRUE.)
-          WRITE (conf_loc_s,fmt="(1000I0)",iostat=istat)conf_loc ;
-          IF(istat.NE.0) conf_loc_s="exceeded"
-          CALL compress(conf_loc_s,full=.TRUE.)
+    logger => cp_error_get_logger(error)
+    iw=cp_print_key_unit_nr(logger,bsse_section,"PRINT%PROGRAM_RUN_INFO",&
+                                     extension=".log",error=error)
+    IF (iw>0) THEN
+       WRITE (conf_s,fmt="(1000I0)",iostat=istat)conf ;
+       IF(istat.NE.0) conf_s="exceeded"
+       CALL compress(conf_s,full=.TRUE.)
+       WRITE (conf_loc_s,fmt="(1000I0)",iostat=istat)conf_loc ;
+       IF(istat.NE.0) conf_loc_s="exceeded"
+       CALL compress(conf_loc_s,full=.TRUE.)
 
-          WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
-          WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-          WRITE (UNIT=iw,FMT="(T2,A,T5,A,T30,A,T55,A,T80,A)")&
-               "-","BSSE CALCULATION","FRAGMENT CONF: "//TRIM(conf_s),"FRAGMENT SUBCONF: "//TRIM(conf_loc_s),"-"
-          WRITE (UNIT=iw,FMT="(T2,A,T30,A,I6,T55,A,I6,T80,A)") "-","CHARGE =",present_charge,"MULTIPLICITY =",&
-                                                         present_multpl,"-"
-          WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-          WRITE (UNIT=iw,FMT="(T2,A,T20,A,T60,A,T80,A)") "-","ATOM INDEX","ATOM NAME","-"
-          WRITE (UNIT=iw,FMT="(T2,A,T20,A,T60,A,T80,A)") "-","----------","---------","-"
-          DO i = 1, SIZE(atom_index)
-             WRITE (UNIT=iw,FMT="(T2,A,T20,I6,T61,A,T80,A)") "-",atom_index(i),TRIM(atom_type(i)),"-"
-          END DO
-          WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
-       END IF
+       WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
+       WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+       WRITE (UNIT=iw,FMT="(T2,A,T5,A,T30,A,T55,A,T80,A)")&
+              "-","BSSE CALCULATION","FRAGMENT CONF: "//TRIM(conf_s),"FRAGMENT SUBCONF: "//TRIM(conf_loc_s),"-"
+       WRITE (UNIT=iw,FMT="(T2,A,T30,A,I6,T55,A,I6,T80,A)") "-","CHARGE =",present_charge,"MULTIPLICITY =",&
+                                                     present_multpl,"-"
+       WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+       WRITE (UNIT=iw,FMT="(T2,A,T20,A,T60,A,T80,A)") "-","ATOM INDEX","ATOM NAME","-"
+       WRITE (UNIT=iw,FMT="(T2,A,T20,A,T60,A,T80,A)") "-","----------","---------","-"
+       DO i = 1, SIZE(atom_index)
+          WRITE (UNIT=iw,FMT="(T2,A,T20,I6,T61,A,T80,A)") "-",atom_index(i),TRIM(atom_type(i)),"-"
+       END DO
+       WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
 
        CALL cp_print_key_finished_output(iw,logger,bsse_section,&
-               "PRINT%PROGRAM_RUN_INFO", error=error)
+            "PRINT%PROGRAM_RUN_INFO", error=error)
 
     END IF
   END SUBROUTINE dump_bsse_info
@@ -476,36 +472,34 @@ CONTAINS
     present_multpl = 0
     failure = .FALSE.
     NULLIFY(configurations, glb_conf, sub_conf)
-    IF (.NOT.failure) THEN
-       ! Loop over all configurations to pick up the right one
-       configurations => section_vals_get_subs_vals(bsse_section,"CONFIGURATION",error=error)
-       CALL section_vals_get(configurations,explicit=explicit,n_repetition=nconf,error=error)
-       IF (explicit) THEN
-          DO i=1, nconf
-             CALL section_vals_val_get(configurations,"GLB_CONF", i_rep_section=i, i_vals=glb_conf, error=error)
-             CALL cp_assert(SIZE(glb_conf)==SIZE(conf),cp_fatal_level,cp_assertion_failed,routineP,&
-                  "GLB_CONF requires a binary description of the configuration. Number of integer "//&
-                  "different from the number of fragments defined!"//&
+    ! Loop over all configurations to pick up the right one
+    configurations => section_vals_get_subs_vals(bsse_section,"CONFIGURATION",error=error)
+    CALL section_vals_get(configurations,explicit=explicit,n_repetition=nconf,error=error)
+    IF (explicit) THEN
+       DO i=1, nconf
+          CALL section_vals_val_get(configurations,"GLB_CONF", i_rep_section=i, i_vals=glb_conf, error=error)
+          CALL cp_assert(SIZE(glb_conf)==SIZE(conf),cp_fatal_level,cp_assertion_failed,routineP,&
+               "GLB_CONF requires a binary description of the configuration. Number of integer "//&
+               "different from the number of fragments defined!"//&
 CPSourceFileRef,&
-                  only_ionode=.TRUE.)
-             CALL section_vals_val_get(configurations,"SUB_CONF", i_rep_section=i, i_vals=sub_conf, error=error)
-             CALL cp_assert(SIZE(sub_conf)==SIZE(conf),cp_fatal_level,cp_assertion_failed,routineP,&
-                  "SUB_CONF requires a binary description of the configuration. Number of integer "//&
-                  "different from the number of fragments defined!"//&
+               only_ionode=.TRUE.)
+          CALL section_vals_val_get(configurations,"SUB_CONF", i_rep_section=i, i_vals=sub_conf, error=error)
+          CALL cp_assert(SIZE(sub_conf)==SIZE(conf),cp_fatal_level,cp_assertion_failed,routineP,&
+               "SUB_CONF requires a binary description of the configuration. Number of integer "//&
+               "different from the number of fragments defined!"//&
 CPSourceFileRef,&
-                  only_ionode=.TRUE.)
-             IF (ALL(conf==glb_conf).AND.ALL(conf_loc==sub_conf)) THEN
-                CALL section_vals_val_get(configurations,"CHARGE", i_rep_section=i,&
-                                          i_val=present_charge, error=error)
-                CALL section_vals_val_get(configurations,"MULTIPLICITY", i_rep_section=i,&
-                                          i_val=present_multpl, error=error)
-             END IF
-          END DO
-       END IF
-       ! Setup parameter for this configuration
-       CALL section_vals_val_set(dft_section,"CHARGE",i_val=present_charge, error=error)
-       CALL section_vals_val_set(dft_section,"MULTIPLICITY",i_val=present_multpl, error=error)
+               only_ionode=.TRUE.)
+          IF (ALL(conf==glb_conf).AND.ALL(conf_loc==sub_conf)) THEN
+             CALL section_vals_val_get(configurations,"CHARGE", i_rep_section=i,&
+                                       i_val=present_charge, error=error)
+             CALL section_vals_val_get(configurations,"MULTIPLICITY", i_rep_section=i,&
+                                       i_val=present_multpl, error=error)
+          END IF
+       END DO
     END IF
+    ! Setup parameter for this configuration
+    CALL section_vals_val_set(dft_section,"CHARGE",i_val=present_charge, error=error)
+    CALL section_vals_val_set(dft_section,"MULTIPLICITY",i_val=present_multpl, error=error)
   END SUBROUTINE conf_info_setup
 
 ! *****************************************************************************
@@ -536,35 +530,33 @@ CPSourceFileRef,&
 
     failure = .FALSE.
     NULLIFY(logger)
-    IF (.NOT.failure) THEN
-        logger => cp_error_get_logger(error)
-        iw=cp_print_key_unit_nr(logger,bsse_section,"PRINT%PROGRAM_RUN_INFO",&
-                                         extension=".log",error=error)
+    logger => cp_error_get_logger(error)
+    iw=cp_print_key_unit_nr(logger,bsse_section,"PRINT%PROGRAM_RUN_INFO",&
+                                      extension=".log",error=error)
 
-        IF (iw>0) THEN
-          WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
-          WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-          WRITE (UNIT=iw,FMT="(T2,A,T36,A,T80,A)")&
-               "-","BSSE RESULTS","-"
-          WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-          WRITE (UNIT=iw,FMT="(T2,A,T20,A,F16.6,T80,A)") "-","CP-corrected Total energy:",SUM(Em),"-"
-          WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-          DO i = 1, SIZE(conf,1)
-             IF (i.GT.1) THEN
-                IF (SUM(conf(i-1,:))==1.AND.SUM(conf(i,:))/=1) THEN
-                   WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-                END IF
+    IF (iw>0) THEN
+       WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
+       WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+       WRITE (UNIT=iw,FMT="(T2,A,T36,A,T80,A)")&
+            "-","BSSE RESULTS","-"
+       WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+       WRITE (UNIT=iw,FMT="(T2,A,T20,A,F16.6,T80,A)") "-","CP-corrected Total energy:",SUM(Em),"-"
+       WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+       DO i = 1, SIZE(conf,1)
+          IF (i.GT.1) THEN
+             IF (SUM(conf(i-1,:))==1.AND.SUM(conf(i,:))/=1) THEN
+                WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
              END IF
-             WRITE (UNIT=iw,FMT="(T2,A,T24,I3,A,F16.6,T80,A)") "-",SUM(conf(i,:)),"-body contribution:",Em(i),"-"
-          END DO
-          WRITE (UNIT=iw,FMT="(T2,A,T20,A,F16.6,T80,A)") "-","BSSE-free interaction energy:",SUM(Em(Num_of_frag+1:)),"-"
-          WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
-        END IF
-
-        CALL cp_print_key_finished_output(iw,logger,bsse_section,&
-               "PRINT%PROGRAM_RUN_INFO", error=error)
-
+          END IF
+          WRITE (UNIT=iw,FMT="(T2,A,T24,I3,A,F16.6,T80,A)") "-",SUM(conf(i,:)),"-body contribution:",Em(i),"-"
+       END DO
+       WRITE (UNIT=iw,FMT="(T2,A,T20,A,F16.6,T80,A)") "-","BSSE-free interaction energy:",SUM(Em(Num_of_frag+1:)),"-"
+       WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
     END IF
+
+    CALL cp_print_key_finished_output(iw,logger,bsse_section,&
+         "PRINT%PROGRAM_RUN_INFO", error=error)
+
   END SUBROUTINE dump_bsse_results
 
 ! *****************************************************************************

@@ -96,36 +96,34 @@ CONTAINS
     my_unique         = .FALSE.
     IF (PRESENT(only_intra_colvar)) skip_inter_colvar = only_intra_colvar
     IF (PRESENT(unique)) my_unique = unique
-    IF (.NOT. failure) THEN
-       ntot = 0
-       CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
-       CALL cp_subsys_get(subsys=subsys, molecules_new=molecules,  gci=gci,&
-            molecule_kinds_new=molecule_kinds, error=error)
+    ntot = 0
+    CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
+    CALL cp_subsys_get(subsys=subsys, molecules_new=molecules,  gci=gci,&
+         molecule_kinds_new=molecule_kinds, error=error)
 
-       molecule_set      => molecules % els
-       ! Intramolecular Colvar
-       IF (my_unique) THEN
-          molecule_kind_set => molecule_kinds % els
-          DO ikind = 1, molecule_kinds % n_els
-             molecule_kind => molecule_kind_set(ikind)
-             CALL get_molecule_kind ( molecule_kind, ncolv=ncolv)
-             ntot = ntot + ncolv%ntot
-          END DO
-       ELSE
-          MOL:  DO imol = 1, SIZE(molecule_set)
-             molecule => molecule_set ( imol )
-             molecule_kind => molecule % molecule_kind
+    molecule_set      => molecules % els
+    ! Intramolecular Colvar
+    IF (my_unique) THEN
+       molecule_kind_set => molecule_kinds % els
+       DO ikind = 1, molecule_kinds % n_els
+          molecule_kind => molecule_kind_set(ikind)
+          CALL get_molecule_kind ( molecule_kind, ncolv=ncolv)
+          ntot = ntot + ncolv%ntot
+       END DO
+    ELSE
+       MOL:  DO imol = 1, SIZE(molecule_set)
+          molecule => molecule_set ( imol )
+          molecule_kind => molecule % molecule_kind
 
-             CALL get_molecule_kind ( molecule_kind,&
-                                      ncolv = ncolv )
-             ntot = ntot + ncolv%ntot
-          END DO MOL
-       END IF
-       ! Intermolecular Colvar
-       IF (.NOT.skip_inter_colvar) THEN
-          IF (ASSOCIATED(gci)) THEN
-             ntot = ntot + gci%ncolv%ntot
-          END IF
+          CALL get_molecule_kind ( molecule_kind,&
+                                   ncolv = ncolv )
+          ntot = ntot + ncolv%ntot
+       END DO MOL
+    END IF
+    ! Intermolecular Colvar
+    IF (.NOT.skip_inter_colvar) THEN
+       IF (ASSOCIATED(gci)) THEN
+          ntot = ntot + gci%ncolv%ntot
        END IF
     END IF
     CALL timestop(handle)
@@ -161,35 +159,33 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(cell, subsys, molecule_kinds, molecule_kind, gci, colv_list)
     CALL timeset(routineN,handle)
-    IF (.NOT. failure) THEN
-       CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell, error=error)
-       CALL cp_subsys_get(subsys=subsys, gci=gci, molecule_kinds_new=molecule_kinds,&
-            error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell, error=error)
+    CALL cp_subsys_get(subsys=subsys, gci=gci, molecule_kinds_new=molecule_kinds,&
+         error=error)
 
-       nkind  =  molecule_kinds % n_els
-       ! Set Target for Intramolecular Colvars
-       MOL:  DO ikind = 1, nkind
-          molecule_kind => molecule_kinds % els (ikind)
-          CALL get_molecule_kind ( molecule_kind,&
-                                   colv_list = colv_list,&
-                                   ncolv = ncolv )
-          IF (ncolv%ntot /= 0) THEN
-             DO i = 1, SIZE(colv_list)
-                ind = colv_list(i)%inp_seq_num
-                colv_list(i)%expected_value = targets(ind)
-             END DO
-          END IF
-       END DO MOL
-       ! Set Target for Intermolecular Colvars
-       IF (ASSOCIATED(gci)) THEN
-          IF ( gci%ncolv%ntot /= 0 ) THEN
-             colv_list => gci%colv_list
-             DO i = 1, SIZE(colv_list)
-                ind = colv_list(i)%inp_seq_num
-                colv_list(i)%expected_value = targets(ind)
-             END DO
-          ENDIF
+    nkind  =  molecule_kinds % n_els
+    ! Set Target for Intramolecular Colvars
+    MOL:  DO ikind = 1, nkind
+       molecule_kind => molecule_kinds % els (ikind)
+       CALL get_molecule_kind ( molecule_kind,&
+                                colv_list = colv_list,&
+                                ncolv = ncolv )
+       IF (ncolv%ntot /= 0) THEN
+          DO i = 1, SIZE(colv_list)
+             ind = colv_list(i)%inp_seq_num
+             colv_list(i)%expected_value = targets(ind)
+          END DO
        END IF
+    END DO MOL
+    ! Set Target for Intermolecular Colvars
+    IF (ASSOCIATED(gci)) THEN
+       IF ( gci%ncolv%ntot /= 0 ) THEN
+          colv_list => gci%colv_list
+          DO i = 1, SIZE(colv_list)
+             ind = colv_list(i)%inp_seq_num
+             colv_list(i)%expected_value = targets(ind)
+          END DO
+       ENDIF
     END IF
     CALL timestop(handle)
 
@@ -254,119 +250,117 @@ CONTAINS
        Bmatrix = 0.0_dp
     END IF
     CALL timeset(routineN,handle)
-    IF (.NOT. failure) THEN
-       ALLOCATE(map(SIZE(cvalues)), stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-       map=HUGE(0) ! init all, since used in a sort, but not all set in parallel.
-       CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell, error=error)
-       n_tot=0
-       cvalues = 0.0_dp
-       CALL cp_subsys_get(subsys=subsys,&
-            particles=particles,&
-            molecules_new=molecules,&
-            local_molecules_new=local_molecules,&
-            gci=gci,&
-            molecule_kinds_new=molecule_kinds,&
-            error=error)
+    ALLOCATE(map(SIZE(cvalues)), stat=stat)
+    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    map=HUGE(0) ! init all, since used in a sort, but not all set in parallel.
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell, error=error)
+    n_tot=0
+    cvalues = 0.0_dp
+    CALL cp_subsys_get(subsys=subsys,&
+         particles=particles,&
+         molecules_new=molecules,&
+         local_molecules_new=local_molecules,&
+         gci=gci,&
+         molecule_kinds_new=molecule_kinds,&
+         error=error)
 
-       nkind             =  molecule_kinds % n_els
-       particle_set      => particles%els
-       molecule_set      => molecules % els
-       ! Intramolecular Colvars
-       IF (number_of_colvar(force_env, only_intra_colvar=.TRUE., error=error)/=0) THEN
-          MOL:  DO ikind = 1, nkind
-             nmol_per_kind = local_molecules % n_el ( ikind )
-             DO imol = 1, nmol_per_kind
-                i = local_molecules % list ( ikind ) % array ( imol )
-                molecule => molecule_set ( i )
-                molecule_kind => molecule % molecule_kind
+    nkind             =  molecule_kinds % n_els
+    particle_set      => particles%els
+    molecule_set      => molecules % els
+    ! Intramolecular Colvars
+    IF (number_of_colvar(force_env, only_intra_colvar=.TRUE., error=error)/=0) THEN
+       MOL:  DO ikind = 1, nkind
+          nmol_per_kind = local_molecules % n_el ( ikind )
+          DO imol = 1, nmol_per_kind
+             i = local_molecules % list ( ikind ) % array ( imol )
+             molecule => molecule_set ( i )
+             molecule_kind => molecule % molecule_kind
 
-                CALL get_molecule_kind ( molecule_kind,&
-                                         ncolv = ncolv )
-                offset = get_colvar_offset(i, molecule_set)
-                ! Collective variables
-                IF ( ncolv%ntot /= 0 ) THEN
-                   CALL eval_colv_int( molecule, particle_set, coords, cell, cvalues,&
-                                       Bmatrix, offset, n_tot, map, error )
-                ENDIF
-             END DO
-          END DO MOL
-          CALL mp_sum(n_tot,force_env%para_env%group)
-          CALL mp_sum(cvalues,force_env%para_env%group)
-          IF (PRESENT(Bmatrix)) CALL mp_sum(Bmatrix,force_env%para_env%group)
-       END IF
-       offset = n_tot
-       ! Intermolecular Colvars
-       IF (ASSOCIATED(gci)) THEN
-          IF ( gci%ncolv%ntot /= 0 ) THEN
-             CALL eval_colv_ext( gci, particle_set, coords, cell, cvalues,&
-                                 Bmatrix, offset, n_tot, map, error )
-          ENDIF
-       END IF
-       CPPrecondition(n_tot==SIZE(cvalues), cp_failure_level, routineP, error, failure)
-       ! Sort values of Collective Variables according the order of the input
-       ! sections
-       ALLOCATE(wrk(SIZE(cvalues)), stat=stat)
+             CALL get_molecule_kind ( molecule_kind,&
+                                      ncolv = ncolv )
+             offset = get_colvar_offset(i, molecule_set)
+             ! Collective variables
+             IF ( ncolv%ntot /= 0 ) THEN
+                CALL eval_colv_int( molecule, particle_set, coords, cell, cvalues,&
+                                    Bmatrix, offset, n_tot, map, error )
+             ENDIF
+          END DO
+       END DO MOL
+       CALL mp_sum(n_tot,force_env%para_env%group)
+       CALL mp_sum(cvalues,force_env%para_env%group)
+       IF (PRESENT(Bmatrix)) CALL mp_sum(Bmatrix,force_env%para_env%group)
+    END IF
+    offset = n_tot
+    ! Intermolecular Colvars
+    IF (ASSOCIATED(gci)) THEN
+       IF ( gci%ncolv%ntot /= 0 ) THEN
+          CALL eval_colv_ext( gci, particle_set, coords, cell, cvalues,&
+                              Bmatrix, offset, n_tot, map, error )
+       ENDIF
+    END IF
+    CPPrecondition(n_tot==SIZE(cvalues), cp_failure_level, routineP, error, failure)
+    ! Sort values of Collective Variables according the order of the input
+    ! sections
+    ALLOCATE(wrk(SIZE(cvalues)), stat=stat)
+    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    ALLOCATE(rwrk(SIZE(cvalues)), stat=stat)
+    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    CALL sort(map, SIZE(map), wrk)
+    rwrk = cvalues
+    DO i = 1, SIZE(wrk)
+       cvalues(i) = rwrk(wrk(i))
+    END DO
+    ! check and sort on Bmatrix
+    IF (PRESENT(Bmatrix)) THEN
+       check = n_tot==SIZE(Bmatrix,2)
+       CPPrecondition(check, cp_failure_level, routineP, error, failure)
+       ALLOCATE(bwrk(SIZE(Bmatrix,1),SIZE(Bmatrix,2)), stat=stat)
        CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-       ALLOCATE(rwrk(SIZE(cvalues)), stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-       CALL sort(map, SIZE(map), wrk)
-       rwrk = cvalues
+       bwrk(:,:) = Bmatrix
        DO i = 1, SIZE(wrk)
-          cvalues(i) = rwrk(wrk(i))
+          Bmatrix(:,i) = bwrk(:,wrk(i))
        END DO
-       ! check and sort on Bmatrix
-       IF (PRESENT(Bmatrix)) THEN
-          check = n_tot==SIZE(Bmatrix,2)
-          CPPrecondition(check, cp_failure_level, routineP, error, failure)
-          ALLOCATE(bwrk(SIZE(Bmatrix,1),SIZE(Bmatrix,2)), stat=stat)
-          CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-          bwrk(:,:) = Bmatrix
-          DO i = 1, SIZE(wrk)
-             Bmatrix(:,i) = bwrk(:,wrk(i))
-          END DO
-          DEALLOCATE(bwrk, stat=stat)
-          CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-       END IF
-       DEALLOCATE(rwrk, stat=stat)
+       DEALLOCATE(bwrk, stat=stat)
        CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-       DEALLOCATE(wrk, stat=stat)
+    END IF
+    DEALLOCATE(rwrk, stat=stat)
+    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    DEALLOCATE(wrk, stat=stat)
+    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    DEALLOCATE(map, stat=stat)
+    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    ! Construction of the Amatrix
+    IF (PRESENT(Bmatrix).AND.PRESENT(Amatrix)) THEN
+       CPPrecondition(ASSOCIATED(Amatrix), cp_failure_level, routineP, error, failure)
+       check = SIZE(Bmatrix,1)==SIZE(Amatrix,2)
+       CPPrecondition(check, cp_failure_level, routineP, error, failure)
+       check = SIZE(Bmatrix,2)==SIZE(Amatrix,1)
+       CPPrecondition(check, cp_failure_level, routineP, error, failure)
+       ALLOCATE(Gmatrix(n_tot,n_tot), stat=stat)
        CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-       DEALLOCATE(map, stat=stat)
+       ALLOCATE(Gmatrix_i(n_tot,n_tot), stat=stat)
        CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-       ! Construction of the Amatrix
-       IF (PRESENT(Bmatrix).AND.PRESENT(Amatrix)) THEN
-          CPPrecondition(ASSOCIATED(Amatrix), cp_failure_level, routineP, error, failure)
-          check = SIZE(Bmatrix,1)==SIZE(Amatrix,2)
-          CPPrecondition(check, cp_failure_level, routineP, error, failure)
-          check = SIZE(Bmatrix,2)==SIZE(Amatrix,1)
-          CPPrecondition(check, cp_failure_level, routineP, error, failure)
-          ALLOCATE(Gmatrix(n_tot,n_tot), stat=stat)
-          CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-          ALLOCATE(Gmatrix_i(n_tot,n_tot), stat=stat)
-          CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-          Gmatrix(:,:) = MATMUL(TRANSPOSE(Bmatrix),Bmatrix)
-          CALL invert_matrix(Gmatrix, Gmatrix_i, inv_error, error=error)
-          CALL cp_assert(ABS(inv_error)<=1.0E-8_dp,cp_warning_level, cp_assertion_failed, routineP,&
-               "Error in inverting the Gmatrix larger than 1.0E-8!"//&
- CPSourceFileRef,&
-               error)
-          Amatrix = MATMUL(Gmatrix_i,TRANSPOSE(Bmatrix))
-          DEALLOCATE(Gmatrix_i, stat=stat)
-          CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-          DEALLOCATE(Gmatrix, stat=stat)
-          CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-       END IF
-       IF (PRESENT(MassI)) THEN
-          natom = SIZE(particle_set)
-          CPPrecondition(ASSOCIATED(MassI), cp_failure_level, routineP, error, failure)
-          CPPrecondition(SIZE(MassI)==natom*3, cp_failure_level, routineP, error, failure)
-          DO i = 1, natom
-             MassI((i-1)*3+1) = 1.0_dp/particle_set(i)%atomic_kind%mass
-             MassI((i-1)*3+2) = 1.0_dp/particle_set(i)%atomic_kind%mass
-             MassI((i-1)*3+3) = 1.0_dp/particle_set(i)%atomic_kind%mass
-          END DO
-       END IF
+       Gmatrix(:,:) = MATMUL(TRANSPOSE(Bmatrix),Bmatrix)
+       CALL invert_matrix(Gmatrix, Gmatrix_i, inv_error, error=error)
+       CALL cp_assert(ABS(inv_error)<=1.0E-8_dp,cp_warning_level, cp_assertion_failed, routineP,&
+            "Error in inverting the Gmatrix larger than 1.0E-8!"//&
+CPSourceFileRef,&
+            error)
+       Amatrix = MATMUL(Gmatrix_i,TRANSPOSE(Bmatrix))
+       DEALLOCATE(Gmatrix_i, stat=stat)
+       CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+       DEALLOCATE(Gmatrix, stat=stat)
+       CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    END IF
+    IF (PRESENT(MassI)) THEN
+       natom = SIZE(particle_set)
+       CPPrecondition(ASSOCIATED(MassI), cp_failure_level, routineP, error, failure)
+       CPPrecondition(SIZE(MassI)==natom*3, cp_failure_level, routineP, error, failure)
+       DO i = 1, natom
+          MassI((i-1)*3+1) = 1.0_dp/particle_set(i)%atomic_kind%mass
+          MassI((i-1)*3+2) = 1.0_dp/particle_set(i)%atomic_kind%mass
+          MassI((i-1)*3+3) = 1.0_dp/particle_set(i)%atomic_kind%mass
+       END DO
     END IF
     CALL timestop(handle)
 

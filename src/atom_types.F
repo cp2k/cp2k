@@ -816,24 +816,22 @@ CONTAINS
 
     CPAssert(ASSOCIATED(atom),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      IF(PRESENT(basis)) atom%basis => basis
-      IF(PRESENT(state)) atom%state => state
-      IF(PRESENT(integrals)) atom%integrals => integrals
-      IF(PRESENT(orbitals)) atom%orbitals => orbitals
-      IF(PRESENT(potential)) atom%potential => potential
-      IF(PRESENT(zcore)) atom%zcore = zcore
-      IF(PRESENT(pp_calc)) atom%pp_calc = pp_calc
+    IF(PRESENT(basis)) atom%basis => basis
+    IF(PRESENT(state)) atom%state => state
+    IF(PRESENT(integrals)) atom%integrals => integrals
+    IF(PRESENT(orbitals)) atom%orbitals => orbitals
+    IF(PRESENT(potential)) atom%potential => potential
+    IF(PRESENT(zcore)) atom%zcore = zcore
+    IF(PRESENT(pp_calc)) atom%pp_calc = pp_calc
 ! ZMP assigning variable values if present
-      IF(PRESENT(do_zmp)) atom%do_zmp = do_zmp
-      IF(PRESENT(doread)) atom%doread = doread
-      IF(PRESENT(read_vxc)) atom%read_vxc = read_vxc
- 
-      IF(PRESENT(method_type)) atom%method_type = method_type
-      IF(PRESENT(relativistic)) atom%relativistic = relativistic
-      IF(PRESENT(coulomb_integral_type)) atom%coulomb_integral_type = coulomb_integral_type
-      IF(PRESENT(exchange_integral_type)) atom%exchange_integral_type = exchange_integral_type
-    END IF
+    IF(PRESENT(do_zmp)) atom%do_zmp = do_zmp
+    IF(PRESENT(doread)) atom%doread = doread
+    IF(PRESENT(read_vxc)) atom%read_vxc = read_vxc
+
+    IF(PRESENT(method_type)) atom%method_type = method_type
+    IF(PRESENT(relativistic)) atom%relativistic = relativistic
+    IF(PRESENT(coulomb_integral_type)) atom%coulomb_integral_type = coulomb_integral_type
+    IF(PRESENT(exchange_integral_type)) atom%exchange_integral_type = exchange_integral_type
 
   END SUBROUTINE set_atom
 

@@ -91,108 +91,106 @@ CONTAINS
     failure  = .FALSE.
     my_check = .TRUE.
     NULLIFY(cell_ref_section, cell_par, multiple_unit_cell)
-    IF (.NOT.failure) THEN
-       IF (.NOT.ASSOCIATED(cell)) CALL cell_create(cell,error=error)
-       IF (.NOT.ASSOCIATED(cell_ref)) CALL cell_create(cell_ref,error=error)
-       IF (PRESENT(check_for_ref)) my_check = check_for_ref
+    IF (.NOT.ASSOCIATED(cell)) CALL cell_create(cell,error=error)
+    IF (.NOT.ASSOCIATED(cell_ref)) CALL cell_create(cell_ref,error=error)
+    IF (PRESENT(check_for_ref)) my_check = check_for_ref
 
-       cell%deth         = 0.0_dp
-       cell%orthorhombic = .FALSE.
-       cell%perd(:)      = 1
-       cell%symmetry_id  = cell_sym_none
-       cell%hmat(:,:)    = 0.0_dp
-       cell%h_inv(:,:)   = 0.0_dp
-       cell_read_file    = .FALSE.
-       cell_read_a       = .FALSE.
-       cell_read_b       = .FALSE.
-       cell_read_c       = .FALSE.
-       ! Trying to read cell info from file
-       CALL section_vals_val_get(cell_section,"CELL_FILE_NAME",explicit=cell_read_file,error=error)
-       IF (cell_read_file) CALL read_cell_from_external_file(cell_section, para_env, error)
+    cell%deth         = 0.0_dp
+    cell%orthorhombic = .FALSE.
+    cell%perd(:)      = 1
+    cell%symmetry_id  = cell_sym_none
+    cell%hmat(:,:)    = 0.0_dp
+    cell%h_inv(:,:)   = 0.0_dp
+    cell_read_file    = .FALSE.
+    cell_read_a       = .FALSE.
+    cell_read_b       = .FALSE.
+    cell_read_c       = .FALSE.
+    ! Trying to read cell info from file
+    CALL section_vals_val_get(cell_section,"CELL_FILE_NAME",explicit=cell_read_file,error=error)
+    IF (cell_read_file) CALL read_cell_from_external_file(cell_section, para_env, error)
 
-       ! Trying to read cell info from the separate A, B, C vectors
-       ! If cell information is provided through file A,B,C contain the file information..
-       ! a print warning is shown on screen..
-       CALL section_vals_val_get(cell_section,"A",explicit=cell_read_a,error=error)
-       IF (cell_read_a) THEN
-          CALL section_vals_val_get(cell_section,"A",r_vals=cell_par,error=error)
-          cell%hmat(:,1) = cell_par(:)
-       END IF
-       CALL section_vals_val_get(cell_section,"B",explicit=cell_read_b,error=error)
-       IF (cell_read_b) THEN
-          CALL section_vals_val_get(cell_section,"B",r_vals=cell_par,error=error)
-          cell%hmat(:,2) = cell_par(:)
-       END IF
-       CALL section_vals_val_get(cell_section,"C",explicit=cell_read_c,error=error)
-       IF (cell_read_c) THEN
-          CALL section_vals_val_get(cell_section,"C",r_vals=cell_par,error=error)
-          cell%hmat(:,3) = cell_par(:)
-       END IF
-       check = ((cell_read_a.EQV.cell_read_b).AND.(cell_read_b.EQV.cell_read_c))
-       CALL cp_assert(check,cp_warning_level,cp_assertion_failed,routineP,&
-            "Cell Information provided through vectors A, B and C. Not all three "//&
-            "vectors were provided! Cell setup may be incomplete!"//&
+    ! Trying to read cell info from the separate A, B, C vectors
+    ! If cell information is provided through file A,B,C contain the file information..
+    ! a print warning is shown on screen..
+    CALL section_vals_val_get(cell_section,"A",explicit=cell_read_a,error=error)
+    IF (cell_read_a) THEN
+       CALL section_vals_val_get(cell_section,"A",r_vals=cell_par,error=error)
+       cell%hmat(:,1) = cell_par(:)
+    END IF
+    CALL section_vals_val_get(cell_section,"B",explicit=cell_read_b,error=error)
+    IF (cell_read_b) THEN
+       CALL section_vals_val_get(cell_section,"B",r_vals=cell_par,error=error)
+       cell%hmat(:,2) = cell_par(:)
+    END IF
+    CALL section_vals_val_get(cell_section,"C",explicit=cell_read_c,error=error)
+    IF (cell_read_c) THEN
+       CALL section_vals_val_get(cell_section,"C",r_vals=cell_par,error=error)
+       cell%hmat(:,3) = cell_par(:)
+    END IF
+    check = ((cell_read_a.EQV.cell_read_b).AND.(cell_read_b.EQV.cell_read_c))
+    CALL cp_assert(check,cp_warning_level,cp_assertion_failed,routineP,&
+         "Cell Information provided through vectors A, B and C. Not all three "//&
+         "vectors were provided! Cell setup may be incomplete!"//&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
+
+    ! Very last option.. Trying to read cell info from ABC keyword
+    CALL section_vals_val_get(cell_section,"ABC",explicit=cell_read_abc,error=error)
+    IF (cell_read_abc) THEN
+       check = (cell_read_a.OR.cell_read_b.OR.cell_read_c)
+       CALL cp_assert(.NOT.check,cp_warning_level,cp_assertion_failed,routineP,&
+            "Cell Information provided through vectors A, B and C in conjunction with ABC."//&
+            " The definition of the ABC keyword will override the one provided by A,B and C."//&
 CPSourceFileRef,&
             only_ionode=.TRUE.)
+       cell%hmat = 0.0_dp
+       CALL section_vals_val_get(cell_section,"ABC",r_vals=cell_par,error=error)
+       CALL section_vals_val_get(cell_section,"ALPHA_BETA_GAMMA",r_vals=cell_angles,error=error)
+       CALL set_cell_param(cell,cell_par,cell_angles,do_init_cell=.FALSE.,error=error)
+    END IF
 
-       ! Very last option.. Trying to read cell info from ABC keyword
-       CALL section_vals_val_get(cell_section,"ABC",explicit=cell_read_abc,error=error)
-       IF (cell_read_abc) THEN
-          check = (cell_read_a.OR.cell_read_b.OR.cell_read_c)
-          CALL cp_assert(.NOT.check,cp_warning_level,cp_assertion_failed,routineP,&
-               "Cell Information provided through vectors A, B and C in conjunction with ABC."//&
-               " The definition of the ABC keyword will override the one provided by A,B and C."//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
-          cell%hmat = 0.0_dp
-          CALL section_vals_val_get(cell_section,"ABC",r_vals=cell_par,error=error)
-          CALL section_vals_val_get(cell_section,"ALPHA_BETA_GAMMA",r_vals=cell_angles,error=error)
-          CALL set_cell_param(cell,cell_par,cell_angles,do_init_cell=.FALSE.,error=error)
-       END IF
+    ! Multiple unit cell
+    CALL section_vals_val_get(cell_section,"MULTIPLE_UNIT_CELL",i_vals=multiple_unit_cell,error=error)
+    IF (ANY(multiple_unit_cell/=1)) CALL set_multiple_unit_cell(cell, multiple_unit_cell, error)
 
-       ! Multiple unit cell
-       CALL section_vals_val_get(cell_section,"MULTIPLE_UNIT_CELL",i_vals=multiple_unit_cell,error=error)
-       IF (ANY(multiple_unit_cell/=1)) CALL set_multiple_unit_cell(cell, multiple_unit_cell, error)
+    CALL section_vals_val_get(cell_section,"PERIODIC",i_val=my_per,error=error)
+    SELECT CASE(my_per)
+    CASE(use_perd_x)
+       cell%perd = (/1,0,0/)
+    CASE(use_perd_y)
+       cell%perd = (/0,1,0/)
+    CASE(use_perd_z)
+       cell%perd = (/0,0,1/)
+    CASE(use_perd_xy)
+       cell%perd = (/1,1,0/)
+    CASE(use_perd_xz)
+       cell%perd = (/1,0,1/)
+    CASE(use_perd_yz)
+       cell%perd = (/0,1,1/)
+    CASE(use_perd_xyz)
+       cell%perd = (/1,1,1/)
+    CASE(use_perd_none)
+       cell%perd = (/0,0,0/)
+    CASE DEFAULT
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
 
-       CALL section_vals_val_get(cell_section,"PERIODIC",i_val=my_per,error=error)
-       SELECT CASE(my_per)
-       CASE(use_perd_x)
-          cell%perd = (/1,0,0/)
-       CASE(use_perd_y)
-          cell%perd = (/0,1,0/)
-       CASE(use_perd_z)
-          cell%perd = (/0,0,1/)
-       CASE(use_perd_xy)
-          cell%perd = (/1,1,0/)
-       CASE(use_perd_xz)
-          cell%perd = (/1,0,1/)
-       CASE(use_perd_yz)
-          cell%perd = (/0,1,1/)
-       CASE(use_perd_xyz)
-          cell%perd = (/1,1,1/)
-       CASE(use_perd_none)
-          cell%perd = (/0,0,0/)
-       CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
+    ! Load requested cell symmetry
+    CALL section_vals_val_get(cell_section,"SYMMETRY",i_val=cell%symmetry_id,error=error)
 
-       ! Load requested cell symmetry
-       CALL section_vals_val_get(cell_section,"SYMMETRY",i_val=cell%symmetry_id,error=error)
+    ! Initialize cell
+    CALL init_cell(cell)
 
-       ! Initialize cell
-       CALL init_cell(cell)
-
-       IF (.NOT.my_check) RETURN
-       cell_ref_section => section_vals_get_subs_vals(cell_section,&
-            "CELL_REF",error=error)
-       IF (parsed_cp2k_input(cell_ref_section,check_this_section=.TRUE.,error=error)) THEN
-          IF(PRESENT(use_ref_cell) ) use_ref_cell = .TRUE.
-          CALL read_cell(cell_ref, cell_ref, use_ref_cell, cell_section=cell_ref_section,&
-               check_for_ref=.FALSE., para_env=para_env, error=error)
-       ELSE
-          CALL cell_clone (cell, cell_ref, error)
-          IF ( PRESENT ( use_ref_cell ) ) use_ref_cell = .FALSE.
-       END IF
+    IF (.NOT.my_check) RETURN
+    cell_ref_section => section_vals_get_subs_vals(cell_section,&
+         "CELL_REF",error=error)
+    IF (parsed_cp2k_input(cell_ref_section,check_this_section=.TRUE.,error=error)) THEN
+       IF(PRESENT(use_ref_cell) ) use_ref_cell = .TRUE.
+       CALL read_cell(cell_ref, cell_ref, use_ref_cell, cell_section=cell_ref_section,&
+            check_for_ref=.FALSE., para_env=para_env, error=error)
+    ELSE
+       CALL cell_clone (cell, cell_ref, error)
+       IF ( PRESENT ( use_ref_cell ) ) use_ref_cell = .FALSE.
     END IF
 
   END SUBROUTINE read_cell
@@ -225,14 +223,12 @@ CPSourceFileRef,&
     res=ASSOCIATED(input_file)
     IF (res) THEN
        CPPrecondition(input_file%ref_count>0,cp_failure_level,routineP,error,failure)
-       IF (.NOT.failure) THEN
-          IF (.NOT.my_check) THEN
-             glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",&
-                  error=error)
-             CALL section_vals_get(glob_section,explicit=res,error=error)
-          ELSE
-             CALL section_vals_get(input_file,explicit=res,error=error)
-          END IF
+       IF (.NOT.my_check) THEN
+          glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",&
+               error=error)
+          CALL section_vals_get(glob_section,explicit=res,error=error)
+       ELSE
+          CALL section_vals_get(input_file,explicit=res,error=error)
        END IF
     END IF
   END FUNCTION parsed_cp2k_input
