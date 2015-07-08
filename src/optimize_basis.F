@@ -90,7 +90,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
-    CALL cp_error_init(error,stop_level=cp_fatal_level, logger=logger)
+    CALL cp_error_init(error, logger=logger)
 
     CALL optimize_basis_init_read_input(opt_bas,root_section,para_env,error)
 
@@ -184,7 +184,7 @@ CONTAINS
     ALLOCATE(tot_time(opt_bas%ncombinations*opt_bas%ntraining_sets))
     ALLOCATE(matrix_s_inv(SIZE(opt_bas%comp_group(mp_id)%member_list)))
 
-    CALL cp_error_init(error, stop_level=cp_fatal_level)
+    CALL cp_error_init(error)
     CALL cp_para_env_create(para_env, group=mpi_comm_opt,&
          owns_group=.FALSE.,error=error)
 
@@ -400,7 +400,6 @@ CONTAINS
                                 opt_bas%training_input(set_id),&
                                 initial_variables=empty_initial_variables, &
                                 para_env=para_env,error=error)
-       CALL cp_error_check(error,failure)
 
        CALL modify_input_settings(opt_bas,bas_id,input_file,error)
        CALL create_force_env(f_env_id(icalc), &

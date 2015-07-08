@@ -179,9 +179,7 @@ CONTAINS
              i_val=loc_logger%iter_info%print_level,error=error)
 
           ! Initialize error
-          CALL cp_error_init(mixed_env%sub_error(i),&
-               stop_level=cp_fatal_level,&
-               logger=loc_logger)
+          CALL cp_error_init(mixed_env%sub_error(i), logger=loc_logger)
           CALL cp_logger_release(loc_logger)
        END IF
     END DO

@@ -274,11 +274,11 @@ FUNCTION enum_c2i(enum,c,error) RESULT(res)
      IF (.NOT.found) THEN
         CALL cp_assert(.NOT.enum%strict,cp_failure_level,cp_assertion_failed,&
              routineP,"invalid value for enumeration:"//TRIM(c),&
-             error=error,failure=failure,info=TRIM(upc))
+             error=error,failure=failure)
         READ(c,"(i10)",iostat=iostat) res
         CALL cp_assert(iostat==0,cp_failure_level,cp_assertion_failed,&
              routineP,"invalid value for enumeration2:"//TRIM(c),&
-             error=error,failure=failure,info=TRIM(upc))
+             error=error,failure=failure)
      END IF
   END IF
 END FUNCTION enum_c2i

@@ -195,7 +195,7 @@ CONTAINS
         CALL cp_logger_create(logger_sub,para_env=tmc_env%tmc_comp_set%para_env_m_only,&
                 default_global_unit_nr=default_output_unit, close_global_unit_on_dealloc=.FALSE.)
         CALL cp_logger_set(logger_sub,local_filename="tmc_main")
-        CALL cp_error_init(error_sub, stop_level=cp_failure_level, logger=logger_sub)
+        CALL cp_error_init(error_sub, logger=logger_sub)
      
         ! if we're doing output to the screen, keep it there, else this master
         ! opens a file (not that two different ranks are writing to the
@@ -228,7 +228,7 @@ CONTAINS
         CALL cp_logger_create(logger_sub,para_env=tmc_env%tmc_comp_set%para_env_sub_group,&
                 default_global_unit_nr=default_output_unit, close_global_unit_on_dealloc=.FALSE.)
         CALL cp_logger_set(logger_sub,local_filename="tmc_localLog")
-        CALL cp_error_init(error_sub, stop_level=cp_failure_level, logger=logger_sub)
+        CALL cp_error_init(error_sub, logger=logger_sub)
         tmc_env%w_env%io_unit = default_output_unit
   
         ! energy worker
@@ -278,7 +278,7 @@ CONTAINS
                 default_global_unit_nr=default_output_unit, close_global_unit_on_dealloc=.FALSE.)
         tmc_env%w_env%io_unit = default_output_unit
         CALL cp_logger_set(logger_sub,local_filename="tmc_ana_localLog")
-        CALL cp_error_init(error_sub, stop_level=cp_failure_level, logger=logger_sub)
+        CALL cp_error_init(error_sub, logger=logger_sub)
         ! if we're doing output to the screen, keep it there, else this master
         ! opens a file (not that two different ranks are writing to the
         ! default_output_unit, we leave it up to mpirun or so to merge stuff
@@ -397,7 +397,7 @@ CONTAINS
       CALL cp_logger_create(logger_sub,para_env=tmc_env%tmc_comp_set%para_env_m_ana,&
              default_global_unit_nr=default_output_unit, close_global_unit_on_dealloc=.FALSE.)
       CALL cp_logger_set(logger_sub,local_filename="tmc_ana")
-      CALL cp_error_init(error_sub, stop_level=cp_failure_level, logger=logger_sub)
+      CALL cp_error_init(error_sub, logger=logger_sub)
       ! write the header
       CALL tmc_ana_header(output_unit)
 

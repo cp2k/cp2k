@@ -280,7 +280,7 @@ MODULE mp2_optimize_ri_basis
     CALL cp_logger_create(logger_sub,para_env=para_env_sub,&
                default_global_unit_nr=local_unit_nr, close_global_unit_on_dealloc=.FALSE.)
     CALL cp_logger_set(logger_sub,local_filename="opt_RI_basis_localLog")
-    CALL cp_error_init(error_sub, stop_level=cp_failure_level, logger=logger_sub)
+    CALL cp_error_init(error_sub, logger=logger_sub)
 
     CALL generate_RI_init_basis(qs_env,mp2_env,natom,nkind,kind_of,max_rel_dev,basis_was_assoc,error)
 

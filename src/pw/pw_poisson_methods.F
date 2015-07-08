@@ -299,10 +299,7 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CALL pw_poisson_rebuild(poisson_env,density,error=error)
-       CALL cp_error_check(error,failure)
-    END IF
+    CALL pw_poisson_rebuild(poisson_env,density,error=error)
     poisson_params => poisson_env%parameters
 
     IF (.NOT.failure) THEN

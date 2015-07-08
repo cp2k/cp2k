@@ -36,31 +36,33 @@
 ! the test is not inlined (you have always a function call)
 
 #define CPPrecondition(cond,level,routineP,error,failure) \
-IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error,failure)
+IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__,error,failure)
 #define CPPostcondition(cond,level,routineP,error,failure) \
-IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error,failure)
+IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__,error,failure)
 #define CPInvariant(cond,level,routineP,error,failure) \
-IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error,failure)
+IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__,error,failure)
 #define CPAssert(cond,level,routineP,error,failure) \
-IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error,failure)
+IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__,error,failure)
 #define CPErrorMessage(level,routineP,msg,error) \
 CALL cp_error_message(level,routineP,msg,error)
 #define CPPreconditionNoFail(cond,level,routineP,error) \
-IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error)
+IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__,error)
 #define CPPostconditionNoFail(cond,level,routineP,error) \
-IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error)
+IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__,error)
 #define CPInvariantNoFail(cond,level,routineP,error) \
-IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error)
+IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__,error)
 #define CPAssertNoFail(cond,level,routineP,error) \
-IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error)
+IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__,error)
 #define CPPreconditionNoErr(cond, level, routineN) \
-IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineN,__LINE__)
+IF(.NOT.(cond))CALL cp_a_l(level,routineN,__LINE__)
 #define CPPostconditionNoErr(cond, level, routineN) \
-IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineN ,__LINE__)
+IF(.NOT.(cond))CALL cp_a_l(level,routineN ,__LINE__)
 #define CPInvariantNoErr(cond,level,routineP) \
-IF(.NOT.(cond))CALL cp_a_l(0==1, level, routineP,__LINE__)
+IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__)
 #define CPAssertNoErr(cond,level,routineP) \
-IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__)
+IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__)
 
-#define CPAAssert(condition) \
-CALL cp_simple_assert(condition, routineP, __LINE__)
+! new assert macro, meant to replace all of the above
+#define ASSERT(cond) \
+IF(.NOT.(cond))CALL cp_a_l(CP_FAILURE_LEVEL,routineP,__LINE__)
+

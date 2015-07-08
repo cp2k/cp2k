@@ -413,7 +413,6 @@ CONTAINS
        CALL mp_bcast(parser%buffer%istat,para_env%source,para_env%group)
        CALL mp_bcast(parser%buffer%input_line_numbers,para_env%source,para_env%group)
        CALL mp_bcast(parser%buffer%input_lines,para_env%source,para_env%group)
-       CALL cp_error_synchronize_error(error,para_env=para_env)
     END IF
 
     CALL timestop(handle)

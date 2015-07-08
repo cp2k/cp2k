@@ -1169,7 +1169,6 @@ CONTAINS
 ! i.e. the input is most likely not available
 
     failure = .FALSE.
-    CALL cp_error_check(error,failure)
 
     ! Set flag if this is a development version
     dev_flag = ""

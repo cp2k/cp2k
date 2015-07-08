@@ -274,7 +274,7 @@ MODULE mp2_gpw
     logger_sub%iter_info%print_level=mp2_env%mp2_gpw%print_level
 
     ! a error
-    CALL cp_error_init(error_sub, stop_level=cp_failure_level, logger=logger_sub)
+    CALL cp_error_init(error_sub, logger=logger_sub)
 
     ! a blacs_env (ignore the globenv stored defaults for now)
     blacs_grid_layout=BLACS_GRID_SQUARE

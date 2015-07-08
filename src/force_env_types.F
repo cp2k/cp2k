@@ -218,7 +218,6 @@ CONTAINS
                 END IF
                 CALL force_env_release(force_env%sub_force_env(i)%force_env,&
                      error=my_error)
-                CALL cp_error_check(my_error, failure)
              END DO
              DEALLOCATE(force_env%sub_force_env,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -508,10 +507,7 @@ CONTAINS
     n_atom = 0
     NULLIFY (subsys)
     CALL force_env_get(force_env,subsys=subsys,error=error)
-    CALL cp_error_check(error,failure)
-    IF (.NOT.failure) THEN
-       CALL cp_subsys_get(subsys,natom=n_atom,error=error)
-    END IF
+    CALL cp_subsys_get(subsys,natom=n_atom,error=error)
 
   END FUNCTION force_env_get_natom
 
@@ -540,10 +536,7 @@ CONTAINS
     n_particle = 0
     NULLIFY (subsys)
     CALL force_env_get(force_env,subsys=subsys,error=error)
-    CALL cp_error_check(error,failure)
-    IF (.NOT.failure) THEN
-      CALL cp_subsys_get(subsys,nparticle=n_particle,error=error)
-    END IF
+    CALL cp_subsys_get(subsys,nparticle=n_particle,error=error)
 
   END FUNCTION force_env_get_nparticle
 
@@ -576,10 +569,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition((force_env%ref_count > 0),cp_failure_level,routineP,error,failure)
     CALL force_env_get(force_env,subsys=subsys,error=error)
-    CALL cp_error_check(error,failure)
-    IF (.NOT.failure) THEN
-       CALL pack_subsys_particles(subsys=subsys,f=frc(1:n),error=error)
-    END IF
+    CALL pack_subsys_particles(subsys=subsys,f=frc(1:n),error=error)
     CALL timestop(handle)
 
   END SUBROUTINE force_env_get_frc
@@ -613,10 +603,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition((force_env%ref_count > 0),cp_failure_level,routineP,error,failure)
     CALL force_env_get(force_env,subsys=subsys,error=error)
-    CALL cp_error_check(error,failure)
-    IF (.NOT.failure) THEN
-       CALL pack_subsys_particles(subsys=subsys,r=pos(1:n),error=error)
-    END IF
+    CALL pack_subsys_particles(subsys=subsys,r=pos(1:n),error=error)
     CALL timestop(handle)
 
   END SUBROUTINE force_env_get_pos
@@ -650,10 +637,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition((force_env%ref_count > 0),cp_failure_level,routineP,error,failure)
     CALL force_env_get(force_env,subsys=subsys,error=error)
-    CALL cp_error_check(error,failure)
-    IF (.NOT.failure) THEN
-       CALL pack_subsys_particles(subsys=subsys,v=vel(1:n),error=error)
-    END IF
+    CALL pack_subsys_particles(subsys=subsys,v=vel(1:n),error=error)
     CALL timestop(handle)
 
   END SUBROUTINE force_env_get_vel

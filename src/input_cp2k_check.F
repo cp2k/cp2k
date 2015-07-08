@@ -338,7 +338,7 @@ CONTAINS
                                  error=error)
 
        IF (r_file_path/=" ") THEN
-          CALL cp_error_init(sub_error,template_error=error,stop_level=cp_fatal_level)
+          CALL cp_error_init(sub_error,template_error=error)
           ! parse the input
           NULLIFY(default_units,restart_file)
           CALL section_vals_create(restart_file,input_declaration, error=sub_error)

@@ -328,7 +328,7 @@ CONTAINS
        IF (has_ma .OR. has_ma_topology) THEN
          CALL cp_ma_finalize_lib(error=error)
        ENDIF
-       CALL cp_error_init(error, stop_level=cp_fatal_level)
+       CALL cp_error_init(error)
        CALL pw_cuda_finalize()
        DO ienv=n_f_envs,1,-1
           CALL destroy_force_env(f_envs(ienv)%f_env%id_nr,ierr=ierr)
@@ -337,11 +337,7 @@ CONTAINS
        DEALLOCATE(f_envs,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        CALL cp_para_env_release(default_para_env,error)
-       IF (cp_error_get_level(error)>CP_WARNING_LEVEL) THEN
-          ierr=cp_error_get_level(error)
-       ELSE
-          ierr=0
-       ENDIF
+       ierr=0
        CALL cp_rm_default_logger()
 
        !   *** deallocate the bibliography ***
@@ -522,7 +518,6 @@ CONTAINS
           CALL cp_add_default_logger(logger)
           IF (PRESENT(handle)) handle=cp_default_logger_stack_size()
        END IF
-       CALL cp_error_check(new_error,failure)
     END IF
   END SUBROUTINE f_env_add_defaults
 
@@ -583,11 +578,7 @@ CONTAINS
           CPAssert(ierr2==0,cp_failure_level,routineP,error,failure)
        END IF
        IF (PRESENT(ierr)) THEN
-          IF (cp_error_get_level(error)>CP_WARNING_LEVEL) THEN
-             ierr=cp_error_get_level(error)
-          ELSE
-             ierr=0
-          ENDIF
+          ierr=0
        ENDIF
        CALL cp_error_dealloc_ref(error)
        IF (.NOT.failure) THEN
@@ -597,11 +588,7 @@ CONTAINS
        END IF
     ELSE
        IF (PRESENT(ierr)) THEN
-          IF (cp_error_get_level(error)>CP_WARNING_LEVEL) THEN
-             ierr=cp_error_get_level(error)
-          ELSE
-             ierr=0
-          ENDIF
+          ierr=0
        ENDIF
        CALL cp_error_dealloc_ref(error)
     END IF
@@ -733,7 +720,7 @@ CONTAINS
     logger => cp_get_default_logger()
     ! warning this is dangerous, I did not check that all the subfunctions
     ! support it, the program might crash upon error
-    CALL cp_error_init(error,stop_level=cp_fatal_level,logger=logger)
+    CALL cp_error_init(error,logger=logger)
 
     NULLIFY(input_file)
     IF (PRESENT(input)) input_file => input
@@ -756,18 +743,15 @@ CONTAINS
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     ! root_section => input_file
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
-    CALL cp_error_check(error,failure)
-    IF (.NOT.failure) THEN
-       CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=unit_nr,error=error)
-       CALL cp_error_check(error,failure)
-    END IF
+
+    CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=unit_nr,error=error)
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     ! NULLIFY(input_file)
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     root_section => input_file
     CALL section_vals_retain(root_section,error)
     CALL cp_error_dealloc_ref(error)
-    CALL cp_error_init(error,stop_level=cp_failure_level,logger=logger)
+    CALL cp_error_init(error,logger=logger)
 
     IF (n_f_envs+1>SIZE(f_envs)) THEN
        f_envs_old => f_envs
@@ -994,41 +978,26 @@ CPSourceFileRef,&
     failure=.FALSE.
     NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.not.failure) THEN
-       env_pos=get_pos_of_env(env_id)
-       n_f_envs=n_f_envs-1
-       DO i=env_pos,n_f_envs
-          f_envs(i)%f_env => f_envs(i+1)%f_env
-       END DO
-       NULLIFY(f_envs(n_f_envs+1)%f_env)
+    env_pos=get_pos_of_env(env_id)
+    n_f_envs=n_f_envs-1
+    DO i=env_pos,n_f_envs
+       f_envs(i)%f_env => f_envs(i+1)%f_env
+    END DO
+    NULLIFY(f_envs(n_f_envs+1)%f_env)
 
-       CALL force_env_get(f_env%force_env,globenv=globenv,&
-            root_section=root_section,para_env=para_env,error=error)
-       CALL cp_error_check(error,failure)
-       IF (.NOT.failure) THEN
-          CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          CALL globenv_retain(globenv,error=error)
-          CALL f_env_dealloc(f_env,error=error)
-          CALL cp2k_finalize(root_section,para_env,globenv,f_env%old_path,error)
-          CALL section_vals_release(root_section,error=error)
-          CALL globenv_release(globenv,error=error)
-          CALL cp_error_check(error,failure)
+    CALL force_env_get(f_env%force_env,globenv=globenv,&
+         root_section=root_section,para_env=para_env,error=error)
+    CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
+    CALL globenv_retain(globenv,error=error)
+    CALL f_env_dealloc(f_env,error=error)
+    CALL cp2k_finalize(root_section,para_env,globenv,f_env%old_path,error)
+    CALL section_vals_release(root_section,error=error)
+    CALL globenv_release(globenv,error=error)
 
-          DEALLOCATE(f_env,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END IF
-       IF (cp_error_get_level(error)>CP_WARNING_LEVEL) THEN
-          ierr=cp_error_get_level(error)
-       ELSE
-          ierr=0
-       ENDIF
-       CALL cp_error_dealloc_ref(error)
-    ELSE
-       ! write out something?
-       ierr=cp_failure_level
-    END IF
+    DEALLOCATE(f_env,stat=stat)
+    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+    ierr=0
+    CALL cp_error_dealloc_ref(error)
   END SUBROUTINE destroy_force_env
 
 ! *****************************************************************************
@@ -1119,18 +1088,11 @@ CPSourceFileRef,&
     failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       NULLIFY (cell_full)
-       CALL force_env_get(f_env%force_env,cell=cell_full,error=error)
-       CALL cp_error_check(error,failure)
-       IF (.NOT.failure) THEN
-          CPPrecondition(ASSOCIATED(cell_full),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          cell = cell_full%hmat
-          IF(PRESENT(per)) per(:) = cell_full%perd(:)
-       END IF
-    END IF
+    NULLIFY (cell_full)
+    CALL force_env_get(f_env%force_env,cell=cell_full,error=error)
+    CPPrecondition(ASSOCIATED(cell_full),cp_failure_level,routineP,error,failure)
+    cell = cell_full%hmat
+    IF(PRESENT(per)) per(:) = cell_full%perd(:)
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE get_cell
@@ -1347,20 +1309,13 @@ CPSourceFileRef,&
     failure = .FALSE.
     NULLIFY (f_env, cell, subsys)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       NULLIFY (cell)
-       CALL force_env_get(f_env%force_env,cell=cell,error=error)
-       CALL cp_error_check(error,failure)
-       IF (.NOT.failure) THEN
-          CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          cell%hmat = new_cell
-          CALL init_cell(cell)
-          CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
-          CALL cp_subsys_set(subsys, cell=cell, error=error)
-       END IF
-    END IF
+    NULLIFY (cell)
+    CALL force_env_get(f_env%force_env,cell=cell,error=error)
+    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+    cell%hmat = new_cell
+    CALL init_cell(cell)
+    CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
+    CALL cp_subsys_set(subsys, cell=cell, error=error)
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE set_cell
@@ -1391,12 +1346,9 @@ CPSourceFileRef,&
     failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       NULLIFY (subsys)
-       CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
-       CALL cp_error_check(error,failure)
-       CALL unpack_subsys_particles(subsys=subsys,r=new_pos,error=error)
-    END IF
+    NULLIFY (subsys)
+    CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
+    CALL unpack_subsys_particles(subsys=subsys,r=new_pos,error=error)
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE set_pos
@@ -1427,12 +1379,9 @@ CPSourceFileRef,&
     failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       NULLIFY (subsys)
-       CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
-       CALL cp_error_check(error,failure)
-       CALL unpack_subsys_particles(subsys=subsys,v=new_vel,error=error)
-    END IF
+    NULLIFY (subsys)
+    CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
+    CALL unpack_subsys_particles(subsys=subsys,v=new_vel,error=error)
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE set_vel
@@ -1626,24 +1575,21 @@ CPSourceFileRef,&
          close_global_unit_on_dealloc=.FALSE.)
     CALL cp_add_default_logger(logger)
     CALL cp_logger_release(logger)
-    CALL cp_error_init(error,logger=logger,stop_level=cp_fatal_level)
+    CALL cp_error_init(error,logger=logger)
 
     input_file => read_input(input_declaration, input_file_path,initial_variables=empty_initial_variables, &
                                             para_env=para_env,error=error)
-    CALL cp_error_check(error,failure)
-    IF (.NOT.failure) THEN
-       CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=unit_nr,error=error)
-       IF (my_echo_input.AND.para_env%mepos==para_env%source) THEN
-          CALL section_vals_write(input_file,&
-               unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.),hide_root=.TRUE.,&
-               hide_defaults=.FALSE.,error=error)
-       END IF
+    CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=unit_nr,error=error)
+    IF (my_echo_input.AND.para_env%mepos==para_env%source) THEN
+       CALL section_vals_write(input_file,&
+            unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.),hide_root=.TRUE.,&
+            hide_defaults=.FALSE.,error=error)
     END IF
     CALL section_vals_release(input_file,error=error)
 
     CALL cp_logger_release(logger)
     CALL cp_para_env_release(para_env,error=error)
-    ierr=cp_error_get_level(error)
+    ierr = 0
     CALL cp_error_dealloc_ref(error)
     CALL cp_rm_default_logger()
   END SUBROUTINE check_input

@@ -558,7 +558,6 @@ MODULE replica_methods
           CALL rep_env_sync(rep_env,rep_env%f,error=error)
           CALL rep_env_sync_results(rep_env,rep_env%results,error)
        END IF
-       CALL cp_error_synchronize_error(error,rep_env%para_env)
     END IF
 
   END SUBROUTINE rep_env_calc_e_f_int

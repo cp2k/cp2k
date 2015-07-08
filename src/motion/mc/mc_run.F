@@ -119,9 +119,8 @@ CONTAINS
     INTEGER                                  :: box_number, ibox, isos, &
                                                 istat, iw, nboxes, nmol_types
     INTEGER, DIMENSION(:), POINTER           :: nunits_tot
-    LOGICAL                                  :: failure, lbias, lhmc, &
-                                                lrestart, lskip_box, &
-                                                lterminate
+    LOGICAL                                  :: lbias, lhmc, lrestart, &
+                                                lskip_box, lterminate
     REAL(dp)                                 :: rcut
     REAL(dp), DIMENSION(:, :), POINTER       :: empty_coordinates
     TYPE(cp_logger_type), POINTER            :: logger
@@ -322,9 +321,6 @@ CONTAINS
 
       ENDDO
 
-! check to see if all the MC stuff setup correctly
-      CPAssert(cp_error_get_level(error)<=CP_WARNING_LEVEL,cp_failure_level,routineP,error,failure)
-
 ! if we're computing the second virial coefficient, do that instead
 ! of running a simulation
       SELECT CASE(ensemble)
@@ -333,9 +329,6 @@ CONTAINS
       CASE DEFAULT
          CALL mc_run_ensemble(mc_env,para_env,globenv,input_declaration,nboxes,rng_stream,error)
       END SELECT
-
-! check to see if all the MC stuff ran correctly
-      CPAssert(cp_error_get_level(error)<=CP_WARNING_LEVEL,cp_failure_level,routineP,error,failure)
 
 ! get rid of all the MC molecule information
       CALL get_mc_env( mc_env(1)%mc_env, mc_par = mc_par(1)%mc_par)

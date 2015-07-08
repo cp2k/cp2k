@@ -147,7 +147,7 @@ CONTAINS
        i_val=loc_logger%iter_info%print_level,error=error)
 
     ! Initialize error
-    CALL cp_error_init(new_error, stop_level=cp_fatal_level, logger=loc_logger)
+    CALL cp_error_init(new_error,logger=loc_logger)
     CALL cp_logger_release(loc_logger)
 
   END SUBROUTINE gopt_new_error_create

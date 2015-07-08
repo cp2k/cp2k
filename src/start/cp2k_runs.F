@@ -86,10 +86,9 @@ MODULE cp2k_runs
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
        section_describe_html, section_describe_index_html, section_release, &
-       section_type, section_typo_match, section_vals_create, &
-       section_vals_get_subs_vals, section_vals_release, section_vals_retain, &
-       section_vals_type, section_vals_val_get, section_vals_write, &
-       write_section_xml
+       section_type, section_vals_create, section_vals_get_subs_vals, &
+       section_vals_release, section_vals_retain, section_vals_type, &
+       section_vals_val_get, section_vals_write, write_section_xml
   USE ipi_driver,                      ONLY: run_driver
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -170,10 +169,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_run', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=512)                       :: matching_string(15), &
-                                                unknown_string
-    INTEGER :: f_env_handle, i, ierr, iter_level, matching_rank(15), &
-      method_name_id, new_env_id, prog_name_id, run_type_id, unit_nr
+    INTEGER :: f_env_handle, ierr, iter_level, method_name_id, new_env_id, &
+      prog_name_id, run_type_id, unit_nr
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
     TYPE(cp_error_type)                      :: error, suberror
@@ -204,7 +201,7 @@ CONTAINS
 
     NULLIFY(globenv, force_env)
 
-    CALL cp_error_init(error, stop_level=cp_fatal_level)
+    CALL cp_error_init(error)
 
     CALL cite_reference(Hutter2014)
 
@@ -212,277 +209,219 @@ CONTAINS
     input_file => read_input(input_declaration,input_file_name,initial_variables=empty_initial_variables, &
                                             para_env=para_env,error=error)
 
-    ! put failure to true if this is what happened on parsing the input
-    CALL cp_error_check(error,failure)
-    IF (failure) THEN
-       logger => cp_error_get_logger(error)
-       unit_nr=cp_logger_get_default_io_unit(logger)
-       IF (unit_nr>0) THEN
-          CALL cp_error_get(error,info=unknown_string)
-          WRITE(unit_nr,'(T2,A)') ""
-          WRITE(unit_nr,'(T2,A)') "Looking for words in the input similar to the unknown: "
-          WRITE(unit_nr,'(T4,A)') ''''//TRIM(unknown_string)//''''
-          WRITE(unit_nr,'(T2,A)') ""
-          CALL m_flush(unit_nr)
-          matching_rank=0
-          matching_string=""
-          CALL section_typo_match(input_declaration,unknown_string,location_string="", &
-                                  matching_rank=matching_rank,matching_string=matching_string,error=error)
-          DO I=1,SIZE(matching_rank,1)
-             IF (matching_rank(i)>0) THEN
-                 WRITE(unit_nr,'(T2,A)') TRIM(matching_string(I))
-             ENDIF
-          ENDDO
-          WRITE(unit_nr,'(T15,A)') ""
-          WRITE(unit_nr,'(T15,A)') "CP2K failed to parse the input file."
-          WRITE(unit_nr,'(T15,A)') "A full description of the input for this CP2K version"
-          WRITE(unit_nr,'(T15,A)') "can be generated using:"
-          WRITE(unit_nr,'(T15,A)') ""
-          WRITE(unit_nr,'(T15,A)') "cp2k.sopt --html-manual"
-          WRITE(unit_nr,'(T15,A)') ""
-          WRITE(unit_nr,'(T15,A)') "The manual for the latest version of CP2K is online available:"
-          WRITE(unit_nr,'(T15,A)') ""
-          WRITE(unit_nr,'(T15,A)') "http://manual.cp2k.org/trunk"
-          WRITE(unit_nr,'(T15,A)') ""
-          WRITE(unit_nr,'(T15,A)') "If this input was an input of a previous version"
-          WRITE(unit_nr,'(T15,A)') "of CP2K, you can try to convert it with --permissive-echo."
-          WRITE(unit_nr,'(T15,A)') "However, this will just ignore the unknown keywords ..."
-          WRITE(unit_nr,'(T15,A)') ""
-          CALL m_flush(unit_nr)
-       ENDIF
-       CALL mp_sync(para_env%group)
+    CALL mp_sync(para_env%group)
+
+    glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
+    CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
+         error=error)
+    logger => cp_error_get_logger(error)
+    IF (echo_input) THEN
+       CALL section_vals_write(input_file,&
+            unit_nr=cp_logger_get_default_io_unit(logger),&
+            hide_root=.TRUE., hide_defaults=.FALSE., error=error)
+    END IF
+
+    CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=output_unit,error=error)
+    root_section=>input_file
+    CALL section_vals_val_get(input_file,"GLOBAL%PROGRAM_NAME",&
+         i_val=prog_name_id,error=error)
+    CALL section_vals_val_get(input_file,"GLOBAL%RUN_TYPE",&
+         i_val=run_type_id,error=error)
+
+    IF (prog_name_id/=do_cp2k) THEN
+       ! initial setup (cp2k does in in the creation of the force_env)
+       CALL globenv_create(globenv, error=error)
+       ! XXXXXXXXX
+       ! root_section => input_file
+       ! XXXXXXXXX
+       CALL section_vals_retain(input_file,error=error)
+       CALL cp2k_init(para_env, output_unit, globenv, input_file_name=input_file_name)
+       CALL cp_error_init(suberror)
+       CALL cp2k_read(root_section,para_env,globenv,error=error)
+       CALL cp2k_setup(root_section,para_env, globenv,suberror)
+    END IF
+
+    CALL cp_dbcsr_config (root_section, error)
+    IF (output_unit > 0 .AND.&
+         cp_logger_would_log(logger, cp_note_level)) THEN
+       CALL cp_dbcsr_print_config (unit_nr=output_unit, error=error)
+       WRITE (UNIT=output_unit,FMT='()')
+    ENDIF
+
+    SELECT CASE (prog_name_id)
+    CASE (do_atom)
+       globenv%run_type_id = none_run
+       CALL atom_code(root_section,suberror)
+    CASE (do_optimize_input)
+       CALL run_optimize_input(input_declaration,root_section, para_env, suberror)
+    CASE (do_swarm)
+       CALL run_swarm(input_declaration, root_section, para_env, globenv, input_file_name, suberror)
+    CASE (do_farming)
+       ! Hack: DBCSR should be uninitialized when entering farming.
+       ! But, we don't want to change the public f77_interface.
+       ! TODO: refactor cp2k's startup code
+       CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=0, error=error)
+       CALL pw_cuda_finalize()
+       CALL farming_run(input_declaration, root_section, para_env, suberror )
+       CALL cp_dbcsr_init_lib(group=mpi_comm, error=error)
+       CALL pw_cuda_init()
+    CASE (do_opt_basis)
+       CALL run_optimize_basis (input_declaration, root_section, para_env, suberror)
+       globenv%run_type_id = none_run
+    CASE(do_cp2k)
+       CALL create_force_env(new_env_id,&
+            input_declaration=input_declaration,&
+            input_path=input_file_name,&
+            output_path="__STD_OUT__",mpi_comm=para_env%group,&
+            output_unit=output_unit,&
+            owns_out_unit=.FALSE.,&
+            input=input_file,ierr=ierr)
+       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+       CALL f_env_add_defaults(new_env_id,f_env,new_error=suberror,&
+            failure=failure,handle=f_env_handle)
+       force_env => f_env%force_env
+       CALL force_env_get(force_env,globenv=globenv,error=suberror)
+       CALL globenv_retain(globenv,error=suberror)
+       CALL section_vals_val_get(force_env%force_env_section,"METHOD",i_val=method_name_id,error=error)
+
+    CASE (do_test)
+       CALL lib_test(root_section,para_env,globenv,suberror)
+    CASE (do_tree_mc) ! TMC entry point
+       CALL do_tmc (input_declaration, root_section, para_env, globenv, error=suberror)
+    CASE (do_tree_mc_ana)
+       CALL do_analyze_files(input_declaration, root_section, para_env, error=suberror )
+    CASE default
+       CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
+    END SELECT
+    CALL section_vals_release(input_file,error=suberror)
+
+    SELECT CASE (globenv%run_type_id)
+    CASE (pint_run)
+       CALL do_pint_run( para_env, root_section, input_declaration, globenv, error=suberror )
+    CASE (none_run, tree_mc_run)
+       ! do nothing
+    CASE (driver_run)
+       CALL run_driver (force_env, globenv, error=suberror)
+    CASE (energy_run, energy_force_run)
+       IF(  method_name_id /= do_qs .AND.&
+            method_name_id /= do_qmmm .AND.&
+            method_name_id /= do_mixed .AND.&
+            method_name_id /= do_fist )  &
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "Energy/Force run not available for all methods "//&
+            CPSourceFileRef,&
+            suberror,failure)
+
+       sublogger => cp_error_get_logger(error)
+       CALL cp_add_iter_level(sublogger%iter_info,"JUST_ENERGY",&
+            n_rlevel_new=iter_level,&
+            error=suberror)
+       
+       ! loop over molecules to generate a molecular guess
+       ! this procedure is initiated here to avoid passing globenv deep down
+       ! the subroutine stack
+       IF (do_mol_loop(force_env=force_env,error=suberror)) &
+          CALL loop_over_molecules(globenv,force_env,error=suberror)
+
+       SELECT CASE(globenv%run_type_id)
+       CASE (energy_run)
+          CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=suberror)
+       CASE(energy_force_run)
+          CALL force_env_calc_energy_force(force_env,calc_force=.TRUE. ,error=suberror)
+       CASE default
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+       CALL cp_rm_iter_level(sublogger%iter_info,level_name="JUST_ENERGY",n_rlevel_att=iter_level,&
+            error=suberror)
+    CASE (mol_dyn_run)
+       CALL qs_mol_dyn ( force_env, globenv, error=suberror )
+    CASE (geo_opt_run)
+       CALL cp_geo_opt(force_env,globenv,error=suberror)
+    CASE (cell_opt_run)
+       CALL cp_cell_opt(force_env,globenv,error=suberror)
+    CASE (mon_car_run)
+       CALL do_mon_car(force_env, globenv, input_declaration, input_file_name, error=suberror)
+    CASE (do_tamc)
+       CALL qs_tamc ( force_env, globenv, error=suberror )
+    CASE (electronic_spectra_run)
+       IF(method_name_id /= do_qs) &
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "Electron spectra available only with Quickstep. "//&
+            CPSourceFileRef,&
+            suberror,failure)
+       CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+            error=suberror)
+       CALL tddfpt_calculation(force_env%qs_env, error=error)
+    CASE (real_time_propagation)
+       IF(method_name_id /= do_qs) &
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "Real time propagation needs METHOD QS. "//&
+            CPSourceFileRef,&
+            suberror,failure)
+       CALL get_qs_env(force_env%qs_env, dft_control=dft_control, error=error)
+       dft_control%rtp_control%fixed_ions=.TRUE.
+       CALL rt_prop_setup(force_env,error)
+    CASE (ehrenfest)
+       IF(method_name_id /= do_qs) &
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "Ehrenfest dynamics needs METHOD QS "//&
+            CPSourceFileRef,&
+            suberror,failure)
+       CALL get_qs_env(force_env%qs_env, dft_control=dft_control, error=error)
+       dft_control%rtp_control%fixed_ions=.FALSE.
+       CALL qs_mol_dyn ( force_env, globenv, error=suberror )
+    CASE (bsse_run)
+       CALL do_bsse_calculation(force_env, globenv, error=suberror)
+    CASE (linear_response_run)
+       IF(method_name_id /= do_qs .AND. &
+          method_name_id /= do_qmmm) &
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Property calculations by Linear Response only within the QS or QMMM program "//&
+               CPSourceFileRef,&
+               suberror,failure)
+       ! The Ground State is needed, it can be read from Restart
+       CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,linres=.TRUE.,&
+                                        error=suberror)
+       CALL linres_calculation(force_env, error=suberror)
+    CASE (debug_run)
+       SELECT CASE(method_name_id)
+       CASE(do_qs, do_qmmm, do_fist)
+          CALL cp2k_debug_energy_and_forces(force_env, error=suberror)
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Debug run available only with QS, FIST, and QMMM program "//&
+               CPSourceFileRef,&
+               suberror,failure)
+       END SELECT
+    CASE (vib_anal)
+       CALL vb_anal(root_section,input_declaration,para_env,globenv,error=suberror)
+    CASE (do_band)
+       CALL neb(root_section,input_declaration,para_env,globenv,error=suberror)
+    CASE default
+       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
+
+    CALL pw_cuda_finalize()
+    CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=output_unit, error=error)
+
+    IF (prog_name_id==do_cp2k) THEN
+       f_env%force_env => force_env ! for mc
+       CALL globenv_retain(globenv,error=error)!mc
+       CALL globenv_release(force_env%globenv,error=error) !mc
+       force_env%globenv => globenv !mc
+       CALL f_env_rm_defaults(f_env,error=suberror,ierr=ierr,&
+            handle=f_env_handle)
+       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+       CALL destroy_force_env(new_env_id,ierr=ierr)
+       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+       CALL globenv_release(globenv,error=error)
     ELSE
-       glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
-       CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
-            error=error)
-       logger => cp_error_get_logger(error)
-       IF (echo_input) THEN
-          CALL section_vals_write(input_file,&
-               unit_nr=cp_logger_get_default_io_unit(logger),&
-               hide_root=.TRUE., hide_defaults=.FALSE., error=error)
-       END IF
-
-       IF (.NOT.failure) THEN
-          CALL check_cp2k_input(input_declaration,input_file,para_env=para_env,output_unit=output_unit,error=error)
-       END IF
-       CALL cp_error_check(error,failure)
-
-       IF (failure) THEN
-          logger => cp_error_get_logger(error)
-          unit_nr=cp_logger_get_default_io_unit(logger)
-          IF (unit_nr>0) THEN
-             WRITE(unit_nr,'(T15,A)') ""
-             WRITE(unit_nr,'(T15,A)') "CP2K failed to parse the input."
-             WRITE(unit_nr,'(T15,A)') "It was presumably generated by an incompatible CP2K version."
-             WRITE(unit_nr,'(T15,A)') "try --permissive-echo to generate a compatible input file (to be checked!!!)"
-             WRITE(unit_nr,'(T15,A)') ""
-             CALL m_flush(unit_nr)
-          ENDIF
-       ELSE
-          root_section=>input_file
-          CALL section_vals_val_get(input_file,"GLOBAL%PROGRAM_NAME",&
-               i_val=prog_name_id,error=error)
-          CALL section_vals_val_get(input_file,"GLOBAL%RUN_TYPE",&
-               i_val=run_type_id,error=error)
-
-          IF (prog_name_id/=do_cp2k) THEN
-             ! initial setup (cp2k does in in the creation of the force_env)
-             CALL globenv_create(globenv, error=error)
-             ! XXXXXXXXX
-             ! root_section => input_file
-             ! XXXXXXXXX
-             CALL section_vals_retain(input_file,error=error)
-             CALL cp2k_init(para_env, output_unit, globenv, input_file_name=input_file_name)
-             CALL cp_error_init(suberror)
-             CALL cp2k_read(root_section,para_env,globenv,error=error)
-             CALL cp2k_setup(root_section,para_env, globenv,suberror)
-          END IF
-
-          CALL cp_dbcsr_config (root_section, error)
-          IF (output_unit > 0 .AND.&
-               cp_logger_would_log(logger, cp_note_level)) THEN
-             CALL cp_dbcsr_print_config (unit_nr=output_unit, error=error)
-             WRITE (UNIT=output_unit,FMT='()')
-          ENDIF
-
-          SELECT CASE (prog_name_id)
-          CASE (do_atom)
-             globenv%run_type_id = none_run
-             CALL atom_code(root_section,suberror)
-          CASE (do_optimize_input)
-             CALL run_optimize_input(input_declaration,root_section, para_env, suberror)
-          CASE (do_swarm)
-             CALL run_swarm(input_declaration, root_section, para_env, globenv, input_file_name, suberror)
-          CASE (do_farming)
-             ! Hack: DBCSR should be uninitialized when entering farming.
-             ! But, we don't want to change the public f77_interface.
-             ! TODO: refactor cp2k's startup code
-             CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=0, error=error)
-             CALL pw_cuda_finalize()
-             CALL farming_run(input_declaration, root_section, para_env, suberror )
-             CALL cp_dbcsr_init_lib(group=mpi_comm, error=error)
-             CALL pw_cuda_init()
-          CASE (do_opt_basis)
-             CALL run_optimize_basis (input_declaration, root_section, para_env, suberror)
-             globenv%run_type_id = none_run
-          CASE(do_cp2k)
-             CALL create_force_env(new_env_id,&
-                  input_declaration=input_declaration,&
-                  input_path=input_file_name,&
-                  output_path="__STD_OUT__",mpi_comm=para_env%group,&
-                  output_unit=output_unit,&
-                  owns_out_unit=.FALSE.,&
-                  input=input_file,ierr=ierr)
-             CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-             CALL f_env_add_defaults(new_env_id,f_env,new_error=suberror,&
-                  failure=failure,handle=f_env_handle)
-             force_env => f_env%force_env
-             CALL force_env_get(force_env,globenv=globenv,error=suberror)
-             CALL globenv_retain(globenv,error=suberror)
-             CALL section_vals_val_get(force_env%force_env_section,"METHOD",i_val=method_name_id,error=error)
-
-          CASE (do_test)
-             CALL lib_test(root_section,para_env,globenv,suberror)
-          CASE (do_tree_mc) ! TMC entry point
-             CALL do_tmc (input_declaration, root_section, para_env, globenv, error=suberror)
-          CASE (do_tree_mc_ana)
-             CALL do_analyze_files(input_declaration, root_section, para_env, error=suberror )
-          CASE default
-             CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
-          END SELECT
-          CALL section_vals_release(input_file,error=suberror)
-          
-          SELECT CASE (globenv%run_type_id)
-          CASE (pint_run)
-             CALL do_pint_run( para_env, root_section, input_declaration, globenv, error=suberror )
-          CASE (none_run, tree_mc_run)
-             ! do nothing
-          CASE (driver_run)
-             CALL run_driver (force_env, globenv, error=suberror)
-          CASE (energy_run, energy_force_run)
-             IF(  method_name_id /= do_qs .AND.&
-                  method_name_id /= do_qmmm .AND.&
-                  method_name_id /= do_mixed .AND.&
-                  method_name_id /= do_fist )  &
-                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Energy/Force run not available for all methods "//&
-                  CPSourceFileRef,&
-                  suberror,failure)
-
-             sublogger => cp_error_get_logger(error)
-             CALL cp_add_iter_level(sublogger%iter_info,"JUST_ENERGY",&
-                  n_rlevel_new=iter_level,&
-                  error=suberror)
-             
-             ! loop over molecules to generate a molecular guess
-             ! this procedure is initiated here to avoid passing globenv deep down
-             ! the subroutine stack
-             IF (do_mol_loop(force_env=force_env,error=suberror)) &
-                CALL loop_over_molecules(globenv,force_env,error=suberror)
-
-             SELECT CASE(globenv%run_type_id)
-             CASE (energy_run)
-                CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=suberror)
-             CASE(energy_force_run)
-                CALL force_env_calc_energy_force(force_env,calc_force=.TRUE. ,error=suberror)
-             CASE default
-                CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-             END SELECT
-             CALL cp_rm_iter_level(sublogger%iter_info,level_name="JUST_ENERGY",n_rlevel_att=iter_level,&
-                  error=suberror)
-          CASE (mol_dyn_run)
-             CALL qs_mol_dyn ( force_env, globenv, error=suberror )
-          CASE (geo_opt_run)
-             CALL cp_geo_opt(force_env,globenv,error=suberror)
-          CASE (cell_opt_run)
-             CALL cp_cell_opt(force_env,globenv,error=suberror)
-          CASE (mon_car_run)
-             CALL do_mon_car(force_env, globenv, input_declaration, input_file_name, error=suberror)
-          CASE (do_tamc)
-             CALL qs_tamc ( force_env, globenv, error=suberror )
-          CASE (electronic_spectra_run)
-             IF(method_name_id /= do_qs) &
-                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Electron spectra available only with Quickstep. "//&
-                  CPSourceFileRef,&
-                  suberror,failure)
-             CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
-                  error=suberror)
-             CALL tddfpt_calculation(force_env%qs_env, error=error)
-          CASE (real_time_propagation)
-             IF(method_name_id /= do_qs) &
-                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Real time propagation needs METHOD QS. "//&
-                  CPSourceFileRef,&
-                  suberror,failure)
-             CALL get_qs_env(force_env%qs_env, dft_control=dft_control, error=error)
-             dft_control%rtp_control%fixed_ions=.TRUE.
-             CALL rt_prop_setup(force_env,error)
-          CASE (ehrenfest)
-             IF(method_name_id /= do_qs) &
-                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Ehrenfest dynamics needs METHOD QS "//&
-                  CPSourceFileRef,&
-                  suberror,failure)
-             CALL get_qs_env(force_env%qs_env, dft_control=dft_control, error=error)
-             dft_control%rtp_control%fixed_ions=.FALSE.
-             CALL qs_mol_dyn ( force_env, globenv, error=suberror )
-          CASE (bsse_run)
-             CALL do_bsse_calculation(force_env, globenv, error=suberror)
-          CASE (linear_response_run)
-             IF(method_name_id /= do_qs .AND. &
-                method_name_id /= do_qmmm) &
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "Property calculations by Linear Response only within the QS or QMMM program "//&
-                     CPSourceFileRef,&
-                     suberror,failure)
-             ! The Ground State is needed, it can be read from Restart
-             CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,linres=.TRUE.,&
-                                              error=suberror)
-             CALL linres_calculation(force_env, error=suberror)
-          CASE (debug_run)
-             SELECT CASE(method_name_id)
-             CASE(do_qs, do_qmmm, do_fist)
-                CALL cp2k_debug_energy_and_forces(force_env, error=suberror)
-             CASE DEFAULT
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "Debug run available only with QS, FIST, and QMMM program "//&
-                     CPSourceFileRef,&
-                     suberror,failure)
-             END SELECT
-          CASE (vib_anal)
-             CALL vb_anal(root_section,input_declaration,para_env,globenv,error=suberror)
-          CASE (do_band)
-             CALL neb(root_section,input_declaration,para_env,globenv,error=suberror)
-          CASE default
-             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-          END SELECT
-
-          CALL pw_cuda_finalize()
-          CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=output_unit, error=error)
-
-          IF (prog_name_id==do_cp2k) THEN
-             f_env%force_env => force_env ! for mc
-             CALL globenv_retain(globenv,error=error)!mc
-             CALL globenv_release(force_env%globenv,error=error) !mc
-             force_env%globenv => globenv !mc
-             CALL f_env_rm_defaults(f_env,error=suberror,ierr=ierr,&
-                  handle=f_env_handle)
-             CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-             CALL destroy_force_env(new_env_id,ierr=ierr)
-             CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-             CALL globenv_release(globenv,error=error)
-          ELSE
-             CALL cp_error_dealloc_ref(suberror)
-             I_was_ionode=para_env%ionode
-             CALL cp2k_finalize(root_section,para_env,globenv,error=error)
-             CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
-             CALL section_vals_release(root_section,error=error)
-             CALL globenv_release(globenv,error=error)
-          END IF
-
-       END IF
-
+       CALL cp_error_dealloc_ref(suberror)
+       I_was_ionode=para_env%ionode
+       CALL cp2k_finalize(root_section,para_env,globenv,error=error)
+       CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
+       CALL section_vals_release(root_section,error=error)
+       CALL globenv_release(globenv,error=error)
     END IF
 
     CALL cp_error_dealloc_ref(error)

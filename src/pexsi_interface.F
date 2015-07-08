@@ -120,7 +120,7 @@ CONTAINS
     IF(PRESENT(npSymbFact)) pexsi_options%options%npSymbFact = npSymbFact
     IF(PRESENT(verbosity)) pexsi_options%options%verbosity = verbosity
 #else
-    CALL cp_assert (.FALSE., cp_fatal_level, cp_internal_error, routineN, & 
+    CALL cp_assert (.FALSE., cp_fatal_level, cp_assertion_failed, routineN, & 
                     "Requires linking to the PEXSI library.",&
                     only_ionode = .TRUE., error=error)
 #endif

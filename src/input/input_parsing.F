@@ -219,7 +219,7 @@ CONTAINS
                 ! this should be an error (failure)
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                      routineP,"unknown subsection "//TRIM(token(2:))//" of section "&
-                     //TRIM(section%name),error=error,info=TRIM(token(2:)))
+                     //TRIM(section%name),error=error)
                 nSub=1
                 DO WHILE (nSub>0)
                    CALL parser_get_object(parser,token,newline=.TRUE.,&
@@ -270,7 +270,7 @@ CONTAINS
                    IF (.NOT.ASSOCIATED(section%keywords(0)%keyword)) THEN
                       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                            routineP,"found an unknown keyword "//TRIM(token)//&
-                           " in section "//TRIM(section%name),error=error,info=TRIM(token))
+                           " in section "//TRIM(section%name),error=error)
                    END IF
                 END IF
                 IF (.NOT.failure) THEN
@@ -679,7 +679,7 @@ CPSourceFileRef,&
           CALL cp_assert(.FALSE.,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "found unexpected extra argument "//TRIM(info)//" at "//&
-               location,error,failure,info=info)
+               location,error,failure)
        ENDIF
     END IF
 

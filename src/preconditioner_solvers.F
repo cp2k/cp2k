@@ -138,9 +138,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_inverse_cholesky', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, info
     LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_fm_type), POINTER                :: fm, fm_work
 
     failure = .FALSE.
@@ -159,16 +158,11 @@ CONTAINS
     CALL cp_fm_create(fm_work, fm%matrix_struct, name="fm_work", use_sp=mixed_precision, error=error)
     !
     ! compute the inverse of SPD matrix fm using the Cholesky factorization
-    CALL cp_error_init(sub_error, template_error=error, stop_level=cp_fatal_level)
+    CALL cp_fm_cholesky_decompose(fm, info_out=info, error=error)
 
-    CALL cp_fm_cholesky_decompose(fm, error=sub_error)
-
-    failure = .FALSE.
-    CALL cp_error_check(sub_error, failure)
-    CALL cp_error_dealloc_ref(sub_error)
     !
     ! if fm not SPD we go with the overlap matrix
-    IF (failure) THEN
+    IF (info /= 0) THEN
        !
        ! just the overlap matrix
        IF(PRESENT(matrix_s)) THEN
@@ -223,10 +217,9 @@ CONTAINS
     fm=>preconditioner_env%fm
     !
     ! compute the inverse of SPD matrix fm using the Cholesky factorization
-    CALL cp_error_init(sub_error, template_error=error, stop_level=cp_fatal_level)
+    CALL cp_error_init(sub_error, template_error=error)
     CALL cp_fm_cholesky_decompose(fm, error=sub_error)
     failure = .FALSE.
-    CALL cp_error_check(sub_error, failure)
     CALL cp_error_dealloc_ref(sub_error)
     !
     ! if fm not SPD we go with the overlap matrix

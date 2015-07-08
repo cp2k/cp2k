@@ -1339,7 +1339,6 @@ CPSourceFileRef,&
           DEALLOCATE(map_index, stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,my_error,failure)
        END IF
-       CALL cp_error_check(my_error, failure)
     END DO
 
     ! Handling Parallel execution

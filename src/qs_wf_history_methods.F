@@ -195,12 +195,10 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
   CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
   IF (.not.ASSOCIATED(snapshot)) THEN
      CALL wfs_create(snapshot,error=error)
-     CALL cp_error_check(error,failure)
   END IF
-  IF (.not.failure) THEN
-     CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
-     CPPrecondition(snapshot%ref_count>0,cp_failure_level,routineP,error,failure)
-  END IF
+  CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(snapshot%ref_count>0,cp_failure_level,routineP,error,failure)
+
   IF (.NOT. failure) THEN
      nspins=dft_control%nspins
      snapshot%dt=1.0_dp
