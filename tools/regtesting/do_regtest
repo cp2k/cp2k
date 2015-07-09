@@ -82,97 +82,73 @@
 # -  end_test 8   : ctrl-C (SIGINT) and various other signals trapped
 # -  end_test 100 : no svn changes since last run - clean exit without testing
 #
-# Script configuration. The value of the follow variables can be redefined, see below
-#   dir_base, FORT_C_NAME, cp2k_version, dir_triplet, cp2k_dir, cp2k_prefix, cp2k_postfix,
+# Script configuration. The value of the follow variables can be redefined either via a config file or via options.
+#   dir_base, cp2k_version, dir_triplet, cp2k_dir, cp2k_prefix, cp2k_postfix,
 #   make, awk, datum_full, datum_short, default_err_tolerance
 #   nosvn, quick, svndate, noreset, ndirtoskip, skip_dirs, restrict_dir, ndirtorestrict, doretest
 #
 ########################################################################################################
-#
-# THESE VARIABLES WILL NEED CHANGING FOR YOUR LOCAL CONFIGURATION
-#
-# - dir_base: the base directory for testing (e.g. $HOME/rt)
-# - FORT_C_NAME: compiler selection (e.g. intel)
-# - cp2k_version: sopt,sdbg,popt....
-# - dir_triplet: the result of tools/get_arch_name, where the executable can be found
-# - cp2k_dir: normally cp2k
-# - maxtasks: Maximum number of CP2K threads to execute concurrently (== total number of CPU cores to be used for regtesting)
-# - emptycheck: useful for automatic testers, no testing if nothing changed in SVN (YES|NO)
-# - leakcheck: if using gfortran with the LeakSanitizer, set this variable to "YES" in order to get memory leak checking
-#
-# The following variable definitions can now be loaded from a
-# site-specific configuration using the -config option. Create one
-# configuration file for each architecture/compiler using these as a
-# template (and don't forget to include a modified cp2k_prefix for MPI
-# runs as well!).
-export LC_ALL=C
-export FORT_C_NAME=gfortran
-# Might consider following export to be done, too
-export MPI_F90=mpif90
-dir_base=$PWD
-cp2k_version=sopt
-dir_triplet=Linux-x86-64-${FORT_C_NAME}
-export ARCH=${dir_triplet}
-cp2k_dir=cp2k
-maxtasks=1
-numprocs=1
-export OMP_NUM_THREADS=1
-emptycheck="NO"
-leakcheck="NO"
-
-# This is the default tolerance used in regression testing
-default_err_tolerance="1.0E-14"
-
-#
-# The following variables typically need no changes on Linux machine, but might need changes on
-# other an OS
-#
-
-# *** how to execute an input file [ cp2k_prefix input cp2k_postfix ]
-# Leave empty for serial, uncomment for parallel
-cp2k_run_prefix=""
-#cp2k_run_prefix="mpiexec -np ${numprocs}"
-cp2k_run_postfix=""
-#cp2k_prefix="poe ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
-#cp2k_postfix="-llfile ${dir_base}/llfile"
-
-# *** make and awk
-make=make
-#make=gmake
-awk=awk
-#awk=nawk
-
-# *** a short and long version of the data, in a format that SVN understands
-datum_full=`date --iso-8601="seconds"`
-datum_short=`date '+%F_%H-%M-%S'`
-
-# *** default settings for command line switches
-quick="noquick"
-noreset="reset"
-ndirstoskip=0
-skip_dirs[1]=""
-ndirstorestrict=0
-restrict_dirs[1]=""
-doretest="no"
-nosvn="svn"
-nobuild="build"
-skiptest="noskiptest"
-svndate="$datum_full"
-
 ###################################################################################
 #
-# From here on no changes to the script should be needed
+# no local changes to the script should be needed,
+# see below (command line argument passing) how to change the default settings
 #
+###################################################################################
+
 ###################################################################################
 #
 # command line argument passing
 #
 ###################################################################################
+export LC_ALL=C
 
+# init
+dir_base=$PWD
 full_time_t1=`date +%s`
+datum_full=`date --iso-8601="seconds"`
+datum_short=`date '+%F_%H-%M-%S'`
+ndirstoskip=0
+skip_dirs[1]=""
+ndirstorestrict=0
+restrict_dirs[1]=""
+default_err_tolerance="1.0E-14"
 
+# parse options
 while [ $# -ge 1 ]; do
  case $1 in
+ # load system-specific configuration file, which can directly change all variables in this script.. powerful ;-)
+ -c|-config)
+  [[ -f $2 ]] || { echo "ERROR: Configuration file $2 not found"; exit 1; }
+  source $2   || { echo "ERROR: Sourcing of the configuration file $2 failed" ; exit 1; }
+  shift;;
+ # make VERSION=...
+ -version)
+  cp2k_version=$2
+  shift ;;
+ # make ARCH=...
+ -arch)
+  dir_triplet=$2
+  shift ;;
+ # location of cp2k relative the the current working directory (i.e. ${dir_base}/${cp2k_dir}/exe can be found)
+ -cp2kdir)
+  cp2k_dir=$2
+  shift ;;
+ # MPI ranks
+ -mpiranks)
+  numprocs=$2 
+  shift;;
+ # OMP threads
+ -ompthreads)
+  numthreads=$2 
+  shift;;
+ # maximum total number of tasks (processes)
+ -maxtasks)
+  maxtasks=$2
+  shift;;
+ # maximum time for a job [in s]
+ -jobmaxtime)
+  job_max_time=$2
+  shift;;
  # build a list of directories to skip
  -skipdir)
   let ndirstoskip=ndirstoskip+1
@@ -186,11 +162,6 @@ while [ $# -ge 1 ]; do
  # enable partial testing of only those directories that contain failed tests
  -retest)
   doretest="yes";;
- # load system-specific configuration
- -c|-config)
-  [[ -f $2 ]] || { echo "ERROR: Configuration file $2 not found"; exit 1; }
-  source $2   || { echo "ERROR: Sourcing of the configuration file $2 failed" ; exit 1; }
-  shift;;
  # do not update the SVN
  -nosvn)
   nosvn="nosvn";;
@@ -208,10 +179,10 @@ while [ $# -ge 1 ]; do
  # do not check if code has changed
  -noemptycheck)
   emptycheck="NO";;
- # do not build cp2k
- # turns on automatically quick option, so that do_regtest does not do realclean
+ # do not build cp2k, turns on automatically quick option, so that do_regtest does not do realclean
  -nobuild)
   quick="quick"; nobuild="nobuild";;
+ # do not test, actually.
  -skiptest)
   skiptest="skiptest";;
  # stop on invalid flag
@@ -226,19 +197,67 @@ while [ $# -ge 1 ]; do
  shift
 done
 
-if [ "${ARCH}" ]; then
-    ARCH_SPEC="ARCH=${ARCH}"
-fi
+###################################################################################
+#
+# default settings for various flags, if not defined by flags or conf files
+#
+###################################################################################
+cp2k_version=${cp2k_version:-sopt}
+dir_triplet=${dir_triplet:-Linux-x86-64-gfortran}
+job_max_time=${job_max_time:-600}
+emptycheck=${emptycheck:-"NO"}
+leakcheck=${leakcheck:-"NO"}
+doretest=${doretest:-"no"}
+nosvn=${nosvn:-"svn"}
+nobuild=${nobuild:-"build"}
+cp2k_run_postfix=${cp2k_run_postfix:-""}
+make=${make:-make}
+awk=${awk:-awk}
+quick=${quick:-"noquick"}
+noreset=${noreset:-"reset"}
+skiptest=${skiptest:-"noskiptest"}
+svndate=${svndat:-"$datum_full"}
+#
+# guessing the number of tasks / threads / ranks
+#
+# by default we use all proc of the machine
+maxtasksdefault=`nproc --all`
+maxtasks=${maxtasks:-${maxtasksdefault}}
+#
+case $cp2k_version in
+  popt|pdbg|psmp)
+    numprocs=${numprocs:-2}
+    cp2k_run_prefix=${cp2k_run_prefix:-"mpiexec -np ${numprocs}"}
+    ;;
+  *)
+    numprocs=${numprocs:-1}
+    cp2k_run_prefix=${cp2k_run_prefix:-""}
+    ;;
+esac
+#
+case $cp2k_version in
+  ssmp|psmp)
+    numthreads=${numthreads:-2}
+    ;;
+  *)
+    numthreads=${numthreads:-1}
+    ;;
+esac
 
-# *** how to execute an input file [ cp2k_prefix input cp2k_postfix ]
-# Unless cp2k_prefix is overridden in the sourced -config file, the
-# default is used.
+export OMP_NUM_THREADS=${numthreads}
+
+# 
+# these should not be needed
+# 
+ARCH_SPEC="ARCH=${ARCH}"
 cp2k_prefix=${cp2k_prefix:-"${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"}
 cp2k_postfix=${cp2k_postfix:-"${cp2k_run_postfix}"}
 
-# allow the config file to set the maximum allowed time. Useful for valgrind runs
-job_max_time=${job_max_time:-"600"}
-
+###################################################################################
+#
+# the rest should be internals.
+#
+###################################################################################
 ###################################################################################
 #
 # set up the initial directory structures
@@ -264,7 +283,8 @@ error_description_file=${dir_out}/error_summary
 memory_description_file=${dir_out}/memory_summary
 >${memory_description_file}
 summary=${dir_out}/summary.txt
-printf "Summary of the regression tester run from ${datum_short} using ${FORT_C_NAME}\n" >${summary}
+printf "Summary of the regression tester run from ${datum_short} using ${dir_triplet} ${cp2k_version} \n" >${summary}
+
 
 ###################################################################################
 #
@@ -663,6 +683,20 @@ echo "*************************** testing started ******************************
 echo " started on " `date`
 echo " checking version ${svndate} "
 echo " configuration: ${dir_triplet}-${cp2k_version} "
+echo " regtesting location summary file: $summary"
+echo " regtesting location error_summary file: $error_description_file"
+echo " regtesting location memory_summary file: $memory_description_file"
+echo " regtesting location output dir: $dir_out"
+echo " regtesting location last dir: $dir_last"
+#
+# should include all flags, ideally
+#
+echo "---------------------------- Settings ------------------------------------"
+echo "maxtasks         = ${maxtasks}"
+echo "numprocs         = ${numprocs}"
+echo "OMP_NUM_THREADS  = ${OMP_NUM_THREADS}"
+echo "cp2k_run_prefix  = ${cp2k_run_prefix}"
+echo "cp2k_run_postfix = ${cp2k_run_postfix}"
 echo "--------------------------- SVN ------------------------------------------"
 
 if [[ ${nosvn} != "nosvn" ]]; then
@@ -751,12 +785,6 @@ fi
 
 # from here failures are likely to be bugs in cp2k
 if [[ ${nobuild} != "nobuild" ]]; then
-   echo "---------------------------- Settings ------------------------------------"
-   echo "maxtasks         = ${maxtasks}"
-   echo "numprocs         = ${numprocs}"
-   echo "OMP_NUM_THREADS  = ${OMP_NUM_THREADS}"
-   echo "cp2k_run_prefix  = ${cp2k_run_prefix}"
-   echo "cp2k_run_postfix = ${cp2k_run_postfix}"
    echo "--------------------------- ARCH-file ------------------------------------"
    cat ${dir_base}/${cp2k_dir}/arch/${ARCH}.${cp2k_version}
    echo "-------------------------- Build-Tools -----------------------------------"
