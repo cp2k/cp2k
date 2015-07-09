@@ -23,7 +23,7 @@ test_ub1.inp    11    1.0E-14    3.217393655177664
 test_ub2.inp    11    1.0E-14    2.580760859555949
 mfi.inp    2    1.0E-14    0.433855168086E+00
 # Intermolecular constraints
-water_3_dist_inter.inp    2    1.0E-14    0.313590831335E-02
+water_3_dist_inter.inp            2     6e-12             0.313590831335E-02
 water_3_dist_inter2.inp   2             1e-11
 water_3_dist_mix.inp    2    1.0E-14    0.237036295788E-02
 # Intermolecular restraints
