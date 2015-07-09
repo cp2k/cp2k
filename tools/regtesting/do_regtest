@@ -3,96 +3,6 @@
 ###################################################################################
 # do_regtest some info [Joost VandeVondele, 2005-02-25]
 # Major revision of the script [Marko Misic, PRACE, July - August 2013]
-#
-# Regression testing cp2k ...
-#    - maintain code quality
-#    - helps rapid development and refactoring
-#
-# What does a regtest do
-#    - automatically update cp2k with the current SVN version (including new tests)
-#    - performs a realclean build of the source
-#    - executes a list of tests
-#    - compares the results (outputs) with those of the last known result (reference)
-#    - produces a summary
-#
-# How to set up a regtest
-#    - you must be able to build and run cp2k on the given machine, the rest should be 'easy'
-#    - decide on a directory for doing the regtest, there will be plenty of files in this dir
-#      (after a while) so make it something like $HOME/rt
-#    - checkout a version of cp2k into $HOME/rt.
-#      If you set up your svn account so that you don't need to provide
-#      a passwd for doing svn update, things will be more convenient later on.
-#    - set up the arch files so that you can cleanly build cp2k (test this)
-#    - cp $HOME/rt/cp2k/tools/do_regtest $HOME/rt
-#    - modify the do_regtest script to match your local environment (e.g. specify
-#      if you wish a sdbg or a sopt build, which compiler, gmake, ....) see below
-#    - execute './do_regtest' regularly (i.e. after comitting new code)
-#
-# Interpretation of the results
-#  test can be:
-#    - 'OK' if the results match those of a previous run precisely. The execution time is also given.
-#    - 'NEW' if they have not been executed previously. The reference result is generated
-#      automatically in this run. Tests can also be 'NEW' if they have been reset, i.e. been newly
-#      added to the TEST_FILES_RESET files.
-#    - 'RUNTIME FAILURE' if they stopped unexpectedly (e.g. core dump, or stop)
-#    - 'WRONG RESULT' if they produce a result that deviates (even a tiny bit) from an old reference
-#  the last two options generally mean that a bug has been introduced, which requires investigation.
-#  since regtesting only yields information relative to a previously known result, it is most useful
-#  to do a regtest before and after you make changes. To allow per-test numerical difference higher
-#  than that set as a default, add third column in appropriete TEST_FILES file with a relative value
-#  of the difference.
-#
-# Adding/resetting/creating tests to the testsuite
-#  these is fully controlled by the following files in the cp2k/tests directories
-#  TEST_DIRS  : is just a list of directories that contain tests. You can add your directory here.
-#  TEST_FILES : the list of input files that need to be executed. You can add your file name here.
-#                adding a comment about what it tests might help later debugging problems if a regtest
-#                fails
-#  TEST_FILES_RESET : you can add files for which the reference output became invalid (e.g. bug fix)
-#                      to this list fo files. However be absolutely sure that the change is due to
-#                      a bug fix, do not reset these that fail because of unclear reasons. Try to add
-#                      a comment to the svn message and/or the file itself
-#  TEST_TYPES : this file allows you to create a new test type. I.e. to specify for which words should
-#                be grepped and what field should be used in the numerical comparison.
-#
-# Command line switches to the do_regtest script (also configurable from within the script)
-#  -nosvn   : do not access the SVN for any updating, makes regtesting fully local
-#  -quick   : rebuild the code if needed, but do not perform a realclean before (noquick is not needed anymore)
-#  -noreset : do not reset the reference outputs automatically
-#  -svndate string : specify any string to svn update (most likely used as "2005-02-17")
-#  -skipdir string : this switch can repeat, exclude certain dirs from regtesting, useful to
-#                    speed-up regtesting after very localised changes (e.g. -skipdir QS/regtest)
-#  -restrictdir string : this switch can repeat, restrict regtesting to certain dirs, useful to
-#                        speed-up regtesting after very localised changes (e.g. -restrictdir QS/regtest)
-#  -config string : loads a site/compiler/environment specific configuration
-#  -retest : regtesting will be restricted only to those directories that contained failed tests
-#            in the previous run
-#  -noemptycheck : use this to force regression testing even if no changes exist in SVN
-#  -nobuild : do not build cp2k, but use one built by the user (turns on quick option automatically)
-#  -skiptest : skip the regression test, but do SVN update and compilation if requested
-#
-# Possible exit statuses:
-# -  end_test 0   : clean exit with testing
-# -  end_test 1   : problem with svn update
-# -  end_test 3   : problem with realclean
-# -  end_test 4   : build errors
-# -  end_test 5   : problem with retest option - no TEST directory with latest test results found
-# -  end_test 6   : problem with retest option - no error summary exists in the last TEST directory
-# -  end_test 7   : reference directory is locked
-# -  end_test 8   : ctrl-C (SIGINT) and various other signals trapped
-# -  end_test 100 : no svn changes since last run - clean exit without testing
-#
-# Script configuration. The value of the follow variables can be redefined either via a config file or via options.
-#   dir_base, cp2k_version, dir_triplet, cp2k_dir, cp2k_prefix, cp2k_postfix,
-#   make, awk, datum_full, datum_short, default_err_tolerance
-#   nosvn, quick, svndate, noreset, ndirtoskip, skip_dirs, restrict_dir, ndirtorestrict, doretest
-#
-########################################################################################################
-###################################################################################
-#
-# no local changes to the script should be needed,
-# see below (command line argument passing) how to change the default settings
-#
 ###################################################################################
 
 ###################################################################################
@@ -185,6 +95,54 @@ while [ $# -ge 1 ]; do
  # do not test, actually.
  -skiptest)
   skiptest="skiptest";;
+ # print help
+ -help|-h|--help)
+  echo "Usage: do_regtest [OPTION]"
+  echo "Run the CP2K regression test suite"
+  echo "Example: do_regtest -c my_regtest.conf"
+  echo ""
+  echo "General:"
+  echo "  -h, -help, --help         print this help screen."
+  echo "  -c, -config FILE          read any of the following configuration switches from FILE."
+  echo "  -cp2kdir PATH             location of cp2k source tree relative to current working directory."
+  echo ""
+  echo "Svn:"
+  echo "  -svndate DATE             checkout svn revision of given DATE. Default: use trunk."
+  echo "  -nosvn                    do not run svn update. Default: off."
+  echo "  -noemptycheck             run tests even when no changes in svn were made. Default: on."
+  echo ""
+  echo "Build:"
+  echo "  -version VERSION          VERSION passed to make. Default: sopt."
+  echo "  -arch ARCH                ARCH passed to make. Default: Linux-x86-64-gfortran."
+  echo "  -quick                    rebuild if needed, but without realclean. Default: off."
+  echo "  -nobuild                  do not build cp2k, rely on user's build. Default: off."
+  echo ""
+  echo "Runtime:"
+  echo "  -mpiranks NRANKS          number of mpi-ranks. Default: 2 for parallel versions, 1 for serial."
+  echo "  -ompthreads NTHREADS      number of OpenMP threads. Default: 2 for smp versions otherwise 1."
+  echo "  -maxtasks NPROCS          total number of processor to use. Default: \`nproc --all\`."
+  echo "  -jobmaxtime SECONDS       maximum execution time of a single test. Default 600."
+  echo ""
+  echo "Testing:"
+  echo "  -noreset                  do not reset the reference outputs. Default: off."
+  echo "  -skiptest                 do not run test, only svn update and build. Default: off."
+  echo "  -skipdir TESTDIR          do not run tests in TESTDIR. This switch can repeated."
+  echo "  -restrictdir TESTDIR      run only tests in TESTDIR. This switch can repeated."
+  echo "  -retest                   run only tests in directories, which had failing tests in previous run."
+  echo ""
+  echo "Exit codes:"
+  echo "    0   clean exit with testing"
+  echo "    1   problem with svn update"
+  echo "    3   problem with realclean"
+  echo "    4   build errors"
+  echo "    5   problem with retest option - no TEST directory with latest test results found"
+  echo "    6   problem with retest option - no error summary exists in the last TEST directory"
+  echo "    7   reference directory is locked"
+  echo "    8   ctrl-C (SIGINT) and various other signals trapped"
+  echo "  100   no svn changes since last run - clean exit without testing"
+  echo ""
+  echo "For more information visit: <http://cp2k.org/dev:regtesting>"
+  exit 0;;
  # stop on invalid flag
  -*)
   echo "ERROR: Invalid command line flag $1 found"
