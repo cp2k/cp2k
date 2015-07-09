@@ -21,6 +21,7 @@ DATA_DIR     := $(CP2KHOME)/data
 MAINEXEDIR   := $(CP2KHOME)/exe
 MAINLIBDIR   := $(CP2KHOME)/lib
 MAINOBJDIR   := $(CP2KHOME)/obj
+MAINTSTDIR   := $(CP2KHOME)/regtesting
 PRETTYOBJDIR := $(CP2KHOME)/obj/prettified
 DOXIFYOBJDIR := $(CP2KHOME)/obj/doxified
 INSTANTIATEDDIR := $(CP2KHOME)/obj/instantiated
@@ -43,6 +44,7 @@ MODDEPS = "lower"
 include $(CP2KHOME)/arch/$(ARCH).$(ONEVERSION)
 LIBDIR  := $(MAINLIBDIR)/$(ARCH)/$(ONEVERSION)
 OBJDIR  := $(MAINOBJDIR)/$(ARCH)/$(ONEVERSION)
+TSTDIR  := $(MAINTSTDIR)/$(ARCH)/$(ONEVERSION)
 ifeq ($(NVCC),)
 EXE_NAMES := $(basename $(notdir $(filter-out %.cu, $(ALL_EXE_FILES))))
 endif
@@ -60,7 +62,7 @@ endif
          doxifydir doxify doxifyclean \
          prettydir pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help templates \
-         instantiationdir templatesclean
+         instantiationdir templatesclean testclean testrealclean
 
 
 # Discover files and directories ============================================
@@ -105,7 +107,7 @@ ORIG_TARGET = default_target
 fes :
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=graph
 
-$(EXE_NAMES) all toolversions libcp2k:
+$(EXE_NAMES) all toolversions libcp2k test:
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
 
 # stage 2: Store the version target in $(ONEVERSION),
@@ -124,13 +126,18 @@ $(EXE_NAMES): dirs makedep
 all: dirs makedep
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) all INCLUDE_DEPS=true
 
+test: dirs makedep all
+	@+$(MAKE) --no-print-directory -C $(TSTDIR) -f $(MAKEFILE) test INCLUDE_DEPS=true
+
 libcp2k: dirs makedep
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(LIBDIR)/libcp2k$(ARCHIVE_EXT) INCLUDE_DEPS=true
+
 
 dirs:
 	@mkdir -p $(OBJDIR)
 	@mkdir -p $(LIBDIR)
 	@mkdir -p $(EXEDIR)
+	@mkdir -p $(TSTDIR)
 
 toolversions:
 ifneq ($(FC),)
@@ -157,8 +164,18 @@ else
 all: $(foreach e, $(EXE_NAMES), $(EXEDIR)/$(e).$(ONEVERSION))
 $(LIBDIR)/libcp2k$(ARCHIVE_EXT) : $(ALL_NONEXE_OBJECTS)
 
+# ================= testing ===============
+test: 
+	@echo "testing: $(ONEVERSION) : full log in $(TSTDIR)/regtest.log "
+	@$(TOOLSRC)/regtesting/do_regtest -nobuild -nosvn -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS) >& $(TSTDIR)/regtest.log 
+	@cat `grep 'regtesting location error_summary file:' $(TSTDIR)/regtest.log | awk '{print $$NF}'`
+	@cat `grep 'regtesting location summary file:' $(TSTDIR)/regtest.log | awk '{print $$NF}'`
+	@grep "Number of FAILED  tests 0" $(TSTDIR)/regtest.log >& /dev/null
+	@grep "Number of WRONG   tests 0" $(TSTDIR)/regtest.log >& /dev/null
 endif
 endif
+
+OTHER_HELP += "test : run the regression tests"
 
 OTHER_HELP += "toolversions : Print versions of build tools"
 
@@ -213,11 +230,19 @@ realclean: clean execlean
 	rm -rf $(foreach v, $(VERSION), $(MAINLIBDIR)/$(ARCH)/$(v))
 OTHER_HELP += "realclean : Remove all files for given ARCH and VERSION"
 
+testclean:
+	rm -rf $(foreach v, $(VERSION), $(MAINTSTDIR)/$(ARCH)/$(v)/TEST-*)
+OTHER_HELP += "testclean : Remove all TEST-* files for given ARCH and VERSION"
+
+testrealclean: testclean
+	rm -rf $(foreach v, $(VERSION), $(MAINTSTDIR)/$(ARCH)/$(v)/LAST-*)
+OTHER_HELP += "testrealclean : Remove all LAST-* and TEST-* files for given ARCH and VERSION"
+
 #
 # Remove all files from previous builds
 #
-distclean: prettyclean doxifyclean
-	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(LIBCUSMM_DIR)/libcusmm.cu
+distclean: prettyclean doxifyclean testrealclean
+	rm -rf $(DOXYGENDIR) $(MAINEXEDIR) $(MAINOBJDIR) $(MAINLIBDIR) $(MAINTSTDIR) $(LIBCUSMM_DIR)/libcusmm.cu
 OTHER_HELP += "distclean : Remove all files from previous builds"
 
 #
@@ -345,6 +370,7 @@ endif
 ifeq ($(INCLUDE_DEPS), true)
 include $(OBJDIR)/all.dep
 endif
+
 
 # ================= Stuff need for compiling (stage 4) ======================
 # These rules are executed in a recursive call to make -C $(OBJDIR)
