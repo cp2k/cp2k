@@ -62,7 +62,8 @@ endif
          doxifydir doxify doxifyclean \
          prettydir pretty prettyclean doxygen/clean doxygen \
          install clean realclean distclean mrproper help templates \
-         instantiationdir templatesclean testclean testrealclean
+         instantiationdir templatesclean \
+         test testbg testclean testrealclean
 
 
 # Discover files and directories ============================================
@@ -107,7 +108,7 @@ ORIG_TARGET = default_target
 fes :
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=graph
 
-$(EXE_NAMES) all toolversions libcp2k test:
+$(EXE_NAMES) all toolversions libcp2k test testbg:
 	@+$(MAKE) --no-print-directory -f $(MAKEFILE) $(VERSION) ORIG_TARGET=$@
 
 # stage 2: Store the version target in $(ONEVERSION),
@@ -128,6 +129,9 @@ all: dirs makedep
 
 test: dirs makedep all
 	@+$(MAKE) --no-print-directory -C $(TSTDIR) -f $(MAKEFILE) test INCLUDE_DEPS=true
+
+testbg: dirs makedep all
+	@+$(MAKE) --no-print-directory -C $(TSTDIR) -f $(MAKEFILE) testbg INCLUDE_DEPS=true
 
 libcp2k: dirs makedep
 	@+$(MAKE) --no-print-directory -C $(OBJDIR) -f $(MAKEFILE) $(LIBDIR)/libcp2k$(ARCHIVE_EXT) INCLUDE_DEPS=true
@@ -165,17 +169,22 @@ all: $(foreach e, $(EXE_NAMES), $(EXEDIR)/$(e).$(ONEVERSION))
 $(LIBDIR)/libcp2k$(ARCHIVE_EXT) : $(ALL_NONEXE_OBJECTS)
 
 # ================= testing ===============
-test: 
+test:
+	$(TOOLSRC)/regtesting/do_regtest -nobuild -nosvn -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS)
+
+testbg:
 	@echo "testing: $(ONEVERSION) : full log in $(TSTDIR)/regtest.log "
 	@$(TOOLSRC)/regtesting/do_regtest -nobuild -nosvn -arch $(ARCH) -version $(ONEVERSION) -cp2kdir ../../../  $(TESTOPTS) >& $(TSTDIR)/regtest.log 
 	@cat `grep 'regtesting location error_summary file:' $(TSTDIR)/regtest.log | awk '{print $$NF}'`
 	@cat `grep 'regtesting location summary file:' $(TSTDIR)/regtest.log | awk '{print $$NF}'`
 	@grep "Number of FAILED  tests 0" $(TSTDIR)/regtest.log >& /dev/null
 	@grep "Number of WRONG   tests 0" $(TSTDIR)/regtest.log >& /dev/null
+
 endif
 endif
 
 OTHER_HELP += "test : run the regression tests"
+OTHER_HELP += "testbg : run the regression tests in background"
 
 OTHER_HELP += "toolversions : Print versions of build tools"
 
