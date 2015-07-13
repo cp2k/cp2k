@@ -360,22 +360,6 @@ CONTAINS
 
     INTEGER                                  :: i
 
-    IF (ASSOCIATED(dist%d%local_cluster_rows)) THEN
-       DO i = LBOUND (dist%d%local_cluster_rows,1), UBOUND (dist%d%local_cluster_rows,1)
-          CALL array_release (dist%d%local_cluster_rows(i))
-       END DO
-       DEALLOCATE(dist%d%local_cluster_rows)
-       NULLIFY(dist%d%local_cluster_rows)
-    ENDIF
-
-    IF (ASSOCIATED(dist%d%local_cluster_cols)) THEN
-       DO i = LBOUND (dist%d%local_cluster_cols,1), UBOUND (dist%d%local_cluster_cols,1)
-          CALL array_release (dist%d%local_cluster_cols(i))
-       END DO
-       DEALLOCATE(dist%d%local_cluster_cols)
-       NULLIFY(dist%d%local_cluster_cols)
-    ENDIF
-
     IF (dist%d%has_other_l_rows) THEN
        DO i = LBOUND (dist%d%other_l_rows,1), UBOUND (dist%d%other_l_rows,1)
           CALL array_release (dist%d%other_l_rows(i))

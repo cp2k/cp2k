@@ -99,9 +99,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_distribution_new', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, i, j, lcmv, &
+    INTEGER                                  :: error_handler, i, lcmv, &
                                                 mypcoor, nclusters, seq
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: cluster_dist
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cluster_dist
     INTEGER, DIMENSION(:), POINTER           :: col_dist_tmp, ld, row_dist_tmp
     TYPE(dbcsr_error_type)                   :: error
 
@@ -191,95 +191,61 @@ CONTAINS
        CALL array_new (dist%d%local_cols, ld, gift=.TRUE.)
     ENDIF
 
-    ! check cluster distributions and make it local -- rows
+    ! check cluster distributions -- rows
+    dist%d%num_local_row_clusters = 1
     IF (array_exists(dist%d%row_dist_cluster)) THEN
        ! cluster/proc distribution, 
        ! map of the local clusters, 
        ! # blocks per cluster
-       ALLOCATE(cluster_dist(nclusters,3))
-       cluster_dist(:,1:2) = -1
-       cluster_dist(:,3) = 0
+       ALLOCATE(cluster_dist(nclusters))
+       cluster_dist(:) = -1
        seq = 0
        mypcoor = dbcsr_mp_myprow (mp_env)
        DO i = 1, SIZE(row_dist_block)
-          IF (cluster_dist(row_dist_cluster(i),1).EQ.-1) THEN
-             cluster_dist(row_dist_cluster(i),1) = row_dist_block(i)
-             IF (row_dist_block(i).EQ.mypcoor) THEN
-                seq = seq + 1
-                cluster_dist(row_dist_cluster(i),2) = seq
-             END IF
+          IF (cluster_dist(row_dist_cluster(i)).EQ.-1) THEN
+             cluster_dist(row_dist_cluster(i)) = row_dist_block(i)
+             IF (row_dist_block(i).EQ.mypcoor) seq = seq + 1
           ELSE 
-             CALL dbcsr_assert (cluster_dist(row_dist_cluster(i),1),"EQ",row_dist_block(i),&
+             CALL dbcsr_assert (cluster_dist(row_dist_cluster(i)),"EQ",row_dist_block(i),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
                   "Wrong cluster distribution",&
                   __LINE__, error=error)
           END IF
-          cluster_dist(row_dist_cluster(i),3) = cluster_dist(row_dist_cluster(i),3) + 1
        END DO
        CALL dbcsr_assert (seq,"LE",nclusters/dbcsr_mp_nprows(mp_env),&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Clusters distribution is not uniform across processors",&
             __LINE__, error=error)
-       ALLOCATE(dist%d%local_cluster_rows(seq))
-       ld => array_data(dist%d%local_rows)
-       DO i = 1, nclusters
-          IF (cluster_dist(i,2).LT.1) CYCLE
-          ALLOCATE(row_dist_tmp(cluster_dist(i,3)))
-          seq = 1
-          DO j = 1, SIZE(ld)
-             IF (i.EQ.row_dist_cluster(ld(j))) THEN
-                row_dist_tmp(seq) = ld(j)
-                seq = seq + 1
-             ENDIF
-          ENDDO
-          CALL array_new (dist%d%local_cluster_rows(cluster_dist(i,2)),row_dist_tmp,gift=.TRUE.)
-       ENDDO
+       dist%d%num_local_row_clusters = seq
        DEALLOCATE(cluster_dist)
     END IF
 
-    ! check cluster distributions and make it local -- cols
+    ! check cluster distributions -- cols
+    dist%d%num_local_col_clusters = 1
     IF (array_exists(dist%d%col_dist_cluster)) THEN
        ! cluster/proc distribution, 
        ! map of the local clusters, 
        ! # blocks per cluster
-       ALLOCATE(cluster_dist(nclusters,3))
-       cluster_dist(:,1:2) = -1
-       cluster_dist(:,3) = 0
+       ALLOCATE(cluster_dist(nclusters))
+       cluster_dist(:) = -1
        seq = 0
        mypcoor = dbcsr_mp_mypcol (mp_env)
        DO i = 1, SIZE(col_dist_block)
-          IF (cluster_dist(col_dist_cluster(i),1).EQ.-1) THEN
-             cluster_dist(col_dist_cluster(i),1) = col_dist_block(i)
-             IF (col_dist_block(i).EQ.mypcoor) THEN
-                seq = seq + 1
-                cluster_dist(col_dist_cluster(i),2) = seq
-             END IF
+          IF (cluster_dist(col_dist_cluster(i)).EQ.-1) THEN
+             cluster_dist(col_dist_cluster(i)) = col_dist_block(i)
+             IF (col_dist_block(i).EQ.mypcoor) seq = seq + 1
           ELSE 
-             CALL dbcsr_assert (cluster_dist(col_dist_cluster(i),1),"EQ",col_dist_block(i),&
+             CALL dbcsr_assert (cluster_dist(col_dist_cluster(i)),"EQ",col_dist_block(i),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
                   "Wrong cluster distribution",&
                   __LINE__, error=error)
           END IF
-          cluster_dist(col_dist_cluster(i),3) = cluster_dist(col_dist_cluster(i),3) + 1
        END DO
        CALL dbcsr_assert (seq,"LE",nclusters/dbcsr_mp_npcols(mp_env),&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Clusters distribution is not uniform across processors",&
             __LINE__, error=error)
-       ALLOCATE(dist%d%local_cluster_cols(seq))
-       ld => array_data(dist%d%local_cols)
-       DO i = 1, nclusters
-          IF (cluster_dist(i,2).LT.1) CYCLE
-          ALLOCATE(col_dist_tmp(cluster_dist(i,3)))
-          seq = 1
-          DO j = 1, SIZE(ld)
-             IF (i.EQ.col_dist_cluster(ld(j))) THEN
-                col_dist_tmp(seq) = ld(j)
-                seq = seq + 1
-             ENDIF
-          ENDDO
-          CALL array_new (dist%d%local_cluster_cols(cluster_dist(i,2)),col_dist_tmp,gift=.TRUE.)
-       ENDDO
+       dist%d%num_local_col_clusters = seq
        DEALLOCATE(cluster_dist)
     END IF
 
@@ -581,11 +547,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER                                  :: num_local_row_clusters
 
-    num_local_row_clusters = 1
-    IF (dbcsr_distribution_has_row_clusters(dist)) THEN
-       num_local_row_clusters = SIZE(dist%d%local_cluster_rows)
-    ENDIF
-
+    num_local_row_clusters = dist%d%num_local_row_clusters
   END FUNCTION dbcsr_distribution_num_local_row_clusters
 
 ! *****************************************************************************
@@ -597,11 +559,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     INTEGER                                  :: num_local_col_clusters
 
-    num_local_col_clusters = 1
-    IF (dbcsr_distribution_has_col_clusters(dist)) THEN
-       num_local_col_clusters = SIZE(dist%d%local_cluster_cols)
-    ENDIF
-
+    num_local_col_clusters = dist%d%num_local_col_clusters
   END FUNCTION dbcsr_distribution_num_local_col_clusters
 
 ! *****************************************************************************
@@ -615,7 +573,7 @@ CONTAINS
 
     num_row_clusters = 1
     IF (dbcsr_distribution_has_row_clusters(dist)) THEN
-       num_row_clusters = SIZE(dist%d%local_cluster_rows)*dbcsr_mp_nprows(dbcsr_distribution_mp(dist))
+       num_row_clusters = dist%d%num_local_row_clusters*dbcsr_mp_nprows(dbcsr_distribution_mp(dist))
     ENDIF
 
   END FUNCTION dbcsr_distribution_num_row_clusters
@@ -631,7 +589,7 @@ CONTAINS
 
     num_col_clusters = 1
     IF (dbcsr_distribution_has_col_clusters(dist)) THEN
-       num_col_clusters = SIZE(dist%d%local_cluster_cols)*dbcsr_mp_npcols(dbcsr_distribution_mp(dist))
+       num_col_clusters = dist%d%num_local_col_clusters*dbcsr_mp_npcols(dbcsr_distribution_mp(dist))
     ENDIF
 
   END FUNCTION dbcsr_distribution_num_col_clusters
