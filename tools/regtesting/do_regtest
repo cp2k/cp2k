@@ -22,6 +22,9 @@ skip_dirs[1]=""
 ndirstorestrict=0
 restrict_dirs[1]=""
 default_err_tolerance="1.0E-14"
+cp2k_run_prefix=""
+numprocs=1
+numthreads=1
 
 # parse options
 while [ $# -ge 1 ]; do
@@ -181,32 +184,24 @@ svndate=${svndat:-"$datum_full"}
 # by default we use all proc of the machine
 maxtasksdefault=`nproc --all`
 maxtasks=${maxtasks:-${maxtasksdefault}}
-#
-case $cp2k_version in
-  popt|pdbg|psmp)
+
+if [[ $cp2k_version == p* ]] ; then
     numprocs=${numprocs:-2}
+fi
+
+if [[ $numprocs > 1 ]] ; then
     cp2k_run_prefix=${cp2k_run_prefix:-"mpiexec -np ${numprocs}"}
-    ;;
-  *)
-    numprocs=${numprocs:-1}
-    cp2k_run_prefix=${cp2k_run_prefix:-""}
-    ;;
-esac
-#
-case $cp2k_version in
-  ssmp|psmp)
+fi
+
+if [[ $cp2k_version == *smp* ]] ; then
     numthreads=${numthreads:-2}
-    ;;
-  *)
-    numthreads=${numthreads:-1}
-    ;;
-esac
+fi
 
 export OMP_NUM_THREADS=${numthreads}
 
-# 
+#
 # these should not be needed
-# 
+#
 ARCH_SPEC="ARCH=${ARCH}"
 cp2k_prefix=${cp2k_prefix:-"${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"}
 cp2k_postfix=${cp2k_postfix:-"${cp2k_run_postfix}"}
