@@ -115,3 +115,7 @@
 2gly_DIIS-SD-NEB.inp
 2gly_DIIS-SD-2.inp
 2gly_DIIS-DNEB.inp
+# Numerics: now, same interpolated replica for different compilers
+2gly_DIIS-DNEB.inp
+2gly_DIIS-NEB.inp
+2gly_DIIS-SM.inp
