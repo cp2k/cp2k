@@ -791,7 +791,7 @@ CONTAINS
 !> \brief ...
 !> \param i ...
 ! *****************************************************************************
-    SUBROUTINE execute_job(i)
+    RECURSIVE SUBROUTINE execute_job(i)
     INTEGER                                  :: i
 
 ! change to the new working directory
