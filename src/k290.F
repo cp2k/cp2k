@@ -2387,7 +2387,8 @@ CONTAINS
                                                 rsdir(4,nrsdir), ur1, ur2, &
                                                 ur3, wva(3), wvk(3)
 
-    !------------------------------------------------------------------------------!
+!------------------------------------------------------------------------------!
+
     failure = .FALSE.
     !------------------------------------------------------------------------------!
 
@@ -3097,9 +3098,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'bzdefi', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i1, i2, i3, j, n, &
-                                                n1, n2, n3, nb1, nb2, nb3, &
-                                                nnb1, nnb2, nnb3
+    INTEGER                                  :: i, i1, i2, i3, j, n, n1, n2, &
+                                                n3, nb1, nb2, nb3, nnb1, &
+                                                nnb2, nnb3
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: b1len, b2len, b3len, bmax, &
                                                 bvec(3), projct
