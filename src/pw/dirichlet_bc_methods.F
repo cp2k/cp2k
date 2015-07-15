@@ -20,8 +20,7 @@ MODULE dirichlet_bc_methods
   USE dirichlet_bc_utils,              ONLY: &
        convert_to_aa_rectangle, find_fst_ge, find_lst_le, linspace, &
        partition_aa_cuboid_into_tiles, partition_aa_rectangle_into_tiles, &
-       rotate_rectangle, setup_grid_axes, voxelize_aa_cuboid, &
-       voxelize_rectangle
+       rotate_rectangle, voxelize_aa_cuboid, voxelize_rectangle
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi,&
                                              twopi
@@ -39,6 +38,7 @@ MODULE dirichlet_bc_methods
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE
+  USE rs_methods,                      ONLY: setup_grid_axes
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -403,9 +403,9 @@ CONTAINS
   END SUBROUTINE dirichlet_bc_partition
 
 ! *****************************************************************************
-!> \brief   Creates an x-axis-aligned cylindrical gate region. The cylindrical shape 
-!>     is approximated by an n-gonal (circumscribed or inscribed) uniform prism-like 
-!>     object. The circular base is approximated by a polygon. A second polygon is 
+!> \brief   Creates an x-axis-aligned cylindrical Dirichlet region. The cylindrical 
+!>     shape is approximated by an n-gonal (circumscribed or inscribed) uniform prism-
+!>     like object. The circular base is approximated by a polygon. A second polygon is 
 !>     then created by rotating the first one by delta_alpha radians. Let's name the 
 !>     vertices of the first and the second polygon as v1, v2, v3, ... vn-1, vn and 
 !>     w1, w2, w3, ... wn-1, wn, respectively. Then w1v2, w2v3, ... wn-1vn, wnv1 form
@@ -580,7 +580,7 @@ CONTAINS
   END SUBROUTINE create_xaa_cylindrical_dbc
 
 ! *****************************************************************************
-!> \brief   Creates an axis-aligned planar gate region.
+!> \brief   Creates an axis-aligned planar Dirichlet region.
 !> \param x_glbl x grid vetor of the simulation box  
 !> \param y_glbl y grid vetor of the simulation box  
 !> \param z_glbl z grid vetor of the simulation box  
@@ -717,7 +717,8 @@ CONTAINS
   END SUBROUTINE create_aa_planar_dbc
 
 ! *****************************************************************************
-!> \brief   Creates an arbitrary planar gate given the coordinates of its rectangular shape.
+!> \brief   Creates an arbitrary planar Dirichlet region given the coordinates of 
+!>     its rectangular shape.
 !> \param x_glbl x grid vetor of the simulation box  
 !> \param y_glbl y grid vetor of the simulation box  
 !> \param z_glbl z grid vetor of the simulation box  
@@ -847,7 +848,7 @@ CONTAINS
   END SUBROUTINE create_arbitrary_planar_dbc
 
 ! *****************************************************************************
-!> \brief   Creates an axis-aligned planar gate region.
+!> \brief   Creates an axis-aligned cuboidal Dirichlet region.
 !> \param x_glbl x grid vetor of the simulation box  
 !> \param y_glbl y grid vetor of the simulation box  
 !> \param z_glbl z grid vetor of the simulation box  

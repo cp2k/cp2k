@@ -621,7 +621,7 @@ END SUBROUTINE create_ewald_section
   END SUBROUTINE create_wavelet_section
 
 ! *****************************************************************************
-!> \brief Creates the section for the generalized (iterative) poisson solver
+!> \brief Creates the section for the implicit (generalized) poisson solver
 !> \param section the section to be created
 !> \param error cp2k error
 !>

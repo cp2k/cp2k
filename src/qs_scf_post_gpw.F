@@ -51,7 +51,6 @@ MODULE qs_scf_post_gpw
                                              get_results,&
                                              put_results
   USE cp_result_types,                 ONLY: cp_result_type
-  USE dirichlet_bc_utils,              ONLY: setup_grid_axes
   USE et_coupling_types,               ONLY: set_et_coupling_type
   USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
                                              comp_hirshfeld_i_charges,&
@@ -96,7 +95,6 @@ MODULE qs_scf_post_gpw
   USE population_analyses,             ONLY: lowdin_population_analysis,&
                                              mulliken_population_analysis
   USE preconditioner_types,            ONLY: preconditioner_type
-  USE ps_implicit_methods,             ONLY: pw_mollifier
   USE ps_implicit_types,               ONLY: MIXED_BC,&
                                              MIXED_PERIODIC_BC
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -168,6 +166,8 @@ MODULE qs_scf_post_gpw
   USE qs_scf_wfn_mix,                  ONLY: wfn_mix
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
+  USE rs_methods,                      ONLY: pw_mollifier,&
+                                             setup_grid_axes
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
   USE stm_images,                      ONLY: th_stm_image

@@ -33,7 +33,6 @@ MODULE dirichlet_bc_utils
   USE mathlib,                         ONLY: angle,&
                                              rotate_vector,&
                                              vector_product
-  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -43,8 +42,7 @@ MODULE dirichlet_bc_utils
   PRIVATE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dirichlet_bc_utils'
 
-  PUBLIC setup_grid_axes, &
-         linspace,&
+  PUBLIC linspace,&
          find_fst_ge,&
          find_lst_le,&
          rotate_rectangle,&
@@ -58,98 +56,6 @@ MODULE dirichlet_bc_utils
   REAL(dp), PARAMETER, PRIVATE         :: huge_value  = HUGE(0.0_dp)
 
 CONTAINS
-
-! *****************************************************************************
-!> \brief returns the global axes and the portion of the axes that are local to 
-!>        the current mpi rank
-!> \param pw_grid plane wave grid   
-!> \param x_glbl x grid vetor of the simulation box
-!> \param y_glbl y grid vetor of the simulation box
-!> \param z_glbl z grid vetor of the simulation box
-!> \param x_locl x grid vetor of the simulation box local to this process
-!> \param y_locl y grid vetor of the simulation box local to this process
-!> \param z_locl z grid vetor of the simulation box local to this process
-!> \param error cp2k error 
-!> \par History
-!>       07.2014 created [Hossein Bani-Hashemian]
-!> \author Mohammad Hossein Bani-Hashemian
-! *****************************************************************************
-  SUBROUTINE setup_grid_axes(pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl, error)
-
-    TYPE(pw_grid_type), INTENT(IN), POINTER  :: pw_grid
-    REAL(dp), ALLOCATABLE, DIMENSION(:), &
-      INTENT(OUT)                            :: x_glbl, y_glbl, z_glbl, &
-                                                x_locl, y_locl, z_locl
-    TYPE(cp_error_type), INTENT(INOUT)       :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_grid_axes', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: glb1, glb2, glb3, gub1, gub2, &
-                                                gub3, handle, i, lb1, lb2, &
-                                                lb3, ub1, ub2, ub3
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: gindx, gindy, gindz, lindx, &
-                                                lindy, lindz
-    INTEGER, DIMENSION(2, 3)                 :: bounds, bounds_local
-    INTEGER, DIMENSION(3)                    :: npts, npts_local
-    REAL(dp), DIMENSION(3)                   :: dr
-
-    CALL timeset(routineN,handle)
-
-    dr = pw_grid%dr
-    bounds = pw_grid%bounds
-    bounds_local = pw_grid%bounds_local
-    npts = pw_grid%npts
-    npts_local = pw_grid%npts_local
-
-! local and global lower and upper bounds
-    glb1 = bounds(1,1);          gub1 = bounds(2,1)
-    glb2 = bounds(1,2);          gub2 = bounds(2,2)
-    glb3 = bounds(1,3);          gub3 = bounds(2,3)
-    lb1  = bounds_local(1,1);    ub1  = bounds_local(2,1)
-    lb2  = bounds_local(1,2);    ub2  = bounds_local(2,2)
-    lb3  = bounds_local(1,3);    ub3  = bounds_local(2,3)
-
-    ALLOCATE(lindx( lb1 : ub1 ), lindy( lb2 : ub2 ), lindz( lb3 : ub3 ))
-    ALLOCATE(gindx(glb1 : gub1), gindy(glb2 : gub2), gindz(glb3 : gub3))
-    ALLOCATE(x_locl( lb1 : ub1 ), y_locl( lb2 : ub2 ), z_locl( lb3 : ub3 ))
-    ALLOCATE(x_glbl(glb1 : gub1), y_glbl(glb2 : gub2), z_glbl(glb3 : gub3))
-
-    gindx(:) = (/ (i, i=0, npts(1) - 1) /)
-    gindy(:) = (/ (i, i=0, npts(2) - 1) /)
-    gindz(:) = (/ (i, i=0, npts(3) - 1) /)
-    lindx(:) = (/ (i, i=0, npts_local(1) - 1) /)
-    lindy(:) = (/ (i, i=0, npts_local(2) - 1) /)
-    lindz(:) = (/ (i, i=0, npts_local(3) - 1) /)
-
-    x_glbl(:) = gindx * dr(1)
-    y_glbl(:) = gindy * dr(2)
-    z_glbl(:) = gindz * dr(3)
-
-! map [0 .. (npts_local-1)] --> [lb .. ub]
-    IF (lb1 .EQ. ub1) THEN 
-       lindx(:) = lb1 
-    ELSE
-       lindx(:) = lindx(:) * ((ub1 - lb1) / (npts_local(1) - 1)) + lb1
-    END IF 
-    IF (lb2 .EQ. ub2) THEN 
-       lindy(:) = lb2
-    ELSE
-       lindy(:) = lindy(:) * ((ub2 - lb2) / (npts_local(2) - 1)) + lb2
-    END IF 
-    IF (lb3 .EQ. ub3) THEN 
-       lindz(:) = lb3 
-    ELSE
-       lindz(:) = lindz(:) * ((ub3 - lb3) / (npts_local(3) - 1)) + lb3
-    END IF 
-
-    x_locl(:) = x_glbl(lindx)
-    y_locl(:) = y_glbl(lindy)
-    z_locl(:) = z_glbl(lindz)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE setup_grid_axes
 
 ! *****************************************************************************
 !> \brief Checks if a point is the infinity point

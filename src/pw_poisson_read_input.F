@@ -219,23 +219,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ps_implicit_read_parameters', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, n_aac_rep, n_aap_rep, n_p_rep, n_xaac_rep, parallel_plane, &
-      xaa_cylindrical_apxtyp, xaa_cylindrical_nsides
-    INTEGER, DIMENSION(:), POINTER           :: aa_cuboidal_nprtn, &
-                                                aa_planar_nprtn, &
-                                                planar_nprtn, &
-                                                xaa_cylindrical_nprtn
-    LOGICAL :: aa_cuboidal_explicit, aa_planar_explicit, has_dielectric, &
-      planar_explicit, smooth, xaa_cylindrical_explicit
-    REAL(dp)                                 :: intercept, v_D, &
-                                                xaa_cylindrical_brad, zeta
-    REAL(dp), DIMENSION(:), POINTER :: aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, &
-      aa_cuboidal_zxtnt, aa_planar_xxtnt, aa_planar_yxtnt, aa_planar_zxtnt, &
-      planar_Avtx, planar_Bvtx, planar_Cvtx, xaa_cylindrical_bctr, &
-      xaa_cylindrical_xxtnt
-    TYPE(section_vals_type), POINTER :: aa_cuboidal_section, &
-      aa_planar_section, dbc_section, dielectric_section, planar_section, &
-      ps_implicit_section, xaa_cylindrical_section
+    LOGICAL                                  :: has_dielectric
+    TYPE(section_vals_type), POINTER         :: dbc_section, &
+                                                dielectric_section, &
+                                                ps_implicit_section
 
     NULLIFY(ps_implicit_section, dielectric_section, dbc_section)
 
@@ -263,6 +250,49 @@ CONTAINS
 
     ! parsing DIRICHLET_BC subsection
     dbc_section => section_vals_get_subs_vals(ps_implicit_section, "DIRICHLET_BC", error=error)
+    CALL dirichlet_bc_read_parameters(dbc_section, params, error)
+
+  END SUBROUTINE ps_implicit_read_parameters
+
+! *****************************************************************************
+!> \brief Reads the subsection DIRICHLET_BC and initializes corresponding parameters in
+!>        pw_poisson_parameter_type
+!> \param dbc_section dirichlet_bc section to be read from input
+!> \param params poisson_env parameters 
+!> \param error  cp2k error 
+!> \par History
+!>      08.2014 created [Hossein Bani-Hashemian]
+!>      07.2015 refactored [Hossein Bani-Hashemian]
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE dirichlet_bc_read_parameters(dbc_section, params, error)
+    TYPE(section_vals_type), POINTER         :: dbc_section
+    TYPE(pw_poisson_parameter_type), &
+      INTENT(INOUT)                          :: params
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dirichlet_bc_read_parameters', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: i, n_aac_rep, n_aap_rep, n_p_rep, n_xaac_rep, parallel_plane, &
+      xaa_cylindrical_apxtyp, xaa_cylindrical_nsides
+    INTEGER, DIMENSION(:), POINTER           :: aa_cuboidal_nprtn, &
+                                                aa_planar_nprtn, &
+                                                planar_nprtn, &
+                                                xaa_cylindrical_nprtn
+    LOGICAL :: aa_cuboidal_explicit, aa_planar_explicit, planar_explicit, &
+      smooth, xaa_cylindrical_explicit
+    REAL(dp)                                 :: intercept, v_D, &
+                                                xaa_cylindrical_brad, zeta
+    REAL(dp), DIMENSION(:), POINTER :: aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, &
+      aa_cuboidal_zxtnt, aa_planar_xxtnt, aa_planar_yxtnt, aa_planar_zxtnt, &
+      planar_Avtx, planar_Bvtx, planar_Cvtx, xaa_cylindrical_bctr, &
+      xaa_cylindrical_xxtnt
+    TYPE(section_vals_type), POINTER         :: aa_cuboidal_section, &
+                                                aa_planar_section, &
+                                                planar_section, &
+                                                xaa_cylindrical_section
+
     CALL section_vals_val_get(dbc_section, "VERBOSE_OUTPUT", l_val=params%dbc_params%verbose_output, error=error)
     aa_planar_section => section_vals_get_subs_vals(dbc_section, "AA_PLANAR", error=error)
     planar_section => section_vals_get_subs_vals(dbc_section, "PLANAR", error=error)
@@ -272,6 +302,7 @@ CONTAINS
     CALL section_vals_get(planar_section, explicit=planar_explicit, n_repetition=n_p_rep, error=error)
     CALL section_vals_get(xaa_cylindrical_section, explicit=xaa_cylindrical_explicit, n_repetition=n_xaac_rep, error=error)
     CALL section_vals_get(aa_cuboidal_section, explicit=aa_cuboidal_explicit, n_repetition=n_aac_rep, error=error)
+
     IF (params%solver .EQ. pw_poisson_implicit) THEN
        IF (aa_planar_explicit) THEN
           params%dbc_params%n_aa_planar = n_aap_rep
@@ -473,6 +504,6 @@ CONTAINS
        END IF
     END IF
 
-  END SUBROUTINE ps_implicit_read_parameters
+  END SUBROUTINE dirichlet_bc_read_parameters
 
 END MODULE pw_poisson_read_input
