@@ -181,6 +181,7 @@ MODULE dbcsr_mm_cannon
   CHARACTER(len=*), PARAMETER, PRIVATE :: int_print = "(10(1X,I7))"
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
+  REAL, PARAMETER :: huge_norm = HUGE(1.0)**(1.0/3.0)
 
   TYPE dbcsr_memtype_type_p
      TYPE(dbcsr_memtype_type), POINTER :: p => Null()
@@ -2769,8 +2770,8 @@ MODULE dbcsr_mm_cannon
           
           ! Sets the local right-matrix columns
           IF (otf_filtering) THEN
-             left_norms(:) = HUGE(left_norms(1))
-             right_norms(:) = HUGE(right_norms(1))
+             left_norms(:) = huge_norm
+             right_norms(:) = huge_norm
              CALL calculate_norms(right_buffer_calc%mats(v_ki+1, 1),&
                   right_norms, error=error)
              CALL calculate_norms(left_buffer_calc%mats(1, v_ki+1),&
@@ -3320,8 +3321,8 @@ MODULE dbcsr_mm_cannon
             __LINE__, error=error)
        !
        ALLOCATE(right_max_norms(right_row_nimages,right_col_nimages))
-       right_max_norms = HUGE(right_norms(1,1,1))
-       right_norms(:,:,:) = HUGE(right_norms(1,1,1))
+       right_max_norms = huge_norm
+       right_norms(:,:,:) = huge_norm
        DO v_ci = 1, right_col_nimages
           DO v_ri = 1, min_nimages
              CALL calculate_norms(right_set%mats(v_ri, v_ci),&
@@ -3332,8 +3333,8 @@ MODULE dbcsr_mm_cannon
        ENDDO
        !
        ALLOCATE(left_max_norms(left_row_nimages,left_col_nimages))
-       left_max_norms = HUGE(left_norms(1,1,1))
-       left_norms(:,:,:) = HUGE(left_norms(1,1,1))
+       left_max_norms = huge_norm
+       left_norms(:,:,:) = huge_norm
        DO v_ci = 1, min_nimages
           DO v_ri = 1, left_row_nimages
              CALL calculate_norms(left_set%mats(v_ri, v_ci),&
@@ -3352,9 +3353,9 @@ MODULE dbcsr_mm_cannon
           DEALLOCATE(right_max_norms,left_max_norms)
           !
           ALLOCATE(right_max_norms(0:nvirt_k-1,right_myfirstvcol:right_myfirstvcol+right_col_nimages-1))
-          right_max_norms = HUGE(right_norms(1,1,1))
+          right_max_norms = huge_norm
           ALLOCATE(left_max_norms(left_myfirstvrow:left_myfirstvrow+left_row_nimages-1,0:nvirt_k-1))
-          left_max_norms = HUGE(left_norms(1,1,1))
+          left_max_norms = huge_norm
           !
           DO src_vcol = right_myfirstvcol, right_myfirstvcol+right_col_nimages-1
              DO src_vrow = 0, nvirt_k-1
@@ -3806,8 +3807,8 @@ MODULE dbcsr_mm_cannon
        ENDIF calc_case_left
        !
        IF (otf_filtering.AND.metronome.GT.1) THEN
-          right_norms(:,:,:) = HUGE(right_norms(1,1,1))
-          left_norms(:,:,:) = HUGE(left_norms(1,1,1))
+          right_norms(:,:,:) = huge_norm
+          left_norms(:,:,:) = huge_norm
        ENDIF
        !
        DO v_ci = 1, right_col_nimages
