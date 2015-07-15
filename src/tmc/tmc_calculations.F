@@ -701,9 +701,12 @@ CONTAINS
     CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,error,failure)
 
+    eff(:) = 0.0_dp
+
     DO i=1, tmc_env%params%nr_temp
-      eff(i) = tmc_env%params%move_types%mv_count(0,i)/&
-                (tmc_env%m_env%tree_node_count(i)*1.0_dp)
+      IF (tmc_env%m_env%tree_node_count(i)>0)&
+         eff(i) = tmc_env%params%move_types%mv_count(0,i)/&
+                  (tmc_env%m_env%tree_node_count(i)*1.0_dp)
       eff(0) = eff(0) + tmc_env%params%move_types%mv_count(0,i)/&
                           (SUM(tmc_env%m_env%tree_node_count(1:))*1.0_dp)
     END DO

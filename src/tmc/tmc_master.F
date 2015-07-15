@@ -926,7 +926,6 @@ CONTAINS
     WRITE(tmc_env%m_env%io_unit,FMT="(/,T2,A)") REPEAT("-",79)
     ! program efficency result outputs
     ALLOCATE(efficiency(0:tmc_env%params%nr_temp))
-    efficiency = 0.0_dp
     CALL get_subtree_efficiency(tmc_env=tmc_env, eff=efficiency, error=error)
     WRITE(tmc_env%m_env%io_unit,*) "Efficiencies:" 
     WRITE(tmc_env%m_env%io_unit,FMT="(A,F5.2,A,1000F5.2)")&
