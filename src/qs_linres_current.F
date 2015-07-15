@@ -584,6 +584,7 @@ CONTAINS
 !> \param qs_env ...
 !> \param current_env ...
 !> \param soft_valid ...
+!> \param rtp If this subroutine is called form the rtp region
 !> \param error ...
 !> \note
 !>       The collocate is done in three parts, one for each density matrix
@@ -609,7 +610,7 @@ CONTAINS
 !>       All the terms sum up to the same grid
 ! *****************************************************************************
   SUBROUTINE calculate_jrho_resp(mat_d0,mat_jp,mat_jp_rii,mat_jp_riii,iB,idir,&
-       current_rs, current_gs, qs_env, current_env, soft_valid, error)
+       current_rs, current_gs, qs_env, current_env, soft_valid, rtp,error)
 
     TYPE(cp_dbcsr_type), POINTER             :: mat_d0, mat_jp, mat_jp_rii, &
                                                 mat_jp_riii
@@ -617,7 +618,7 @@ CONTAINS
     TYPE(pw_p_type), INTENT(INOUT)           :: current_rs, current_gs
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(current_env_type)                   :: current_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
+    LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, rtp
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_resp', &
@@ -639,7 +640,7 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, den_found, den_found_a, &
-      distributed_rs_grids, do_igaim, failure, map_consistent, my_soft
+      distributed_rs_grids, do_igaim, failure, map_consistent, my_rtp, my_soft
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_current, my_gauge, my_rho
     REAL(KIND=dp)                            :: eps_rho_rspace, &
                                                 kind_radius_a, kind_radius_b, &
@@ -709,6 +710,9 @@ CONTAINS
     mat_b => mat_jp_rii
     mat_c => mat_jp_riii
     IF(do_igaim) mat_d => mat_d0
+    
+    my_rtp=.FALSE.
+    IF(PRESENT(rtp)) my_rtp=rtp
 
     CALL get_qs_env(qs_env=qs_env,&
          qs_kind_set=qs_kind_set,&
@@ -960,12 +964,12 @@ CONTAINS
     DO igrid_level=1,gridlevel_info%ngrid_levels
        ! Here we need to reallocate the distributed rs_grids, which may have been reordered
        ! by distribute_tasks
-       IF (rs_descs(igrid_level)%rs_desc%distributed) THEN
+       IF (rs_descs(igrid_level)%rs_desc%distributed.AND..NOT.my_rtp) THEN
          CALL rs_grid_release(rs_rho(igrid_level)%rs_grid, error=error)
          NULLIFY (rs_rho(igrid_level)%rs_grid)
          CALL rs_grid_create(rs_rho(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
        ELSE
-         CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
+         IF(.NOT.my_rtp) CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid, error=error)
        ENDIF
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
        CALL rs_grid_create(rs_current(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc, error=error)
@@ -983,31 +987,31 @@ CONTAINS
 
     !
     ! we need to build the gauge here
-    IF(.NOT.current_env%gauge_init.AND.do_igaim) THEN
+    IF(.NOT.current_env%gauge_init) THEN
        CALL current_set_gauge(current_env, qs_env, error=error)
        current_env%gauge_init = .TRUE.
     ENDIF
     !
     ! for any case double check the bounds !
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       my_rho=>rs_rho(igrid_level)%rs_grid%r
-       my_current=>rs_current(igrid_level)%rs_grid%r
-       IF(LBOUND( my_rho, 3 ).NE.LBOUND( my_current, 3 ).OR.&
-          LBOUND( my_rho, 2 ).NE.LBOUND( my_current, 2 ).OR.&
-          LBOUND( my_rho, 1 ).NE.LBOUND( my_current, 1 ).OR.&
-          UBOUND( my_rho, 3 ).NE.UBOUND( my_current, 3 ).OR.&
-          UBOUND( my_rho, 2 ).NE.UBOUND( my_current, 2 ).OR.&
-          UBOUND( my_rho, 1 ).NE.UBOUND( my_current, 1 ) )THEN
-          WRITE(*,*) 'LBOUND(my_rho,3),LBOUND(my_current,3)',LBOUND(my_rho,3),LBOUND(my_current,3)
-          WRITE(*,*) 'LBOUND(my_rho,2),LBOUND(my_current,2)',LBOUND(my_rho,2),LBOUND(my_current,2)
-          WRITE(*,*) 'LBOUND(my_rho,1),LBOUND(my_current,1)',LBOUND(my_rho,1),LBOUND(my_current,1)
-          WRITE(*,*) 'UBOUND(my_rho,3),UBOUND(my_current,3)',UBOUND(my_rho,3),UBOUND(my_current,3)
-          WRITE(*,*) 'UBOUND(my_rho,2),UBOUND(my_current,2)',UBOUND(my_rho,2),UBOUND(my_current,2)
-          WRITE(*,*) 'UBOUND(my_rho,1),UBOUND(my_current,1)',UBOUND(my_rho,1),UBOUND(my_current,1)
-          CALL stop_program(routineN,moduleN,__LINE__,"Bug")
-       ENDIF
+    IF(do_igaim) THEN
+       DO igrid_level=1,gridlevel_info%ngrid_levels
+          my_rho=>rs_rho(igrid_level)%rs_grid%r
+          my_current=>rs_current(igrid_level)%rs_grid%r
+          IF(LBOUND( my_rho, 3 ).NE.LBOUND( my_current, 3 ).OR.&
+             LBOUND( my_rho, 2 ).NE.LBOUND( my_current, 2 ).OR.&
+             LBOUND( my_rho, 1 ).NE.LBOUND( my_current, 1 ).OR.&
+             UBOUND( my_rho, 3 ).NE.UBOUND( my_current, 3 ).OR.&
+             UBOUND( my_rho, 2 ).NE.UBOUND( my_current, 2 ).OR.&
+             UBOUND( my_rho, 1 ).NE.UBOUND( my_current, 1 ) )THEN
+             WRITE(*,*) 'LBOUND(my_rho,3),LBOUND(my_current,3)',LBOUND(my_rho,3),LBOUND(my_current,3)
+             WRITE(*,*) 'LBOUND(my_rho,2),LBOUND(my_current,2)',LBOUND(my_rho,2),LBOUND(my_current,2)
+             WRITE(*,*) 'LBOUND(my_rho,1),LBOUND(my_current,1)',LBOUND(my_rho,1),LBOUND(my_current,1)
+             WRITE(*,*) 'UBOUND(my_rho,3),UBOUND(my_current,3)',UBOUND(my_rho,3),UBOUND(my_current,3)
+             WRITE(*,*) 'UBOUND(my_rho,2),UBOUND(my_current,2)',UBOUND(my_rho,2),UBOUND(my_current,2)
+             WRITE(*,*) 'UBOUND(my_rho,1),UBOUND(my_current,1)',UBOUND(my_rho,1),UBOUND(my_current,1)
+             CALL stop_program(routineN,moduleN,__LINE__,"Bug")
+          ENDIF
 
-       IF(do_igaim) THEN
           my_gauge=>rs_gauge(1)%rs(igrid_level)%rs_grid%r
           IF(LBOUND( my_rho, 3 ).NE.LBOUND( my_gauge, 3 ).OR.&
              LBOUND( my_rho, 2 ).NE.LBOUND( my_gauge, 2 ).OR.&
@@ -1023,8 +1027,8 @@ CONTAINS
              WRITE(*,*) 'UBOUND(my_rho,1),UBOUND(my_gauge,1)',UBOUND(my_rho,1),UBOUND(my_gauge,1)
              CALL stop_program(routineN,moduleN,__LINE__,"Bug")
           ENDIF
-       ENDIF
-    ENDDO
+       ENDDO
+    ENDIF
     !
     !-------------------------------------------------------------
 
@@ -1309,7 +1313,7 @@ CONTAINS
 
     CALL density_rs2pw(pw_env,rs_current,current_rs,current_gs,error=error)
 
-    IF (ASSOCIATED(rs_rho)) THEN
+    IF (ASSOCIATED(rs_rho).AND..NOT.my_rtp) THEN !In emd/rtp we must not deallocate rs_rho
       DO i=1, SIZE(rs_rho)
         CALL rs_grid_release(rs_rho(i)%rs_grid, error=error)
       END DO

@@ -19,7 +19,7 @@ MODULE rt_propagation_output
        cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_init_p, &
        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_type, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_set, cp_dbcsr_type, &
        dbcsr_distribution_mp, dbcsr_mp_group
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
@@ -53,19 +53,22 @@ MODULE rt_propagation_output
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_methods,                      ONLY: pw_copy
+  USE pw_methods,                      ONLY: pw_zero
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type,&
-                                             pw_release
+                                             pw_p_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                              qs_kind_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_linres_current,               ONLY: calculate_jrho_resp
+  USE qs_linres_types,                 ONLY: current_env_type
   USE qs_mo_io,                        ONLY: write_rt_mos_to_restart
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
@@ -75,10 +78,10 @@ MODULE rt_propagation_output
                                              write_mo_free_results
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
-  USE realspace_grid_types,            ONLY: realspace_grid_desc_type
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                             realspace_grid_p_type
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
-  USE rt_propagation_utils,            ONLY: rt_current_low
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -715,40 +718,51 @@ CONTAINS
     CHARACTER(len=2)                         :: sdir
     INTEGER                                  :: dir, handle, print_unit
     INTEGER, DIMENSION(:), POINTER           :: stride(:)
+    TYPE(cp_dbcsr_type), POINTER             :: zero
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(current_env_type)                   :: current_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
     TYPE(pw_p_type), POINTER                 :: gs, rs
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_subsys_type), POINTER            :: subsys
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
+    TYPE(realspace_grid_desc_p_type), &
+      DIMENSION(:), POINTER                  :: rs_descs
+    TYPE(realspace_grid_p_type), &
+      DIMENSION(:), POINTER                  :: rs_rho
 
     CALL timeset(routineN,handle)
 
     logger => cp_error_get_logger(error)
-    CALL get_qs_env(qs_env=qs_env,subsys=subsys,pw_env=pw_env,rho=rho,dft_control=dft_control,error=error)
-    CALL pw_env_get(pw_env, auxbas_rs_desc=auxbas_rs_desc,auxbas_pw_pool=auxbas_pw_pool,error=error)
+    CALL get_qs_env(qs_env=qs_env,subsys=subsys,pw_env=pw_env,rho=rho,ks_env=ks_env,error=error)
+    CALL qs_subsys_get(subsys,particles=particles,error=error) 
+    CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,rs_grids=rs_rho,rs_descs=rs_descs,error=error)
+    CALL qs_rho_get(rho,rho_r=rho_r,rho_g=rho_g,error=error)
 
-    NULLIFY(rs,gs)
+    NULLIFY(zero,rs,gs)
+    ALLOCATE(rs,gs)
+    NULLIFY(rs%pw,gs%pw)
+    ALLOCATE(zero)
+    CALL cp_dbcsr_init(zero,error=error)
+    CALL cp_dbcsr_create(zero,template=P_im,error=error)
+    CALL cp_dbcsr_copy(zero,P_im,error=error)
+    CALL cp_dbcsr_set(zero,0.0_dp,error=error)
+    current_env%gauge=-1
+    CALL pw_pool_create_pw(auxbas_pw_pool,rs%pw,use_data=REALDATA3D,in_space=REALSPACE,error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool,gs%pw,use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+    
     NULLIFY(stride)
     ALLOCATE(stride(3))
     
     DO dir=1,3
-       NULLIFY(rs,gs)
-       ALLOCATE(rs)
-       ALLOCATE(gs)
-       CALL qs_rho_get(rho,rho_r=rho_r,rho_g=rho_g,error=error)
-       CALL pw_pool_create_pw(auxbas_pw_pool,rs%pw,use_data=REALDATA3D,in_space=REALSPACE,error=error)
-       CALL pw_pool_create_pw(auxbas_pw_pool,gs%pw,use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-       CALL pw_copy(rho_r(1)%pw,rs%pw,error)
-       CALL pw_copy(rho_g(1)%pw,gs%pw,error)
     
-       CALL rt_current_low(P_im,dir,rs,gs,qs_env,dft_control%qs_control%gapw,error=error)
+       CALL pw_zero(rs%pw,error=error)
+       CALL pw_zero(gs%pw,error=error)
     
-       CALL qs_subsys_get(subsys,particles=particles,error=error) 
+       CALL calculate_jrho_resp(zero,P_im,zero,zero,dir,dir,rs,gs,qs_env,current_env,rtp=.TRUE.,error=error)
     
        stride=section_get_ivals(dft_section,"REAL_TIME_PROPAGATION%PRINT%CURRENT%STRIDE",error=error)
        
@@ -761,7 +775,7 @@ CONTAINS
        ENDIF
        WRITE(char_spin,"(I1)") spin
        
-       ext="SPIN-"//char_spin//sdir//".cube"
+       ext="-SPIN-"//char_spin//sdir//".cube"
        
        print_unit=cp_print_key_unit_nr(logger,dft_section,"REAL_TIME_PROPAGATION%PRINT%CURRENT",&
                                        extension=ext, file_status="REPLACE", file_action="WRITE",&
@@ -770,18 +784,21 @@ CONTAINS
        CALL cp_pw_to_cube(rs%pw,print_unit,"EMD current",particles=particles,stride=stride,error=error)
        
        CALL cp_print_key_finished_output(print_unit,logger,dft_section,"REAL_TIME_PROPAGATION%PRINT%CURRENT",error=error)
-    
-       CALL pw_release(rs%pw,error=error)
-       CALL pw_release(gs%pw,error=error)
-       DEALLOCATE(rs)
-       DEALLOCATE(gs)
+       
     END DO
+    
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,rs%pw,error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,gs%pw,error=error)
+    
+    DEALLOCATE(rs)
+    DEALLOCATE(gs)
+    
+    CALL cp_dbcsr_deallocate_matrix(zero,error=error)
 
     DEALLOCATE(stride)
     
     CALL timestop(handle)
 
   END SUBROUTINE rt_current
-  
 
 END MODULE rt_propagation_output

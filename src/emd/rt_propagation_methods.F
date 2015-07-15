@@ -139,8 +139,8 @@ CONTAINS
          ks_env=ks_env,&
          error=error)
     IF(rtp%iter==1)THEN
+       CALL qs_energies_init(qs_env, .FALSE. , error=error)
        IF(.NOT.rtp_control%fixed_ions)THEN
-          CALL qs_energies_init(qs_env, .FALSE. , error=error)
           CALL get_qs_env(qs_env,matrix_s=matrix_s,ks_env=ks_env,rho=rho,error=error)
           CALL s_matrices_create (matrix_s,rtp,error=error)
        END IF
