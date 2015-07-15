@@ -987,7 +987,7 @@ CONTAINS
 
     !
     ! we need to build the gauge here
-    IF(.NOT.current_env%gauge_init) THEN
+    IF(.NOT.current_env%gauge_init.AND.do_igaim) THEN
        CALL current_set_gauge(current_env, qs_env, error=error)
        current_env%gauge_init = .TRUE.
     ENDIF
