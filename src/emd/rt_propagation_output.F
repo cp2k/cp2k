@@ -714,7 +714,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=1)                         :: char_spin
-    CHARACTER(len=13)                        :: ext
+    CHARACTER(len=14)                        :: ext
     CHARACTER(len=2)                         :: sdir
     INTEGER                                  :: dir, handle, print_unit
     INTEGER, DIMENSION(:), POINTER           :: stride(:)
