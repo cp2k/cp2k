@@ -269,6 +269,9 @@ ENDIF
 #if defined __PLUMED2
    flags=TRIM(flags)//" plumed2"
 #endif
+#if defined __HAS_IEEE_EXCEPTIONS
+   flags=TRIM(flags)//" has_ieee_exceptions"
+#endif
 
   END FUNCTION cp2k_flags
 

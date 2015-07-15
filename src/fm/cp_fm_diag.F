@@ -48,6 +48,12 @@ MODULE cp_fm_diag
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#if defined (__HAS_IEEE_EXCEPTIONS)
+  USE ieee_exceptions,                 ONLY: ieee_get_halting_mode,&
+                                             ieee_set_halting_mode,&
+                                             ieee_all
+#endif
+
 #if defined (__ELPA)  || defined(__ELPA2)
   USE ELPA1
   USE ELPA2
@@ -425,6 +431,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iwork
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
+#if defined (__HAS_IEEE_EXCEPTIONS)
+    LOGICAL, DIMENSION(5)                    :: halt
+#endif
 #endif
 
     CALL timeset(routineN,handle)
@@ -468,8 +477,19 @@ CONTAINS
     ALLOCATE(work(lwork),STAT=istat)
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    ! Scalapack takes advantage of IEEE754 exceptions for speedup.
+    ! Therefore, we disable floating point traps temporarily.
+#if defined (__HAS_IEEE_EXCEPTIONS)
+    CALL ieee_get_halting_mode(IEEE_ALL, halt)
+    CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+
     CALL pdsyevd('V','U',n,m(1,1),1,1,descm,eig(1),v(1,1),1,1,descv, &
                  work(1),lwork,iwork(1),liwork,info)
+
+#if defined (__HAS_IEEE_EXCEPTIONS)
+    CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
 
     IF(info /= 0) CALL stop_program &
        (routineN,moduleN,__LINE__, "Matrix diagonalization failed")
