@@ -2387,7 +2387,6 @@ CONTAINS
                                                 rsdir(4,nrsdir), ur1, ur2, &
                                                 ur3, wva(3), wvk(3)
 
-    DATA iplace/ -2/
     !------------------------------------------------------------------------------!
     failure = .FALSE.
     !------------------------------------------------------------------------------!
@@ -3098,19 +3097,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'bzdefi', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i1, i2, i3, initlz, j, n, &
+    INTEGER                                  :: i, i1, i2, i3, j, n, &
                                                 n1, n2, n3, nb1, nb2, nb3, &
                                                 nnb1, nnb2, nnb3
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: b1len, b2len, b3len, bmax, &
                                                 bvec(3), projct
 
-    DATA initlz/0/
     failure = .FALSE.
     !------------------------------------------------------------------------------!
-    IF (initlz/=0) RETURN
-    !     Once initialized, we do not repeat the calculation
-    initlz = 1
     b1len = b1(1)**2 + b1(2)**2 + b1(3)**2
     b2len = b2(1)**2 + b2(2)**2 + b2(3)**2
     b3len = b3(1)**2 + b3(2)**2 + b3(3)**2
