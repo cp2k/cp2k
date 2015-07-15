@@ -10,7 +10,7 @@ H2-libxc-diag.inp                11     5e-14
 geo-phase-1.inp                  11     5e-07
 geo-phase-2.inp 0
 H2_KG-1.inp                      11     7e-07
-H2_KG-2.inp                      11     7e-07
+H2_KG-2.inp                      11     1e-06                               
 H2_H2O-xcLC.inp                  11     1e-10
 H2_H2O-xcLLP.inp                 11     1e-10
 H2_H2O-xcPW86.inp                11     1e-10
