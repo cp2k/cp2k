@@ -22,9 +22,6 @@ skip_dirs[1]=""
 ndirstorestrict=0
 restrict_dirs[1]=""
 default_err_tolerance="1.0E-14"
-cp2k_run_prefix=""
-numprocs=1
-numthreads=1
 
 # parse options
 while [ $# -ge 1 ]; do
@@ -187,14 +184,20 @@ maxtasks=${maxtasks:-${maxtasksdefault}}
 
 if [[ $cp2k_version == p* ]] ; then
     numprocs=${numprocs:-2}
+else
+    numprocs=${numprocs:-1}
 fi
 
 if [[ $numprocs > 1 ]] ; then
     cp2k_run_prefix=${cp2k_run_prefix:-"mpiexec -np ${numprocs}"}
+else
+    cp2k_run_prefix=${cp2k_run_prefix:-""}
 fi
 
 if [[ $cp2k_version == *smp* ]] ; then
     numthreads=${numthreads:-2}
+else
+    numthreads=${numthreads:-1}
 fi
 
 export OMP_NUM_THREADS=${numthreads}
