@@ -64,6 +64,8 @@ while [ $# -ge 1 ]; do
   let ndirstoskip=ndirstoskip+1
   skip_dirs[ndirstoskip]=$2
   shift;;
+ -skipunittest)
+  do_unit_test="no" ;;
  # build a list of directories to restrict, i.e. only matching dirs will be run
  -restrictdir)
   let ndirstorestrict=ndirstorestrict+1
@@ -82,6 +84,8 @@ while [ $# -ge 1 ]; do
  -quick)
   quick="quick";;
  # specify the full string "-D 2005-02-01" to get a check-out of a specific date
+ -farming)
+  farming="yes";;
  -svndate)
   svndate=$2
   datum_short=${svndate}
@@ -122,10 +126,12 @@ while [ $# -ge 1 ]; do
   echo "  -ompthreads NTHREADS      number of OpenMP threads. Default: 2 for smp versions otherwise 1."
   echo "  -maxtasks NPROCS          total number of processor to use. Default: \`nproc --all\`."
   echo "  -jobmaxtime SECONDS       maximum execution time of a single test. Default 600."
+  echo "  -farming                  test via a single farming run (only for parallel cp2k)."
   echo ""
   echo "Testing:"
   echo "  -noreset                  do not reset the reference outputs. Default: off."
   echo "  -skiptest                 do not run test, only svn update and build. Default: off."
+  echo "  -skipunittest             do not run unit tests. Default: off."
   echo "  -skipdir TESTDIR          do not run tests in TESTDIR. This switch can repeated."
   echo "  -restrictdir TESTDIR      run only tests in TESTDIR. This switch can repeated."
   echo "  -retest                   run only tests in directories, which had failing tests in previous run."
@@ -174,6 +180,8 @@ awk=${awk:-awk}
 quick=${quick:-"noquick"}
 noreset=${noreset:-"reset"}
 skiptest=${skiptest:-"noskiptest"}
+do_unit_test=${do_unit_test:-"yes"}
+farming=${farming:-"no"}
 svndate=${svndat:-"$datum_full"}
 #
 # guessing the number of tasks / threads / ranks
@@ -205,6 +213,7 @@ export OMP_NUM_THREADS=${numthreads}
 #
 # these should not be needed
 #
+export ARCH=${dir_triplet}
 ARCH_SPEC="ARCH=${ARCH}"
 cp2k_prefix=${cp2k_prefix:-"${cp2k_run_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"}
 cp2k_postfix=${cp2k_postfix:-"${cp2k_run_postfix}"}
@@ -382,8 +391,21 @@ function run_regtest_dir() {
 
      output_file=${dir_out}/${dir}/${input_file}.out
      output_last=${dir_last}/${dir}/${input_file}.out
-     ( ulimit -t ${job_max_time} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} ) >& /dev/null
-     (( cp2k_exit_status = $? ))
+
+
+     #
+     # look here for the actual place where cp2k runs.... 
+     #
+     if [[ "$farming" == "yes" ]]; then
+       if [ -f ${output_file} ]; then
+          cp2k_exit_status=0
+       else
+          cp2k_exit_status=43
+       fi
+     else 
+       ( ulimit -t ${job_max_time} ; ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file} ) >& /dev/null
+       (( cp2k_exit_status = $? ))
+     fi
      # check if this was a valgrinded run, and adjust exit status as needed
      grep -a "^==[0-9][0-9]*== ERROR SUMMARY" ${output_file} &> /dev/null
      if (( $? == 0 )); then
@@ -400,14 +422,20 @@ function run_regtest_dir() {
            # usually caused by time-out
            this_test="KILLED"
         else
-           this_test="RUNTIME FAIL"
+           if (( cp2k_exit_status == 43 )); then
+             this_test="FAILED START"
+           else
+             this_test="RUNTIME FAIL"
+           fi 
         fi 
         #
         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
         echo ${output_file} >>${error_description_file}
-        tail -40 ${output_file} >>${error_description_file}
-        # append an eventual valgrind report to the file
-        grep "^==[0-9][0-9]*== " ${output_file} | head -n 20 >> ${error_description_file}
+        if (( cp2k_exit_status != 43 )); then
+          tail -40 ${output_file} >>${error_description_file}
+          # append an eventual valgrind report to the file
+          grep "^==[0-9][0-9]*== " ${output_file} | head -n 20 >> ${error_description_file}
+        fi
         echo "EXIT CODE: " $cp2k_exit_status " MEANING: " $this_test >>${error_description_file}
         echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
         n_runtime_error=$((n_runtime_error+1))
@@ -868,11 +896,13 @@ if [[ ${skiptest} != "skiptest" ]]; then
    dirs=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk '{print $1}'`
    
    # prepend list of unit-tests to dirs, use a special "UNIT/" prefix
-   for unittest in ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/*_unittest.${cp2k_version}
-   do
-    t=${unittest##*/}
-    dirs="UNIT/${t%.*} $dirs "
-   done
+   if [[ "$do_unit_test" == "yes" ]]; then
+      for unittest in ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/*_unittest.${cp2k_version}
+      do
+       t=${unittest##*/}
+       dirs="UNIT/${t%.*} $dirs "
+      done
+   fi
    
    # filter out test-dir that should be skipped
    newdirs=""
@@ -920,9 +950,6 @@ if [[ ${skiptest} != "skiptest" ]]; then
    done
    dirs=$new_dirs
    
-   #
-   # execute all regtests
-   #
    
    # Just to be sure, clean possible existing status files.
    cd ${dir_out}
@@ -930,8 +957,57 @@ if [[ ${skiptest} != "skiptest" ]]; then
    rm -f ${dir_out}/status/REGTEST_RUNNING-* \
        ${dir_out}/status/REGTEST_TASK_RESULT-* \
        ${dir_out}/status/REGTEST_TASK_TESTS-*
-   
-   
+
+   #
+   # generate farming input
+   #
+   if [[ "$farming" == "yes" ]]; then
+   echo "generating farming input "
+   ijob=0
+   cat << EOF > ${dir_out}/farming.inp
+&GLOBAL
+  PROJECT farming
+  PROGRAM FARMING
+  RUN_TYPE NONE
+&END GLOBAL
+&FARMING
+  GROUP_SIZE $numprocs
+  MASTER_SLAVE
+EOF
+   idir=0
+   for dir in ${dirs}; do
+     if [[ $dir != UNIT/* ]]; then
+       # generate output dir
+       mkdir -p ${dir_out}/${dir}
+       #
+       # generate the equivalent farming input
+       #
+       idir=$((idir+1))
+       ntest=`grep -v "#" ${dir_out}/tests/${dir}/TEST_FILES | ${awk} '{c=c+1}END{print c}'`
+       for ((itest=1;itest<=ntest;itest++));
+       do
+         input_file=`grep -v "#" ${dir_out}/tests/${dir}/TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $1}'`
+         output_file=${dir_out}/${dir}/${input_file}.out
+         jobid=$((idir*100000+itest))
+         if [[ $itest != 1 ]]; then
+            jobid_prev=$((idir*100000+itest-1))
+            depstr="DEPENDENCIES $jobid_prev"
+         else
+            depstr=""
+         fi
+         ijob=$((ijob+1))
+         printf "&JOB \n   DIRECTORY ${dir_out}/tests/${dir} \n   INPUT_FILE_NAME ${input_file} \n   OUTPUT_FILE_NAME ${output_file} \n   JOB_ID $jobid \n   $depstr \n&END JOB\n" >> ${dir_out}/farming.inp
+       done
+     fi
+   done
+   printf "&END FARMING\n" >> ${dir_out}/farming.inp
+   echo "Running farming for $ijob jobs"
+   mpiexec -np $((maxtasks/OMP_NUM_THREADS)) ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version} farming.inp >& farming.out
+   fi
+
+   #
+   # execute all regtests
+   #
    (( ndir = $(echo ${dirs} | wc -w) ))
    (( idir = 0 ))
    for dir in ${dirs}; do
@@ -944,6 +1020,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
          run_regtest_dir $dir
      fi
     )&
+    
    
     #
     # Here we allow only a given maximum of tasks
@@ -960,6 +1037,8 @@ if [[ ${skiptest} != "skiptest" ]]; then
    # wait for all tasks to finish
    #
    wait
+
+
    #
    # generate results
    #
