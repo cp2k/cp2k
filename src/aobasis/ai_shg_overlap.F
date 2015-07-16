@@ -33,9 +33,9 @@ MODULE ai_shg_overlap
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_shg_overlap'
 
 ! *** Public subroutines ***
-  PUBLIC :: get_W_matrix, get_real_scaled_solid_harmonic,&
-            overlap_shg_ab, overlap_shg_aba, overlap_shg_abb,&
-            s_overlap_ab, s_overlap_abx
+  PUBLIC :: get_dW_matrix, get_W_matrix, get_real_scaled_solid_harmonic,&
+            overlap_shg_ab, dev_overlap_shg_ab, overlap_shg_aba, dev_overlap_shg_aba,&
+            overlap_shg_abb, dev_overlap_shg_abb, s_overlap_ab, s_overlap_abx
 
 CONTAINS
 
@@ -49,8 +49,9 @@ CONTAINS
 !> \param zetb set of exponents on a 
 !> \param rab distance vector between a and b
 !> \param s uncontracted overlap of s functions
+!> \param calculate_forces ...
 ! *****************************************************************************
-  SUBROUTINE s_overlap_ab(la_max,npgfa,zeta,lb_max,npgfb,zetb,rab,s)
+  SUBROUTINE s_overlap_ab(la_max,npgfa,zeta,lb_max,npgfb,zetb,rab,s,calculate_forces)
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta
@@ -59,18 +60,21 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: s
+    LOGICAL, INTENT(IN)                      :: calculate_forces
 
     CHARACTER(len=*), PARAMETER :: routineN = 's_overlap_ab', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ids, ipgfa, jpgfb
+    INTEGER                                  :: handle, ids, ipgfa, jpgfb, &
+                                                ndev
     REAL(KIND=dp)                            :: a, b, rab2, xhi, zet
 
     CALL timeset(routineN,handle)
 
    ! Distance of the centers a and b
     rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
-
+    ndev = 0
+    IF(calculate_forces) ndev = 1
     ! Loops over all pairs of primitive Gaussian-type functions
     DO ipgfa=1,npgfa
        DO jpgfb=1,npgfb
@@ -86,7 +90,7 @@ CONTAINS
           ! [s|s] integral
           s(ipgfa,jpgfb,1) = (pi/zet)**(1.5_dp)*EXP(-xhi*rab2) 
 
-          DO ids=2,la_max + lb_max + 1
+          DO ids=2,la_max + lb_max + ndev + 1
             s(ipgfa,jpgfb,ids) = -xhi*s(ipgfa,jpgfb,ids-1)
           ENDDO
 
@@ -112,11 +116,12 @@ CONTAINS
 !> \param zetx set of exponents on x, aux basis
 !> \param rab distance vector between a and b
 !> \param s uncontracted [s|r^n|s] integrals
+!> \param calculate_forces ...
 !> \param calc_aba flag if [aba] or [abb] is calculated
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE s_overlap_abx(la_max,npgfa,zeta,lb_max,npgfb,zetb,&
-                           lx_max,npgfx,zetx,rab,s,calc_aba,error)
+  SUBROUTINE s_overlap_abx(la_max,npgfa,zeta,lb_max,npgfb,zetb,lx_max,npgfx,zetx,&
+                           rab,s,calculate_forces,calc_aba,error)
 
     INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta
@@ -127,7 +132,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: s
-    LOGICAL, INTENT(IN)                      :: calc_aba
+    LOGICAL, INTENT(IN)                      :: calculate_forces, calc_aba
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 's_overlap_abx', &
@@ -135,8 +140,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ids, il, ipgfa, &
                                                 jpgfb, kpgfx, laa_max, &
-                                                lbb_max, lmax, n, nds, nl, &
-                                                stat
+                                                lbb_max, lmax, n, ndev, nds, &
+                                                nl, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, b, exp_rab2, k, pfac, &
                                                 prefac, rab2, sqrt_pi3, &
@@ -148,6 +153,8 @@ CONTAINS
 
     ! Distance of the centers a and b
     rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+    ndev = 0
+    IF(calculate_forces) ndev = 1
 
     IF(calc_aba) THEN 
       laa_max =  la_max +  lx_max
@@ -190,7 +197,7 @@ CONTAINS
             sqrt_zet = SQRT(zet)
 
             DO il=0,nl
-               nds =  lmax - 2*il + 1
+               nds =  lmax - 2*il + ndev + 1
                SELECT CASE(il)
                CASE(0)
                  ! [s|s] integral
@@ -454,7 +461,8 @@ CONTAINS
 !> \param lmax maximal l quantum number
 !> \param Rc cosine part of real scaled solid harmonics
 !> \param Rs sine part of real scaled solid harmonics
-!> \param Waux_mat stores the angular-dependent part of the SHG integrals 
+!> \param Waux_mat stores the angular-dependent part of the SHG integrals
+!>        last dimension is (1:4): cc(1), cs(2), sc(3), ss(4)
 ! *****************************************************************************
   SUBROUTINE get_W_matrix(lamax,lbmax,lmax,Rc,Rs,Waux_mat)
 
@@ -477,6 +485,10 @@ CONTAINS
       Wb(4), Wmat(4)
 
     CALL timeset(routineN,handle)
+
+    Wa(:) = 0.0_dp
+    Wb(:) = 0.0_dp
+    Wmat(:) = 0.0_dp
 
     DO lb = 0,lbmax
        nlb = nsoset_pm(lb-1)
@@ -556,6 +568,194 @@ CONTAINS
   END SUBROUTINE get_W_matrix
 
 ! *****************************************************************************
+!> \brief calculates derivatives of transformation matrix W,
+!> \param lamax array of maximal l quantum number on a;
+!>        lamax(lb) with lb= 0..lbmax
+!> \param lbmax maximal l quantum number on b
+!> \param Waux_mat stores the angular-dependent part of the SHG integrals 
+!> \param dWaux_mat stores the derivatives of the angular-dependent part of 
+!>        the SHG integrals 
+!>        last dimension is (1:4): cc(1), cs(2), sc(3), ss(4)
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE get_dW_matrix(lamax,lbmax,Waux_mat,dWaux_mat,error)
+
+    INTEGER, DIMENSION(:), POINTER           :: lamax
+    INTEGER, INTENT(IN)                      :: lbmax
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: Waux_mat
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: dWaux_mat
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_dW_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ia, iam, ib, ibm, j, &
+                                                jmax, la, labm, labmin, lamb, &
+                                                lb, ma, mb, nla, nlam, nlb, &
+                                                nlbm, stat
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: bma, bma_m, bma_p, bmb, &
+                                                bmb_m, bmb_p, dAa, dAa_m, &
+                                                dAa_p, dAb, dAb_m, dAb_p
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: Wam, Wamm, Wamp, Wbm, Wbmm, &
+                                                Wbmp
+
+    CALL timeset(routineN,handle)
+
+    jmax = MIN(MAXVAL(lamax),lbmax)
+    ALLOCATE(Wam(0:jmax,4),Wamm(0:jmax,4),Wamp(0:jmax,4),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(Wbm(0:jmax,4),Wbmm(0:jmax,4),Wbmp(0:jmax,4),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DO lb = 0,lbmax
+       nlb = nsoset_pm(lb-1)
+       nlbm = 0
+       IF( lb > 0) nlbm = nsoset_pm(lb-2)
+       DO la = 0,lamax(lb)
+          nla = nsoset_pm(la-1)
+          nlam = 0
+          IF(la > 0) nlam = nsoset_pm(la-2)
+          labmin = MIN(la,lb)
+          lamb = MIN(la-1,lb)
+          labm = MIN(la,lb-1)
+          DO mb = 0,lb
+             bmb   = 1.0_dp
+             bmb_m = 1.0_dp
+             bmb_p = 1.0_dp
+             IF(mb /= 0) bmb = SQRT(2.0_dp)
+             IF(mb-1 /= 0) bmb_m = SQRT(2.0_dp)
+             IF(mb+1 /= 0) bmb_p = SQRT(2.0_dp)
+             dAb_p = -bmb/bmb_p*SQRT(REAL((lb-mb)*(lb-mb-1),dp))
+             dAb_m = -bmb/bmb_m*SQRT(REAL((lb+mb)*(lb+mb-1),dp))
+             dAb   = 2.0_dp*SQRT(REAL((lb+mb)*(lb-mb),dp))
+             !*** for m=0 W_l-1,-1 can't be read from Waux_mat, but we use
+             !*** W_l-1,-1 = -W_l-1,1 [cc(1), cs(2)] or W_l-1,-1 = W_l-1,1 [[sc(3), ss(4)]
+             IF(mb ==0) dAb_p = 2.0_dp * dAb_p 
+             ib = nlb + mb + 1
+             ibm = nlbm + mb + 1
+             DO ma = 0,la
+                bma   = 1.0_dp
+                bma_m = 1.0_dp
+                bma_p = 1.0_dp
+                IF(ma /=0) bma = SQRT(2.0_dp)
+                IF(ma-1 /= 0) bma_m = SQRT(2.0_dp)
+                IF(ma+1 /= 0) bma_p = SQRT(2.0_dp)
+                dAa_p = -bma/bma_p*SQRT(REAL((la-ma)*(la-ma-1),dp))
+                dAa_m = -bma/bma_m*SQRT(REAL((la+ma)*(la+ma-1),dp))
+                dAa = 2.0_dp*SQRT(REAL((la+ma)*(la-ma),dp))
+                IF(ma ==0) dAa_p = 2.0_dp * dAa_p 
+                ia = nla + ma + 1
+                iam = nlam + ma + 1
+                Wam(:,:)  = 0.0_dp
+                Wamm(:,:) = 0.0_dp
+                Wamp(:,:) = 0.0_dp
+                !*** Wam: la-1, ma
+                IF(ma <= la-1)  THEN
+                   Wam(0:lamb,1)  = Waux_mat(iam,ib,1:lamb+1,1)
+                   IF(mb > 0) Wam(0:lamb,2)  = Waux_mat(iam,ib,1:lamb+1,2)
+                   IF(ma > 0) Wam(0:lamb,3)  = Waux_mat(iam,ib,1:lamb+1,3)
+                   IF(ma > 0.AND.mb >0) Wam(0:lamb,4)  = Waux_mat(iam,ib,1:lamb+1,4)
+                ENDIF
+                !*** Wamm: la-1, ma-1 
+                IF(ma-1 >= 0)  THEN
+                   Wamm(0:lamb,1) = Waux_mat(iam-1,ib,1:lamb+1,1)
+                   IF(mb > 0) Wamm(0:lamb,2) = Waux_mat(iam-1,ib,1:lamb+1,2)
+                   IF(ma-1 > 0 ) Wamm(0:lamb,3) = Waux_mat(iam-1,ib,1:lamb+1,3)
+                   IF(ma-1 > 0.AND.mb > 0) Wamm(0:lamb,4) = Waux_mat(iam-1,ib,1:lamb+1,4)
+                ENDIF
+                !*** Wamp: la-1, ma+1
+                IF(ma+1 <= la-1) THEN
+                   Wamp(0:lamb,1) = Waux_mat(iam+1,ib,1:lamb+1,1)
+                   IF(mb > 0) Wamp(0:lamb,2) = Waux_mat(iam+1,ib,1:lamb+1,2)
+                   IF(ma+1 > 0) Wamp(0:lamb,3) = Waux_mat(iam+1,ib,1:lamb+1,3)
+                   IF(ma+1 > 0 .AND. mb >0) Wamp(0:lamb,4) = Waux_mat(iam+1,ib,1:lamb+1,4)
+                ENDIF
+                Wbm(:,:)  = 0.0_dp
+                Wbmm(:,:) = 0.0_dp
+                Wbmp(:,:) = 0.0_dp
+                !*** Wbm: lb-1, mb
+                IF(mb <= lb-1) THEN
+                   Wbm(0:labm,1)  = Waux_mat(ia,ibm,1:labm+1,1)
+                   IF(mb > 0) Wbm(0:labm,2)  = Waux_mat(ia,ibm,1:labm+1,2)
+                   IF(ma > 0) Wbm(0:labm,3)  = Waux_mat(ia,ibm,1:labm+1,3)
+                   IF(ma > 0 .AND. mb > 0) Wbm(0:labm,4)  = Waux_mat(ia,ibm,1:labm+1,4)
+                ENDIF
+                !*** Wbmm: lb-1, mb-1
+                IF(mb-1 >= 0) THEN
+                   Wbmm(0:labm,1) = Waux_mat(ia,ibm-1,1:labm+1,1)
+                   IF(mb-1 > 0) Wbmm(0:labm,2) = Waux_mat(ia,ibm-1,1:labm+1,2)
+                   IF(ma > 0) Wbmm(0:labm,3) = Waux_mat(ia,ibm-1,1:labm+1,3)
+                   IF(ma > 0.AND.mb-1 > 0)  Wbmm(0:labm,4) = Waux_mat(ia,ibm-1,1:labm+1,4)
+                ENDIF
+                !*** Wbmp: lb-1, mb+1
+                IF(mb+1 <= lb-1) THEN
+                   Wbmp(0:labm,1) = Waux_mat(ia,ibm+1,1:labm+1,1)
+                   IF(mb+1 > 0) Wbmp(0:labm,2) = Waux_mat(ia,ibm+1,1:labm+1,2)
+                   IF(ma > 0) Wbmp(0:labm,3) = Waux_mat(ia,ibm+1,1:labm+1,3)
+                   IF(ma > 0.AND. mb+1 > 0) Wbmp(0:labm,4) = Waux_mat(ia,ibm+1,1:labm+1,4)
+                ENDIF
+                DO j=0,labmin
+                   !*** x component
+                   dWaux_mat(1,ia,ib,j+1,1) =  dAa_p * Wamp(j,1) - dAa_m * Wamm(j,1) &
+                                             - dAb_p * Wbmp(j,1) + dAb_m * Wbmm(j,1)
+                   IF(mb > 0) THEN
+                     dWaux_mat(1,ia,ib,j+1,2) =  dAa_p * Wamp(j,2) - dAa_m * Wamm(j,2) &
+                                               - dAb_p * Wbmp(j,2) + dAb_m * Wbmm(j,2) 
+                   ENDIF
+                   IF(ma > 0) THEN
+                     dWaux_mat(1,ia,ib,j+1,3) =  dAa_p * Wamp(j,3) - dAa_m * Wamm(j,3) &
+                                               - dAb_p * Wbmp(j,3) + dAb_m * Wbmm(j,3) 
+                   ENDIF
+                   IF(ma > 0.AND. mb > 0) THEN
+                     dWaux_mat(1,ia,ib,j+1,4) =  dAa_p * Wamp(j,4) - dAa_m * Wamm(j,4) &
+                                               - dAb_p * Wbmp(j,4) + dAb_m * Wbmm(j,4)
+                   ENDIF
+                   !**** y component
+                   dWaux_mat(2,ia,ib,j+1,1) =  dAa_p * Wamp(j,3) + dAa_m * Wamm(j,3) &
+                                             - dAb_p * Wbmp(j,2) - dAb_m * Wbmm(j,2) 
+                   IF(mb > 0) THEN
+                     dWaux_mat(2,ia,ib,j+1,2) =  dAa_p * Wamp(j,4) + dAa_m * Wamm(j,4) &
+                                               + dAb_p * Wbmp(j,1) + dAb_m * Wbmm(j,1) 
+                   ENDIF
+                   IF(ma > 0) THEN
+                     dWaux_mat(2,ia,ib,j+1,3) = - dAa_p * Wamp(j,1) - dAa_m * Wamm(j,1) &
+                                                - dAb_p * Wbmp(j,4) - dAb_m * Wbmm(j,4) 
+                   ENDIF
+                   IF(ma > 0.AND. mb > 0) THEN
+                     dWaux_mat(2,ia,ib,j+1,4) = - dAa_p * Wamp(j,2) - dAa_m * Wamm(j,2) &
+                                                + dAb_p * Wbmp(j,3) + dAb_m * Wbmm(j,3) 
+                   ENDIF
+                   !**** z compnent
+                   dWaux_mat(3,ia,ib,j+1,1) = dAa*Wam(j,1) - dAb*Wbm(j,1)
+                   IF(mb > 0) THEN
+                      dWaux_mat(3,ia,ib,j+1,2) = dAa*Wam(j,2) - dAb*Wbm(j,2)
+                   ENDIF
+                   IF(ma > 0) THEN
+                      dWaux_mat(3,ia,ib,j+1,3) = dAa*Wam(j,3) - dAb*Wbm(j,3)
+                   ENDIF
+                   IF(ma > 0.AND. mb > 0) THEN
+                      dWaux_mat(3,ia,ib,j+1,4) = dAa*Wam(j,4) - dAb*Wbm(j,4)
+                   ENDIF
+                ENDDO
+             ENDDO
+          ENDDO
+       ENDDO
+    ENDDO
+
+    DEALLOCATE(Wam,Wamm,Wamp,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(Wbm,Wbmm,Wbmp,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE get_dW_matrix
+
+! *****************************************************************************
 !> \brief calculates [ab] SHG overlap integrals using precomputed angular-
 !>        dependent part
 !> \param la set of l quantum number on a
@@ -565,11 +765,11 @@ CONTAINS
 !> \param first_sgfb indexing
 !> \param nshellb number of shells for b
 !> \param swork_cont contracted and normalized [s|s] integrals
-!> \param sab contracted overlap of spherical harmonic Gaussians
 !> \param Waux_mat precomputed angular-dependent part
+!> \param sab contracted overlap of spherical harmonic Gaussians
 ! *****************************************************************************
   SUBROUTINE overlap_shg_ab(la,first_sgfa,nshella,lb,first_sgfb,nshellb,&
-                            swork_cont,sab,Waux_mat)
+                            swork_cont,Waux_mat,sab)
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: la, first_sgfa
     INTEGER, INTENT(IN)                      :: nshella
@@ -577,10 +777,10 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nshellb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: swork_cont
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: sab
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       INTENT(IN)                             :: Waux_mat
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: sab
 
     CHARACTER(len=*), PARAMETER :: routineN = 'overlap_shg_ab', &
       routineP = moduleN//':'//routineN
@@ -631,7 +831,7 @@ CONTAINS
                    sab(ia+mai,jb+mbj) = sab(ia+mai,jb+mbj) + prefac * Waux_mat(iaa,jbb,j+1,1)
                    sab(ia+mai,jb-mbj) = sab(ia+mai,jb-mbj) + prefac * Waux_mat(iaa,jbb,j+1,2)
                    sab(ia-mai,jb+mbj) = sab(ia-mai,jb+mbj) + prefac * Waux_mat(iaa,jbb,j+1,3)
-                   sab(ia-mai,jb-mbj) = sab(ia-mai,jb-mbj) + prefac * Waux_mat(iaa,jbb,j+1,4) 
+                   sab(ia-mai,jb-mbj) = sab(ia-mai,jb-mbj) + prefac * Waux_mat(iaa,jbb,j+1,4)
                 ENDDO
              ENDDO
           ENDDO
@@ -641,6 +841,117 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE overlap_shg_ab
+
+! *****************************************************************************
+!> \brief calculates derivatives of [ab] SHG overlap integrals using precomputed 
+!>        angular-dependent part
+!> \param la set of l quantum number on a
+!> \param first_sgfa indexing 
+!> \param nshella number of shells for a
+!> \param lb set of l quantum number on b
+!> \param first_sgfb indexing
+!> \param nshellb number of shells for b
+!> \param rab distance vector Ra-Rb
+!> \param swork_cont contracted and normalized [s|s] integrals
+!> \param Waux_mat precomputed angular-dependent part
+!> \param dWaux_mat derivatives of precomputed angular-dependent part
+!> \param dsab derivative of contracted overlap of spherical harmonic Gaussians 
+! *****************************************************************************
+  SUBROUTINE dev_overlap_shg_ab(la,first_sgfa,nshella,lb,first_sgfb,nshellb,rab,&
+                            swork_cont,Waux_mat,dWaux_mat,dsab)
+
+    INTEGER, DIMENSION(:), INTENT(IN)        :: la, first_sgfa
+    INTEGER, INTENT(IN)                      :: nshella
+    INTEGER, DIMENSION(:), INTENT(IN)        :: lb, first_sgfb
+    INTEGER, INTENT(IN)                      :: nshellb
+    REAL(KIND=dp), INTENT(IN)                :: rab(3)
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: swork_cont
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(IN)                             :: Waux_mat
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), INTENT(IN)   :: dWaux_mat
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: dsab
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dev_overlap_shg_ab', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ia, iaa, ishella, &
+                                                j, jb, jbb, jshellb, labmin, &
+                                                lai, lbj, mai, mbj, nla, nlb, &
+                                                sgfa, sgfb
+    REAL(KIND=dp)                            :: dprefac, prefac, rabx2(3)
+
+    CALL timeset(routineN,handle)
+
+    rabx2(:) = 2.0_dp * rab
+    DO ishella = 1, nshella
+       lai = la(ishella)
+       nla = nsoset_pm(lai-1)
+       sgfa = first_sgfa(ishella)
+       ia = sgfa + lai
+       DO jshellb = 1, nshellb
+          lbj = lb(jshellb)
+          nlb = nsoset_pm(lbj-1)
+          sgfb = first_sgfb(jshellb)
+          jb = sgfb + lbj
+          labmin = MIN(lai,lbj)
+          DO j=0,labmin
+             prefac =  swork_cont(ishella,jshellb,lai+lbj-j+1)  
+             dprefac = swork_cont(ishella,jshellb,lai+lbj-j+2) !j+1 
+             ! mai = 0 and mbj = 0
+             iaa = nla+1
+             jbb = nlb+1
+             DO i=1,3
+              dsab(ia,jb,i) = dsab(ia,jb,i) + rabx2(i) * dprefac * Waux_mat(iaa,jbb,j+1,1)&
+                                            + prefac * dWaux_mat(i,iaa,jbb,j+1,1)
+             ENDDO
+             ! mai = 0 and mbj /= 0
+             DO mbj=1,lbj 
+                jbb = nlb+mbj+1
+                DO i=1,3
+                  dsab(ia,jb+mbj,i) = dsab(ia,jb+mbj,i) + rabx2(i) * dprefac * Waux_mat(iaa,jbb,j+1,1)&
+                                                        + prefac * dWaux_mat(i,iaa,jbb,j+1,1)
+                  dsab(ia,jb-mbj,i) = dsab(ia,jb-mbj,i) + rabx2(i) * dprefac * Waux_mat(iaa,jbb,j+1,2)& 
+                                                        + prefac * dWaux_mat(i,iaa,jbb,j+1,2)
+                ENDDO
+             ENDDO
+             ! mai /= 0 and mbj = 0
+             jbb = nlb+1
+             DO mai=1,lai
+                iaa = nla+mai+1
+                DO i=1,3
+                  dsab(ia+mai,jb,i) = dsab(ia+mai,jb,i) + rabx2(i) * dprefac * Waux_mat(iaa,jbb,j+1,1)&
+                                                        + prefac * dWaux_mat(i,iaa,jbb,j+1,1)
+                  dsab(ia-mai,jb,i) = dsab(ia-mai,jb,i) + rabx2(i) * dprefac * Waux_mat(iaa,jbb,j+1,3)&
+                                                        + prefac * dWaux_mat(i,iaa,jbb,j+1,3)
+                ENDDO
+             ENDDO
+             ! mai /= 0 and mbj /= 0
+             DO mai=1,lai
+                iaa = nla+mai+1
+                DO mbj=1,lbj
+                  jbb = nlb+mbj+1
+                  DO i=1,3
+                   dsab(ia+mai,jb+mbj,i) = dsab(ia+mai,jb+mbj,i) + rabx2(i) * dprefac * Waux_mat(iaa,jbb,j+1,1)&
+                                                                 + prefac * dWaux_mat(i,iaa,jbb,j+1,1)
+                   dsab(ia+mai,jb-mbj,i) = dsab(ia+mai,jb-mbj,i) + rabx2(i) * dprefac * Waux_mat(iaa,jbb,j+1,2)&
+                                                                 + prefac * dWaux_mat(i,iaa,jbb,j+1,2)
+                   dsab(ia-mai,jb+mbj,i) = dsab(ia-mai,jb+mbj,i) + rabx2(i) * dprefac * Waux_mat(iaa,jbb,j+1,3)&
+                                                                 + prefac * dWaux_mat(i,iaa,jbb,j+1,3)
+                   dsab(ia-mai,jb-mbj,i) = dsab(ia-mai,jb-mbj,i) + rabx2(i) * dprefac * Waux_mat(iaa,jbb,j+1,4)&
+                                                                 + prefac * dWaux_mat(i,iaa,jbb,j+1,4)
+                  ENDDO
+                ENDDO
+             ENDDO
+          ENDDO
+       ENDDO
+    ENDDO
+    
+    CALL timestop(handle)
+
+  END SUBROUTINE dev_overlap_shg_ab
 
 ! *****************************************************************************
 !> \brief calculates [aba] SHG overlap integrals using precomputed angular-
@@ -654,16 +965,16 @@ CONTAINS
 !> \param lca of l quantum number on a, aux basis
 !> \param first_sgfca indexing
 !> \param nshellca  number of shells for a, aux basis
-!> \param swork_cont contracted and normalized [s|ra^n|s] integrals
-!> \param saba contracted overlap [aba] of spherical harmonic Gaussians
-!> \param Waux_mat precomputed angular-dependent part
 !> \param cg_coeff Clebsch-Gordon coefficients
 !> \param cg_none0_list list of none-zero Clebsch-Gordon coefficients
 !> \param ncg_none0 number of non-zero Clebsch-Gordon coefficients
+!> \param swork_cont contracted and normalized [s|ra^n|s] integrals
+!> \param Waux_mat precomputed angular-dependent part
+!> \param saba contracted overlap [aba] of spherical harmonic Gaussians
 ! *****************************************************************************
   SUBROUTINE overlap_shg_aba(la,first_sgfa,nshella,lb,first_sgfb,nshellb,&
-                             lca,first_sgfca,nshellca,swork_cont,saba,&
-                             Waux_mat,cg_coeff,cg_none0_list,ncg_none0)
+                             lca,first_sgfca,nshellca,cg_coeff,cg_none0_list,&
+                             ncg_none0,swork_cont,Waux_mat,saba)
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: la, first_sgfa
     INTEGER, INTENT(IN)                      :: nshella
@@ -671,16 +982,16 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nshellb
     INTEGER, DIMENSION(:), INTENT(IN)        :: lca, first_sgfca
     INTEGER, INTENT(IN)                      :: nshellca
-    REAL(KIND=dp), &
-      DIMENSION(:, :, :, :, :), POINTER      :: swork_cont
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(INOUT)                          :: saba
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      INTENT(IN)                             :: Waux_mat
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: cg_coeff
     INTEGER, DIMENSION(:, :, :), INTENT(IN)  :: cg_none0_list
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: ncg_none0
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: swork_cont
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(IN)                             :: Waux_mat
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: saba
 
     CHARACTER(len=*), PARAMETER :: routineN = 'overlap_shg_aba', &
       routineP = moduleN//':'//routineN
@@ -739,6 +1050,126 @@ CONTAINS
   END SUBROUTINE overlap_shg_aba
 
 ! *****************************************************************************
+!> \brief calculates derivatives of [aba] SHG overlap integrals using
+!>        precomputed angular-dependent part
+!> \param la set of l quantum number on a, orbital basis
+!> \param first_sgfa indexing
+!> \param nshella number of shells for a, orbital basis
+!> \param lb set of l quantum number on b. orbital basis
+!> \param first_sgfb indexing
+!> \param nshellb number of shells for b, orbital basis
+!> \param lca of l quantum number on a, aux basis
+!> \param first_sgfca indexing
+!> \param nshellca  number of shells for a, aux basis
+!> \param cg_coeff Clebsch-Gordon coefficients
+!> \param cg_none0_list list of none-zero Clebsch-Gordon coefficients
+!> \param ncg_none0 number of non-zero Clebsch-Gordon coefficients
+!> \param rab distance vector Ra-Rb
+!> \param swork_cont contracted and normalized [s|ra^n|s] integrals
+!> \param Waux_mat precomputed angular-dependent part
+!> \param dWaux_mat derivatives of precomputed angular-dependent part
+!> \param dsaba derivative of contracted overlap [aba] of spherical harmonic
+!>              Gaussians
+! *****************************************************************************
+  SUBROUTINE dev_overlap_shg_aba(la,first_sgfa,nshella,lb,first_sgfb,nshellb,&
+                             lca,first_sgfca,nshellca,cg_coeff,cg_none0_list,&
+                             ncg_none0,rab,swork_cont,Waux_mat,dWaux_mat,dsaba)
+
+    INTEGER, DIMENSION(:), INTENT(IN)        :: la, first_sgfa
+    INTEGER, INTENT(IN)                      :: nshella
+    INTEGER, DIMENSION(:), INTENT(IN)        :: lb, first_sgfb
+    INTEGER, INTENT(IN)                      :: nshellb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: lca, first_sgfca
+    INTEGER, INTENT(IN)                      :: nshellca
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: cg_coeff
+    INTEGER, DIMENSION(:, :, :), INTENT(IN)  :: cg_none0_list
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: ncg_none0
+    REAL(KIND=dp), INTENT(IN)                :: rab(3)
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: swork_cont
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(IN)                             :: Waux_mat
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), INTENT(IN)   :: dWaux_mat
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(INOUT)                          :: dsaba
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dev_overlap_shg_aba', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i, ia, il, ilist, ishella, isoa1, isoa2, isoaa, j, jb, &
+      jshellb, ka, kshella, laa, labmin, lai, lak, lbj, maa, mai, mak, mbj, &
+      nla, nlb, sgfa, sgfb, sgfca
+    REAL(KIND=dp)                            :: dprefac, dtemp(3), prefac, &
+                                                rabx2(3)
+
+    CALL timeset(routineN,handle)
+
+    rabx2(:) = 2.0_dp * rab
+
+    DO ishella = 1, nshella
+       lai = la(ishella)
+       sgfa = first_sgfa(ishella)
+       ia = sgfa + lai
+       DO jshellb = 1, nshellb
+          lbj = lb(jshellb)
+          nlb = nsoset_pm(lbj-1)
+          sgfb = first_sgfb(jshellb)
+          jb = sgfb + lbj
+          DO kshella = 1, nshellca
+             lak = lca(kshella)
+             sgfca = first_sgfca(kshella)
+             ka = sgfca + lak
+             DO mai = -lai,lai,1
+                DO mbj=-lbj,lbj,1
+                   DO mak=-lak,lak,1
+                      isoa1 = indso_inv(lai,mai)
+                      isoa2 = indso_inv(lak,mak)
+                      DO ilist = 1, ncg_none0(isoa1,isoa2)
+                         isoaa = cg_none0_list(isoa1,isoa2,ilist) 
+                         laa = indso(1,isoaa) 
+                         maa = indso(2,isoaa) 
+                         nla = nsoset_pm(laa-1)
+                         labmin = MIN(laa,lbj)
+                         il = INT((lai + lak - laa)/2) 
+                         dtemp = 0.0_dp
+                         DO j=0,labmin
+                            prefac = swork_cont(ishella,jshellb,kshella,il,laa+lbj-j+1) 
+                            dprefac = swork_cont(ishella,jshellb,kshella,il,laa+lbj-j+2)
+                            DO i=1,3 
+                               IF(maa >= 0.AND.mbj >= 0) THEN
+                                  dtemp(i) = dtemp(i) + rabx2(i) * dprefac * Waux_mat(nla+ABS(maa)+1,nlb+ABS(mbj)+1,j+1,1)&
+                                                      + prefac * dWaux_mat(i,nla+ABS(maa)+1,nlb+ABS(mbj)+1,j+1,1)
+                               ELSEIF(maa >= 0.AND.mbj  < 0) THEN
+                                  dtemp(i) = dtemp(i) + rabx2(i) * dprefac * Waux_mat(nla+ABS(maa)+1,nlb+ABS(mbj)+1,j+1,2)&
+                                                      + prefac * dWaux_mat(i,nla+ABS(maa)+1,nlb+ABS(mbj)+1,j+1,2)
+                               ELSEIF(maa <  0.AND.mbj >= 0) THEN
+                                  dtemp(i) = dtemp(i) + rabx2(i) * dprefac * Waux_mat(nla+ABS(maa)+1,nlb+ABS(mbj)+1,j+1,3)&
+                                                      + prefac * dWaux_mat(i,nla+ABS(maa)+1,nlb+ABS(mbj)+1,j+1,3)
+                               ELSEIF(maa <  0.AND.mbj <  0) THEN
+                                  dtemp(i) = dtemp(i) + rabx2(i) * dprefac * Waux_mat(nla+ABS(maa)+1,nlb+ABS(mbj)+1,j+1,4)&
+                                                      + prefac * dWaux_mat(i,nla+ABS(maa)+1,nlb+ABS(mbj)+1,j+1,4)
+                               ENDIF
+                            ENDDO
+                         ENDDO
+                         DO i=1,3
+                            dsaba(ia+mai,jb+mbj,ka+mak,i) = dsaba(ia+mai,jb+mbj,ka+mak,i) &
+                                                            + cg_coeff(isoa1,isoa2,isoaa)*dtemp(i)
+                         ENDDO
+                      ENDDO
+                   ENDDO
+                ENDDO
+             ENDDO
+          ENDDO
+       ENDDO
+    ENDDO
+ 
+    CALL timestop(handle)
+
+  END SUBROUTINE dev_overlap_shg_aba
+
+! *****************************************************************************
 !> \brief calculates [abb] SHG overlap integrals using precomputed angular-
 !>        dependent part
 !> \param la set of l quantum number on a, orbital basis
@@ -750,16 +1181,16 @@ CONTAINS
 !> \param lcb l quantum number on b, aux basis
 !> \param first_sgfcb indexing
 !> \param nshellcb number of shells for b, aux basis
-!> \param swork_cont contracted and normalized [s|rb^n|s] integrals
-!> \param sabb contracted overlap [abb] of spherical harmonic Gaussians
-!> \param Waux_mat precomputed angular-dependent part
 !> \param cg_coeff Clebsch-Gordon coefficients
 !> \param cg_none0_list list of none-zero Clebsch-Gordon coefficients
 !> \param ncg_none0 number of non-zero Clebsch-Gordon coefficients
+!> \param swork_cont contracted and normalized [s|rb^n|s] integrals
+!> \param Waux_mat precomputed angular-dependent part
+!> \param sabb contracted overlap [abb] of spherical harmonic Gaussians
 ! *****************************************************************************
   SUBROUTINE overlap_shg_abb(la,first_sgfa,nshella,lb,first_sgfb,nshellb,&
-                             lcb,first_sgfcb,nshellcb,swork_cont,sabb,Waux_mat,&
-                             cg_coeff,cg_none0_list,ncg_none0)
+                             lcb,first_sgfcb,nshellcb,cg_coeff,cg_none0_list,&
+                             ncg_none0,swork_cont,Waux_mat,sabb)
 
     INTEGER, DIMENSION(:), INTENT(IN)        :: la, first_sgfa
     INTEGER, INTENT(IN)                      :: nshella
@@ -767,16 +1198,16 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nshellb
     INTEGER, DIMENSION(:), INTENT(IN)        :: lcb, first_sgfcb
     INTEGER, INTENT(IN)                      :: nshellcb
-    REAL(KIND=dp), &
-      DIMENSION(:, :, :, :, :), POINTER      :: swork_cont
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(INOUT)                          :: sabb
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      INTENT(IN)                             :: Waux_mat
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(IN)                             :: cg_coeff
     INTEGER, DIMENSION(:, :, :), INTENT(IN)  :: cg_none0_list
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: ncg_none0
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: swork_cont
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(IN)                             :: Waux_mat
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: sabb
 
     CHARACTER(len=*), PARAMETER :: routineN = 'overlap_shg_abb', &
       routineP = moduleN//':'//routineN
@@ -837,6 +1268,133 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE overlap_shg_abb
+
+! *****************************************************************************
+!> \brief calculates derivatives of [abb] SHG overlap integrals using 
+!>        precomputed angular-dependent part
+!> \param la set of l quantum number on a, orbital basis
+!> \param first_sgfa indexing
+!> \param nshella number of shells for a, orbital basis
+!> \param lb set of l quantum number on b. orbital basis
+!> \param first_sgfb indexing
+!> \param nshellb number of shells for b, orbital basis
+!> \param lcb l quantum number on b, aux basis
+!> \param first_sgfcb indexing
+!> \param nshellcb number of shells for b, aux basis
+!> \param cg_coeff Clebsch-Gordon coefficients
+!> \param cg_none0_list list of none-zero Clebsch-Gordon coefficients
+!> \param ncg_none0 number of non-zero Clebsch-Gordon coefficients
+!> \param rab distance vector Ra-Rb
+!> \param swork_cont contracted and normalized [s|rb^n|s] integrals
+!> \param Waux_mat precomputed angular-dependent part
+!> \param dWaux_mat derivatives of precomputed angular-dependent part
+!> \param dsabb derivative of contracted overlap [abb] of spherical harmonic
+!>        Gaussians
+! *****************************************************************************
+  SUBROUTINE dev_overlap_shg_abb(la,first_sgfa,nshella,lb,first_sgfb,nshellb,&
+                                 lcb,first_sgfcb,nshellcb,cg_coeff,cg_none0_list,&
+                                 ncg_none0,rab,swork_cont,Waux_mat,dWaux_mat,dsabb)
+
+    INTEGER, DIMENSION(:), INTENT(IN)        :: la, first_sgfa
+    INTEGER, INTENT(IN)                      :: nshella
+    INTEGER, DIMENSION(:), INTENT(IN)        :: lb, first_sgfb
+    INTEGER, INTENT(IN)                      :: nshellb
+    INTEGER, DIMENSION(:), INTENT(IN)        :: lcb, first_sgfcb
+    INTEGER, INTENT(IN)                      :: nshellcb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(IN)                             :: cg_coeff
+    INTEGER, DIMENSION(:, :, :), INTENT(IN)  :: cg_none0_list
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: ncg_none0
+    REAL(KIND=dp), INTENT(IN)                :: rab(3)
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: swork_cont
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(IN)                             :: Waux_mat
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), INTENT(IN)   :: dWaux_mat
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      INTENT(INOUT)                          :: dsabb
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dev_overlap_shg_abb', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, i, ia, il, ilist, ishella, isob1, isob2, isobb, j, jb, &
+      jshellb, kb, kshellb, labmin, lai, lbb, lbj, lbk, mai, mbb, mbj, mbk, &
+      nla, nlb, sgfa, sgfb, sgfcb
+    REAL(KIND=dp)                            :: dprefac, dtemp(3), prefac, &
+                                                rabx2(3), tsign
+
+    CALL timeset(routineN,handle)
+
+    rabx2(:) = 2.0_dp * rab
+
+    DO ishella = 1, nshella
+       lai = la(ishella)
+       nla = nsoset_pm(lai-1) + 1
+       sgfa = first_sgfa(ishella)
+       ia = sgfa + lai
+       DO jshellb = 1, nshellb
+          lbj = lb(jshellb)
+          nlb = nsoset_pm(lbj-1)
+          sgfb = first_sgfb(jshellb)
+          jb = sgfb + lbj
+          DO kshellb = 1, nshellcb
+             lbk = lcb(kshellb)
+             sgfcb = first_sgfcb(kshellb)
+             kb = sgfcb + lbk
+             DO mai = -lai,lai,1
+                DO mbj=-lbj,lbj,1
+                   DO mbk=-lbk,lbk,1
+                      isob1 = indso_inv(lbj,mbj)
+                      isob2 = indso_inv(lbk,mbk)
+                      DO ilist = 1, ncg_none0(isob1,isob2)
+                         isobb = cg_none0_list(isob1,isob2,ilist) 
+                         lbb = indso(1,isobb) 
+                         mbb = indso(2,isobb) 
+                         nlb = nsoset_pm(lbb-1) + 1
+                         tsign = 1.0_dp
+                         IF(MODULO(lbb-lai,2) /= 0 ) tsign = -1.0_dp  
+                         labmin = MIN(lai,lbb)
+                         il = INT((lbj + lbk - lbb)/2) 
+                         dtemp = 0.0_dp
+                         DO j=0,labmin
+                            prefac = swork_cont(ishella,jshellb,kshellb,il,lai+lbb-j+1) 
+                            dprefac = swork_cont(ishella,jshellb,kshellb,il,lai+lbb-j+2) 
+                            DO i=1,3 
+                               IF(mai >= 0 .AND. mbb >= 0) THEN
+                                 dtemp(i) = dtemp(i) + rabx2(i) * dprefac * Waux_mat(nlb+ABS(mbb),nla+ABS(mai),j+1,1)&
+                                                     + prefac * dWaux_mat(i,nlb+ABS(mbb),nla+ABS(mai),j+1,1)
+                               ENDIF
+                               ! take the transpose, since auxmat calculated for (lbb,lai)
+                               IF(mai >= 0.AND.mbb  < 0) THEN
+                                 dtemp(i) = dtemp(i) + rabx2(i) * dprefac * Waux_mat(nlb+ABS(mbb),nla+ABS(mai),j+1,3)&
+                                                     + prefac *  dWaux_mat(i,nlb+ABS(mbb),nla+ABS(mai),j+1,3)
+                               ENDIF
+                               IF(mai <  0.AND.mbb >= 0) THEN
+                                 dtemp(i) = dtemp(i) + rabx2(i) * dprefac * Waux_mat(nlb+ABS(mbb),nla+ABS(mai),j+1,2)&
+                                                     + prefac * dWaux_mat(i,nlb+ABS(mbb),nla+ABS(mai),j+1,2)
+                               ENDIF
+                               IF(mai <  0.AND.mbb <  0) THEN
+                                 dtemp(i) = dtemp(i) + rabx2(i) * dprefac * Waux_mat(nlb+ABS(mbb),nla+ABS(mai),j+1,4)&
+                                                     + prefac * dWaux_mat(i,nlb+ABS(mbb),nla+ABS(mai),j+1,4)
+                               ENDIF 
+                            ENDDO
+                         ENDDO
+                         DO i=1,3 
+                            dsabb(ia+mai,jb+mbj,kb+mbk,i) = dsabb(ia+mai,jb+mbj,kb+mbk,i) &
+                                                            +  tsign*cg_coeff(isob1,isob2,isobb)*dtemp(i)
+                         ENDDO
+                      ENDDO
+                   ENDDO
+                ENDDO
+             ENDDO
+          ENDDO
+       ENDDO
+    ENDDO
+ 
+    CALL timestop(handle)
+
+  END SUBROUTINE dev_overlap_shg_abb
 
 END MODULE ai_shg_overlap
 

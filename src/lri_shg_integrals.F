@@ -12,13 +12,11 @@
 !> \author Dorothea Golze  
 ! *****************************************************************************
 MODULE lri_shg_integrals
-  USE ai_shg_overlap,                  ONLY: get_W_matrix,&
-                                             get_real_scaled_solid_harmonic,&
-                                             overlap_shg_ab,&
-                                             overlap_shg_aba,&
-                                             overlap_shg_abb,&
-                                             s_overlap_ab,&
-                                             s_overlap_abx
+  USE ai_shg_overlap,                  ONLY: &
+       dev_overlap_shg_ab, dev_overlap_shg_aba, dev_overlap_shg_abb, &
+       get_W_matrix, get_dW_matrix, get_real_scaled_solid_harmonic, &
+       overlap_shg_ab, overlap_shg_aba, overlap_shg_abb, s_overlap_ab, &
+       s_overlap_abx
   USE basis_set_types,                 ONLY: gto_basis_set_type
   USE kinds,                           ONLY: dp
   USE lri_environment_types,           ONLY: lri_environment_type
@@ -54,14 +52,20 @@ CONTAINS
 !> \param fbb aux basis on b
 !> \param rab distance vector between a and b
 !> \param Waux_mat matrix storing angular-dependent part
+!> \param dWaux_mat ...
+!> \param calculate_forces ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE precalc_angular_shg_part(oba,obb,fba,fbb,rab,Waux_mat,error)
+  SUBROUTINE precalc_angular_shg_part(oba,obb,fba,fbb,rab,Waux_mat,dWaux_mat,&
+                                      calculate_forces,error)
 
     TYPE(gto_basis_set_type), POINTER        :: oba, obb, fba, fbb
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: Waux_mat
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: dWaux_mat
+    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'precalc_angular_shg_part', &
@@ -111,7 +115,9 @@ CONTAINS
     mdim(4) = 4
     ALLOCATE(Waux_mat(mdim(1),mdim(2),mdim(3),mdim(4)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    !Waux_mat = 0._dp .. takes time
+    ALLOCATE(dWaux_mat(3,mdim(1),mdim(2),mdim(3),mdim(4)),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    !Waux_mat = 0._dp !.. takes time
 
     !*** Waux_mat (li_max,lj_max) contains elements not needed,
     !*** make indixing so that only required ones are computed
@@ -140,6 +146,9 @@ CONTAINS
     !*** -rab, since Eq. in Ref. use Ra-Rb, not Rb-Ra
     CALL get_real_scaled_solid_harmonic(Rc,Rs,lmax,-rab,rab2)
     CALL get_W_matrix(li_max_all,lj_max,lmax,Rc,Rs,Waux_mat)
+    IF(calculate_forces) THEN
+     CALL get_dW_matrix(li_max_all,lj_max,Waux_mat,dWaux_mat,error)
+    ENDIF
 
     DEALLOCATE(Rc,Rs,li_max_all,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -152,6 +161,7 @@ CONTAINS
 !> \brief calculate integrals (a,b,fa)
 !> \param lri_env ...
 !> \param abaint integral (a,b,fa)
+!> \param dabdaint ...
 !> \param rab distance vector between A and B
 !> \param oba orbital basis at center A
 !> \param obb orbital basis at center B
@@ -160,14 +170,19 @@ CONTAINS
 !> \param sconb_shg contraction matrix for orb bas on B
 !> \param sconca_shg contraction matrix for aux bas on A
 !> \param Waux_mat angular-depedent part
+!> \param dWaux_mat derivative of Waux_mat 
+!> \param calculate_forces ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE lri_int_aba_shg(lri_env,abaint,rab,oba,obb,fba,scona_shg,sconb_shg,&
-                             sconca_shg,Waux_mat,error)
+  SUBROUTINE lri_int_aba_shg(lri_env,abaint,dabdaint,rab,oba,obb,fba,scona_shg,&
+                             sconb_shg,sconca_shg,Waux_mat,dWaux_mat,&
+                             calculate_forces,error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: abaint
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: dabdaint
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     TYPE(gto_basis_set_type), POINTER        :: oba, obb, fba
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -175,6 +190,9 @@ CONTAINS
                                                 sconca_shg
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: Waux_mat
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: dWaux_mat
+    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_aba_shg', &
@@ -182,9 +200,9 @@ CONTAINS
 
     INTEGER :: handle, ids, ids_start, iil, il, ipgfa, iset, ishella, jpgfb, &
       jset, jshellb, kpgfa, kset, kshella, la_max_set, laa, laa_max_set, lai, &
-      lak, lb_max_set, lbj, lca_max_set, nds, nl, nl_set, npgfa_set, &
-      npgfb_set, npgfca_set, nseta, nsetb, nsetca, nshella_set, nshellb_set, &
-      nshellca_set, stat
+      lak, lb_max_set, lbj, lca_max_set, ndev, nds, nds_max, nl, nl_set, &
+      npgfa_set, npgfb_set, npgfca_set, nseta, nsetb, nsetca, nshella_set, &
+      nshellb_set, nshellca_set, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, lca_max, &
                                                 npgfa, npgfb, npgfca, &
                                                 nshella, nshellb, nshellca
@@ -247,15 +265,18 @@ CONTAINS
     nshella_set  = MAXVAL(nshella)
     nshellb_set  = MAXVAL(nshellb)
     nshellca_set = MAXVAL(nshellca)
+    !*** for forces: derivative+1 in auxiliary vector required
+    ndev = 0
+    IF(calculate_forces) ndev = 1
 
     laa_max_set = la_max_set+lca_max_set
 
     ! allocate some work storage....
-    nds = laa_max_set + lb_max_set + 1
+    nds_max = laa_max_set + lb_max_set + ndev + 1
     nl_set = INT((laa_max_set)/2)
-    ALLOCATE(swork(npgfa_set,npgfb_set,npgfca_set,0:nl_set,nds),STAT=stat)
+    ALLOCATE(swork(npgfa_set,npgfb_set,npgfca_set,0:nl_set,nds_max),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(swork_cont(nshella_set,nshellb_set,nshellca_set,0:nl_set,nds),STAT=stat)
+    ALLOCATE(swork_cont(nshella_set,nshellb_set,nshellca_set,0:nl_set,nds_max),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO iset=1,nseta
@@ -271,7 +292,8 @@ CONTAINS
              CALL s_overlap_abx(la_max(iset),npgfa(iset),zeta(:,iset),&
                                 lb_max(jset),npgfb(jset),zetb(:,jset),&
                                 lca_max(kset),npgfca(kset),zetca(:,kset),&
-                                rab,swork,calc_aba=.TRUE.,error=error)
+                                rab,swork,calculate_forces,calc_aba=.TRUE.,&
+                                error=error)
 
              swork_cont = 0.0_dp
              DO ishella = 1, nshella(iset)
@@ -303,7 +325,7 @@ CONTAINS
                                            *scona_shg(ipgfa,ishella,iset)&
                                            *sconb_shg(jpgfb,jshellb,jset)&
                                            *sconca_shg(kpgfa,kshella,kset)
-                                  DO ids = ids_start, nds 
+                                  DO ids = ids_start, nds + ndev 
                                      IF(il==0) THEN
                                        swork_cont(ishella,jshellb,kshella,il,ids) = &
                                                  swork_cont(ishella,jshellb,kshella,il,ids)&
@@ -360,8 +382,18 @@ CONTAINS
              CALL overlap_shg_aba(la(:,iset),first_sgfa(:,iset),nshella(iset),&
                                    lb(:,jset),first_sgfb(:,jset),nshellb(jset),&
                                    lca(:,kset),first_sgfca(:,kset),nshellca(kset),&
-                                   swork_cont,abaint,Waux_mat,lri_env%cg_shg%cg_coeff,&
-                                   lri_env%cg_shg%cg_none0_list,lri_env%cg_shg%ncg_none0)
+                                   lri_env%cg_shg%cg_coeff,lri_env%cg_shg%cg_none0_list,&
+                                   lri_env%cg_shg%ncg_none0,swork_cont,Waux_mat,abaint)
+             !
+             IF(calculate_forces) THEN
+              !*** -rab, since Eq. in Ref. use Ra-Rb, not Rb-Ra
+               CALL dev_overlap_shg_aba(la(:,iset),first_sgfa(:,iset),nshella(iset),&
+                                     lb(:,jset),first_sgfb(:,jset),nshellb(jset),&
+                                     lca(:,kset),first_sgfca(:,kset),nshellca(kset),&
+                                     lri_env%cg_shg%cg_coeff,lri_env%cg_shg%cg_none0_list,&
+                                     lri_env%cg_shg%ncg_none0,-rab,swork_cont,&
+                                     Waux_mat,dWaux_mat,dabdaint)
+             ENDIF
 
           END DO
        END DO
@@ -380,6 +412,7 @@ CONTAINS
 !> \brief calculate integrals (a,b,fb)
 !> \param lri_env ...
 !> \param abbint integral (a,b,fb)
+!> \param dabbint derivative of abbint
 !> \param rab distance vector between A and B
 !> \param oba orbital basis at center A
 !> \param obb orbital basis at center B
@@ -388,14 +421,19 @@ CONTAINS
 !> \param sconb_shg contraction matrix for orb bas on B
 !> \param sconcb_shg contraction matrix for aux bas on B
 !> \param Waux_mat angular-dependent part
+!> \param dWaux_mat derivative of Waux_mat
+!> \param calculate_forces ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE lri_int_abb_shg(lri_env,abbint,rab,oba,obb,fbb,scona_shg,sconb_shg,&
-                             sconcb_shg,Waux_mat,error)
+  SUBROUTINE lri_int_abb_shg(lri_env,abbint,dabbint,rab,oba,obb,fbb,scona_shg,&
+                             sconb_shg,sconcb_shg,Waux_mat,dWaux_mat,&
+                             calculate_forces,error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: abbint
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: dabbint
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     TYPE(gto_basis_set_type), POINTER        :: oba, obb, fbb
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -403,6 +441,9 @@ CONTAINS
                                                 sconcb_shg
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: Waux_mat
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: dWaux_mat
+    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_abb_shg', &
@@ -410,9 +451,9 @@ CONTAINS
 
     INTEGER :: handle, ids, ids_start, iil, il, ipgfa, iset, ishella, jpgfb, &
       jset, jshellb, kpgfb, kset, kshellb, la_max_set, lai, lb_max_set, lbb, &
-      lbb_max_set, lbj, lbk, lcb_max_set, nds, nl, nl_set, npgfa_set, &
-      npgfb_set, npgfcb_set, nseta, nsetb, nsetcb, nshella_set, nshellb_set, &
-      nshellcb_set, stat
+      lbb_max_set, lbj, lbk, lcb_max_set, ndev, nds, nds_max, nl, nl_set, &
+      npgfa_set, npgfb_set, npgfcb_set, nseta, nsetb, nsetcb, nshella_set, &
+      nshellb_set, nshellcb_set, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, lcb_max, &
                                                 npgfa, npgfb, npgfcb, &
                                                 nshella, nshellb, nshellcb
@@ -475,15 +516,18 @@ CONTAINS
     nshella_set  = MAXVAL(nshella)
     nshellb_set  = MAXVAL(nshellb)
     nshellcb_set = MAXVAL(nshellcb)
+    !*** for forces: derivative+1 in auxiliary vector required
+    ndev = 0
+    IF(calculate_forces) ndev = 1
 
     lbb_max_set = lb_max_set + lcb_max_set
 
     ! allocate some work storage....
-    nds = la_max_set + lbb_max_set + 1
+    nds_max = la_max_set + lbb_max_set + ndev + 1
     nl_set = INT((lbb_max_set)/2)
-    ALLOCATE(swork(1:npgfa_set,1:npgfb_set,1:npgfcb_set,0:nl_set,1:nds),STAT=stat)
+    ALLOCATE(swork(1:npgfa_set,1:npgfb_set,1:npgfcb_set,0:nl_set,1:nds_max),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(swork_cont(nshella_set,nshellb_set,nshellcb_set,0:nl_set,nds),STAT=stat)
+    ALLOCATE(swork_cont(nshella_set,nshellb_set,nshellcb_set,0:nl_set,nds_max),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO iset=1,nseta
@@ -499,7 +543,8 @@ CONTAINS
              CALL s_overlap_abx(la_max(iset),npgfa(iset),zeta(:,iset),&
                                 lb_max(jset),npgfb(jset),zetb(:,jset),&
                                 lcb_max(kset),npgfcb(kset),zetcb(:,kset),&
-                                rab,swork,calc_aba=.FALSE.,error=error)
+                                rab,swork,calculate_forces,calc_aba=.FALSE.,&
+                                error=error)
 
              swork_cont = 0.0_dp
              DO ishella = 1, nshella(iset)
@@ -531,7 +576,7 @@ CONTAINS
                                            *scona_shg(ipgfa,ishella,iset)&
                                            *sconb_shg(jpgfb,jshellb,jset)&
                                            *sconcb_shg(kpgfb,kshellb,kset)
-                                  DO ids = ids_start, nds 
+                                  DO ids = ids_start, nds + ndev 
                                      IF(il==0) THEN
                                        swork_cont(ishella,jshellb,kshellb,il,ids) = &
                                                  swork_cont(ishella,jshellb,kshellb,il,ids)&
@@ -588,8 +633,17 @@ CONTAINS
              CALL overlap_shg_abb(la(:,iset),first_sgfa(:,iset),nshella(iset),&
                                     lb(:,jset),first_sgfb(:,jset),nshellb(jset),&
                                     lcb(:,kset),first_sgfcb(:,kset),nshellcb(kset),&
-                                    swork_cont,abbint,Waux_mat,lri_env%cg_shg%cg_coeff,&
-                                    lri_env%cg_shg%cg_none0_list,lri_env%cg_shg%ncg_none0)
+                                    lri_env%cg_shg%cg_coeff,lri_env%cg_shg%cg_none0_list,&
+                                    lri_env%cg_shg%ncg_none0,swork_cont,Waux_mat,abbint)
+             IF(calculate_forces) THEN
+               !*** -rab, since Eq. in Ref. use Ra-Rb, not Rb-Ra
+               CALL dev_overlap_shg_abb(la(:,iset),first_sgfa(:,iset),nshella(iset),&
+                                        lb(:,jset),first_sgfb(:,jset),nshellb(jset),&
+                                        lcb(:,kset),first_sgfcb(:,kset),nshellcb(kset),&
+                                        lri_env%cg_shg%cg_coeff,lri_env%cg_shg%cg_none0_list,&
+                                        lri_env%cg_shg%ncg_none0,-rab,swork_cont,&
+                                        Waux_mat,dWaux_mat,dabbint)
+             ENDIF
 
           END DO
        END DO
@@ -607,31 +661,40 @@ CONTAINS
 ! *****************************************************************************
 !> \brief calculate overlap integrals (a,b)
 !> \param sab integral (a,b)
+!> \param dsab derivative of sab
 !> \param rab distance vector
 !> \param fba basis at center A
 !> \param fbb basis at center B
 !> \param scona_shg contraction matrix A
 !> \param sconb_shg contraxtion matrix B
 !> \param Waux_mat angular-dependent part
+!> \param dWaux_mat derivative of Waux_mat
+!> \param calculate_forces ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE lri_int_ab_shg(sab,rab,fba,fbb,scona_shg,sconb_shg,Waux_mat,error)
+  SUBROUTINE lri_int_ab_shg(sab,dsab,rab,fba,fbb,scona_shg,sconb_shg,Waux_mat,&
+                            dWaux_mat,calculate_forces,error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sab
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: dsab
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     TYPE(gto_basis_set_type), POINTER        :: fba, fbb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: scona_shg, sconb_shg
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: Waux_mat
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: dWaux_mat
+    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_ab_shg', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, ids, ids_start, ipgfa, iset, ishella, jpgfb, jset, &
-      jshellb, la_max_set, lai, lb_max_set, lbj, nds, npgfa_set, npgfb_set, &
-      nseta, nsetb, nshella_set, nshellb_set, stat
+      jshellb, la_max_set, lai, lb_max_set, lbj, ndev, nds, nds_max, &
+      npgfa_set, npgfb_set, nseta, nsetb, nshella_set, nshellb_set, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, npgfa, npgfb, &
                                                 nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, la, lb
@@ -676,9 +739,12 @@ CONTAINS
     npgfb_set = MAXVAL(npgfb)
     nshella_set = MAXVAL(nshella)
     nshellb_set = MAXVAL(nshellb)
-    ALLOCATE(swork(npgfa_set,npgfb_set,la_max_set+lb_max_set+1),STAT=stat)
+    ndev = 0
+    IF(calculate_forces) ndev = 1
+    nds_max = la_max_set + lb_max_set + ndev + 1
+    ALLOCATE(swork(npgfa_set,npgfb_set,nds_max),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(swork_cont(nshella_set,nshellb_set,la_max_set+lb_max_set+1),STAT=stat)
+    ALLOCATE(swork_cont(nshella_set,nshellb_set,nds_max),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     DO iset=1,nseta
@@ -690,7 +756,7 @@ CONTAINS
 
           CALL s_overlap_ab(la_max(iset),npgfa(iset),zeta(:,iset),&
                             lb_max(jset),npgfb(jset),zetb(:,jset),&
-                            rab,swork)
+                            rab,swork,calculate_forces)
 
           swork_cont = 0.0_dp
           DO ishella = 1, nshella(iset)
@@ -703,7 +769,7 @@ CONTAINS
                    aif  = 1.0_dp/((2._dp*zeta(ipgfa,iset))**lai)
                    DO jpgfb = 1, npgfb(jset)
                       bjf  = 1.0_dp/((2._dp*zetb(jpgfb,jset))**lbj)
-                      DO ids =ids_start, nds 
+                      DO ids =ids_start, nds + ndev 
                          swork_cont(ishella,jshellb,ids) = swork_cont(ishella,jshellb,ids)&
                                                           +scona_shg(ipgfa,ishella,iset)&
                                                           *sconb_shg(jpgfb,jshellb,jset)&
@@ -715,7 +781,13 @@ CONTAINS
           ENDDO
           CALL overlap_shg_ab(la(:,iset),first_sgfa(:,iset),nshella(iset),&
                               lb(:,jset),first_sgfb(:,jset),nshellb(jset),&
-                              swork_cont,sab,Waux_mat)
+                              swork_cont,Waux_mat,sab)
+          IF(calculate_forces) THEN
+            !*** -rab, since Eq. in Ref. use Ra-Rb, not Rb-Ra
+            CALL dev_overlap_shg_ab(la(:,iset),first_sgfa(:,iset),nshella(iset),&
+                                lb(:,jset),first_sgfb(:,jset),nshellb(jset),&
+                                -rab,swork_cont,Waux_mat,dWaux_mat,dsab)
+          ENDIF
        END DO
     END DO
 

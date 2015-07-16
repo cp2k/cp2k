@@ -204,7 +204,7 @@ CONTAINS
          ! calculate integrals (fa,fb), (a,b), (a,b,fa) and (a,b,fb)
          IF(lri_env%use_shg_integrals) THEN
            CALL lri_int_shg(lri_env,lrii,ra,rb,rab,obasa,obasb,fbasa,fbasb,&
-                            iatom,jatom,ikind,jkind,calculate_forces,error)
+                            iatom,jatom,ikind,jkind,error)
          ELSE
            CALL lri_int_os(lri_env,lrii,ra,rb,rab,obasa,obasb,fbasa,fbasb,&
                            iatom,jatom,ikind,error)
@@ -755,18 +755,16 @@ CONTAINS
 !> \param jatom index atom B
 !> \param ikind kind atom A
 !> \param jkind kind atom B
-!> \param calculate_forces ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE lri_int_shg(lri_env,lrii,ra,rb,rab,obasa,obasb,fbasa,fbasb,&
-                        iatom,jatom,ikind,jkind,calculate_forces,error)
+                        iatom,jatom,ikind,jkind,error)
     
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_int_type), POINTER              :: lrii
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rb, rab
     TYPE(gto_basis_set_type), POINTER        :: obasa, obasb, fbasa, fbasb
     INTEGER, INTENT(IN)                      :: iatom, jatom, ikind, jkind
-    LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lri_int_shg', &
@@ -781,9 +779,11 @@ CONTAINS
                                                 scon_ria, scon_rib
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: Waux_mat
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: dWaux_mat
 
     CALL timeset(routineN,handle)
-    NULLIFY(scon_orba,scon_orbb,scon_ria,scon_rib,Waux_mat)
+    NULLIFY(scon_orba,scon_orbb,scon_ria,scon_rib,Waux_mat,dWaux_mat)
     failure = .FALSE.
 
     dab = SQRT(SUM(rab*rab))
@@ -791,13 +791,6 @@ CONTAINS
     nbb = obasb%nsgf
     nfa = fbasa%nsgf
     nfb = fbasb%nsgf
-
-    IF(calculate_forces) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="Derivatives of SHG integrals not implemented", &
-           error=error, error_level=cp_failure_level)
-      
-    ENDIF
 
     !*** calculate overlap integrals; for iatom=jatom this is the self-overlap
     IF(iatom == jatom.AND.dab < lri_env%delta) THEN
@@ -818,18 +811,23 @@ CONTAINS
       scon_orbb   => lri_env%bas_prop(jkind)%scon_orb       
       scon_ria    => lri_env%bas_prop(ikind)%scon_ri       
       scon_rib    => lri_env%bas_prop(jkind)%scon_ri       
-      CALL precalc_angular_shg_part(obasa,obasb,fbasa,fbasb,rab,Waux_mat,error) 
+      CALL precalc_angular_shg_part(obasa,obasb,fbasa,fbasb,rab,Waux_mat,dWaux_mat,&
+                                    lrii%calc_force_pair,error) 
       !*** (fa,fb)
-      CALL lri_int_ab_shg(lrii%sab,rab,fbasa,fbasb,scon_ria,scon_rib,Waux_mat,error)
+      CALL lri_int_ab_shg(lrii%sab,lrii%dsab,rab,fbasa,fbasb,scon_ria,scon_rib,&
+                          Waux_mat,dWaux_mat,lrii%calc_force_pair,error)
       !*** (a,b)
-      CALL lri_int_ab_shg(lrii%soo,rab,obasa,obasb,scon_orba,scon_orbb,Waux_mat,error)
+      CALL lri_int_ab_shg(lrii%soo,lrii%dsoo,rab,obasa,obasb,scon_orba,scon_orbb,&
+                          Waux_mat,dWaux_mat,lrii%calc_force_pair,error)
       !*** (a,b,fa)
-       CALL lri_int_aba_shg(lri_env,lrii%abaint,rab,obasa,obasb,fbasa,scon_orba,&
-                            scon_orbb,scon_ria,Waux_mat,error=error)
+       CALL lri_int_aba_shg(lri_env,lrii%abaint,lrii%dabdaint,rab,obasa,obasb,fbasa,&
+                            scon_orba,scon_orbb,scon_ria,Waux_mat,dWaux_mat,&
+                            lrii%calc_force_pair,error=error)
       !*** (a,b,fb)
-      CALL lri_int_abb_shg(lri_env,lrii%abbint,rab,obasa,obasb,fbasb,scon_orba,&
-                           scon_orbb,scon_rib,Waux_mat,error=error)
-      DEALLOCATE(Waux_mat,STAT=stat)
+      CALL lri_int_abb_shg(lri_env,lrii%abbint,lrii%dabbint,rab,obasa,obasb,fbasb,&
+                           scon_orba,scon_orbb,scon_rib,Waux_mat,dWaux_mat,&
+                           lrii%calc_force_pair,error=error)
+      DEALLOCATE(Waux_mat,dWaux_mat,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
 

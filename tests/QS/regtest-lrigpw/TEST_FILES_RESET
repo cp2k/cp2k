@@ -15,3 +15,5 @@ H2_tz2p_lri_diag.inp
 #
 # employ routine for pseudoinverse
 H2_tz2p_lri_ot.inp
+# switch from ENERGY to MD run
+H2O_lri_shg.inp
