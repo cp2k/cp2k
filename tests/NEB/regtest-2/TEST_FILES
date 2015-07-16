@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 2gly_DIIS-OEP-NEB.inp            10     6e-11
-2gly_DIIS-NEB.inp                10     2e-12
+2gly_DIIS-NEB.inp                10     7e-12                               
 2gly_DIIS-SD-NEB.inp             10     5e-10                               
 2gly_DIIS-SD-2.inp               10     1e-08                               
 2gly_DIIS-DNEB.inp               10     8e-12

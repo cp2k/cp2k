@@ -6,7 +6,7 @@
 # tests GAPW GTH and ALL
 #XAS
 CO.inp                            1
-CO_xastpxfh.inp                   1     8e-10
+CO_xastpxfh.inp                   1     4e-09                               
 CO_xastpxfh_locall.inp    1    4e-12    -92.76703520816123
 CO_xastpxfh_150Ry.inp    1    2e-12    -92.83674249641638
 #bug fix gpw_type
