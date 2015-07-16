@@ -2501,6 +2501,7 @@
             len,MPI_COMPLEX,win,request,ierr)
     ENDIF
 #else
+    request = 0
     CALL mp_abort("mp_rget requires MPI-3 standard")
 #endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_rget @ "//routineN )
