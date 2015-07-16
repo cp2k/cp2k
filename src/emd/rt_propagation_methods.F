@@ -56,8 +56,6 @@ MODULE rt_propagation_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
   USE rt_make_propagators,             ONLY: propagate_arnoldi,&
                                              propagate_bch,&
                                              propagate_exp,&
@@ -118,8 +116,6 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: delta_mos, mos_new
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
 
@@ -130,18 +126,14 @@ CONTAINS
        unit_nr=-1
     ENDIF
 
-    NULLIFY(rho,ks_env,delta_P, rho_new,delta_mos, mos_new)
+    NULLIFY(delta_P, rho_new,delta_mos, mos_new)
     NULLIFY(ks_mix,ks_mix_im)
     ! get everything needed and set some values
-    CALL get_qs_env(qs_env,&
-         rho=rho,&
-         matrix_s=matrix_s,&
-         ks_env=ks_env,&
-         error=error)
+    CALL get_qs_env(qs_env,matrix_s=matrix_s,error=error)
     IF(rtp%iter==1)THEN
        CALL qs_energies_init(qs_env, .FALSE. , error=error)
+       CALL get_qs_env(qs_env,matrix_s=matrix_s,error=error)
        IF(.NOT.rtp_control%fixed_ions)THEN
-          CALL get_qs_env(qs_env,matrix_s=matrix_s,ks_env=ks_env,rho=rho,error=error)
           CALL s_matrices_create (matrix_s,rtp,error=error)
        END IF
        rtp%delta_iter=100.0_dp

@@ -751,6 +751,7 @@ CONTAINS
     CALL cp_dbcsr_copy(zero,P_im,error=error)
     CALL cp_dbcsr_set(zero,0.0_dp,error=error)
     current_env%gauge=-1
+    current_env%gauge_init=.FALSE.
     CALL pw_pool_create_pw(auxbas_pw_pool,rs%pw,use_data=REALDATA3D,in_space=REALSPACE,error=error)
     CALL pw_pool_create_pw(auxbas_pw_pool,gs%pw,use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
     
