@@ -2954,9 +2954,11 @@ MODULE dbcsr_mm_cannon
     INTEGER :: right_myprow, right_npcols, right_nprows, right_row_mult, &
       right_row_nimages, row, send_p, size_guess, src_vcol, src_vrow, stat, &
       v_ci, v_i, v_ki, v_ri
-    INTEGER(kind=mp_address_kind) :: left_data_size, left_max_data, &
-      left_max_meta, left_meta_size, right_data_size, right_max_data, &
-      right_max_meta, right_meta_size
+    INTEGER(kind=mp_address_kind) :: left_data_size, left_max_meta, &
+      left_meta_size, right_data_size, right_max_meta, right_meta_size
+    INTEGER(kind=mp_address_kind), ALLOCATABLE, DIMENSION(:, :) :: &
+      left_max_data_clusters, left_max_meta_clusters, &
+      right_max_data_clusters, right_max_meta_clusters
     INTEGER(kind=mp_address_kind), &
       ALLOCATABLE, DIMENSION(:, :, :)        :: left_gets, local_left_gets, &
                                                 local_right_gets, right_gets
@@ -2971,7 +2973,8 @@ MODULE dbcsr_mm_cannon
                                                 right_gets_filtered, &
                                                 right_gets_p
     INTEGER, DIMENSION(:), POINTER           :: left_meta_get, right_meta_get
-    LOGICAL                                  :: keep_sparsity, otf_filtering
+    LOGICAL                                  :: is_square_topo, &
+                                                keep_sparsity, otf_filtering
     REAL(kind=sp)                            :: min_row_max_epss
     REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: row_max_epss
     REAL(kind=sp), ALLOCATABLE, &
@@ -3067,6 +3070,7 @@ MODULE dbcsr_mm_cannon
     right_mypcol      = dbcsr_mp_mypcol(right_mp_obj)
     right_myfirstvrow = right_myprow*right_row_nimages
     right_myfirstvcol = right_mypcol*right_col_nimages
+    is_square_topo = left_col_nimages.EQ.right_row_nimages
     grp_right = dbcsr_mp_my_col_group (right_mp_obj)
     grp_left = dbcsr_mp_my_row_group (left_mp_obj)
     CALL dbcsr_mp_grid_setup (product_mp_obj)
@@ -3103,8 +3107,10 @@ MODULE dbcsr_mm_cannon
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Product/Right total mismatch",__LINE__,error)
     !
-    dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,left_row_nimages*left_col_nimages)
-    dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,right_row_nimages*right_col_nimages)
+    dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,&
+                                       left_row_nimages*left_col_nimages)
+    dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,&
+                                       right_row_nimages*right_col_nimages)
     dbcsr_mpi_statistics%nprocs = numnodes
     !
     ! The main transfer loop goes through the virtual rows/columns.
@@ -3153,11 +3159,21 @@ MODULE dbcsr_mm_cannon
     CALL mp_allgather(local_left_gets,all_left_gets,grp_left)
     !
     ALLOCATE (right_gets(4,0:nvirt_k-1,right_myfirstvcol:right_myfirstvcol+right_col_nimages-1))
-    right_gets = -1
-    right_max_data = 0 ; right_max_meta = 0
     ALLOCATE (left_gets(4,left_myfirstvrow:left_myfirstvrow+left_row_nimages-1,0:nvirt_k-1))
-    left_gets = -1
-    left_max_data = 0 ; left_max_meta = 0
+    IF (is_square_topo) THEN
+       v_ri = right_row_nimages
+       v_ci = left_col_nimages
+    ELSE
+       v_ri = 1
+       v_ci = 1
+    ENDIF
+    ALLOCATE (right_max_data_clusters(v_ri,right_col_nimages))
+    ALLOCATE (left_max_data_clusters(left_row_nimages,v_ci))
+    right_max_data_clusters = 0 ; left_max_data_clusters = dbcsr_slot_size
+    ALLOCATE (right_max_meta_clusters(v_ri,right_col_nimages))
+    ALLOCATE (left_max_meta_clusters(left_row_nimages,v_ci))
+    right_max_meta_clusters = 0 ; left_max_meta_clusters = dbcsr_slot_size
+    right_max_meta = 0 ; left_max_meta = dbcsr_slot_size
     !
     ! Translate the all_sizes to account for pre-distribution.  This
     ! is just done to simplify lookups.
@@ -3167,13 +3183,22 @@ MODULE dbcsr_mm_cannon
           ! the "source" rows/columns; the right_dst are the shifted
           ! targets where the data was placed in make_images.
           CALL image_calculator(right_set%image_dist,&
-               prow = dst_p, &
+               prow = dst_p,&
                rowi = dst_irow, coli = dst_icol,&
                myvprow = src_vrow, myvpcol = src_vcol,&
                shifting = 'r', error=error)
           right_gets(:, src_vrow, src_vcol) =&
                all_right_gets(:, dst_irow, dst_icol, dst_p)
-          right_max_data = MAX(right_max_data,right_gets(idata_size,src_vrow,src_vcol))
+          IF (right_gets(idata_size,src_vrow,src_vcol).EQ.0) CYCLE
+          IF (is_square_topo) THEN
+             v_ri = dst_irow
+          ENDIF
+          right_max_data_clusters(v_ri,dst_icol) = &
+               MAX(right_max_data_clusters(v_ri,dst_icol),&
+               right_gets(idata_size,src_vrow,src_vcol))
+          right_max_meta_clusters(v_ri,dst_icol) = &
+               MAX(right_max_meta_clusters(v_ri,dst_icol),&
+               right_gets(imeta_size,src_vrow,src_vcol))
           right_max_meta = MAX(right_max_meta,right_gets(imeta_size,src_vrow,src_vcol))
        ENDDO
     ENDDO
@@ -3190,7 +3215,16 @@ MODULE dbcsr_mm_cannon
                shifting = 'l', error=error)
           left_gets(:, src_vrow, src_vcol) =&
                all_left_gets(:, dst_irow, dst_icol, dst_p)
-          left_max_data = MAX(left_max_data,left_gets(idata_size,src_vrow,src_vcol))
+          IF (left_gets(idata_size,src_vrow,src_vcol).EQ.0) CYCLE
+          IF (is_square_topo) THEN
+             v_ci = dst_icol
+          ENDIF
+          left_max_data_clusters(dst_irow,v_ci) = &
+               MAX(left_max_data_clusters(dst_irow,v_ci),&
+               left_gets(idata_size,src_vrow,src_vcol))
+          left_max_meta_clusters(dst_irow,v_ci) = &
+               MAX(left_max_meta_clusters(dst_irow,v_ci),&
+               left_gets(imeta_size,src_vrow,src_vcol))
           left_max_meta = MAX(left_max_meta,left_gets(imeta_size,src_vrow,src_vcol))
        ENDDO
     ENDDO
@@ -3229,11 +3263,12 @@ MODULE dbcsr_mm_cannon
     !
     ! Prepare buffers for computation
     ! Left:
-    CALL buffer_matrices_ensure_size(left_set, index_size=left_max_meta,&
-         data_size=left_max_data, error=error)
-    CALL setup_buffer_matrices (left_buffer, left_row_mult, left_col_nimages,&
-         left_set%mats(1,1), index_size=left_max_meta, data_size=left_max_data,&
-         error=error)
+    CALL buffer_matrices_ensure_size_clusters(left_set, index_size=left_max_meta_clusters,&
+         data_size=left_max_data_clusters, is_square_topo=is_square_topo, left=.TRUE., error=error)
+    CALL setup_buffer_matrices_clusters (left_buffer, left_row_nimages, left_col_nimages,&
+         left_set%mats(1,1), index_size=left_max_meta_clusters, data_size=left_max_data_clusters,&
+         is_square_topo=is_square_topo, left=.TRUE., error=error)
+    DEALLOCATE (left_max_data_clusters,left_max_meta_clusters)
     !
     ! Setup indexing
     CALL setup_rec_index (left_set, error)    
@@ -3241,11 +3276,12 @@ MODULE dbcsr_mm_cannon
     left_buffer_calc => left_set
     left_buffer_comm => left_buffer
     ! Right:
-    CALL buffer_matrices_ensure_size(right_set, index_size=right_max_meta, &
-         data_size=right_max_data, error=error)
-    CALL setup_buffer_matrices (right_buffer, right_row_nimages, right_col_mult,&
-         right_set%mats(1,1), index_size=right_max_meta, data_size=right_max_data,&
-         error=error)
+    CALL buffer_matrices_ensure_size_clusters(right_set, index_size=right_max_meta_clusters, &
+         data_size=right_max_data_clusters, is_square_topo=is_square_topo, error=error)
+    CALL setup_buffer_matrices_clusters (right_buffer, right_row_nimages, right_col_nimages,&
+         right_set%mats(1,1), index_size=right_max_meta_clusters, data_size=right_max_data_clusters,&
+         is_square_topo=is_square_topo, error=error)
+    DEALLOCATE (right_max_data_clusters,right_max_meta_clusters)
     !
     ! Setup indexing
     CALL setup_rec_index (right_set, error)
@@ -3822,7 +3858,8 @@ MODULE dbcsr_mm_cannon
                 CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ri, v_ci)%m%data_area, error)
                 CALL acc_transpose_blocks(right_buffer_calc%mats(v_ri, v_ci), trs_stackbuf_calc, error)
              ENDIF
-             IF (otf_filtering.AND.metronome.GT.1) &
+             IF (otf_filtering.AND.metronome.GT.1.AND.&
+                  right_buffer_calc%mats(v_ri,v_ci)%m%index(dbcsr_slot_size).NE.dbcsr_num_slots) &
                   CALL calculate_norms(right_buffer_calc%mats(v_ri, v_ci),&
                                        right_norms(:,v_ri,v_ci), error=error)
           ENDDO
@@ -3837,7 +3874,8 @@ MODULE dbcsr_mm_cannon
                                        left_set%image_dist, error=error)
              IF (mm_driver==mm_driver_acc) &
                   CALL dbcsr_data_host2dev(left_buffer_calc%mats(v_ri, v_ci)%m%data_area, error)
-             IF (otf_filtering.AND.metronome.GT.1) &
+             IF (otf_filtering.AND.metronome.GT.1.AND.&
+                  left_buffer_calc%mats(v_ri,v_ci)%m%index(dbcsr_slot_size).NE.dbcsr_num_slots) &
                   CALL calculate_norms(left_buffer_calc%mats(v_ri, v_ci),&
                                        left_norms(:,v_ri,v_ci), error=error)
           ENDDO
@@ -4023,6 +4061,148 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param source_matrix ...
+!> \param index_size ...
+!> \param data_size ...
+!> \param error ...
+!>
+! *****************************************************************************
+  SUBROUTINE setup_buffer_matrix (matrix, source_matrix, index_size, data_size, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    TYPE(dbcsr_obj), INTENT(IN)              :: source_matrix
+    INTEGER(kind=mp_address_kind), &
+      INTENT(IN)                             :: index_size, data_size
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    INTEGER, DIMENSION(:), POINTER           :: i1
+
+    CALL dbcsr_init(matrix)
+    ! Dummy allocation only needed for NAG (at least for 5.1(327))
+    ALLOCATE(i1(10000))
+    CALL dbcsr_create(matrix,&
+         template = source_matrix,&
+         name = TRIM("Buffer of "//TRIM(source_matrix%m%name)),&
+         nblks = INT(index_size), nze = INT(data_size), &
+         data_memory_type = memtype_abpanel_2,&
+         index_memory_type = dbcsr_memtype_default,&
+         error = error)
+    ! Dummy allocation only needed for NAG (at least for 5.1(327))
+    DEALLOCATE(i1)
+    CALL dbcsr_data_ensure_size (&
+         matrix%m%data_area,&
+         INT(data_size), nocopy=.TRUE.,error=error)
+    CALL ensure_array_size (&
+         matrix%m%index,&
+         ub=INT(index_size), nocopy=.TRUE.,&
+         memory_type=dbcsr_get_index_memory_type(matrix),&
+         error=error)
+    matrix%m%negate_real = source_matrix%m%negate_real
+    matrix%m%negate_imaginary = source_matrix%m%negate_imaginary
+    matrix%m%local_indexing = source_matrix%m%local_indexing
+    matrix%m%list_indexing = source_matrix%m%list_indexing
+    !
+    IF (source_matrix%m%has_local_rows) THEN
+       matrix%m%local_rows = source_matrix%m%local_rows
+       CALL array_hold (matrix%m%local_rows)
+       matrix%m%has_local_rows = .TRUE.
+    ENDIF
+    IF (source_matrix%m%has_global_rows) THEN
+       matrix%m%global_rows = source_matrix%m%global_rows
+       CALL array_hold (matrix%m%global_rows)
+       matrix%m%has_global_rows = .TRUE.
+    ENDIF
+    IF (source_matrix%m%has_local_cols) THEN
+       matrix%m%local_cols = source_matrix%m%local_cols
+       CALL array_hold (matrix%m%local_cols)
+       matrix%m%has_local_cols = .TRUE.
+    ENDIF
+    IF (source_matrix%m%has_global_cols) THEN
+       matrix%m%global_cols = source_matrix%m%global_cols
+       CALL array_hold (matrix%m%global_cols)
+       matrix%m%has_global_cols = .TRUE.
+    ENDIF
+    
+  END SUBROUTINE setup_buffer_matrix
+
+! *****************************************************************************
+!> \brief ...
+!> \param buffer_set ...
+!> \param buff_rows ...
+!> \param buff_cols ...
+!> \param source_matrix ...
+!> \param index_size ...
+!> \param data_size ...
+!> \param is_square_topo ...
+!> \param left ...
+!> \param error ...
+!>
+! *****************************************************************************
+  SUBROUTINE setup_buffer_matrices_clusters (buffer_set, buff_rows, buff_cols,&
+       source_matrix, index_size, data_size, is_square_topo, left, error)
+    TYPE(dbcsr_2d_array_type), INTENT(OUT)   :: buffer_set
+    INTEGER, INTENT(IN)                      :: buff_rows, buff_cols
+    TYPE(dbcsr_obj), INTENT(IN)              :: source_matrix
+    INTEGER(kind=mp_address_kind), &
+      DIMENSION(:, :), INTENT(IN)            :: index_size, data_size
+    LOGICAL, INTENT(IN)                      :: is_square_topo
+    LOGICAL, INTENT(IN), OPTIONAL            :: left
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'setup_buffer_matrices_clusters', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: col_image, error_handler, &
+                                                row_image, v_i
+    LOGICAL                                  :: is_left
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_image_dist_init (buffer_set%image_dist, error=error)
+    ALLOCATE (buffer_set%mats(buff_rows, buff_cols))
+    v_i = 1
+    is_left = PRESENT(left) ; IF (is_left) is_left = left
+    IF (is_left) THEN
+       DO col_image = 1, buff_cols
+          IF (is_square_topo) v_i = col_image
+          DO row_image = 1, buff_rows
+             CALL setup_buffer_matrix(buffer_set%mats(row_image, col_image),&
+                  source_matrix, index_size(row_image,v_i), &
+                  data_size(row_image,v_i), error)
+          ENDDO
+       ENDDO
+    ELSE
+       DO row_image = 1, buff_rows
+          IF (is_square_topo) v_i = row_image
+          DO col_image = 1, buff_cols
+             CALL setup_buffer_matrix(buffer_set%mats(row_image, col_image),&
+                  source_matrix, index_size(v_i,col_image), &
+                  data_size(v_i,col_image), error)
+          ENDDO
+       ENDDO
+    ENDIF
+    IF (source_matrix%m%local_indexing .AND. careful_mod) THEN
+       CALL dbcsr_assert (array_exists (source_matrix%m%local_rows),&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Local rows should exist.", __LINE__, error=error)
+       CALL dbcsr_assert (array_exists (source_matrix%m%global_rows),&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Global rows should exist.", __LINE__, error=error)
+       !
+       CALL dbcsr_assert (array_exists (source_matrix%m%local_cols),&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Local cols should exist.", __LINE__, error=error)
+       CALL dbcsr_assert (array_exists (source_matrix%m%global_cols),&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Global cols should exist.", __LINE__, error=error)
+    ENDIF
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE setup_buffer_matrices_clusters
+
+! *****************************************************************************
+!> \brief ...
 !> \param buffer_set ...
 !> \param buff_rows ...
 !> \param buff_cols ...
@@ -4046,7 +4226,6 @@ MODULE dbcsr_mm_cannon
 
     INTEGER                                  :: col_image, error_handler, &
                                                 row_image
-    INTEGER, DIMENSION(:), POINTER           :: i1
 
 !   ---------------------------------------------------------------------------
 
@@ -4056,79 +4235,101 @@ MODULE dbcsr_mm_cannon
     ALLOCATE (buffer_set%mats(buff_rows, buff_cols))
     DO row_image = 1, buff_rows
        DO col_image = 1, buff_cols
-          CALL dbcsr_init(buffer_set%mats(row_image, col_image))
-          ! Dummy allocation only needed for NAG (at least for 5.1(327))
-          ALLOCATE(i1(10000))
-          CALL dbcsr_create(buffer_set%mats(row_image, col_image),&
-               template = source_matrix,&
-               name = TRIM("Buffer of "//TRIM(source_matrix%m%name)),&
-               nblks = INT(index_size), nze = INT(data_size), &
-               data_memory_type = memtype_abpanel_2,&
-               index_memory_type = dbcsr_memtype_default,&
-               error = error)
-          ! Dummy allocation only needed for NAG (at least for 5.1(327))
-          DEALLOCATE(i1)
-          CALL dbcsr_data_ensure_size (&
-               buffer_set%mats(row_image, col_image)%m%data_area,&
-               INT(data_size), nocopy=.TRUE.,error=error)
-          CALL ensure_array_size (&
-               buffer_set%mats(row_image, col_image)%m%index,&
-               ub=INT(index_size), nocopy=.TRUE.,&
-               memory_type=dbcsr_get_index_memory_type(buffer_set%mats(row_image, col_image)),&
-               error=error)
-          buffer_set%mats(row_image, col_image)%m%negate_real&
-               = source_matrix%m%negate_real
-          buffer_set%mats(row_image, col_image)%m%negate_imaginary&
-               = source_matrix%m%negate_imaginary
-          buffer_set%mats(row_image, col_image)%m%local_indexing &
-               = source_matrix%m%local_indexing
-          buffer_set%mats(row_image, col_image)%m%list_indexing &
-               = source_matrix%m%list_indexing
-          !
-          IF (source_matrix%m%has_local_rows) THEN
-             buffer_set%mats(row_image, col_image)%m%local_rows &
-                                   = source_matrix%m%local_rows
-             CALL array_hold (buffer_set%mats(row_image, col_image)%m%local_rows)
-             buffer_set%mats(row_image, col_image)%m%has_local_rows = .TRUE.
-          ENDIF
-          IF (source_matrix%m%has_global_rows) THEN
-             buffer_set%mats(row_image, col_image)%m%global_rows &
-                                   = source_matrix%m%global_rows
-             CALL array_hold (buffer_set%mats(row_image, col_image)%m%global_rows)
-             buffer_set%mats(row_image, col_image)%m%has_global_rows = .TRUE.
-          ENDIF
-          IF (source_matrix%m%has_local_cols) THEN
-             buffer_set%mats(row_image, col_image)%m%local_cols &
-                                   = source_matrix%m%local_cols
-             CALL array_hold (buffer_set%mats(row_image, col_image)%m%local_cols)
-             buffer_set%mats(row_image, col_image)%m%has_local_cols = .TRUE.
-          ENDIF
-          IF (source_matrix%m%has_global_cols) THEN
-             buffer_set%mats(row_image, col_image)%m%global_cols &
-                                   = source_matrix%m%global_cols
-             CALL array_hold (buffer_set%mats(row_image, col_image)%m%global_cols)
-             buffer_set%mats(row_image, col_image)%m%has_global_cols = .TRUE.
-          ENDIF
-          IF (source_matrix%m%local_indexing .AND. careful_mod) THEN
-             CALL dbcsr_assert (array_exists (source_matrix%m%local_rows),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Local rows should exist.", __LINE__, error=error)
-             CALL dbcsr_assert (array_exists (source_matrix%m%global_rows),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Global rows should exist.", __LINE__, error=error)
-             !
-             CALL dbcsr_assert (array_exists (source_matrix%m%local_cols),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Local cols should exist.", __LINE__, error=error)
-             CALL dbcsr_assert (array_exists (source_matrix%m%global_cols),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Global cols should exist.", __LINE__, error=error)
-          ENDIF
+          CALL setup_buffer_matrix(buffer_set%mats(row_image, col_image),&
+               source_matrix, index_size, data_size, error)
        ENDDO
     ENDDO
+    IF (source_matrix%m%local_indexing .AND. careful_mod) THEN
+       CALL dbcsr_assert (array_exists (source_matrix%m%local_rows),&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Local rows should exist.", __LINE__, error=error)
+       CALL dbcsr_assert (array_exists (source_matrix%m%global_rows),&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Global rows should exist.", __LINE__, error=error)
+       !
+       CALL dbcsr_assert (array_exists (source_matrix%m%local_cols),&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Local cols should exist.", __LINE__, error=error)
+       CALL dbcsr_assert (array_exists (source_matrix%m%global_cols),&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Global cols should exist.", __LINE__, error=error)
+    ENDIF
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE setup_buffer_matrices
 
+! *****************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param index_size ...
+!> \param data_size ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE buffer_matrix_ensure_size(matrix, index_size, data_size, error)
+    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+    INTEGER(kind=mp_address_kind), &
+      INTENT(IN)                             :: index_size, data_size
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CALL dbcsr_data_ensure_size (matrix%m%data_area,&
+         INT(data_size), error=error)
+    CALL ensure_array_size (matrix%m%index,&
+         ub=INT(index_size),&
+         memory_type=dbcsr_get_index_memory_type(matrix),&
+         error=error)
+    CALL dbcsr_repoint_index(matrix%m)    
+
+  END SUBROUTINE buffer_matrix_ensure_size
+
+! *****************************************************************************
+!> \brief ...
+!> \param buffer_set ...
+!> \param index_size ...
+!> \param data_size ...
+!> \param is_square_topo ...
+!> \param left ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE buffer_matrices_ensure_size_clusters(buffer_set, index_size, data_size, &
+       is_square_topo, left, error)
+    TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: buffer_set
+    INTEGER(kind=mp_address_kind), &
+      DIMENSION(:, :), INTENT(IN)            :: index_size, data_size
+    LOGICAL, INTENT(IN)                      :: is_square_topo
+    LOGICAL, INTENT(IN), OPTIONAL            :: left
+    TYPE(dbcsr_error_type), INTENT(inout)    :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'buffer_matrices_ensure_size_clusters', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: col_image, error_handler, &
+                                                row_image, v_i
+    LOGICAL                                  :: is_left
+
+!   ---------------------------------------------------------------------------
+
+    CALL dbcsr_error_set(routineN, error_handler, error)
+    v_i = 1
+    is_left = PRESENT(left) ; IF (is_left) is_left = left
+    IF (is_left) THEN
+       DO col_image = 1, SIZE(buffer_set%mats, 2)
+          IF (is_square_topo) v_i = col_image
+          DO row_image = 1, SIZE(buffer_set%mats, 1)
+             CALL buffer_matrix_ensure_size(buffer_set%mats(row_image, col_image),&
+                  index_size(row_image,v_i), data_size(row_image,v_i), error)
+          ENDDO
+       ENDDO
+    ELSE
+       DO row_image = 1, SIZE(buffer_set%mats, 1)
+          IF (is_square_topo) v_i = row_image
+          DO col_image = 1, SIZE(buffer_set%mats, 2)
+             CALL buffer_matrix_ensure_size(buffer_set%mats(row_image, col_image),&
+                  index_size(v_i,col_image), data_size(v_i,col_image), error)
+          ENDDO
+       ENDDO
+    ENDIF
+    CALL dbcsr_error_stop(error_handler, error)
+  END SUBROUTINE buffer_matrices_ensure_size_clusters
 
 ! ******************************************************************************
 !> \brief Enlarge left_set and right_set to hold any a/b-panel.
@@ -4163,22 +4364,14 @@ MODULE dbcsr_mm_cannon
 
     DO row_image = 1, SIZE(buffer_set%mats, 1)
        DO col_image = 1, SIZE(buffer_set%mats, 2)
-          CALL dbcsr_data_ensure_size (&
-               buffer_set%mats(row_image, col_image)%m%data_area,&
-               INT(data_size), error=error)
-          CALL ensure_array_size (&
-               buffer_set%mats(row_image, col_image)%m%index,&
-               ub=INT(index_size),&
-               memory_type=dbcsr_get_index_memory_type(buffer_set%mats(row_image, col_image)),&
-               error=error)
-          CALL dbcsr_repoint_index(buffer_set%mats(row_image, col_image)%m)
+          CALL buffer_matrix_ensure_size(buffer_set%mats(row_image, col_image),&
+               index_size, data_size, error)
        ENDDO
     ENDDO
     CALL dbcsr_error_stop(error_handler, error)
   END SUBROUTINE buffer_matrices_ensure_size
 
 
-! ******************************************************************************
 ! *****************************************************************************
 !> \brief ...
 !> \param matrix_set ...
