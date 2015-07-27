@@ -436,7 +436,7 @@
    <xsl:sort select="NAME[@type='default']"/>
    <xsl:if test="not(starts-with(NAME[@type='default'],'__CONTROL'))">
     <li>
-     <a href="#desc_{string(NAME[@type='default'])}" id="list_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
+     <a href="#{string(NAME[@type='default'])}" id="list_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
     </li>
    </xsl:if>
   </xsl:for-each>
@@ -457,7 +457,8 @@
      <td class="l">
       <ul class="disc">
        <li>
-        <a href="#list_{string(NAME[@type='default'])}" id="desc_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
+        <a id="desc_{string(NAME[@type='default'])}"></a>
+        <a href="#list_{string(NAME[@type='default'])}" id="{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
        </li>
       </ul>
      </td>
