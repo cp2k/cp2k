@@ -165,7 +165,8 @@ MODULE dbcsr_mm_cannon
                                              real_4,&
                                              real_8,&
                                              sp
-  USE machine,                         ONLY: default_output_unit
+  USE machine,                         ONLY: default_output_unit,&
+                                             m_memory
   USE message_passing,                 ONLY: &
        mp_address_kind, mp_allgather, mp_alltoall, mp_irecv, mp_isend, &
        mp_isendrecv, mp_max, mp_min, mp_request_null, mp_rget, mp_sum, &
@@ -192,8 +193,9 @@ MODULE dbcsr_mm_cannon
   TYPE(dbcsr_memtype_type_p), DIMENSION(:), POINTER, SAVE :: memtype_product_wm => Null()
 
   TYPE(dbcsr_mpi_statistics_type), PRIVATE, SAVE :: dbcsr_mpi_statistics
-  INTEGER(KIND=int_8),             PRIVATE, SAVE :: marketing_flops = 0
-
+  REAL,                            PRIVATE, SAVE :: marketing_flops = 0
+  INTEGER(KIND=int_8),             PRIVATE, SAVE :: max_memory = 0
+  
   INTEGER, PRIVATE, SAVE :: last_mpi_ranks_used = 0
 
   TYPE(dbcsr_memtype_type),     PRIVATE, SAVE  :: memtype_abpanel_1, memtype_abpanel_2,&
@@ -238,7 +240,6 @@ MODULE dbcsr_mm_cannon
     dbcsr_mpi_statistics%nimages = -1
     dbcsr_mpi_statistics%nexchanged = 0
     dbcsr_mpi_statistics%nfiltered = 0
-    dbcsr_mpi_statistics%nprocs = -1
     dbcsr_mpi_statistics%data_size = 0
     dbcsr_mpi_statistics%data_size(:,2) = HUGE(dbcsr_mpi_statistics%data_size(1,2))
     dbcsr_mpi_statistics%index_size = 0
@@ -246,6 +247,7 @@ MODULE dbcsr_mm_cannon
     dbcsr_mpi_statistics%data_size_breakdown = 0
 
     marketing_flops = 0
+    max_memory = 0
     ALLOCATE(memtype_product_wm(0:nthreads-1))
     !$OMP END MASTER
     !$OMP BARRIER
@@ -272,14 +274,14 @@ MODULE dbcsr_mm_cannon
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ilimit, isqrt, isqrt2, ithread
-    INTEGER(KIND=int_8)                      :: average, &
-                                                total_marketing_flops, &
+    INTEGER(KIND=int_8)                      :: average, total_max_memory, &
                                                 total_nexchanged, &
                                                 total_nfiltered
     INTEGER(KIND=int_8), DIMENSION(2)        :: max_recv_data, min_recv_data, &
                                                 total_recv_data
     INTEGER(KIND=int_8), DIMENSION(SIZE(&
       dbcsr_mpi_size_limits)+1, 2, 2)        :: total_recv_breakdown
+    REAL                                     :: total_marketing_flops
 
      CALL dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
 
@@ -295,7 +297,9 @@ MODULE dbcsr_mm_cannon
      !$omp master
      DEALLOCATE(memtype_product_wm)
 
-     ! this could overflow
+     total_max_memory=max_memory
+     CALL mp_max(total_max_memory,group)
+
      total_marketing_flops=marketing_flops
      CALL mp_sum(total_marketing_flops,group)
      
@@ -316,7 +320,7 @@ MODULE dbcsr_mm_cannon
 
      IF (dbcsr_mpi_statistics%nexchanged.GT.0) THEN
         average = NINT(DBLE(SUM(total_recv_data(:)))/&
-                       (dbcsr_mpi_statistics%nprocs*dbcsr_mpi_statistics%nexchanged))
+                       (last_mpi_ranks_used*dbcsr_mpi_statistics%nexchanged))
      ELSE
         average=0
         min_recv_data=0
@@ -326,11 +330,12 @@ MODULE dbcsr_mm_cannon
      CALL mp_sum(total_recv_breakdown,group)
 
      IF (output_unit>0) THEN
-       WRITE (output_unit,'(A,T30,I20)') " marketing flops", total_marketing_flops
+       WRITE (output_unit,'(A,T30,EN20.6)') " marketing flops", total_marketing_flops
 
        IF (dbcsr_mpi_statistics%nimages.GT.0) THEN
-          WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("-",79)       
-          WRITE (output_unit,'(A,T30,I20)') " # max total images/proc",dbcsr_mpi_statistics%nimages
+          WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("-",79)
+          WRITE (output_unit,'(A,T30,I20)') " max memory usage/rank",total_max_memory
+          WRITE (output_unit,'(A,T30,I20)') " # max total images/rank",dbcsr_mpi_statistics%nimages
           WRITE (output_unit,'(A,T30,I20)') " # MPI data exchanged",total_nexchanged
           WRITE (output_unit,'(A,T30,I20)') " # MPI data filtered",total_nfiltered
           WRITE (output_unit,'(A)') " MPI data size (elements):"
@@ -747,14 +752,11 @@ MODULE dbcsr_mm_cannon
        l_k = last_k
     ENDIF
 
-    ! update statistics (we count marketing flops per MPI rank), 
-    ! note that this number can easily overflow
+    ! update statistics (we count marketing flops per MPI rank)
     numnodes = dbcsr_mp_numnodes (dbcsr_distribution_mp (dbcsr_distribution (matrix_c)))
     last_mpi_ranks_used = numnodes
     marketing_flops = marketing_flops + &
-                         (2_int_8*INT(l_row-f_row+1, int_8)*INT(l_col-f_col+1, int_8)/numnodes) * &
-                         INT(l_k-f_k+1,     int_8)
-
+         (2.0*(l_row-f_row+1.0)*(l_col-f_col+1.0)/numnodes)*(l_k-f_k+1.0)
     !
     ! Now optimize the default submatrix selection values away
     IF (f_row .EQ. 1) f_row = 0
@@ -1985,7 +1987,7 @@ MODULE dbcsr_mm_cannon
       right_src_p, right_src_pcol, right_src_prow, right_src_vcol, &
       right_src_vrow, row, size_guess, stat, threads_finished, &
       threads_finished_read, v_k, v_ki
-    INTEGER(KIND=int_8)                      :: flop_single, flop_total
+    INTEGER(KIND=int_8)                      :: flop_single, flop_total, mem
     INTEGER(kind=mp_address_kind)            :: left_max_nblks, left_max_nze, &
                                                 right_max_nblks, right_max_nze
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
@@ -2137,7 +2139,6 @@ MODULE dbcsr_mm_cannon
     
     dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,left_row_nimages*left_col_nimages)
     dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,right_row_nimages*right_col_nimages)
-    dbcsr_mpi_statistics%nprocs = numnodes
     !
     ! Exchange size data
     ALLOCATE (my_sizes(4, MAX (left_row_nimages, right_row_nimages),&
@@ -2849,6 +2850,8 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_switch (trs_stackbuf_calc, trs_stackbuf_comm)
 
     ENDDO grouped_k_index
+    CALL m_memory(mem)
+    max_memory = MAX(max_memory,mem)
 
     IF (mm_driver==mm_driver_acc) THEN
        CALL dbcsr_data_release(trs_stackbuf_1)
@@ -2948,12 +2951,13 @@ MODULE dbcsr_mm_cannon
       left_col_nimages, left_data_win, left_meta_win, left_myfirstvcol, &
       left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, &
       left_row_mult, left_row_nimages, metronome, min_nimages, mynode, &
-      nblkrows_total, nsteps_k, nthreads, numnodes, nvirt_k, output_unit, &
-      recv_p, right_col_mult, right_col_nimages, right_data_win, &
-      right_meta_win, right_myfirstvcol, right_myfirstvrow, right_mypcol
-    INTEGER :: right_myprow, right_npcols, right_nprows, right_row_mult, &
-      right_row_nimages, row, send_p, size_guess, src_vcol, src_vrow, stat, &
-      v_ci, v_i, v_ki, v_ri
+      nblkrows_total, nblkrows_used, nsteps_k, nthreads, numnodes, nvirt_k, &
+      output_unit, recv_p, right_col_mult, right_col_nimages, right_data_win, &
+      right_meta_win, right_myfirstvcol, right_myfirstvrow
+    INTEGER :: right_mypcol, right_myprow, right_npcols, right_nprows, &
+      right_row_mult, right_row_nimages, row, send_p, size_guess, src_vcol, &
+      src_vrow, stat, v_ci, v_i, v_ki, v_ri
+    INTEGER(KIND=int_8)                      :: mem
     INTEGER(kind=mp_address_kind) :: left_data_size, left_max_meta, &
       left_meta_size, right_data_size, right_max_meta, right_meta_size
     INTEGER(kind=mp_address_kind), ALLOCATABLE, DIMENSION(:, :) :: &
@@ -2972,7 +2976,8 @@ MODULE dbcsr_mm_cannon
                                                 left_gets_p, &
                                                 right_gets_filtered, &
                                                 right_gets_p
-    INTEGER, DIMENSION(:), POINTER           :: left_meta_get, right_meta_get
+    INTEGER, DIMENSION(:), POINTER           :: left_meta_get, local_rows, &
+                                                right_meta_get
     LOGICAL                                  :: is_square_topo, &
                                                 keep_sparsity, otf_filtering
     REAL(kind=sp)                            :: min_row_max_epss
@@ -3027,12 +3032,6 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_assert (SIZE (product_matrix%m%wms), "EQ", nthreads,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Work matrices not correctly sized.",__LINE__,error)
-    CALL dbcsr_assert (.NOT.left_set%mats(1,1)%m%local_indexing,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "RMA requires not local indexing for left matrix!",__LINE__,error)
-    CALL dbcsr_assert (.NOT.right_set%mats(1,1)%m%local_indexing,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "RMA requires not local indexing for right matrix!",__LINE__,error)
     CALL dbcsr_assert (left_set%mats(1,1)%m%list_indexing,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "RMA requires list indexing for left matrix!",__LINE__,error)
@@ -3111,7 +3110,6 @@ MODULE dbcsr_mm_cannon
                                        left_row_nimages*left_col_nimages)
     dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,&
                                        right_row_nimages*right_col_nimages)
-    dbcsr_mpi_statistics%nprocs = numnodes
     !
     ! The main transfer loop goes through the virtual rows/columns.
     ! The number of steps may be smaller if the grid dimension is very
@@ -3306,9 +3304,17 @@ MODULE dbcsr_mm_cannon
             dbcsr_internal_error,&
             routineN, "Could not allocate memory for left/right norms", __LINE__,&
             error=error)
+       IF (dbcsr_has_local_row_index (left_set%mats(1, 1))) THEN
+          nblkrows_used = 0
+          DO v_ri = 1, left_row_nimages
+             nblkrows_used = MAX(nblkrows_used,dbcsr_nblkrows_local (left_set%mats(v_ri, 1)))
+          ENDDO
+       ELSE
+          nblkrows_used = nblkrows_total
+       ENDIF
        ! The summation could be done prow-locally but it would
        ! complicate the pre-row eps calculation.
-       ALLOCATE (row_counts(nblkrows_total),total_row_counts(nblkrows_total),stat=stat)
+       ALLOCATE (row_counts(nblkrows_used),total_row_counts(nblkrows_total),stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Could not allocate memory for left row counts",&
@@ -3327,8 +3333,17 @@ MODULE dbcsr_mm_cannon
              CALL count_bins (&
                   left_set%mats(v_ri,v_ci)%m%nblks,&
                   left_set%mats(v_ri,v_ci)%m%coo_l(1::3),&
-                  nblkrows_total, row_counts)
-             total_row_counts(:) = total_row_counts(:) + row_counts(:)
+                  nblkrows_used, row_counts)
+             IF (dbcsr_has_local_row_index (left_set%mats(v_ri,v_ci))) THEN
+                local_rows => array_data (left_set%mats(v_ri,v_ci)%m%local_rows)
+                CALL dbcsr_assert (SIZE(local_rows), "LE", nblkrows_used,&
+                     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+                     "Mismatch in number of local rows.", __LINE__, error=error)
+                total_row_counts(local_rows) = total_row_counts(local_rows)&
+                     + row_counts(1:SIZE(local_rows))
+             ELSE
+                total_row_counts(:) = total_row_counts(:) + row_counts(:)
+             ENDIF
           ENDDO
        ENDDO
        ! The counted blocks are then summed up
@@ -3928,6 +3943,9 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_switch (trs_stackbuf_calc, trs_stackbuf_comm)
 
     ENDDO grouped_k_index
+    !
+    CALL m_memory(mem)
+    max_memory = MAX(max_memory,mem)
     !
     IF (mm_driver==mm_driver_acc) THEN
        CALL dbcsr_data_release(trs_stackbuf_1)

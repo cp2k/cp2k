@@ -610,7 +610,6 @@ MODULE dbcsr_types
      INTEGER                               :: nimages
      INTEGER                               :: nexchanged
      INTEGER                               :: nfiltered
-     INTEGER                               :: nprocs
      ! rank 1: 1=right, 2=left
      ! rank 2: 1=total, 2=min, 3=max
      INTEGER(KIND=int_8), DIMENSION(2,3) :: data_size
