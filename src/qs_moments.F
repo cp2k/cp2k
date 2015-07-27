@@ -51,7 +51,8 @@ MODULE qs_moments
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: twopi
+  USE mathconstants,                   ONLY: pi,&
+                                             twopi
   USE message_passing,                 ONLY: mp_sum
   USE moments_utils,                   ONLY: get_reference_point
   USE orbital_pointers,                ONLY: current_maxl,&
@@ -831,7 +832,7 @@ CONTAINS
                                                 occ, trace
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: mmom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rmom
-    REAL(dp), DIMENSION(3)                   :: kvec, rcc, ria
+    REAL(dp), DIMENSION(3)                   :: kvec, qq, rcc, ria
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_cfm_p_type), DIMENSION(:), &
@@ -1002,6 +1003,7 @@ CONTAINS
              END DO
              zi = zi * zphase
              ci = AIMAG(LOG(zi)) / twopi
+             qq = AIMAG(LOG(zi))
              rmom(2:4,2) = MATMUL ( cell%hmat, ci )
            CASE (2)
              ! Quadrupole
@@ -1164,9 +1166,13 @@ CONTAINS
        DO l = 1, nmom
          SELECT CASE (l)
            CASE (1)
-             ! Dipole
-             ci = AIMAG(LOG(zi))/twopi
-             rmom(2:4,1) = MATMUL ( cell%hmat, ci )
+             ! Dipole (apply periodic (2 Pi) boundary conditions)
+             ci = AIMAG(LOG(zi))
+             DO i=1,3
+                IF( qq(i)+ci(i) > pi ) ci(i) = ci(i) - twopi
+                IF( qq(i)+ci(i) < -pi ) ci(i) = ci(i) + twopi
+             END DO
+             rmom(2:4,1) = MATMUL ( cell%hmat, ci ) / twopi
            CASE (2)
              ! Quadrupole
              CALL cp_unimplemented_error(fromWhere=routineP, &

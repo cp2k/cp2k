@@ -34,3 +34,10 @@ H2O-field-gopt.inp
 # new corrected implementation
 H2O-field-gopt-lsd.inp
 H2O-field-gopt.inp
+# change sign of e-field
+H2O-field-gopt.inp
+H2O-field-gopt-lsd.inp
+H2O-field.inp
+H2O-field-lsd.inp
+HF-field.inp
+HF-field-gopt.inp

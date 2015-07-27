@@ -15,6 +15,7 @@ MODULE qs_period_efield_types
 
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_p_type
+  USE kinds,                           ONLY: dp
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -27,6 +28,7 @@ MODULE qs_period_efield_types
             set_efield_matrices
 
   TYPE efield_berry_type
+     REAL(KIND=dp)                                         :: field_energy
      TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER           :: cosmat
      TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER           :: sinmat
      TYPE(cp_dbcsr_p_type),DIMENSION(:), POINTER           :: dipmat
@@ -58,6 +60,8 @@ CONTAINS
     NULLIFY(efield%cosmat)
     NULLIFY(efield%sinmat)
     NULLIFY(efield%dipmat)
+
+    efield%field_energy = 0.0_dp
 
   END SUBROUTINE init_efield_matrices
 

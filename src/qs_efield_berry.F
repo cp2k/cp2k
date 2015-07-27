@@ -50,7 +50,8 @@ MODULE qs_efield_berry
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: twopi
+  USE mathconstants,                   ONLY: pi,&
+                                             twopi
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
@@ -289,7 +290,7 @@ MODULE qs_efield_berry
 
     fieldpol=dft_control%period_efield%polarisation
     fieldpol=fieldpol/SQRT(DOT_PRODUCT(fieldpol,fieldpol))
-    fieldpol=fieldpol*dft_control%period_efield%strength
+    fieldpol=-fieldpol*dft_control%period_efield%strength
     hmat = cell%hmat(:,:)/twopi
     DO idir=1,3
        fpolvec(idir)=fieldpol(1)*hmat(1,idir)+fieldpol(2)*hmat(2,idir)+fieldpol(3)*hmat(3,idir)
@@ -328,10 +329,6 @@ MODULE qs_efield_berry
        END IF
     END DO
     qi = AIMAG(LOG(zi))
-    ener_field=0.0_dp
-    DO idir=1,3
-       ener_field = ener_field + fpolvec(idir) * qi(idir)
-    END DO
 
     ! check uniform occupation
     NULLIFY(mos)
@@ -448,7 +445,6 @@ MODULE qs_efield_berry
           END DO
           zi(idir) = zdet**occ
           ci(idir) = AIMAG(LOG(zdet**occ))
-          ener_field = ener_field + fpolvec(idir)*ci(idir)
 
           IF(.NOT.just_energy) THEN
              !compute the orbital derivative
@@ -640,6 +636,26 @@ MODULE qs_efield_berry
        END IF
     END DO
 
+    ! Energy
+    ener_field=0.0_dp
+    DO idir=1,3
+       ! make sure the total normalized polarization is within [-1:1]
+       IF( qi(idir)+ci(idir) > pi ) ci(idir) = ci(idir) - twopi
+       IF( qi(idir)+ci(idir) < -pi ) ci(idir) = ci(idir) + twopi
+       ener_field = ener_field + fpolvec(idir) * (qi(idir)+ci(idir))
+    END DO
+    energy%efield=ener_field
+
+    ! check for smoothness of energy surface
+    IF(efield%field_energy == 0.0_dp) THEN
+       efield%field_energy = ener_field
+    ELSEIF( ABS(efield%field_energy-ener_field) > pi*ABS(SUM(fpolvec))) THEN
+       CALL cp_error_message(cp_note_level, routineP, &
+        "Large change of e-field energy. Non-smooth energy surface", error)
+    ELSE
+       efield%field_energy = ener_field
+    END IF
+
     IF(.NOT.just_energy) THEN
        ! Add the result to mo_derivativs
        DO ispin=1, dft_control%nspins
@@ -659,9 +675,6 @@ MODULE qs_efield_berry
           END DO
        END IF
     END IF
-
-    ! Energy
-    energy%efield=ener_field
 
     DO ispin = 1, dft_control%nspins
        CALL cp_cfm_release(eigrmat(ispin)%matrix,error=error)
@@ -728,10 +741,8 @@ MODULE qs_efield_berry
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, found, uniform, &
                                                 use_virial
-    REAL(dp)                                 :: charge, ci(3), dab, dd, &
-                                                di(3), ener_field, fab, &
-                                                fieldpol(3), focc, hmat(3,3), &
-                                                occ, omega, qi(3)
+    REAL(dp) :: charge, ci(3), dab, dd, di(3), ener_field, fab, fieldpol(3), &
+      focc, hmat(3,3), occ, omega, qi(3), rlog(3), zlog(3)
     REAL(dp), DIMENSION(3)                   :: forcea, forceb, kvec, ra, &
                                                 rab, rb, ria
     REAL(dp), DIMENSION(:, :), POINTER       :: cosab, iblock, rblock, sinab, &
@@ -837,13 +848,7 @@ MODULE qs_efield_berry
           END IF
        END IF
     END DO
-
-    qi = 0.0_dp
-    DO idir=1,3
-       DO i=1,3
-          qi(idir) = qi(idir) + hmat(idir,i) * AIMAG(LOG(zi(i)))
-       END DO
-    END DO
+    rlog = AIMAG(LOG(zi))
 
     ! check uniform occupation
     NULLIFY(mos)
@@ -929,7 +934,6 @@ MODULE qs_efield_berry
 
     !Start the MO derivative calculation
     !loop over all cell vectors
-    ci = 0.0_dp
     DO idir=1,3
        zi(idir) = zero
        cosmat => efield%cosmat(idir)%matrix
@@ -960,10 +964,7 @@ MODULE qs_efield_berry
           zdet = zdet*zdeta
        END DO
        zi(idir) = zdet**occ
-       ! Polarization P=ci
-       DO i=1,3
-          ci(i) = ci(i) + hmat(i,idir) * AIMAG(LOG(zi(idir)))
-       END DO
+       zlog(idir) = AIMAG(LOG(zi(idir)))
 
        IF(.NOT.just_energy) THEN
           !compute the orbital derivative
@@ -1147,6 +1148,32 @@ MODULE qs_efield_berry
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
+
+    ! make sure the total normalized polarization is within [-1:1]
+    DO idir=1,3
+       IF( rlog(idir)+zlog(idir) > pi ) zlog(idir) = zlog(idir) - twopi
+       IF( rlog(idir)+zlog(idir) < -pi ) zlog(idir) = zlog(idir) + twopi
+    END DO
+    DO idir=1,3
+       qi(idir) = 0.0_dp
+       ci(idir) = 0.0_dp
+       DO i=1,3
+          qi(idir) = qi(idir) + hmat(idir,i) * rlog(i)
+          ci(idir) = ci(idir) + hmat(idir,i) * zlog(i)
+       END DO
+    END DO
+
+    ! Polarization Energy
+    ener_field=SUM(qi+ci)
+    ! check for smoothness of energy surface
+    IF(efield%field_energy == 0.0_dp) THEN
+       efield%field_energy = ener_field
+    ELSEIF( ABS(efield%field_energy-ener_field) > pi*ABS(SUM(hmat)) ) THEN
+       CALL cp_error_message(cp_note_level, routineP, &
+        "Large change of e-field energy. Non-smooth energy surface", error)
+    ELSE
+       efield%field_energy = ener_field
+    END IF
 
     ! Energy
     ener_field = 0.0_dp
