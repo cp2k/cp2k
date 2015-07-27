@@ -99,12 +99,16 @@ CONTAINS
     LOGICAL                                  :: failure
 
 #if defined (__PLUMED_CP2K) || defined (__PLUMED2)
-    INTEGER                                  :: natom_plumed, nsp_plumed, i_kinds
-    INTEGER, DIMENSION(90)                   :: na_plumed
+    INTEGER                                  :: natom_plumed
     REAL(KIND=dp)                            :: timestep_plumed
-    REAL(KIND=dp), DIMENSION(90)             :: pma0_plumed
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
+#endif
+
+#if defined (__PLUMED_CP2K)
+    INTEGER                                  :: nsp_plumed, i_kinds
+    INTEGER, DIMENSION(90)                   :: na_plumed
+    REAL(KIND=dp), DIMENSION(90)             :: pma0_plumed
 #endif
 
 #if defined (__PLUMED2)
@@ -119,20 +123,19 @@ CONTAINS
     NULLIFY(cell,subsys)
     CALL force_env_get(force_env, subsys=subsys, cell=cell, &
                        error=error)
-
-    natom_plumed=subsys%particles%n_els
-    nsp_plumed=subsys%atomic_kinds%n_els
-    timestep_plumed=simpar%dt
-    DO i_kinds=1,nsp_plumed
-        na_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%natom
-        pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
-    END DO
     CALL pbc_cp2k_plumed_getset_cell (cell, set=.TRUE.) !Store the cell pointer for later use.
+    timestep_plumed=simpar%dt
+    natom_plumed=subsys%particles%n_els
 #endif
 
 #if defined (__PLUMED_CP2K)
     !in a parallel run plumed only needs to be initialized on the master node
     IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
+        nsp_plumed=subsys%atomic_kinds%n_els
+        DO i_kinds=1,nsp_plumed
+            na_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%natom
+            pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
+        END DO
         CALL INIT_METADYN(natom_plumed, nsp_plumed, na_plumed, &
             timestep_plumed, itimes, pma0_plumed, force_env%meta_env%plumed_input_file)
     END IF
@@ -154,7 +157,7 @@ CONTAINS
         CALL plumed_f_gcmd("setPlumedDat"//CHAR(0),force_env%meta_env%plumed_input_file//CHAR(0))
         CALL plumed_f_gcmd("setLogFile"//CHAR(0),"PLUMED.OUT"//CHAR(0))
         CALL plumed_f_gcmd("setNatoms"//CHAR(0),natom_plumed)
-        CALL plumed_f_gcmd("setMDEngine"//CHAR(0),"cp2k")
+        CALL plumed_f_gcmd("setMDEngine"//CHAR(0),"cp2k"//CHAR(0))
         CALL plumed_f_gcmd("setTimestep"//CHAR(0),timestep_plumed)
         CALL plumed_f_gcmd("init"//CHAR(0),0)
     END IF
@@ -209,11 +212,9 @@ CONTAINS
 #endif
 #if defined (__PLUMED2)
     TYPE(meta_env_type), POINTER             :: meta_env
-    INTEGER                                  :: i_kinds, nsp_plumed
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pma0_plumed
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass_plumed
     REAL(KIND=dp), DIMENSION(3,3)            :: plu_vir, celltbt
     REAL(KIND=dp)                            :: stpcfg
-    INTEGER, DIMENSION(90)                   :: na_plumed
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: pos_plumed_x, pos_plumed_y, pos_plumed_z
     REAL(KIND=dp), ALLOCATABLE, &
@@ -264,10 +265,8 @@ CONTAINS
             ALLOCATE (force_plumed_y(natom_plumed))
             ALLOCATE (force_plumed_z(natom_plumed))
 
+            ALLOCATE (mass_plumed(natom_plumed))
 
-            pos_plumed_x(:)=0.0d0 
-            pos_plumed_y(:)=0.0d0
-            pos_plumed_z(:)=0.0d0
             force_plumed_x(:)=0.0d0 
             force_plumed_y(:)=0.0d0
             force_plumed_z(:)=0.0d0
@@ -276,15 +275,9 @@ CONTAINS
               pos_plumed_x(i_part)=subsys%particles%els(i_part)%r(1)
               pos_plumed_y(i_part)=subsys%particles%els(i_part)%r(2)
               pos_plumed_z(i_part)=subsys%particles%els(i_part)%r(3)
+              mass_plumed(i_part)=subsys%particles%els(i_part)%atomic_kind%mass
             END DO
 
-            nsp_plumed=subsys%atomic_kinds%n_els
-            ALLOCATE (pma0_plumed(nsp_plumed))
-            DO i_kinds=1,nsp_plumed
-                na_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%natom
-                pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
-            END DO
- 
             ! stupid cell conversion, to be fixed
             celltbt(1,1)=cell%hmat(1,1)
             celltbt(1,2)=cell%hmat(1,2)
@@ -302,10 +295,10 @@ CONTAINS
             CALL force_env_get(force_env, potential_energy=stpcfg, error=error)
   
             CALL plumed_f_gcmd("setStep"//CHAR(0),plumed_itimes)      
-            CALL plumed_f_gcmd("setPositionsX"//CHAR(0),pos_plumed_x(:)) ! PluMed Output !
-            CALL plumed_f_gcmd("setPositionsY"//CHAR(0),pos_plumed_y(:)) ! PluMed Output !
-            CALL plumed_f_gcmd("setPositionsZ"//CHAR(0),pos_plumed_z(:)) ! PluMed Output !
-            CALL plumed_f_gcmd("setMasses"//CHAR(0), pma0_plumed) 
+            CALL plumed_f_gcmd("setPositionsX"//CHAR(0),pos_plumed_x(:)) 
+            CALL plumed_f_gcmd("setPositionsY"//CHAR(0),pos_plumed_y(:))
+            CALL plumed_f_gcmd("setPositionsZ"//CHAR(0),pos_plumed_z(:))
+            CALL plumed_f_gcmd("setMasses"//CHAR(0), mass_plumed(:)) 
             CALL plumed_f_gcmd("setBox"//CHAR(0),celltbt)
             CALL plumed_f_gcmd("setVirial"//CHAR(0),plu_vir)    ! PluMed Output, NOT ACTUALLY USED !
             CALL plumed_f_gcmd("setEnergy"//CHAR(0),stpcfg) 
@@ -318,18 +311,19 @@ CONTAINS
             CALL plumed_f_gcmd("shareData"//CHAR(0),0)
             
             CALL plumed_f_gcmd("performCalc"//CHAR(0),0)
-           
-            DO i_part=1,natom_plumed
-              subsys%particles%els(i_part)%f(1) = subsys%particles%els(i_part)%f(1) + force_plumed_x(i_part)
-              subsys%particles%els(i_part)%f(2) = subsys%particles%els(i_part)%f(2) + force_plumed_y(i_part)
-              subsys%particles%els(i_part)%f(3) = subsys%particles%els(i_part)%f(3) + force_plumed_z(i_part)
-           END DO
- 
-           DEALLOCATE (pos_plumed_x, pos_plumed_y, pos_plumed_z)
-           DEALLOCATE (force_plumed_x, force_plumed_y, force_plumed_z, pma0_plumed)
 
-           ! Constraints ONLY of Fixed Atom type
-           CALL fix_atom_control(force_env, error=error)
+            DO i_part=1,natom_plumed
+               subsys%particles%els(i_part)%f(1) = subsys%particles%els(i_part)%f(1) + force_plumed_x(i_part)
+               subsys%particles%els(i_part)%f(2) = subsys%particles%els(i_part)%f(2) + force_plumed_y(i_part)
+               subsys%particles%els(i_part)%f(3) = subsys%particles%els(i_part)%f(3) + force_plumed_z(i_part)
+            END DO
+ 
+            DEALLOCATE (pos_plumed_x, pos_plumed_y, pos_plumed_z)
+            DEALLOCATE (force_plumed_x, force_plumed_y, force_plumed_z)
+            DEALLOCATE (mass_plumed)
+
+            ! Constraints ONLY of Fixed Atom type
+            CALL fix_atom_control(force_env, error=error)
 #endif
 
 #if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
