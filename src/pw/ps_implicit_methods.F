@@ -248,11 +248,11 @@ CONTAINS
     CALL pw_scale(res_old, - 1.0_dp, error)
     CALL pw_axpy(g, res_old, error=error)
 
+! evaluate \Delta^-1(res_old)
+    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres, error)
+
     iter = 1
     DO
-
-! evaluate \Delta^-1(res_old)
-       CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres, error)
 
 ! v_new = v_old + \omega * QAinvxres_old
        CALL pw_scale(QAinvxres, omega, error=error)
@@ -396,16 +396,16 @@ CONTAINS
     CALL pw_scale(res_old, - 1.0_dp, error)
     CALL pw_axpy(g, res_old, error=error)
 
+! evaluate \Delta^-1(res_old)
+    CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
+                                    dct_env%recv_msgs_bnds, dct_env%dests_expand, &
+                                    dct_env%srcs_expand, dct_env%flipg_stat, &
+                                    dct_env%dests_shrink, dct_env%srcs_shrink, &
+                                    dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
+                                    adjust_local_bounds, res_old, QAinvxres, error)
+
     iter = 1
     DO
-
-! evaluate \Delta^-1(res_old)
-       CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
-                                       dct_env%recv_msgs_bnds, dct_env%dests_expand, &
-                                       dct_env%srcs_expand, dct_env%flipg_stat, &
-                                       dct_env%dests_shrink, dct_env%srcs_shrink, &
-                                       dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                       adjust_local_bounds, res_old, QAinvxres, error)
 
 ! v_new = v_old + \omega * QAinvxres_old
        CALL pw_scale(QAinvxres, omega, error=error)
@@ -617,11 +617,11 @@ CONTAINS
     CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D, error)
     res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
+! evaluate \Delta^-1(res_old)
+    CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres, error)
+
     iter = 1
     DO
-
-! evaluate \Delta^-1(res_old)
-       CALL apply_inv_laplace_operator(pw_pool, green, res_old, QAinvxres, error)
 
 ! v_new (v_bar) = v_old + \omega * QAinvxres_old
        CALL pw_scale(QAinvxres, omega, error=error)
@@ -893,16 +893,16 @@ CONTAINS
     CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D, error)
     res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
+! evaluate \Delta^-1(res_old)
+    CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
+                                    dct_env%recv_msgs_bnds, dct_env%dests_expand, &
+                                    dct_env%srcs_expand, dct_env%flipg_stat, &
+                                    dct_env%dests_shrink, dct_env%srcs_shrink, &
+                                    dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
+                                    adjust_local_bounds, res_old, QAinvxres, error)
+
     iter = 1
     DO
-
-! evaluate \Delta^-1(res_old)
-       CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
-                                       dct_env%recv_msgs_bnds, dct_env%dests_expand, &
-                                       dct_env%srcs_expand, dct_env%flipg_stat, &
-                                       dct_env%dests_shrink, dct_env%srcs_shrink, &
-                                       dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                       adjust_local_bounds, res_old, QAinvxres, error)
 
 ! v_new (v_bar) = v_old + \omega * QAinvxres_old
        CALL pw_scale(QAinvxres, omega, error=error)
