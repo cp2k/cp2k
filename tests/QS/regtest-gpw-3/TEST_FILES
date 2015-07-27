@@ -41,7 +41,7 @@ H-ROKS.inp                        1     4e-14
 N-ROKS.inp    1    2e-13    -9.72861898224368
 O2-ROKS.inp    1    1.0E-14    -31.86289250210089
 # Onsager Model
-H+solv1.inp                       1     1e-12
+H+solv1.inp                       1     3e-12
 H2O-solv.inp    1    1e-13    -14.76967241568809
 H2O-solv2.inp    1    1e-13    -14.76967241568809
 #XC_FUN NONE
