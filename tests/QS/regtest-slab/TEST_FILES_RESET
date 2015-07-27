@@ -30,3 +30,7 @@ hbn3_1h2o_ff_pyz.inp
 hbn3_1h2o_dipcor_ff.inp
 hbn3_1h2o_dipcor_ff_pyz.inp
 hbn3_1h2o_ff_pyz_2dps.inp
+#Berry dipole renormalization
+hbn3_1h2o_ff_pyz.inp
+hbn3_1h2o_dipcor_ff_pyz.inp
+hbn3_1h2o_ff_pyz_2dps.inp
