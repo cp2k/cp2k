@@ -152,7 +152,7 @@
     TYPE(arnoldi_data_c), POINTER            :: ar_data
     TYPE(arnoldi_control), POINTER                     :: control
     COMPLEX(real_4), DIMENSION(:,:), ALLOCATABLE  :: tmp_mat, safe_mat, Q, tmp_mat1
-    COMPLEX(real_4), DIMENSION(:), ALLOCATABLE    :: work, tau
+    COMPLEX(real_4), DIMENSION(:), ALLOCATABLE    :: work, tau, work_measure
     INTEGER                                   :: msize, lwork, i, j, info, nwant
     COMPLEX(kind=real_4)                          :: beta, sigma
     COMPLEX(kind=real_4),DIMENSION(:,:),ALLOCATABLE :: Qdata
@@ -165,7 +165,7 @@
     nwant=control%nval_out
     ALLOCATE(tmp_mat(msize,msize)); ALLOCATE(safe_mat(msize,msize))
     ALLOCATE(Q(msize,msize)); ALLOCATE(tmp_mat1(msize,msize))
-    ALLOCATE(work(msize**2)); lwork=msize**2
+    ALLOCATE(work_measure(1))
     ALLOCATE(tau(msize)); ALLOCATE(Qdata(msize,msize))
     !make Q identity
     Q=CMPLX(0.0, 0.0, real_4)
@@ -185,6 +185,15 @@
           tmp_mat(j,j)=tmp_mat(j,j)-ar_data%evals(i)
        END DO
        ! Now we repair the damage by QR factorizing
+       lwork=-1
+       CALL cgeqrf(msize,msize,tmp_mat,msize,tau,work_measure,lwork,info)
+       lwork=INT(work_measure(1))
+       IF (ALLOCATED(work)) THEN
+          IF (SIZE(work).LT.lwork) THEN
+             DEALLOCATE(work)
+          ENDIF
+       ENDIF
+       IF (.NOT.ALLOCATED(work)) ALLOCATE(work(lwork))
        CALL cgeqrf(msize,msize,tmp_mat,msize,tau,work,lwork,info)
        ! Ask Lapack to reconstruct Q from its own way of storing data (tmpmat will contain Q)
        CALL cungqr(msize,msize,msize,tmp_mat,msize,tau,work,lwork,info)
@@ -220,7 +229,7 @@
     ! Set the current step to nwant so the subspace build knows where to start
     control%current_step=nwant
     
-    DEALLOCATE(tmp_mat,safe_mat,Q,Qdata,tmp_mat1,work,tau)
+    DEALLOCATE(tmp_mat,safe_mat,Q,Qdata,tmp_mat1,work,tau,work_measure)
     
   END SUBROUTINE arnoldi_iram_c
 
