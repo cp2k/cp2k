@@ -1002,7 +1002,7 @@ EOF
    done
    printf "&END FARMING\n" >> ${dir_out}/farming.inp
    echo "Running farming for $ijob jobs"
-   mpiexec -np $((maxtasks/OMP_NUM_THREADS)) ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version} farming.inp >& farming.out
+   ${cp2k_prefix} ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version} farming.inp ${cp2k_postfix} >& farming.out
    fi
 
    #
