@@ -31,7 +31,8 @@ MODULE pw_env_methods
   USE dct,                             ONLY: setup_dct_pw_grids
   USE dielectric_types,                ONLY: derivative_cd3,&
                                              derivative_cd5,&
-                                             derivative_cd7
+                                             derivative_cd7,&
+                                             rho_dependent
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
@@ -681,8 +682,22 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
                   "Invalid boundary conditions for the implicit (iterative) poisson solver.",&
                   para_env)
          END SELECT
-         WRITE (UNIT=iounit,FMT="(T2,A,T51,F30.2)")&
-          "POISSON| Dielectric Constant", poisson_params%dielectric_params%eps0
+         IF (poisson_params%dielectric_params%dielec_functiontype .EQ. rho_dependent) THEN
+            WRITE (UNIT=iounit,FMT="(T2,A,T51,F30.2)")&
+             "POISSON| Dielectric Constant", poisson_params%dielectric_params%eps0
+         ELSE
+            WRITE(UNIT=iounit,FMT="(T2,A,T31,F9.2)",ADVANCE='NO') &
+             "POISSON| Dielectric Constants", poisson_params%dielectric_params%eps0
+            DO i = 1, poisson_params%dielectric_params%n_aa_cuboidal
+              WRITE(UNIT=iounit,FMT="(F9.2)",ADVANCE='NO') &
+               poisson_params%dielectric_params%aa_cuboidal_eps(i)
+            END DO
+            DO i = 1, poisson_params%dielectric_params%n_xaa_annular
+              WRITE(UNIT=iounit,FMT="(F9.2)",ADVANCE='NO') &
+               poisson_params%dielectric_params%xaa_annular_eps(i)
+            END DO
+            WRITE(UNIT=iounit,FMT='(A1,/)')
+         END IF
        CASE(pw_poisson_none)
          WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
           "POISSON| Solver","NONE"

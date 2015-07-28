@@ -852,9 +852,9 @@ CONTAINS
 !> \param x_glbl x grid vetor of the simulation box  
 !> \param y_glbl y grid vetor of the simulation box  
 !> \param z_glbl z grid vetor of the simulation box  
-!> \param x_xtnt the x extent of the planar region 
-!> \param y_xtnt the y extent of the planar region 
-!> \param z_xtnt the z extent of the planar region 
+!> \param x_xtnt the x extent of the cuboidal region 
+!> \param y_xtnt the y extent of the cuboidal region 
+!> \param z_xtnt the z extent of the cuboidal region 
 !> \param v_D potential imposed at the Dirichlet part of the boundary (gate voltage)
 !> \param smooth whether or not to smoothen the dirichlet region 
 !> \param zeta the mollifier's width

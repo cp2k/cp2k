@@ -44,6 +44,8 @@ MODULE rs_methods
          setup_grid_axes,&
          pw_mollifier
 
+  REAL(dp), PARAMETER, PRIVATE         :: small_value = 1.0E-8_dp
+
 CONTAINS 
 
 ! *****************************************************************************
@@ -450,21 +452,21 @@ CONTAINS
       DO j = lb2, ub2
         DO i = lb1, ub1
           xi = x_glbl(i);     yj = y_glbl(j);     zk = z_glbl(k)
-          IF      (vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)) .LT. zeta) THEN
+          IF      (vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)) .LT. zeta - small_value) THEN
              G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)) .LT. zeta) THEN
+          ELSE IF (vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)) .LT. zeta - small_value) THEN
              G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)) .LT. zeta) THEN
+          ELSE IF (vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)) .LT. zeta - small_value) THEN
              G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)) .LT. zeta) THEN
+          ELSE IF (vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)) .LT. zeta - small_value) THEN
              G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)) .LT. zeta) THEN
+          ELSE IF (vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)) .LT. zeta - small_value) THEN
              G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)) .LT. zeta) THEN
+          ELSE IF (vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)) .LT. zeta - small_value) THEN
              G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)) .LT. zeta) THEN
+          ELSE IF (vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)) .LT. zeta - small_value) THEN
              G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
-          ELSE IF (vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)) .LT. zeta) THEN
+          ELSE IF (vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)) .LT. zeta - small_value) THEN
              G%cr3d(i,j,k) = EXP(1.0_dp / (vec_norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
           END IF
         END DO

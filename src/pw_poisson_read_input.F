@@ -239,20 +239,119 @@ CONTAINS
     ! parsing DIELECTRIC subsection
     dielectric_section => section_vals_get_subs_vals(ps_implicit_section, "DIELECTRIC", error=error)
     CALL section_vals_get(dielectric_section, explicit=has_dielectric, error=error)
-    CALL section_vals_val_get(dielectric_section, "DIELECTRIC_CORE_CORRECTION", &
-                              l_val=params%dielectric_params%dielec_core_correction, error=error)
-    CALL section_vals_val_get(dielectric_section, "epsilon", r_val=params%dielectric_params%eps0, error=error)
-    CALL section_vals_val_get(dielectric_section, "rho_min", r_val=params%dielectric_params%rho_min, error=error)
-    CALL section_vals_val_get(dielectric_section, "rho_max", r_val=params%dielectric_params%rho_max, error=error)
-    CALL section_vals_val_get(dielectric_section, "DERIVATIVE_METHOD", &
-                              i_val=params%dielectric_params%derivative_method, error=error)
     params%has_dielectric = has_dielectric
+    CALL dielectric_read_parameters(dielectric_section, params, error)
 
     ! parsing DIRICHLET_BC subsection
     dbc_section => section_vals_get_subs_vals(ps_implicit_section, "DIRICHLET_BC", error=error)
     CALL dirichlet_bc_read_parameters(dbc_section, params, error)
 
   END SUBROUTINE ps_implicit_read_parameters
+
+! *****************************************************************************
+!> \brief Reads the subsection DIELECTRIC and initializes corresponding parameters in
+!>        pw_poisson_parameter_type
+!> \param dielectric_section dielectric section to be read from input
+!> \param params poisson_env parameters 
+!> \param error  cp2k error 
+!> \par History
+!>      07.2015 created [Hossein Bani-Hashemian]
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE dielectric_read_parameters(dielectric_section, params, error)
+    TYPE(section_vals_type), POINTER         :: dielectric_section
+    TYPE(pw_poisson_parameter_type), &
+      INTENT(INOUT)                          :: params
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dielectric_read_parameters', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, n_aac_rep, n_xaaa_rep
+    LOGICAL                                  :: aa_cuboidal_explicit, &
+                                                xaa_annular_explicit
+    REAL(dp)                                 :: eps, zeta
+    REAL(dp), DIMENSION(:), POINTER :: aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, &
+      aa_cuboidal_zxtnt, xaa_annular_bctr, xaa_annular_brad, xaa_annular_xxtnt
+    TYPE(section_vals_type), POINTER         :: aa_cuboidal_section, &
+                                                xaa_annular_section
+
+    CALL section_vals_val_get(dielectric_section, "DIELECTRIC_CORE_CORRECTION", &
+                              l_val=params%dielectric_params%dielec_core_correction, error=error)
+    CALL section_vals_val_get(dielectric_section, "DIELECTRIC_FUNCTION_TYPE", &
+                              i_val=params%dielectric_params%dielec_functiontype, error=error)
+    CALL section_vals_val_get(dielectric_section, "epsilon", r_val=params%dielectric_params%eps0, error=error)
+    CALL section_vals_val_get(dielectric_section, "rho_min", r_val=params%dielectric_params%rho_min, error=error)
+    CALL section_vals_val_get(dielectric_section, "rho_max", r_val=params%dielectric_params%rho_max, error=error)
+    CALL section_vals_val_get(dielectric_section, "DERIVATIVE_METHOD", &
+                              i_val=params%dielectric_params%derivative_method, error=error)
+
+    aa_cuboidal_section => section_vals_get_subs_vals(dielectric_section, "DIELEC_AA_CUBOIDAL", error=error)
+    xaa_annular_section => section_vals_get_subs_vals(dielectric_section, "DIELEC_XAA_ANNULAR", error=error)
+    CALL section_vals_get(aa_cuboidal_section, explicit=aa_cuboidal_explicit, n_repetition=n_aac_rep, error=error)
+    CALL section_vals_get(xaa_annular_section, explicit=xaa_annular_explicit, n_repetition=n_xaaa_rep, error=error)
+
+
+    IF (params%solver .EQ. pw_poisson_implicit) THEN
+       IF (aa_cuboidal_explicit) THEN
+          params%dielectric_params%n_aa_cuboidal = n_aac_rep
+          ALLOCATE(params%dielectric_params%aa_cuboidal_xxtnt(2, n_aac_rep), &
+                   params%dielectric_params%aa_cuboidal_yxtnt(2, n_aac_rep), &
+                   params%dielectric_params%aa_cuboidal_zxtnt(2, n_aac_rep), &
+                   params%dielectric_params%aa_cuboidal_eps(n_aac_rep),&
+                   params%dielectric_params%aa_cuboidal_zeta(n_aac_rep))
+          NULLIFY(aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, aa_cuboidal_zxtnt)
+          DO i = 1, n_aac_rep
+             CALL section_vals_val_get(aa_cuboidal_section,"epsilon"   ,&
+                                       i_rep_section=i,r_val=eps,error=error)
+             CALL section_vals_val_get(aa_cuboidal_section,"zeta"  ,&
+                                       i_rep_section=i,r_val=zeta,error=error)
+             CALL section_vals_val_get(aa_cuboidal_section,"X_xtnt",&
+                                       i_rep_section=i,r_vals=aa_cuboidal_xxtnt,error=error)
+             CALL section_vals_val_get(aa_cuboidal_section,"Y_xtnt",&
+                                       i_rep_section=i,r_vals=aa_cuboidal_yxtnt,error=error)
+             CALL section_vals_val_get(aa_cuboidal_section,"Z_xtnt",&
+                                       i_rep_section=i,r_vals=aa_cuboidal_zxtnt,error=error)
+             params%dielectric_params%aa_cuboidal_eps(i) = eps
+             params%dielectric_params%aa_cuboidal_zeta(i) = zeta
+             params%dielectric_params%aa_cuboidal_xxtnt(:,i) = aa_cuboidal_xxtnt
+             params%dielectric_params%aa_cuboidal_yxtnt(:,i) = aa_cuboidal_yxtnt
+             params%dielectric_params%aa_cuboidal_zxtnt(:,i) = aa_cuboidal_zxtnt
+          END DO
+       ELSE
+         params%dielectric_params%n_aa_cuboidal = 0
+       END IF
+       IF (xaa_annular_explicit) THEN
+          params%dielectric_params%n_xaa_annular = n_xaaa_rep
+          ALLOCATE(params%dielectric_params%xaa_annular_xxtnt(2, n_xaaa_rep), &
+                   params%dielectric_params%xaa_annular_bctr(2, n_xaaa_rep), &
+                   params%dielectric_params%xaa_annular_brad(2, n_xaaa_rep), &
+                   params%dielectric_params%xaa_annular_eps(n_xaaa_rep), &
+                   params%dielectric_params%xaa_annular_zeta(n_xaaa_rep))
+          NULLIFY(xaa_annular_xxtnt, xaa_annular_bctr, xaa_annular_brad)
+          DO i = 1, n_xaaa_rep
+             CALL section_vals_val_get(xaa_annular_section,"epsilon"    ,&
+                                       i_rep_section=i,r_val=eps,error=error)
+             CALL section_vals_val_get(xaa_annular_section,"zeta"    ,&
+                                       i_rep_section=i,r_val=zeta,error=error)
+             CALL section_vals_val_get(xaa_annular_section,"X_xtnt"  ,&
+                                       i_rep_section=i,r_vals=xaa_annular_xxtnt,error=error)
+             CALL section_vals_val_get(xaa_annular_section,"base_center",&
+                                       i_rep_section=i,r_vals=xaa_annular_bctr,error=error)
+             CALL section_vals_val_get(xaa_annular_section,"base_radii",&
+                                       i_rep_section=i,r_vals=xaa_annular_brad,error=error)
+             params%dielectric_params%xaa_annular_eps(i) = eps
+             params%dielectric_params%xaa_annular_zeta(i) = zeta
+             params%dielectric_params%xaa_annular_xxtnt(:,i) = xaa_annular_xxtnt
+             params%dielectric_params%xaa_annular_bctr(:,i)  = xaa_annular_bctr
+             params%dielectric_params%xaa_annular_brad(:,i)  = xaa_annular_brad
+          END DO
+       ELSE
+          params%dielectric_params%n_xaa_annular = 0
+       END IF
+    END IF
+
+  END SUBROUTINE dielectric_read_parameters
 
 ! *****************************************************************************
 !> \brief Reads the subsection DIRICHLET_BC and initializes corresponding parameters in

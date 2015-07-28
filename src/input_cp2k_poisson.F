@@ -26,12 +26,10 @@ MODULE input_cp2k_poisson
                                              low_print_level,&
                                              medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE dielectric_types,                ONLY: derivative_cd3,&
-                                             derivative_cd5,&
-                                             derivative_cd7,&
-                                             derivative_fft,&
-                                             derivative_fft_use_deps,&
-                                             derivative_fft_use_drho
+  USE dielectric_types,                ONLY: &
+       derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft, &
+       derivative_fft_use_deps, derivative_fft_use_drho, rho_dependent, &
+       spatially_dependent, spatially_rho_dependent
   USE dirichlet_bc_types,              ONLY: CIRCUMSCRIBED,&
                                              INSCRIBED,&
                                              xy_aligned_rectangle,&
@@ -713,23 +711,37 @@ END SUBROUTINE create_ewald_section
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP, error, failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="DIELECTRIC", &
-            description="Parameters for the dielectric constant function as proposed in the SCCS model.", &
-            n_keywords=5, n_subsections=0, repeats=.FALSE.,  &
+            description="Parameters for the dielectric constant function.", &
+            n_keywords=6, n_subsections=2, repeats=.FALSE.,  &
             error=error)
 
-       NULLIFY(keyword)
+       NULLIFY(keyword, subsection)
 
        CALL keyword_create(keyword, name="DIELECTRIC_CORE_CORRECTION", &
             description="Avoid spurious values of the dielectric constant at the ionic core for pseudopotentials "// &
                         "where the electron density goes to zero at the core (e.g. GTH). "// &
                         "The correction is based on rho_core.", &
             usage="DIELECTRIC_CORE_CORRECTION <logical>", default_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="DIELECTRIC_FUNCTION_TYPE", &
+            enum_c_vals=s2a('density_dependent', 'spatially_dependent', 'spatially_rho_dependent'), &
+            enum_i_vals=(/ rho_dependent, spatially_dependent, spatially_rho_dependent/), &
+            enum_desc=s2a("Dielectric constant as a function of the electron density " //&
+                         "as e.g. proposed within the SCCS model.",&
+                         "Various regions with different dielectric constants.",&
+                         "Various regions with different dielectric constants. The dielectric constant decays to 1.0, "//&
+                         "wherever the electron density is present."),&
+            description="Preferred type for the dielectric constant function.", &
+            usage="DIELECTRIC_FUNCTION_TYPE  <method>", default_i_val=rho_dependent, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
@@ -765,9 +777,148 @@ END SUBROUTINE create_ewald_section
             usage="DERIVATIVE_METHOD  <method>", default_i_val=derivative_cd7, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
+
+       CALL create_dielec_aa_cuboidal_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection, error=error)
+
+       CALL create_dielec_xaa_annular_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection, error=error)
+
     END IF
 
   END SUBROUTINE create_dielectric_section
+
+! *****************************************************************************
+!> \brief Creates the section for creating axis-aligned cuboidal dielectric region.
+!> \param section the section to be created
+!> \param error cp2k error
+!>
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE create_dielec_aa_cuboidal_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_dielec_aa_cuboidal_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP, error, failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="DIELEC_AA_CUBOIDAL", &
+            description="Parameters for creating axis-aligned cuboidal dielectric region.",&
+            n_keywords=5, n_subsections=0, repeats=.TRUE., &
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="dielectric_constant", variants=s2a('epsilon'), &
+            description="value of the dielectric constant inside the region.", &
+            usage="dielectric_constant <real>", default_r_val=80.0_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="X_xtnt", &
+            description="The X extents of the cuboid.", &
+            usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="Y_xtnt", &
+            description="The Y extents of the cuboid.", &
+            usage="Y_xtnt <ymin(real)> <ymax(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="Z_xtnt", &
+            description="The Z extents of the cuboid.", &
+            usage="Z_xtnt <zmin(real)> <zmax(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="smoothing_width", variants = s2a('zeta'),  &
+            description="The width of the standard mollifier.", &
+            usage="smoothing_width <real>", unit_str="angstrom", default_r_val=0.2_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+    END IF
+  END SUBROUTINE create_dielec_aa_cuboidal_section
+
+! *****************************************************************************
+!> \brief Creates the section for creating x-axis-aligned annular dielectric region.
+!> \param section the section to be created
+!> \param error cp2k error
+!>
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE create_dielec_xaa_annular_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_dielec_xaa_annular_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP, error, failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="DIELEC_XAA_ANNULAR", &
+            description="Parameters for creating x-axis-aligned annular dielectric region.",&
+            n_keywords=5, n_subsections=0, repeats=.TRUE., &
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="dielectric_constant", variants=s2a('epsilon'), &
+            description="value of the dielectric constant inside the region.", &
+            usage="dielectric_constant <real>", default_r_val=80.0_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="X_xtnt", &
+            description="The X extents of the annulus.", &
+            usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="base_center", &
+            description="The y and z coordinates of the annulus' base center.", &
+            usage="base_center <y(real)> <z(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="base_radii", &
+            description="The base radius of the annulus.", &
+            usage="base_radius <r1(real)> <r2(real)>", unit_str="angstrom", &
+            n_var=2, type_of_var=real_t, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="smoothing_width", variants = s2a('zeta'),  &
+            description="The width of the standard mollifier.", &
+            usage="smoothing_width <real>", unit_str="angstrom", default_r_val=0.2_dp, error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+    END IF
+  END SUBROUTINE create_dielec_xaa_annular_section
 
 ! *****************************************************************************
 !> \brief Creates the section for Dirichlet boundary conditions

@@ -28,11 +28,27 @@ MODULE dielectric_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dielectric_types'
  
   TYPE dielectric_parameters
-    LOGICAL                            :: dielec_core_correction
-    REAL(KIND=dp)                      :: eps0
-    REAL(KIND=dp)                      :: rho_min
-    REAL(KIND=dp)                      :: rho_max
-    INTEGER                            :: derivative_method
+    LOGICAL                                :: dielec_core_correction
+    INTEGER                                :: dielec_functiontype
+    REAL(KIND=dp)                          :: eps0
+    REAL(KIND=dp)                          :: rho_min
+    REAL(KIND=dp)                          :: rho_max
+    INTEGER                                :: derivative_method
+    INTEGER                                :: times_called
+
+    INTEGER                                :: n_aa_cuboidal
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: aa_cuboidal_xxtnt => NULL()
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: aa_cuboidal_yxtnt => NULL()
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: aa_cuboidal_zxtnt => NULL()
+    REAL(KIND=dp), DIMENSION(:), POINTER   :: aa_cuboidal_eps => NULL()
+    REAL(KIND=dp), DIMENSION(:), POINTER   :: aa_cuboidal_zeta => NULL()
+
+    INTEGER                                :: n_xaa_annular
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: xaa_annular_xxtnt => NULL()
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: xaa_annular_bctr  => NULL()
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: xaa_annular_brad  => NULL()
+    REAL(KIND=dp), DIMENSION(:), POINTER   :: xaa_annular_eps   => NULL()
+    REAL(KIND=dp), DIMENSION(:), POINTER   :: xaa_annular_zeta  => NULL()
   END TYPE dielectric_parameters
 
   TYPE dielectric_type
@@ -51,6 +67,10 @@ MODULE dielectric_types
                                           derivative_fft = 100, &
                                           derivative_fft_use_deps = 101, &
                                           derivative_fft_use_drho = 102
+
+  INTEGER, PARAMETER, PUBLIC           :: rho_dependent           = 10, &
+                                          spatially_dependent     = 20, &
+                                          spatially_rho_dependent = 30
 CONTAINS
 
 ! *****************************************************************************
@@ -95,11 +115,45 @@ CONTAINS
              CALL pw_release(dielectric%dln_eps(i)%pw, error=error)
           END DO
        END IF
+       CALL dielectric_parameters_dealloc(dielectric%params, error=error)
        DEALLOCATE(dielectric)
     END IF
 
     CALL timestop(handle)
 
   END SUBROUTINE dielectric_release
+
+! *****************************************************************************
+!> \brief   deallocates dielectric_parameters type
+!> \param dielec_params dielectric parameters
+!> \param error cp2k error
+!>
+!> \par History
+!>       07.2015 created [Hossein Bani-Hashemian]
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE dielectric_parameters_dealloc(dielec_params, error)
+
+    TYPE(dielectric_parameters), &
+      INTENT(INOUT)                          :: dielec_params
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'dielectric_parameters_dealloc', &
+      routineP = moduleN//':'//routineN
+
+    IF (ASSOCIATED(dielec_params%aa_cuboidal_xxtnt)) DEALLOCATE(dielec_params%aa_cuboidal_xxtnt)
+    IF (ASSOCIATED(dielec_params%aa_cuboidal_yxtnt)) DEALLOCATE(dielec_params%aa_cuboidal_yxtnt)
+    IF (ASSOCIATED(dielec_params%aa_cuboidal_zxtnt)) DEALLOCATE(dielec_params%aa_cuboidal_zxtnt)
+    IF (ASSOCIATED(dielec_params%aa_cuboidal_eps))   DEALLOCATE(dielec_params%aa_cuboidal_eps)
+    IF (ASSOCIATED(dielec_params%aa_cuboidal_zeta))  DEALLOCATE(dielec_params%aa_cuboidal_zeta)
+
+    IF (ASSOCIATED(dielec_params%xaa_annular_xxtnt)) DEALLOCATE(dielec_params%xaa_annular_xxtnt)
+    IF (ASSOCIATED(dielec_params%xaa_annular_bctr))  DEALLOCATE(dielec_params%xaa_annular_bctr)
+    IF (ASSOCIATED(dielec_params%xaa_annular_brad))  DEALLOCATE(dielec_params%xaa_annular_brad)
+    IF (ASSOCIATED(dielec_params%xaa_annular_eps))   DEALLOCATE(dielec_params%xaa_annular_eps)
+    IF (ASSOCIATED(dielec_params%xaa_annular_zeta))  DEALLOCATE(dielec_params%xaa_annular_zeta)
+
+  END SUBROUTINE dielectric_parameters_dealloc
 
 END MODULE dielectric_types
