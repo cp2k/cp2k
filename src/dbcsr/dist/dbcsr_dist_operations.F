@@ -908,8 +908,6 @@ CONTAINS
                match_row_pdist, match_row_idist,&
                nprows,&
                imgdist%i%row_multiplicity, imgdist%i%row_decimation)
-          CALL make_vdistribution (nrows, row_vdist, row_dist_data,&
-               imgdist%i%row_decimation, row_img_data)
        ELSE
           row_dist_data => dbcsr_distribution_row_dist (dist)
           IF (imgdist%i%row_decimation.EQ.1) THEN
@@ -917,7 +915,6 @@ CONTAINS
           ELSE
              row_img_data = MOD(dbcsr_distribution_row_clusters(dist),imgdist%i%row_decimation)+1
           ENDIF
-          row_vdist = dbcsr_distribution_row_clusters(dist)-1          
        ENDIF
     ELSE
        IF (imgdist%i%row_decimation.EQ.1 .AND. imgdist%i%row_multiplicity.EQ.1 .AND. &
@@ -947,9 +944,9 @@ CONTAINS
                   imgdist%i%row_multiplicity, imgdist%i%row_decimation) !the multiplicity argument is being ignored
           ENDIF
        ENDIF
-       CALL make_vdistribution (nrows, row_vdist, row_dist_data,&
-            imgdist%i%row_decimation, row_img_data)
     ENDIF
+    CALL make_vdistribution (nrows, row_vdist, row_dist_data,&
+         imgdist%i%row_decimation, row_img_data)
     CALL array_new (imgdist%i%vrow_dist, row_vdist, gift=.TRUE.)
     !
     ! Create the new column distribution and column image distribution
@@ -972,8 +969,6 @@ CONTAINS
                match_col_pdist, match_col_idist,&
                npcols,&
                imgdist%i%col_multiplicity, imgdist%i%col_decimation)
-          CALL make_vdistribution (ncols, col_vdist, col_dist_data,&
-               imgdist%i%col_decimation, col_img_data)
        ELSE
           col_dist_data => dbcsr_distribution_col_dist (dist)
           IF (imgdist%i%col_decimation.EQ.1) THEN
@@ -981,7 +976,6 @@ CONTAINS
           ELSE
              col_img_data = MOD(dbcsr_distribution_col_clusters(dist),imgdist%i%col_decimation)+1
           ENDIF
-          col_vdist = dbcsr_distribution_col_clusters(dist)-1
        ENDIF
     ELSE
        IF (imgdist%i%col_decimation.EQ.1 .AND. imgdist%i%col_multiplicity.EQ.1 .AND. &
@@ -1011,9 +1005,9 @@ CONTAINS
                   imgdist%i%col_multiplicity, imgdist%i%col_decimation) !the multiplicity argument is being ignored
           ENDIF
        ENDIF
-       CALL make_vdistribution (ncols, col_vdist, col_dist_data,&
-            imgdist%i%col_decimation, col_img_data)
     ENDIF
+    CALL make_vdistribution (ncols, col_vdist, col_dist_data,&
+         imgdist%i%col_decimation, col_img_data)
     CALL array_new (imgdist%i%vcol_dist, col_vdist, gift=.TRUE.)
     !
     ! Copy the row & column distribution from old distribution
