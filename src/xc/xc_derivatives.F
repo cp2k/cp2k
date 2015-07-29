@@ -331,18 +331,18 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         END IF
      CASE("BECKE_ROUSSEL")
         IF (lsd) THEN
-          CALL xbecke_roussel_lsd_info(functional,reference,shortform,needs,max_deriv,&
+          CALL xbecke_roussel_lsd_info(reference,shortform,needs,max_deriv,&
                error=error)
         ELSE
-          CALL xbecke_roussel_lda_info(functional,reference,shortform,needs,max_deriv,&
+          CALL xbecke_roussel_lda_info(reference,shortform,needs,max_deriv,&
                error=error)
         END IF
      CASE("LDA_HOLE_T_C_LR")
         IF (lsd) THEN
-          CALL xlda_hole_t_c_lr_lsd_info(functional,reference,shortform,needs,max_deriv,&
+          CALL xlda_hole_t_c_lr_lsd_info(reference,shortform,needs,max_deriv,&
                error=error)
         ELSE
-          CALL xlda_hole_t_c_lr_lda_info(functional,reference,shortform,needs,max_deriv,&
+          CALL xlda_hole_t_c_lr_lda_info(reference,shortform,needs,max_deriv,&
                error=error)
         END IF
      CASE("PBE_HOLE_T_C_LR")

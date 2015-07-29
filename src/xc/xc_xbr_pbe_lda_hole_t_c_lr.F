@@ -525,7 +525,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(dp)                                 :: gamma, R, sx
-    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rhoa, &
       e_laplace_rhob, e_ndrhoa, e_ndrhob, e_rhoa, e_rhob, e_tau_a, e_tau_b, &
       laplace_rhoa, laplace_rhob, norm_drhoa, norm_drhob, rhoa, rhob, tau_a, &
@@ -545,7 +545,7 @@ CONTAINS
       CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
            norm_drhob=norm_drhob, tau_a=tau_a, tau_b=tau_b, laplace_rhoa=laplace_rhoa,&
            laplace_rhob=laplace_rhob,local_bounds=bo,&
-           rho_cutoff=epsilon_rho,drho_cutoff=epsilon_norm_drho,error=error)
+           rho_cutoff=epsilon_rho,error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
       ! meaningful default for the arrays we don't need: let us make compiler
@@ -629,13 +629,13 @@ CONTAINS
           laplace_rho=laplace_rhoa,tau=tau_a,e_0=e_0,e_rho=e_rhoa,e_ndrho=e_ndrhoa,&
           e_tau=e_tau_a,e_laplace_rho=e_laplace_rhoa,grad_deriv=grad_deriv, &
           npoints=npoints,epsilon_rho=epsilon_rho,&
-          epsilon_norm_drho=epsilon_norm_drho,sx=sx,R=R,gamma=gamma,error=error)
+          sx=sx,R=R,gamma=gamma,error=error)
 
       CALL xbr_pbe_lda_hole_tc_lr_lsd_calc(rho=rhob, norm_drho=norm_drhob,&
           laplace_rho=laplace_rhob,tau=tau_b,e_0=e_0,e_rho=e_rhob,e_ndrho=e_ndrhob,&
           e_tau=e_tau_b,e_laplace_rho=e_laplace_rhob,grad_deriv=grad_deriv, &
           npoints=npoints,epsilon_rho=epsilon_rho,&
-          epsilon_norm_drho=epsilon_norm_drho,sx=sx,R=R,gamma=gamma,error=error)
+          sx=sx,R=R,gamma=gamma,error=error)
 
       !$omp end parallel
 
@@ -665,7 +665,6 @@ CONTAINS
 !>        if negative only the given degree is calculated
 !> \param npoints number of gridpoints
 !> \param epsilon_rho cutoffs
-!> \param epsilon_norm_drho cutoffs
 !> \param sx parameters for  functional 
 !> \param R parameters for  functional 
 !> \param gamma parameters for  functional 
@@ -675,7 +674,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE xbr_pbe_lda_hole_tc_lr_lsd_calc(rho,norm_drho,laplace_rho,tau,e_0,e_rho,&
                                      e_ndrho,e_tau,e_laplace_rho,grad_deriv,npoints,&
-                                     epsilon_rho,epsilon_norm_drho,sx,R,gamma,error)
+                                     epsilon_rho,sx,R,gamma,error)
 
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), &
@@ -684,9 +683,7 @@ CONTAINS
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: tau, laplace_rho, norm_drho, &
                                                 rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, sx, R, &
-                                                gamma
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, R, gamma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &

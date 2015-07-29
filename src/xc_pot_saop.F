@@ -1288,8 +1288,6 @@ CONTAINS
     REAL(kind=dp), INTENT(in)                :: r, ngr, ec_unif, rc, ngrc
     REAL(kind=dp)                            :: res
 
-    REAL(kind=dp), PARAMETER                 :: ob3 = 1.0_dp/3.0_dp
-
     REAL(kind=dp)                            :: A, At2, H, kf, kl, ks, t2
 
     H = 0.0_dp

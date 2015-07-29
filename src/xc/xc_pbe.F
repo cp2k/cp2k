@@ -160,7 +160,6 @@ CONTAINS
     END SELECT
     IF (PRESENT(needs)) THEN
        needs%rho=.TRUE.
-       needs%rho_1_3=.TRUE.
        needs%norm_drho=.TRUE.
     END IF
     IF (PRESENT(max_deriv)) max_deriv=3
@@ -310,13 +309,11 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
     INTEGER                                  :: handle, npoints, param, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_norm_drho, &
-                                                epsilon_rho, scale_ec, &
+    REAL(kind=dp)                            :: epsilon_rho, scale_ec, &
                                                 scale_ex
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
       e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
-      e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho, &
-      rho_1_3
+      e_ndrho_rho_rho, e_rho, e_rho_rho, e_rho_rho_rho, norm_drho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
@@ -329,9 +326,8 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
   CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL xc_rho_set_get(rho_set,rho_1_3=rho_1_3,rho=rho,&
-          norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-          drho_cutoff=epsilon_norm_drho,error=error)
+     CALL xc_rho_set_get(rho_set,rho=rho,&
+          norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,error=error)
      npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
      ! meaningful default for the arrays we don't need: let us make compiler
@@ -405,18 +401,18 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
  CALL section_vals_val_get(pbe_params,"parametrization",i_val=param,error=error)
 
 !$omp parallel default(none), &
-!$omp shared(rho,rho_1_3,norm_drho,e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho),&
+!$omp shared(rho,norm_drho,e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho),&
 !$omp shared(e_ndrho_ndrho,e_rho_rho_rho,e_ndrho_rho_rho,e_ndrho_ndrho_rho),&
 !$omp shared(e_ndrho_ndrho_ndrho,grad_deriv,npoints,epsilon_rho),&
-!$omp shared(epsilon_norm_drho,pbe_params),&
+!$omp shared(pbe_params),&
 !$omp shared(error,param,scale_ec,scale_ex)
-     CALL pbe_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
+     CALL pbe_lda_calc(rho=rho,norm_drho=norm_drho,&
           e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
           e_ndrho_rho=e_ndrho_rho, e_ndrho_ndrho=e_ndrho_ndrho, &
           e_rho_rho_rho=e_rho_rho_rho, e_ndrho_rho_rho=e_ndrho_rho_rho,&
           e_ndrho_ndrho_rho=e_ndrho_ndrho_rho,e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,&
           grad_deriv=grad_deriv,&
-          npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
+          npoints=npoints,epsilon_rho=epsilon_rho,&
           param=param,scale_ec=scale_ec,scale_ex=scale_ex,error=error)
 !$omp end parallel
 
@@ -434,7 +430,6 @@ END SUBROUTINE pbe_lda_eval
 ! *****************************************************************************
 !> \brief evaluates the pbe correlation functional for lda
 !> \param rho the density where you want to evaluate the functional
-!> \param rho_1_3 ...
 !> \param norm_drho ...
 !> \param e_0 ...
 !> \param e_rho ...
@@ -451,17 +446,16 @@ END SUBROUTINE pbe_lda_eval
 !>        if negative only the given degree is calculated
 !> \param npoints ...
 !> \param epsilon_rho ...
-!> \param epsilon_norm_drho ...
 !> \param ! ...
 !> \param pbe_params parameters for the pbe functional
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author fawzi
 ! *****************************************************************************
-SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
+SUBROUTINE pbe_lda_calc(rho, norm_drho,&
      e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
      e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-     e_ndrho_ndrho_ndrho,grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,&
+     e_ndrho_ndrho_ndrho,grad_deriv,npoints,epsilon_rho,&
 !     pbe_params,error)
      param,scale_ec,scale_ex,error)
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
@@ -469,8 +463,8 @@ SUBROUTINE pbe_lda_calc(rho, rho_1_3, norm_drho,&
       e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho_rho, e_rho_rho_rho, &
       e_ndrho_ndrho, e_ndrho_rho, e_rho_rho, e_ndrho, e_rho, e_0
     REAL(kind=dp), DIMENSION(1:npoints), &
-      INTENT(in)                             :: norm_drho, rho_1_3, rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_norm_drho
+      INTENT(in)                             :: norm_drho, rho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho
     INTEGER, INTENT(in)                      :: param
     REAL(kind=dp), INTENT(in)                :: scale_ec, scale_ex
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1416,8 +1410,8 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
     INTEGER                                  :: handle, npoints, param, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, &
-                                                scale_ec, scale_ex
+    REAL(kind=dp)                            :: epsilon_rho, scale_ec, &
+                                                scale_ex
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndr, &
       e_ndr_ndr, e_ndr_ra, e_ndr_rb, e_ndra, e_ndra_ndra, e_ndra_ra, e_ndrb, &
       e_ndrb_ndrb, e_ndrb_rb, e_ra, e_ra_ra, e_ra_rb, e_rb, e_rb_rb, &
@@ -1437,7 +1431,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
           rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
           norm_drhob=norm_drhob, norm_drho=norm_drho, &
           rho_cutoff=epsilon_rho,&
-          drho_cutoff=epsilon_drho, local_bounds=bo, error=error)
+          local_bounds=bo, error=error)
      npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
      ! meaningful default for the arrays we don't need: let us make compiler
@@ -1531,7 +1525,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
 !$omp shared(rhoa,rhob,norm_drho,norm_drhoa,norm_drhob,e_0,e_ra,e_rb,e_ndra_ra),&
 !$omp shared(e_ndrb_rb,e_ndr_ndr,e_ndra_ndra,e_ndrb_ndrb,e_ndr,e_ndra,e_ndrb),&
 !$omp shared(e_ra_ra,e_ra_rb,e_rb_rb,e_ndr_ra,e_ndr_rb,grad_deriv,npoints),&
-!$omp shared(epsilon_rho,epsilon_drho,error,param,scale_ec,scale_ex)
+!$omp shared(epsilon_rho,error,param,scale_ec,scale_ex)
      CALL pbe_lsd_calc(&
           rhoa=rhoa, rhob=rhob, norm_drho=norm_drho, norm_drhoa=norm_drhoa,&
           norm_drhob=norm_drhob, e_0=e_0, e_ra=e_ra, e_rb=e_rb,&
@@ -1542,7 +1536,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params,error)
           e_ra_rb=e_ra_rb, e_rb_rb=e_rb_rb, e_ra_ndr=e_ndr_ra,&
           e_rb_ndr=e_ndr_rb,&
           grad_deriv=grad_deriv, npoints=npoints, &
-          epsilon_rho=epsilon_rho,epsilon_drho=epsilon_drho,&
+          epsilon_rho=epsilon_rho,&
           param=param,scale_ec=scale_ec,scale_ex=scale_ex,error=error)
 !$omp end parallel
 
@@ -1584,7 +1578,6 @@ END SUBROUTINE pbe_lsd_eval
 !> \param grad_deriv ...
 !> \param npoints ...
 !> \param epsilon_rho ...
-!> \param epsilon_drho ...
 !> \param param ...
 !> \param scale_ec ...
 !> \param scale_ex ...
@@ -1596,14 +1589,14 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
      e_0, e_ra, e_rb, e_ra_ndra, e_rb_ndrb, e_ndr_ndr,&
      e_ndra_ndra, e_ndrb_ndrb, e_ndr,&
      e_ndra, e_ndrb, e_ra_ra, e_ra_rb, e_rb_rb, e_ra_ndr, e_rb_ndr,&
-     grad_deriv,npoints,epsilon_rho,epsilon_drho,param,scale_ec,scale_ex,error)
+     grad_deriv,npoints,epsilon_rho,param,scale_ec,scale_ex,error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drho, &
                                                 norm_drhoa, norm_drhob
     REAL(kind=dp), DIMENSION(*), INTENT(inout) :: e_0, e_ra, e_rb, e_ra_ndra, &
       e_rb_ndrb, e_ndr_ndr, e_ndra_ndra, e_ndrb_ndrb, e_ndr, e_ndra, e_ndrb, &
       e_ra_ra, e_ra_rb, e_rb_rb, e_ra_ndr, e_rb_ndr
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho
     INTEGER, INTENT(in)                      :: param
     REAL(kind=dp), INTENT(in)                :: scale_ec, scale_ex
     TYPE(cp_error_type), INTENT(inout)       :: error

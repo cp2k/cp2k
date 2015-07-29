@@ -321,8 +321,7 @@ CONTAINS
     INTEGER                                  :: func_id, handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: epsilon_norm_drho, &
-                                                epsilon_rho, epsilon_tau, sc
+    REAL(KIND=dp)                            :: epsilon_rho, epsilon_tau, sc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: params, scale
     REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rho, &
       e_laplace_rho_laplace_rho, e_laplace_rho_tau, e_ndrho, &
@@ -369,7 +368,7 @@ CONTAINS
        CASE(XC_FAMILY_GGA, XC_FAMILY_HYB_GGA)
           CALL xc_rho_set_get(rho_set,rho=rho,norm_drho=norm_drho,&
                local_bounds=bo,rho_cutoff=epsilon_rho,&
-               drho_cutoff=epsilon_norm_drho,error=error)
+               error=error)
           laplace_rho => rho
           tau => rho
        CASE(XC_FAMILY_MGGA)
@@ -377,12 +376,12 @@ CONTAINS
               (func_id == 209) .OR. (func_id == 210) .OR. (func_id == 211)) THEN
              CALL xc_rho_set_get(rho_set,rho=rho,norm_drho=norm_drho,&
                   laplace_rho=laplace_rho,tau=tau,local_bounds=bo,&
-                  rho_cutoff=epsilon_rho,drho_cutoff=epsilon_norm_drho,&
+                  rho_cutoff=epsilon_rho,&
                   tau_cutoff=epsilon_tau,error=error)
           ELSE
              CALL xc_rho_set_get(rho_set,rho=rho,norm_drho=norm_drho,&
                   tau=tau,local_bounds=bo,rho_cutoff=epsilon_rho,&
-                  drho_cutoff=epsilon_norm_drho,tau_cutoff=epsilon_tau,error=error)
+                  tau_cutoff=epsilon_tau,error=error)
              laplace_rho => rho
           END IF
        END SELECT
@@ -528,7 +527,7 @@ CONTAINS
        !$omp shared(e_rho_tau,e_ndrho_laplace_rho,e_ndrho_tau,e_laplace_rho_laplace_rho),&
        !$omp shared(e_laplace_rho_tau,e_tau_tau,e_rho_rho_rho),&
        !$omp shared(grad_deriv,npoints),&
-       !$omp shared(epsilon_rho,epsilon_norm_drho,epsilon_tau),&
+       !$omp shared(epsilon_rho,epsilon_tau),&
        !$omp shared(func_name,ifunc_name,sc,params,error)
 
        CALL libxc_lda_calc(rho=rho,norm_drho=norm_drho,&
@@ -541,7 +540,7 @@ CONTAINS
           e_laplace_rho_tau=e_laplace_rho_tau,e_tau_tau=e_tau_tau,&
           e_rho_rho_rho=e_rho_rho_rho,&
           grad_deriv=grad_deriv,npoints=npoints,&
-          epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
+          epsilon_rho=epsilon_rho,&
           epsilon_tau=epsilon_tau,func_name=func_name(ifunc_name),&
           sc=sc,params=params,error=error)
 
@@ -592,8 +591,7 @@ CONTAINS
     INTEGER                                  :: func_id, handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: epsilon_norm_drho, &
-                                                epsilon_rho, epsilon_tau, sc
+    REAL(KIND=dp)                            :: epsilon_rho, epsilon_tau, sc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: params, scale
     REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rhoa, &
       e_laplace_rhoa_laplace_rhoa, e_laplace_rhoa_laplace_rhob, &
@@ -659,7 +657,7 @@ CONTAINS
           CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,&
                norm_drho=norm_drho,norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,&
                local_bounds=bo,rho_cutoff=epsilon_rho,&
-               drho_cutoff=epsilon_norm_drho,error=error)
+               error=error)
           laplace_rhoa => rhoa
           laplace_rhob => rhoa
           tau_a => rhoa
@@ -671,13 +669,13 @@ CONTAINS
                   norm_drho=norm_drho,norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,&
                   laplace_rhoa=laplace_rhoa,laplace_rhob=laplace_rhob,&
                   tau_a=tau_a,tau_b=tau_b,local_bounds=bo,&
-                  rho_cutoff=epsilon_rho,drho_cutoff=epsilon_norm_drho,&
+                  rho_cutoff=epsilon_rho,&
                   tau_cutoff=epsilon_tau,error=error)
           ELSE
              CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,&
                   norm_drho=norm_drho,norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,&
                   tau_a=tau_a,tau_b=tau_b,local_bounds=bo,&
-                  rho_cutoff=epsilon_rho,drho_cutoff=epsilon_norm_drho,&
+                  rho_cutoff=epsilon_rho,&
                   tau_cutoff=epsilon_tau,error=error)
              laplace_rhoa => rhoa
              laplace_rhob => rhoa
@@ -1066,7 +1064,7 @@ CONTAINS
        !$omp shared(e_tau_a_tau_a,e_tau_a_tau_b,e_tau_b_tau_b),&
        !$omp shared(e_rhoa_rhoa_rhoa,e_rhoa_rhoa_rhob,e_rhoa_rhob_rhob,e_rhob_rhob_rhob),&
        !$omp shared(grad_deriv,npoints),&
-       !$omp shared(epsilon_rho,epsilon_norm_drho,epsilon_tau),&
+       !$omp shared(epsilon_rho,epsilon_tau),&
        !$omp shared(func_name,ifunc_name,sc,params,error)
 
        CALL libxc_lsd_calc(rhoa=rhoa,rhob=rhob,norm_drho=norm_drho,&
@@ -1112,7 +1110,7 @@ CONTAINS
           e_rhoa_rhob_rhob=e_rhoa_rhob_rhob,&
           e_rhob_rhob_rhob=e_rhob_rhob_rhob,&
           grad_deriv=grad_deriv,npoints=npoints,&
-          epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
+          epsilon_rho=epsilon_rho,&
           epsilon_tau=epsilon_tau,func_name=func_name(ifunc_name),&
           sc=sc,params=params,error=error)
 
@@ -1159,7 +1157,6 @@ CONTAINS
 !>        if negative only the given degree is calculated
 !> \param npoints number of points on the grid
 !> \param epsilon_rho ...
-!> \param epsilon_norm_drho ...
 !> \param epsilon_tau ...
 !> \param func_name name of the functional
 !> \param sc scaling factor
@@ -1173,7 +1170,7 @@ CONTAINS
           e_ndrho_ndrho,e_rho_laplace_rho,e_rho_tau,e_ndrho_laplace_rho,&
           e_ndrho_tau,e_laplace_rho_laplace_rho,e_laplace_rho_tau,&
           e_tau_tau,e_rho_rho_rho,&
-          grad_deriv,npoints,epsilon_rho,epsilon_norm_drho,&
+          grad_deriv,npoints,epsilon_rho,&
           epsilon_tau,func_name,sc,params,error)
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, norm_drho, laplace_rho, &
@@ -1183,8 +1180,7 @@ CONTAINS
       e_rho_laplace_rho, e_rho_tau, e_ndrho_laplace_rho, e_ndrho_tau, &
       e_laplace_rho_laplace_rho, e_laplace_rho_tau, e_tau_tau, e_rho_rho_rho
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(KIND=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, epsilon_tau
+    REAL(KIND=dp), INTENT(in)                :: epsilon_rho, epsilon_tau
     CHARACTER(LEN=80), INTENT(IN)            :: func_name
     REAL(KIND=dp), INTENT(in)                :: sc
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: params
@@ -1591,7 +1587,6 @@ CONTAINS
 !>        if negative only the given degree is calculated
 !> \param npoints number of points on the grid
 !> \param epsilon_rho ...
-!> \param epsilon_norm_drho ...
 !> \param epsilon_tau ...
 !> \param func_name name of the functional
 !> \param sc scaling factor
@@ -1626,7 +1621,7 @@ CONTAINS
           e_tau_a_tau_a,e_tau_a_tau_b,e_tau_b_tau_b,&
           e_rhoa_rhoa_rhoa,e_rhoa_rhoa_rhob,&
           e_rhoa_rhob_rhob,e_rhob_rhob_rhob,&
-          grad_deriv,npoints,epsilon_rho,epsilon_norm_drho,&
+          grad_deriv,npoints,epsilon_rho,&
           epsilon_tau,func_name,sc,params,error)
 
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, rhob, norm_drho, &
@@ -1651,8 +1646,7 @@ CONTAINS
       e_laplace_rhob_tau_b, e_tau_a_tau_a, e_tau_a_tau_b, e_tau_b_tau_b, &
       e_rhoa_rhoa_rhoa, e_rhoa_rhoa_rhob, e_rhoa_rhob_rhob, e_rhob_rhob_rhob
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(KIND=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, epsilon_tau
+    REAL(KIND=dp), INTENT(in)                :: epsilon_rho, epsilon_tau
     CHARACTER(LEN=80), INTENT(IN)            :: func_name
     REAL(KIND=dp), INTENT(in)                :: sc
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: params

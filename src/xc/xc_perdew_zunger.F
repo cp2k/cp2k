@@ -318,13 +318,13 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
     REAL(KIND=dp)                            :: rho_cutoff, sc
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: a, b, dummy, e_0, ea, eaa, &
-                                                eaaa, eaab, eab, eabb, eb, &
-                                                ebb, ebbb
+                                                eaaa, eaab, eab, eabb, ebb, &
+                                                ebbb
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,timer_handle)
     failure=.FALSE.
-    NULLIFY(bo,a,b,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,ebbb)
+    NULLIFY(bo,a,b,e_0,ea,eaa,eab,ebb,eaaa,eaab,eabb,ebbb)
 
     CALL section_vals_val_get(pz_params,"scale_c",r_val=sc,error=error)
 
@@ -349,7 +349,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
        END IF
 
        e_0 => dummy
-       ea => dummy; eb => dummy
+       ea => dummy; 
        eaa => dummy; eab => dummy; ebb => dummy
        eaaa => dummy; eaab=> dummy; eabb => dummy; ebbb => dummy
 
@@ -362,9 +362,6 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
           deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
                allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=ea,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=eb,error=error)
        END IF
        IF (order>=2.OR.order==-2) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)",&
@@ -397,7 +394,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
                error=error, error_level=cp_failure_level)
        END IF
 
-       CALL pz_lsd_calc(a,b,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,&
+       CALL pz_lsd_calc(a,b,e_0,ea,eaa,eab,ebb,eaaa,eaab,eabb,&
          ebbb, npoints, order, sc)
 
        IF (cp_debug) THEN
@@ -418,7 +415,6 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 !> \param b ...
 !> \param e_0 ...
 !> \param ea ...
-!> \param eb ...
 !> \param eaa ...
 !> \param eab ...
 !> \param ebb ...
@@ -430,13 +426,13 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 !> \param order ...
 !> \param sc ...
 ! *****************************************************************************
-    SUBROUTINE pz_lsd_calc(a,b,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,&
+    SUBROUTINE pz_lsd_calc(a,b,e_0,ea,eaa,eab,ebb,eaaa,eaab,eabb,&
          ebbb, npoints, order, sc)
       !FM low-level computation routine
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: a, b
     REAL(KIND=dp), DIMENSION(*), &
-      INTENT(inout)                          :: e_0, ea, eb, eaa, eab, ebb, &
-                                                eaaa, eaab, eabb, ebbb
+      INTENT(inout)                          :: e_0, ea, eaa, eab, ebb, eaaa, &
+                                                eaab, eabb, ebbb
     INTEGER, INTENT(in)                      :: npoints, order
     REAL(KIND=dp), INTENT(IN)                :: sc
 

@@ -156,8 +156,7 @@ CONTAINS
     INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_norm_drho, &
-                                                epsilon_rho, sx
+    REAL(kind=dp)                            :: epsilon_rho, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0, e_ndrho, e_rho, &
                                                 norm_drho, rho, rho_1_3
@@ -177,8 +176,7 @@ CONTAINS
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL xc_rho_set_get(rho_set,rho_1_3=rho_1_3,rho=rho,&
-            norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-            drho_cutoff=epsilon_norm_drho,error=error)
+            norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        ! meaningful default for the arrays we don't need: let us make compiler
@@ -217,12 +215,11 @@ CONTAINS
        !$omp          shared(rho, rho_1_3, norm_drho, e_0, e_rho) &
        !$omp          shared(e_ndrho) &
        !$omp          shared( grad_deriv, npoints) &
-       !$omp          shared(epsilon_rho, epsilon_norm_drho, sx, error)
+       !$omp          shared(epsilon_rho,sx, error)
        CALL xbeef_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
             e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
             grad_deriv=grad_deriv,&
-            npoints=npoints,epsilon_rho=epsilon_rho,epsilon_norm_drho=epsilon_norm_drho,&
-            sx=sx,error=error)
+            npoints=npoints,epsilon_rho=epsilon_rho,sx=sx,error=error)
        !$omp end parallel
 
        IF (cp_debug) THEN
@@ -248,7 +245,6 @@ CONTAINS
 !>        if negative only the given degree is calculated
 !> \param npoints ...
 !> \param epsilon_rho ...
-!> \param epsilon_norm_drho ...
 !> \param sx scaling-parameter for exchange
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -258,14 +254,13 @@ CONTAINS
 ! *****************************************************************************
 SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
        e_0,e_rho,e_ndrho,&
-       grad_deriv,npoints,epsilon_rho, epsilon_norm_drho,sx,error)
+       grad_deriv,npoints,epsilon_rho,sx,error)
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(inout)                          :: e_ndrho, e_rho, e_0
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: norm_drho, rho_1_3, rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, sx
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xbeef_lda_calc', &
@@ -375,7 +370,7 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
                                                 stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, sx
+    REAL(kind=dp)                            :: epsilon_rho, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0
     TYPE(cp_3d_r_p_type), DIMENSION(2)       :: e_ndrho, e_rho, norm_drho, &
@@ -402,7 +397,7 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
             rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
             rhob=rho(2)%array,norm_drhoa=norm_drho(1)%array, &
             norm_drhob=norm_drho(2)%array,rho_cutoff=epsilon_rho,&
-            drho_cutoff=epsilon_drho, local_bounds=bo, error=error)
+            local_bounds=bo, error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        ! meaningful default for the arrays we don't need: let us make compiler
@@ -451,18 +446,16 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
           !$omp          shared(rho, ispin, rho_1_3, norm_drho, e_0) &
           !$omp          shared(e_rho, e_ndrho) &
           !$omp          shared(grad_deriv, npoints) &
-          !$omp          shared(epsilon_rho, epsilon_drho, sx, error)
+          !$omp          shared(epsilon_rho, sx, error)
 
           CALL xbeef_lsd_calc(&
                rho_spin=rho(ispin)%array,&
                rho_1_3_spin=rho_1_3(ispin)%array,&
                norm_drho_spin=norm_drho(ispin)%array,&
-               e_0=e_0,&
-               e_rho_spin=e_rho(ispin)%array,&
+               e_0=e_0,e_rho_spin=e_rho(ispin)%array,&
                e_ndrho_spin=e_ndrho(ispin)%array,&
                grad_deriv=grad_deriv, npoints=npoints,&
-               epsilon_rho=epsilon_rho, epsilon_drho=epsilon_drho,&
-               sx=sx,&
+               epsilon_rho=epsilon_rho,sx=sx,&
                error=error)
 
           !$omp end parallel
@@ -491,7 +484,6 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
 !> \param grad_deriv ...
 !> \param npoints ...
 !> \param epsilon_rho ...
-!> \param epsilon_drho ...
 !> \param sx scaling-parameter for exchange
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -500,15 +492,13 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
 !> \author rkoitz
 ! *****************************************************************************
 SUBROUTINE xbeef_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
-       e_rho_spin,e_ndrho_spin,&
-       grad_deriv,npoints,epsilon_rho, epsilon_drho,sx,&
-       error)
+       e_rho_spin,e_ndrho_spin,grad_deriv,npoints,epsilon_rho,sx,error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rho_spin, rho_1_3_spin, &
                                                 norm_drho_spin
     REAL(kind=dp), DIMENSION(*), &
       INTENT(inout)                          :: e_0, e_rho_spin, e_ndrho_spin
     INTEGER, INTENT(in)                      :: grad_deriv, npoints
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho, sx
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xbeef_lsd_calc', &

@@ -51,7 +51,6 @@ MODULE xc_xlda_hole_t_c_lr
 
 ! *****************************************************************************
 !> \brief returns various information on the functional
-!> \param xlda_params section selecting the various parameters for the functional
 !> \param reference string with the reference of the actual functional
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
@@ -63,8 +62,7 @@ MODULE xc_xlda_hole_t_c_lr
 !>        12.2008 created [mguidon]
 !> \author mguidon
 ! *****************************************************************************
-  SUBROUTINE xlda_hole_t_c_lr_lda_info ( xlda_params, reference, shortform, needs, max_deriv, error)
-    TYPE(section_vals_type), POINTER         :: xlda_params
+  SUBROUTINE xlda_hole_t_c_lr_lda_info (reference, shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
@@ -86,7 +84,6 @@ MODULE xc_xlda_hole_t_c_lr
 
 ! *****************************************************************************
 !> \brief returns various information on the functional
-!> \param xlda_params section selecting the various parameters for the functional
 !> \param reference string with the reference of the actual functional
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
@@ -98,8 +95,7 @@ MODULE xc_xlda_hole_t_c_lr
 !>        12.2008 created [mguidon]
 !> \author mguidon
 ! *****************************************************************************
-  SUBROUTINE xlda_hole_t_c_lr_lsd_info ( xlda_params, reference, shortform, needs, max_deriv, error)
-    TYPE(section_vals_type), POINTER         :: xlda_params
+  SUBROUTINE xlda_hole_t_c_lr_lsd_info (reference, shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs

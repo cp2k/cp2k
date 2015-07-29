@@ -75,7 +75,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief return various information on the functional
-!> \param br_params section selecting the various parameters for the functional
 !> \param reference string with the reference of the actual functional
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
@@ -87,9 +86,8 @@ CONTAINS
 !>        12.2008 created [mguidon]
 !> \author mguidon
 ! *****************************************************************************
-  SUBROUTINE xbecke_roussel_lda_info(br_params,reference,shortform, needs, max_deriv,&
+  SUBROUTINE xbecke_roussel_lda_info(reference,shortform, needs, max_deriv,&
        error)
-    TYPE(section_vals_type), POINTER         :: br_params
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
@@ -126,7 +124,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief return various information on the functional
-!> \param br_params section selecting the varius parameters for the functional
 !> \param reference string with the reference of the actual functional
 !> \param shortform string with the shortform of the functional name
 !> \param needs the components needed by this functional are set to
@@ -138,9 +135,8 @@ CONTAINS
 !>        12.2008 created [mguidon]
 !> \author mguidon
 ! *****************************************************************************
-  SUBROUTINE xbecke_roussel_lsd_info(br_params,reference,shortform, needs, max_deriv,&
+  SUBROUTINE xbecke_roussel_lsd_info(reference,shortform, needs, max_deriv,&
      error)
-    TYPE(section_vals_type), POINTER         :: br_params
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
@@ -203,7 +199,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(dp)                                 :: gamma, R, sx
-    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0, e_laplace_rho, &
                                                 e_ndrho, e_rho, e_tau, &
@@ -223,7 +219,7 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL xc_rho_set_get(rho_set, rho=rho, norm_drho=norm_drho, &
            tau=tau,laplace_rho=laplace_rho,local_bounds=bo,&
-           rho_cutoff=epsilon_rho,drho_cutoff=epsilon_norm_drho,error=error)
+           rho_cutoff=epsilon_rho,error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
       ! meaningful default for the arrays we don't need: let us make compiler
@@ -274,13 +270,13 @@ CONTAINS
       !$omp          shared(rho, norm_drho, laplace_rho, tau, e_0, e_rho) &
       !$omp          shared(e_ndrho, e_tau, e_laplace_rho, grad_deriv) &
       !$omp          shared(npoints, epsilon_rho) &
-      !$omp          shared(epsilon_norm_drho, sx, r, gamma, error)
+      !$omp          shared(sx, r, gamma, error)
 
       CALL xbecke_roussel_lda_calc(rho=rho, norm_drho=norm_drho,&
           laplace_rho=laplace_rho,tau=tau,e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
           e_tau=e_tau,e_laplace_rho=e_laplace_rho,grad_deriv=grad_deriv, &
           npoints=npoints,epsilon_rho=epsilon_rho,&
-          epsilon_norm_drho=epsilon_norm_drho,sx=sx,R=R,gamma=gamma,error=error)
+          sx=sx,R=R,gamma=gamma,error=error)
 
       !$omp end parallel
 
@@ -314,7 +310,6 @@ CONTAINS
 !>        if negative only the given degree is calculated
 !> \param npoints size of the grids
 !> \param epsilon_rho cutoffs
-!> \param epsilon_norm_drho cutoffs
 !> \param sx scales the exchange potential and energies
 !> \param R cutoff Radius for truncated case
 !> \param gamma paramter from original publication, usually set to 1
@@ -326,7 +321,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE xbecke_roussel_lda_calc(rho,norm_drho,laplace_rho,tau,e_0,e_rho,&
                                      e_ndrho,e_tau,e_laplace_rho,grad_deriv,npoints,&
-                                     epsilon_rho,epsilon_norm_drho,sx,R,gamma,error)
+                                     epsilon_rho,sx,R,gamma,error)
 
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), &
@@ -335,9 +330,7 @@ CONTAINS
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: tau, laplace_rho, norm_drho, &
                                                 rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, sx, R, &
-                                                gamma
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, R, gamma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lda_calc', &
@@ -444,7 +437,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(dp)                                 :: gamma, R, sx
-    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rhoa, &
       e_laplace_rhob, e_ndrhoa, e_ndrhob, e_rhoa, e_rhob, e_tau_a, e_tau_b, &
       laplace_rhoa, laplace_rhob, norm_drhoa, norm_drhob, rhoa, rhob, tau_a, &
@@ -464,7 +457,7 @@ CONTAINS
       CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
            norm_drhob=norm_drhob, tau_a=tau_a, tau_b=tau_b, laplace_rhoa=laplace_rhoa,&
            laplace_rhob=laplace_rhob,local_bounds=bo,&
-           rho_cutoff=epsilon_rho,drho_cutoff=epsilon_norm_drho,error=error)
+           rho_cutoff=epsilon_rho,error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
       ! meaningful default for the arrays we don't need: let us make compiler
@@ -534,7 +527,7 @@ CONTAINS
       !$omp          shared(rhoa, norm_drhoa, laplace_rhoa, tau_a, e_0) &
       !$omp          shared(e_rhoa, e_ndrhoa, e_tau_a, e_laplace_rhoa) &
       !$omp          shared(grad_deriv, npoints, epsilon_rho) &
-      !$omp          shared(epsilon_norm_drho, sx, r, gamma, error) &
+      !$omp          shared(sx, r, gamma, error) &
       !$omp          shared(rhob, norm_drhob, laplace_rhob, tau_b, e_rhob) &
       !$omp          shared(e_ndrhob, e_tau_b, e_laplace_rhob)
 
@@ -542,13 +535,13 @@ CONTAINS
           laplace_rho=laplace_rhoa,tau=tau_a,e_0=e_0,e_rho=e_rhoa,e_ndrho=e_ndrhoa,&
           e_tau=e_tau_a,e_laplace_rho=e_laplace_rhoa,grad_deriv=grad_deriv, &
           npoints=npoints,epsilon_rho=epsilon_rho,&
-          epsilon_norm_drho=epsilon_norm_drho,sx=sx,R=R,gamma=gamma,error=error)
+          sx=sx,R=R,gamma=gamma,error=error)
 
       CALL xbecke_roussel_lsd_calc(rho=rhob, norm_drho=norm_drhob,&
           laplace_rho=laplace_rhob,tau=tau_b,e_0=e_0,e_rho=e_rhob,e_ndrho=e_ndrhob,&
           e_tau=e_tau_b,e_laplace_rho=e_laplace_rhob,grad_deriv=grad_deriv, &
           npoints=npoints,epsilon_rho=epsilon_rho,&
-          epsilon_norm_drho=epsilon_norm_drho,sx=sx,R=R,gamma=gamma,error=error)
+          sx=sx,R=R,gamma=gamma,error=error)
 
       !$omp end parallel
 
@@ -580,7 +573,6 @@ CONTAINS
 !>        if negative only the given degree is calculated
 !> \param npoints size of the grids
 !> \param epsilon_rho cutoffs
-!> \param epsilon_norm_drho cutoffs
 !> \param sx scales the exchange potential and energies
 !> \param R cutoff Radius for truncated case
 !> \param gamma paramter from original publication, usually set to 1
@@ -592,7 +584,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE xbecke_roussel_lsd_calc(rho,norm_drho,laplace_rho,tau,e_0,e_rho,&
                                      e_ndrho,e_tau,e_laplace_rho,grad_deriv,npoints,&
-                                     epsilon_rho,epsilon_norm_drho,sx,R,gamma,error)
+                                     epsilon_rho,sx,R,gamma,error)
 
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), &
@@ -601,9 +593,7 @@ CONTAINS
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: tau, laplace_rho, norm_drho, &
                                                 rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, sx, R, &
-                                                gamma
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, R, gamma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xbecke_roussel_lsd_calc', &

@@ -314,7 +314,7 @@ CONTAINS
                   allocate_deriv=.TRUE., error=error)
              CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
 
-             CALL tfw_p_0 ( rho(ispin)%array, norm_drho(ispin)%array, &
+             CALL tfw_p_0 ( rho(ispin)%array, &
                   rho_1_3(ispin)%array, s, e_0, npoints,error )
           END IF
           IF ( order>=1.OR.order==-1 ) THEN
@@ -538,16 +538,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rhoa ...
-!> \param grhoa ...
 !> \param r13a ...
 !> \param sa ...
 !> \param e_0 ...
 !> \param npoints ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE tfw_p_0 ( rhoa, grhoa, r13a, sa, e_0, npoints, error )
+  SUBROUTINE tfw_p_0 ( rhoa, r13a, sa, e_0, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a, sa
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints

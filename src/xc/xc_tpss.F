@@ -180,8 +180,7 @@ CONTAINS
                                                 npoints, stat, unit_nr
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_norm_drho, &
-                                                epsilon_rho, epsilon_tau, &
+    REAL(kind=dp)                            :: epsilon_rho, epsilon_tau, &
                                                 scale_ec, scale_ex
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0, e_ndrho, e_rho, &
@@ -202,7 +201,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL xc_rho_set_get(rho_set,rho=rho,&
             norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-            tau=tau,drho_cutoff=epsilon_norm_drho,tau_cutoff=epsilon_tau,&
+            tau=tau,tau_cutoff=epsilon_tau,&
             error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
@@ -249,14 +248,13 @@ CONTAINS
        !$omp parallel default(none) &
        !$omp          shared(rho, tau, norm_drho, e_0, e_rho, e_ndrho, e_tau) &
        !$omp          shared(epsilon_rho, epsilon_tau, npoints, grad_deriv) &
-       !$omp          shared(epsilon_norm_drho, scale_ec, scale_ex, error) &
+       !$omp          shared(scale_ec, scale_ex, error) &
        !$omp          reduction(+: non_coer)
 
        CALL tpss_lda_calc(rho=rho, norm_drho=norm_drho,&
             tau=tau,e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_tau=e_tau,&
             grad_deriv=grad_deriv, npoints=npoints,epsilon_rho=epsilon_rho,&
-            epsilon_norm_drho=epsilon_norm_drho,epsilon_tau=epsilon_tau,&
-            scale_ec=scale_ec,scale_ex=scale_ex,non_coer=non_coer,error=error)
+            epsilon_tau=epsilon_tau,scale_ec=scale_ec,scale_ex=scale_ex,non_coer=non_coer,error=error)
 
        !$omp end parallel
 
@@ -310,8 +308,7 @@ CONTAINS
                                                 npoints, stat, unit_nr
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_norm_drho, &
-                                                epsilon_rho, epsilon_tau, &
+    REAL(kind=dp)                            :: epsilon_rho, epsilon_tau, &
                                                 scale_ec, scale_ex
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
       e_ndrhoa, e_ndrhob, e_rhoa, e_rhob, e_tau_a, e_tau_b, norm_drho, &
@@ -332,9 +329,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,norm_drhoa=norm_drhoa,&
             norm_drhob=norm_drhob,norm_drho=norm_drho,tau_a=tau_a,tau_b=tau_b,&
-            local_bounds=bo,rho_cutoff=epsilon_rho,&
-            drho_cutoff=epsilon_norm_drho,tau_cutoff=epsilon_tau,&
-            error=error)
+            local_bounds=bo,rho_cutoff=epsilon_rho,tau_cutoff=epsilon_tau,error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        ! meaningful default for the arrays we don't need: let us make compiler
@@ -397,7 +392,7 @@ CONTAINS
        !$omp          shared(rhoa, rhob,norm_drhoa, norm_drhob, norm_drho) &
        !$omp          shared(tau_a, tau_b, e_0, e_rhoa, e_rhob, e_ndrhoa) &
        !$omp          shared(e_ndrhob, e_ndrho, e_tau_a, e_tau_b, npoints) &
-       !$omp          shared(grad_deriv, epsilon_rho, epsilon_norm_drho) &
+       !$omp          shared(grad_deriv, epsilon_rho) &
        !$omp          shared(epsilon_tau, scale_ec, scale_ex, error) &
        !$omp          reduction(+: non_coer)
 
@@ -407,7 +402,7 @@ CONTAINS
             e_ndrhoa=e_ndrhoa,e_ndrhob=e_ndrhob,e_ndrho=e_ndrho,&
             e_tau_a=e_tau_a,e_tau_b=e_tau_b,&
             grad_deriv=grad_deriv, npoints=npoints,epsilon_rho=epsilon_rho,&
-            epsilon_norm_drho=epsilon_norm_drho,epsilon_tau=epsilon_tau,&
+            epsilon_tau=epsilon_tau,&
             scale_ec=scale_ec,scale_ex=scale_ex,non_coer=non_coer,error=error)
 
        !$omp end parallel
@@ -447,7 +442,6 @@ CONTAINS
 !> \param npoints ...
 !> \param grad_deriv ...
 !> \param epsilon_rho ...
-!> \param epsilon_norm_drho ...
 !> \param epsilon_tau ...
 !> \param scale_ec ...
 !> \param scale_ex ...
@@ -460,16 +454,14 @@ CONTAINS
 !>      look in doc/tpss.mw
 ! *****************************************************************************
   SUBROUTINE tpss_lda_calc(rho,norm_drho,tau,e_0,e_rho,e_ndrho,e_tau,&
-       npoints,grad_deriv,epsilon_rho,epsilon_norm_drho,epsilon_tau,&
+       npoints,grad_deriv,epsilon_rho,epsilon_tau,&
        scale_ec,scale_ex,non_coer,error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rho, norm_drho, tau
     REAL(kind=dp), DIMENSION(*), &
       INTENT(inout)                          :: e_0, e_rho, e_ndrho, e_tau
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, &
-                                                epsilon_tau, scale_ec, &
-                                                scale_ex
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_tau, &
+                                                scale_ec, scale_ex
     INTEGER, INTENT(inout)                   :: non_coer
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1004,7 +996,6 @@ CONTAINS
 !> \param npoints ...
 !> \param grad_deriv ...
 !> \param epsilon_rho ...
-!> \param epsilon_norm_drho ...
 !> \param epsilon_tau ...
 !> \param scale_ec ...
 !> \param scale_ex ...
@@ -1018,7 +1009,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE tpss_lsd_calc(rhoa, rhob, norm_drhoa, norm_drhob, norm_drho,&
        tau_a,tau_b,e_0,e_rhoa,e_rhob,e_ndrhoa,e_ndrhob,e_ndrho,e_tau_a,e_tau_b,&
-       npoints,grad_deriv,epsilon_rho,epsilon_norm_drho,epsilon_tau,&
+       npoints,grad_deriv,epsilon_rho,epsilon_tau,&
        scale_ec,scale_ex,non_coer,error)
     REAL(kind=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob, norm_drhoa, &
                                                 norm_drhob, norm_drho, tau_a, &
@@ -1028,10 +1019,8 @@ CONTAINS
                                                 e_ndrhoa, e_ndrhob, e_ndrho, &
                                                 e_tau_a, e_tau_b
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, &
-                                                epsilon_tau, scale_ec, &
-                                                scale_ex
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_tau, &
+                                                scale_ec, scale_ex
     INTEGER, INTENT(inout)                   :: non_coer
     TYPE(cp_error_type), INTENT(inout)       :: error
 
