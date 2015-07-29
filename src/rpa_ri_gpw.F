@@ -204,11 +204,13 @@ MODULE rpa_ri_gpw
       ! check the range for the minimax approximation
       Emin=2.0_dp*(Eigenval(homo+1)-Eigenval(homo))
       Emax=2.0_dp*(MAXVAL(Eigenval)-MINVAL(Eigenval))
-      IF(my_open_shell.AND.homo_beta>0) THEN
-        Emin_beta=2.0_dp*(Eigenval_beta(homo_beta+1)-Eigenval_beta(homo_beta))
-        Emax_beta=2.0_dp*(MAXVAL(Eigenval_beta)-MINVAL(Eigenval_beta))
-        Emin=MIN(Emin,Emin_beta)
-        Emax=MAX(Emax,Emax_beta)
+      IF(my_open_shell) THEN
+        IF(homo_beta>0) THEN
+          Emin_beta=2.0_dp*(Eigenval_beta(homo_beta+1)-Eigenval_beta(homo_beta))
+          Emax_beta=2.0_dp*(MAXVAL(Eigenval_beta)-MINVAL(Eigenval_beta))
+          Emin=MIN(Emin,Emin_beta)
+          Emax=MAX(Emax,Emax_beta)
+        END IF
       END IF
       E_Range=Emax/Emin
       IF(E_Range<2.0_dp) E_Range=2.0_dp
@@ -1652,11 +1654,13 @@ MODULE rpa_ri_gpw
   
       Emin=Eigenval(homo+1)-Eigenval(homo)
       Emax=MAXVAL(Eigenval)-MINVAL(Eigenval)
-      IF(my_open_shell.AND.homo_beta>0) THEN
-        Emin_beta=Eigenval_beta(homo_beta+1)-Eigenval_beta(homo_beta)
-        Emax_beta=MAXVAL(Eigenval_beta)-MINVAL(Eigenval_beta)
-        Emin=MIN(Emin,Emin_beta)
-        Emax=MAX(Emax,Emax_beta)
+      IF(my_open_shell) THEN
+        IF(homo_beta>0) THEN
+          Emin_beta=Eigenval_beta(homo_beta+1)-Eigenval_beta(homo_beta)
+          Emax_beta=MAXVAL(Eigenval_beta)-MINVAL(Eigenval_beta)
+          Emin=MIN(Emin,Emin_beta)
+          Emax=MAX(Emax,Emax_beta)
+        END IF
       END IF
       E_Range=Emax/Emin
   
