@@ -621,7 +621,7 @@ CONTAINS
       !$omp          shared(rhoa, norm_drhoa, laplace_rhoa, tau_a, e_0) &
       !$omp          shared(e_rhoa, e_ndrhoa, e_tau_a, e_laplace_rhoa) &
       !$omp          shared(grad_deriv, npoints, epsilon_rho) &
-      !$omp          shared(epsilon_norm_drho, sx, r, gamma, error) &
+      !$omp          shared(sx, r, gamma, error) &
       !$omp          shared(rhob, norm_drhob, laplace_rhob, tau_b, e_rhob) &
       !$omp          shared(e_ndrhob, e_tau_b, e_laplace_rhob)
 
