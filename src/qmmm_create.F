@@ -510,7 +510,6 @@ CPSourceFileRef,&
        ! Initialize MM Potential fitted with Gaussian
        !
        CALL qmmm_init_gaussian_type (qmmm_env_qm = qmmm_env_qm,&
-                                     qm_cell_small=qm_cell_small,&
                                      para_env=para_env,&
                                      qs_env=qs_env,&
                                      mm_atom_chrg=mm_atom_chrg,&

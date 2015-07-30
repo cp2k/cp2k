@@ -300,7 +300,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param qmmm_env_qm ...
-!> \param qm_cell_small ...
 !> \param para_env ...
 !> \param mm_atom_chrg ...
 !> \param qs_env ...
@@ -313,11 +312,10 @@ CONTAINS
 !>      1.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
- SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, para_env, &
+ SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, para_env, &
                                     mm_atom_chrg, qs_env, added_charges, print_section, &
                                     qmmm_section, error )
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
-    TYPE(cell_type), POINTER                 :: qm_cell_small
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -342,7 +340,6 @@ CONTAINS
     CALL get_qs_env(qs_env, pw_env=pw_env, error=error)
     IF (qmmm_env_qm%add_mm_charges) maxchrg=MAX(maxchrg,MAXVAL(ABS(added_charges%mm_atom_chrg(:))))
     CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=qmmm_env_qm%pgfs,&
-                                  qm_cell_small=qm_cell_small,&
                                   para_env=para_env,&
                                   pw_env=pw_env,&
                                   mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
@@ -358,7 +355,6 @@ CONTAINS
 
     IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
        CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=added_charges%pgfs,&
-                                     qm_cell_small=qm_cell_small,&
                                      para_env=para_env,&
                                      pw_env=pw_env,&
                                      mm_el_pot_radius=added_charges%mm_el_pot_radius,&
