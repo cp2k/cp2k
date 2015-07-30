@@ -408,6 +408,9 @@ CONTAINS
              WRITE(unit_nr,'(T2,A,E20.8)') "Read restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
           ENDIF
        ENDDO
+
+       ! directly go to computing the corresponding energy and ks matrix
+       CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,ls_scf_env%energy_init,iscf=0,error=error)
     CASE(aspc_guess)
        CALL cite_reference(Kolafa2004)
        naspc=MIN(ls_scf_env%scf_history%istore,ls_scf_env%scf_history%nstore)
@@ -425,9 +428,9 @@ CONTAINS
 
     ! which cases need getting purified and non-orthogonal ?
     SELECT CASE(initial_guess_type)
-    CASE(atomic_guess)
+    CASE(atomic_guess, restart_guess)
       ! do nothing
-    CASE(aspc_guess,restart_guess)
+    CASE(aspc_guess)
        ! purification can't be done on the pexsi matrix, which is not necessarily idempotent,
        ! and not stored in an ortho basis form
        IF (.NOT.(ls_scf_env%purification_method .EQ. ls_scf_pexsi)) THEN
@@ -486,9 +489,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, project_name
-    INTEGER                                  :: handle, ispin, istore, unit_nr
-    REAL(KIND=dp)                            :: cs_pos
-    TYPE(cp_dbcsr_type)                      :: matrix_tmp1
+    INTEGER                                  :: handle, ispin, istore, &
+                                                nelectron_spin_real, unit_nr
+    REAL(KIND=dp)                            :: cs_pos, homo_spin, lumo_spin, &
+                                                mu_spin
+    TYPE(cp_dbcsr_type)                      :: matrix_ks_deviation_tmp, &
+                                                matrix_p_tmp, matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -500,6 +506,49 @@ CONTAINS
     ELSE
        unit_nr=-1
     ENDIF
+
+    IF (ls_scf_env%restart_write) THEN
+       DO ispin=1,SIZE(ls_scf_env%matrix_p)
+          project_name = logger%iter_info%project_name
+          WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_",ispin,"_RESTART.dm"
+          cs_pos = cp_dbcsr_checksum (ls_scf_env%matrix_p(ispin), pos=.TRUE., error=error)
+          IF (unit_nr>0) THEN
+             WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
+          ENDIF
+
+          ! perform trs4 once to get a full dm required by other purification methods
+          IF (ls_scf_env%do_transport .OR. ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+             IF (unit_nr>0) THEN
+                WRITE(unit_nr,'(T2,A)') "DM has the sparsity of S! "
+                WRITE(unit_nr,'(T2,A)') "TRS4 will be performed once to prepare "//&
+                                        "a full DM to store in the restart file."
+             ENDIF
+
+             CALL cp_dbcsr_init(matrix_p_tmp,error=error)
+             CALL cp_dbcsr_create(matrix_p_tmp,template=ls_scf_env%matrix_ks(ispin),error=error)
+             CALL cp_dbcsr_set(matrix_p_tmp,0.0_dp,error=error)
+
+             CALL cp_dbcsr_init(matrix_ks_deviation_tmp,error=error)
+             CALL cp_dbcsr_create(matrix_ks_deviation_tmp,template=ls_scf_env%matrix_ks(ispin),error=error)
+             CALL cp_dbcsr_set(matrix_ks_deviation_tmp,0.0_dp,error=error)
+
+             nelectron_spin_real=ls_scf_env%nelectron_spin(ispin)
+             IF (ls_scf_env%nspins==1) nelectron_spin_real=nelectron_spin_real/2
+             CALL density_matrix_trs4(matrix_p_tmp, ls_scf_env%matrix_ks(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
+                                      nelectron_spin_real, 1.0E-06_dp, homo_spin, lumo_spin, mu_spin, &
+                                      dynamic_threshold=.FALSE., matrix_ks_deviation=matrix_ks_deviation_tmp, &
+                                      eps_lanczos=1.0E-03_dp, max_iter_lanczos=128, error=error)
+             IF (ls_scf_env%nspins==1) CALL cp_dbcsr_scale(matrix_p_tmp, 2.0_dp, error=error)
+
+             CALL cp_dbcsr_binary_write(matrix_p_tmp,file_name,error)
+
+             CALL cp_dbcsr_release(matrix_p_tmp,error=error)
+             CALL cp_dbcsr_release(matrix_ks_deviation_tmp,error=error)
+          ELSE
+             CALL cp_dbcsr_binary_write(ls_scf_env%matrix_p(ispin),file_name,error)
+          END IF 
+       ENDDO
+    END IF
 
     IF (ls_scf_env%scf_history%nstore>0) THEN
        ls_scf_env%scf_history%istore=ls_scf_env%scf_history%istore+1
@@ -527,16 +576,6 @@ CONTAINS
                                           0.0_dp, ls_scf_env%scf_history%matrix(ispin,istore) , &
                                           filter_eps=ls_scf_env%eps_filter,error=error)
              CALL cp_dbcsr_release(matrix_tmp1,error=error)
-          ENDIF
-
-          IF (ls_scf_env%restart_write) THEN
-             project_name = logger%iter_info%project_name
-             WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_LS_DM_SPIN_",ispin,"_RESTART.dm"
-             cs_pos = cp_dbcsr_checksum (ls_scf_env%scf_history%matrix(ispin,istore), pos=.TRUE., error=error)
-             IF (unit_nr>0) THEN
-                WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
-             ENDIF
-             CALL cp_dbcsr_binary_write(ls_scf_env%scf_history%matrix(ispin,istore),file_name,error)
           ENDIF
 
        ENDDO
@@ -785,20 +824,22 @@ CONTAINS
 
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
       CALL pexsi_init_read_input(pexsi_section,ls_scf_env%pexsi, error)
-      ! Turn off S inversion (not used for PEXSI).
-      ! Methods such as purification must thus be avoided... which is OK, as the density matrix computed in pexsi is
-      ! a finite temperature one, and thus not idempotent
-      ls_scf_env%s_inversion_type=ls_s_inversion_none
-      ! PEXSI needs the sparsity pattern of S to be fixed by the upper bound ~ Int[|phi_a||phi_b|], 
-      ! they can not be filtered based on magnitude, as small elements in S (e.g. symmetry) do not necessarily
-      ! correspond to small elements in the density matrix, with non-zero contributions to the total density.
-      ! the easiest way to make sure S is untouched is to set eps_filter to zero (which should be inconsequential,
-      ! as a run based on pexsi should execute exactly zero multiplications)
-      ls_scf_env%eps_filter = 0.0_dp
+      IF (.NOT. ls_scf_env%restart_write) THEN
+        ! Turn off S inversion (not used for PEXSI).
+        ! Methods such as purification must thus be avoided... which is OK, as the density matrix computed in pexsi is
+        ! a finite temperature one, and thus not idempotent
+        ls_scf_env%s_inversion_type = ls_s_inversion_none
+        ! PEXSI needs the sparsity pattern of S to be fixed by the upper bound ~ Int[|phi_a||phi_b|], 
+        ! they can not be filtered based on magnitude, as small elements in S (e.g. symmetry) do not necessarily
+        ! correspond to small elements in the density matrix, with non-zero contributions to the total density.
+        ! the easiest way to make sure S is untouched is to set eps_filter to zero (which should be inconsequential,
+        ! as a run based on pexsi should execute exactly zero multiplications)
+        ls_scf_env%eps_filter = 0.0_dp
+      END IF
     ENDIF
 
     ! Turn off S inversion and set eps_filter to zero for transport
-    IF (ls_scf_env%do_transport) THEN
+    IF (ls_scf_env%do_transport .AND. .NOT. ls_scf_env%restart_write) THEN
       ls_scf_env%s_inversion_type = ls_s_inversion_none 
       ls_scf_env%eps_filter = 0.0_dp
     END IF
@@ -825,6 +866,12 @@ CONTAINS
     END SELECT
 
     ! verify some requirements for the curvy steps
+    CALL cp_assert(.NOT.(ls_scf_env%curvy_steps .AND. ls_scf_env%purification_method .EQ. ls_scf_pexsi), cp_failure_level, &
+                       cp_assertion_failed, routineP, "CURVY_STEPS can not be used together with PEXSI. ", &
+                       only_ionode=.TRUE., error=error)
+    CALL cp_assert(.NOT.(ls_scf_env%curvy_steps .AND. ls_scf_env%do_transport), cp_failure_level, &
+                       cp_assertion_failed, routineP, "CURVY_STEPS can not be used together with TRANSPORT. ", &
+                       only_ionode=.TRUE., error=error)
     CALL cp_assert(.NOT.(ls_scf_env%curvy_steps.AND.ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed,&
                       routineP,"S Preconditioning not implemented in combination with CURVY_STEPS. "//&
                        CPSourceFileRef,&
