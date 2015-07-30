@@ -413,8 +413,8 @@ MODULE hfx_types
      INTEGER                                  :: n_rep_hf
      LOGICAL                                  :: b_first_load_balance_energy, &
                                                  b_first_load_balance_forces
-     REAL(dp), DIMENSION(:), POINTER          :: full_ks_alpha
-     REAL(dp), DIMENSION(:), POINTER          :: full_ks_beta
+     REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_alpha
+     REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_beta
      TYPE(lib_int)                            :: lib
      TYPE(hfx_basis_info_type)                :: basis_info
      TYPE(hfx_screen_coeff_type), &

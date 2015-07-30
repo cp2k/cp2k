@@ -81,7 +81,7 @@ MODULE hfx_communication
                               get_max_vals_spin, rho_beta, antisymmetric, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
-    REAL(dp), DIMENSION(:), POINTER          :: full_density
+    REAL(dp), DIMENSION(:)                   :: full_density
     TYPE(cp_dbcsr_type), POINTER             :: rho
     INTEGER, INTENT(IN)                      :: number_of_p_entries
     INTEGER, DIMENSION(:), POINTER           :: block_offset
@@ -108,6 +108,8 @@ MODULE hfx_communication
     REAL(dp), DIMENSION(:, :), POINTER       :: sparse_block, &
                                                 sparse_block_beta
     TYPE(cp_dbcsr_iterator)                  :: iter
+
+!debREAL(dp), DIMENSION(:), POINTER          :: full_density
 
     failure = .FALSE.
 
@@ -352,11 +354,11 @@ MODULE hfx_communication
       routineN = 'scale_and_add_fock_to_ks_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, ikind, istat, natom, &
-                                                nimages, nspins, stat
+    INTEGER                                  :: iatom, ikind, img, istat, &
+                                                natom, nimages, nspins, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of, last_sgf_global
     LOGICAL                                  :: failure
-    REAL(dp), DIMENSION(:), POINTER          :: full_ks
+    REAL(dp), DIMENSION(:, :), POINTER       :: full_ks
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -400,9 +402,11 @@ MODULE hfx_communication
     IF(scaling_factor /= 1.0_dp ) THEN
        full_ks = full_ks * scaling_factor
     END IF
-    CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(1,1)%matrix, actual_x_data%number_of_p_entries, &
-                              actual_x_data%block_offset, natom, kind_of, basis_parameter, &
-                              off_diag_fac=0.5_dp,error=error)
+    DO img=1,nimages
+       CALL distribute_ks_matrix(para_env, full_ks(:,img), ks_matrix(1,img)%matrix, actual_x_data%number_of_p_entries, &
+                                 actual_x_data%block_offset, natom, kind_of, basis_parameter, &
+                                 off_diag_fac=0.5_dp,error=error)
+    END DO
     DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -411,10 +415,11 @@ MODULE hfx_communication
       IF(scaling_factor /= 1.0_dp ) THEN
          full_ks = full_ks * scaling_factor
       END IF
-      CALL distribute_ks_matrix(para_env, full_ks, ks_matrix(2,1)%matrix, actual_x_data%number_of_p_entries, &
+      DO img=1,nimages
+         CALL distribute_ks_matrix(para_env, full_ks(:,img), ks_matrix(2,img)%matrix, actual_x_data%number_of_p_entries, &
                               actual_x_data%block_offset, natom, kind_of, basis_parameter, &
                               off_diag_fac=0.5_dp,error=error)
-
+      END DO
       DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF

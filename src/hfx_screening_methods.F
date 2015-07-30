@@ -119,8 +119,9 @@ MODULE hfx_screening_methods
 !> \param set_offset ...
 !> \param atomic_block_offset ...
 !> \param pmax_atom ...
-!> \param full_density ...
+!> \param full_density_alpha ...
 !> \param full_density_beta ...
+!> \param image ...
 !> \param natom ...
 !> \param kind_of ...
 !> \param basis_parameter ...
@@ -133,7 +134,7 @@ MODULE hfx_screening_methods
 !>      - updates for each pair of shells the maximum absolute value of p
 ! *****************************************************************************
   SUBROUTINE update_pmax_mat(pmax_set, map_atom_to_kind_atom, set_offset, atomic_block_offset, &
-                             pmax_atom, full_density, full_density_beta, natom, &
+                             pmax_atom, full_density_alpha, full_density_beta, image, natom, &
                              kind_of,basis_parameter, &
                              nkind, is_assoc_atomic_block)
 
@@ -141,10 +142,10 @@ MODULE hfx_screening_methods
     INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
     INTEGER, DIMENSION(:, :, :, :), POINTER  :: set_offset
     INTEGER, DIMENSION(:, :), POINTER        :: atomic_block_offset
-    REAL(dp), DIMENSION(:, :), POINTER       :: pmax_atom
-    REAL(dp), DIMENSION(:), POINTER          :: full_density, &
+    REAL(dp), DIMENSION(:, :), POINTER       :: pmax_atom, &
+                                                full_density_alpha, &
                                                 full_density_beta
-    INTEGER, INTENT(IN)                      :: natom
+    INTEGER, INTENT(IN)                      :: image, natom
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -188,9 +189,9 @@ MODULE hfx_screening_methods
               i = act_set_offset + act_atomic_block_offset - 1
               DO mc = 1,nsgfc(kset)
                 DO mb = 1,nsgfb(jset)
-                  pmax_tmp=MAX(pmax_tmp,ABS(full_density(i)))
+                  pmax_tmp=MAX(pmax_tmp,ABS(full_density_alpha(i,image)))
                   IF( ASSOCIATED(full_density_beta) ) THEN
-                    pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(i)))
+                    pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(i,image)))
                   END IF
                   i=i+1
                 ENDDO
@@ -211,9 +212,9 @@ MODULE hfx_screening_methods
               DO mc = 1,nsgfc(kset)
                 i = act_set_offset + act_atomic_block_offset -1 + mc -1
                 DO mb = 1,nsgfb(jset)
-                  pmax_tmp=MAX(pmax_tmp,ABS(full_density(i)))
+                  pmax_tmp=MAX(pmax_tmp,ABS(full_density_alpha(i,image)))
                   IF( ASSOCIATED(full_density_beta) ) THEN
-                    pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(i)))
+                    pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(i,image)))
                   END IF
                   i= i + nsgfc(kset)
                 ENDDO
