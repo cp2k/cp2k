@@ -1683,7 +1683,6 @@ CONTAINS
 !>                   i1=1,md1 , i2=1,md2/nproc , i3=1,md3
 !> \param scal factor of renormalization of the FFT in order to acheve unitarity
 !>                   and the correct dimension 
-!> \param hgrid grid spacing, used for integrating quantities 
 !> \param mpi_group ...
 !> \param error ...
 !> \date February 2006
@@ -1701,7 +1700,7 @@ CONTAINS
 !>       GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt . 
 ! *****************************************************************************
   SUBROUTINE F_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,pot,zf,&
-       scal,hgrid,mpi_group,error)
+       scal,mpi_group,error)
     INTEGER, INTENT(in)                      :: n1, n2, n3, nd1, nd2, nd3, &
                                                 md1, md2, md3, nproc, iproc
     REAL(KIND=dp), &
@@ -1710,7 +1709,7 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(md1, md3, md2/nproc), &
       INTENT(inout)                          :: zf
-    REAL(KIND=dp), INTENT(in)                :: scal, hgrid
+    REAL(KIND=dp), INTENT(in)                :: scal
     INTEGER, INTENT(in)                      :: mpi_group
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

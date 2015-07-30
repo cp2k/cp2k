@@ -514,7 +514,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ps_wavelet_solve', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=1)                         :: datacode, geocode
+    CHARACTER(LEN=1)                         :: geocode
     INTEGER                                  :: handle, iproc, nproc, nx, ny, &
                                                 nz
     REAL(KIND=dp)                            :: hx, hy, hz
@@ -523,7 +523,6 @@ CONTAINS
     nproc=PRODUCT(pw_grid % para % rs_dims)
     iproc= pw_grid % para % rs_mpo
     geocode=wavelet%geocode
-    datacode=wavelet%datacode
     nx = pw_grid % npts ( 1 )
     ny = pw_grid % npts ( 2 )
     nz = pw_grid % npts ( 3 )
@@ -531,7 +530,7 @@ CONTAINS
     hy = pw_grid % dr ( 2 )
     hz = pw_grid % dr ( 3 )
 
-    CALL PSolver(geocode,datacode,iproc,nproc,nx,ny,nz,hx,hy,hz,&
+    CALL PSolver(geocode,iproc,nproc,nx,ny,nz,hx,hy,hz,&
          wavelet%rho_z_sliced,wavelet%karray,pw_grid,error)
     CALL timestop(handle)
   END SUBROUTINE ps_wavelet_solve

@@ -166,7 +166,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_rebuild', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
 
     CHARACTER(LEN=3)                         :: string
     INTEGER :: blocked_id, blocked_id_input, grid_span, handle, i, &
@@ -206,6 +205,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env, error)
 ! e.g. radius being computed here as 12.998 (13) and 13.002 (14) during the collocation
 ! te latter can happen due to the lower precision in the computation of the radius in collocate
 ! parallel cost of rs_pw_transfer goes as safety_factor**3 so it is worthwhile keeping it tight
+! Edit: Safety Factor was unused
 
   CALL timeset(routineN,handle)
 

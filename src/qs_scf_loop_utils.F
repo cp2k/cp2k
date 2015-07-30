@@ -262,14 +262,13 @@ CONTAINS
 !> \param scf_env ...
 !> \param scf_control ...
 !> \param diis_step ...
-!> \param energy_only ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE qs_scf_new_mos_kp(qs_env,scf_env,scf_control,diis_step,energy_only,error)
+  SUBROUTINE qs_scf_new_mos_kp(qs_env,scf_env,scf_control,diis_step,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
-    LOGICAL                                  :: diis_step, energy_only
+    LOGICAL                                  :: diis_step
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_new_mos_kp', &

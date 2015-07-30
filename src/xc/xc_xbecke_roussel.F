@@ -377,7 +377,7 @@ CONTAINS
             e_old = e_0(ip)
             CALL x_br_lsd_y_gt_0(my_rho, my_ndrho, my_tau, my_laplace_rho, e_0(ip), &
                                  e_rho(ip), e_ndrho(ip), e_tau(ip), e_laplace_rho(ip),&
-                                 sx, R, gamma, grad_deriv, error)
+                                 sx, gamma, grad_deriv, error)
             ! VERY UGLY HACK e_0 has to multiplied by the factor 2
             e_diff = e_0(ip) - e_old
             e_0(ip) = e_0(ip) + e_diff
@@ -634,7 +634,7 @@ CONTAINS
           ELSE
             CALL x_br_lsd_y_gt_0(my_rho, my_ndrho, my_tau, my_laplace_rho, e_0(ip), &
                                  e_rho(ip), e_ndrho(ip), e_tau(ip), e_laplace_rho(ip),&
-                                 sx, R, gamma, grad_deriv, error)
+                                 sx, gamma, grad_deriv, error)
           END IF
         ELSE
           IF( yval <= 0.0_dp) THEN
@@ -919,7 +919,6 @@ CONTAINS
 !> \param e_tau ...
 !> \param e_laplace_rho ...
 !> \param sx ...
-!> \param R ...
 !> \param gamma ...
 !> \param grad_deriv ...
 !> \param error ...
@@ -929,11 +928,11 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE x_br_lsd_y_gt_0(rho, ndrho, tau, laplace_rho, e_0, &
                              e_rho, e_ndrho, e_tau, e_laplace_rho,&
-                             sx, R, gamma, grad_deriv, error)
+                             sx, gamma, grad_deriv, error)
     REAL(dp), INTENT(IN)                     :: rho, ndrho, tau, laplace_rho
     REAL(dp), INTENT(INOUT)                  :: e_0, e_rho, e_ndrho, e_tau, &
                                                 e_laplace_rho
-    REAL(dp), INTENT(IN)                     :: sx, R, gamma
+    REAL(dp), INTENT(IN)                     :: sx, gamma
     INTEGER, INTENT(IN)                      :: grad_deriv
     TYPE(cp_error_type), INTENT(inout)       :: error
 

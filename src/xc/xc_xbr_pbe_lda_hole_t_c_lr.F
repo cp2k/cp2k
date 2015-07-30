@@ -215,7 +215,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(dp)                                 :: gamma, R, sx
-    REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0, e_laplace_rho, &
                                                 e_ndrho, e_rho, e_tau, &
@@ -235,7 +235,7 @@ CONTAINS
     IF (.NOT. failure) THEN
       CALL xc_rho_set_get(rho_set, rho=rho, norm_drho=norm_drho, &
            tau=tau,laplace_rho=laplace_rho,local_bounds=bo,&
-           rho_cutoff=epsilon_rho,drho_cutoff=epsilon_norm_drho,error=error)
+           rho_cutoff=epsilon_rho,error=error)
       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
       ! meaningful default for the arrays we don't need: let us make compiler
@@ -292,13 +292,12 @@ CONTAINS
       !$omp          shared(rho, norm_drho, laplace_rho, tau, e_0, e_rho) &
       !$omp          shared(e_ndrho, e_tau, e_laplace_rho, grad_deriv) &
       !$omp          shared(npoints, epsilon_rho) &
-      !$omp          shared(epsilon_norm_drho, sx, r, gamma, error)
+      !$omp          shared(sx, r, gamma, error)
 
       CALL xbr_pbe_lda_hole_tc_lr_lda_calc(rho=rho, norm_drho=norm_drho,&
           laplace_rho=laplace_rho,tau=tau,e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
           e_tau=e_tau,e_laplace_rho=e_laplace_rho,grad_deriv=grad_deriv, &
-          npoints=npoints,epsilon_rho=epsilon_rho,&
-          epsilon_norm_drho=epsilon_norm_drho,sx=sx,R=R,gamma=gamma,error=error)
+          npoints=npoints,epsilon_rho=epsilon_rho,sx=sx,R=R,gamma=gamma,error=error)
 
       !$omp end parallel
 
@@ -329,7 +328,6 @@ CONTAINS
 !>        if negative only the given degree is calculated
 !> \param npoints number of gridpoints
 !> \param epsilon_rho cutoffs
-!> \param epsilon_norm_drho cutoffs
 !> \param sx parameters for  functional
 !> \param R parameters for  functional
 !> \param gamma parameters for  functional
@@ -339,7 +337,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE xbr_pbe_lda_hole_tc_lr_lda_calc(rho,norm_drho,laplace_rho,tau,e_0,e_rho,&
                                      e_ndrho,e_tau,e_laplace_rho,grad_deriv,npoints,&
-                                     epsilon_rho,epsilon_norm_drho,sx,R,gamma,error)
+                                     epsilon_rho,sx,R,gamma,error)
 
     INTEGER, INTENT(in)                      :: npoints, grad_deriv
     REAL(kind=dp), DIMENSION(1:npoints), &
@@ -348,9 +346,7 @@ CONTAINS
     REAL(kind=dp), DIMENSION(1:npoints), &
       INTENT(in)                             :: tau, laplace_rho, norm_drho, &
                                                 rho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, &
-                                                epsilon_norm_drho, sx, R, &
-                                                gamma
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho, sx, R, gamma
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -401,7 +397,7 @@ CONTAINS
           ELSE
             CALL x_br_lsd_y_gt_0(my_rho, my_ndrho, my_tau, my_laplace_rho, e_0_br, &
                                  e_rho_br, e_ndrho_br, e_tau_br, e_laplace_rho_br,&
-                                 sx, R, gamma, grad_deriv, error)
+                                 sx, gamma, grad_deriv, error)
             ! VERY UGLY HACK e_0 has to multiplied by the factor 2
             e_0_br = 2.0_dp * e_0_br
           END IF
@@ -731,7 +727,7 @@ CONTAINS
           ELSE
             CALL x_br_lsd_y_gt_0(my_rho, my_ndrho, my_tau, my_laplace_rho, e_0_br, &
                                  e_rho_br, e_ndrho_br, e_tau_br, e_laplace_rho_br,&
-                                 sx, R, gamma, grad_deriv, error)
+                                 sx, gamma, grad_deriv, error)
           END IF
         ELSE
           IF( yval <= 0.0_dp) THEN

@@ -206,7 +206,7 @@ CONTAINS
     target_time = qs_loc_env%target_time
     start_time = qs_loc_env%start_time
     CALL centers_spreads_berry( qs_loc_env, zij_fm_set, nmoloc, cell, weights,&
-         ispin, loc_section, print_loc_section, only_initial_out=.TRUE., error=error )
+         ispin, print_loc_section, only_initial_out=.TRUE., error=error )
     SELECT CASE ( method )
     CASE ( do_loc_jacobi )
         CALL jacobi_rotations ( weights, zij_fm_set, vectors, para_env, max_iter=max_iter,&
@@ -264,7 +264,7 @@ CONTAINS
     ENDIF
 
     CALL centers_spreads_berry( qs_loc_env, zij_fm_set, nmoloc, cell, weights,&
-         ispin, loc_section, print_loc_section, error=error )
+         ispin, print_loc_section, error=error )
     CALL cp_fm_release(opvec,error=error)
     CALL cp_print_key_finished_output(output_unit,logger,print_loc_section,"PROGRAM_RUN_INFO",error=error)
 
@@ -417,7 +417,6 @@ CONTAINS
 !> \param cell ...
 !> \param weights ...
 !> \param ispin ...
-!> \param loc_section ...
 !> \param print_loc_section ...
 !> \param only_initial_out ...
 !> \param error ...
@@ -426,14 +425,14 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE centers_spreads_berry( qs_loc_env, zij, nmoloc, cell, weights, ispin,&
-       loc_section, print_loc_section, only_initial_out, error)
+       print_loc_section, only_initial_out, error)
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: zij( :, : )
     INTEGER, INTENT(IN)                      :: nmoloc
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
+    TYPE(section_vals_type), POINTER         :: print_loc_section
     LOGICAL, INTENT(IN), OPTIONAL            :: only_initial_out
     TYPE(cp_error_type), INTENT(inout)       :: error
 

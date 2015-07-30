@@ -52,23 +52,11 @@ CONTAINS
 !>                 The density is supposed to be periodic in all the three directions,
 !>                 then all the dimensions must be compatible with the FFT.
 !>                 No need for setting up the kernel.
-!> \param datacode Indicates the distribution of the data of the input/output array:
-!>             'G' global data. Each process has the whole array of the density
-!>                 which will be overwritten with the whole array of the potential
-!>             'D' distributed data. Each process has only the needed part of the density
-!>                 and of the potential. The data distribution is such that each processor
-!>                 has the xy planes needed for the calculation AND for the evaluation of the
-!>                 gradient, needed for XC part, and for the White-Bird correction, which
-!>                 may lead up to 8 planes more on each side. Due to this fact, the information
-!>                 between the processors may overlap.
 !> \param iproc label of the process,from 0 to nproc-1
 !> \param nproc number of processors
-!> \param n01 global dimension in the three directions. They are the same no matter if the
-!>                 datacode is in 'G' or in 'D' position.
-!> \param n02 global dimension in the three directions. They are the same no matter if the
-!>                 datacode is in 'G' or in 'D' position.
-!> \param n03 global dimension in the three directions. They are the same no matter if the
-!>                 datacode is in 'G' or in 'D' position.
+!> \param n01 global dimension in the three directions.
+!> \param n02 global dimension in the three directions. 
+!> \param n03 global dimension in the three directions. 
 !> \param hx    grid spacings. For the isolated BC case for the moment they are supposed to
 !>                 be equal in the three directions
 !> \param hy grid spacings. For the isolated BC case for the moment they are supposed to
@@ -88,13 +76,13 @@ CONTAINS
 !> \param error ...
 !> \date February 2007
 !> \author Luigi Genovese
-!> \note The dimensions of the arrays must be compatible with geocode, datacode, nproc, 
+!> \note The dimensions of the arrays must be compatible with geocode, nproc, 
 !>     ixc and iproc. Since the arguments of these routines are indicated with the *, it 
 !>     is IMPERATIVE to use the PS_dim4allocation routine for calculation arrays sizes. 
 ! *****************************************************************************
-  SUBROUTINE PSolver(geocode,datacode,iproc,nproc,n01,n02,n03,hx,hy,hz,&
+  SUBROUTINE PSolver(geocode,iproc,nproc,n01,n02,n03,hx,hy,hz,&
        rhopot,karray,pw_grid,error)
-    CHARACTER(len=1), INTENT(in)             :: geocode, datacode
+    CHARACTER(len=1), INTENT(in)             :: geocode
     INTEGER, INTENT(in)                      :: iproc, nproc, n01, n02, n03
     REAL(KIND=dp), INTENT(in)                :: hx, hy, hz
     REAL(KIND=dp), DIMENSION(*), &
@@ -199,7 +187,7 @@ CONTAINS
        hgrid=MAX(hx,hy,hz)
        scal=hgrid**3/REAL(n1*n2*n3,KIND=dp)
        CALL F_PoissonSolver(n1,n2,n3,nd1,nd2,nd3,md1,md2,md3,nproc,iproc,karray,zf,&
-            scal,hgrid,pw_grid%para%rs_group,error)
+            scal,pw_grid%para%rs_group,error)
        factor=0.5_dp*hgrid**3
     END IF
 
