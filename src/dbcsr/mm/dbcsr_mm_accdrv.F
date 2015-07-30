@@ -153,12 +153,10 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Finalize the library
-!> \param output_unit ...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_accdrv_lib_finalize(output_unit, error)
-    INTEGER, INTENT(IN)                      :: output_unit
+  SUBROUTINE dbcsr_mm_accdrv_lib_finalize(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     INTEGER                                  :: ithread
@@ -191,16 +189,13 @@ MODULE dbcsr_mm_accdrv
 ! *****************************************************************************
 !> \brief Initializes a multiplication cycle for new set of C-blocks.
 !> \param this ...
-!> \param left ...
-!> \param right ...
 !> \param product_wm ...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_accdrv_init(this, left, right, product_wm, error)
+  SUBROUTINE dbcsr_mm_accdrv_init(this, product_wm, error)
     TYPE(dbcsr_mm_accdrv_type), &
       INTENT(INOUT)                          :: this
-    TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_work_type), POINTER           :: product_wm
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -542,13 +537,10 @@ MODULE dbcsr_mm_accdrv
 ! *****************************************************************************
 !> \brief After beeing called by ALL threads, it installs a special barrier that
 !>        forces the priority-streams to wait for the normal-streams.
-!> \param this ...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_accdrv_barrier(this, error)
-    TYPE(dbcsr_mm_accdrv_type), &
-      INTENT(INOUT)                          :: this
+  SUBROUTINE dbcsr_mm_accdrv_barrier(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     INTEGER                                  :: i, j, nthreads

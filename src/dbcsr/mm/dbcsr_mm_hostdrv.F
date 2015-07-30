@@ -79,15 +79,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initialize the library
 !> \param this ...
-!> \param left ...
-!> \param right ...
 !> \param product_wm ...
 !> \param error ...
 ! *****************************************************************************
- SUBROUTINE dbcsr_mm_hostdrv_init(this, left, right, product_wm, error)
+ SUBROUTINE dbcsr_mm_hostdrv_init(this, product_wm, error)
     TYPE(dbcsr_mm_hostdrv_type), &
       INTENT(INOUT)                          :: this
-    TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_work_type), POINTER           :: product_wm
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 

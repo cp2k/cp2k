@@ -1955,12 +1955,10 @@ MODULE dbcsr_mm_cannon
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cannon_multiply_low', &
       routineP = moduleN//':'//routineN
-    CHARACTER(LEN=80), PARAMETER :: &
-      fdata = '(A,1X,I4,"(",2(I3),"x",2(I3),")","(",I3,"x",I3,")")', fxfer = &
-      '(A,1X,I4,"->",I4,2(1X,"(",I3,"x",I3,")"),1X,"IM (",I3,"x",I3,")")'
-    INTEGER, PARAMETER :: id_bytes = 3, id_recv = 2, id_send = 1, &
-      id_time = 1, id_waittime = 2, idata = 1, ileft = 0, imeta = 2, &
-      iright = 2, M_L = 2, M_P = 1, M_R = 3, RC_C = 2, RC_R = 1
+    INTEGER, PARAMETER                       :: idata = 1, ileft = 0, &
+                                                imeta = 2, iright = 2, &
+                                                M_L = 2, M_P = 1, M_R = 3, &
+                                                RC_C = 2, RC_R = 1
 
     INTEGER :: data_type, data_type_byte, error_handler, error_handler2, &
       error_handler3, error_handler4, grp, i, ithread, left_col_image, &

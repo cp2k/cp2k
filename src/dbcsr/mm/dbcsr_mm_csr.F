@@ -676,7 +676,7 @@ MODULE dbcsr_mm_csr
     DEALLOCATE(flop_list,flop_index,tmp_descr)
 
     this%product_wm => product%wms(ithread+1)
-    CALL dbcsr_mm_sched_init(this%sched, left=left, right=right,&
+    CALL dbcsr_mm_sched_init(this%sched, &
                 product_wm=this%product_wm,error=error)
 
     CALL dbcsr_error_stop(error_handler, error)

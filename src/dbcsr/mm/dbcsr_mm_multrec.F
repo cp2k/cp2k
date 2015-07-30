@@ -579,8 +579,7 @@ MODULE dbcsr_mm_multrec
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sparse_multrec', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: careful = careful_mod, &
-                                                dbg = .FALSE.
+    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: acut, bcut, cut, K, M, N, s1
 

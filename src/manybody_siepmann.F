@@ -91,10 +91,10 @@ CONTAINS
                                                 pot_loc_v2, pot_loc_v3
 
     a_ij   = siep_a_ij(siepmann,r_last_update_pbc,atom_a,atom_b,nloc_size,&
-             full_loc_list, loc_cell_v, cell_v, siepmann%rcutsq,particle_set,&
+             full_loc_list, cell_v, siepmann%rcutsq,particle_set,&
              cell)
     Phi_ij  = siep_Phi_ij(siepmann,r_last_update_pbc,atom_a,atom_b,nloc_size,&
-              full_loc_list, loc_cell_v, cell_v, cell, siepmann%rcutsq,&
+              loc_cell_v, cell_v, cell, siepmann%rcutsq,&
               particle_set, nr_oh)
     f2     = siep_f2 (siepmann,drij)
     D = siepmann%D
@@ -167,7 +167,6 @@ CONTAINS
 !> \param jparticle ...
 !> \param n_loc_size ...
 !> \param full_loc_list ...
-!> \param loc_cell_v ...
 !> \param cell_v ...
 !> \param rcutsq ...
 !> \param particle_set ...
@@ -177,14 +176,12 @@ CONTAINS
 !>      Using a local list of neighbors
 ! *****************************************************************************
   FUNCTION siep_a_ij(siepmann,r_last_update_pbc,iparticle,jparticle,n_loc_size,&
-       full_loc_list, loc_cell_v, cell_v,rcutsq,particle_set,cell)
+       full_loc_list, cell_v,rcutsq,particle_set,cell)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     INTEGER, INTENT(IN)                      :: iparticle, jparticle, &
                                                 n_loc_size
     INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
-    REAL(KIND=dp), &
-      DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
     TYPE(particle_type), DIMENSION(:), &
@@ -338,7 +335,6 @@ CONTAINS
 !> \param iparticle ...
 !> \param jparticle ...
 !> \param n_loc_size ...
-!> \param full_loc_list ...
 !> \param loc_cell_v ...
 !> \param cell_v ...
 !> \param cell ...
@@ -350,12 +346,11 @@ CONTAINS
 !>      Using a local list of neighbors
 ! *****************************************************************************
   FUNCTION siep_Phi_ij(siepmann,r_last_update_pbc,iparticle,jparticle,n_loc_size,&
-       full_loc_list, loc_cell_v, cell_v, cell, rcutsq, particle_set,nr_oh)
+       loc_cell_v, cell_v, cell, rcutsq, particle_set,nr_oh)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     INTEGER, INTENT(IN)                      :: iparticle, jparticle, &
                                                 n_loc_size
-    INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
     REAL(KIND=dp), &
       DIMENSION(3, 1:n_loc_size)             :: loc_cell_v
     REAL(KIND=dp), DIMENSION(3)              :: cell_v
@@ -443,7 +438,6 @@ CONTAINS
 !> \param iparticle ...
 !> \param jparticle ...
 !> \param f_nonbond ...
-!> \param pv_nonbond ...
 !> \param prefactor ...
 !> \param n_loc_size ...
 !> \param full_loc_list ...
@@ -459,13 +453,13 @@ CONTAINS
 !>       Using a local list of neighbors
 ! *****************************************************************************
   SUBROUTINE siep_Phi_ij_d(siepmann,r_last_update_pbc,iparticle,jparticle,f_nonbond,&
-                           pv_nonbond,prefactor,n_loc_size,full_loc_list, loc_cell_v,&
+                           prefactor,n_loc_size,full_loc_list, loc_cell_v,&
                            cell_v, cell, rcutsq,use_virial, particle_set, error)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: f_nonbond, pv_nonbond
+      INTENT(INOUT)                          :: f_nonbond
     REAL(KIND=dp), INTENT(IN)                :: prefactor
     INTEGER, INTENT(IN)                      :: n_loc_size
     INTEGER, DIMENSION(2, 1:n_loc_size)      :: full_loc_list
@@ -500,7 +494,7 @@ CONTAINS
     h_max_dist=2.27_dp ! 1.2 angstrom
     natom=SIZE(particle_set)
     Phi_ij = siep_Phi_ij(siepmann,r_last_update_pbc,iparticle,jparticle,&
-             n_loc_size, full_loc_list, loc_cell_v, cell_v, cell, rcutsq,&
+             n_loc_size, loc_cell_v, cell_v, cell, rcutsq,&
              particle_set) 
     rji(:) = -1.0_dp*(r_last_update_pbc(jparticle)%r(:)-r_last_update_pbc(iparticle)%r(:)+cell_v)
     drji = SQRT(DOT_PRODUCT(rji,rji))
@@ -642,7 +636,7 @@ CONTAINS
 
     fac = - 1.0_dp  !gradient to force
     a_ij  = siep_a_ij (siepmann,r_last_update_pbc,iparticle,jparticle,n_loc_size,&
-                       full_loc_list, loc_cell_v,cell_v,rcutsq,particle_set,cell)
+                       full_loc_list, cell_v,rcutsq,particle_set,cell)
     f2   = siep_f2   (siepmann,drji)
     f2_d = siep_f2_d (siepmann,drji)
 
@@ -679,7 +673,7 @@ CONTAINS
     ! Lets do the f_A3 piece derivative: of a_ij
     prefactor = E * f2 * drji**(-beta) * fac  
     CALL siep_a_ij_d(siepmann, r_last_update_pbc, iparticle, jparticle, f_nonbond,&
-         pv_nonbond, prefactor, n_loc_size, full_loc_list, loc_cell_v,cell_v,&
+         pv_nonbond, prefactor, n_loc_size, full_loc_list,loc_cell_v, cell_v,&
          cell, rcutsq, use_virial, error)
 
   END SUBROUTINE siepmann_forces_v3
@@ -744,7 +738,7 @@ CONTAINS
 
     fac = - 1.0_dp
     Phi_ij = siep_Phi_ij(siepmann,r_last_update_pbc,iparticle,jparticle,n_loc_size,&
-             full_loc_list, loc_cell_v, cell_v, cell, rcutsq,particle_set)
+             loc_cell_v, cell_v, cell, rcutsq,particle_set)
     f2   = siep_f2   (siepmann,drji)
     f2_d = siep_f2_d (siepmann,drji)
 
@@ -781,7 +775,7 @@ CONTAINS
     ! Lets do the f_A3 piece derivative: of Phi_ij
     prefactor = -D * f2 * drji**(-3) * fac  
     CALL siep_Phi_ij_d(siepmann, r_last_update_pbc, iparticle, jparticle, f_nonbond,&
-         pv_nonbond, prefactor, n_loc_size, full_loc_list, loc_cell_v,cell_v, cell,&
+         prefactor, n_loc_size, full_loc_list, loc_cell_v,cell_v, cell,&
          rcutsq, use_virial, particle_set, error)
 
   END SUBROUTINE siepmann_forces_v2

@@ -68,7 +68,6 @@ CONTAINS
 !> \param particle_set ...
 !> \param cell ...
 !> \param pot_manybody ...
-!> \param atprop_env ...
 !> \param para_env ...
 !> \param mm_section ...
 !> \param error variable to control error logging, stopping,...
@@ -78,7 +77,7 @@ CONTAINS
 !> \author CJM, I-Feng W. Kuo, Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, local_particles,&
-       particle_set, cell, pot_manybody, atprop_env, para_env, mm_section, error )
+       particle_set, cell, pot_manybody, para_env, mm_section, error )
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -86,7 +85,6 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), INTENT(INOUT)                  :: pot_manybody
-    TYPE(atprop_type), POINTER               :: atprop_env
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     TYPE(section_vals_type), POINTER         :: mm_section

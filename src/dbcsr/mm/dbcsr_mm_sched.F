@@ -162,7 +162,7 @@ MODULE dbcsr_mm_sched
 
     TYPE(stats_type)                         :: report
 
-   CALL dbcsr_mm_accdrv_lib_finalize(output_unit, error)
+   CALL dbcsr_mm_accdrv_lib_finalize(error)
 
    ! Collect and output statistics ---------------------------------------------
 
@@ -206,15 +206,12 @@ MODULE dbcsr_mm_sched
 ! *****************************************************************************
 !> \brief Initializes a multiplication cycle for new set of C-blocks.
 !> \param this ...
-!> \param left ...
-!> \param right ...
 !> \param product_wm ...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_sched_init(this, left, right, product_wm, error)
+  SUBROUTINE dbcsr_mm_sched_init(this, product_wm, error)
     TYPE(dbcsr_mm_sched_type), INTENT(INOUT) :: this
-    TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_work_type), POINTER           :: product_wm
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
@@ -232,10 +229,10 @@ MODULE dbcsr_mm_sched
     ! We just have to remeber its datasize, in case it already contains data.
     this%product_wm_orig_datasize = this%product_wm%datasize
 
-    CALL dbcsr_mm_hostdrv_init(this%hostdrv, left, right, product_wm, error)
+    CALL dbcsr_mm_hostdrv_init(this%hostdrv,product_wm, error)
 
     IF (mm_driver == mm_driver_acc) &
-       CALL dbcsr_mm_accdrv_init(this%accdrv, left, right, product_wm, error)
+       CALL dbcsr_mm_accdrv_init(this%accdrv, product_wm, error)
 
     CALL dbcsr_error_stop(error_handler, error)
 
@@ -324,7 +321,7 @@ MODULE dbcsr_mm_sched
 
     CALL dbcsr_mm_hostdrv_barrier(this%hostdrv, error)
     IF (mm_driver==mm_driver_acc) &
-       CALL dbcsr_mm_accdrv_barrier(this%accdrv, error)
+       CALL dbcsr_mm_accdrv_barrier(error)
 
   END SUBROUTINE dbcsr_mm_sched_barrier
 

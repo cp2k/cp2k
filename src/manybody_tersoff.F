@@ -234,13 +234,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param tersoff ...
-!> \param r ...
 !> \retval ter_a_ij ...
 !> \author I-Feng W. Kuo
 ! *****************************************************************************
-  FUNCTION ter_a_ij(tersoff,r)
+  FUNCTION ter_a_ij(tersoff)
     TYPE(tersoff_pot_type), POINTER          :: tersoff
-    REAL(KIND=dp), INTENT(IN)                :: r
     REAL(KIND=dp)                            :: ter_a_ij
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_a_ij', &
