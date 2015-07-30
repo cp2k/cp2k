@@ -396,7 +396,7 @@ MODULE glbopt_history
 
     INTEGER                                  :: i
 
-    DO i=1, SIZE(history%entries)
+    DO i=1, history%length
       IF(ASSOCIATED(history%entries(i)%p)) &
           DEALLOCATE(history%entries(i)%p)
     END DO
