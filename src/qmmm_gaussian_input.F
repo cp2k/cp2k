@@ -10,7 +10,6 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qmmm_gaussian_input
-  USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_methods,               ONLY: parser_get_object,&
                                              parser_search_string
@@ -130,7 +129,6 @@ CONTAINS
 !> \brief read MM_POTENTIAL file
 !> \param para_env ...
 !> \param qmmm_gaussian_fns ...
-!> \param qm_cell_small ...
 !> \param compatibility ...
 !> \param qmmm_section ...
 !> \param error variable to control error logging, stopping,...
@@ -139,12 +137,11 @@ CONTAINS
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE read_mm_potential(para_env, qmmm_gaussian_fns, qm_cell_small,&
+  SUBROUTINE read_mm_potential(para_env, qmmm_gaussian_fns,&
                                compatibility, qmmm_section, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: qmmm_gaussian_fns
-    TYPE(cell_type), POINTER                 :: qm_cell_small
     LOGICAL, INTENT(IN)                      :: compatibility
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -255,7 +252,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief set the GEEP information for Erf(r/rc)/r
 !> \param qmmm_gaussian_fns ...
-!> \param qm_cell_small ...
 !> \param compatibility ...
 !> \param num_geep_gauss ...
 !> \param error variable to control error logging, stopping,...
@@ -264,11 +260,10 @@ CONTAINS
 !>      07.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE set_mm_potential_erf(qmmm_gaussian_fns, qm_cell_small,&
+  SUBROUTINE set_mm_potential_erf(qmmm_gaussian_fns, &
                                compatibility, num_geep_gauss, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: qmmm_gaussian_fns
-    TYPE(cell_type), POINTER                 :: qm_cell_small
     LOGICAL, INTENT(IN)                      :: compatibility
     INTEGER, INTENT(IN)                      :: num_geep_gauss
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -704,7 +699,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief set the GEEP information for the S-WAVE expansion
 !> \param qmmm_gaussian_fns ...
-!> \param qm_cell_small ...
 !> \param num_geep_gauss ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -712,11 +706,10 @@ CONTAINS
 !>      02.2007 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE set_mm_potential_swave(qmmm_gaussian_fns, qm_cell_small,&
+  SUBROUTINE set_mm_potential_swave(qmmm_gaussian_fns, &
                                     num_geep_gauss, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: qmmm_gaussian_fns
-    TYPE(cell_type), POINTER                 :: qm_cell_small
     INTEGER, INTENT(IN)                      :: num_geep_gauss
     TYPE(cp_error_type), INTENT(inout)       :: error
 

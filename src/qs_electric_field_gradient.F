@@ -60,7 +60,6 @@ MODULE qs_electric_field_gradient
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
-  USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                              harmonics_atom_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -118,7 +117,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -308,9 +306,9 @@ CONTAINS
     nkind = SIZE(qs_kind_set)
 
     DO ikind = 1,nkind
-      NULLIFY(grid_atom,atom_list)
+      NULLIFY(atom_list)
       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list,natom=natomkind)
-      CALL get_qs_kind(qs_kind_set(ikind),grid_atom=grid_atom,paw_atom=paw_atom)
+      CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom)
       DO iat = 1,natomkind
         iatom = atom_list(iat)
         ra = particle_set(iatom)%r
@@ -345,7 +343,7 @@ CONTAINS
 
       IF( paw_atom) THEN
         CALL vlimit_atom(para_env,vh0,rho_atom_set,qs_kind_set(ikind),&
-                         atom_list,grid_atom,natomkind,nspins,error)
+                         atom_list,natomkind,nspins,error)
         DO iat = 1,natomkind
           iatom = atom_list(iat)
           efg_tensor(1,1,iatom)=efg_tensor(1,1,iatom) &
@@ -449,13 +447,12 @@ CONTAINS
 !> \param rho_atom_set ...
 !> \param qs_kind ...
 !> \param atom_list ...
-!> \param grid_atom ...
 !> \param natom ...
 !> \param nspins ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE vlimit_atom(para_env,vlimit,rho_atom_set,qs_kind,&
-                         atom_list,grid_atom,natom,nspins,error)
+                         atom_list,natom,nspins,error)
 
   ! calculate : Limit(r->0) V_hartree(r)/r^2
 
@@ -466,7 +463,6 @@ CONTAINS
       POINTER                                :: rho_atom_set
     TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom_list
-    TYPE(grid_atom_type), INTENT(IN)         :: grid_atom
     INTEGER, INTENT(IN)                      :: natom, nspins
     TYPE(cp_error_type), INTENT(inout)       :: error
 

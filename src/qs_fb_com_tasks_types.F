@@ -1157,8 +1157,6 @@ CONTAINS
 !>        needs to be sent or recerived.
 !> \param atom_pairs : the communication pair object for either sending
 !>                     or receiving
-!> \param dbcsr_matrix : the DBCSR matrix the blocks originate from
-!>                       or has to be sent to
 !> \param nprocs : total number of MPI processes in communicator
 !> \param row_blk_sizes : row_blk_sizes(iblkrow) = number of element rows
 !>                        in each block in the iblkrow-th block row of
@@ -1184,7 +1182,6 @@ CONTAINS
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_atom_pairs_calc_buffer_sizes(atom_pairs, &
-                                                 dbcsr_matrix, &
                                                  nprocs, &
                                                  row_blk_sizes, &
                                                  col_blk_sizes, &
@@ -1196,7 +1193,6 @@ CONTAINS
                                                  row_map, &
                                                  col_map)
     TYPE(fb_com_atom_pairs_obj), INTENT(IN)  :: atom_pairs
-    TYPE(cp_dbcsr_type), POINTER             :: dbcsr_matrix
     INTEGER, INTENT(IN)                      :: nprocs
     INTEGER, DIMENSION(:), INTENT(IN)        :: row_blk_sizes, col_blk_sizes
     INTEGER, DIMENSION(:), INTENT(OUT)       :: sendrecv_sizes, &
@@ -1354,7 +1350,6 @@ CONTAINS
 
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_send, &
-                                             dbcsr_mat, &
                                              numprocs, &
                                              row_block_size_data, &
                                              col_block_size_data, &
@@ -1380,7 +1375,6 @@ CONTAINS
 
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_recv, &
-                                             dbcsr_mat, &
                                              numprocs, &
                                              row_block_size_data, &
                                              col_block_size_data, &
@@ -1583,7 +1577,6 @@ CONTAINS
 
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_send, &
-                                             dbcsr_mat, &
                                              numprocs, &
                                              row_block_size_data, &
                                              col_block_size_data, &
@@ -1609,7 +1602,6 @@ CONTAINS
 
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_recv, &
-                                             dbcsr_mat, &
                                              numprocs, &
                                              row_block_size_data, &
                                              col_block_size_data, &

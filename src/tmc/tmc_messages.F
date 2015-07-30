@@ -187,7 +187,7 @@ CONTAINS
            TMC_CANCELING_RECEIPT, TMC_STATUS_STOP_RECEIPT, &
            TMC_STATUS_WAIT_FOR_NEW_TASK, TMC_STATUS_CALCULATING, &
            TMC_STAT_ANALYSIS_RESULT)
-        CALL create_status_message(msg_type, m_send, error)
+        CALL create_status_message(m_send, error)
       CASE(TMC_STATUS_WORKER_INIT)
         CALL create_worker_init_message(tmc_params, m_send, error)
       CASE(TMC_STAT_START_CONF_RESULT, TMC_STAT_INIT_ANALYSIS)
@@ -404,15 +404,13 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief set the messege just with an status tag
-!> \param msg_type the status tag 
 !> \param m_send the message structure
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \author Mandes 12.2012
 ! *****************************************************************************
 
-  SUBROUTINE create_status_message(msg_type, m_send, error)
-    INTEGER                                  :: msg_type
+  SUBROUTINE create_status_message(m_send, error)
     TYPE(message_send), POINTER              :: m_send
     TYPE(cp_error_type), INTENT(inout)       :: error
 

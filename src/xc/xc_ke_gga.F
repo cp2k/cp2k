@@ -278,7 +278,7 @@ CONTAINS
                allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
 
-          CALL kex_p_1 ( rho, grho, rho13, s, fs, e_rho=e_rho, e_ndrho=e_ndrho,&
+          CALL kex_p_1 ( rho, rho13, s, fs, e_rho=e_rho, e_ndrho=e_ndrho,&
                npoints=npoints, error=error)
        END IF
        IF ( order>=2 .OR. order==-2 ) THEN
@@ -292,7 +292,7 @@ CONTAINS
                "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
 
-          CALL kex_p_2 ( rho, grho, rho13, s, fs, e_rho_rho=e_rho_rho,&
+          CALL kex_p_2 ( rho, rho13, s, fs, e_rho_rho=e_rho_rho,&
                e_rho_ndrho=e_rho_ndrho, e_ndrho_ndrho=e_ndrho_ndrho, npoints=npoints,&
                error=error )
        END IF
@@ -311,7 +311,7 @@ CONTAINS
                error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
 
-          CALL kex_p_3 ( rho, grho, rho13, s, fs, e_rho_rho_rho=e_rho_rho_rho,&
+          CALL kex_p_3 ( rho, rho13, s, fs, e_rho_rho_rho=e_rho_rho_rho,&
                e_rho_rho_ndrho=e_rho_rho_ndrho, e_rho_ndrho_ndrho=e_rho_ndrho_ndrho,&
                e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,npoints=npoints,error=error)
        END IF
@@ -455,7 +455,7 @@ CONTAINS
                   allocate_deriv=.TRUE.,error=error)
              CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
 
-             CALL kex_p_1 ( rho=rho(ispin)%array, grho=norm_drho(ispin)%array, &
+             CALL kex_p_1 ( rho=rho(ispin)%array, &
                   r13=rho_1_3(ispin)%array, s=s, fs=fs, e_rho=e_rho, &
                   e_ndrho=e_ndrho, npoints=npoints, error=error )
           END IF
@@ -470,7 +470,7 @@ CONTAINS
                   norm_drho_spin_name(ispin), allocate_deriv=.TRUE.,error=error)
              CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
 
-             CALL kex_p_2 ( rho(ispin)%array, norm_drho(ispin)%array, rho_1_3(ispin)%array,&
+             CALL kex_p_2 ( rho(ispin)%array, rho_1_3(ispin)%array,&
                   s, fs, e_rho_rho,e_rho_ndrho,e_ndrho_ndrho,npoints,error=error )
           END IF
           IF ( order>=3 .OR. order==-3 ) THEN
@@ -491,7 +491,7 @@ CONTAINS
                   allocate_deriv=.TRUE.,error=error)
              CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
 
-             CALL kex_p_3 ( rho(ispin)%array, norm_drho(ispin)%array, &
+             CALL kex_p_3 ( rho(ispin)%array, &
                   rho_1_3(ispin)%array, s, fs, e_rho_rho_rho, e_rho_rho_ndrho,&
                   e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints, error)
           END IF
@@ -551,7 +551,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rho ...
-!> \param grho ...
 !> \param r13 ...
 !> \param s ...
 !> \param fs ...
@@ -560,9 +559,9 @@ CONTAINS
 !> \param npoints ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kex_p_1 ( rho, grho, r13, s, fs, e_rho, e_ndrho, npoints, error )
+  SUBROUTINE kex_p_1 ( rho, r13, s, fs, e_rho, e_ndrho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13, s
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: fs
     REAL(KIND=dp), DIMENSION(*), &
@@ -600,7 +599,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rho ...
-!> \param grho ...
 !> \param r13 ...
 !> \param s ...
 !> \param fs ...
@@ -610,10 +608,10 @@ CONTAINS
 !> \param npoints ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kex_p_2 ( rho, grho, r13, s, fs, e_rho_rho, e_rho_ndrho,e_ndrho_ndrho,&
+  SUBROUTINE kex_p_2 ( rho, r13, s, fs, e_rho_rho, e_rho_ndrho,e_ndrho_ndrho,&
       npoints,error)
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13, s
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: fs
     REAL(KIND=dp), DIMENSION(*), &
@@ -659,7 +657,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param rho ...
-!> \param grho ...
 !> \param r13 ...
 !> \param s ...
 !> \param fs ...
@@ -670,10 +667,10 @@ CONTAINS
 !> \param npoints ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE kex_p_3 ( rho, grho, r13, s, fs, e_rho_rho_rho,e_rho_rho_ndrho,&
+  SUBROUTINE kex_p_3 ( rho, r13, s, fs, e_rho_rho_rho,e_rho_rho_ndrho,&
       e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13, s
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: fs
     REAL(KIND=dp), DIMENSION(*), &

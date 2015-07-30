@@ -125,7 +125,7 @@ CONTAINS
     INTEGER                                  :: npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
+    REAL(kind=dp)                            :: epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_ndrho, e_rho, &
                                                 norm_drho, rho
@@ -140,8 +140,7 @@ CONTAINS
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL xc_rho_set_get(rho_set,rho=rho,&
-            norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-            drho_cutoff=epsilon_drho,error=error)
+            norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
        IF (grad_deriv>=0) THEN
@@ -163,8 +162,7 @@ CONTAINS
 
        CALL hcth_lda_calc(iparset=iparset,rho=rho, norm_drho=norm_drho,&
             e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
-            npoints=npoints,epsilon_rho=epsilon_rho,&
-            epsilon_drho=epsilon_drho, error=error)
+            npoints=npoints,epsilon_rho=epsilon_rho,error=error)
     END IF
   END SUBROUTINE hcth_lda_eval
 
@@ -179,7 +177,6 @@ CONTAINS
 !> \param e_rho the derivative of the functional wrt. rho
 !> \param e_ndrho the derivative of the functional wrt. norm_drho
 !> \param epsilon_rho the cutoff on rho
-!> \param epsilon_drho ...
 !> \param npoints ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -195,12 +192,12 @@ CONTAINS
 !>                  Phys. Rev. B 45, 13244 (1992) -> PW92
 ! *****************************************************************************
   SUBROUTINE hcth_lda_calc(iparset,rho,norm_drho,e_0,e_rho,e_ndrho,&
-       epsilon_rho,epsilon_drho,npoints,error)
+       epsilon_rho,npoints,error)
     INTEGER, INTENT(IN)                      :: iparset
     REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, norm_drho
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0, e_rho, e_ndrho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
+    REAL(kind=dp), INTENT(in)                :: epsilon_rho
     INTEGER, INTENT(IN)                      :: npoints
     TYPE(cp_error_type), INTENT(inout)       :: error
 

@@ -483,8 +483,8 @@ CONTAINS
     LOGICAL                                  :: failure, gradient_functional, &
                                                 lsd, lsd_singlets, &
                                                 my_do_tddft, paw_atom, tau_f
-    REAL(KIND=dp)                            :: density_cut, exc, &
-                                                gradient_cut, rtot, tau_cut
+    REAL(KIND=dp)                            :: density_cut, gradient_cut, &
+                                                rtot, tau_cut
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho1_h, rho1_s, rho_h, rho_s, &
                                                 tau1_h, tau1_s, tau_h, tau_s, &
                                                 weight
@@ -709,12 +709,12 @@ CONTAINS
 
          CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                 rho_set=rho_set_h, rho1_set=rho1_set_h, &
-                                deriv_set=deriv_set, needs=needs, &
-                                w=weight, exc=exc, vxc=vxc_h, vxg=vxg_h, error=error)
+                                deriv_set=deriv_set, &
+                                w=weight, vxc=vxc_h, vxg=vxg_h, error=error)
          CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                 rho_set=rho_set_s, rho1_set=rho1_set_s, &
-                                deriv_set=deriv_set, needs=needs, &
-                                w=weight, exc=exc, vxc=vxc_s, vxg=vxg_s, error=error)
+                                deriv_set=deriv_set, &
+                                w=weight, vxc=vxc_s, vxg=vxg_s, error=error)
 
          IF(gradient_functional) THEN
             CALL gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,qs_kind_set(ikind),&

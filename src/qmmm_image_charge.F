@@ -807,7 +807,7 @@ CONTAINS
              qs_env%image_matrix(j,k)=qs_env%image_matrix(k,j)
             ENDDO
            ENDDO
-           CALL write_image_matrix(qs_env%image_matrix,qs_env,qmmm_env,error)
+           CALL write_image_matrix(qs_env%image_matrix,qs_env,error)
         ELSE
            !pivoting prior to DGETRS (Gaussian elimination)
            IF(PRESENT(ipiv)) THEN
@@ -973,15 +973,13 @@ CONTAINS
 !>        calculating image coefficients iteratively 
 !> \param image_matrix matrix T
 !> \param qs_env qs environment
-!> \param qmmm_env qmmm environment
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE write_image_matrix(image_matrix,qs_env,qmmm_env,error)
+  SUBROUTINE write_image_matrix(image_matrix,qs_env,error)
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: image_matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_image_matrix', &

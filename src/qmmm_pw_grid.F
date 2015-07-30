@@ -8,7 +8,6 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qmmm_pw_grid
-  USE cell_types,                      ONLY: cell_type
   USE input_constants,                 ONLY: do_par_atom,&
                                              do_qmmm_gauss,&
                                              do_qmmm_swave
@@ -46,17 +45,15 @@ CONTAINS
 !>      has [0,L] as boundaries.
 !> \param qmmm_env ...
 !> \param pw_env ...
-!> \param cell ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      08.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE qmmm_pw_grid_init(qmmm_env, pw_env, cell, error)
+  SUBROUTINE qmmm_pw_grid_init(qmmm_env, pw_env, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_pw_grid_init', &

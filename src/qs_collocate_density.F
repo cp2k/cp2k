@@ -72,8 +72,7 @@ MODULE qs_collocate_density
                                              int_8
   USE lgrid_types,                     ONLY: lgrid_allocate_grid,&
                                              lgrid_type
-  USE lri_environment_types,           ONLY: lri_environment_type,&
-                                             lri_kind_type
+  USE lri_environment_types,           ONLY: lri_kind_type
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
                                              pi,&
@@ -883,7 +882,6 @@ CONTAINS
 !> \param lri_rho_g ...
 !> \param lri_rho_r ...
 !> \param qs_env ...
-!> \param lri_env ...
 !> \param lri_coef ...
 !> \param total_rho ...
 !> \param error ...
@@ -891,12 +889,11 @@ CONTAINS
 !>      04.2013
 !> \author Dorothea Golze
 ! *****************************************************************************
-  SUBROUTINE calculate_lri_rho_elec(lri_rho_g, lri_rho_r, qs_env, lri_env,&
+  SUBROUTINE calculate_lri_rho_elec(lri_rho_g, lri_rho_r, qs_env, &
                                     lri_coef, total_rho, error)
 
     TYPE(pw_p_type), INTENT(INOUT)           :: lri_rho_g, lri_rho_r
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_kind_type), DIMENSION(:), &
       POINTER                                :: lri_coef
     REAL(KIND=dp), INTENT(OUT)               :: total_rho

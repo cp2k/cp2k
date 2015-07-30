@@ -180,14 +180,14 @@ CONTAINS
           !
           IF (use_geep_lib) THEN
              IF     (qmmm_coupl_type==do_qmmm_gauss) THEN
-                CALL  set_mm_potential_erf(qmmm_gaussian_fns, qm_cell_small,&
+                CALL  set_mm_potential_erf(qmmm_gaussian_fns,&
                      compatibility, num_geep_gauss, error)
              ELSEIF (qmmm_coupl_type==do_qmmm_swave) THEN
-                CALL  set_mm_potential_swave(qmmm_gaussian_fns, qm_cell_small,&
+                CALL  set_mm_potential_swave(qmmm_gaussian_fns,&
                      num_geep_gauss, error)
              END IF
           ELSE
-             CALL read_mm_potential(para_env, qmmm_gaussian_fns, qm_cell_small,&
+             CALL read_mm_potential(para_env, qmmm_gaussian_fns,&
                   (compatibility.AND.(qmmm_coupl_type==do_qmmm_gauss)), qmmm_section, error)
           END IF
           !

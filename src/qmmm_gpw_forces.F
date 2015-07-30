@@ -544,7 +544,7 @@ CONTAINS
     END SELECT
 
     CALL qmmm_force_with_gaussian_low(grids, mm_particles,&
-         qmmm_env%mm_atom_chrg, qmmm_env%mm_el_pot_radius, qmmm_env%mm_atom_index,&
+         qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index,&
          qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, auxbas_grid, &
          coarser_grid, qmmm_env%pgfs, qmmm_env%potentials, Forces, aug_pools,    &
          mm_cell, qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%per_potentials,  &
@@ -552,7 +552,7 @@ CONTAINS
 
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
        CALL qmmm_force_with_gaussian_low(grids, qmmm_env%added_charges%added_particles,&
-            qmmm_env%added_charges%mm_atom_chrg, qmmm_env%added_charges%mm_el_pot_radius,&
+            qmmm_env%added_charges%mm_atom_chrg,&
             qmmm_env%added_charges%mm_atom_index, qmmm_env%added_charges%num_mm_atoms,&
             cube_info, para_env, eps_mm_rspace, auxbas_grid, coarser_grid, qmmm_env%added_charges%pgfs,&
             qmmm_env%added_charges%potentials, Forces_added_charges, aug_pools, mm_cell, &
@@ -572,7 +572,6 @@ CONTAINS
 !> \param grids ...
 !> \param mm_particles ...
 !> \param mm_charges ...
-!> \param mm_el_pot_radius ...
 !> \param mm_atom_index ...
 !> \param num_mm_atoms ...
 !> \param cube_info ...
@@ -597,14 +596,14 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_force_with_gaussian_low(grids, mm_particles, mm_charges, &
-       mm_el_pot_radius, mm_atom_index, num_mm_atoms, cube_info, para_env, &
+       mm_atom_index, num_mm_atoms, cube_info, para_env, &
        eps_mm_rspace, auxbas_grid, coarser_grid, pgfs, potentials, Forces, &
        aug_pools, mm_cell, dOmmOqm, periodic, per_potentials, iw, par_scheme,&
        qmmm_spherical_cutoff, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(cube_info_type), DIMENSION(:), &
@@ -741,7 +740,6 @@ CONTAINS
                                            mm_charges=mm_charges,&
                                            mm_atom_index=mm_atom_index,&
                                            mm_particles=mm_particles,&
-                                           mm_el_pot_radius=mm_el_pot_radius,&
                                            para_env=para_env,&
                                            coarser_grid_level=coarser_grid,&
                                            Forces=Forces,&
@@ -760,7 +758,6 @@ CONTAINS
                                            mm_charges=mm_charges,&
                                            mm_atom_index=mm_atom_index,&
                                            mm_particles=mm_particles,&
-                                           mm_el_pot_radius=mm_el_pot_radius,&
                                            para_env=para_env,&
                                            coarser_grid_level=coarser_grid,&
                                            Forces=Forces,&
@@ -787,7 +784,6 @@ CONTAINS
 !> \param mm_charges ...
 !> \param mm_atom_index ...
 !> \param mm_particles ...
-!> \param mm_el_pot_radius ...
 !> \param para_env ...
 !> \param coarser_grid_level ...
 !> \param Forces ...
@@ -804,7 +800,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_forces_with_gaussian_LG  (pgfs,cgrid,num_mm_atoms,mm_charges,mm_atom_index,&
-       mm_particles,mm_el_pot_radius,para_env, coarser_grid_level,Forces, per_potentials,&
+       mm_particles,para_env, coarser_grid_level,Forces, per_potentials,&
        aug_pools, mm_cell, dOmmOqm, iw, par_scheme, qmmm_spherical_cutoff, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
@@ -814,7 +810,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: coarser_grid_level
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces
@@ -1186,7 +1181,6 @@ CONTAINS
                                             mm_charges=mm_charges,&
                                             mm_atom_index=mm_atom_index,&
                                             mm_particles=mm_particles,&
-                                            mm_el_pot_radius=mm_el_pot_radius,&
                                             coarser_grid_level=coarser_grid_level,&
                                             debug_force=LForces,&
                                             per_potentials=per_potentials,&
@@ -1213,7 +1207,6 @@ CONTAINS
 !> \param mm_charges ...
 !> \param mm_atom_index ...
 !> \param mm_particles ...
-!> \param mm_el_pot_radius ...
 !> \param para_env ...
 !> \param coarser_grid_level ...
 !> \param Forces ...
@@ -1230,7 +1223,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_forces_with_gaussian_LR  (pgfs,cgrid,num_mm_atoms,mm_charges,mm_atom_index,&
-       mm_particles,mm_el_pot_radius,para_env, coarser_grid_level,Forces, potentials,&
+       mm_particles,para_env, coarser_grid_level,Forces, potentials,&
        aug_pools, mm_cell, dOmmOqm, iw, par_scheme, qmmm_spherical_cutoff,error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
@@ -1240,7 +1233,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: coarser_grid_level
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces
@@ -1375,7 +1367,6 @@ CONTAINS
                                             mm_charges=mm_charges,&
                                             mm_atom_index=mm_atom_index,&
                                             mm_particles=mm_particles,&
-                                            mm_el_pot_radius=mm_el_pot_radius,&
                                             coarser_grid_level=coarser_grid_level,&
                                             debug_force=LForces,&
                                             potentials=potentials,&
@@ -1689,7 +1680,6 @@ CONTAINS
 !> \param mm_charges ...
 !> \param mm_atom_index ...
 !> \param mm_particles ...
-!> \param mm_el_pot_radius ...
 !> \param num_mm_atoms ...
 !> \param coarser_grid_level ...
 !> \param per_potentials ...
@@ -1706,7 +1696,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE debug_qmmm_forces_with_gauss_LG(pgfs,aug_pools, rho, mm_charges, mm_atom_index,&
-       mm_particles, mm_el_pot_radius, num_mm_atoms, coarser_grid_level, per_potentials,&
+       mm_particles, num_mm_atoms, coarser_grid_level, per_potentials,&
        debug_force, para_env, mm_cell,dOmmOqm,iw,par_scheme,qmmm_spherical_cutoff,error)
 
     TYPE(qmmm_gaussian_p_type), &
@@ -1718,7 +1708,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
     INTEGER, INTENT(IN)                      :: num_mm_atoms, &
                                                 coarser_grid_level
     TYPE(qmmm_per_pot_p_type), &
@@ -1768,7 +1757,6 @@ CONTAINS
                                                  mm_atom_index=mm_atom_index,&
                                                  mm_particles=mm_particles,&
                                                  para_env=para_env,&
-                                                 coarser_grid_level=coarser_grid_level,&
                                                  per_potentials=per_potentials,&
                                                  mm_cell=mm_cell,&
                                                  dOmmOqm=dOmmOqm,&
@@ -1818,7 +1806,6 @@ CONTAINS
 !> \param mm_charges ...
 !> \param mm_atom_index ...
 !> \param mm_particles ...
-!> \param mm_el_pot_radius ...
 !> \param num_mm_atoms ...
 !> \param coarser_grid_level ...
 !> \param potentials ...
@@ -1835,7 +1822,7 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE debug_qmmm_forces_with_gauss_LR(pgfs,aug_pools, rho, mm_charges, mm_atom_index,&
-       mm_particles, mm_el_pot_radius, num_mm_atoms, coarser_grid_level, potentials,&
+       mm_particles, num_mm_atoms, coarser_grid_level, potentials,&
        debug_force, para_env, mm_cell,dOmmOqm,iw, par_scheme, qmmm_spherical_cutoff, error)
 
     TYPE(qmmm_gaussian_p_type), &
@@ -1847,7 +1834,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
     INTEGER, INTENT(IN)                      :: num_mm_atoms, &
                                                 coarser_grid_level
     TYPE(qmmm_pot_p_type), DIMENSION(:), &
@@ -1896,9 +1882,7 @@ CONTAINS
                                                  mm_charges=mm_charges,&
                                                  mm_atom_index=mm_atom_index,&
                                                  mm_particles=mm_particles,&
-                                                 mm_el_pot_radius=mm_el_pot_radius,&
                                                  para_env=para_env,&
-                                                 coarser_grid_level=coarser_grid_level,&
                                                  potentials=potentials,&
                                                  mm_cell=mm_cell,&
                                                  dOmmOqm=dOmmOqm,&

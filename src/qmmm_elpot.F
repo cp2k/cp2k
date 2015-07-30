@@ -72,7 +72,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_potential_init', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: dx = 0.05_dp, d2x = dx*dx
+    REAL(KIND=dp), PARAMETER                 :: dx = 0.05_dp
 
     CHARACTER(LEN=default_path_length)       :: myFormat
     CHARACTER(LEN=default_string_length)     :: rc_s

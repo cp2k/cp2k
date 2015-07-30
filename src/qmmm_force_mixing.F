@@ -82,14 +82,12 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: adaptive_exclude_molecules(:)
-    INTEGER :: i_rep_section, i_rep_val, im, ip, max_n_qm, n_new, &
-      n_rep_exclude, n_rep_section, n_rep_val, natoms, &
-      QM_extended_seed_min_label_val
+    INTEGER :: i_rep_section, i_rep_val, ip, max_n_qm, n_new, n_rep_exclude, &
+      n_rep_section, n_rep_val, natoms, QM_extended_seed_min_label_val
     INTEGER, ALLOCATABLE                     :: new_full_labels(:), &
                                                 orig_full_labels(:)
-    INTEGER, POINTER :: breakable_bonds(:,:), broken_bonds(:), &
-      cur_indices(:), cur_labels(:), mm_index_entry(:), molecule_of_atom(:), &
-      new_indices(:), new_labels(:)
+    INTEGER, POINTER :: broken_bonds(:), cur_indices(:), cur_labels(:), &
+      mm_index_entry(:), new_indices(:), new_labels(:)
     LOGICAL                                  :: explicit, &
                                                 QM_extended_seed_is_core_list
     REAL(dp), ALLOCATABLE                    :: nearest_dist(:)
@@ -132,8 +130,6 @@ IF (debug_this_module) PRINT *, "BOB got cur_labels ",SIZE(cur_labels)
     ! should be 2xN_bb integer arrays, with (1,:) indices of inside atoms, and (2,:) indices of outside atoms
     ! maybe also breakable_bond_types, with _atomic numbers_ of inside/outside atoms?
     ! separate lists for core/buffer?
-    ALLOCATE(breakable_bonds(2,1))
-    breakable_bonds(1:2,1) = 0
 
     ! get particles, molecules
     NULLIFY(particles,molecules)
@@ -231,17 +227,11 @@ IF (debug_this_module) PRINT *, "BOB core_list + non adaptive QM+buffer new_labe
     ![NB] need to replace all the whole molecule stuff with pad to breakable bonds. not quite done
     ! (need intra molecule bond info, which isn't available for QM molecules yet)
 
-    ! find molecule of atom
-    ALLOCATE(molecule_of_atom(natoms))
-    DO im=1, SIZE(molecule_set)
-      molecule_of_atom(molecule_set(im)%first_atom:molecule_set(im)%last_atom) = im
-    END DO
-
     ! add core using hysteretic selection(core_list, r_core) + unbreakable bonds
     CALL add_layer_hysteretically(nlist, particle_set, cell, nearest_dist, &
         orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
         force_mixing_label_QM_core_list, force_mixing_label_QM_core_list, force_mixing_label_QM_core, r_core, &
-        max_n_qm, adaptive_exclude_molecules, .TRUE., breakable_bonds, molecule_of_atom, molecule_set, broken_bonds)
+        max_n_qm, adaptive_exclude_molecules, molecule_set, broken_bonds)
     ![NB] should actually pass this back for making link sections?
     DEALLOCATE(broken_bonds)
 
@@ -261,7 +251,7 @@ IF (debug_this_module) PRINT *, "BOB QM_extended_seed_is_core_list ",QM_extended
         orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
         QM_extended_seed_min_label_val, force_mixing_label_QM_core_list, &
         force_mixing_label_QM_dynamics, r_qm, &
-        max_n_qm, adaptive_exclude_molecules, .TRUE., breakable_bonds, molecule_of_atom, molecule_set)
+        max_n_qm, adaptive_exclude_molecules, molecule_set)
 
 IF (debug_this_module) PRINT *, "BOB extended new_indices ",new_indices(1:n_new)
 IF (debug_this_module) PRINT *, "BOB extended new_labels ",new_labels(1:n_new)
@@ -270,14 +260,13 @@ IF (debug_this_module) PRINT *, "BOB extended new_labels ",new_labels(1:n_new)
     CALL add_layer_hysteretically(nlist, particle_set, cell, nearest_dist, &
         orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
         force_mixing_label_QM_dynamics, force_mixing_label_QM_core_list, force_mixing_label_buffer, r_buf, &
-        max_n_qm, adaptive_exclude_molecules, .TRUE., breakable_bonds, molecule_of_atom, molecule_set, broken_bonds)
+        max_n_qm, adaptive_exclude_molecules, molecule_set, broken_bonds)
     ![NB] should actually pass this back for making link sections?
     DEALLOCATE(broken_bonds)
 
 IF (debug_this_module) PRINT *, "BOB buffer new_indices ",new_indices(1:n_new)
 IF (debug_this_module) PRINT *, "BOB buffer new_labels ",new_labels(1:n_new)
 
-     DEALLOCATE(molecule_of_atom, breakable_bonds)
      DEALLOCATE(nearest_dist)
 
      IF (PRESENT(labels_changed)) labels_changed = ANY (new_full_labels /= orig_full_labels)
@@ -376,18 +365,13 @@ CPSourceFileRef)
 !> \param r_inout ...
 !> \param max_n_qm ...
 !> \param adaptive_exclude_molecules ...
-!> \param pad_to_breakable_bonds ...
-!> \param breakable_bonds ...
-!> \param molecule_of_atom ...
 !> \param molecule_set ...
 !> \param broken_bonds ...
 ! *****************************************************************************
   SUBROUTINE add_layer_hysteretically(nlist, particle_set, cell, nearest_dist, &
     orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
     seed_min_label_val, seed_max_label_val, set_label_val, r_inout, max_n_qm, &
-    adaptive_exclude_molecules, &
-    pad_to_breakable_bonds, breakable_bonds, molecule_of_atom, molecule_set, &
-    broken_bonds)
+    adaptive_exclude_molecules, molecule_set, broken_bonds)
     TYPE(fist_neighbor_type), POINTER        :: nlist
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -402,9 +386,6 @@ CPSourceFileRef)
     REAL(dp)                                 :: r_inout(2)
     INTEGER                                  :: max_n_qm
     CHARACTER(len=*), POINTER                :: adaptive_exclude_molecules(:)
-    LOGICAL                                  :: pad_to_breakable_bonds
-    INTEGER, OPTIONAL, POINTER               :: breakable_bonds(:,:), &
-                                                molecule_of_atom(:)
     TYPE(molecule_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: molecule_set
     INTEGER, OPTIONAL, POINTER               :: broken_bonds(:)

@@ -301,7 +301,6 @@ CONTAINS
 !> \brief ...
 !> \param qmmm_env_qm ...
 !> \param qm_cell_small ...
-!> \param mm_cell ...
 !> \param para_env ...
 !> \param mm_atom_chrg ...
 !> \param qs_env ...
@@ -314,11 +313,11 @@ CONTAINS
 !>      1.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
- SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, mm_cell, para_env, &
+ SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, para_env, &
                                     mm_atom_chrg, qs_env, added_charges, print_section, &
                                     qmmm_section, error )
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
-    TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
+    TYPE(cell_type), POINTER                 :: qm_cell_small
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -391,9 +390,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param qmmm_env_qm ...
-!> \param qm_cell_small ...
 !> \param mm_cell ...
-!> \param para_env ...
 !> \param added_charges ...
 !> \param print_section ...
 !> \param error variable to control error logging, stopping,...
@@ -402,11 +399,10 @@ CONTAINS
 !>      1.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
- SUBROUTINE qmmm_init_potential(qmmm_env_qm, qm_cell_small, mm_cell, para_env, &
+ SUBROUTINE qmmm_init_potential(qmmm_env_qm, mm_cell, &
                                 added_charges, print_section, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
-    TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -1073,7 +1069,6 @@ CPSourceFileRef,&
 !> \param mm_el_pot_radius ...
 !> \param mm_el_pot_radius_corr ...
 !> \param mm_atom_index ...
-!> \param qm_cell_small ...
 !> \param iw ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -1082,13 +1077,12 @@ CPSourceFileRef,&
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE  setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, mm_el_pot_radius_corr,&
-       mm_atom_index, qm_cell_small, iw, error)
+       mm_atom_index, iw, error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius, &
                                                 mm_el_pot_radius_corr
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    TYPE(cell_type), POINTER                 :: qm_cell_small
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -1212,7 +1206,6 @@ CPSourceFileRef,&
 !> \param mm_el_pot_radius_corr ...
 !> \param added_charges ...
 !> \param mm_atom_index ...
-!> \param qm_cell_small ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -1221,7 +1214,7 @@ CPSourceFileRef,&
 ! *****************************************************************************
   SUBROUTINE move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
                                mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
-                               added_charges, mm_atom_index, qm_cell_small, error)
+                               added_charges, mm_atom_index,  error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     LOGICAL, INTENT(OUT)                     :: move_mm_charges, &
                                                 add_mm_charges
@@ -1230,7 +1223,6 @@ CPSourceFileRef,&
                                                 mm_el_pot_radius_corr
     TYPE(add_set_type), POINTER              :: added_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    TYPE(cell_type), POINTER                 :: qm_cell_small
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'move_or_add_atoms', &
@@ -1413,7 +1405,6 @@ CPSourceFileRef,&
 !>      in (0.0,0.0,0.0)...
 !> \param qmmm_section ...
 !> \param qmmm_env ...
-!> \param mm_cell ...
 !> \param qm_cell_small ...
 !> \param dr ...
 !> \param error variable to control error logging, stopping,...
@@ -1422,11 +1413,11 @@ CPSourceFileRef,&
 !>      02.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
-   SUBROUTINE setup_origin_mm_cell(qmmm_section, qmmm_env, mm_cell, qm_cell_small, &
+   SUBROUTINE setup_origin_mm_cell(qmmm_section, qmmm_env, qm_cell_small, &
         dr, error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-    TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
+    TYPE(cell_type), POINTER                 :: qm_cell_small
     REAL(KIND=dp), DIMENSION(3), INTENT(in)  :: dr
     TYPE(cp_error_type), INTENT(inout)       :: error
 

@@ -328,29 +328,25 @@ CONTAINS
 !> \param rho1_set ...
 !> \param xc_section ...
 !> \param deriv_set ...
-!> \param needs ...
 !> \param w ...
-!> \param exc ...
 !> \param vxc ...
 !> \param vxg ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE xc_2nd_deriv_of_r(rho_set, rho1_set,xc_section,&
-       deriv_set, needs, w, exc, vxc, vxg, error)
+       deriv_set,  w,  vxc, vxg, error)
 
 ! As input of this routine one gets rho and drho on a one dimensional grid.
 ! The grid is the angular grid corresponding to a given point ir on the radial grid.
 ! The derivatives are calculated on this one dimensional grid, the results are stored in
-! exc, vxc(1:na,ir,ispin), vxg(1:na,ir,ispin), vxg_cross(1:na,ir,ispin)
+! vxc(1:na,ir,ispin), vxg(1:na,ir,ispin), vxg_cross(1:na,ir,ispin)
 ! Afterwords the arrays containing the derivatives are put to zero so that the routine
 ! can safely be called for the next radial point ir
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set, rho1_set
     TYPE(section_vals_type), POINTER         :: xc_section
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
     REAL(dp), DIMENSION(:, :), POINTER       :: w
-    REAL(dp)                                 :: exc
     REAL(dp), DIMENSION(:, :, :), POINTER    :: vxc
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: vxg
     TYPE(cp_error_type), INTENT(inout)       :: error

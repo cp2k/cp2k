@@ -215,9 +215,7 @@ CONTAINS
                                               qmmm_env%Potentials,&
                                               particles_mm,&
                                               qmmm_env%mm_atom_chrg,&
-                                              qmmm_env%mm_el_pot_radius,&
                                               qmmm_env%mm_atom_index,&
-                                              qmmm_env%num_mm_atoms,&
                                               mm_cell,&
                                               iatom,&
                                               enuclear,&
@@ -236,9 +234,7 @@ CONTAINS
                                                  qmmm_env%added_charges%potentials,&
                                                  qmmm_env%added_charges%added_particles,&
                                                  qmmm_env%added_charges%mm_atom_chrg,&
-                                                 qmmm_env%added_charges%mm_el_pot_radius,&
                                                  qmmm_env%added_charges%mm_atom_index,&
-                                                 qmmm_env%added_charges%num_mm_atoms,&
                                                  mm_cell,&
                                                  iatom,&
                                                  enuclear,&
@@ -282,9 +278,7 @@ CONTAINS
 !> \param potentials ...
 !> \param particles_mm ...
 !> \param mm_charges ...
-!> \param mm_el_pot_radius ...
 !> \param mm_atom_index ...
-!> \param num_mm_atoms ...
 !> \param mm_cell ...
 !> \param IndQM ...
 !> \param enuclear ...
@@ -298,7 +292,7 @@ CONTAINS
 !> \author Teodoro Laino 04.2007 [created]
 ! *****************************************************************************
   SUBROUTINE build_se_qmmm_matrix_low(h_block_a, se_kind_a, se_kind_mm, potentials,&
-       particles_mm, mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
+       particles_mm, mm_charges, mm_atom_index,&
        mm_cell, IndQM, enuclear, itype, se_taper, se_int_control, anag, &
        qmmm_spherical_cutoff, particles_qm, error)
 
@@ -308,9 +302,8 @@ CONTAINS
       POINTER                                :: potentials
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges, mm_el_pot_radius
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_charges
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    INTEGER, INTENT(IN)                      :: num_mm_atoms
     TYPE(cell_type), POINTER                 :: mm_cell
     INTEGER, INTENT(IN)                      :: IndQM
     REAL(KIND=dp), INTENT(INOUT)             :: enuclear

@@ -646,7 +646,7 @@ CONTAINS
                       tot_rho_r=tot_rho_r, error=error)
       DO ispin=1,nspin
        CALL calculate_lri_rho_elec(rho_g(ispin),&
-                                   rho_r(ispin), qs_env, lri_env,&
+                                   rho_r(ispin), qs_env, &
                                    lri_density%lri_coefs(ispin)%lri_kinds,&
                                    tot_rho_r(ispin), error)
       ENDDO

@@ -233,7 +233,6 @@ CONTAINS
 
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_send, &
-                                             dbcsr_mat, &
                                              numprocs, &
                                              row_block_size_data, &
                                              col_block_size_data, &
@@ -258,7 +257,6 @@ CONTAINS
 
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_recv, &
-                                             dbcsr_mat, &
                                              numprocs, &
                                              row_block_size_data, &
                                              col_block_size_data, &

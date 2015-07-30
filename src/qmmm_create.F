@@ -449,7 +449,7 @@ CPSourceFileRef,&
        qmmm_link_Imomm = .FALSE.
        IF (qmmm_link) THEN
           CALL setup_qmmm_links(qmmm_section, qmmm_links, mm_el_pot_radius, &
-               mm_el_pot_radius_corr, mm_atom_index, qm_cell_small, iw, error=error)
+               mm_el_pot_radius_corr, mm_atom_index, iw, error=error)
           qmmm_env_qm%qmmm_links    => qmmm_links
 
           CALL print_qmmm_links(qmmm_section, qmmm_links, error)
@@ -457,7 +457,7 @@ CPSourceFileRef,&
           CALL add_set_release  (qmmm_env_qm%added_charges, error=error)
           CALL move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
                                  mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
-                                 added_charges, mm_atom_index, qm_cell_small, error)
+                                 added_charges, mm_atom_index, error)
           qmmm_env_qm%move_mm_charges =  move_mm_charges
           qmmm_env_qm%add_mm_charges  =  add_mm_charges
           qmmm_env_qm%added_charges   => added_charges
@@ -511,7 +511,6 @@ CPSourceFileRef,&
        !
        CALL qmmm_init_gaussian_type (qmmm_env_qm = qmmm_env_qm,&
                                      qm_cell_small=qm_cell_small,&
-                                     mm_cell=mm_cell,&
                                      para_env=para_env,&
                                      qs_env=qs_env,&
                                      mm_atom_chrg=mm_atom_chrg,&
@@ -523,9 +522,7 @@ CPSourceFileRef,&
        ! Initialize the MM potential stored on vector
        !
        CALL qmmm_init_potential(qmmm_env_qm=qmmm_env_qm,&
-                                qm_cell_small=qm_cell_small,&
                                 mm_cell=mm_cell,&
-                                para_env=para_env,&
                                 added_charges=qmmm_env_qm%added_charges,&
                                 print_section=print_section,&
                                 error=error)
@@ -535,7 +532,6 @@ CPSourceFileRef,&
        CALL get_qs_env(qs_env, pw_env=pw_env, error=error)
        CALL qmmm_pw_grid_init(qmmm_env=qmmm_env_qm,&
                               pw_env=pw_env,&
-                              cell=qm_cell_small,&
                               error=error)
        !
        ! Initialize the MM periodic potential
@@ -553,7 +549,7 @@ CPSourceFileRef,&
        !
        ! Preparing for PBC...
        !
-       CALL setup_origin_mm_cell(qmmm_section, qmmm_env_qm, mm_cell, qm_cell_small,&
+       CALL setup_origin_mm_cell(qmmm_section, qmmm_env_qm, qm_cell_small,&
             dr=pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid%dr,&
             error=error)
 
