@@ -118,41 +118,23 @@ ct_methods.F: Unused dummy argument 'level' at (1)
 ct_methods.F: Unused dummy argument 'tensor_type' at (1)
 ct_types.F: Unused dummy argument 'matrix_x' at (1)
 cuda_profiling.F: Unused dummy argument 'routinen' at (1)
-dbcsr_data_methods_low_c.f90: Unused dummy argument 'coersion' at (1)
-dbcsr_data_methods_low_d.f90: Unused dummy argument 'coersion' at (1)
-dbcsr_data_methods_low_s.f90: Unused dummy argument 'coersion' at (1)
-dbcsr_data_methods_low_z.f90: Unused dummy argument 'coersion' at (1)
 dbcsr_dist_operations.F: Unused dummy argument 'multiplicity' at (1)
 dbcsr_dist_operations.F: Unused dummy argument 'transpose' at (1)
 dbcsr_dist_operations.F: Unused parameter 'dbg' declared at (1)
 dbcsr_geev.F: Unused dummy argument 'jobvl' at (1)
 dbcsr_geev.F: Unused dummy argument 'jobvr' at (1)
 dbcsr_lib.F: Unused dummy argument 'group' at (1)
-dbcsr_mm_accdrv.F: Unused dummy argument 'left' at (1)
-dbcsr_mm_accdrv.F: Unused dummy argument 'output_unit' at (1)
-dbcsr_mm_accdrv.F: Unused dummy argument 'right' at (1)
-dbcsr_mm_accdrv.F: Unused dummy argument 'this' at (1)
-dbcsr_mm_cannon.F: Unused parameter 'fdata' declared at (1)
-dbcsr_mm_cannon.F: Unused parameter 'fxfer' declared at (1)
-dbcsr_mm_cannon.F: Unused parameter 'id_bytes' declared at (1)
-dbcsr_mm_cannon.F: Unused parameter 'id_recv' declared at (1)
-dbcsr_mm_cannon.F: Unused parameter 'id_send' declared at (1)
-dbcsr_mm_cannon.F: Unused parameter 'id_time' declared at (1)
-dbcsr_mm_cannon.F: Unused parameter 'id_waittime' declared at (1)
 dbcsr_mm_cannon.F: Unused parameter 'rc_c' declared at (1)
 dbcsr_mm_cannon.F: Unused parameter 'rc_r' declared at (1)
 dbcsr_mm_csr.F: Unused dummy argument 'k_sizes' at (1)
 dbcsr_mm_csr.F: Unused dummy argument 'nf' at (1)
 dbcsr_mm_csr.F: Unused dummy argument 'ni' at (1)
 dbcsr_mm_csr.F: Unused parameter 'local_timing' declared at (1)
-dbcsr_mm_hostdrv.F: Unused dummy argument 'left' at (1)
-dbcsr_mm_hostdrv.F: Unused dummy argument 'right' at (1)
 dbcsr_mm_hostdrv.F: Unused dummy argument 'this' at (1)
 dbcsr_mm_hostdrv_c.f90: Unused dummy argument 'stack_descr' at (1)
 dbcsr_mm_hostdrv_d.f90: Unused dummy argument 'stack_descr' at (1)
 dbcsr_mm_hostdrv_s.f90: Unused dummy argument 'stack_descr' at (1)
 dbcsr_mm_hostdrv_z.f90: Unused dummy argument 'stack_descr' at (1)
-dbcsr_mm_multrec.F: Unused parameter 'careful' declared at (1)
 dbcsr_mm_multrec.F: Unused parameter 'dbg' declared at (1)
 dbcsr_mm_sched.F: Unused dummy argument 'this' at (1)
 dbcsr_operations.F: Unused dummy argument 'name' at (1)
@@ -221,7 +203,6 @@ k290.F: Unused dummy argument 'nsp' at (1)
 library_tests.F: Routine PILAENV called with an implicit interface.
 library_tests.F: Unused dummy argument 'blacs_grid_layout' at (1)
 library_tests.F: Unused dummy argument 'blacs_repeatable' at (1)
-lri_environment_types.F: Unused dummy argument 'atomic_kind_set' at (1)
 lri_ks_methods.F: Unused dummy argument 'para_env' at (1)
 lri_optimize_ri_basis.F: Unused dummy argument 'lri_env' at (1)
 lri_optimize_ri_basis.F: Unused dummy argument 'x' at (1)
@@ -273,15 +254,8 @@ manybody_quip.F: Unused dummy argument 'virial' at (1)
 manybody_siepmann.F: Unused dummy argument 'full_loc_list' at (1)
 manybody_siepmann.F: Unused dummy argument 'loc_cell_v' at (1)
 manybody_siepmann.F: Unused dummy argument 'pv_nonbond' at (1)
-manybody_siepmann.F: Unused dummy argument 'siepmann' at (1)
-manybody_tersoff.F: Unused dummy argument 'r' at (1)
-message_passing.F: Dummy argument 'flag' at (1) was declared INTENT(OUT) but was not set
-message_passing.F: Dummy argument 'ierr' at (1) was declared INTENT(OUT) but was not set
-message_passing.F: Dummy argument 'index' at (1) was declared INTENT(OUT) but was not set
-message_passing.F: Dummy argument 'status' at (1) was declared INTENT(OUT) but was not set
 message_passing.F: Found CLOSE statement in procedure "mp_file_close"
 message_passing.F: Found OPEN statement in procedure "mp_file_open"
-message_passing.F: Unused dummy argument 'array_of_requests' at (1)
 mixed_environment_utils.F: Unused dummy argument 'mixed_section' at (1)
 mm_collocate_potential.F: Routine COLLOCATE_GF_NPBC called with an implicit interface.
 mm_collocate_potential.F: Routine INTEGRATE_GF_NPBC called with an implicit interface.
@@ -362,40 +336,6 @@ preconditioner_makes.F: Unused dummy argument 'solver_type' at (1)
 preconditioner_makes.F: Unused parameter 'eval_shift' declared at (1)
 preconditioner_makes.F: Unused parameter 'fudge_factor' declared at (1)
 preconditioner_solvers.F: Unused dummy argument 'matrix_s' at (1)
-ps_wavelet_base.F: Unused dummy argument 'hgrid' at (1)
-ps_wavelet_base.F: Unused parameter 'timing_flag' declared at (1)
-ps_wavelet_kernel.F: Unused dummy argument 'nterms' at (1)
-ps_wavelet_kernel.F: Unused parameter 'timing_flag' declared at (1)
-ps_wavelet_methods.F: Unused dummy argument 'eh' at (1)
-ps_wavelet_scaling_function.F: Unused dummy argument 'cg' at (1)
-ps_wavelet_scaling_function.F: Unused dummy argument 'ch' at (1)
-ps_wavelet_util.F: Unused dummy argument 'datacode' at (1)
-pw_env_methods.F: Unused parameter 'safety_factor' declared at (1)
-qmmm_elpot.F: Unused parameter 'd2x' declared at (1)
-qmmm_force_mixing.F: Unused dummy argument 'breakable_bonds' at (1)
-qmmm_force_mixing.F: Unused dummy argument 'molecule_of_atom' at (1)
-qmmm_force_mixing.F: Unused dummy argument 'pad_to_breakable_bonds' at (1)
-qmmm_gaussian_input.F: Unused dummy argument 'qm_cell_small' at (1)
-qmmm_gpw_energy.F: Unused dummy argument 'aug_pools' at (1)
-qmmm_gpw_energy.F: Unused dummy argument 'coarser_grid_level' at (1)
-qmmm_gpw_energy.F: Unused dummy argument 'mm_el_pot_radius' at (1)
-qmmm_gpw_energy.F: Unused dummy argument 'num_mm_atoms' at (1)
-qmmm_gpw_forces.F: Unused dummy argument 'mm_el_pot_radius' at (1)
-qmmm_image_charge.F: Unused dummy argument 'qmmm_env' at (1)
-qmmm_init.F: Unused dummy argument 'mm_cell' at (1)
-qmmm_init.F: Unused dummy argument 'para_env' at (1)
-qmmm_init.F: Unused dummy argument 'qm_cell_small' at (1)
-qmmm_pw_grid.F: Unused dummy argument 'cell' at (1)
-qmmm_se_energy.F: Unused dummy argument 'mm_el_pot_radius' at (1)
-qmmm_se_energy.F: Unused dummy argument 'num_mm_atoms' at (1)
-qmmm_se_forces.F: Unused dummy argument 'mm_el_pot_radius' at (1)
-qmmm_se_forces.F: Unused dummy argument 'num_mm_atoms' at (1)
-qs_collocate_density.F: Unused dummy argument 'lri_env' at (1)
-qs_collocate_density.F: ‘atomic_kind_set.dim[0].lbound’ is used uninitialized in this function [-Wuninitialized]
-qs_collocate_density.F: ‘atomic_kind_set.dim[0].ubound’ is used uninitialized in this function [-Wuninitialized]
-qs_electric_field_gradient.F: Unused dummy argument 'grid_atom' at (1)
-qs_fb_com_tasks_types.F: Unused dummy argument 'dbcsr_matrix' at (1)
-qs_harmonics_atom.F: Unused dummy argument 'my_cg' at (1)
 qs_integrate_potential_low.F: Routine CALL_TO_XYZ_TO_VAB called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_0 called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_1 called with an implicit interface.
@@ -408,21 +348,12 @@ qs_integrate_potential_low.F: Routine INTEGRATE_CORE_7 called with an implicit i
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_8 called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_9 called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_DEFAULT called with an implicit interface.
-qs_kpp1_env_methods.F: Unused dummy argument 'kpp1_env' at (1)
 qs_linres_op.F: Routine INDXL2G called with an implicit interface.
 qs_loc_methods.F: Unused dummy argument 'loc_section' at (1)
 qs_loc_utils.F: Routine PZROT called with an implicit interface.
 qs_localization_methods.F: Routine PZROT called with an implicit interface.
 qs_mo_io.F: Unused dummy argument 'atomic_kind_set' at (1)
-qs_oce_types.F: Unused dummy argument 'natom' at (1)
-qs_oce_types.F: Unused dummy argument 'ndim' at (1)
-qs_ot.F: Unused parameter 'ci' declared at (1)
-qs_resp.F: Unused dummy argument 'input' at (1)
-qs_scf_block_davidson.F: Unused dummy argument 'matrix_sc' at (1)
 qs_scf_loop_utils.F: Unused dummy argument 'do_kpoints' at (1)
-qs_scf_loop_utils.F: Unused dummy argument 'energy_only' at (1)
-qs_scf_loop_utils.F: Unused dummy argument 'scf_control' at (1)
-qs_scf_output.F: Unused dummy argument 'last' at (1)
 rpa_communication.F: Unused dummy argument 'number_of_rec' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'dimen_ia' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'dimen_ri' at (1)
@@ -432,15 +363,11 @@ rpa_ri_gpw.F: Unused dummy argument 'pig' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'sizes_array' at (1)
 rpa_ri_gpw.F: Unused dummy argument 'starts_array' at (1)
 rpa_ri_gpw.F: Unused parameter 'use_gemm' declared at (1)
-scptb_ks_matrix.F: Unused dummy argument 'dmcharge' at (1)
-se_core_matrix.F: Unused parameter 'ix' declared at (1)
-se_fock_matrix_integrals.F: Unused dummy argument 'pi_tot' at (1)
 semi_empirical_int3_utils.F: Routine EVAL called with an implicit interface.
 semi_empirical_int3_utils.F: Unused dummy argument 'r' at (1)
 semi_empirical_int_args.h: Copyright banner malformed
 semi_empirical_int_debug.F: Routine CHECK_VALUE called with an implicit interface.
 semi_empirical_int_debug.h: Copyright banner malformed
-semi_empirical_int_gks.F: Unused dummy argument 'se_taper' at (1)
 semi_empirical_int_utils.F: Routine EVAL called with an implicit interface.
 sockets.c: Copyright banner malformed
 swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master"
@@ -448,40 +375,15 @@ swarm_mpi.F: Found OPEN statement in procedure "logger_finalize"
 t_c_g0.F: Copyright banner malformed
 t_sh_p_s_c.F: Copyright banner malformed
 termination.F: Unused dummy argument 'line_number' at (1)
-tmc_messages.F: Unused dummy argument 'msg_type' at (1)
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd"
-xc_atom.F: Unused dummy argument 'exc' at (1)
-xc_atom.F: Unused dummy argument 'needs' at (1)
-xc_b97.F: Unused dummy argument 'epsilon_drho' at (1)
-xc_exchange_gga.F: Unused dummy argument 'grho' at (1)
 xc_f90_lib_m.F: Copyright banner malformed
 xc_f90_types_m.F: Copyright banner malformed
-xc_hcth.F: Unused dummy argument 'epsilon_drho' at (1)
-xc_ke_gga.F: Unused dummy argument 'grho' at (1)
-xc_libxc.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_pade.F: Unused dummy argument 'derivative_set' at (1)
-xc_pbe.F: Unused dummy argument 'epsilon_drho' at (1)
-xc_pbe.F: Unused dummy argument 'epsilon_norm_drho' at (1)
-xc_pbe.F: Unused dummy argument 'rho_1_3' at (1)
-xc_perdew_zunger.F: Unused dummy argument 'eb' at (1)
-xc_pot_saop.F: Unused parameter 'ob3' declared at (1)
-xc_tfw.F: Unused dummy argument 'grhoa' at (1)
-xc_tpss.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_write_output.F: Routine XC_F90_VERSION called with an implicit interface.
-xc_xbecke88.F: Unused dummy argument 'epsilon_drho' at (1)
-xc_xbecke88.F: Unused dummy argument 'epsilon_norm_drho' at (1)
-xc_xbecke_roussel.F: Unused dummy argument 'br_params' at (1)
-xc_xbecke_roussel.F: Unused dummy argument 'epsilon_norm_drho' at (1)
 xc_xbecke_roussel.F: Unused dummy argument 'r' at (1)
-xc_xbeef.F: Unused dummy argument 'epsilon_drho' at (1)
-xc_xbeef.F: Unused dummy argument 'epsilon_norm_drho' at (1)
-xc_xbr_pbe_lda_hole_t_c_lr.F: Unused dummy argument 'epsilon_norm_drho' at (1)
-xc_xlda_hole_t_c_lr.F: Unused dummy argument 'xlda_params' at (1)
-xc_xpbe_hole_t_c_lr.F: Unused dummy argument 'epsilon_norm_drho' at (1)
-xc_xpbe_hole_t_c_lr.F: Unused dummy argument 'ndrho' at (1)
 xml_parser.F: Copyright banner malformed
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_0_0 called with an implicit interface.
