@@ -51,7 +51,6 @@ MODULE mp2_ri_libint
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
-  USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_sum
   USE mp2_types,                       ONLY: init_TShPSC_lmax,&
                                              mp2_biel_type,&
@@ -138,7 +137,6 @@ MODULE mp2_ri_libint
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'libint_ri_mp2', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: due = 2.D+00, zero = 0.D+00
 
     INTEGER                                  :: handle, nkind
     LOGICAL                                  :: failure

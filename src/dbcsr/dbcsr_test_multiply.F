@@ -110,9 +110,8 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: retain_sparsity
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      fmt_desc = '(A,3(1X,I6),1X,A,2(1X,I5),1X,A,2(1X,L1))', &
-      routineN = 'dbcsr_test_multiplies', routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_test_multiplies', &
+      routineP = moduleN//':'//routineN
     CHARACTER, DIMENSION(3), PARAMETER :: trans = (/dbcsr_no_transpose, &
       dbcsr_transpose, dbcsr_conjugate_transpose/)
     CHARACTER, DIMENSION(3, 12), PARAMETER :: symmetries = RESHAPE((/&
@@ -406,11 +405,8 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: retain_sparsity
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
-    CHARACTER(len=*), PARAMETER :: fmt_per_run_local = &
-      '(A,1X,I5,1X,A,1X,F9.3,1X,"s,",1X,EN12.3,1X,"FLOP/s")', &
-      fmt_per_run_total = &
-      '(A,1X,I5,1X,A,1X,F9.3,1X,"s,",1X,EN12.3,1X,"FLOP/s",1X,E13.5)', &
-      routineN = 'test_multiply', routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'test_multiply', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: c_a, c_b, c_c, error_handler, &
                                                 r_a, r_b, r_c

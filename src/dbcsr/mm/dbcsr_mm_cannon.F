@@ -1957,8 +1957,7 @@ MODULE dbcsr_mm_cannon
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: idata = 1, ileft = 0, &
                                                 imeta = 2, iright = 2, &
-                                                M_L = 2, M_P = 1, M_R = 3, &
-                                                RC_C = 2, RC_R = 1
+                                                M_L = 2, M_P = 1, M_R = 3
 
     INTEGER :: data_type, data_type_byte, error_handler, error_handler2, &
       error_handler3, error_handler4, grp, i, ithread, left_col_image, &

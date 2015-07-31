@@ -44,9 +44,8 @@ MODULE dbcsr_test_add
   USE dbcsr_transformations,           ONLY: dbcsr_redistribute,&
                                              dbcsr_replicate_all
   USE dbcsr_types,                     ONLY: &
-       dbcsr_conjugate_transpose, dbcsr_data_obj, dbcsr_distribution_obj, &
-       dbcsr_mp_obj, dbcsr_no_transpose, dbcsr_obj, dbcsr_scalar_type, &
-       dbcsr_transpose, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
+       dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_mp_obj, dbcsr_obj, &
+       dbcsr_scalar_type, dbcsr_type_antihermitian, dbcsr_type_antisymmetric, &
        dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
        dbcsr_type_complex_8_2d, dbcsr_type_hermitian, dbcsr_type_no_symmetry, &
        dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
@@ -102,16 +101,13 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: retain_sparsity
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      fmt_desc = '(A,3(1X,I6),1X,A,2(1X,I5),1X,A,2(1X,L1))', &
-      routineN = 'dbcsr_test_adds', routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_test_adds', &
+      routineP = moduleN//':'//routineN
     CHARACTER, DIMENSION(2, 5), PARAMETER :: symmetries = RESHAPE((/&
       dbcsr_type_no_symmetry  , dbcsr_type_no_symmetry  ,dbcsr_type_symmetric &
       , dbcsr_type_symmetric    ,dbcsr_type_antisymmetric, &
       dbcsr_type_antisymmetric, dbcsr_type_hermitian    , dbcsr_type_hermitian&
       , dbcsr_type_antihermitian    , dbcsr_type_antihermitian /), (/2,5/) )
-    CHARACTER, DIMENSION(3), PARAMETER :: trans = (/dbcsr_no_transpose, &
-      dbcsr_transpose, dbcsr_conjugate_transpose/)
     INTEGER, DIMENSION(4), PARAMETER :: types = (/dbcsr_type_real_4, &
       dbcsr_type_real_8, dbcsr_type_complex_4, dbcsr_type_complex_8/)
 

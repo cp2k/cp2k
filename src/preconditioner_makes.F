@@ -672,8 +672,6 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, ene
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_single_inverse', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: eval_shift = 5.0_dp , &
-                                                fudge_factor = 2.0_dp
 
     INTEGER                                  :: handle, k, n
     REAL(KIND=dp)                            :: max_ev, min_ev, pre_shift

@@ -1584,7 +1584,6 @@ MODULE rpa_ri_gpw
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_numerical_integ', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: use_gemm = .FALSE.
 
     COMPLEX(KIND=dp)                         :: im_unit, re_unit
     COMPLEX(KIND=dp), ALLOCATABLE, &

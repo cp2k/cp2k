@@ -1553,8 +1553,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_merge_all', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: index_blocks = 1, &
-                                                index_data = 2
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: error_handler, my_row_count, &
@@ -1852,8 +1850,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_merge_single_wm', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: index_blocks = 1, &
-                                                index_data = 2
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: error_handler, nblks, nrows

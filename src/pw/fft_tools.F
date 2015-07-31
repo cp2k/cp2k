@@ -3077,9 +3077,7 @@ CONTAINS
     INTEGER(KIND=C_SIZE_T)    :: length
     TYPE(C_PTR)               :: cptr_r1buf, cptr_tbuf, &
                                  cptr_p2buf, cptr_p3buf, cptr_p4buf, cptr_p5buf, cptr_p7buf
-    INTEGER(KIND=C_INT), PARAMETER :: cudaHostAllocDefault=0, &
-                                      cudaHostAllocPortable=1, &
-                                      cudaHostAllocMapped=2
+    INTEGER(KIND=C_INT), PARAMETER :: cudaHostAllocDefault=0
 #endif
     CALL timeset(routineN,handle)
 
