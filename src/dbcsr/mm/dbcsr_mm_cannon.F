@@ -46,14 +46,14 @@ MODULE dbcsr_mm_cannon
                                              use_mpi_rma
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_copy, dbcsr_data_ensure_size, &
-       dbcsr_data_get_size, dbcsr_data_get_size_referenced, dbcsr_data_hold, &
-       dbcsr_data_host2dev, dbcsr_data_init, dbcsr_data_new, &
-       dbcsr_data_release, dbcsr_data_set_pointer, &
-       dbcsr_data_set_size_referenced, dbcsr_get_data_p_c, &
-       dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z, &
-       dbcsr_scalar, dbcsr_scalar_are_equal, dbcsr_scalar_fill_all, &
-       dbcsr_scalar_negative, dbcsr_scalar_one, dbcsr_scalar_set_type, &
-       dbcsr_scalar_zero
+       dbcsr_data_get_size, dbcsr_data_get_size_referenced, &
+       dbcsr_data_get_type, dbcsr_data_hold, dbcsr_data_host2dev, &
+       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
+       dbcsr_data_set_pointer, dbcsr_data_set_size_referenced, &
+       dbcsr_data_valid, dbcsr_get_data_p_c, dbcsr_get_data_p_d, &
+       dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_scalar, &
+       dbcsr_scalar_are_equal, dbcsr_scalar_fill_all, dbcsr_scalar_negative, &
+       dbcsr_scalar_one, dbcsr_scalar_set_type, dbcsr_scalar_zero
   USE dbcsr_data_types,                ONLY: dbcsr_datatype_sizeof
   USE dbcsr_dist_methods,              ONLY: &
        dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
@@ -204,6 +204,10 @@ MODULE dbcsr_mm_cannon
   TYPE(acc_stream_type), PRIVATE, SAVE         :: stream_1, stream_2
   ! ab-panels and streams are shared between all threads
 
+  ! RMA data windows
+  TYPE(dbcsr_data_obj), PRIVATE, SAVE :: left_data_orig, left_meta_orig, &
+                                         right_data_orig, right_meta_orig
+  
   TYPE dbcsr_mm_multrec_type_p
     TYPE(dbcsr_mm_multrec_type), POINTER :: p => Null()
     ! ensure that array-elements are on different cache lines
@@ -249,6 +253,12 @@ MODULE dbcsr_mm_cannon
     marketing_flops = 0
     max_memory = 0
     ALLOCATE(memtype_product_wm(0:nthreads-1))
+
+    ! Init RMA buffers
+    CALL dbcsr_data_init(right_data_orig)
+    CALL dbcsr_data_init(right_meta_orig)
+    CALL dbcsr_data_init(left_data_orig)
+    CALL dbcsr_data_init(left_meta_orig)
     !$OMP END MASTER
     !$OMP BARRIER
 
@@ -296,6 +306,12 @@ MODULE dbcsr_mm_cannon
      !$OMP BARRIER
      !$omp master
      DEALLOCATE(memtype_product_wm)
+
+     ! Deallocate RMA buffers
+     IF (dbcsr_data_valid(left_data_orig)) CALL dbcsr_data_release(left_data_orig)
+     IF (dbcsr_data_valid(left_meta_orig)) CALL dbcsr_data_release(left_meta_orig)
+     IF (dbcsr_data_valid(right_data_orig)) CALL dbcsr_data_release(right_data_orig)
+     IF (dbcsr_data_valid(right_meta_orig)) CALL dbcsr_data_release(right_meta_orig)
 
      total_max_memory=max_memory
      CALL mp_max(total_max_memory,group)
@@ -2943,17 +2959,17 @@ MODULE dbcsr_mm_cannon
                                                 imeta_size = 2
 
     INTEGER :: data_type, data_type_byte, dst_icol, dst_irow, dst_p, &
-      error_handler, error_handler2, error_handler3, get_vcol, get_vrow, &
-      grp_left, grp_right, index_row_max_epss, ithread, left_col_mult, &
-      left_col_nimages, left_data_win, left_meta_win, left_myfirstvcol, &
-      left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, &
-      left_row_mult, left_row_nimages, metronome, min_nimages, mynode, &
-      nblkrows_total, nblkrows_used, nsteps_k, nthreads, numnodes, nvirt_k, &
-      output_unit, recv_p, right_col_mult, right_col_nimages, right_data_win, &
-      right_meta_win, right_myfirstvcol, right_myfirstvrow
+      error_handler, error_handler2, error_handler3, grp_left, grp_right, &
+      index_row_max_epss, ithread, left_col_mult, left_col_nimages, &
+      left_data_win, left_meta_win, left_myfirstvcol, left_myfirstvrow, &
+      left_mypcol, left_myprow, left_npcols, left_nprows, left_row_mult, &
+      left_row_nimages, metronome, min_nimages, mynode, nblkrows_total, &
+      nblkrows_used, nsteps_k, nthreads, numnodes, nvirt_k, output_unit, &
+      recv_p, recv_vcol, recv_vrow, right_col_mult, right_col_nimages, &
+      right_data_win, right_meta_win, right_myfirstvcol, right_myfirstvrow
     INTEGER :: right_mypcol, right_myprow, right_npcols, right_nprows, &
       right_row_mult, right_row_nimages, row, size_guess, src_vcol, src_vrow, &
-      stat, v_ci, v_i, v_ki, v_ri
+      stat, threads_finished, threads_finished_read, v_ci, v_i, v_ki, v_ri
     INTEGER(KIND=int_8)                      :: mem
     INTEGER(kind=mp_address_kind) :: left_data_size, left_max_meta, &
       left_meta_size, right_data_size, right_max_meta, right_meta_size
@@ -2961,15 +2977,15 @@ MODULE dbcsr_mm_cannon
       left_max_data_clusters, left_max_meta_clusters, &
       right_max_data_clusters, right_max_meta_clusters
     INTEGER(kind=mp_address_kind), &
-      ALLOCATABLE, DIMENSION(:, :, :)        :: left_gets, local_left_gets, &
-                                                local_right_gets, right_gets
+      ALLOCATABLE, DIMENSION(:, :, :)        :: left_refs, local_left_refs, &
+                                                local_right_refs, right_refs
     INTEGER(kind=mp_address_kind), &
-      ALLOCATABLE, DIMENSION(:, :, :, :)     :: all_left_gets, all_right_gets
+      ALLOCATABLE, DIMENSION(:, :, :, :)     :: all_left_refs, all_right_refs
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: row_counts, total_row_counts
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: left_get_requests, &
                                                 right_get_requests
-    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: left_gets_filtered, &
-                                                right_gets_filtered
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: left_recv_filtered, &
+                                                right_recv_filtered
     INTEGER, DIMENSION(:), POINTER           :: left_meta_get, local_rows, &
                                                 right_meta_get
     LOGICAL                                  :: is_square_topo, &
@@ -2987,8 +3003,7 @@ MODULE dbcsr_mm_cannon
                                                 left_norms, right_norms
     TYPE(dbcsr_2d_array_type), POINTER :: left_buffer, left_buffer_calc, &
       left_buffer_comm, right_buffer, right_buffer_calc, right_buffer_comm
-    TYPE(dbcsr_data_obj) :: left_data_get, left_data_orig, left_meta_orig, &
-      right_data_get, right_data_orig, right_meta_orig
+    TYPE(dbcsr_data_obj)                     :: left_data_get, right_data_get
     TYPE(dbcsr_data_obj), POINTER            :: trs_stackbuf_calc, &
                                                 trs_stackbuf_comm
     TYPE(dbcsr_data_obj), TARGET             :: trs_stackbuf_1, trs_stackbuf_2
@@ -3114,44 +3129,44 @@ MODULE dbcsr_mm_cannon
     nsteps_k = nvirt_k / min_nimages
     !
     ! Take the dimensions of the local data and meta
-    ALLOCATE(local_right_gets(4,right_row_nimages,right_col_nimages))
+    ALLOCATE(local_right_refs(4,right_row_nimages,right_col_nimages))
     right_data_size = 0 ; right_meta_size = 0
     DO v_ci = 1, right_col_nimages
        DO v_ri = 1, right_row_nimages
-          local_right_gets(idata_size,v_ri,v_ci) = dbcsr_data_get_size_referenced(&
+          local_right_refs(idata_size,v_ri,v_ci) = dbcsr_data_get_size_referenced(&
                right_set%mats(v_ri,v_ci)%m%data_area)
-          local_right_gets(imeta_size,v_ri,v_ci) = &
+          local_right_refs(imeta_size,v_ri,v_ci) = &
                right_set%mats(v_ri,v_ci)%m%index(dbcsr_slot_size)
-          local_right_gets(idata_displ,v_ri,v_ci) = right_data_size
-          local_right_gets(imeta_displ,v_ri,v_ci) = right_meta_size
-          right_data_size = right_data_size+local_right_gets(idata_size,v_ri,v_ci)
-          right_meta_size = right_meta_size+local_right_gets(imeta_size,v_ri,v_ci)
+          local_right_refs(idata_displ,v_ri,v_ci) = right_data_size
+          local_right_refs(imeta_displ,v_ri,v_ci) = right_meta_size
+          right_data_size = right_data_size+local_right_refs(idata_size,v_ri,v_ci)
+          right_meta_size = right_meta_size+local_right_refs(imeta_size,v_ri,v_ci)
        ENDDO
     ENDDO
     !
-    ALLOCATE(local_left_gets(4,left_row_nimages,left_col_nimages))
+    ALLOCATE(local_left_refs(4,left_row_nimages,left_col_nimages))
     left_data_size = 0 ; left_meta_size = 0
     DO v_ci = 1, left_col_nimages
        DO v_ri = 1, left_row_nimages
-          local_left_gets(idata_size,v_ri,v_ci) = dbcsr_data_get_size_referenced(&
+          local_left_refs(idata_size,v_ri,v_ci) = dbcsr_data_get_size_referenced(&
                left_set%mats(v_ri,v_ci)%m%data_area)
-          local_left_gets(imeta_size,v_ri,v_ci) = &
+          local_left_refs(imeta_size,v_ri,v_ci) = &
                left_set%mats(v_ri,v_ci)%m%index(dbcsr_slot_size)
-          local_left_gets(idata_displ,v_ri,v_ci) = left_data_size
-          local_left_gets(imeta_displ,v_ri,v_ci) = left_meta_size
-          left_data_size = left_data_size+local_left_gets(idata_size,v_ri,v_ci)
-          left_meta_size = left_meta_size+local_left_gets(imeta_size,v_ri,v_ci)
+          local_left_refs(idata_displ,v_ri,v_ci) = left_data_size
+          local_left_refs(imeta_displ,v_ri,v_ci) = left_meta_size
+          left_data_size = left_data_size+local_left_refs(idata_size,v_ri,v_ci)
+          left_meta_size = left_meta_size+local_left_refs(imeta_size,v_ri,v_ci)
        ENDDO
     ENDDO
     !
     ! Exchange size data
-    ALLOCATE (all_right_gets(4,right_row_nimages,right_col_nimages,0:right_nprows-1))
-    ALLOCATE (all_left_gets(4,left_row_nimages,left_col_nimages,0:left_npcols-1))    
-    CALL mp_allgather(local_right_gets,all_right_gets,grp_right)
-    CALL mp_allgather(local_left_gets,all_left_gets,grp_left)
+    ALLOCATE (all_right_refs(4,right_row_nimages,right_col_nimages,0:right_nprows-1))
+    ALLOCATE (all_left_refs(4,left_row_nimages,left_col_nimages,0:left_npcols-1))    
+    CALL mp_allgather(local_right_refs,all_right_refs,grp_right)
+    CALL mp_allgather(local_left_refs,all_left_refs,grp_left)
     !
-    ALLOCATE (right_gets(4,0:nvirt_k-1,right_myfirstvcol:right_myfirstvcol+right_col_nimages-1))
-    ALLOCATE (left_gets(4,left_myfirstvrow:left_myfirstvrow+left_row_nimages-1,0:nvirt_k-1))
+    ALLOCATE (right_refs(4,0:nvirt_k-1,right_myfirstvcol:right_myfirstvcol+right_col_nimages-1))
+    ALLOCATE (left_refs(4,left_myfirstvrow:left_myfirstvrow+left_row_nimages-1,0:nvirt_k-1))
     IF (is_square_topo) THEN
        v_ri = right_row_nimages
        v_ci = left_col_nimages
@@ -3179,19 +3194,19 @@ MODULE dbcsr_mm_cannon
                rowi = dst_irow, coli = dst_icol,&
                myvprow = src_vrow, myvpcol = src_vcol,&
                shifting = 'r', error=error)
-          right_gets(:, src_vrow, src_vcol) =&
-               all_right_gets(:, dst_irow, dst_icol, dst_p)
-          IF (right_gets(idata_size,src_vrow,src_vcol).EQ.0) CYCLE
+          right_refs(:, src_vrow, src_vcol) =&
+               all_right_refs(:, dst_irow, dst_icol, dst_p)
+          IF (right_refs(idata_size,src_vrow,src_vcol).EQ.0) CYCLE
           IF (is_square_topo) THEN
              v_ri = dst_irow
           ENDIF
           right_max_data_clusters(v_ri,dst_icol) = &
                MAX(right_max_data_clusters(v_ri,dst_icol),&
-               right_gets(idata_size,src_vrow,src_vcol))
+               right_refs(idata_size,src_vrow,src_vcol))
           right_max_meta_clusters(v_ri,dst_icol) = &
                MAX(right_max_meta_clusters(v_ri,dst_icol),&
-               right_gets(imeta_size,src_vrow,src_vcol))
-          right_max_meta = MAX(right_max_meta,right_gets(imeta_size,src_vrow,src_vcol))
+               right_refs(imeta_size,src_vrow,src_vcol))
+          right_max_meta = MAX(right_max_meta,right_refs(imeta_size,src_vrow,src_vcol))
        ENDDO
     ENDDO
     !
@@ -3205,22 +3220,22 @@ MODULE dbcsr_mm_cannon
                rowi = dst_irow, coli = dst_icol,&
                myvprow = src_vrow, myvpcol = src_vcol,&
                shifting = 'l', error=error)
-          left_gets(:, src_vrow, src_vcol) =&
-               all_left_gets(:, dst_irow, dst_icol, dst_p)
-          IF (left_gets(idata_size,src_vrow,src_vcol).EQ.0) CYCLE
+          left_refs(:, src_vrow, src_vcol) =&
+               all_left_refs(:, dst_irow, dst_icol, dst_p)
+          IF (left_refs(idata_size,src_vrow,src_vcol).EQ.0) CYCLE
           IF (is_square_topo) THEN
              v_ci = dst_icol
           ENDIF
           left_max_data_clusters(dst_irow,v_ci) = &
                MAX(left_max_data_clusters(dst_irow,v_ci),&
-               left_gets(idata_size,src_vrow,src_vcol))
+               left_refs(idata_size,src_vrow,src_vcol))
           left_max_meta_clusters(dst_irow,v_ci) = &
                MAX(left_max_meta_clusters(dst_irow,v_ci),&
-               left_gets(imeta_size,src_vrow,src_vcol))
-          left_max_meta = MAX(left_max_meta,left_gets(imeta_size,src_vrow,src_vcol))
+               left_refs(imeta_size,src_vrow,src_vcol))
+          left_max_meta = MAX(left_max_meta,left_refs(imeta_size,src_vrow,src_vcol))
        ENDDO
     ENDDO
-    DEALLOCATE(all_right_gets,all_left_gets)
+    DEALLOCATE(all_right_refs,all_left_refs)
     !
 !$omp parallel default(none) &
 !$omp          private (size_guess, ithread) &
@@ -3484,9 +3499,9 @@ MODULE dbcsr_mm_cannon
     ! filtering, set the current position for data.
     !
     IF (nsteps_k.GT.1) THEN
-       ALLOCATE(right_gets_filtered(0:min_nimages-1,0:right_col_nimages-1,nsteps_k-1))
-       ALLOCATE(left_gets_filtered(0:left_row_nimages-1,0:min_nimages-1,nsteps_k-1))
-       right_gets_filtered = 0 ; left_gets_filtered = 0
+       ALLOCATE(right_recv_filtered(0:min_nimages-1,0:right_col_nimages-1,nsteps_k-1))
+       ALLOCATE(left_recv_filtered(0:left_row_nimages-1,0:min_nimages-1,nsteps_k-1))
+       right_recv_filtered = 0 ; left_recv_filtered = 0
        !
        CALL dbcsr_error_set(routineN//"_precannon", error_handler2, error)
        !
@@ -3503,28 +3518,28 @@ MODULE dbcsr_mm_cannon
                 DO v_ci = 0, right_col_nimages-1
                    ! Exchange max norms
                    CALL image_calculator (right_set%image_dist,&
-                        vprow=get_vrow, vpcol=get_vcol,&
+                        vprow=recv_vrow, vpcol=recv_vcol,&
                         myvprow=v_ki+right_myfirstvrow,&
                         myvpcol=v_ci+right_myfirstvcol,&
                         ! receive window moves with the metronome
                         vprow_shift=metronome*min_nimages,&
                         shifting='R', error=error)
                    !
-                   right_max_norms_recv(v_ki,v_ci) = right_max_norms(get_vrow,get_vcol)
+                   right_max_norms_recv(v_ki,v_ci) = right_max_norms(recv_vrow,recv_vcol)
                 END DO
                 !
                 ! Left matrix transfer
                 DO v_ri = 0, left_row_nimages-1
                    ! Exchange max norms
                    CALL image_calculator (left_set%image_dist,&
-                        vprow=get_vrow,vpcol=get_vcol,&
+                        vprow=recv_vrow,vpcol=recv_vcol,&
                         myvprow=v_ri+left_myfirstvrow,&
                         myvpcol=v_ki+left_myfirstvcol,&
                         ! receive window moves with the metronome
                         vpcol_shift=metronome*min_nimages,&
                         shifting='L', error=error)
                    !
-                   left_max_norms_recv(v_ri,v_ki) = left_max_norms(get_vrow,get_vcol)
+                   left_max_norms_recv(v_ri,v_ki) = left_max_norms(recv_vrow,recv_vcol)
                 ENDDO
              ENDDO
              !
@@ -3532,7 +3547,7 @@ MODULE dbcsr_mm_cannon
 !$omp default (none) &
 !$omp shared (left_max_norms_recv,right_max_norms_recv,min_nimages,&
 !$omp         min_row_max_epss,right_col_nimages,left_row_nimages,metronome,&
-!$omp         left_gets_filtered,right_gets_filtered) &
+!$omp         left_recv_filtered,right_recv_filtered) &
 !$omp private (v_ki,v_ci,v_ri) &
 !$omp collapse(3)
              DO v_ri = 0, left_row_nimages-1
@@ -3541,9 +3556,9 @@ MODULE dbcsr_mm_cannon
                       IF (left_max_norms_recv(v_ri,v_ki)*right_max_norms_recv(v_ki,v_ci).GE.&
                            min_row_max_epss) CYCLE
 !$omp atomic
-                      left_gets_filtered(v_ri,v_ki,metronome) = left_gets_filtered(v_ri,v_ki,metronome)+1
+                      left_recv_filtered(v_ri,v_ki,metronome) = left_recv_filtered(v_ri,v_ki,metronome)+1
 !$omp atomic
-                      right_gets_filtered(v_ki,v_ci,metronome) = right_gets_filtered(v_ki,v_ci,metronome)+1
+                      right_recv_filtered(v_ki,v_ci,metronome) = right_recv_filtered(v_ki,v_ci,metronome)+1
                    ENDDO
                 ENDDO
              ENDDO
@@ -3555,87 +3570,42 @@ MODULE dbcsr_mm_cannon
           DEALLOCATE(right_max_norms,left_max_norms)
        ENDIF
        !
-       ! Set original position of data
-       !
-       DO metronome = 1, nsteps_k-1
-          !
-          DO v_ki = 0, min_nimages-1
-             !
-             ! Right matrix transfer
-             DO v_ci = 0, right_col_nimages-1
-                IF (right_gets_filtered(v_ki,v_ci,metronome).LT.left_row_nimages) THEN
-                   CALL image_calculator (right_set%image_dist,&
-                        prow=recv_p,&
-                        myvprow=v_ki+right_myfirstvrow,&
-                        myvpcol=v_ci+right_myfirstvcol,&
-                        vprow_shift=metronome*min_nimages,&
-                        shifting='0', error=error)
-                   right_gets_filtered(v_ki,v_ci,metronome) = recv_p
-                ELSE
-                   right_gets_filtered(v_ki,v_ci,metronome) = -1
-                ENDIF
-             ENDDO
-             !
-             ! Left matrix transfer
-             DO v_ri = 0, left_row_nimages-1
-                IF (left_gets_filtered(v_ri,v_ki,metronome).LT.right_col_nimages) THEN
-                   CALL image_calculator (left_set%image_dist,&
-                        pcol=recv_p,&
-                        myvprow=v_ri+left_myfirstvrow,&
-                        myvpcol=v_ki+left_myfirstvcol,&
-                        vpcol_shift=metronome*min_nimages,&
-                        shifting='0', error=error)
-                   left_gets_filtered(v_ri,v_ki,metronome) = recv_p
-                ELSE
-                   left_gets_filtered(v_ri,v_ki,metronome) = -1
-                ENDIF
-             ENDDO
-          ENDDO
-       ENDDO
-       !
        CALL dbcsr_error_stop(error_handler2, error)
        ! 
        ! Set the original data buffers and corresponding windows
        ! Set the right matrix buffers
        !
-       CALL dbcsr_data_init(right_data_orig)
-       CALL dbcsr_data_new(right_data_orig,data_type=data_type,&
-                           data_size=INT(right_data_size),memory_type=memtype_mpi_buffer)
-       CALL dbcsr_data_init(right_meta_orig)
-       CALL dbcsr_data_new(right_meta_orig,data_type=dbcsr_type_int_4,&
-                           data_size=INT(right_meta_size),memory_type=memtype_mpi_buffer)
+       CALL init_data_window(right_data_orig,INT(right_data_size),data_type)
+       CALL init_data_window(right_meta_orig,INT(right_meta_size),dbcsr_type_int_4)
        !
        ! Set the left matrix buffers
        !
-       CALL dbcsr_data_init(left_data_orig)
-       CALL dbcsr_data_new(left_data_orig,data_type=data_type,&
-                           data_size=INT(left_data_size),memory_type=memtype_mpi_buffer)
-       CALL dbcsr_data_init(left_meta_orig)
-       CALL dbcsr_data_new(left_meta_orig,data_type=dbcsr_type_int_4,&
-                           data_size=INT(left_meta_size),memory_type=memtype_mpi_buffer)
+       CALL init_data_window(left_data_orig,INT(left_data_size),data_type)
+       CALL init_data_window(left_meta_orig,INT(left_meta_size),dbcsr_type_int_4)
+       !
        DO v_ci = 1, right_col_nimages
           DO v_ri = 1, right_row_nimages
              CALL dbcsr_data_copy(right_data_orig,right_set%mats(v_ri,v_ci)%m%data_area,&
-                                  INT(local_right_gets(idata_size,v_ri,v_ci)),&
-                                  INT(local_right_gets(idata_displ,v_ri,v_ci))+1)
+                                  INT(local_right_refs(idata_size,v_ri,v_ci)),&
+                                  INT(local_right_refs(idata_displ,v_ri,v_ci))+1)
              CALL dbcsr_data_copy(right_meta_orig,right_set%mats(v_ri,v_ci)%m%index,&
-                                  INT(local_right_gets(imeta_size,v_ri,v_ci)),&
-                                  INT(local_right_gets(imeta_displ,v_ri,v_ci))+1)
+                                  INT(local_right_refs(imeta_size,v_ri,v_ci)),&
+                                  INT(local_right_refs(imeta_displ,v_ri,v_ci))+1)
           ENDDO
        ENDDO
        DO v_ci = 1, left_col_nimages
           DO v_ri = 1, left_row_nimages
              CALL dbcsr_data_copy(left_data_orig,left_set%mats(v_ri,v_ci)%m%data_area,&
-                                  INT(local_left_gets(idata_size,v_ri,v_ci)),&
-                                  INT(local_left_gets(idata_displ,v_ri,v_ci))+1)
+                                  INT(local_left_refs(idata_size,v_ri,v_ci)),&
+                                  INT(local_left_refs(idata_displ,v_ri,v_ci))+1)
              CALL dbcsr_data_copy(left_meta_orig,left_set%mats(v_ri,v_ci)%m%index,&
-                                  INT(local_left_gets(imeta_size,v_ri,v_ci)),&
-                                  INT(local_left_gets(imeta_displ,v_ri,v_ci))+1)
+                                  INT(local_left_refs(imeta_size,v_ri,v_ci)),&
+                                  INT(local_left_refs(imeta_displ,v_ri,v_ci))+1)
           ENDDO
        ENDDO
-       DEALLOCATE(local_right_gets,local_left_gets)       
+       DEALLOCATE(local_right_refs,local_left_refs)       
        !
-       ! Create the windows
+       ! RMA windows
        ! Right:
        CALL dbcsr_win_create_any(right_data_orig,grp_right,right_data_win,error)
        CALL dbcsr_win_create_any(right_meta_orig,grp_right,right_meta_win,error)
@@ -3646,12 +3616,12 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_win_create_any(left_meta_orig,grp_left,left_meta_win,error)
        CALL mp_win_lock_all(left_data_win)
        CALL mp_win_lock_all(left_meta_win)
+       !
+       ALLOCATE (right_get_requests(2,0:min_nimages*right_col_nimages-1))
+       right_get_requests = mp_request_null
+       ALLOCATE (left_get_requests(2,0:left_row_nimages*min_nimages-1))
+       left_get_requests = mp_request_null
     ENDIF
-    !
-    ALLOCATE (right_get_requests(2,0:min_nimages*right_col_nimages-1))
-    right_get_requests = mp_request_null
-    ALLOCATE (left_get_requests(2,0:left_row_nimages*min_nimages-1))
-    left_get_requests = mp_request_null
     !
     ! Here is the main loop.
     !
@@ -3688,7 +3658,7 @@ MODULE dbcsr_mm_cannon
              DO v_ri = 0, min_nimages-1
                 ! Calculate which data I receive
                 CALL image_calculator (right_set%image_dist,&
-                     vprow=get_vrow,vpcol=get_vcol,&
+                     vprow=recv_vrow,vpcol=recv_vcol,&
                      myvprow=v_ri+right_myfirstvrow,&
                      myvpcol=v_ci+right_myfirstvcol,&
                      ! receive window moves with the metronome
@@ -3703,26 +3673,34 @@ MODULE dbcsr_mm_cannon
                 !
                 CALL dbcsr_data_set_pointer(&
                      area=right_data_get,&
-                     rsize=INT(right_gets(idata_size,get_vrow,get_vcol)),&
+                     rsize=INT(right_refs(idata_size,recv_vrow,recv_vcol)),&
                      csize=1,&
                      pointee=right_buffer_comm%mats(v_ri+1, v_ci+1)%m%data_area)
                 right_meta_get => right_buffer_comm%mats(v_ri+1, v_ci+1)%&
-                     m%index(1:right_gets(imeta_size,get_vrow,get_vcol))
+                     m%index(1:right_refs(imeta_size,recv_vrow,recv_vcol))
                 !
                 CALL dbcsr_error_set(routineN//"_metrocomm2", error_handler2, error)
-                IF (right_gets(idata_size,get_vrow,get_vcol).GT.0.AND.&
-                    right_gets_filtered(v_ri,v_ci,metronome).GE.0) THEN
-                   CALL dbcsr_rget_any(right_data_get,right_gets_filtered(v_ri,v_ci,metronome),&
-                        right_data_win,right_gets(idata_displ,get_vrow,get_vcol),&
+                IF (right_refs(idata_size,recv_vrow,recv_vcol).GT.0.AND.&
+                    right_recv_filtered(v_ri,v_ci,metronome).LT.left_row_nimages) THEN
+                   !
+                   ! Calculate the process to receive from
+                   CALL image_calculator (right_set%image_dist,&
+                        prow=recv_p,&
+                        myvprow=v_ri+right_myfirstvrow,&
+                        myvpcol=v_ci+right_myfirstvcol,&
+                        vprow_shift=metronome*min_nimages,&
+                        shifting='0', error=error)
+                   CALL dbcsr_rget_any(right_data_get,recv_p,&
+                        right_data_win,right_refs(idata_displ,recv_vrow,recv_vcol),&
                         right_get_requests(1,v_ri+v_i),error=error)
                    CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1,:),&
-                        right_gets(idata_size,get_vrow,get_vcol),&
+                        right_refs(idata_size,recv_vrow,recv_vcol),&
                         dbcsr_mpi_statistics%data_size_breakdown(:,:,1),data_type_byte)
-                   CALL mp_rget(right_meta_get,right_gets_filtered(v_ri,v_ci,metronome),&
-                        right_meta_win,right_gets(imeta_displ,get_vrow,get_vcol),&
+                   CALL mp_rget(right_meta_get,recv_p,&
+                        right_meta_win,right_refs(imeta_displ,recv_vrow,recv_vcol),&
                         right_get_requests(2,v_ri+v_i))
                    CALL count_mpi_statistics(dbcsr_mpi_statistics%index_size(1,:),&
-                        right_gets(imeta_size,get_vrow,get_vcol))
+                        right_refs(imeta_size,recv_vrow,recv_vcol))
                    dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
                 ELSE
                    CALL set_empty_meta_index(right_meta_get,&
@@ -3768,7 +3746,7 @@ MODULE dbcsr_mm_cannon
              DO v_ri = 0, left_row_nimages-1
                 ! Calculate which data I receive
                 CALL image_calculator (left_set%image_dist,&
-                     vprow=get_vrow,vpcol=get_vcol,&
+                     vprow=recv_vrow,vpcol=recv_vcol,&
                      myvprow=v_ri+left_myfirstvrow,&
                      myvpcol=v_ci+left_myfirstvcol,&
                      ! receive window moves with the metronome
@@ -3783,26 +3761,32 @@ MODULE dbcsr_mm_cannon
                 !
                 CALL dbcsr_data_set_pointer(&
                      area=left_data_get,&
-                     rsize=INT(left_gets(idata_size,get_vrow,get_vcol)),&
+                     rsize=INT(left_refs(idata_size,recv_vrow,recv_vcol)),&
                      csize=1,&
                      pointee=left_buffer_comm%mats(v_ri+1, v_ci+1)%m%data_area)
                 left_meta_get => left_buffer_comm%mats(v_ri+1, v_ci+1)%&
-                     m%index(1:left_gets(imeta_size,get_vrow,get_vcol))
+                     m%index(1:left_refs(imeta_size,recv_vrow,recv_vcol))
                 !
                 CALL dbcsr_error_set(routineN//"_metrocomm4", error_handler2, error)
-                IF (left_gets(idata_size,get_vrow,get_vcol).GT.0.AND.&
-                    left_gets_filtered(v_ri,v_ci,metronome).GE.0) THEN
-                   CALL dbcsr_rget_any(left_data_get,left_gets_filtered(v_ri,v_ci,metronome),&
-                        left_data_win,left_gets(idata_displ,get_vrow,get_vcol),&
+                IF (left_refs(idata_size,recv_vrow,recv_vcol).GT.0.AND.&
+                    left_recv_filtered(v_ri,v_ci,metronome).LT.right_col_nimages) THEN
+                   CALL image_calculator (left_set%image_dist,&
+                        pcol=recv_p,&
+                        myvprow=v_ri+left_myfirstvrow,&
+                        myvpcol=v_ci+left_myfirstvcol,&
+                        vpcol_shift=metronome*min_nimages,&
+                        shifting='0', error=error)
+                   CALL dbcsr_rget_any(left_data_get,recv_p,&
+                        left_data_win,left_refs(idata_displ,recv_vrow,recv_vcol),&
                         left_get_requests(1,v_ri+v_i),error=error)
                    CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(2,:),&
-                        left_gets(idata_size,get_vrow,get_vcol),&
+                        left_refs(idata_size,recv_vrow,recv_vcol),&
                         dbcsr_mpi_statistics%data_size_breakdown(:,:,2),data_type_byte)
-                   CALL mp_rget(left_meta_get,left_gets_filtered(v_ri,v_ci,metronome),&
-                        left_meta_win,left_gets(imeta_displ,get_vrow,get_vcol),&
+                   CALL mp_rget(left_meta_get,recv_p,&
+                        left_meta_win,left_refs(imeta_displ,recv_vrow,recv_vcol),&
                         left_get_requests(2,v_ri+v_i))
                    CALL count_mpi_statistics(dbcsr_mpi_statistics%index_size(2,:),&
-                        left_gets(imeta_size,get_vrow,get_vcol))
+                        left_refs(imeta_size,recv_vrow,recv_vcol))
                    dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
                 ELSE
                    CALL set_empty_meta_index(left_meta_get,&
@@ -3867,13 +3851,16 @@ MODULE dbcsr_mm_cannon
        !
        CALL dbcsr_error_set(routineN//"_multrec", error_handler2, error)
        !
+       threads_finished = 0
+       !
 !$omp parallel default (none) &
 !$omp shared (min_nimages, &
 !$omp         left_row_nimages,right_col_nimages, &
 !$omp         left_buffer_calc,right_buffer_calc, &
-!$omp         left_norms,right_norms, &
-!$omp         metronome,nsteps_k,multrec) &
-!$omp private (ithread,v_ri,v_ci,v_ki) &
+!$omp         left_norms,right_norms, use_comm_thread, &
+!$omp         metronome,nsteps_k,multrec,nthreads,threads_finished, &
+!$omp         right_get_requests,left_get_requests) &
+!$omp private (ithread,v_ri,v_ci,v_ki,threads_finished_read) &
 !$omp firstprivate (error) &
 !$omp reduction (+: flop)
        ithread = 0
@@ -3900,6 +3887,21 @@ MODULE dbcsr_mm_cannon
        IF(metronome==nsteps_k) THEN
           CALL dbcsr_mm_multrec_finalize(multrec(ithread)%p, error)
           DEALLOCATE(multrec(ithread)%p)
+       ENDIF
+       !
+!$omp atomic
+       threads_finished = threads_finished + 1
+       IF (use_comm_thread .AND. (ithread .EQ. 0)) THEN
+          DO 
+! requires OMP 3.1 (e.g. gcc >=4.7), for correctness, otherwise we keep fingers crossed
+#if defined _OPENMP && _OPENMP >= 200711
+!$omp atomic read
+#endif
+             threads_finished_read=threads_finished
+             IF (threads_finished_read .EQ. nthreads) EXIT
+             CALL mp_testany(right_get_requests)
+             CALL mp_testany(left_get_requests)
+          ENDDO
        ENDIF
 !$omp end parallel
        !
@@ -3935,15 +3937,9 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_data_release(right_data_get)
     !
     IF (nsteps_k.GT.1) THEN
-       CALL dbcsr_data_release(left_data_orig)
-       CALL dbcsr_data_release(left_meta_orig)
-       CALL dbcsr_data_release(right_data_orig)
-       CALL dbcsr_data_release(right_meta_orig)
-       !
-       DEALLOCATE(left_gets_filtered,right_gets_filtered)
+       DEALLOCATE(left_recv_filtered,right_recv_filtered)
+       DEALLOCATE(left_get_requests, right_get_requests)
     ENDIF
-    !
-    DEALLOCATE(left_get_requests, right_get_requests)
     !
     IF (debug_mod) THEN
        v_ki = 0
@@ -3955,7 +3951,7 @@ MODULE dbcsr_mm_cannon
             LOG(REAL(v_ki))/LOG(10.0)
     ENDIF
     !
-    DEALLOCATE(right_gets,left_gets)
+    DEALLOCATE(right_refs,left_refs)
     DEALLOCATE(multrec)
     DEALLOCATE(left_buffer, right_buffer)
     !
@@ -4949,6 +4945,32 @@ MODULE dbcsr_mm_cannon
      ENDDO
   END SUBROUTINE enumerate_blk_sizes
 
+! *****************************************************************************
+!> \brief Init RMA window
+!>        Reuse the window if it already exists and the size is OK
+!>
+!> \param DATA ...
+!> \param data_size ...
+!> \param data_type ...
+!> \author Alfio Lazzaro
+! *****************************************************************************
+  SUBROUTINE init_data_window(DATA, data_size, data_type)
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: DATA
+    INTEGER, INTENT(IN)                      :: data_size, data_type
+
+    IF (dbcsr_data_valid(DATA)) THEN
+       IF (dbcsr_data_get_size(DATA).LT.data_size.OR.&
+            dbcsr_data_get_type(DATA).NE.data_type) THEN
+          CALL dbcsr_data_release(DATA)
+       ENDIF
+    ENDIF
+
+    IF (.NOT.dbcsr_data_valid(DATA)) THEN
+       CALL dbcsr_data_new(DATA,data_type=data_type,&
+                           data_size=data_size,memory_type=memtype_mpi_buffer)
+    ENDIF
+
+  END SUBROUTINE init_data_window
 
 #include "dbcsr_mm_cannon_d.f90"
 #include "dbcsr_mm_cannon_z.f90"

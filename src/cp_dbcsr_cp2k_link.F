@@ -156,13 +156,6 @@ CONTAINS
          CALL dbcsr_set_conf_avg_elements_images(avg_elements_images, error=dbcsr_error)
     IF(nstacks(1) > 0) &
     CALL dbcsr_set_conf_nstacks(nstacks, error=dbcsr_error)
-
-    ! Force Communication thread to F and Communication thread load to 100 for RMA
-    IF (use_mpi_rma) THEN
-        use_comm_thread = .FALSE.
-        comm_thread_load = 100
-     ENDIF
-
     CALL dbcsr_set_conf_use_mpi_filtering(use_mpi_filtering, error=dbcsr_error)
     CALL dbcsr_set_conf_use_mpi_rma(use_mpi_rma, error=dbcsr_error)
     CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
@@ -235,12 +228,11 @@ CONTAINS
             "DBCSR| Use MPI memory allocation", dbcsr_get_conf_mpi_mem ()
            WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
             "DBCSR| Use RMA algorithm", dbcsr_get_conf_use_mpi_rma ()
-           IF (.NOT.dbcsr_get_conf_use_mpi_rma ()) THEN
-              WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
-                   "DBCSR| Use Communication thread",  dbcsr_get_conf_use_comm_thread()
-              WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
-                   "DBCSR| Communication thread load", dbcsr_get_conf_comm_thread_load()
-           ELSE
+           WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
+             "DBCSR| Use Communication thread",  dbcsr_get_conf_use_comm_thread()
+           WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+             "DBCSR| Communication thread load", dbcsr_get_conf_comm_thread_load()
+           IF (dbcsr_get_conf_use_mpi_rma ()) THEN
               WRITE(UNIT=unit_num, FMT='(1X,A,T80,L1)')&
                    "DBCSR| Use MPI filtering", dbcsr_get_conf_use_mpi_filtering ()
            ENDIF

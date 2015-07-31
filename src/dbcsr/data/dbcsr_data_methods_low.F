@@ -52,7 +52,8 @@ MODULE dbcsr_data_methods_low
   PUBLIC :: dbcsr_scalar, dbcsr_scalar_one, dbcsr_scalar_zero,&
             dbcsr_scalar_are_equal, dbcsr_scalar_negative,&
             dbcsr_scalar_get_type, dbcsr_scalar_set_type,&
-            dbcsr_scalar_fill_all, dbcsr_scalar_get_value
+            dbcsr_scalar_fill_all, dbcsr_scalar_get_value,&
+            dbcsr_data_valid
   PUBLIC :: dbcsr_data_init, dbcsr_data_hold,&
             dbcsr_data_get_size, dbcsr_data_get_type
   PUBLIC :: dbcsr_get_data,&

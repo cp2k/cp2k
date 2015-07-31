@@ -51,6 +51,7 @@ MODULE message_passing
   INTEGER, PARAMETER, PUBLIC :: mp_any_source=MPI_ANY_SOURCE
   INTEGER, PARAMETER, PUBLIC :: mp_comm_null=MPI_COMM_NULL
   INTEGER, PARAMETER, PUBLIC :: mp_request_null=MPI_REQUEST_NULL
+  INTEGER, PARAMETER, PUBLIC :: mp_win_null=MPI_WIN_NULL
   INTEGER, PARAMETER, PUBLIC :: mp_status_size=MPI_STATUS_SIZE
   INTEGER, PARAMETER, PUBLIC :: mp_address_kind= MPI_ADDRESS_KIND
 
@@ -66,7 +67,8 @@ MODULE message_passing
   INTEGER, PARAMETER, PUBLIC :: mp_any_source=-2
   INTEGER, PARAMETER, PUBLIC :: mp_comm_null=-3
   INTEGER, PARAMETER, PUBLIC :: mp_request_null=-4
-  INTEGER, PARAMETER, PUBLIC :: mp_status_size=-5
+  INTEGER, PARAMETER, PUBLIC :: mp_win_null=-5
+  INTEGER, PARAMETER, PUBLIC :: mp_status_size=-6
 
   INTEGER, PARAMETER, PUBLIC :: file_offset=int_8
   INTEGER, PARAMETER, PUBLIC :: file_amode_create=1
