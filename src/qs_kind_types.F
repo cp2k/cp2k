@@ -1729,7 +1729,7 @@ CONTAINS
              NULLIFY(tmp_basis_set)
              CALL allocate_gto_basis_set(tmp_basis_set,error)
              CALL read_gto_basis_set(qs_kind%element_symbol,basis_type,&
-                  tmp_basis_set,para_env,dft_section,basis_section,i,error=error)
+                  tmp_basis_set,basis_section,i,error=error)
              tmp=basis_type
              CALL uppercase(tmp)
              CALL add_basis_set_to_container(qs_kind%basis_sets,tmp_basis_set,tmp,error)

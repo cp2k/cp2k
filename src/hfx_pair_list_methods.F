@@ -15,9 +15,9 @@ MODULE hfx_pair_list_methods
   USE gamma,                           ONLY: fgamma=>fgamma_0
   USE hfx_libint_wrapper_types,        ONLY: prim_data_f_size
   USE hfx_types,                       ONLY: &
-       hfx_basis_type, hfx_block_range_type, hfx_cell_type, hfx_pgf_list, &
-       hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, &
-       pair_list_type, pair_set_list_type, hfx_cell_loop_info_type
+       hfx_basis_type, hfx_block_range_type, hfx_cell_loop_info_type, &
+       hfx_cell_type, hfx_pgf_list, hfx_pgf_product_list, hfx_potential_type, &
+       hfx_screen_coeff_type, pair_list_type, pair_set_list_type
   USE input_constants,                 ONLY: &
        do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
        do_hfx_potential_id, do_hfx_potential_long, do_hfx_potential_mix_cl, &
@@ -80,12 +80,14 @@ MODULE hfx_pair_list_methods
     TYPE(hfx_cell_loop_info_type)            :: cell_loop_info
 
     INTEGER                                  :: i, j, k, l, nimages1, nimages2
-    LOGICAL                                  :: use_gamma
+    LOGICAL                                  :: dokp, use_gamma
     REAL(dp) :: C11(3), Eta, EtaInv, factor, Fm(prim_data_f_size), omega2, &
       omega_corr, omega_corr2, P(3), pgf_max_1, pgf_max_2, PQ(3), Q(3), R, &
       R1, R2, ra(3), rb(3), rc(3), rd(3), Rho, RhoInv, rpq2, S1234, S1234a, &
       S1234b, shift(3), T, temp(3), temp_CC(3), temp_DD(3), tmp, tmp_D(3), &
       W(3), Zeta1, Zeta_C, Zeta_D, ZetapEtaInv
+
+    dokp = cell_loop_info%dokp
 
     nimages1 = list1%nimages
     nimages2 = list2%nimages
