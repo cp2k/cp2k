@@ -206,7 +206,7 @@ MODULE glbopt_history
       INTENT(IN)                             :: fingerprint
     INTEGER, INTENT(IN), OPTIONAL            :: id
 
-    INTEGER                                  :: handle, k, n, i
+    INTEGER                                  :: handle, i, k, n
     TYPE(history_entry_type), DIMENSION(:), &
       POINTER                                :: tmp
 
