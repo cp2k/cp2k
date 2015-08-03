@@ -206,7 +206,7 @@ MODULE glbopt_history
       INTENT(IN)                             :: fingerprint
     INTEGER, INTENT(IN), OPTIONAL            :: id
 
-    INTEGER                                  :: handle, k, n
+    INTEGER                                  :: handle, k, n, i
     TYPE(history_entry_type), DIMENSION(:), &
       POINTER                                :: tmp
 
@@ -224,7 +224,13 @@ MODULE glbopt_history
 
     k = interpolation_search(history, fingerprint%Epot)
 
-    history%entries(k+1:) = history%entries(k:n-1)
+    !history%entries(k+1:) = history%entries(k:n-1)
+    !Workaround for an XLF bug - pointer array copy does
+    !not work correctly
+    DO i=n,k+1,-1
+      history%entries(i) = history%entries(i-1)
+    END DO
+
     ALLOCATE(history%entries(k)%p)
     history%entries(k)%p = fingerprint
     IF(PRESENT(id)) &
