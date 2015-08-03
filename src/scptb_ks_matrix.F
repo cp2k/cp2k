@@ -186,7 +186,7 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       DO ikind=1,nkind
         CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom_kind)
-        CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
+        CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind, error=error)
         CALL get_scptb_parameter(scptb_kind,lmaxscp=lmaxscp)
         IF(lmaxscp > 0) do_scp = .TRUE.
         IF(lmaxscp >= 0) do_es = .TRUE.
@@ -228,7 +228,7 @@ CONTAINS
          nkind = SIZE(atomic_kind_set)
          DO ikind=1,nkind
             CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom_kind)
-            CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind)
+            CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind, error=error)
             CALL get_scptb_parameter(scptb_kind,zeff=zeff)
             DO iatom=1,natom_kind
               atom_a = atomic_kind_set(ikind)%atom_list(iatom)
@@ -541,11 +541,11 @@ CONTAINS
              dr2 = SUM(rij(:)**2)
              dr = SQRT(dr2)
              IF (dr > 1.e-10) THEN
-                CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
+                CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind, error=error)
                 CALL get_scptb_parameter(scptb_kind,lmaxscp=lmaxscp,ag=alpha)
                 IF (lmaxscp < 0) CYCLE
                 noa = (alpha/pi)**1.5_dp
-                CALL get_qs_kind(qs_kind_set(jkind), scptb_parameter=scptb_kind)
+                CALL get_qs_kind(qs_kind_set(jkind), scptb_parameter=scptb_kind, error=error)
                 CALL get_scptb_parameter(scptb_kind,lmaxscp=lmaxscp,ag=beta)
                 IF (lmaxscp < 0) CYCLE
                 eta = alpha*beta/(alpha+beta)
@@ -700,14 +700,14 @@ CONTAINS
          nkind = SIZE(atomic_kind_set)
          DO ikind=1,nkind
            CALL get_atomic_kind(atomic_kind_set(ikind),natom=nai,atom_list=atomi_list)
-           CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind)
+           CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind, error=error)
            CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
            IF (.NOT.defined) CYCLE
            IF (lmaxscp < 0) CYCLE
            noa = (alpha/pi)**1.5_dp
            DO jkind=1,ikind
              CALL get_atomic_kind(atomic_kind_set(jkind),natom=naj,atom_list=atomj_list)
-             CALL get_qs_kind(qs_kind_set(jkind), scptb_parameter=scptb_kind)
+             CALL get_qs_kind(qs_kind_set(jkind), scptb_parameter=scptb_kind, error=error)
              CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=beta)
              eta = alpha*beta/(alpha+beta)
              f0 = 2.0_dp*SQRT(pi**5/(alpha+beta))/(alpha*beta)
@@ -916,7 +916,7 @@ CONTAINS
     CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
        CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
-       CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
+       CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind, error=error)
        CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
        IF(defined) THEN
          norb = (lmaxscp+1)**2
@@ -941,7 +941,7 @@ CONTAINS
     DO ikind=1,nkind
        IF(adef(ikind)) THEN
          CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-         CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind)
+         CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind, error=error)
          CALL get_scptb_parameter(scptb_kind,pol=pol)
          alpha = zeta(ikind)
          DO iat=1,natoms(ikind)
@@ -1264,7 +1264,7 @@ CONTAINS
        nkind = SIZE(atomic_kind_set)
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind),natom=nai,atom_list=atomi_list)
-          CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind, error=error)
           CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
           IF (.NOT.defined) CYCLE
           IF (lmaxscp < 0) CYCLE
@@ -1275,7 +1275,7 @@ CONTAINS
           CALL calc_norm(normi,li,alpha)
           DO jkind=1,ikind
              CALL get_atomic_kind(atomic_kind_set(jkind), natom=naj,atom_list=atomj_list)
-             CALL get_qs_kind(qs_kind_set(jkind), scptb_parameter=scptb_kind)
+             CALL get_qs_kind(qs_kind_set(jkind), scptb_parameter=scptb_kind, error=error)
              CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=beta)
              IF (.NOT.defined) CYCLE
              IF (lmaxscp < 0) CYCLE

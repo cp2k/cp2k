@@ -623,7 +623,7 @@ CPSourceFileRef,&
     ! set number of images
     dft_control%nimages = SIZE(index_to_cell, 2)
 
-    DEALLOCATE(list)
+    DEALLOCATE(list,index_to_cell)
   END SUBROUTINE kpoint_init_cell_index
 
 ! *****************************************************************************

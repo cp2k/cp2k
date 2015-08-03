@@ -28,9 +28,8 @@ MODULE task_list_methods
                                              return_cube_nonortho
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
-                                             use_orb_basis_set
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              int_8
   USE kpoint_types,                    ONLY: get_kpoint_info,&
                                              kpoint_type
@@ -91,7 +90,7 @@ CONTAINS
 !>        or should not overwrite the rs descriptor (see comment below)
 !> \param skip_load_balance_distributed ...
 !> \param soft_valid ...
-!> \param basis_set_id ...
+!> \param basis_type ...
 !> \param pw_env_external ...
 !> \param sab_orb_external ...
 !> \param error ...
@@ -108,14 +107,14 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE generate_qs_task_list(ks_env, task_list,&
              reorder_rs_grid_ranks, skip_load_balance_distributed, &
-             soft_valid, basis_set_id, pw_env_external, sab_orb_external, error)
+             soft_valid, basis_type, pw_env_external, sab_orb_external, error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(task_list_type), POINTER            :: task_list
     LOGICAL, INTENT(IN)                      :: reorder_rs_grid_ranks, &
                                                 skip_load_balance_distributed
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
-    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: basis_type
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_external
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb_external
@@ -125,10 +124,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: max_tasks = 2000
 
+    CHARACTER(LEN=default_string_length)     :: my_basis_type
     INTEGER :: cindex, curr_tasks, handle, i, iatom, iatom_old, igrid_level, &
       igrid_level_old, ikind, ilevel, img, img_old, inode, ipair, ipgf, iset, &
-      itask, jatom, jatom_old, jkind, jpgf, jset, maxpgf, maxset, &
-      my_basis_set_id, natoms, nimages, nkind, nseta, nsetb, stat
+      itask, jatom, jatom_old, jkind, jpgf, jset, maxpgf, maxset, natoms, &
+      nimages, nkind, nseta, nsetb, stat
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: blocks
@@ -179,27 +179,19 @@ CONTAINS
          cell=cell,&
          particle_set=particle_set,&
          dft_control=dft_control,&
-         pw_env=pw_env,error=error)
+         error=error)
 
-    IF( PRESENT(basis_set_id)) THEN
-      my_basis_set_id = basis_set_id
+    IF( PRESENT(basis_type)) THEN
+      my_basis_type = basis_type
     ELSE
-      my_basis_set_id = use_orb_basis_set
+      my_basis_type = "ORB"
     END IF
 
-    SELECT CASE (my_basis_set_id)
-    CASE (use_orb_basis_set)
-      CALL get_ks_env(ks_env,&
-           sab_orb=sab_orb,error=error)
-    CASE (use_aux_fit_basis_set)
-      CALL get_ks_env(ks_env,&
-           sab_aux_fit=sab_orb,error=error)
-    END SELECT
-
-    ! maybe just don't pas ks_env instead ??
-    IF (PRESENT(pw_env_external)) pw_env=>pw_env_external
+    CALL get_ks_env(ks_env,sab_orb=sab_orb,error=error)
     IF (PRESENT(sab_orb_external)) sab_orb=>sab_orb_external
 
+    CALL get_ks_env(ks_env,pw_env=pw_env,error=error)
+    IF (PRESENT(pw_env_external)) pw_env=>pw_env_external
     CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_grids, error=error)
 
     ! *** assign from pw_env
@@ -213,21 +205,12 @@ CONTAINS
     maxpgf=0
     DO ikind=1,nkind
        qs_kind => qs_kind_set(ikind)
-       SELECT CASE (my_basis_set_id)
-       CASE (use_orb_basis_set)
-          CALL get_qs_kind(qs_kind=qs_kind,&
-               softb = my_soft, &
-               orb_basis_set=orb_basis_set)
-       CASE (use_aux_fit_basis_set)
-          CALL get_qs_kind(qs_kind=qs_kind,&
-               softb = my_soft, &
-               aux_fit_basis_set=orb_basis_set,&
-               basis_set_id=my_basis_set_id)
-       END SELECT
+       CALL get_qs_kind(qs_kind=qs_kind,&
+            softb = my_soft, &
+            basis_set=orb_basis_set, basis_type=my_basis_type, error=error)
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
-       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-            npgf=npgfa, nset=nseta )
+       CALL get_gto_basis_set(gto_basis_set=orb_basis_set, npgf=npgfa, nset=nseta )
 
        maxset=MAX(nseta,maxset)
        maxpgf=MAX(MAXVAL(npgfa),maxpgf)
@@ -260,13 +243,8 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind))
     DO ikind=1,nkind
        qs_kind => qs_kind_set(ikind)
-       SELECT CASE (my_basis_set_id)
-       CASE (use_orb_basis_set)
-          CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,orb_basis_set=basis_set_a)
-       CASE (use_aux_fit_basis_set)
-          CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,&
-               aux_fit_basis_set=basis_set_a,basis_set_id=my_basis_set_id)
-       END SELECT
+       CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a,&
+                        basis_type=my_basis_type,error=error)
        IF (ASSOCIATED(basis_set_a)) THEN
           basis_set_list(ikind)%gto_basis_set => basis_set_a
        ELSE

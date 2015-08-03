@@ -185,7 +185,7 @@ CONTAINS
                                maxlgto=maxlgto,&
                                maxsgf=maxsgf,&
                                maxlppnl=maxlppnl,&
-                               maxppnl=maxppnl)
+                               maxppnl=maxppnl,error=error)
 
       maxl = MAX(maxlgto,maxlppnl)
       CALL init_orbital_pointers(maxl+nder+1)
@@ -205,13 +205,13 @@ CONTAINS
       ALLOCATE(basis_set(nkind),potential(nkind),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DO ikind=1,nkind
-         CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=orb_basis_set)
+         CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set,error=error)
          IF (ASSOCIATED(orb_basis_set)) THEN
            basis_set(ikind)%gto_basis_set => orb_basis_set
          ELSE
            NULLIFY(basis_set(ikind)%gto_basis_set)
          END IF
-         CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential)
+         CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential,error=error)
          IF (ASSOCIATED(gth_potential)) THEN
            potential(ikind)%gth_potential => gth_potential
          ELSE

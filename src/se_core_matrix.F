@@ -25,10 +25,14 @@ MODULE se_core_matrix
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: &
-       do_method_am1, do_method_mndo, do_method_mndod, do_method_pdg, &
-       do_method_pm3, do_method_pm6, do_method_pnnl, do_method_rm1, &
-       use_orb_basis_set
+  USE input_constants,                 ONLY: do_method_am1,&
+                                             do_method_mndo,&
+                                             do_method_mndod,&
+                                             do_method_pdg,&
+                                             do_method_pm3,&
+                                             do_method_pm6,&
+                                             do_method_pnnl,&
+                                             do_method_rm1
   USE input_section_types,             ONLY: section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
@@ -158,8 +162,8 @@ CONTAINS
      IF(calculate_forces) THEN
         CALL build_overlap_matrix(ks_env,nderivative=1, matrix_s=matrix_s,&
                                   matrix_name="OVERLAP",&
-                                  basis_set_id_a=use_orb_basis_set,&
-                                  basis_set_id_b=use_orb_basis_set, &
+                                  basis_type_a="ORB",&
+                                  basis_type_b="ORB", &
                                   sab_nl=sab_orb,&
                                   error=error)
         CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
@@ -167,8 +171,8 @@ CONTAINS
      ELSE
         CALL build_overlap_matrix(ks_env,matrix_s=matrix_s,&
                                   matrix_name="OVERLAP",&
-                                  basis_set_id_a=use_orb_basis_set,&
-                                  basis_set_id_b=use_orb_basis_set, &
+                                  basis_type_a="ORB",&
+                                  basis_type_b="ORB", &
                                   sab_nl=sab_orb,&
                                   error=error)
         CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
@@ -233,7 +237,7 @@ CONTAINS
      econst   = 0.0_dp
      DO ikind=1,nkind
         CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
-        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
+        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
         CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a,&
              beta=beta_a,uss=uss,upp=upp,udd=udd,uff=uff,eisol=eisol,eheat=eheat,&
              nr=nr_a,sto_exponents=sto_exponents_a)

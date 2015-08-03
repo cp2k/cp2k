@@ -38,8 +38,6 @@ MODULE mp2_ri_grad
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
-  USE input_constants,                 ONLY: use_orb_basis_set,&
-                                             use_ri_aux_basis_set
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
   USE message_passing,                 ONLY: &
@@ -76,7 +74,8 @@ MODULE mp2_ri_grad
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
                                              integrate_v_rspace
-  USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
@@ -374,8 +373,8 @@ MODULE mp2_ri_grad
       wf_vector(LLL)=1.0_dp
       ! pseudo psi_L
       CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set,&
-                                  qs_kind_set,cell,dft_control,particle_set, &
-                                  pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
+                                  qs_kind_set,cell,dft_control,particle_set,pw_env_sub,&
+                                  basis_type="RI_AUX",&
                                   external_vector=wf_vector,&
                                   error=error_sub)
 
@@ -415,7 +414,8 @@ MODULE mp2_ri_grad
       DO iatom=1, natom
         ikind=kind_of(iatom)
         atom_a = atom_of_kind(iatom)
-        basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+        CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,&
+                         basis_type="RI_AUX",error=error)
 
         first_sgfa   =>  basis_set_a%first_sgf
         la_max       =>  basis_set_a%lmax
@@ -548,7 +548,7 @@ MODULE mp2_ri_grad
       CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
       CALL integrate_v_rspace(rho_r,hmat=mat_munu,pmat=matrix_P_munu,&
                               qs_env=qs_env,calculate_forces=.TRUE.,compute_tau=.FALSE.,gapw=.FALSE.,&
-                              basis_set_id=use_orb_basis_set, pw_env_external=pw_env_sub,&
+                              pw_env_external=pw_env_sub,&
                               task_list_external=task_list_sub, error=error_sub)
       CALL timestop(handle3) 
 
@@ -584,8 +584,8 @@ MODULE mp2_ri_grad
         wf_vector=0.0_dp
         wf_vector(:)=-2.0_dp*G_PQ_local(:,L_counter)
         CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set, &
-                                    qs_kind_set,cell,dft_control,particle_set, &
-                                    pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
+                                    qs_kind_set,cell,dft_control,particle_set,pw_env_sub,&
+                                    basis_type="RI_AUX",&
                                     external_vector=wf_vector,&
                                     error=error_sub)
         ! transfer to reciprocal space and calculate potential
@@ -665,7 +665,8 @@ MODULE mp2_ri_grad
       DO iatom=1, natom
         ikind=kind_of(iatom)
         atom_a = atom_of_kind(iatom)
-        basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+        CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,&
+                         basis_type="RI_AUX",error=error)
 
         first_sgfa   =>  basis_set_a%first_sgf
         la_max       =>  basis_set_a%lmax

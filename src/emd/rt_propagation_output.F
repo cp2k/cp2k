@@ -154,7 +154,7 @@ CONTAINS
 
     rtp_section => section_vals_get_subs_vals(input,"DFT%REAL_TIME_PROPAGATION",error=error)
 
-    CALL get_qs_kind_set(qs_kind_set, nelectron=n_electrons)
+    CALL get_qs_kind_set(qs_kind_set, nelectron=n_electrons, error=error)
     n_electrons = n_electrons - dft_control%charge
 
     CALL qs_rho_get(rho_struct=rho,tot_rho_r=qs_tot_rho_r,error=error)

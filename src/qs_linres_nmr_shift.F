@@ -379,7 +379,7 @@ CONTAINS
        CALL get_qs_kind(qs_kind_set(ikind),&
                         paw_atom=paw_atom,&
                         harmonics=harmonics,&
-                        grid_atom=grid_atom)
+                        grid_atom=grid_atom, error=error)
        !
        na = grid_atom%ng_sphere
        nr = grid_atom%nr

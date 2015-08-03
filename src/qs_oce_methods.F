@@ -115,14 +115,14 @@ CONTAINS
 
    failure = .FALSE.
    NULLIFY(orb_basis_a,paw_proj_a)
-   CALL get_qs_kind(qs_kind=atom_ka,orb_basis_set=orb_basis_a,&
+   CALL get_qs_kind(qs_kind=atom_ka,basis_set=orb_basis_a,&
                         paw_proj_set=paw_proj_a,paw_atom=paw_atom_a,&
-                        hard_radius=hard_radius_a)
+                        hard_radius=hard_radius_a,error=error)
 
    NULLIFY(orb_basis_b,paw_proj_b)
-   CALL get_qs_kind(qs_kind=atom_kb,orb_basis_set=orb_basis_b,&
+   CALL get_qs_kind(qs_kind=atom_kb,basis_set=orb_basis_b,&
                          paw_proj_set=paw_proj_b,paw_atom=paw_atom_b,&
-                         hard_radius=hard_radius_b)
+                         hard_radius=hard_radius_b,error=error)
 
    IF(.NOT. paw_atom_a) RETURN
 
@@ -309,8 +309,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(orb_basis_a,paw_proj_a)
-    CALL get_qs_kind(qs_kind=atom_ka,orb_basis_set=orb_basis_a,&
-                         paw_proj_set=paw_proj_a,paw_atom=paw_atom_a)
+    CALL get_qs_kind(qs_kind=atom_ka,basis_set=orb_basis_a,&
+                         paw_proj_set=paw_proj_a,paw_atom=paw_atom_a,error=error)
 
     IF(.NOT. paw_atom_a) RETURN
 
@@ -441,7 +441,7 @@ CONTAINS
                                maxlgto=maxlgto,&
                                maxlprj=maxlprj,&
                                maxco_proj=maxprj,&
-                               maxsgf=maxsgf)
+                               maxsgf=maxsgf,error=error)
 
       maxl = MAX(maxlgto,maxlprj)
       CALL init_orbital_pointers(maxl+nder+1)
@@ -473,7 +473,7 @@ CONTAINS
          dab = SQRT(SUM(rab*rab))
 
          qs_kind => qs_kind_set(ikind)
-         CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis_set)
+         CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis_set,error=error)
 
          IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
@@ -494,10 +494,10 @@ CONTAINS
          qs_kind => qs_kind_set(jkind)
 
          NULLIFY(paw_proj_b)
-         CALL get_qs_kind(qs_kind=qs_kind,paw_proj_set=paw_proj_b,paw_atom=paw_atom_b)
+         CALL get_qs_kind(qs_kind=qs_kind,paw_proj_set=paw_proj_b,paw_atom=paw_atom_b,error=error)
          IF (.NOT.paw_atom_b) CYCLE
 
-         CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis_paw)
+         CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis_paw,error=error)
          IF (.NOT.ASSOCIATED(orb_basis_paw)) CYCLE
          CALL get_gto_basis_set(gto_basis_set=orb_basis_paw,maxso=maxsob,nset=nsetb)
 
@@ -720,7 +720,7 @@ CONTAINS
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     NULLIFY(paw_proj)
-    CALL get_qs_kind(qs_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom)
+    CALL get_qs_kind(qs_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom,error=error)
     NULLIFY(n2oindex)
     CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nbas,n2oindex=n2oindex)
 
@@ -757,7 +757,7 @@ CONTAINS
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
     NULLIFY(paw_proj)
-    CALL get_qs_kind(qs_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom)
+    CALL get_qs_kind(qs_kind=atom,paw_proj_set=paw_proj,paw_atom=paw_atom,error=error)
     NULLIFY(n2oindex)
     CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nbas,n2oindex=n2oindex)
 

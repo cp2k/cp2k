@@ -123,22 +123,22 @@ CONTAINS
     p_lri  = .FALSE.
 
     nkind = SIZE(atomic_kind_set)
-    CALL get_qs_kind_set(qs_kind_set, maxnset=maxnset)
+    CALL get_qs_kind_set(qs_kind_set, maxnset=maxnset, error=error)
 
     nexp_ppl = 0
 
     DO ikind=1,nkind
 
+      CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set,basis_type="ORB",error=error)
+      CALL get_qs_kind(qs_kind_set(ikind),basis_set=aux_basis_set,basis_type="AUX",error=error)
+      CALL get_qs_kind(qs_kind_set(ikind),basis_set=aux_fit_basis_set,basis_type="AUX_FIT",error=error)
+      CALL get_qs_kind(qs_kind_set(ikind),basis_set=lri_basis,basis_type="LRI",error=error)
+      CALL get_qs_kind(qs_kind_set(ikind),soft_basis_set=soft_basis,error=error)
       CALL get_qs_kind(qs_kind_set(ikind),&
-                       aux_basis_set=aux_basis_set,&
-                       aux_fit_basis_set=aux_fit_basis_set,&
-                       orb_basis_set=orb_basis_set,&
-                       lri_basis_set=lri_basis,&
-                       soft_basis_set=soft_basis,&
                        paw_proj_set=paw_proj_set,&
                        paw_atom=paw_atom,&
                        all_potential=all_potential,&
-                       gth_potential=gth_potential)
+                       gth_potential=gth_potential, error=error)
 
       ! Calculate the orbital basis function radii ***
       ! For ALL electron this has to come before the calculation of the
@@ -441,8 +441,7 @@ CONTAINS
 
       qs_kind => qs_kind_set(ikind)
 
-      CALL get_qs_kind(qs_kind=qs_kind,&
-                           orb_basis_set=orb_basis_set)
+      CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis_set, error=error)
 
       IF (ASSOCIATED(orb_basis_set)) THEN
 
@@ -502,7 +501,7 @@ CONTAINS
         "Kind","Label","Radius"
       DO ikind=1,nkind
         CALL get_atomic_kind(atomic_kind_set(ikind), name=name)
-        CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+        CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
         IF(ASSOCIATED(orb_basis_set)) THEN
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                  kind_radius=kind_radius)
@@ -559,7 +558,7 @@ CONTAINS
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), name=name)
           CALL get_qs_kind(qs_kind_set(ikind),&
-                 all_potential=all_potential, gth_potential=gth_potential)
+                 all_potential=all_potential, gth_potential=gth_potential, error=error)
 
           IF (ASSOCIATED(all_potential)) THEN
              CALL get_potential(potential=all_potential,&
@@ -646,20 +645,20 @@ CONTAINS
       DO ikind=1,nkind
         CALL get_atomic_kind(atomic_kind_set(ikind), name=name)
         IF ( bas(1:3) == "ORB" ) THEN
-          CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
           IF(ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                    kind_radius=kind_radius,&
                                    short_kind_radius=short_kind_radius)
           END IF
         ELSE IF ( bas(1:3) == "AUX" ) THEN
-          CALL get_qs_kind(qs_kind_set(ikind), aux_basis_set=aux_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_basis_set, basis_type="AUX", error=error)
           IF(ASSOCIATED(aux_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
                                    kind_radius=kind_radius)
           END IF
         ELSE IF ( bas(1:3) == "LOC" ) THEN
-          CALL get_qs_kind(qs_kind_set(ikind), lri_basis_set=lri_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI", error=error)
           IF(ASSOCIATED(lri_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=lri_basis_set,&
                                    kind_radius=kind_radius)
@@ -690,21 +689,21 @@ CONTAINS
       DO ikind=1,nkind
         CALL get_atomic_kind(atomic_kind_set(ikind), name=name)
         IF ( bas(1:3) == "ORB" ) THEN
-          CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
           IF(ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                    nset=nset,&
                                    set_radius=set_radius)
           END IF
         ELSE IF ( bas(1:3) == "AUX" ) THEN
-          CALL get_qs_kind(qs_kind_set(ikind), aux_basis_set=aux_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_basis_set, basis_type="AUX", error=error)
           IF(ASSOCIATED(aux_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
                                    nset=nset,&
                                    set_radius=set_radius)
           END IF
         ELSE IF ( bas(1:3) == "LOC" ) THEN
-          CALL get_qs_kind(qs_kind_set(ikind), lri_basis_set=lri_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI", error=error)
           IF(ASSOCIATED(lri_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=lri_basis_set,&
                                    nset=nset,&
@@ -735,7 +734,7 @@ CONTAINS
       DO ikind=1,nkind
         CALL get_atomic_kind(atomic_kind_set(ikind), name=name)
         IF ( bas(1:3) == "ORB" ) THEN
-          CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
           IF(ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                    nset=nset,&
@@ -743,7 +742,7 @@ CONTAINS
                                    pgf_radius=pgf_radius)
           END IF
         ELSE IF ( bas(1:3) == "AUX" ) THEN
-          CALL get_qs_kind(qs_kind_set(ikind), aux_basis_set=aux_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_basis_set, basis_type="AUX", error=error)
           IF(ASSOCIATED(aux_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
                                    nset=nset,&
@@ -751,7 +750,7 @@ CONTAINS
                                    pgf_radius=pgf_radius)
           END IF
         ELSE IF ( bas(1:3) == "LOC" ) THEN
-          CALL get_qs_kind(qs_kind_set(ikind), lri_basis_set=lri_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=lri_basis_set, basis_type="LRI", error=error)
           IF(ASSOCIATED(lri_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=lri_basis_set,&
                                    nset=nset,&
@@ -819,7 +818,7 @@ CONTAINS
         TRIM(unit_str),"Kind","Label","Radius"
       DO ikind=1,nkind
         CALL get_atomic_kind(atomic_kind_set(ikind), name=name)
-        CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
+        CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, error=error)
         IF (ASSOCIATED(gth_potential)) THEN
           CALL get_potential(potential=gth_potential,&
                              ppl_radius=ppl_radius)
@@ -872,7 +871,7 @@ CONTAINS
         TRIM(unit_str),"Kind","Label","Radius"
       DO ikind=1,nkind
         CALL get_atomic_kind(atomic_kind_set(ikind), name=name)
-        CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
+        CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential, error=error)
         IF (ASSOCIATED(gth_potential)) THEN
           CALL get_potential(potential=gth_potential,&
                              ppnl_radius=ppnl_radius)
@@ -922,7 +921,7 @@ CONTAINS
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), name=name)
           CALL get_qs_kind(qs_kind_set(ikind),&
-               paw_atom=paw_atom, paw_proj_set=paw_proj_set)
+               paw_atom=paw_atom, paw_proj_set=paw_proj_set, error=error)
           IF (paw_atom .AND. ASSOCIATED(paw_proj_set)) THEN
              CALL get_paw_proj_set(paw_proj_set=paw_proj_set,&
                   rcprj=rcprj)

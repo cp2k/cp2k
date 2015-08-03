@@ -240,7 +240,7 @@ MODULE qs_efield_local
     ci = 0.0_dp
     DO ia = 1,natom
        CALL get_atomic_kind(particle_set(ia)%atomic_kind,kind_number=ikind)
-       CALL get_qs_kind(qs_kind_set(ikind),core_charge=charge)
+       CALL get_qs_kind(qs_kind_set(ikind),core_charge=charge,error=error)
        ria = particle_set(ia)%r - rpoint
        ria = pbc(ria,cell)
        ci(:) = ci(:) + charge * ria(:)
@@ -289,7 +289,7 @@ MODULE qs_efield_local
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           DO ikind=1,nkind
              qs_kind => qs_kind_set(ikind)
-             CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
+             CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
              IF (ASSOCIATED(basis_set_a)) THEN
                 basis_set_list(ikind)%gto_basis_set => basis_set_a
              ELSE

@@ -992,7 +992,7 @@ CONTAINS
         NULLIFY(atomic_kind)
         atomic_kind =>  particle_set(iatom)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind, kind_number=ikind)
-        CALL get_qs_kind(qs_kind_set(ikind), zeff=zatom)
+        CALL get_qs_kind(qs_kind_set(ikind), zeff=zatom, error=error)
         ihavethis = .FALSE.
         DO ik = 1,nk
           IF(ikind==kind_type_tmp(ik)) THEN
@@ -1038,7 +1038,7 @@ CONTAINS
         CALL init_orb_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set,error=error)
 
         ikind = kind_type_tmp(ik)
-        CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+        CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
 
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf_gto)
         CALL get_gto_basis_set(gto_basis_set=xas_env%my_gto_basis(ik)%gto_basis_set,nsgf=nsgf_sto)

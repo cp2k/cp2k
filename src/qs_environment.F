@@ -80,9 +80,8 @@ MODULE qs_environment
        do_method_lrigpw, do_method_mndo, do_method_mndod, do_method_ofgpw, &
        do_method_pdg, do_method_pm3, do_method_pm6, do_method_pnnl, &
        do_method_rm1, do_method_scptb, do_qmmm_gauss, do_qmmm_swave, &
-       general_roks, rel_none, rel_trans_atom, use_aux_fit_basis_set, &
-       use_lri_basis_set, vdw_pairpot_dftd3, xc_vdw_fun_none, &
-       xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
+       general_roks, rel_none, rel_trans_atom, vdw_pairpot_dftd3, &
+       xc_vdw_fun_none, xc_vdw_fun_nonloc, xc_vdw_fun_pairpot
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -403,7 +402,7 @@ CONTAINS
           DO ikind=1,nkind
              NULLIFY(rtmat)
              CALL calculate_atomic_relkin(atomic_kind_set(ikind), qs_kind_set(ikind),rel_control,rtmat,error)
-             IF(ASSOCIATED(rtmat)) CALL set_qs_kind(qs_kind_set(ikind), reltmat=rtmat)
+             IF(ASSOCIATED(rtmat)) CALL set_qs_kind(qs_kind_set(ikind), reltmat=rtmat,error=error)
           END DO
        END IF
     END IF
@@ -614,14 +613,14 @@ CONTAINS
     END IF
 
     ! DFT+U
-    CALL get_qs_kind_set(qs_kind_set, dft_plus_u_atom_present=dft_control%dft_plus_u)
+    CALL get_qs_kind_set(qs_kind_set, dft_plus_u_atom_present=dft_control%dft_plus_u,error=error)
 
     !   *** Check basis and fill in missing parts ***
     CALL check_qs_kind_set(qs_kind_set,dft_control,para_env,&
          subsys_section=subsys_section,error=error)
 
     !   *** Check that no all-electron potential is present if GPW or GAPW_XC
-    CALL get_qs_kind_set(qs_kind_set, all_potential_present=all_potential_present)
+    CALL get_qs_kind_set(qs_kind_set, all_potential_present=all_potential_present,error=error)
     IF ( (dft_control%qs_control%method == "GPW") .OR. &
          (dft_control%qs_control%method == "GAPW_XC") .OR. &
          (dft_control%qs_control%method == "OFGPW") ) THEN
@@ -634,7 +633,7 @@ CONTAINS
 
     !   *** Initialize the spherical harmonics and ***
     !   *** the orbital transformation matrices    ***
-    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, maxlppl=maxlppl, maxlppnl=maxlppnl)
+    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, maxlppl=maxlppl, maxlppnl=maxlppnl,error=error)
 
     lmax_sphere = dft_control%qs_control%gapw_control%lmax_sphere
     IF(lmax_sphere .LT.0) THEN
@@ -642,7 +641,7 @@ CONTAINS
        dft_control%qs_control%gapw_control%lmax_sphere= lmax_sphere
     END IF
     IF(dft_control%qs_control%method == "LRIGPW".OR.dft_control%qs_control%lri_optbas) THEN
-       CALL get_qs_kind_set(qs_kind_set,maxlgto=maxlgto_lri,basis_set_id=use_lri_basis_set)
+       CALL get_qs_kind_set(qs_kind_set,maxlgto=maxlgto_lri,basis_type="LRI",error=error)
        !take maxlgto from lri basis if larger (usually)
        maxlgto = MAX(maxlgto,maxlgto_lri)
     END IF
@@ -669,7 +668,7 @@ CONTAINS
 
     !   *** Initialize the pretabulation for the calculation of the   ***
     !   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
-    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
+    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto,error=error)
     maxl = MAX(3*maxlgto + 1,0)
     CALL init_md_ftable(maxl)
 
@@ -959,7 +958,7 @@ CONTAINS
     END IF
 
     !   *** Allocate the MO data types ***
-    CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao, nelectron=nelectron)
+    CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao, nelectron=nelectron,error=error)
 
     ! the total number of electrons
     nelectron = nelectron - dft_control%charge
@@ -1170,7 +1169,7 @@ CONTAINS
     ! If we use auxiliary density matrix methods , set mo_set_aux_fit
     IF( dft_control%do_admm ) THEN
       CALL get_qs_kind_set(qs_kind_set, nelectron=nelectron, nsgf=n_ao_aux_fit, &
-                           basis_set_id=use_aux_fit_basis_set)
+                           basis_type="AUX_FIT",error=error)
       ALLOCATE (mos_aux_fit(dft_control%nspins),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -1301,7 +1300,7 @@ CONTAINS
                             nsgf=nsgf,&
                             nshell=nshell,&
                             maxlppl=maxlppl,&
-                            maxlppnl=maxlppnl)
+                            maxlppnl=maxlppnl,error=error)
 
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
             "TOTAL NUMBERS AND MAXIMUM NUMBERS"

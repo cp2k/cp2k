@@ -428,7 +428,7 @@ END SUBROUTINE rf_deriv_check
 
     CALL compute_charges(p_matrix,s_matrix,charges,para_env)
 
-    CALL print_atomic_charges(particle_set,qs_kind_set,scr,title,electronic_charges=charges)
+    CALL print_atomic_charges(particle_set,qs_kind_set,scr,title,electronic_charges=charges,error=error)
 
     DEALLOCATE(charges,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -560,7 +560,7 @@ END SUBROUTINE rf_deriv_check
        charges(:,:) = charges(:,:) + charges_im(:,:)
     END DO
 
-    CALL print_atomic_charges(particle_set,qs_kind_set,scr,title,electronic_charges=charges)
+    CALL print_atomic_charges(particle_set,qs_kind_set,scr,title,electronic_charges=charges,error=error)
 
     DEALLOCATE(charges,charges_im,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

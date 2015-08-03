@@ -90,9 +90,8 @@ CONTAINS
     maxl_ri = 0
     DO ikind=1,nkind
        NULLIFY(orb_basis_set,lri_basis_set)
-       CALL get_qs_kind(qs_kind_set(ikind),&
-                        orb_basis_set=orb_basis_set,&
-                        lri_basis_set=lri_basis_set)
+       CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set,basis_type="ORB",error=error)
+       CALL get_qs_kind(qs_kind_set(ikind),basis_set=lri_basis_set,basis_type="LRI",error=error)
        NULLIFY(lri_env%orb_basis(ikind)%gto_basis_set)
        NULLIFY(lri_env%ri_basis(ikind)%gto_basis_set)
        IF (ASSOCIATED(orb_basis_set)) THEN

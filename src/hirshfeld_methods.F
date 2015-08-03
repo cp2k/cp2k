@@ -116,7 +116,7 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                             element_symbol=element_symbol,kind_number=ikind)
        refc = hirshfeld_env%charges(iatom)
-       CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff)
+       CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff,error=error)
        IF (nspin == 1) THEN
           WRITE (UNIT=unit_nr,FMT="(i7,T15,A2,T20,i3,T27,F8.3,T42,F8.3,T72,F8.3)") &
             iatom,element_symbol,ikind,refc,charges(iatom,1),zeff-charges(iatom,1)
@@ -174,7 +174,7 @@ CONTAINS
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%coef(1), stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             CALL get_qs_kind(qs_kind_set(ikind),element_symbol=esym)
+             CALL get_qs_kind(qs_kind_set(ikind),element_symbol=esym,error=error)
              rco = 2.0_dp
              CALL get_ptable_info(symbol=esym,covalent_radius=rco,found=found)
              rco = MAX(rco,1.0_dp)
@@ -195,7 +195,7 @@ CONTAINS
              ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%coef(ngto), stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              hirshfeld_env%kind_shape_fn(ikind)%zet(:) = ppdens(:,1)
-             CALL get_qs_kind(qs_kind,zeff=zeff)
+             CALL get_qs_kind(qs_kind,zeff=zeff,error=error)
              hirshfeld_env%kind_shape_fn(ikind)%coef(:) = ppdens(:,2)/zeff
           END DO
 

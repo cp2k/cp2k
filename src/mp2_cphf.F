@@ -40,8 +40,7 @@ MODULE mp2_cphf
                                              hfx_container_type,&
                                              hfx_init_container,&
                                              hfx_type
-  USE input_constants,                 ONLY: hfx_do_eval_energy,&
-                                             use_orb_basis_set
+  USE input_constants,                 ONLY: hfx_do_eval_energy
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -912,7 +911,6 @@ MODULE mp2_cphf
     CALL cp_dbcsr_set(mat_mu_nu(1)%matrix,0.0_dp,error=error)
     CALL integrate_v_rspace(rho_r,hmat=mat_mu_nu(1), &
                             qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
-                            basis_set_id=use_orb_basis_set,&
                             error=error)
     ! update with the exchange like contributions
     ! copy mat_mu_nu into rho_ao work

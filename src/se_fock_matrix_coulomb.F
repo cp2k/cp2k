@@ -236,7 +236,7 @@ CONTAINS
        ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
           se_kind_list(ikind)%se_param => se_kind_a
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
           se_defined(ikind) = (defined .AND. natorb_a >= 1)
@@ -657,7 +657,7 @@ CONTAINS
        DO ispin = 1, nspins
           ! Compute the NDDO mpole expansion
           DO ikind=1,nkind
-             CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
+             CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
              CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
 
              IF (.NOT.defined .OR. natorb_a < 1) CYCLE
@@ -779,7 +779,7 @@ CONTAINS
        ! Modify the KS matrix and possibly compute derivatives
        node = 0
        DO ikind=1,nkind
-          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
 
           IF (.NOT.defined .OR. natorb_a < 1) CYCLE
@@ -1022,7 +1022,7 @@ CONTAINS
        ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
           se_kind_list(ikind)%se_param => se_kind_a
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
           se_defined(ikind) = (defined .AND. natorb_a >= 1)
@@ -1420,7 +1420,7 @@ CONTAINS
        ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
           se_kind_list(ikind)%se_param => se_kind_a
           CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
           se_defined(ikind) = (defined .AND. natorb_a >= 1)

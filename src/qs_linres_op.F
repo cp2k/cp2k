@@ -200,7 +200,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     ENDDO
 
-    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf)
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf,error=error)
 
     natom = SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom),STAT=istat)

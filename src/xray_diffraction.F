@@ -675,9 +675,9 @@ CONTAINS
                              natom=natom)
 
        CALL get_qs_kind(qs_kind_set(ikind),&
-                             orb_basis_set=orb_basis_set,&
+                             basis_set=orb_basis_set,&
                              paw_proj_set=paw_proj,&
-                             paw_atom=paw_atom)
+                             paw_atom=paw_atom, error=error)
 
         IF (.NOT.paw_atom) CYCLE ! no PAW atom: nothing to do
 

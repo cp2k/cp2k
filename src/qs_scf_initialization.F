@@ -72,7 +72,6 @@ MODULE qs_scf_initialization
                                              mixing_init
   USE qs_initial_guess,                ONLY: calculate_first_density_matrix
   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                             get_qs_kind_set,&
                                              qs_kind_type,&
                                              set_qs_kind
   USE qs_ks_types,                     ONLY: qs_ks_did_change
@@ -930,8 +929,6 @@ CONTAINS
                     xas_env=xas_env,&
                     error=error)
 
-    CALL get_qs_kind_set(qs_kind_set=qs_kind_set)
-
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
                                        extension=".scfLog",error=error)
     CALL qs_scf_initial_info(output_unit,mos,dft_control)
@@ -992,11 +989,10 @@ CONTAINS
         CALL get_qs_kind(qs_kind=qs_kind,&
                              dft_plus_u_atom=dft_plus_u_atom,&
                              u_ramping=u_ramping,&
-                             init_u_ramping_each_scf=init_u_ramping_each_scf)
+                             init_u_ramping_each_scf=init_u_ramping_each_scf,error=error)
         IF (dft_plus_u_atom.AND.(u_ramping /= 0.0_dp)) THEN
            IF (init_u_ramping_each_scf) THEN
-              CALL set_qs_kind(qs_kind=qs_kind,&
-                                   u_minus_j=0.0_dp)
+              CALL set_qs_kind(qs_kind=qs_kind,u_minus_j=0.0_dp,error=error)
            END IF
         END IF
       END DO

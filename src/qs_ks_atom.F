@@ -188,7 +188,7 @@ CONTAINS
     eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 
     CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-    CALL get_qs_kind_set(qs_kind_set,maxsgf=max_nsgf,maxgtops=max_gau)
+    CALL get_qs_kind_set(qs_kind_set,maxsgf=max_nsgf,maxgtops=max_gau,error=error)
 
     ALLOCATE (C_int_h(max_gau*max_nsgf),C_int_s(max_gau*max_nsgf),coc(max_gau*max_gau),&
               a_matrix(max_gau,max_gau),p_matrix(max_nsgf,max_nsgf),STAT=istat)
@@ -225,7 +225,7 @@ CONTAINS
     DO ikind = 1,nkind
        NULLIFY(atom_list)
        CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list, natom=nat)
-       CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
+       CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom, error=error)
        IF(paw_atom) THEN
          ! gather the atomic block integrals in a more compressed format
          bo = get_limit( nat, num_pe, mepos )
@@ -255,7 +255,7 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -301,7 +301,7 @@ CONTAINS
        END DO
 
        DO kkind=1,nkind
-         CALL get_qs_kind(qs_kind_set(kkind), orb_basis_set=orb_basis, paw_atom=paw_atom)
+         CALL get_qs_kind(qs_kind_set(kkind), basis_set=orb_basis, paw_atom=paw_atom, error=error)
 
          IF(.NOT. paw_atom)  CYCLE
 

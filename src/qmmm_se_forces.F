@@ -161,7 +161,7 @@ CONTAINS
           iqm = 0
           Kinds: DO ikind=1,nkind
              CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=list)
-             CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
+             CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
              CALL get_se_param(se_kind_a,&
                                defined=defined,&
                                natorb=natorb_a)
@@ -227,7 +227,7 @@ CONTAINS
        iqm = 0
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
-          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
           CALL get_se_param(se_kind_a,&
                             defined=defined,&
                             natorb=natorb_a)

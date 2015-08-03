@@ -21,8 +21,6 @@ MODULE qs_rho_methods
        cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
        dbcsr_type_symmetric
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
-                                             use_orb_basis_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE kpoint_types,                    ONLY: kpoint_type
@@ -75,7 +73,7 @@ CONTAINS
 !> \param rebuild_ao if it is necessary to rebuild rho_ao. Defaults to true.
 !> \param rebuild_grids if it in necessary to rebuild rho_r and rho_g.
 !>        Defaults to false.
-!> \param basis_set_id ...
+!> \param admm (use aux_fit basis)
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -88,20 +86,19 @@ CONTAINS
 !>      Change so that it does not allocate a subcomponent if it is not
 !>      associated and not requested?
 ! *****************************************************************************
-  SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, basis_set_id, error)
+  SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, admm, error)
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids
-    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids, &
+                                                admm
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_rho_rebuild', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: headline
-    INTEGER                                  :: handle, i, ic, &
-                                                my_basis_set_id, nimg, nspins
-    LOGICAL                                  :: do_kpoints, failure, &
+    INTEGER                                  :: handle, i, ic, nimg, nspins
+    LOGICAL                                  :: do_kpoints, failure, my_admm, &
                                                 my_rebuild_ao, &
                                                 my_rebuild_grids
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r
@@ -120,22 +117,20 @@ CONTAINS
     TYPE(pw_p_type), POINTER                 :: rho_r_sccs
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+
     NULLIFY (pw_env,auxbas_pw_pool,matrix_s,matrix_s_kp,dft_control)
     NULLIFY (tot_rho_r,rho_ao_kp,rho_r,rho_g,drho_r,drho_g,tau_r,tau_g)
     NULLIFY (rho_r_sccs)
     NULLIFY (sab_orb)
-    CALL timeset(routineN,handle)
-    failure=.FALSE.
     my_rebuild_ao=.TRUE.
     my_rebuild_grids=.TRUE.
+    my_admm=.FALSE.
     IF (PRESENT(rebuild_ao)) my_rebuild_ao=rebuild_ao
     IF (PRESENT(rebuild_grids)) my_rebuild_grids=rebuild_grids
-
-    IF (PRESENT(basis_set_id)) THEN
-      my_basis_set_id = basis_set_id
-    ELSE
-      my_basis_set_id = use_orb_basis_set
-    END IF
+    IF (PRESENT(admm)) my_admm=admm
 
     CALL get_qs_env(qs_env,&
                     kpoints=kpoints,&
@@ -146,16 +141,14 @@ CONTAINS
 
     nimg = dft_control%nimages
 
-    SELECT CASE (my_basis_set_id)
-      CASE (use_orb_basis_set)
-        CALL get_qs_env(qs_env, matrix_s_kp=matrix_s_kp, sab_orb=sab_orb, error=error)
-        refmatrix => matrix_s_kp(1,1)%matrix
-      CASE (use_aux_fit_basis_set)
-        CPPostcondition(.NOT.do_kpoints, cp_failure_level,routineP,error,failure)
-        CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s, sab_aux_fit=sab_orb, error=error)
-        refmatrix => matrix_s(1)%matrix
-    END SELECT
-
+    IF (my_admm) THEN
+       CPPostcondition(.NOT.do_kpoints, cp_failure_level,routineP,error,failure)
+       CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s, sab_aux_fit=sab_orb, error=error)
+       refmatrix => matrix_s(1)%matrix
+    ELSE
+       CALL get_qs_env(qs_env, matrix_s_kp=matrix_s_kp, sab_orb=sab_orb, error=error)
+       refmatrix => matrix_s_kp(1,1)%matrix
+    END IF
 
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
     nspins=dft_control%nspins

@@ -195,7 +195,7 @@ MODULE qs_rho0_ggrid
 
     DO ikind = 1,SIZE(atomic_kind_set)
       CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,natom=nat)
-      CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom)
+      CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom,error=error)
 
       IF(.NOT. paw_atom .AND. dft_control%qs_control%gapw_control%nopaw_as_gpw) CYCLE
 
@@ -580,9 +580,9 @@ MODULE qs_rho0_ggrid
       NULLIFY(orb_basis_set,atom_list,harmonics)
       CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list, natom=nat)
       CALL get_qs_kind(qs_kind_set(ikind),&
+                       basis_set=orb_basis_set,&
                        paw_atom=paw_atom,&
-                       orb_basis_set=orb_basis_set,&
-                       harmonics=harmonics)
+                       harmonics=harmonics,error=error)
 
       IF(.NOT. paw_atom) CYCLE
 

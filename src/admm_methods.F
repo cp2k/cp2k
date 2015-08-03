@@ -51,11 +51,13 @@ MODULE admm_methods
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: &
-       do_admm_exch_scaling_merlot, do_admm_exch_scaling_none, &
-       do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
-       do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
-       do_admm_purify_none, use_aux_fit_basis_set, use_orb_basis_set
+  USE input_constants,                 ONLY: do_admm_exch_scaling_merlot,&
+                                             do_admm_exch_scaling_none,&
+                                             do_admm_purify_cauchy,&
+                                             do_admm_purify_cauchy_subspace,&
+                                             do_admm_purify_mo_diag,&
+                                             do_admm_purify_mo_no_diag,&
+                                             do_admm_purify_none
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type
@@ -202,7 +204,7 @@ MODULE admm_methods
                                rho_gspace=rho_g_aux(ispin),&
                                total_rho=tot_rho_r_aux(ispin),&
                                soft_valid=.FALSE.,&
-                               basis_set_id=use_aux_fit_basis_set,&
+                               basis_type="AUX_FIT",&
                                error=error)
     END DO
 
@@ -1590,7 +1592,7 @@ MODULE admm_methods
                               rho_gspace=rho_g(myspin),&
                               total_rho=tot_rho_r(myspin),&
                               soft_valid=.FALSE.,&
-                              basis_set_id=use_aux_fit_basis_set,&
+                              basis_type="AUX_FIT",&
                               error=error)
 
     END DO
@@ -2128,17 +2130,17 @@ MODULE admm_methods
         ALLOCATE(admm_force(3,natom))
         admm_force = 0.0_dp
         CALL build_overlap_force(ks_env, admm_force,&
-             basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_aux_fit_basis_set, &
+             basis_type_a="AUX_FIT", basis_type_b="AUX_FIT", &
              sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s, error=error)
         CALL build_overlap_force(ks_env, admm_force,&
-             basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_orb_basis_set, &
+             basis_type_a="AUX_FIT", basis_type_b="ORB", &
              sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q, error=error)
 
         ! Add contribution of original basis set for ADMMQ
         IF ( .NOT. admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. admm_env%charge_constrain )  THEN
            CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -admm_env%lambda_merlot(ispin),error=error)
            CALL build_overlap_force(ks_env, admm_force,&
-                basis_set_id_a=use_orb_basis_set, basis_set_id_b=use_orb_basis_set, &
+                basis_type_a="ORB", basis_type_b="ORB", &
                 sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix, error=error)
            CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp/admm_env%lambda_merlot(ispin), error=error)
        END IF
@@ -2147,7 +2149,7 @@ MODULE admm_methods
         IF ( admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. .NOT. admm_env%charge_constrain )  THEN
            CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, admm_env%lambda_merlot(ispin),error=error)
            CALL build_overlap_force(ks_env, admm_force,&
-                basis_set_id_a=use_orb_basis_set, basis_set_id_b=use_orb_basis_set, &
+                basis_type_a="ORB", basis_type_b="ORB", &
                 sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix, error=error)
            CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, 1.0_dp/admm_env%lambda_merlot(ispin), error=error)
        END IF
@@ -2156,7 +2158,7 @@ MODULE admm_methods
         IF ( admm_env%scaling_model == do_admm_exch_scaling_merlot .AND. admm_env%charge_constrain )  THEN
            CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -admm_env%lambda_merlot(ispin),error=error)
            CALL build_overlap_force(ks_env, admm_force,&
-                basis_set_id_a=use_orb_basis_set, basis_set_id_b=use_orb_basis_set, &
+                basis_type_a="ORB", basis_type_b="ORB", &
                 sab_nl=sab_orb, matrix_p=rho_ao(ispin)%matrix, error=error)
            CALL cp_dbcsr_scale(rho_ao(ispin)%matrix, -1.0_dp/admm_env%lambda_merlot(ispin), error=error)
        END IF

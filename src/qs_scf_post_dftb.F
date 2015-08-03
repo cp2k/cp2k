@@ -139,7 +139,7 @@ CONTAINS
        nkind = SIZE(atomic_kind_set)
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
-          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
           CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
           DO iatom=1,nat
              iat = atomic_kind_set(ikind)%atom_list(iatom)
@@ -161,7 +161,7 @@ CONTAINS
                        " # Atom   Element   Kind        Atomic population"," Net charge"
                 DO ikind=1,nkind
                    CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-                   CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+                   CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
                    CALL get_dftb_atom_param(dftb_kind,name=aname)
                    ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                    DO iatom=1,nat
@@ -179,7 +179,7 @@ CONTAINS
                        "# Atom  Element  Kind  Atomic population (alpha,beta)   Net charge  Spin moment"
                 DO ikind=1,nkind
                    CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-                   CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+                   CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
                    CALL get_dftb_atom_param(dftb_kind,name=aname)
                    ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                    DO iatom=1,nat

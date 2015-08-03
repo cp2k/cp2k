@@ -172,7 +172,7 @@ CONTAINS
     DO ikind=1,SIZE(atomic_kind_set)
 
        CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
-       CALL get_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_kind)
+       CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind,error=error)
        CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp,ag=alpha)
        IF (.NOT.defined) CYCLE
 
@@ -339,7 +339,7 @@ CONTAINS
     DO ikind=1,SIZE(atomic_kind_set)
 
        CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom_of_kind,atom_list=atom_list)
-       CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential)
+       CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential,error=error)
 
        IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
        CALL get_potential(potential=gth_potential,alpha_ppl=alpha,nexp_ppl=lppl,cexp_ppl=cexp_ppl)
@@ -538,7 +538,7 @@ CONTAINS
    DO ikind=1,SIZE(atomic_kind_set)
 
       CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom,atom_list=atom_list)
-      CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
+      CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential,error=error)
 
       IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
       CALL get_potential(potential=gth_potential,nlcc_present=nlcc,nexp_nlcc=nexp_nlcc,&
@@ -773,9 +773,9 @@ CONTAINS
         DO ikind=1,SIZE(atomic_kind_set)
 
            CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
-           CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom,&
+           CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom,&
                             alpha_core_charge=alpha_core_charge,&
-                            ccore_charge=ccore_charge)
+                            ccore_charge=ccore_charge,error=error)
 
            IF(paw_atom) THEN
                 force(ikind)%rho_core(:,:) =  0.0_dp
@@ -962,7 +962,7 @@ CONTAINS
     DO ikind=1,nkind
 
        CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
-       CALL get_qs_kind(qs_kind_set(ikind), lri_basis_set=lri_basis_set)
+       CALL get_qs_kind(qs_kind_set(ikind),basis_set=lri_basis_set,basis_type="LRI",error=error)
        CALL get_gto_basis_set(gto_basis_set=lri_basis_set,&
             first_sgf=first_sgfa,&
             lmax=la_max,&

@@ -306,7 +306,7 @@ CONTAINS
       CALL get_qs_kind(qs_kind_set(ikind),&
                            alpha_core_charge=alpha(ikind),&
                            core_charge_radius=radius(ikind),&
-                           zeff=zeff(ikind))
+                           zeff=zeff(ikind), error=error)
     END DO
 
     ecore_overlap = 0.0_dp
@@ -409,7 +409,7 @@ CONTAINS
 
     DO ikind=1,SIZE(atomic_kind_set)
       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
-      CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, alpha_core_charge=alpha_core_charge)
+      CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, alpha_core_charge=alpha_core_charge, error=error)
       ecore_self = ecore_self - REAL(natom,dp)*zeff**2*SQRT(alpha_core_charge)
     END DO
 
@@ -428,7 +428,7 @@ CONTAINS
 
         DO ikind=1,SIZE(atomic_kind_set)
            nparticle_local = local_particles%n_el(ikind)
-           CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff,alpha_core_charge=alpha_core_charge)
+           CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff,alpha_core_charge=alpha_core_charge, error=error)
            es = zeff**2*SQRT(alpha_core_charge)/SQRT(twopi)
            DO iparticle_local = 1, nparticle_local
               iatom = local_particles%list(ikind)%array(iparticle_local)

@@ -321,7 +321,7 @@ CONTAINS
        ENDIF
     END IF
 
-    CALL get_qs_kind_set(qs_kind_set, maxg_iso_not0=max_iso)
+    CALL get_qs_kind_set(qs_kind_set,maxg_iso_not0=max_iso,error=error)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax_0)
 
     atenergy=.FALSE.
@@ -341,10 +341,10 @@ CONTAINS
 
       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=nat)
       CALL get_qs_kind(qs_kind_set(ikind),&
-            orb_basis_set=orb_basis,&
+            basis_set=orb_basis,&
             grid_atom=grid_atom,&
             harmonics=harmonics,ngrid_rad=nr,&
-            max_iso_not0=max_iso_not0,paw_atom=paw_atom)
+            max_iso_not0=max_iso_not0,paw_atom=paw_atom,error=error)
 
       IF(paw_atom) THEN
 !===========    PAW   ===============

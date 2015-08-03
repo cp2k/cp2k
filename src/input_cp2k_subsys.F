@@ -953,11 +953,20 @@ CONTAINS
     failure=.FALSE.
 
     IF (.NOT. failure) THEN
-       CALL section_create(section,name="basis",&
+       CALL section_create(section,name="BASIS",&
             description="Section used to specify a general basis set for QM calculations.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., &
+            n_keywords=1, n_subsections=0, repeats=.TRUE., &
             error=error)
+
        NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="The type of basis set defined in this section.",&
+            lone_keyword_c_val="Orbital",&
+            usage="Orbital",default_c_val="Orbital", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
         repeats=.TRUE., type_of_var=lchar_t, error=error,&
          description="<u>CP2K Basis Set Standard Format</u>"//newline//&
@@ -1177,7 +1186,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
-       CALL section_create(section,name="kind",&
+       CALL section_create(section,name="KIND",&
             description="The description of the kind of the atoms (mostly for QM)",&
             n_keywords=19, n_subsections=1, repeats=.TRUE., &
             error=error)
@@ -1190,9 +1199,19 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="BASIS_SET",&
+            description="The primary Gaussian basis set (NONE implies no basis used, meaningful with GHOST)",&
+            usage="BASIS_SET [type] DZVP", type_of_var=char_t, default_c_vals=(/" "," "/), &
+            citations=(/VandeVondele2005a,VandeVondele2007/),&
+            repeats=.TRUE., n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! old type basis set input keywords
+       ! kept for back compatability
        CALL keyword_create(keyword, name="AUX_BASIS_SET",&
             variants=s2a("AUXILIARY_BASIS_SET", "AUX_BASIS"),&
-            description="The auxliliary basis set (GTO type)",&
+            description="DEPRECATED (use BASIS_SET): The auxliliary basis set (GTO type)",&
             usage="AUX_BASIS_SET DZVP", default_c_val=" ", &
             n_var=1,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1200,26 +1219,15 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RI_AUX_BASIS_SET",&
             variants=s2a("RI_MP2_BASIS_SET","RI_RPA_BASIS_SET", "RI_AUX_BASIS"),&
-            description="The RI auxliliary basis set used in WF_CORRELATION (GTO type)",&
+            description="DEPRECATED (use BASIS_SET): The RI auxliliary basis set used in WF_CORRELATION (GTO type)",&
             usage="RI_AUX_BASIS_SET DZVP", default_c_val=" ", &
             n_var=1,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="AUX_BASIS_NORMALIZATION",&
-            variants=s2a( "AUXILIARY_BASIS_NORMALIZATION", "AUX_BASIS_NORM"),&
-            description="The normalization of the auxliliary basis set",&
-            usage="AUX_BASIS_NORMALIZATION NO", &
-            enum_c_vals=s2a( "NONE","NO","WFN","WAVEFUNCTION","FUNCTION",&
-            "DENS","DENSITY","SQUARE","UNDEFINED"),&
-            enum_i_vals=(/0,0,1,1,1,2,2,2,-1/),&
-            default_i_val=-1,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="LRI_BASIS_SET",&
             variants=s2a("LRI_BASIS"),&
-            description="The local resolution of identity basis set (GTO type)",&
+            description="DEPRECATED (use BASIS_SET): The local resolution of identity basis set (GTO type)",&
             usage="LRI_BASIS_SET DZVP", default_c_val=" ", &
             n_var=1,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1227,49 +1235,19 @@ CONTAINS
 
        CALL keyword_create(keyword, name="AUX_FIT_BASIS_SET",&
             variants=s2a("AUXILIARY_FIT_BASIS_SET", "AUX_FIT_BASIS"),&
-            description="The auxliliary basis set (GTO type) for auxiliary density matrix method",&
+            description="DEPRECATED (use BASIS_SET): The auxliliary basis set (GTO type) for auxiliary density matrix method",&
             usage="AUX_FIT_BASIS_SET DZVP", default_c_val=" ", &
             citations=(/Guidon2010/),&
             n_var=1,  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="AUX_BASIS_FIT_NORMALIZATION",&
-            variants=s2a( "AUXILIARY_BASIS_FIT_NORMALIZATION", "AUX_BASIS_FIT_NORM"),&
-            description="The normalization of the basis set for auxiliary density matrix method ",&
-            usage="AUX_BASIS_FIT_NORMALIZATION NO", &
-            enum_c_vals=s2a( "NONE","NO","WFN","WAVEFUNCTION","FUNCTION",&
-            "DENS","DENSITY","SQUARE","UNDEFINED"),&
-            enum_i_vals=(/0,0,1,1,1,2,2,2,-1/),&
-            default_i_val=-1,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="BASIS_SET",&
-            variants=s2a("ORBITAL_BASIS_SET","ORB_BASIS"),&
-            description="The primary Gaussian basis set (NONE implies no basis used, meaningful with GHOST)",&
-            usage="BASIS_SET DZVP", default_c_val=" ", &
-            citations=(/VandeVondele2005a,VandeVondele2007/),&
-            n_var=1,  error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       ! end of old basis set keywords
 
        CALL keyword_create(keyword, name="ELEC_CONF",&
             description="Specifies the electronic configration used in construction the "// &
                         "atomic initial guess (see the pseudo potential file for the default values.",&
             usage="ELEC_COND n_elec(s)  n_elec(p)  n_elec(d)  ... ", &
             n_var=-1, type_of_var=integer_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="BASIS_NORMALIZATION",&
-            variants=s2a("ORBITAL_BASIS_NORMALIZATION","ORB_BASIS_NORM"),&
-            description="The normalization of the auxliliary basis set",&
-            usage="AUX_BASIS_NORMALIZATION NO", &
-            enum_c_vals=s2a( "NONE", "NO", "WFN", "WAVEFUNCTION",&
-            "FUNCTION", "DENS", "DENSITY", "SQUARE", "UNDEFINED"),&
-            enum_i_vals=(/0,0,1,1,1,2,2,2,-1/),&
-            default_i_val=-1,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1375,6 +1353,13 @@ CONTAINS
             description="The third order parameter (derivative of hardness) used in "//&
             "diagonal DFTB3 correction.",&
             usage="DFTB3_PARAM 0.2", default_r_val=0.0_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAO",&
+            description="The number of MAOs (Modified Atomic Orbitals) for this kind.",&
+            usage="MAO 4", default_i_val=-1,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

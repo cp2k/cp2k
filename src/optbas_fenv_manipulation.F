@@ -7,6 +7,7 @@ MODULE optbas_fenv_manipulation
                                              admm_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE basis_set_container_types,       ONLY: get_basis_from_container
   USE basis_set_types,                 ONLY: gto_basis_set_type,&
                                              init_orb_basis_set
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
@@ -28,9 +29,7 @@ MODULE optbas_fenv_manipulation
   USE cp_output_handling,              ONLY: debug_print_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: do_admm_basis_projection,&
-                                             do_admm_purify_mo_diag,&
-                                             use_aux_fit_basis_set,&
-                                             use_orb_basis_set
+                                             do_admm_purify_mo_diag
   USE input_section_types,             ONLY: section_vals_add_values,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -332,8 +331,8 @@ CONTAINS
                        error=error)
        CALL build_overlap_matrix(ks_env,matrix_s=matrix_s,&
                                  matrix_name="OVERLAP",&
-                                 basis_set_id_a=use_orb_basis_set,&
-                                 basis_set_id_b=use_orb_basis_set, &
+                                 basis_type_a="ORB",&
+                                 basis_type_b="ORB", &
                                  sab_nl=sab_orb,&
                                  error=error)
        CALL set_ks_env(ks_env,matrix_s=matrix_s,error=error)
@@ -346,14 +345,14 @@ CONTAINS
                        error=error)
        CALL build_overlap_matrix(ks_env,matrix_s=matrix_s_aux_fit,&
                                  matrix_name="AUX_FIT_OVERLAP",&
-                                 basis_set_id_a=use_aux_fit_basis_set,&
-                                 basis_set_id_b=use_aux_fit_basis_set, &
+                                 basis_type_a="AUX_FIT",&
+                                 basis_type_b="AUX_FIT", &
                                  sab_nl=sab_aux_fit,&
                                  error=error)
        CALL build_overlap_matrix(ks_env,matrix_s=matrix_s_aux_fit_vs_orb,&
                                  matrix_name="MIXED_OVERLAP",&
-                                 basis_set_id_a=use_aux_fit_basis_set,&
-                                 basis_set_id_b=use_orb_basis_set, &
+                                 basis_type_a="AUX_FIT",&
+                                 basis_type_b="ORB", &
                                  sab_nl=sab_aux_fit_vs_orb,&
                                  error=error)
        CALL set_ks_env(ks_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
@@ -420,6 +419,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
@@ -431,9 +431,10 @@ CONTAINS
            CALL uppercase(elem)
            IF(elem==opt_bas%kind_basis(jkind)%element)THEN
               ibasis=opt_bas%combination(bas_id,jkind)
-              CALL transfer_data_to_gto(qs_kind_set(ikind)%aux_fit_basis_set,&
-                                        opt_bas%kind_basis(jkind)%flex_basis(ibasis),error)
-              CALL init_orb_basis_set(qs_kind_set(ikind)%aux_fit_basis_set,error)
+              CALL get_basis_from_container(qs_kind_set(ikind)%basis_sets,basis_set=gto_basis,&
+                                            basis_type="AUX_FIT",error=error)
+              CALL transfer_data_to_gto(gto_basis,opt_bas%kind_basis(jkind)%flex_basis(ibasis),error)
+              CALL init_orb_basis_set(gto_basis,error)
            END IF
        END DO
     END DO

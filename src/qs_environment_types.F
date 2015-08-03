@@ -322,6 +322,7 @@ CONTAINS
 !> \param sab_tbe ...
 !> \param sab_core ...
 !> \param sab_almo ...
+!> \param sab_kp ...
 !> \param particle_set ...
 !> \param energy ...
 !> \param force ...
@@ -450,7 +451,7 @@ CONTAINS
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,qs_kind_set,cell,super_cell,cell_ref,use_ref_cell,kpoints,&
        dft_control,mos,mos_aux_fit,sab_orb,sab_aux_fit,sab_aux_fit_asymm, sab_aux_fit_vs_orb,&
        sab_all,qmmm,qmmm_periodic,sac_ae,sac_ppl,sap_ppnl,sab_vdw,sab_scp,sap_oce,sab_lrc,&
-       sab_se,sab_tbe,sab_core,sab_almo,particle_set,energy,force,&
+       sab_se,sab_tbe,sab_core,sab_almo,sab_kp,particle_set,energy,force,&
        matrix_h,matrix_ks,matrix_ks_im,matrix_vxc,run_rtp,rtp,&
        matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp,&
        matrix_ks_aux_fit,matrix_ks_aux_fit_im,matrix_ks_aux_fit_dft,matrix_ks_aux_fit_hfx,&
@@ -460,7 +461,10 @@ CONTAINS
        mpools,mpools_aux_fit,input, para_env, blacs_env, scf_control,rel_control,kinetic,qs_charges,&
        vppl, rho_core, rho_nlcc, rho_nlcc_g, ks_env, ks_qmmm_env, wf_history, scf_env, id_nr, local_particles,&
        local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set,molecule_set,subsys,cp_subsys,oce,rho_atom_set,&
-       task_list,task_list_aux_fit,task_list_soft,rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
+       task_list,&
+       task_list_aux_fit,&
+       task_list_soft,&
+       rho0_atom_set,rho0_mpole,rhoz_set,ecoul_1c,&
        rho0_s_rs,rho0_s_gs,do_kpoints,has_unit_metric,requires_mo_derivs,mo_derivs,&
        mo_derivs_aux_fit, mo_loc_history,nkind,natom,nelectron_total,nelectron_spin,efield,&
        neighbor_list_id,linres_control,xas_env,virial,cp_ddapc_env,cp_ddapc_ewald,&
@@ -489,7 +493,7 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
       sac_ae, sac_ppl, sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, &
-      sab_tbe, sab_core, sab_almo
+      sab_tbe, sab_core, sab_almo, sab_kp
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
@@ -737,7 +741,7 @@ CONTAINS
                     matrix_ks_aux_fit=matrix_ks_aux_fit,&
                     matrix_ks_aux_fit_im=matrix_ks_aux_fit_im,&
                     matrix_ks_aux_fit_dft=matrix_ks_aux_fit_dft, &
-                    matrix_ks_aux_fit_hfx = matrix_ks_aux_fit_hfx, &
+                    matrix_ks_aux_fit_hfx=matrix_ks_aux_fit_hfx, &
                     kinetic=kinetic,&
                     matrix_s=matrix_s,&
                     matrix_s_aux_fit=matrix_s_aux_fit,&
@@ -779,6 +783,7 @@ CONTAINS
                     sab_tbe=sab_tbe,&
                     sab_core=sab_core,&
                     sab_almo=sab_almo,&
+                    sab_kp=sab_kp,&
                     task_list=task_list,&
                     task_list_aux_fit=task_list_aux_fit,&
                     task_list_soft=task_list_soft,&

@@ -343,8 +343,7 @@ CONTAINS
     ! functions, and atomic kinds
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
-    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
-
+    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf, error=error)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -492,7 +491,7 @@ CONTAINS
                              dft_plus_u_atom=dft_plus_u_atom,&
                              l_of_dft_plus_u=lu,&
                              nsgf=nsgf_kind,&
-                             orb_basis_set=orb_basis_set,&
+                             basis_set=orb_basis_set,&
                              u_minus_j=u_minus_j,&
                              u_minus_j_target=u_minus_j_target,&
                              u_ramping=u_ramping,&
@@ -500,7 +499,7 @@ CONTAINS
                              orbitals=orbitals,&
                              eps_scf=eps_scf,&
                              max_scf=max_scf,&
-                             smear=smear)
+                             smear=smear, error=error)
 
 
         ! Check, if the atoms of this atomic kind need a DFT+U correction
@@ -514,7 +513,7 @@ CONTAINS
         IF ((ispin == 1).AND.(u_ramping > 0.0_dp)) THEN
           IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
             u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
-            CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j)
+            CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j,error=error)
           END IF
           IF (should_output.AND.(output_unit > 0)) THEN
             WRITE (UNIT=output_unit,FMT="(T3,A,3X,A,F0.3,A)")&
@@ -1151,7 +1150,7 @@ CONTAINS
                          dft_plus_u_atom=dft_plus_u_atom,&
                          l_of_dft_plus_u=lu,&
                          nsgf=nsgf_kind,&
-                         orb_basis_set=orb_basis_set,&
+                         basis_set=orb_basis_set,&
                          u_minus_j=u_minus_j,&
                          u_minus_j_target=u_minus_j_target,&
                          u_ramping=u_ramping,&
@@ -1159,7 +1158,7 @@ CONTAINS
                          orbitals=orbitals,&
                          eps_scf=eps_scf,&
                          max_scf=max_scf,&
-                         smear=smear)
+                         smear=smear, error=error)
 
         ! Check, if the atoms of this atomic kind need a DFT+U correction
 
@@ -1172,7 +1171,7 @@ CONTAINS
         IF ((ispin == 1).AND.(u_ramping > 0.0_dp)) THEN
           IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
             u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
-            CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j)
+            CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j,error=error)
           END IF
           IF (should_output.AND.(output_unit > 0)) THEN
             WRITE (UNIT=output_unit,FMT="(T3,A,3X,A,F0.3,A)")&
@@ -1723,7 +1722,7 @@ CONTAINS
     ! functions, and atomic kinds
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
-    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
+    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf, error=error)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -1848,11 +1847,11 @@ CONTAINS
         CALL get_qs_kind(qs_kind_set(ikind),&
                          dft_plus_u_atom=dft_plus_u_atom,&
                          l_of_dft_plus_u=lu,&
-                         orb_basis_set=orb_basis_set,&
+                         basis_set=orb_basis_set,&
                          u_minus_j=u_minus_j,&
                          u_minus_j_target=u_minus_j_target,&
                          u_ramping=u_ramping,&
-                         eps_u_ramping=eps_u_ramping)
+                         eps_u_ramping=eps_u_ramping, error=error)
 
         ! Check, if this atom needs a DFT+U correction
 
@@ -1865,7 +1864,7 @@ CONTAINS
         IF ((ispin == 1).AND.(u_ramping > 0.0_dp)) THEN
           IF (qs_env%scf_env%iter_delta <= eps_u_ramping) THEN
             u_minus_j = MIN(u_minus_j + u_ramping,u_minus_j_target)
-            CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j)
+            CALL set_qs_kind(qs_kind_set(ikind), u_minus_j=u_minus_j,error=error)
           END IF
           IF (should_output.AND.(output_unit > 0)) THEN
             WRITE (UNIT=output_unit,FMT="(T3,A,3X,A,F0.3,A)")&

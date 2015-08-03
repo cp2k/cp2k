@@ -36,7 +36,6 @@ MODULE cp_dbcsr_cp2k_link
        dbcsr_set_conf_use_mpi_rma, dbcsr_type_no_symmetry, has_acc, has_mpi, &
        mm_driver_acc, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
        mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
-  USE input_constants,                 ONLY: use_orb_basis_set
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -440,8 +439,8 @@ CONTAINS
     CALL get_neighbor_list_set_p(neighbor_list_sets=neighbour_list,symmetric=do_symmetric)
     CPPrecondition(do_symmetric,cp_failure_level,routineP,error,failure)
     ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind))
-    CALL basis_set_list_setup(basis_set_list_a,use_orb_basis_set,qs_kind_set)
-    CALL basis_set_list_setup(basis_set_list_b,use_orb_basis_set,qs_kind_set)
+    CALL basis_set_list_setup(basis_set_list_a,"ORB",qs_kind_set,error=error)
+    CALL basis_set_list_setup(basis_set_list_b,"ORB",qs_kind_set,error=error)
 
     ! csr_sparsity can obtain values 0 (if zero element) or 1 (if non-zero element)
     CALL cp_dbcsr_set (csr_sparsity, 0.0, error)

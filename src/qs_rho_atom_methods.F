@@ -149,8 +149,8 @@ MODULE qs_rho_atom_methods
     NULLIFY(harmonics)
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_dCG,my_CG_dxyz,coeff)
 
-    CALL get_qs_kind(qs_kind,orb_basis_set=orb_basis,&
-                         paw_proj_set=paw_proj,harmonics=harmonics)
+    CALL get_qs_kind(qs_kind,basis_set=orb_basis,&
+                         paw_proj_set=paw_proj,harmonics=harmonics,error=error)
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                            maxl=maxl,npgf=npgf,nset=nset,zet=zet,&
@@ -584,7 +584,7 @@ MODULE qs_rho_atom_methods
     END DO
 
     CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-    CALL get_qs_kind_set(qs_kind_set, maxsgf=max_nsgf, maxgtops=max_gau)
+    CALL get_qs_kind_set(qs_kind_set, maxsgf=max_nsgf, maxgtops=max_gau,error=error)
 
     ALLOCATE (PC1(max_nsgf*max_gau),CPC(max_gau*max_gau),p_matrix(max_nsgf,max_nsgf),&
               STAT=istat)
@@ -593,8 +593,8 @@ MODULE qs_rho_atom_methods
     nkind = SIZE(atomic_kind_set)
 !   Inizialize to 0 the CPC coefficients and the local density arrays
     DO ikind = 1, nkind
-      CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=a_list,natom=nat_kind)
-      CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
+      CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=a_list,natom=nat_kind)
+      CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom,error=error)
 
       IF(.NOT. paw_atom) CYCLE
       DO i = 1,nat_kind
@@ -620,7 +620,7 @@ MODULE qs_rho_atom_methods
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -664,8 +664,8 @@ MODULE qs_rho_atom_methods
 
        DO kkind = 1 ,nkind
          CALL get_qs_kind(qs_kind_set(kkind),&
-                          orb_basis_set=orb_basis_set,&
-                          paw_proj_set=paw_proj,paw_atom=paw_atom)
+                          basis_set=orb_basis_set,&
+                          paw_proj_set=paw_proj,paw_atom=paw_atom,error=error)
 
          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nset =nsetc,maxso=maxsoc)
 
@@ -832,7 +832,7 @@ MODULE qs_rho_atom_methods
     CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,linres_control=linres_control,error=error)
     CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-    CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
+    CALL get_qs_kind_set(qs_kind_set,maxlgto=maxlgto,error=error)
 
     nspins = dft_control%nspins
 
@@ -910,7 +910,7 @@ MODULE qs_rho_atom_methods
                        paw_atom=paw_atom,&
                        grid_atom=grid_atom,&
                        harmonics=harmonics,&
-                       ngrid_rad=nr,ngrid_ang=na)
+                       ngrid_rad=nr,ngrid_ang=na,error=error)
 
 !     *** determine the Lebedev grid for this kind ***
 
@@ -934,7 +934,7 @@ MODULE qs_rho_atom_methods
 
 !     *** calculate the spherical harmonics on the grid ***
 
-      CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+      CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set,error=error)
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=maxl)
       maxs=nsoset(maxl)
       CALL create_harmonics_atom(harmonics,&
@@ -1011,7 +1011,7 @@ MODULE qs_rho_atom_methods
                         paw_proj_set=paw_proj,&
                         paw_atom=paw_atom,&
                         harmonics=harmonics,&
-                        ngrid_rad=nr)
+                        ngrid_rad=nr,error=error)
 
        IF (paw_atom) THEN
          CALL get_paw_proj_set(paw_proj_set=paw_proj,nsatbas=nsatbas,nsotot=nsotot)

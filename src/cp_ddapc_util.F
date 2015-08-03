@@ -421,7 +421,7 @@ CONTAINS
           qout2 = qtot
        END IF
        CALL print_atomic_charges(particle_set,qs_kind_set, iw,title=" DDAP "//&
-            TRIM(type_of_density)//" charges:",atomic_charges=qtot)
+            TRIM(type_of_density)//" charges:",atomic_charges=qtot,error=error)
        CALL timestop(handle2)
        !
        ! If requested evaluate also the correction to derivatives due to Pulay Forces

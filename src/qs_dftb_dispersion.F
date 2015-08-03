@@ -184,7 +184,7 @@ CONTAINS
        ALLOCATE (define_kind(nkind),rc_kind(nkind),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind_a, error=error)
           CALL get_dftb_atom_param(dftb_kind_a,defined=define_kind(ikind),rcdisp=rc_kind(ikind))
        END DO
 

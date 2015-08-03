@@ -223,17 +223,17 @@ CPSourceFileRef,&
     DO ikind = 1, nkind
       CALL get_atomic_kind(atomic_kind_set(ikind), z=z,name=iname)
 
-      CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a)
+      CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a, error=error)
       IF (.NOT.ASSOCIATED(dftb_atom_a)) THEN
         CALL allocate_dftb_atom_param(dftb_atom_a,error=error)
-        CALL set_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a)
+        CALL set_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a,error=error)
       END IF
 
       ! read all pairs, equal kind first
       jkind = ikind
 
       CALL get_atomic_kind(atomic_kind_set(jkind), name=jname)
-      CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_atom_b)
+      CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_atom_b, error=error)
 
       IF (output_unit > 0) THEN
         WRITE(output_unit,"(A,T30,A50)") " DFTB| Reading parameter file ",&
@@ -431,18 +431,18 @@ CPSourceFileRef,&
     ! no all other pairs
     DO ikind = 1, nkind
       CALL get_atomic_kind(atomic_kind_set(ikind), z=z,name=iname)
-      CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a)
+      CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a, error=error)
 
       IF (.NOT.ASSOCIATED(dftb_atom_a)) THEN
         CALL allocate_dftb_atom_param(dftb_atom_a,error=error)
-        CALL set_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a)
+        CALL set_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a,error=error)
       END IF
 
       DO jkind = 1, nkind
 
         IF ( ikind == jkind ) CYCLE
         CALL get_atomic_kind(atomic_kind_set(jkind), name=jname)
-        CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_atom_b)
+        CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_atom_b, error=error)
 
         IF (output_unit > 0) THEN
           WRITE(output_unit,"(A,T30,A50)") " DFTB| Reading parameter file ",&
@@ -608,7 +608,7 @@ CPSourceFileRef,&
                     TRIM(dftb_control%uff_force_field)
         DO ikind = 1, nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), name=iname)
-          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a, error=error)
 
           m = LEN_TRIM(iname)
           NULLIFY(parser)
@@ -641,16 +641,16 @@ CPSourceFileRef,&
 
     ! extract simple atom interaction radii
     DO ikind = 1, nkind
-      CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a)
+      CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a, error=error)
       radmax = (dftb_potential(ikind,ikind)%ngrdcut + 1) * &
                dftb_potential(ikind,ikind)%dgrd*0.5_dp
       CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a,cutoff=radmax,error=error)
     END DO
     DO ikind = 1, nkind
-      CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a)
+      CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a, error=error)
       CALL get_dftb_atom_param(dftb_parameter=dftb_atom_a,cutoff=ra,error=error)
       DO jkind = 1, nkind
-        CALL get_qs_kind(qs_kind_set(jkind),dftb_parameter=dftb_atom_b)
+        CALL get_qs_kind(qs_kind_set(jkind),dftb_parameter=dftb_atom_b, error=error)
         CALL get_dftb_atom_param(dftb_parameter=dftb_atom_b,cutoff=rb,error=error)
         radmax = (dftb_potential(ikind,jkind)%ngrdcut + 1) * &
                  dftb_potential(ikind,jkind)%dgrd
@@ -665,7 +665,7 @@ CPSourceFileRef,&
 
     ! set correct core charge in potential
     DO ikind = 1, nkind
-      CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a)
+      CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom_a, error=error)
       CALL get_dftb_atom_param(dftb_parameter=dftb_atom_a,zeff=zeff,error=error)
       CALL set_potential(potential=qs_kind_set(ikind)%all_potential,&
                   zeff=zeff,zeff_correction=0.0_dp)
@@ -674,8 +674,8 @@ CPSourceFileRef,&
     ! setup DFTB3 parameters
     IF ( dftb_control%dftb3_diagonal ) THEN
       DO ikind = 1, nkind
-        CALL get_qs_kind(qs_kind_set(ikind), dftb3_param=db)
-        CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_atom_a)
+        CALL get_qs_kind(qs_kind_set(ikind), dftb3_param=db, error=error)
+        CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_atom_a, error=error)
         CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a,dudq=db,error=error)
       END DO
     END IF
@@ -685,11 +685,11 @@ CPSourceFileRef,&
       IF ( dftb_control%dispersion_type == dispersion_uff ) THEN
         eps_disp = dftb_control%eps_disp
         DO ikind = 1, nkind
-          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_atom_a)
+          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_atom_a, error=error)
           CALL get_dftb_atom_param(dftb_parameter=dftb_atom_a,xi=ra,di=da,error=error)
           rcdisp = 0._dp
           DO jkind = 1, nkind
-            CALL get_qs_kind(qs_kind_set(jkind),dftb_parameter=dftb_atom_b)
+            CALL get_qs_kind(qs_kind_set(jkind),dftb_parameter=dftb_atom_b, error=error)
             CALL get_dftb_atom_param(dftb_parameter=dftb_atom_b,xi=rb,di=db,error=error)
             xij = SQRT(ra*rb)
             dij = SQRT(da*db)

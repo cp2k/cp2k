@@ -43,8 +43,6 @@ MODULE mp2_ri_gpw
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
-  USE input_constants,                 ONLY: use_orb_basis_set,&
-                                             use_ri_aux_basis_set
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_flush,&
@@ -85,7 +83,8 @@ MODULE mp2_ri_gpw
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace,&
                                              integrate_v_rspace
-  USE qs_kind_types,                   ONLY: qs_kind_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -475,8 +474,8 @@ MODULE mp2_ri_gpw
 
       ! pseudo psi_L
       CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set, &
-                                  qs_kind_set,cell,dft_control,particle_set, &
-                                  pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
+                                  qs_kind_set,cell,dft_control,particle_set, pw_env_sub,&
+                                  basis_type="RI_AUX",&
                                   external_vector=my_Lrows(:,LLL-my_group_L_start+1),&
                                   error=error_sub)
 
@@ -492,7 +491,7 @@ MODULE mp2_ri_gpw
       CALL timeset(routineN//"_int",handle3)
       CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
       CALL integrate_v_rspace(rho_r,hmat=mat_munu,qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
-         basis_set_id=use_orb_basis_set, pw_env_external=pw_env_sub, task_list_external=task_list_sub, error=error_sub)
+           pw_env_external=pw_env_sub, task_list_external=task_list_sub, error=error_sub)
       CALL timestop(handle3)
 
       ! multiply and goooooooo ...
@@ -605,8 +604,8 @@ MODULE mp2_ri_gpw
   
         ! pseudo psi_L
         CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set, &
-                                    qs_kind_set,cell,dft_control,particle_set, &
-                                    pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
+                                    qs_kind_set,cell,dft_control,particle_set, pw_env_sub,&
+                                    basis_type="RI_AUX",&
                                     external_vector=my_Lrows(:,LLL-my_group_L_start+1),&
                                     error=error_sub)
   
@@ -627,7 +626,7 @@ MODULE mp2_ri_gpw
         CALL timeset(routineN//"_int_trunc",handle3)
         CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
         CALL integrate_v_rspace(rho_r,hmat=mat_munu,qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
-           basis_set_id=use_orb_basis_set, pw_env_external=pw_env_sub, task_list_external=task_list_sub, error=error_sub)
+             pw_env_external=pw_env_sub, task_list_external=task_list_sub, error=error_sub)
         CALL timestop(handle3)
  
         CALL timeset(routineN//"_mult_gw_trunc",handle3)
@@ -947,7 +946,7 @@ MODULE mp2_ri_gpw
       location(3), m, my_group_L_q_end, my_group_L_q_size, &
       my_group_L_q_start, my_group_pot_end, my_group_pot_size, &
       my_group_pot_start, na1, na2, natom, ncoa, ncoa_a, ncoa_b, ncol_local
-    INTEGER :: nkind, nrow_local, nseta, nsetb, offset, offsetb, &
+    INTEGER :: nkind, nrow_local, nseta, nsetb, nsgf, offset, offsetb, &
       proc_receive, proc_receive_static, proc_send, proc_send_static, &
       proc_shift, rec_L_end, rec_L_size, rec_L_start, sgfa, sgfb, stat, &
       strat_group_size, sub_sub_color, tp(3), ub(3)
@@ -1024,15 +1023,15 @@ MODULE mp2_ri_gpw
     CALL get_atomic_kind_set(atomic_kind_set,kind_of=kind_of)
 
     DO ikind=1, nkind
-      CPPrecondition(ASSOCIATED(qs_kind_set(ikind)%ri_aux_basis_set),cp_failure_level,routineP,error,failure)
-      ! qs_kind_set(ikind)%ri_aux_basis_set%norm_type=2
-      ! CALL init_orb_basis_set(qs_kind_set(ikind)%ri_aux_basis_set,error)
+      CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,basis_type="RI_AUX",error=error)
+      CPPrecondition(ASSOCIATED(basis_set_a),cp_failure_level,routineP,error,failure)
     END DO
 
     dimen_RI=0
     DO iatom=1, natom
       ikind=kind_of(iatom)
-      dimen_RI=dimen_RI+qs_kind_set(ikind)%ri_aux_basis_set%nsgf
+      CALL get_qs_kind(qs_kind=qs_kind_set(ikind),nsgf=nsgf,basis_type="RI_AUX",error=error)
+      dimen_RI=dimen_RI+nsgf
     END DO
 
     ! calculate wich rows of L^{-1} to have
@@ -1088,7 +1087,7 @@ MODULE mp2_ri_gpw
  
       DO iatom=1, natom
         ikind=kind_of(iatom)
-        basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+        CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,basis_type="RI_AUX",error=error)
   
         la_max       =>  basis_set_a%lmax
         la_min       =>  basis_set_a%lmin
@@ -1307,7 +1306,7 @@ MODULE mp2_ri_gpw
        PRINT *, 'naolimits'
        DO iatom=1,natom
           ikind=kind_of(iatom)
-          basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+          CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,basis_type="RI_AUX",error=error)
           nseta        =   basis_set_a%nset
     
           DO iset=1, nseta
@@ -1318,7 +1317,7 @@ MODULE mp2_ri_gpw
        PRINT *, 'ref_at_se_sgf_ofs'
        DO iatom=1,natom
           ikind=kind_of(iatom)
-          basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+          CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,basis_type="RI_AUX",error=error)
           nseta        =   basis_set_a%nset
     
           DO iset=1, nseta
@@ -1343,7 +1342,7 @@ MODULE mp2_ri_gpw
        my_group_L_q_end = naolimits(ref_matrix(my_group_L_end,3)+1,1,1)-1
      ELSE
        nkind=kind_of(natom)
-       basis_set_a => qs_kind_set(nkind)%ri_aux_basis_set
+       CALL get_qs_kind(qs_kind=qs_kind_set(nkind),basis_set=basis_set_a,basis_type="RI_AUX",error=error)
        nseta       =  basis_set_a%nset
        my_group_L_q_end = naolimits(ref_matrix(my_group_L_end,3),nseta,2)
      END IF
@@ -1396,7 +1395,7 @@ MODULE mp2_ri_gpw
         jatom = atom_set_afo_diffbf_atanyatom(j,1)
         jset  = atom_set_afo_diffbf_atanyatom(j,2)
         jkind = kind_of(jatom)
-        basis_set_b  =>  qs_kind_set(jkind)%ri_aux_basis_set
+        CALL get_qs_kind(qs_kind=qs_kind_set(jkind),basis_set=basis_set_b,basis_type="RI_AUX",error=error)
         zetb         =>  basis_set_b%zet
         lb_max       =>  basis_set_b%lmax
   
@@ -1405,8 +1404,8 @@ MODULE mp2_ri_gpw
   
         ! pseudo psi_L
         CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set,&
-                                    qs_kind_set,cell,dft_control,particle_set, &
-                                    pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
+                                    qs_kind_set,cell,dft_control,particle_set, pw_env_sub,&
+                                    basis_type="RI_AUX",&
                                     external_vector=wf_vector,&
                                     error=error_sub)
   
@@ -1439,8 +1438,8 @@ MODULE mp2_ri_gpw
         wf_vector=0.0_dp
         ! pseudo psi_L 
         CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set,&
-                                    qs_kind_set,cell,dft_control,particle_set, &
-                                    pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
+                                    qs_kind_set,cell,dft_control,particle_set,pw_env_sub,&
+                                    basis_type="RI_AUX",&
                                     external_vector=wf_vector,&
                                     error=error_sub)
   
@@ -1504,7 +1503,7 @@ MODULE mp2_ri_gpw
         j_ref_set  = atom_set_afo_diffbf_atanyatom(j_ref_bf,2)
   
         j_ref_kind = kind_of(j_ref_atom)
-        basis_set_b  =>  qs_kind_set(j_ref_kind)%ri_aux_basis_set
+        CALL get_qs_kind(qs_kind=qs_kind_set(j_ref_kind),basis_set=basis_set_b,basis_type="RI_AUX",error=error)
         zetb         =>  basis_set_b%zet
         lb_max       =>  basis_set_b%lmax
   
@@ -1526,7 +1525,7 @@ MODULE mp2_ri_gpw
            iset  = diffsets_atom_set_bf(i,2)
   
            ikind=kind_of(iatom)
-           basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+           CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,basis_type="RI_AUX",error=error)
   
            first_sgfa   =>  basis_set_a%first_sgf
            la_max       =>  basis_set_a%lmax
@@ -1648,7 +1647,7 @@ MODULE mp2_ri_gpw
   
      DO  iatom=1, natom
        ikind=kind_of(iatom)
-       basis_set_a  =>  qs_kind_set(ikind)%ri_aux_basis_set
+       CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,basis_type="RI_AUX",error=error)
        first_sgfa   =>  basis_set_a%first_sgf
        la_max       =>  basis_set_a%lmax
        la_min       =>  basis_set_a%lmin
@@ -1666,7 +1665,7 @@ MODULE mp2_ri_gpw
   
          DO jatom=1, natom
            jkind=kind_of(jatom)
-           basis_set_b  => qs_kind_set(jkind)%ri_aux_basis_set
+           CALL get_qs_kind(qs_kind=qs_kind_set(jkind),basis_set=basis_set_b,basis_type="RI_AUX",error=error)
            first_sgfb   =>  basis_set_b%first_sgf
            lb_max       =>  basis_set_b%lmax
            lb_min       =>  basis_set_b%lmin
@@ -1741,7 +1740,7 @@ MODULE mp2_ri_gpw
                               iatom=iatom,jatom=jatom,r=rac)
   
        ikind=kind_of(iatom)
-       basis_set_a  =>  qs_kind_set(ikind)%ri_aux_basis_set
+       CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,basis_type="RI_AUX",error=error)
        first_sgfa   =>  basis_set_a%first_sgf
        la_max       =>  basis_set_a%lmax
        la_min       =>  basis_set_a%lmin
@@ -1756,7 +1755,7 @@ MODULE mp2_ri_gpw
        DO iset=1, nseta
   
            jkind=kind_of(jatom)
-           basis_set_b  => qs_kind_set(jkind)%ri_aux_basis_set
+           CALL get_qs_kind(qs_kind=qs_kind_set(jkind),basis_set=basis_set_b,basis_type="RI_AUX",error=error)
            first_sgfb   =>  basis_set_b%first_sgf
            lb_max       =>  basis_set_b%lmax
            lb_min       =>  basis_set_b%lmin
@@ -1911,8 +1910,8 @@ MODULE mp2_ri_gpw
   
         ! pseudo psi_L
         CALL calculate_wavefunction(mo_coeff,1,psi_L,rho_g, atomic_kind_set,&
-                                    qs_kind_set,cell,dft_control,particle_set, &
-                                    pw_env_sub,basis_set_id=use_ri_aux_basis_set,&
+                                    qs_kind_set,cell,dft_control,particle_set,pw_env_sub,&
+                                    basis_type="RI_AUX",&
                                     external_vector=wf_vector,&
                                     error=error_sub)
   
@@ -1937,7 +1936,7 @@ MODULE mp2_ri_gpw
         offset=0
         DO iatom=1, natom
           ikind=kind_of(iatom)
-          basis_set_a => qs_kind_set(ikind)%ri_aux_basis_set
+          CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,basis_type="RI_AUX",error=error)
   
           first_sgfa   =>  basis_set_a%first_sgf
           la_max       =>  basis_set_a%lmax

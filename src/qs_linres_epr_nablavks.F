@@ -361,7 +361,7 @@ CONTAINS
                            hard_radius=hard_radius,&
                            paw_atom=paw_atom,&
                            zeff=charge,&
-                           alpha_core_charge=alpha_core)
+                           alpha_core_charge=alpha_core, error=error)
 
           IF (paw_atom) THEN
 
@@ -524,7 +524,7 @@ CONTAINS
                         hard_radius=hard_radius,&
                         gth_potential=gth_potential,&
                         all_potential=all_potential,&
-                        paw_atom=paw_atom)
+                        paw_atom=paw_atom, error=error)
 
        IF (ASSOCIATED(gth_potential)) THEN
 

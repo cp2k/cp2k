@@ -446,7 +446,7 @@ CONTAINS
                            hard_radius=hard_radius,&
                            grid_atom=grid_atom,&
                            harmonics=harmonics,&
-                           paw_atom=paw_atom)
+                           paw_atom=paw_atom, error=error)
 
           IF (.NOT.paw_atom) CYCLE
 
@@ -738,7 +738,7 @@ CONTAINS
                            hard_radius=hard_radius,&
                            grid_atom=grid_atom,&
                            harmonics=harmonics,&
-                           paw_atom=paw_atom)
+                           paw_atom=paw_atom, error=error)
 
           IF (.NOT.paw_atom) CYCLE
 

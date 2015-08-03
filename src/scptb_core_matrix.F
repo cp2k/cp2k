@@ -24,7 +24,6 @@ MODULE scptb_core_matrix
                                              cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: use_orb_basis_set
   USE kinds,                           ONLY: dp
   USE kpoint_types,                    ONLY: get_kpoint_info,&
                                              kpoint_type
@@ -186,15 +185,15 @@ CONTAINS
        ! S matrix
        CALL build_overlap_matrix(ks_env,nderivative=nder,matrixkp_s=matrix_s,&
                                  matrix_name="OVERLAP MATRIX",&
-                                 basis_set_id_a=use_orb_basis_set,&
-                                 basis_set_id_b=use_orb_basis_set, &
+                                 basis_type_a="ORB",&
+                                 basis_type_b="ORB", &
                                  sab_nl=sab_orb,calculate_forces=.TRUE.,&
                                  matrixkp_p=matrix_w,&
                                  error=error)
        ! T matrix
        CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
-                                 basis_set_id=use_orb_basis_set,&
+                                 basis_type="ORB",&
                                  sab_nl=sab_orb,calculate_forces=.TRUE.,&
                                  matrixkp_p=matrix_p,&
                                  eps_filter=eps_filter,&
@@ -210,14 +209,14 @@ CONTAINS
        ! S matrix
        CALL build_overlap_matrix(ks_env,nderivative=nder,matrixkp_s=matrix_s,&
                                  matrix_name="OVERLAP MATRIX",&
-                                 basis_set_id_a=use_orb_basis_set,&
-                                 basis_set_id_b=use_orb_basis_set, &
+                                 basis_type_a="ORB",&
+                                 basis_type_b="ORB", &
                                  sab_nl=sab_orb,&
                                  error=error)
        ! T matrix
        CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
-                                 basis_set_id=use_orb_basis_set,&
+                                 basis_type="ORB",&
                                  sab_nl=sab_orb,&
                                  eps_filter=eps_filter,&
                                  error=error)
@@ -243,7 +242,7 @@ CONTAINS
     umt = 0._dp
     hmt = 0._dp
     DO ikind=1,nkind
-       CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind_a)
+       CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind_a, error=error)
        scptb_kind_param(ikind)%scptb_param => scptb_kind_a
        CALL get_scptb_parameter(scptb_kind_a,defined=defined)
        scptb_defined(ikind)=defined

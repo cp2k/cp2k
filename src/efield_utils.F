@@ -238,7 +238,7 @@ CONTAINS
 
        DO ikind=1,SIZE(atomic_kind_set)
           CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list,natom=natom)
-          CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff)
+          CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff,error=error)
 
           natom = SIZE(list)
           DO iatom=1,natom

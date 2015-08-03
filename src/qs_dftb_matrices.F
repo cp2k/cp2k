@@ -312,13 +312,13 @@ CONTAINS
        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,&
             iatom=iatom,jatom=jatom,inode=inode,r=rij,cell=cell)
        CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
-       CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind_a)
+       CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind_a, error=error)
        CALL get_dftb_atom_param(dftb_kind_a,&
               defined=defined,lmax=lmaxi,skself=skself,&
               eta=eta_a,natorb=natorb_a)
 
        IF (.NOT.defined .OR. natorb_a < 1) CYCLE
-       CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind_b)
+       CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind_b, error=error)
        CALL get_dftb_atom_param(dftb_kind_b,&
               defined=defined,lmax=lmaxj,eta=eta_b,natorb=natorb_b)
 
@@ -709,7 +709,7 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       DO ikind=1,nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
-         CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+         CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind, error=error)
          CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
          DO iatom=1,natom
            atom_a = atomic_kind_set(ikind)%atom_list(iatom)
@@ -875,14 +875,14 @@ CONTAINS
             iatom=iatom,jatom=jatom,inode=inode,r=rij)
 
        CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
-       CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind_a)
+       CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind_a, error=error)
        CALL get_dftb_atom_param(dftb_kind_a,&
               defined=defined,lmax=lmaxi,skself=skself,&
               natorb=natorb_a)
 
        IF (.NOT.defined .OR. natorb_a < 1) CYCLE
 
-       CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind_b)
+       CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind_b, error=error)
        CALL get_dftb_atom_param(dftb_kind_b,&
               defined=defined,lmax=lmaxj,natorb=natorb_b)
 
@@ -1076,7 +1076,7 @@ CONTAINS
     DO ikind=1,nkind
        CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
        NULLIFY(dftb_kind)
-       CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+       CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
        CALL get_dftb_atom_param(dftb_kind,zeff=zeff,&
             defined=defined,eta=eta_a,natorb=natorb)
        ! use mm charge smearing for non-scc cases
@@ -1342,7 +1342,7 @@ CONTAINS
           DO ikind=1,nkind
              CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
              NULLIFY(dftb_kind)
-             CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+             CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
              CALL get_dftb_atom_param(dftb_kind,zeff=zeff,&
                   defined=defined,eta=eta_a,natorb=natorb)
              ! use mm charge smearing for non-scc cases
@@ -1374,7 +1374,7 @@ CONTAINS
           DO ikind=1,nkind
              CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
              NULLIFY(dftb_kind)
-             CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+             CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
              CALL get_dftb_atom_param(dftb_kind,zeff=zeff,&
                   defined=defined,eta=eta_a,natorb=natorb)
              ! use mm charge smearing for non-scc cases
@@ -1525,7 +1525,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
-          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind, error=error)
           CALL get_dftb_atom_param(dftb_kind, zeff=zeff)
           DO iatom=1,natom
             atom_a = atomic_kind_set(ikind)%atom_list(iatom)
@@ -1547,7 +1547,7 @@ CONTAINS
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
           NULLIFY(dftb_kind)
-          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
           CALL get_dftb_atom_param(dftb_kind,&
                defined=defined,eta=eta_a,natorb=natorb)
           ! use mm charge smearing for non-scc cases
@@ -1583,7 +1583,7 @@ CONTAINS
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
           NULLIFY(dftb_kind)
-          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
           CALL get_dftb_atom_param(dftb_kind,defined=defined,natorb=natorb)
           IF (.NOT.defined .OR. natorb < 1) CYCLE
           DO i = 1, SIZE(list)
@@ -1748,7 +1748,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
-          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind, error=error)
           CALL get_dftb_atom_param(dftb_kind, zeff=zeff)
           DO iatom=1,natom
             atom_a = atomic_kind_set(ikind)%atom_list(iatom)
@@ -1886,7 +1886,7 @@ CONTAINS
              DO ikind=1,nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
                 NULLIFY(dftb_kind)
-                CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+                CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
                 CALL get_dftb_atom_param(dftb_kind,&
                      defined=defined,eta=eta_a,natorb=natorb)
                 ! use mm charge smearing for non-scc cases
@@ -1932,7 +1932,7 @@ CONTAINS
              DO ikind=1,nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=list)
                 NULLIFY(dftb_kind)
-                CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+                CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
                 CALL get_dftb_atom_param(dftb_kind,&
                      defined=defined,eta=eta_a,natorb=natorb)
                 ! use mm charge smearing for non-scc cases
@@ -1973,7 +1973,7 @@ CONTAINS
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
           NULLIFY(dftb_kind)
-          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
           CALL get_dftb_atom_param(dftb_kind,defined=defined,natorb=natorb)
           IF (.NOT.defined .OR. natorb < 1) CYCLE
           DO i = 1, SIZE(list)
@@ -2330,7 +2330,7 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
-    CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
+    CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf, error=error)
 
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -2436,7 +2436,7 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
-    CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
+    CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf, error=error)
 
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

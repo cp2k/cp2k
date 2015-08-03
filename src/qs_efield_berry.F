@@ -307,7 +307,7 @@ MODULE qs_efield_berry
     zi(:) = CMPLX ( 1._dp, 0._dp, dp )
     DO ia = 1,natom
        CALL get_atomic_kind(particle_set(ia)%atomic_kind,kind_number=ikind)
-       CALL get_qs_kind(qs_kind_set(ikind),core_charge=charge)
+       CALL get_qs_kind(qs_kind_set(ikind),core_charge=charge,error=error)
        ria = particle_set(ia)%r
        ria = pbc(ria,cell)
        DO idir = 1, 3
@@ -396,7 +396,7 @@ MODULE qs_efield_berry
           CALL cp_dbcsr_set(tempmat(2,ispin)%matrix,0.0_dp,error=error)
        END DO
        ! integration
-       CALL get_qs_kind_set(qs_kind_set,maxco=ldab,maxsgf=lsab)
+       CALL get_qs_kind_set(qs_kind_set,maxco=ldab,maxsgf=lsab,error=error)
        ALLOCATE(cosab(ldab,ldab),sinab(ldab,ldab),work(ldab,ldab),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(dcosab(ldab,ldab,3),dsinab(ldab,ldab,3),STAT=istat)
@@ -487,7 +487,7 @@ MODULE qs_efield_berry
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
              DO ikind=1,nkind
                 qs_kind => qs_kind_set(ikind)
-                CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
+                CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
                 IF (ASSOCIATED(basis_set_a)) THEN
                    basis_set_list(ikind)%gto_basis_set => basis_set_a
                 ELSE
@@ -831,7 +831,7 @@ MODULE qs_efield_berry
     zi(:) = CMPLX ( 1._dp, 0._dp, dp )
     DO ia = 1,natom
        CALL get_atomic_kind(particle_set(ia)%atomic_kind,kind_number=ikind)
-       CALL get_qs_kind(qs_kind_set(ikind),core_charge=charge)
+       CALL get_qs_kind(qs_kind_set(ikind),core_charge=charge,error=error)
        ria = particle_set(ia)%r
        ria = pbc(ria,cell)
        DO idir = 1, 3
@@ -918,7 +918,7 @@ MODULE qs_efield_berry
           CALL cp_dbcsr_set(tempmat(2,ispin)%matrix,0.0_dp,error=error)
        END DO
        ! integration
-       CALL get_qs_kind_set(qs_kind_set,maxco=ldab,maxsgf=lsab)
+       CALL get_qs_kind_set(qs_kind_set,maxco=ldab,maxsgf=lsab,error=error)
        ALLOCATE(cosab(ldab,ldab),sinab(ldab,ldab),work(ldab,ldab),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(dcosab(ldab,ldab,3),dsinab(ldab,ldab,3),STAT=istat)
@@ -1009,7 +1009,7 @@ MODULE qs_efield_berry
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           DO ikind=1,nkind
              qs_kind => qs_kind_set(ikind)
-             CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
+             CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
              IF (ASSOCIATED(basis_set_a)) THEN
                 basis_set_list(ikind)%gto_basis_set => basis_set_a
              ELSE

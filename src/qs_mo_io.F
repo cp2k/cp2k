@@ -417,7 +417,7 @@ CONTAINS
           NULLIFY(orb_basis_set,dftb_parameter)
           CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
           CALL get_qs_kind(qs_kind_set(ikind),&
-               orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
+               basis_set=orb_basis_set,dftb_parameter=dftb_parameter,error=error)
           IF (ASSOCIATED(orb_basis_set)) THEN
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   nset=nset,&
@@ -455,7 +455,7 @@ CPSourceFileRef,&
           NULLIFY(orb_basis_set,dftb_parameter)
           CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
           CALL get_qs_kind(qs_kind_set(ikind),&
-               orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
+               basis_set=orb_basis_set,dftb_parameter=dftb_parameter,error=error)
           IF (ASSOCIATED(orb_basis_set)) THEN
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   nset=nset,&
@@ -1131,7 +1131,7 @@ CPSourceFileRef,&
                   NULLIFY(orb_basis_set,dftb_parameter,l,nshell)
                   CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
                   CALL get_qs_kind(qs_kind_set(ikind),&
-                       orb_basis_set=orb_basis_set,dftb_parameter=dftb_parameter)
+                       basis_set=orb_basis_set,dftb_parameter=dftb_parameter,error=error)
                   IF (ASSOCIATED(orb_basis_set)) THEN
                      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                           nset=nset,&
@@ -1407,7 +1407,7 @@ CPSourceFileRef,&
     IF (iw > 0) THEN
 
        CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-       CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
+       CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf,error=error)
 
        ! Definition of the variable formats
 
@@ -1459,8 +1459,8 @@ CPSourceFileRef,&
                 NULLIFY (orb_basis_set,dftb_parameter)
                 CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
                 CALL get_qs_kind(qs_kind_set(ikind),&
-                     orb_basis_set=orb_basis_set,&
-                     dftb_parameter=dftb_parameter)
+                     basis_set=orb_basis_set,&
+                     dftb_parameter=dftb_parameter,error=error)
                 IF (ASSOCIATED(orb_basis_set)) THEN
                    CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                         nset=nset,&
@@ -1568,8 +1568,8 @@ CPSourceFileRef,&
                 CALL get_atomic_kind(particle_set(iatom)%atomic_kind,&
                           element_symbol=element_symbol, kind_number=ikind)
                 CALL get_qs_kind(qs_kind_set(ikind),&
-                     orb_basis_set=orb_basis_set,&
-                     dftb_parameter=dftb_parameter)
+                     basis_set=orb_basis_set,&
+                     dftb_parameter=dftb_parameter,error=error)
 
                 IF (p_cart) THEN
 

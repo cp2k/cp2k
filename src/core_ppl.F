@@ -174,7 +174,7 @@ CONTAINS
     maxder = ncoset(nder)
 
     CALL get_qs_kind_set(qs_kind_set, maxco=maxco,maxlgto=maxlgto,&
-                         maxsgf=maxsgf,maxnset=maxnset, maxlppl=maxlppl)
+                         maxsgf=maxsgf,maxnset=maxnset, maxlppl=maxlppl,error=error)
 
     maxl = MAX(maxlgto,maxlppl)
     CALL init_orbital_pointers(2*maxl+2*nder+1)
@@ -185,7 +185,7 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -337,7 +337,7 @@ CONTAINS
        ! loop over all kinds for pseudopotential atoms
        DO kkind=1,nkind
 
-          CALL get_qs_kind(qs_kind_set(kkind),gth_potential=gth_potential)
+          CALL get_qs_kind(qs_kind_set(kkind),gth_potential=gth_potential,error=error)
           IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
           CALL get_potential(potential=gth_potential,&
                alpha_ppl=alpha,cexp_ppl=cexp_ppl,&

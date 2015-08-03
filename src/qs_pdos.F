@@ -229,7 +229,7 @@ CONTAINS
          matrix_s=s_matrix,error=error)
 
     CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf, maxlgto=maxlgto)
+    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf, maxlgto=maxlgto, error=error)
     nkind = SIZE(atomic_kind_set)
 
     CALL get_mo_set(mo_set=mo_set, mo_coeff=mo_coeff, homo=homo, nao=nao, nmo=nmo,&
@@ -575,7 +575,7 @@ CONTAINS
           firstrow(iatom)=irow
           NULLIFY(orb_basis_set)
           CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-          CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                           nset=nset,&
                           nshell=nshell,&
@@ -618,7 +618,7 @@ CONTAINS
           irow=firstrow(iatom)
           NULLIFY(orb_basis_set)
           CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-          CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
 
           CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                           nset=nset,&
@@ -701,7 +701,7 @@ CONTAINS
 
       NULLIFY(orb_basis_set)
       CALL get_atomic_kind(atomic_kind_set(ikind), name=kind_name)
-      CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+      CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set, maxl=maxl)
 
       ! basis none has no associated maxl, and no pdos

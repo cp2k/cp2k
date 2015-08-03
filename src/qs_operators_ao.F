@@ -138,7 +138,7 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
-                             maxsgf=maxsgf)
+                             maxsgf=maxsgf, error=error)
 
     ldai = ncoset(maxlgto+1)
     CALL init_orbital_pointers(ldai)
@@ -153,7 +153,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -518,7 +518,7 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
-                             maxsgf=maxsgf)
+                             maxsgf=maxsgf, error=error)
 
     ldai = ncoset(maxlgto+1)
     CALL init_orbital_pointers(ldai)
@@ -533,7 +533,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -911,7 +911,7 @@ CONTAINS
     nkind = SIZE(qs_kind_set)
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
-                             maxco=ldwork, maxlgto=maxl )
+                             maxco=ldwork, maxlgto=maxl, error=error )
 
     my_minimum_image = .FALSE.
     IF(PRESENT(minimum_image)) THEN
@@ -940,7 +940,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -1199,7 +1199,7 @@ CONTAINS
     nkind = SIZE(qs_kind_set)
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
-                             maxco=ldwork, maxlgto=maxl )
+                             maxco=ldwork, maxlgto=maxl, error=error )
 
     my_minimum_image = .FALSE.
     IF(PRESENT(minimum_image)) THEN
@@ -1235,7 +1235,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -1461,8 +1461,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), POINTER                  :: basis_set_list
-    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
-                                                orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
     TYPE(neighbor_list_set_p_type), &
@@ -1484,7 +1483,7 @@ CONTAINS
     END IF
 
     NULLIFY (qs_kind, qs_kind_set)
-    NULLIFY (cell, particle_set, orb_basis_set)
+    NULLIFY (cell, particle_set)
     NULLIFY (sab_all)
     NULLIFY (difmab, mab, mab_tmp)
     NULLIFY (op_dip, op_dip_der, work)
@@ -1498,7 +1497,7 @@ CONTAINS
     nkind = SIZE(qs_kind_set)
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
-                             maxco=ldwork, maxlgto=maxl )
+                             maxco=ldwork, maxlgto=maxl, error=error )
 
     my_minimum_image = .FALSE.
     IF(PRESENT(minimum_image)) THEN
@@ -1543,7 +1542,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE

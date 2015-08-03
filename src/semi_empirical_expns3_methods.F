@@ -61,7 +61,7 @@ CONTAINS
        NULLIFY(sepi, sepj)
        nkinds  = SIZE(qs_kind_set)
        DO i = 1, nkinds
-          CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi)
+          CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi, error=error)
           check = .NOT.ASSOCIATED(sepi%expns3_int)
           CPPostcondition(check,cp_failure_level,routineP,error,failure)
           ALLOCATE(sepi%expns3_int(nkinds),stat=stat)
@@ -74,9 +74,9 @@ CONTAINS
 
        itype = get_se_type(method_id)
        DO i = 1, nkinds
-          CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi)
+          CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi, error=error)
           DO j = 1, nkinds
-             CALL get_qs_kind(qs_kind_set(j), se_parameter=sepj)
+             CALL get_qs_kind(qs_kind_set(j), se_parameter=sepj, error=error)
              CALL setup_c3_coeff(sepi, sepj, i, j, itype, error)
           END DO
        END DO

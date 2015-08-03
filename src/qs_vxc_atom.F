@@ -220,8 +220,8 @@ CONTAINS
 
       DO ikind = 1, SIZE(atomic_kind_set)
         CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,natom=natom)
-        CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom,&
-                             harmonics=harmonics,grid_atom=grid_atom)
+        CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom,&
+                             harmonics=harmonics,grid_atom=grid_atom, error=error)
 
         IF (.NOT.paw_atom) CYCLE
 
@@ -593,7 +593,7 @@ CONTAINS
       NULLIFY(atom_list, harmonics, grid_atom)
       CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,natom=natom)
       CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom,&
-                           harmonics=harmonics,grid_atom=grid_atom)
+                           harmonics=harmonics,grid_atom=grid_atom, error=error)
       IF (.NOT.paw_atom) CYCLE
 
       nr = grid_atom%nr
@@ -1003,9 +1003,8 @@ CONTAINS
 
     NULLIFY (lmin,lmax,npgf,zet,my_CG,harmonics,grid_atom)
 
-    CALL get_qs_kind(qs_kind, orb_basis_set=orb_basis,&
-                         harmonics=harmonics,&
-                         grid_atom=grid_atom)
+    CALL get_qs_kind(qs_kind,basis_set=orb_basis,&
+                         harmonics=harmonics,grid_atom=grid_atom,error=error)
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                            maxso=maxso,maxl=maxl,npgf=npgf,&
@@ -1208,9 +1207,8 @@ CONTAINS
 
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_CG_dxyz,harmonics,grid_atom)
 
-    CALL get_qs_kind(qs_kind, orb_basis_set=orb_basis,&
-                         harmonics=harmonics,&
-                         grid_atom=grid_atom)
+    CALL get_qs_kind(qs_kind,basis_set=orb_basis,&
+                         harmonics=harmonics,grid_atom=grid_atom,error=error)
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                            maxso=maxso,maxl=maxl,npgf=npgf,&
@@ -1495,8 +1493,8 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(harmonics,grid_atom)
-    CALL get_qs_kind(qs_kind,orb_basis_set=orb_basis,&
-                         harmonics=harmonics,grid_atom=grid_atom)
+    CALL get_qs_kind(qs_kind,basis_set=orb_basis,&
+                         harmonics=harmonics,grid_atom=grid_atom,error=error)
 
     NULLIFY(lmin,lmax,npgf,zet)
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&

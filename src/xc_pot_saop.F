@@ -671,7 +671,7 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=natom)
 
        CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom,&
-                            harmonics=harmonics, grid_atom=atomic_grid)
+                            harmonics=harmonics, grid_atom=atomic_grid, error=error)
        IF(.NOT. paw_atom) CYCLE
 
        nr = atomic_grid%nr

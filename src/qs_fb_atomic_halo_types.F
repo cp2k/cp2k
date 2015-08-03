@@ -570,19 +570,21 @@ CONTAINS
 !> \param qs_kind_set  : cp2k qs_kind objects, provides information on the
 !>                       number of contracted gaussian functions each kind
 !>                       has
+!> \param error ...
 !> \retval cost        : computation cost w.r.t. the filter matrix
 !>                       calculation for this atomic halo
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   FUNCTION fb_atomic_halo_cost(atomic_halo, &
                                particle_set, &
-                               qs_kind_set) &
+                               qs_kind_set,error) &
     RESULT(cost)
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       INTENT(IN)                             :: qs_kind_set
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: cost
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_cost', &
@@ -596,7 +598,7 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                             kind_number=ikind)
        CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
-                        ncgf=ncgf)
+                        ncgf=ncgf,error=error)
        cost = cost + REAL(ncgf, dp)
     END DO
     ! diagonalisation is N**3 process, so cost must reflect that

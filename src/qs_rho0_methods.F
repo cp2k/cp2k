@@ -465,14 +465,14 @@ MODULE qs_rho0_methods
     DO ikind=1, nkind
       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=nat)
       CALL get_qs_kind(qs_kind_set(ikind),&
-                       orb_basis_set=orb_basis,&
+                       basis_set=orb_basis,&
                        ngrid_rad=nr,&
                        grid_atom=grid_atom,&
                        harmonics=harmonics,&
                        paw_atom=paw_atom,&
                        hard0_radius=rc_orb,&
                        zeff=zeff,&
-                       alpha_core_charge=alpha_core)
+                       alpha_core_charge=alpha_core,error=error)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis,&
                              maxl=maxl,&
@@ -487,7 +487,7 @@ MODULE qs_rho0_methods
         rho0_mpole%lmax0_kind(ikind) = 0
       END IF
 
-      CALL set_qs_kind(qs_kind_set(ikind), lmax_rho0 = rho0_mpole%lmax0_kind(ikind))
+      CALL set_qs_kind(qs_kind_set(ikind), lmax_rho0 = rho0_mpole%lmax0_kind(ikind),error=error)
 
       IF(gapw_control%lrho1_eq_lrho0) harmonics%max_iso_not0 = &
            nsoset(rho0_mpole%lmax0_kind(ikind))
@@ -548,7 +548,7 @@ MODULE qs_rho0_methods
 !   and calculate the interaction radii
     max_rpgf0_s = 0.0_dp
     DO ikind = 1,nkind
-      CALL get_qs_kind(qs_kind_set(ikind),grid_atom=grid_atom)
+      CALL get_qs_kind(qs_kind_set(ikind),grid_atom=grid_atom,error=error)
       CALL calculate_g0(rho0_mpole,grid_atom,ikind)
       CALL interaction_radii_g0(rho0_mpole,ikind,eps_Vrho0,max_rpgf0_s)
     END DO

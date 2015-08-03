@@ -134,7 +134,7 @@ CONTAINS
        ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind_a)
+          CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind_a, error=error)
           scptb_kind_param(ikind)%scptb_param => scptb_kind_a
           CALL get_scptb_parameter(scptb_kind_a,defined=defined)
           scptb_defined(ikind)=defined

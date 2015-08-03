@@ -27,8 +27,7 @@ MODULE  rt_propagation_utils
                                              cp_fm_set_all,&
                                              cp_fm_to_fm
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: use_orb_basis_set,&
-                                             use_restart_wfn,&
+  USE input_constants,                 ONLY: use_restart_wfn,&
                                              use_rt_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
@@ -156,8 +155,7 @@ MODULE  rt_propagation_utils
           CALL build_dftb_overlap(qs_env,nder,s_derivs,error)
        ELSE
           CALL build_overlap_matrix(ks_env,nderivative=nder,matrix_s=s_derivs,&
-               basis_set_id_a=use_orb_basis_set,&
-               basis_set_id_b=use_orb_basis_set,sab_nl=sab_orb,error=error)
+               basis_type_a="ORB",basis_type_b="ORB",sab_nl=sab_orb,error=error)
        END IF        
 
        NULLIFY(tmp_mat2)

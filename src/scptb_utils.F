@@ -11,9 +11,11 @@ MODULE scptb_utils
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE basis_set_container_types,       ONLY: add_basis_set_to_container
   USE basis_set_types,                 ONLY: allocate_sto_basis_set,&
                                              create_gto_from_sto_basis,&
                                              deallocate_sto_basis_set,&
+                                             gto_basis_set_type,&
                                              set_sto_basis_set,&
                                              sto_basis_set_type
   USE cp_control_types,                ONLY: scptb_control_type
@@ -87,6 +89,8 @@ CONTAINS
     REAL(KIND=dp)                            :: a, c, d, eff, r, rmax, rmin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis
+    TYPE(qs_kind_type), POINTER              :: qs_kind
     TYPE(scptb_parameter_type), POINTER      :: scptb_parameter
     TYPE(sto_basis_set_type), POINTER        :: sto_basis
 
@@ -169,8 +173,10 @@ CONTAINS
          IF (nshell > 0) THEN
             CALL set_sto_basis_set(sto_basis,name=scptb_parameter%atomname,&
                  nshell=nshell,symbol=symbol,nq=nq,lq=lq,zet=zet)
-            CALL create_gto_from_sto_basis(sto_basis, qs_kind_set(ikind)%orb_basis_set,&
-                                           scptb_control%sto_ng,error=error)
+            qs_kind => qs_kind_set(ikind)
+            NULLIFY(gto_basis)
+            CALL create_gto_from_sto_basis(sto_basis,gto_basis,scptb_control%sto_ng,error=error)
+            CALL add_basis_set_to_container(qs_kind%basis_sets,gto_basis,"ORB",error)
          END IF
 
          DEALLOCATE (nq,lq,zet,symbol,STAT=stat)
@@ -206,7 +212,7 @@ CONTAINS
 
       END IF
 
-      CALL set_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_parameter)
+      CALL set_qs_kind(qs_kind_set(ikind), scptb_parameter=scptb_parameter, error=error)
 
     END DO
 

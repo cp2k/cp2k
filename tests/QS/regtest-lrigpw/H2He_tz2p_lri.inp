@@ -47,14 +47,14 @@ He     1.212436     0.000000     0.700000
      &END
     &END
     &KIND H
-      BASIS_SET adf_tz2p_basis
+      BASIS_SET ORB adf_tz2p_basis
       POTENTIAL GTH-PADE-q1
-      LRI_BASIS_SET adf_tz2p_fit_basis 
+      BASIS_SET LRI adf_tz2p_fit_basis 
     &END KIND
     &KIND He
-      BASIS_SET adf_tz2p_basis
+      BASIS_SET ORB adf_tz2p_basis
       POTENTIAL GTH-PADE-q2
-      LRI_BASIS_SET adf_tz2p_fit_basis
+      BASIS_SET LRI adf_tz2p_fit_basis
     &END KIND
   &END SUBSYS
 &END FORCE_EVAL

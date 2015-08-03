@@ -114,7 +114,7 @@ CONTAINS
 
     ! *** Get the matrix dimension and check the optional arguments ***
     CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
-    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf)
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf,error=error)
 
     IF (PRESENT(first_row)) THEN
       row1 = MAX(1,first_row)
@@ -402,7 +402,7 @@ CONTAINS
 
       natom = SIZE(particle_set)
 
-      CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf)
+      CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf,error=error)
 
       ALLOCATE (first_sgf(natom),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -446,7 +446,7 @@ CONTAINS
             NULLIFY(orb_basis_set)
             CALL get_atomic_kind(particle_set(iatom)%atomic_kind,&
                  kind_number=ikind, element_symbol=element_symbol)
-            CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+            CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set,error=error)
             IF ( ASSOCIATED(orb_basis_set) ) THEN
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                     nset=nset,nshell=nshell,l=lshell,sgf_symbol=sgf_symbol)

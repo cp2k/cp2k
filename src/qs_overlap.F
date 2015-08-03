@@ -92,8 +92,8 @@ CONTAINS
 !> \param   matrixkp_s The overlap matrices to be calculated (kpoints, optional)
 !> \param   matrix_name The name of the overlap matrix (i.e. for output)
 !> \param   nderivative Derivative with respect to basis origin
-!> \param   basis_set_id_a basis set to be used for bra in <a|b>
-!> \param   basis_set_id_b basis set to be used for ket in <a|b>
+!> \param   basis_type_a basis set to be used for bra in <a|b>
+!> \param   basis_type_b basis set to be used for ket in <a|b>
 !> \param   sab_nl pair list (must be consistent with basis sets!)
 !> \param   calculate_forces (optional)
 !> \param   matrix_p density matrix for force calculation (optional)
@@ -112,7 +112,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE build_overlap_matrix(ks_env, matrix_s, matrixkp_s, matrix_name,&
-     nderivative, basis_set_id_a, basis_set_id_b, sab_nl, calculate_forces,&
+     nderivative, basis_type_a, basis_type_b, sab_nl, calculate_forces,&
      matrix_p, matrixkp_p, error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -122,7 +122,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: matrixkp_s
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: matrix_name
     INTEGER, INTENT(IN), OPTIONAL            :: nderivative
-    INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
+    CHARACTER(LEN=*), INTENT(IN)             :: basis_type_a, basis_type_b
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
@@ -226,16 +226,22 @@ CONTAINS
      CPPrecondition(SIZE(sab_nl) > 0,cp_failure_level,routineP,error,failure)
      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl,symmetric=do_symmetric)
      IF (do_symmetric) THEN
-       CPPrecondition(basis_set_id_a == basis_set_id_b,cp_failure_level,routineP,error,failure)
+       CPPrecondition(basis_type_a == basis_type_b,cp_failure_level,routineP,error,failure)
      END IF
+
+     ! set up basis set lists
+     ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind),STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CALL basis_set_list_setup(basis_set_list_a,basis_type_a,qs_kind_set,error=error)
+     CALL basis_set_list_setup(basis_set_list_b,basis_type_b,qs_kind_set,error=error)
 
      IF(dokp) THEN
         CALL cp_dbcsr_allocate_matrix_set(matrixkp_s,maxder,nimg,error=error)
-        CALL create_sab_matrix(ks_env, matrixkp_s, matrix_name, basis_set_id_a, basis_set_id_b, &
+        CALL create_sab_matrix(ks_env, matrixkp_s, matrix_name, basis_set_list_a, basis_set_list_b, &
                                sab_nl, do_symmetric, error)
      ELSE
         CALL cp_dbcsr_allocate_matrix_set(matrix_s,maxder,error=error)
-        CALL create_sab_matrix(ks_env, matrix_s, matrix_name, basis_set_id_a, basis_set_id_b, &
+        CALL create_sab_matrix(ks_env, matrix_s, matrix_name, basis_set_list_a, basis_set_list_b, &
                                sab_nl, do_symmetric, error)
      END IF
      maxs = maxder
@@ -245,7 +251,7 @@ CONTAINS
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
      END IF
 
-     ldsab = get_memory_usage(qs_kind_set,basis_set_id_a,basis_set_id_b)
+     ldsab = get_memory_usage(qs_kind_set,basis_type_a,basis_type_b,error=error)
      IF (do_forces) THEN
         ! we need density matrix for forces
         IF(dokp) THEN
@@ -266,11 +272,6 @@ CONTAINS
      DO i=1,maxs
        NULLIFY (sint(i)%block)
      END DO
-
-     ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     CALL basis_set_list_setup(basis_set_list_a,basis_set_id_a,qs_kind_set)
-     CALL basis_set_list_setup(basis_set_list_b,basis_set_id_b,qs_kind_set)
 
      CALL neighbor_list_iterator_create(nl_iterator,sab_nl)
      DO WHILE (neighbor_list_iterate(nl_iterator)==0)
@@ -461,8 +462,8 @@ CONTAINS
 !>          over Cartesian Gaussian functions.
 !> \param   ks_env the QS environment
 !> \param   force holds the calcuated force Tr(P dS/dR)
-!> \param   basis_set_id_a basis set to be used for bra in <a|b>
-!> \param   basis_set_id_b basis set to be used for ket in <a|b>
+!> \param   basis_type_a basis set to be used for bra in <a|b>
+!> \param   basis_type_b basis set to be used for ket in <a|b>
 !> \param   sab_nl pair list (must be consistent with basis sets!)
 !> \param   matrix_p density matrix for force calculation 
 !> \param   error for error handling
@@ -478,13 +479,13 @@ CONTAINS
 !> \author  MK/JGH
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE build_overlap_force(ks_env, force, basis_set_id_a, basis_set_id_b, &
+  SUBROUTINE build_overlap_force(ks_env, force, basis_type_a, basis_type_b, &
                                  sab_nl, matrix_p, error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: force
-    INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
+    CHARACTER(LEN=*), INTENT(IN)             :: basis_type_a, basis_type_b
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     TYPE(cp_dbcsr_type), POINTER             :: matrix_p
@@ -539,7 +540,7 @@ CONTAINS
      use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
      ! *** Allocate work storage ***
-     ldsab = get_memory_usage(qs_kind_set,basis_set_id_a,basis_set_id_b)
+     ldsab = get_memory_usage(qs_kind_set,basis_type_a,basis_type_b,error=error)
      ALLOCATE (sab(ldsab,ldsab),pab(ldsab,ldsab),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      ALLOCATE (drab(ldsab,ldsab,3),STAT=istat)
@@ -548,8 +549,8 @@ CONTAINS
      ! set up basis sets
      ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     CALL basis_set_list_setup(basis_set_list_a,basis_set_id_a,qs_kind_set)
-     CALL basis_set_list_setup(basis_set_list_b,basis_set_id_b,qs_kind_set)
+     CALL basis_set_list_setup(basis_set_list_a,basis_type_a,qs_kind_set,error=error)
+     CALL basis_set_list_setup(basis_set_list_b,basis_type_b,qs_kind_set,error=error)
 
      ! Loop over neighbor list
      CALL neighbor_list_iterator_create(nl_iterator,sab_nl)
@@ -673,20 +674,22 @@ CONTAINS
 !> \param ks_env         The QS environment
 !> \param matrix_s       Matrices to be constructed
 !> \param matrix_name    Matrix base name
-!> \param basis_set_id_a Basis set used for <a|
-!> \param basis_set_id_b Basis set used for |b>
+!> \param basis_set_list_a Basis set used for <a|
+!> \param basis_set_list_b Basis set used for |b>
 !> \param sab_nl         Overlap neighbor list
 !> \param symmetric      Is symmetry used in the neighbor list?
 !> \param error          CP2K error reporting
 ! *****************************************************************************
   SUBROUTINE create_sab_matrix_1d(ks_env, matrix_s, matrix_name,&
-     basis_set_id_a, basis_set_id_b, sab_nl, symmetric, error)
+     basis_set_list_a, basis_set_list_b, sab_nl, symmetric, error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: matrix_name
-    INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list_a, &
+                                                basis_set_list_b
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     LOGICAL, INTENT(IN)                      :: symmetric
@@ -726,9 +729,9 @@ CONTAINS
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
      CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes,&
-                           basis_set_id=basis_set_id_a,error=error)
+                           basis=basis_set_list_a,error=error)
      CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes,&
-                           basis_set_id=basis_set_id_b,error=error)
+                           basis=basis_set_list_b,error=error)
 
      ! prepare for allocation
      IF (symmetric) THEN
@@ -771,7 +774,6 @@ CONTAINS
      DEALLOCATE(row_blk_sizes,col_blk_sizes)
 
   END SUBROUTINE create_sab_matrix_1d
-! *****************************************************************************
 
 ! *****************************************************************************
 !> \brief Setup the structure of a sparse matrix based on the overlap 
@@ -779,20 +781,22 @@ CONTAINS
 !> \param ks_env         The QS environment
 !> \param matrix_s       Matrices to be constructed
 !> \param matrix_name    Matrix base name
-!> \param basis_set_id_a Basis set used for <a|
-!> \param basis_set_id_b Basis set used for |b>
+!> \param basis_set_list_a Basis set used for <a|
+!> \param basis_set_list_b Basis set used for |b>
 !> \param sab_nl         Overlap neighbor list
 !> \param symmetric      Is symmetry used in the neighbor list?
 !> \param error          CP2K error reporting
 ! *****************************************************************************
   SUBROUTINE create_sab_matrix_2d(ks_env, matrix_s, matrix_name,&
-     basis_set_id_a, basis_set_id_b, sab_nl, symmetric, error)
+     basis_set_list_a, basis_set_list_b, sab_nl, symmetric, error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_s
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: matrix_name
-    INTEGER, INTENT(IN)                      :: basis_set_id_a, basis_set_id_b
+    TYPE(gto_basis_set_p_type), &
+      DIMENSION(:), POINTER                  :: basis_set_list_a, &
+                                                basis_set_list_b
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     LOGICAL, INTENT(IN)                      :: symmetric
@@ -834,9 +838,9 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes,&
-                          basis_set_id=basis_set_id_a,error=error)
+                          basis=basis_set_list_a,error=error)
     CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes,&
-                          basis_set_id=basis_set_id_b,error=error)
+                          basis=basis_set_list_b,error=error)
 
     ! prepare for allocation
     IF (symmetric) THEN

@@ -47,7 +47,8 @@ MODULE qs_neighbor_lists
                                              vdw_pairpot_dftd3,&
                                              vdw_pairpot_dftd3bj,&
                                              xc_vdw_fun_pairpot
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -244,10 +245,9 @@ CONTAINS
        NULLIFY (atom2d(ikind)%list_b_mol)
 
        CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom2d(ikind)%list)
-       CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+       CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
 
        natom_a = SIZE(atom2d(ikind)%list)
-
 
        natom_local_a = distribution_2d%n_local_rows(ikind)
        natom_local_b = distribution_2d%n_local_cols(ikind)
@@ -272,7 +272,7 @@ CONTAINS
        ELSE IF (dftb) THEN
           ! Set the interaction radius for the neighbor lists (DFTB case)
           ! This includes all interactions (orbitals and short range pair potential) except vdW
-          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom,error=error)
           CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
                                    cutoff=orb_radius(ikind),&
                                    defined=orb_present(ikind),error=error)
@@ -362,15 +362,15 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: print_key_path
     INTEGER                                  :: handle, ikind, iw, maxatom, &
-                                                nkind, stat, zat
-    LOGICAL :: all_potential_present, almo, dftb, dokp, failure, &
-      gth_potential_present, lri_optbas, lrigpw, mic, molecule_only, nddo, &
-      paw_atom, paw_atom_present, scptb
+                                                nkind, numshells, stat, zat
+    LOGICAL :: all_potential_present, almo, dftb, do_hfx, dokp, explicit, &
+      failure, gth_potential_present, lri_optbas, lrigpw, mic, molecule_only, &
+      nddo, paw_atom, paw_atom_present, scptb
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
       aux_present, core_present, default_present, oce_present, orb_present, &
       ppl_present, ppnl_present
     REAL(dp)                                 :: almo_rcov, almo_rvdw, alpha, &
-                                                subcells
+                                                roperator, subcells
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, aux_fit_radius, &
       c_radius, calpha, core_radius, oce_radius, orb_radius, ppl_radius, &
       ppnl_radius, zeff
@@ -395,8 +395,8 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_all, &
       sab_almo, sab_aux_fit, sab_aux_fit_asymm, sab_aux_fit_vs_orb, sab_cn, &
-      sab_core, sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, sac_ae, &
-      sac_ppl, sap_oce, sap_ppnl, soo_list
+      sab_core, sab_kp, sab_lrc, sab_orb, sab_scp, sab_se, sab_tbe, sab_vdw, &
+      sac_ae, sac_ppl, sap_oce, sap_ppnl, soo_list
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -406,7 +406,8 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
-    TYPE(section_vals_type), POINTER         :: neighbor_list_section
+    TYPE(section_vals_type), POINTER         :: hfx_sections, &
+                                                neighbor_list_section
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
@@ -434,6 +435,7 @@ CONTAINS
     NULLIFY (soo_list)
     NULLIFY (sab_scp)
     NULLIFY (sab_almo)
+    NULLIFY (sab_kp)
 
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&
@@ -476,6 +478,7 @@ CONTAINS
                     sab_scp=sab_scp, &
                     sab_all=sab_all, &
                     sab_almo=sab_almo, &
+                    sab_kp=sab_kp, &
                     error=error)
 
     dokp = (kpoints%nkp > 0)
@@ -486,10 +489,13 @@ CONTAINS
     lrigpw = (dft_control%qs_control%method_id == do_method_lrigpw)
     lri_optbas = dft_control%qs_control%lri_optbas
 
+    hfx_sections => section_vals_get_subs_vals(qs_env%input,"DFT%XC%HF",error=error)
+    CALL section_vals_get(hfx_sections,explicit=do_hfx,error=error)
+
     CALL get_atomic_kind_set(atomic_kind_set, maxatom=maxatom)
     CALL get_qs_kind_set(qs_kind_set, paw_atom_present=paw_atom_present,&
                          gth_potential_present=gth_potential_present,&
-                         all_potential_present=all_potential_present)
+                         all_potential_present=all_potential_present,error=error)
 
     CALL section_vals_val_get(qs_env%input,"DFT%SUBCELLS",r_val=subcells,error=error)
 
@@ -547,14 +553,15 @@ CONTAINS
 
        CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom2d(ikind)%list)
 
+       CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set,basis_type="ORB",error=error)
+       CALL get_qs_kind(qs_kind_set(ikind),basis_set=aux_basis_set,basis_type="AUX",error=error)
+       CALL get_qs_kind(qs_kind_set(ikind),basis_set=aux_fit_basis_set,basis_type="AUX_FIT",error=error)
+
        CALL get_qs_kind(qs_kind_set(ikind),&
-                        orb_basis_set=orb_basis_set,&
-                        aux_basis_set=aux_basis_set,&
-                        aux_fit_basis_set=aux_fit_basis_set,&
                         paw_proj_set=paw_proj,&
                         paw_atom=paw_atom,&
                         all_potential=all_potential,&
-                        gth_potential=gth_potential)
+                        gth_potential=gth_potential,error=error)
 
        ! SCP
        IF (ASSOCIATED(aux_basis_set)) THEN
@@ -574,7 +581,7 @@ CONTAINS
        CALL get_qs_kind(qs_kind_set(ikind),&
                         alpha_core_charge=calpha(ikind),&
                         core_charge_radius=core_radius(ikind),&
-                        zeff=zeff(ikind))
+                        zeff=zeff(ikind),error=error)
        IF(zeff(ikind) /= 0._dp .AND. calpha(ikind) /= 0._dp) THEN
          core_present(ikind) = .TRUE.
        ELSE
@@ -658,7 +665,6 @@ CONTAINS
             "/SAB_CORE","sab_core","CORE CORE",error)
     ENDIF
 
-
     IF(dft_control%do_admm) THEN
        CALL pair_radius_setup(aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,pair_radius,error)
        CALL build_neighbor_lists(sab_aux_fit,particle_set,atom2d,cell,pair_radius,&
@@ -681,6 +687,41 @@ CONTAINS
             "/SAB_AUX_FIT_VS_ORB","sab_aux_fit_vs_orb","ORBITAL AUX_FIT_ORBITAL",error)
     END IF
 
+    IF(dokp) THEN
+      ! We try to guess an integration radius for K-points
+      ! For non-HFX calculations we use the overlap list
+      ! For HFX we use the interaction radius of kinds (ORB or ADMM basis)
+      ! plus a range for the operator (some arbitrary guess, should be revisited!)
+      IF(do_hfx) THEN
+        roperator = 0.0_dp
+        CALL section_vals_val_get(hfx_sections,"INTERACTION_POTENTIAL%CUTOFF_RADIUS",&
+             explicit=explicit,error=error)
+        IF(explicit) THEN
+          CALL section_vals_val_get(hfx_sections,"INTERACTION_POTENTIAL%CUTOFF_RADIUS",&
+               r_val=roperator,error=error)
+        ELSE
+          CALL section_vals_val_get(hfx_sections,"PERIODIC%NUMBER_OF_SHELLS",&
+               i_val=numshells,error=error)
+          numshells = MAX(1,numshells)
+          roperator = MAX( plane_distance(1,0,0,cell), &
+                           plane_distance(0,1,0,cell), &
+                           plane_distance(0,0,1,cell) ) * numshells
+        END IF
+        IF(dft_control%do_admm) THEN
+          CALL pair_radius_setup(aux_fit_present,aux_fit_present,aux_fit_radius,aux_fit_radius,&
+                                 pair_radius,error)
+        ELSE
+          CALL pair_radius_setup(orb_present,orb_present,orb_radius,orb_radius,pair_radius,error)
+        END IF
+        pair_radius = pair_radius + roperator
+      ELSE
+        CALL pair_radius_setup(orb_present,orb_present,orb_radius,orb_radius,pair_radius,error)
+      END IF
+      CALL build_neighbor_lists(sab_kp,particle_set,atom2d,cell,pair_radius,&
+           mic=mic,subcells=subcells,molecular=molecule_only,name="sab_kp",error=error)
+      CALL set_ks_env(ks_env=ks_env,sab_kp=sab_kp,error=error)
+    END IF
+
     ! Build orbital GTH-PPL operator overlap list
     IF (gth_potential_present) THEN
        IF (ANY(ppl_present)) THEN
@@ -701,7 +742,6 @@ CONTAINS
                "/SAP_PPNL","sap_ppnl","ORBITAL GTH-PPNL",error)
        END IF
     END IF
-
 
     IF (paw_atom_present) THEN
        ! Build orbital-GAPW projector overlap list
@@ -772,7 +812,7 @@ CONTAINS
        IF (dft_control%qs_control%dftb_control%dispersion) THEN
           IF (dft_control%qs_control%dftb_control%dispersion_type == dispersion_uff) THEN
              DO ikind = 1, nkind
-                CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom)
+                CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_atom,error=error)
                 CALL get_dftb_atom_param(dftb_parameter=dftb_atom,&
                                          rcdisp=c_radius(ikind),error=error)
              END DO
@@ -815,7 +855,7 @@ CONTAINS
        ! Build the neighbor lists for the Core term
        default_present = .FALSE.
        DO ikind = 1, nkind
-          CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind,error=error)
           CALL get_scptb_parameter(scptb_kind,rcpair=c_radius(ikind),defined=default_present(ikind))
        END DO
        CALL pair_radius_setup(default_present,default_present,c_radius,c_radius,pair_radius,error)
@@ -836,7 +876,7 @@ CONTAINS
           CALL set_ks_env(ks_env=ks_env,sab_tbe=sab_tbe,error=error)
           ! Correction term for Gaussians
           DO ikind = 1, nkind
-             CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind)
+             CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind,error=error)
              CALL get_scptb_parameter(scptb_kind,ag=alpha)
              alpha = SQRT(alpha)
              c_radius(ikind) = 0.5_dp*SQRT(-LOG(3.5_dp*alpha**3*1.e-12_dp))/alpha
@@ -1486,7 +1526,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     nnsgf = 1
     DO ikind=1,nkind
-      CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=orb_basis_set)
+      CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set,error=error)
       IF (ASSOCIATED(orb_basis_set)) THEN
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nnsgf(ikind))
       END IF

@@ -14,6 +14,7 @@
 ! *****************************************************************************
 MODULE pw_env_methods
   USE ao_util,                         ONLY: exp_radius
+  USE basis_set_container_types,       ONLY: translate_basis_type
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
@@ -42,7 +43,8 @@ MODULE pw_env_methods
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE lgrid_types,                     ONLY: lgrid_create,&
                                              lgrid_release
   USE ps_implicit_types,               ONLY: MIXED_BC,&
@@ -756,6 +758,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
 
+    CHARACTER(LEN=default_string_length)     :: basis_type
     INTEGER :: handle, ibasis_set_type, igrid_level, igrid_zet0_s, ikind, &
       ipgf, iset, ishell, jkind, jpgf, jset, jshell, la, lb, lgrid_level, &
       ngrid_level, nkind, nseta, nsetb
@@ -815,9 +818,12 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
        END IF
 
        ! ibasis set type loops over the needed kinds of basis sets. Right now this is
-       ! the orb_basis_set and the aux_fit_basis_set.
+       ! the orb_basis_set and the aux_fit_basis_set (and others!)
        ! Seemingly others (e.g. gapw soft basis set) are not needed?
+       ! This is really ugly code and prone to fail at some point
+       ! Urgent rethinking and refactoring needed (24.07.2015)
        DO ibasis_set_type=1,5
+          basis_type = translate_basis_type(ibasis_set_type)
           DO ikind=1,nkind
             qs_kind => qs_kind_set(ikind)
 
@@ -828,7 +834,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
              ! this should, at a give point be changed
              ! so that also for the core a multigrid is used
              CALL get_qs_kind(qs_kind_set(ikind),&
-                        alpha_core_charge=alpha,ccore_charge=core_charge)
+                        alpha_core_charge=alpha,ccore_charge=core_charge,error=error)
 
              IF (alpha > 0.0_dp .AND. core_charge.NE.0.0_dp) THEN
                maxradius=MAX(maxradius,exp_radius( 0, alpha, &
@@ -841,26 +847,9 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
              !
              ! now for the basis sets
              !
-             SELECT CASE (ibasis_set_type)
-             CASE (1)
-               CALL get_qs_kind(qs_kind=qs_kind,&
-                                    orb_basis_set=orb_basis_set)
-             CASE (2)
-               CALL get_qs_kind(qs_kind=qs_kind,&
-                                    aux_fit_basis_set=orb_basis_set)
-             CASE (3)
-               CALL get_qs_kind(qs_kind=qs_kind,&
-                                    aux_basis_set=orb_basis_set)
-             CASE (4)
-               CALL get_qs_kind(qs_kind=qs_kind,&
-                                    ri_aux_basis_set=orb_basis_set)
-             CASE (5)
-               ! for lri basis set optimization, do not take radius of lri basis
-               ! set since GPW, not LRIGPW density is distributed on the grid 
-               IF(dft_control%qs_control%lri_optbas) CYCLE
-               CALL get_qs_kind(qs_kind=qs_kind,&
-                                    lri_basis_set=orb_basis_set)
-             END SELECT
+             IF(basis_type=="LRI" .AND. dft_control%qs_control%lri_optbas) CYCLE
+             CALL get_qs_kind(qs_kind=qs_kind,&
+                              basis_set=orb_basis_set,basis_type=basis_type,error=error)
 
              IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -870,23 +859,8 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env, error)
              DO jkind=1,nkind
                 qs_kind => qs_kind_set(jkind)
 
-                SELECT CASE (ibasis_set_type)
-                CASE (1)
-                  CALL get_qs_kind(qs_kind=qs_kind,&
-                                       orb_basis_set=orb_basis_set)
-                CASE (2)
-                  CALL get_qs_kind(qs_kind=qs_kind,&
-                                       aux_fit_basis_set=orb_basis_set)
-                CASE (3)
-                  CALL get_qs_kind(qs_kind=qs_kind,&
-                                       aux_basis_set=orb_basis_set)
-                CASE (4)
-                  CALL get_qs_kind(qs_kind=qs_kind,&
-                                       ri_aux_basis_set=orb_basis_set)
-                CASE (5)
-                  CALL get_qs_kind(qs_kind=qs_kind,&
-                                    lri_basis_set=orb_basis_set)
-                END SELECT
+                CALL get_qs_kind(qs_kind=qs_kind,&
+                                 basis_set=orb_basis_set,basis_type=basis_type,error=error)
 
                 IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
                 CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &

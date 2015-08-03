@@ -36,8 +36,7 @@ MODULE rtp_admm_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE hfx_admm_utils,                  ONLY: create_admm_xc_section
   USE input_constants,                 ONLY: do_admm_basis_projection,&
-                                             do_admm_purify_none,&
-                                             use_aux_fit_basis_set
+                                             do_admm_purify_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -155,7 +154,8 @@ CONTAINS
                                rho_gspace=rho_g_aux(ispin),&
                                total_rho=tot_rho_r_aux(ispin),&
                                ks_env=ks_env,soft_valid=.FALSE.,&
-                               basis_set_id=use_aux_fit_basis_set, error=error)
+                               basis_type="AUX_FIT",&
+                               error=error)
     END DO
     CALL set_qs_env(qs_env,admm_env=admm_env,error=error)
     CALL qs_rho_set(rho_aux_fit, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)

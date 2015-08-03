@@ -32,8 +32,6 @@ MODULE  rt_propagation_forces
                                              cp_fm_p_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_gemm_interface,               ONLY: cp_gemm
-  USE input_constants,                 ONLY: use_aux_fit_basis_set,&
-                                             use_orb_basis_set
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: one,&
                                              zero
@@ -585,10 +583,10 @@ MODULE  rt_propagation_forces
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        admm_force = 0.0_dp
        CALL build_overlap_force(ks_env, admm_force,&
-            basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_aux_fit_basis_set, &
+            basis_type_a="AUX_FIT", basis_type_b="AUX_FIT", &
             sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s, error=error)
        CALL build_overlap_force(ks_env, admm_force,&
-            basis_set_id_a=use_aux_fit_basis_set, basis_set_id_b=use_orb_basis_set, &
+            basis_type_a="AUX_FIT", basis_type_b="ORB", &
             sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q, error=error)
        ! add forces
        CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&

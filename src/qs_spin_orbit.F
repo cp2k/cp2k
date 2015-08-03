@@ -144,7 +144,7 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
-                             maxsgf=maxsgf)
+                             maxsgf=maxsgf, error=error)
 
     ldai = ncoset(maxlgto+1)
     CALL init_orbital_pointers(ldai)
@@ -174,7 +174,7 @@ CONTAINS
                                      "basis_set_list",nkind)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE

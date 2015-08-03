@@ -692,14 +692,14 @@ CONTAINS
              cluster_list(iatom) = iatom
              SELECT CASE (cost_model)
              CASE (model_block_count)
-                CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf)
+                CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, error=error)
                 cluster_price = nsgf
              CASE (model_block_lmax)
-                CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+                CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
                 CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
                 cluster_price = MAXVAL (lmax_basis)
              CASE default
-                CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+                CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
                 CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
                 cluster_price = 8 + (MAXVAL (lmax_basis)**2)
              END SELECT
@@ -719,14 +719,14 @@ CONTAINS
                    CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
                    SELECT CASE (cost_model)
                    CASE (model_block_count)
-                      CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf)
+                      CALL get_qs_kind(qs_kind_set(ikind), nsgf=nsgf, error=error)
                       cluster_price = cluster_price + nsgf
                    CASE (model_block_lmax)
-                      CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+                      CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
                       CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
                       cluster_price = cluster_price + MAXVAL (lmax_basis)
                    CASE default
-                      CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set)
+                      CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, error=error)
                       CALL get_gto_basis_set(orb_basis_set, lmax=lmax_basis)
                       cluster_price = cluster_price +  8 + (MAXVAL (lmax_basis)**2)
                    END SELECT

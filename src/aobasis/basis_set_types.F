@@ -23,11 +23,9 @@ MODULE basis_set_types
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_list_get,&
+  USE input_section_types,             ONLY: section_vals_list_get,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set
+                                             section_vals_val_get
   USE input_val_types,                 ONLY: val_get,&
                                              val_type
   USE kinds,                           ONLY: default_path_length,&
@@ -71,7 +69,7 @@ MODULE basis_set_types
      CHARACTER(LEN=default_string_length)       :: name
      REAL(KIND = dp)                            :: kind_radius
      REAL(KIND = dp)                            :: short_kind_radius
-     INTEGER                                    :: norm_type
+     INTEGER                                    :: norm_type = -1
      INTEGER                                    :: ncgf,nset,nsgf
      CHARACTER(LEN=12), DIMENSION(:), POINTER   :: cgf_symbol
      CHARACTER(LEN=6), DIMENSION(:), POINTER    :: sgf_symbol
@@ -92,7 +90,7 @@ MODULE basis_set_types
   ! Define the Slater-type orbital basis set type
 
   TYPE sto_basis_set_type
-     !MK PRIVATE
+     PRIVATE
      CHARACTER(LEN=default_string_length)       :: name
      INTEGER                                    :: nshell
      CHARACTER(LEN=6), DIMENSION(:), POINTER    :: symbol
@@ -105,6 +103,11 @@ MODULE basis_set_types
   END TYPE sto_basis_set_p_type
 
 ! *****************************************************************************
+  INTERFACE read_gto_basis_set
+     MODULE PROCEDURE read_gto_basis_set1,read_gto_basis_set2
+  END INTERFACE
+! *****************************************************************************
+
 
   ! Public subroutines
   PUBLIC :: allocate_gto_basis_set,&
@@ -115,6 +118,7 @@ MODULE basis_set_types
             init_orb_basis_set,&
             read_gto_basis_set,&
             copy_gto_basis_set,&
+            combine_basis_sets,&
             set_gto_basis_set,&
             write_gto_basis_set,&
             write_orb_basis_set
@@ -294,10 +298,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL deallocate_gto_basis_set(basis_set_out,error)
-    ALLOCATE (basis_set_out,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(basis_set_in),cp_failure_level,routineP,error,failure)
+
+    CALL allocate_gto_basis_set(basis_set_out,error)
 
     bin => basis_set_in
     bout => basis_set_out
@@ -371,63 +374,129 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param gto_basis ...
-!> \param maxco ...
-!> \param maxl ...
-!> \param maxsgf ...
-!> \param maxder ...
+!> \param basis_set ...
+!> \param basis_set_add ...
+!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE get_gto_basis_set_info(gto_basis,maxco,maxl,maxsgf,maxder)
+  SUBROUTINE combine_basis_sets(basis_set, basis_set_add, error)
 
-    TYPE(gto_basis_set_p_type), &
-      DIMENSION(:), POINTER                  :: gto_basis
-    INTEGER, INTENT(OUT), OPTIONAL           :: maxco, maxl, maxsgf
-    INTEGER, INTENT(IN), OPTIONAL            :: maxder
+    ! Combine two Gaussian-type orbital (GTO) basis sets.
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_gto_basis_set_info', &
+    TYPE(gto_basis_set_type), POINTER        :: basis_set, basis_set_add
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'combine_basis_sets', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ibas, nbas, val
-    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
+    CHARACTER(LEN=12), DIMENSION(:), POINTER :: cgf_symbol
+    CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
+    INTEGER :: iset, ishell, lshell, maxco, maxpgf, maxshell, nc, ncgf, &
+      ncgfn, ncgfo, ns, nset, nsetn, nseto, nsgf, nsgfn, nsgfo, stat
+    LOGICAL                                  :: failure
+    TYPE(gto_basis_set_type), POINTER        :: bad, bout
 
-! -------------------------------------------------------------------------
+    failure = .FALSE.
 
-    IF (ASSOCIATED(gto_basis)) THEN
-       nbas = SIZE(gto_basis)
-       IF (PRESENT(maxco)) THEN
-          maxco = 0
-          DO ibas=1,nbas
-             gto_basis_set => gto_basis(ibas)%gto_basis_set
-             IF (PRESENT(maxder)) THEN
-                CALL get_gto_basis_set(gto_basis_set,maxco=val,maxder=maxder)
-             ELSE
-                CALL get_gto_basis_set(gto_basis_set,maxco=val)
-             END IF
-             maxco = MAX(val,maxco)
-          END DO
-       END IF
-       IF (PRESENT(maxl)) THEN
-          maxl = 0
-          DO ibas=1,nbas
-             gto_basis_set => gto_basis(ibas)%gto_basis_set
-             CALL get_gto_basis_set(gto_basis_set,maxl=val)
-             maxl = MAX(val,maxl)
-          END DO
-       END IF
-       IF (PRESENT(maxsgf)) THEN
-          maxsgf = 0
-          DO ibas=1,nbas
-             gto_basis_set => gto_basis(ibas)%gto_basis_set
-             CALL get_gto_basis_set(gto_basis_set,nsgf=val)
-             maxsgf = MAX(val,maxsgf)
-          END DO
-       END IF
-    ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer gto_basis is not associated")
-    END IF
+    CPPrecondition(ASSOCIATED(basis_set),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(basis_set_add),cp_failure_level,routineP,error,failure)
 
-  END SUBROUTINE get_gto_basis_set_info
+    bad => basis_set_add
+    bout => basis_set
+
+    bout%name = bout%name // bad%name
+    bout%nset = bout%nset + bad%nset
+    bout%ncgf = bout%ncgf + bad%ncgf
+    bout%nsgf = bout%nsgf + bad%nsgf
+    nset = bout%nset
+    ncgf = bout%ncgf
+    nsgf = bout%nsgf
+
+    nsetn = bad%nset
+    nseto = nset - nsetn
+    CALL reallocate(bout%set_radius,1,nset) ! to be defined later
+    CALL reallocate(bout%lmax,1,nset)
+    CALL reallocate(bout%lmin,1,nset)
+    CALL reallocate(bout%npgf,1,nset)
+    CALL reallocate(bout%nshell,1,nset)
+    bout%lmax(nseto+1:nset) = bad%lmax(1:nsetn)
+    bout%lmin(nseto+1:nset) = bad%lmin(1:nsetn)
+    bout%npgf(nseto+1:nset) = bad%npgf(1:nsetn)
+    bout%nshell(nseto+1:nset) = bad%nshell(1:nsetn)
+    CALL reallocate(bout%ncgf_set,1,nset)
+    CALL reallocate(bout%nsgf_set,1,nset)
+    bout%ncgf_set(nseto+1:nset) = bad%ncgf_set(1:nsetn)
+    bout%nsgf_set(nseto+1:nset) = bad%nsgf_set(1:nsetn)
+
+    nsgfn = bad%nsgf
+    nsgfo = nsgf - nsgfn
+    ncgfn = bad%ncgf
+    ncgfo = ncgf - ncgfn
+
+    ALLOCATE (cgf_symbol(ncgf),sgf_symbol(nsgf),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    cgf_symbol(1:ncgfo) = bout%cgf_symbol(1:ncgfo)
+    cgf_symbol(ncgfo+1:ncgf) = bad%cgf_symbol(1:ncgfn)
+    sgf_symbol(1:nsgfo) = bout%sgf_symbol(1:nsgfo)
+    sgf_symbol(nsgfo+1:nsgf) = bad%sgf_symbol(1:nsgfn)
+    DEALLOCATE (bout%cgf_symbol,bout%sgf_symbol,STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    ALLOCATE (bout%cgf_symbol(ncgf),bout%sgf_symbol(nsgf),STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    bout%cgf_symbol = cgf_symbol
+    bout%sgf_symbol = sgf_symbol
+    DEALLOCATE (cgf_symbol,sgf_symbol,STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+
+    CALL reallocate(bout%lx,1,ncgf)
+    CALL reallocate(bout%ly,1,ncgf)
+    CALL reallocate(bout%lz,1,ncgf)
+    CALL reallocate(bout%m,1,nsgf)
+    bout%lx(ncgfo+1:ncgf) = bad%lx(1:ncgfn)
+    bout%ly(ncgfo+1:ncgf) = bad%ly(1:ncgfn)
+    bout%lz(ncgfo+1:ncgf) = bad%lz(1:ncgfn)
+    bout%m(nsgfo+1:nsgf) = bad%m(1:nsgfn)
+
+    maxpgf = MAXVAL(bout%npgf)
+    CALL reallocate(bout%zet,1,maxpgf,1,nset)
+    bout%zet(:,nseto+1:nset) = bad%zet(:,1:nsetn)
+
+    maxshell = MAXVAL(bout%nshell)
+    CALL reallocate(bout%l,1,maxshell,1,nset)
+    CALL reallocate(bout%n,1,maxshell,1,nset)
+    bout%l(:,nseto+1:nset) = bad%l(:,1:nsetn)
+    bout%n(:,nseto+1:nset) = bad%n(:,1:nsetn)
+
+    CALL reallocate(bout%first_cgf,1,maxshell,1,nset)
+    CALL reallocate(bout%first_sgf,1,maxshell,1,nset)
+    CALL reallocate(bout%last_cgf,1,maxshell,1,nset)
+    CALL reallocate(bout%last_sgf,1,maxshell,1,nset)
+    nc = 0
+    ns = 0
+    DO iset=1,nset
+       DO ishell=1,bout%nshell(iset)
+          lshell = bout%l(ishell,iset)
+          bout%first_cgf(ishell,iset) = nc + 1
+          nc = nc + nco(lshell)
+          bout%last_cgf(ishell,iset) = nc
+          bout%first_sgf(ishell,iset) = ns + 1
+          ns = ns + nso(lshell)
+          bout%last_sgf(ishell,iset) = ns
+       END DO
+    END DO
+
+    CALL reallocate(bout%gcc,1,maxpgf,1,maxshell,1,nset)
+    bout%gcc(:,:,nseto+1:nset) = bad%gcc(:,:,1:nsetn)
+
+    ! these arrays are determined later using initialization calls
+    CALL reallocate(bout%norm_cgf,1,ncgf)
+    maxco = MAX(SIZE(bout%cphi,1),SIZE(bad%cphi,1))
+    CALL reallocate(bout%cphi,1,maxco,1,ncgf)
+    CALL reallocate(bout%sphi,1,maxco,1,nsgf)
+    CALL reallocate(bout%scon,1,maxco,1,nsgf)
+    CALL reallocate(bout%pgf_radius,1,maxpgf,1,nset)
+
+  END SUBROUTINE combine_basis_sets
+
 ! *****************************************************************************
 !> \brief ...
 !> \param gto_basis_set ...
@@ -1058,11 +1127,10 @@ CONTAINS
 !> \param gto_basis_set ...
 !> \param para_env ...
 !> \param dft_section ...
-!> \param basis_section ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE read_gto_basis_set(element_symbol,basis_set_name,gto_basis_set,&
-       para_env,dft_section,basis_section,error)
+  SUBROUTINE read_gto_basis_set1(element_symbol,basis_set_name,gto_basis_set,&
+       para_env,dft_section,error)
 
     ! Read a Gaussian-type orbital (GTO) basis set from the database file.
 
@@ -1072,14 +1140,11 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: basis_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_gto_basis_set', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_gto_basis_set1', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=20*default_string_length)  :: line_att
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
     CHARACTER(len=default_path_length)       :: basis_set_file_name, tmp
@@ -1089,19 +1154,17 @@ CONTAINS
     CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
     CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
-    INTEGER :: i, ibasis, ico, ipgf, irep, iset, ishell, istr, lshell, m, &
-      maxco, maxl, maxpgf, maxshell, nbasis, ncgf, nmin, nset, nsgf, stat, &
-      strlen1, strlen2
+    INTEGER :: i, ibasis, ico, ipgf, irep, iset, ishell, lshell, m, maxco, &
+      maxl, maxpgf, maxshell, nbasis, ncgf, nmin, nset, nsgf, stat, strlen1, &
+      strlen2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
     LOGICAL                                  :: basis_found, failure, found, &
-                                                is_ok, match, read_from_input
+                                                match
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
     TYPE(cp_parser_type), POINTER            :: parser
-    TYPE(cp_sll_val_type), POINTER           :: list
-    TYPE(val_type), POINTER                  :: val
 
     failure = .FALSE.
     line = ""
@@ -1114,24 +1177,18 @@ CONTAINS
     nbasis = 1
 
     gto_basis_set%name = basis_set_name
-    read_from_input = .FALSE.
-    IF (PRESENT(basis_section)) THEN
-       CALL section_vals_get(basis_section,explicit=read_from_input, error=error)
-    END IF
-    IF (.NOT.read_from_input) THEN
+    CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
+         n_rep_val=nbasis,error=error)
+    ALLOCATE(cbasis(nbasis))
+    DO ibasis = 1,nbasis
        CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
-            n_rep_val=nbasis,error=error)
-       ALLOCATE(cbasis(nbasis))
-       DO ibasis = 1,nbasis
-         CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
-              i_rep_val=ibasis,c_val=cbasis(ibasis),error=error)
-         NULLIFY(parser)
-         basis_set_file_name = cbasis(ibasis)
-         tmp=basis_set_file_name
-         CALL uppercase(tmp)
-         IF (INDEX(tmp,"MOLOPT").NE.0) CALL cite_reference(VandeVondele2007)
-       END DO
-    END IF
+            i_rep_val=ibasis,c_val=cbasis(ibasis),error=error)
+       NULLIFY(parser)
+       basis_set_file_name = cbasis(ibasis)
+       tmp=basis_set_file_name
+       CALL uppercase(tmp)
+       IF (INDEX(tmp,"MOLOPT").NE.0) CALL cite_reference(VandeVondele2007)
+    END DO
 
     ! Search for the requested basis set in the basis set file
     ! until the basis set is found or the end of file is reached
@@ -1139,11 +1196,9 @@ CONTAINS
     basis_found = .FALSE.
     basis_loop:DO ibasis = 1,nbasis
       IF( basis_found ) EXIT basis_loop
-      IF (.NOT.read_from_input) THEN
-        NULLIFY(parser)
-        basis_set_file_name = cbasis(ibasis)
-        CALL parser_create(parser,basis_set_file_name,para_env=para_env,error=error)
-      END IF
+      NULLIFY(parser)
+      basis_set_file_name = cbasis(ibasis)
+      CALL parser_create(parser,basis_set_file_name,para_env=para_env,error=error)
 
       bsname = basis_set_name
       symbol = element_symbol
@@ -1190,51 +1245,26 @@ CONTAINS
       IF (tmp.NE."NONE") THEN
         search_loop: DO
 
-           IF (read_from_input) THEN
-              NULLIFY(list,val)
-              found = .TRUE.
-              CALL section_vals_list_get(basis_section,"_DEFAULT_KEYWORD_",list=list,error=error)
-           ELSE
-              CALL parser_search_string(parser,TRIM(bsname),.TRUE.,found,line,error=error)
-           END IF
+           CALL parser_search_string(parser,TRIM(bsname),.TRUE.,found,line,error=error)
            IF (found) THEN
               CALL uppercase(symbol)
               CALL uppercase(bsname)
 
-              IF (read_from_input) THEN
-                 match = .TRUE.
-              ELSE
-                 match = .FALSE.
-                 CALL uppercase(line)
-                 ! Check both the element symbol and the basis set name
-                 line2 = " "//line//" "
-                 symbol2 = " "//TRIM(symbol)//" "
-                 bsname2 = " "//TRIM(bsname)//" "
-                 strlen1 = LEN_TRIM(symbol2) + 1
-                 strlen2 = LEN_TRIM(bsname2) + 1
+              match = .FALSE.
+              CALL uppercase(line)
+              ! Check both the element symbol and the basis set name
+              line2 = " "//line//" "
+              symbol2 = " "//TRIM(symbol)//" "
+              bsname2 = " "//TRIM(bsname)//" "
+              strlen1 = LEN_TRIM(symbol2) + 1
+              strlen2 = LEN_TRIM(bsname2) + 1
 
-                 IF ( (INDEX(line2,symbol2(:strlen1)) > 0).AND.&
-                      (INDEX(line2,bsname2(:strlen2)) > 0) ) match = .TRUE.
-              END IF
+              IF ( (INDEX(line2,symbol2(:strlen1)) > 0).AND.&
+                   (INDEX(line2,bsname2(:strlen2)) > 0) ) match = .TRUE.
               IF (match) THEN
                  NULLIFY (gcc,l,lmax,lmin,n,npgf,nshell,zet)
                  ! Read the basis set information
-                 IF (read_from_input) THEN
-                    is_ok=cp_sll_val_next(list,val,error=error)
-                    IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
-                         __LINE__,&
-                         "Error reading the Basis set from input file!!")
-                    CALL val_get(val,c_val=line_att,error=error)
-                    READ(line_att,*)nset
-                 ELSE
-                    CALL parser_get_object(parser,nset,newline=.TRUE.,error=error)
-                    IF (PRESENT(basis_section)) THEN
-                       irep = irep + 1
-                       WRITE(line_att,'(1X,I0)')nset
-                       CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                            c_val=TRIM(line_att), error=error)
-                    END IF
-                 END IF
+                 CALL parser_get_object(parser,nset,newline=.TRUE.,error=error)
 
                  CALL reallocate(npgf,1,nset)
                  CALL reallocate(nshell,1,nset)
@@ -1247,28 +1277,10 @@ CONTAINS
                  maxshell = 0
 
                  DO iset=1,nset
-                    IF (read_from_input) THEN
-                       is_ok=cp_sll_val_next(list,val,error=error)
-                       IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
-                            __LINE__,&
-                            "Error reading the Basis set from input file!!")
-                       CALL val_get(val,c_val=line_att,error=error)
-                       READ(line_att,*)n(1,iset)
-                       CALL remove_word(line_att)
-                       READ(line_att,*)lmin(iset)
-                       CALL remove_word(line_att)
-                       READ(line_att,*)lmax(iset)
-                       CALL remove_word(line_att)
-                       READ(line_att,*)npgf(iset)
-                       CALL remove_word(line_att)
-                    ELSE
-                       line_att = ""
-                       CALL parser_get_object(parser,n(1,iset),newline=.TRUE.,error=error)
-                       CALL parser_get_object(parser,lmin(iset),error=error)
-                       CALL parser_get_object(parser,lmax(iset),error=error)
-                       CALL parser_get_object(parser,npgf(iset),error=error)
-                       WRITE(line_att,'(4(1X,I0))')n(1,iset),lmin(iset),lmax(iset),npgf(iset)
-                    END IF
+                    CALL parser_get_object(parser,n(1,iset),newline=.TRUE.,error=error)
+                    CALL parser_get_object(parser,lmin(iset),error=error)
+                    CALL parser_get_object(parser,lmax(iset),error=error)
+                    CALL parser_get_object(parser,npgf(iset),error=error)
                     maxl = MAX(maxl,lmax(iset))
                     IF (npgf(iset) > maxpgf) THEN
                        maxpgf = npgf(iset)
@@ -1278,14 +1290,7 @@ CONTAINS
                     nshell(iset) = 0
                     DO lshell=lmin(iset),lmax(iset)
                        nmin = n(1,iset) + lshell - lmin(iset)
-                       IF (read_from_input) THEN
-                          READ(line_att,*)ishell
-                          CALL remove_word(line_att)
-                       ELSE
-                          CALL parser_get_object(parser,ishell,error=error)
-                          istr=LEN_TRIM(line_att)+1
-                          WRITE(line_att(istr:),'(1X,I0)')ishell
-                       END IF
+                       CALL parser_get_object(parser,ishell,error=error)
                        nshell(iset) = nshell(iset) + ishell
                        IF (nshell(iset) > maxshell) THEN
                           maxshell = nshell(iset)
@@ -1298,38 +1303,11 @@ CONTAINS
                           l(nshell(iset)-ishell+i,iset) = lshell
                        END DO
                     END DO
-                    IF (.NOT.read_from_input) THEN
-                       IF (PRESENT(basis_section)) THEN
-                          irep = irep + 1
-                          CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                               c_val=TRIM(line_att), error=error)
-                          line_att = ""
-                       END IF
-                    ELSE
-                       IF (LEN_TRIM(line_att)/=0) CALL stop_program(routineN,moduleN,&
-                            __LINE__,&
-                            "Error reading the Basis from input file!!")
-                    END IF
                     DO ipgf=1,npgf(iset)
-                       IF (read_from_input) THEN
-                          is_ok=cp_sll_val_next(list,val,error=error)
-                          IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
-                               __LINE__,&
-                               "Error reading the Basis set from input file!!")
-                          CALL val_get(val,c_val=line_att,error=error)
-                          READ(line_att,*)zet(ipgf,iset),(gcc(ipgf,ishell,iset),ishell=1,nshell(iset))
-                       ELSE
-                          CALL parser_get_object(parser,zet(ipgf,iset),newline=.TRUE.,error=error)
-                          DO ishell=1,nshell(iset)
-                             CALL parser_get_object(parser,gcc(ipgf,ishell,iset),error=error)
-                          END DO
-                          IF (PRESENT(basis_section)) THEN
-                             irep = irep + 1
-                             WRITE(line_att,'(100E24.16)')zet(ipgf,iset),(gcc(ipgf,ishell,iset),ishell=1,nshell(iset))
-                             CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                                  c_val=TRIM(line_att), error=error)
-                          END IF
-                       END IF
+                       CALL parser_get_object(parser,zet(ipgf,iset),newline=.TRUE.,error=error)
+                       DO ishell=1,nshell(iset)
+                          CALL parser_get_object(parser,gcc(ipgf,ishell,iset),error=error)
+                       END DO
                     END DO
                  END DO
 
@@ -1456,29 +1434,17 @@ CONTAINS
         END DO search_loop
       ELSE
         match=.FALSE.
+        ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=stat)
+        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=stat)
+        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
       ENDIF
 
-      IF (.NOT.read_from_input .AND. basis_found) THEN
-        CALL parser_release(parser,error=error)
-        IF ((match).AND.(PRESENT(basis_section))) THEN
-           ! Dump the read basis set in the basis section
-           irep = irep + 1
-           WRITE(line_att,'(A)')"         # Basis set name: "//bsname2(:strlen2)//" for symbol: "//symbol2(:strlen1)
-           CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-                c_val=TRIM(line_att), error=error)
-           irep = irep + 1
-          WRITE(line_att,'(A)')"         # Basis set read from the basis set filename: "//TRIM(basis_set_file_name)
-            CALL section_vals_val_set(basis_section,"_DEFAULT_KEYWORD_",i_rep_val=irep,&
-               c_val=TRIM(line_att), error=error)
-        END IF
-      END IF
-      IF ( .NOT. basis_found ) THEN
-        CALL parser_release(parser,error=error)
-      END IF
+      CALL parser_release(parser,error=error)
 
     END DO basis_loop
 
-    IF (.NOT. read_from_input .AND. ( tmp .NE. "NONE") ) THEN
+    IF (tmp .NE. "NONE") THEN
       IF( .NOT. basis_found ) THEN
         basis_set_file_name = ""
         DO ibasis = 1,nbasis
@@ -1491,10 +1457,300 @@ CONTAINS
              TRIM(basis_set_file_name),para_env)
       END IF
     END IF
-    IF (.NOT.read_from_input) DEALLOCATE(cbasis)
+    DEALLOCATE(cbasis)
      
+  END SUBROUTINE read_gto_basis_set1
 
-  END SUBROUTINE read_gto_basis_set
+! *****************************************************************************
+!> \brief ...
+!> \param element_symbol ...
+!> \param basis_type ...
+!> \param gto_basis_set ...
+!> \param para_env ...
+!> \param dft_section ...
+!> \param basis_section ...
+!> \param irep ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE read_gto_basis_set2(element_symbol,basis_type,gto_basis_set,&
+       para_env,dft_section,basis_section,irep,error)
+
+    ! Read a Gaussian-type orbital (GTO) basis set from the database file.
+
+    ! - Creation (13.04.2000,MK)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: element_symbol
+    CHARACTER(LEN=*), INTENT(INOUT)          :: basis_type
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: basis_section
+    INTEGER                                  :: irep
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_gto_basis_set2', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=20*default_string_length)  :: line_att
+    CHARACTER(LEN=240)                       :: line
+    CHARACTER(LEN=242)                       :: line2
+    CHARACTER(LEN=default_path_length)       :: bsname, bsname2
+    CHARACTER(LEN=LEN(element_symbol))       :: symbol
+    CHARACTER(LEN=LEN(element_symbol)+2)     :: symbol2
+    INTEGER                                  :: i, ico, ipgf, iset, ishell, &
+                                                lshell, m, maxco, maxl, &
+                                                maxpgf, maxshell, ncgf, nmin, &
+                                                nset, nsgf, stat
+    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
+    INTEGER, DIMENSION(:, :), POINTER        :: l, n
+    LOGICAL                                  :: failure, is_ok
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: gcc
+    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(val_type), POINTER                  :: val
+
+    failure = .FALSE.
+    line = ""
+    line2 = ""
+    symbol = ""
+    symbol2 = ""
+    bsname = ""
+    bsname2 = ""
+
+    gto_basis_set%name = " "
+
+    bsname = " "
+    symbol = element_symbol
+
+    nset = 0
+    maxshell=0
+    maxpgf=0
+    maxco=0
+    ncgf=0
+    nsgf=0
+    gto_basis_set%nset = nset
+    gto_basis_set%ncgf = ncgf
+    gto_basis_set%nsgf = nsgf
+    CALL reallocate(gto_basis_set%lmax,1,nset)
+    CALL reallocate(gto_basis_set%lmin,1,nset)
+    CALL reallocate(gto_basis_set%npgf,1,nset)
+    CALL reallocate(gto_basis_set%nshell,1,nset)
+    CALL reallocate(gto_basis_set%n,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%l,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%zet,1,maxpgf,1,nset)
+    CALL reallocate(gto_basis_set%gcc,1,maxpgf,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%set_radius,1,nset)
+    CALL reallocate(gto_basis_set%pgf_radius,1,maxpgf,1,nset)
+    CALL reallocate(gto_basis_set%first_cgf,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%first_sgf,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%last_cgf,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%last_sgf,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%ncgf_set,1,nset)
+    CALL reallocate(gto_basis_set%nsgf_set,1,nset)
+    CALL reallocate(gto_basis_set%cphi,1,maxco,1,ncgf)
+    CALL reallocate(gto_basis_set%sphi,1,maxco,1,nsgf)
+    CALL reallocate(gto_basis_set%scon,1,maxco,1,nsgf)
+    CALL reallocate(gto_basis_set%lx,1,ncgf)
+    CALL reallocate(gto_basis_set%ly,1,ncgf)
+    CALL reallocate(gto_basis_set%lz,1,ncgf)
+    CALL reallocate(gto_basis_set%m,1,nsgf)
+    CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
+
+    basis_type=""
+    CALL section_vals_val_get(basis_section,"_SECTION_PARAMETERS_",i_rep_val=irep,c_val=basis_type,error=error)
+    IF(basis_type=="Orbital") basis_type="ORB"
+
+    NULLIFY(list,val)
+    CALL section_vals_list_get(basis_section,"_DEFAULT_KEYWORD_",i_rep_section=irep,list=list,error=error)
+    CALL uppercase(symbol)
+    CALL uppercase(bsname)
+
+    NULLIFY (gcc,l,lmax,lmin,n,npgf,nshell,zet)
+    ! Read the basis set information
+    is_ok=cp_sll_val_next(list,val,error=error)
+    IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
+        __LINE__,&
+        "Error reading the Basis set from input file!!")
+    CALL val_get(val,c_val=line_att,error=error)
+    READ(line_att,*)nset
+
+    CALL reallocate(npgf,1,nset)
+    CALL reallocate(nshell,1,nset)
+    CALL reallocate(lmax,1,nset)
+    CALL reallocate(lmin,1,nset)
+    CALL reallocate(n,1,1,1,nset)
+
+    maxl = 0
+    maxpgf = 0
+    maxshell = 0
+
+    DO iset=1,nset
+       is_ok=cp_sll_val_next(list,val,error=error)
+       IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
+          __LINE__,&
+          "Error reading the Basis set from input file!!")
+       CALL val_get(val,c_val=line_att,error=error)
+       READ(line_att,*)n(1,iset)
+       CALL remove_word(line_att)
+       READ(line_att,*)lmin(iset)
+       CALL remove_word(line_att)
+       READ(line_att,*)lmax(iset)
+       CALL remove_word(line_att)
+       READ(line_att,*)npgf(iset)
+       CALL remove_word(line_att)
+       maxl = MAX(maxl,lmax(iset))
+       IF (npgf(iset) > maxpgf) THEN
+          maxpgf = npgf(iset)
+          CALL reallocate(zet,1,maxpgf,1,nset)
+          CALL reallocate(gcc,1,maxpgf,1,maxshell,1,nset)
+       END IF
+       nshell(iset) = 0
+       DO lshell=lmin(iset),lmax(iset)
+          nmin = n(1,iset) + lshell - lmin(iset)
+          READ(line_att,*)ishell
+          CALL remove_word(line_att)
+          nshell(iset) = nshell(iset) + ishell
+          IF (nshell(iset) > maxshell) THEN
+             maxshell = nshell(iset)
+             CALL reallocate(n,1,maxshell,1,nset)
+             CALL reallocate(l,1,maxshell,1,nset)
+             CALL reallocate(gcc,1,maxpgf,1,maxshell,1,nset)
+          END IF
+          DO i=1,ishell
+             n(nshell(iset)-ishell+i,iset) = nmin + i - 1
+             l(nshell(iset)-ishell+i,iset) = lshell
+          END DO
+       END DO
+       IF (LEN_TRIM(line_att)/=0) CALL stop_program(routineN,moduleN,&
+           __LINE__,&
+           "Error reading the Basis from input file!!")
+       DO ipgf=1,npgf(iset)
+          is_ok=cp_sll_val_next(list,val,error=error)
+          IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,&
+             __LINE__,&
+             "Error reading the Basis set from input file!!")
+          CALL val_get(val,c_val=line_att,error=error)
+          READ(line_att,*)zet(ipgf,iset),(gcc(ipgf,ishell,iset),ishell=1,nshell(iset))
+       END DO
+    END DO
+
+    ! Maximum angular momentum quantum number of the atomic kind
+
+    CALL init_orbital_pointers(maxl)
+
+    ! Allocate the global variables
+
+    gto_basis_set%nset = nset
+    CALL reallocate(gto_basis_set%lmax,1,nset)
+    CALL reallocate(gto_basis_set%lmin,1,nset)
+    CALL reallocate(gto_basis_set%npgf,1,nset)
+    CALL reallocate(gto_basis_set%nshell,1,nset)
+    CALL reallocate(gto_basis_set%n,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%l,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%zet,1,maxpgf,1,nset)
+    CALL reallocate(gto_basis_set%gcc,1,maxpgf,1,maxshell,1,nset)
+
+    ! Copy the basis set information into the data structure
+
+    DO iset=1,nset
+       gto_basis_set%lmax(iset) = lmax(iset)
+       gto_basis_set%lmin(iset) = lmin(iset)
+       gto_basis_set%npgf(iset) = npgf(iset)
+       gto_basis_set%nshell(iset) = nshell(iset)
+       DO ishell=1,nshell(iset)
+          gto_basis_set%n(ishell,iset) = n(ishell,iset)
+          gto_basis_set%l(ishell,iset) = l(ishell,iset)
+          DO ipgf=1,npgf(iset)
+             gto_basis_set%gcc(ipgf,ishell,iset) = gcc(ipgf,ishell,iset)
+          END DO
+       END DO
+       DO ipgf=1,npgf(iset)
+          gto_basis_set%zet(ipgf,iset) = zet(ipgf,iset)
+       END DO
+    END DO
+
+    ! Initialise the depending atomic kind information
+
+    CALL reallocate(gto_basis_set%set_radius,1,nset)
+    CALL reallocate(gto_basis_set%pgf_radius,1,maxpgf,1,nset)
+    CALL reallocate(gto_basis_set%first_cgf,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%first_sgf,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%last_cgf,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%last_sgf,1,maxshell,1,nset)
+    CALL reallocate(gto_basis_set%ncgf_set,1,nset)
+    CALL reallocate(gto_basis_set%nsgf_set,1,nset)
+
+    maxco = 0
+    ncgf = 0
+    nsgf = 0
+
+    DO iset=1,nset
+       gto_basis_set%ncgf_set(iset) = 0
+       gto_basis_set%nsgf_set(iset) = 0
+       DO ishell=1,nshell(iset)
+          lshell = gto_basis_set%l(ishell,iset)
+          gto_basis_set%first_cgf(ishell,iset) = ncgf + 1
+          ncgf = ncgf + nco(lshell)
+          gto_basis_set%last_cgf(ishell,iset) = ncgf
+          gto_basis_set%ncgf_set(iset) =&
+               gto_basis_set%ncgf_set(iset) + nco(lshell)
+          gto_basis_set%first_sgf(ishell,iset) = nsgf + 1
+          nsgf = nsgf + nso(lshell)
+          gto_basis_set%last_sgf(ishell,iset) = nsgf
+          gto_basis_set%nsgf_set(iset) =&
+               gto_basis_set%nsgf_set(iset) + nso(lshell)
+       END DO
+       maxco = MAX(maxco,npgf(iset)*ncoset(lmax(iset)))
+    END DO
+
+    gto_basis_set%ncgf = ncgf
+    gto_basis_set%nsgf = nsgf
+
+    CALL reallocate(gto_basis_set%cphi,1,maxco,1,ncgf)
+    CALL reallocate(gto_basis_set%sphi,1,maxco,1,nsgf)
+    CALL reallocate(gto_basis_set%scon,1,maxco,1,nsgf)
+    CALL reallocate(gto_basis_set%lx,1,ncgf)
+    CALL reallocate(gto_basis_set%ly,1,ncgf)
+    CALL reallocate(gto_basis_set%lz,1,ncgf)
+    CALL reallocate(gto_basis_set%m,1,nsgf)
+    CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
+    ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ncgf = 0
+    nsgf = 0
+
+    DO iset=1,nset
+       DO ishell=1,nshell(iset)
+          lshell = gto_basis_set%l(ishell,iset)
+          DO ico=ncoset(lshell-1)+1,ncoset(lshell)
+             ncgf = ncgf + 1
+             gto_basis_set%lx(ncgf) = indco(1,ico)
+             gto_basis_set%ly(ncgf) = indco(2,ico)
+             gto_basis_set%lz(ncgf) = indco(3,ico)
+             gto_basis_set%cgf_symbol(ncgf) =&
+                  cgf_symbol(n(ishell,iset),(/gto_basis_set%lx(ncgf),&
+                  gto_basis_set%ly(ncgf),&
+                  gto_basis_set%lz(ncgf)/))
+          END DO
+          DO m=-lshell,lshell
+             nsgf = nsgf + 1
+             gto_basis_set%m(nsgf) = m
+             gto_basis_set%sgf_symbol(nsgf) =&
+                  sgf_symbol(n(ishell,iset),lshell,m)
+          END DO
+       END DO
+    END DO
+
+    DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,STAT=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE read_gto_basis_set2
 
 ! *****************************************************************************
 !> \brief ...
@@ -2079,7 +2335,6 @@ CONTAINS
 
   END SUBROUTINE create_gto_from_sto_basis
 
- ! *****************************************************************************
 ! *****************************************************************************
 !> \brief ...
 !> \param z ...

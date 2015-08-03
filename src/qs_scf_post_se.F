@@ -307,7 +307,7 @@ CONTAINS
        ncharge = 0.0_dp
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind,error=error)
           CALL get_se_param(se_kind,zeff=zeff,natorb=natorb)
           DO iatom=1,nat
              iat = atomic_kind_set(ikind)%atom_list(iatom)
@@ -385,8 +385,8 @@ CONTAINS
        ! No contribution to dipole derivatives
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-          CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set)
-          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set,error=error)
+          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind,error=error)
           CALL get_se_param(se_kind,natorb=natorb)
           ALLOCATE (mom(natorb,natorb,3),STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -560,7 +560,7 @@ CONTAINS
        nkind = SIZE(atomic_kind_set)
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind,error=error)
           CALL get_se_param(se_kind,zeff=zeff,natorb=natorb)
           DO iatom=1,nat
              iat = atomic_kind_set(ikind)%atom_list(iatom)
@@ -587,7 +587,7 @@ CONTAINS
                     " # Atom   Element   Kind        Atomic population"," Net charge"
              DO ikind=1,nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-                CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
+                CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind,error=error)
                 CALL get_se_param(se_kind,name=aname)
                 ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                 DO iatom=1,nat
@@ -605,7 +605,7 @@ CONTAINS
                     "# Atom  Element  Kind  Atomic population (alpha,beta)   Net charge  Spin moment"
              DO ikind=1,nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-                CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
+                CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind,error=error)
                 CALL get_se_param(se_kind,name=aname)
                 ana = ADJUSTR(TRIM(ADJUSTL(aname)))
                 DO iatom=1,nat

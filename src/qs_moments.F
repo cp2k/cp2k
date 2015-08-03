@@ -175,8 +175,7 @@ CONTAINS
 !   *** Allocate work storage ***
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
-                             maxco=maxco,&
-                             maxsgf=maxsgf)
+                             maxco=maxco, maxsgf=maxsgf, error=error)
 
     ALLOCATE (mab(maxco,maxco,nm),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -196,7 +195,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -439,8 +438,7 @@ CONTAINS
 !   *** Allocate work storage ***
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
-                             maxco=maxco,&
-                             maxsgf=maxsgf)
+                             maxco=maxco, maxsgf=maxsgf, error=error)
 
     ALLOCATE (mab(maxco,maxco,nm),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -460,7 +458,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -671,7 +669,7 @@ CONTAINS
     CALL cp_dbcsr_set(sinmat,0.0_dp,error=error)
     CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
 
-    CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork )
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork, error=error)
     ldab = ldwork
     ALLOCATE(cosab(ldab,ldab),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -687,7 +685,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -968,7 +966,7 @@ CONTAINS
        DO ia = 1,SIZE(particle_set)
          atomic_kind => particle_set(ia)%atomic_kind
          CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-         CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost)
+         CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost, error=error)
          IF (.NOT. ghost) THEN
             rmom(1,2) = rmom(1,2) - charge
          ENDIF
@@ -989,7 +987,7 @@ CONTAINS
              DO ia = 1,SIZE(particle_set)
                atomic_kind => particle_set(ia)%atomic_kind
                CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-               CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost)
+               CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost, error=error)
                IF (.NOT. ghost) THEN
                   ria = particle_set(ia)%r
                   ria = pbc(ria,cell)
@@ -1014,7 +1012,7 @@ CONTAINS
              DO ia = 1,SIZE(particle_set)
                atomic_kind => particle_set(ia)%atomic_kind
                CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-               CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge)
+               CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, error=error)
                ria = particle_set(ia)%r
                ria = pbc(ria,cell)
                DO i = 1, 3
@@ -1533,7 +1531,7 @@ CONTAINS
             ria = ria - rcc
             atomic_kind => particle_set(iatom)%atomic_kind
             CALL get_atomic_kind(atomic_kind, kind_number=akind)
-            CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
+            CALL get_qs_kind(qs_kind_set(akind), core_charge=charge, error=error)
             rmom(1,2) = rmom(1,2) - charge
             DO l = 1, nm
               ix = indco(1,l+1)

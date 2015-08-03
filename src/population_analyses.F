@@ -168,7 +168,7 @@ CONTAINS
        nspin = SIZE(matrix_p,1)
 
        ! Get the total number of contracted spherical Gaussian basis functions
-       CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
+       CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf,error=error)
 
        ! Provide an array to store the orbital populations for each spin
        ALLOCATE (orbpop(nsgf,nspin),STAT=stat)
@@ -342,8 +342,8 @@ CONTAINS
     nspin = SIZE(matrix_p,1)
 
     ! Get the total number of contracted spherical Gaussian basis functions
-    CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
+    CALL get_atomic_kind_set(atomic_kind_set,natom=natom)
+    CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf,error=error)
     ALLOCATE (first_sgf_atom(natom),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     first_sgf_atom(:) = 0
@@ -528,7 +528,7 @@ CONTAINS
     nspin = SIZE(orbpop,2)
 
     CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
-    CALL get_qs_kind_set(qs_kind_set, nsgf=nsgf)
+    CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf,error=error)
 
     ! Select and write headline
     IF (nspin == 1) THEN
@@ -558,7 +558,7 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                            element_symbol=element_symbol,&
                            kind_number=ikind)
-      CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_set, zeff=zeff)
+      CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, zeff=zeff, error=error)
       IF (ASSOCIATED(orb_basis_set)) THEN
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                nset=nset,&

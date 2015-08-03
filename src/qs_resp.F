@@ -1625,7 +1625,7 @@ CPSourceFileRef,&
                  print_key, extension=".resp", &
                  my_local=.FALSE.,error=error)
      CALL print_atomic_charges(particle_set,qs_kind_set,output_file,title="RESP charges:",&
-                                             atomic_charges=resp_env%rhs(1:natom))
+                                             atomic_charges=resp_env%rhs(1:natom),error=error)
      IF(output_runinfo>0) WRITE(output_runinfo,'(2X,A,/)')  "PRINTED RESP CHARGES TO FILE"
      ENDIF
  
@@ -1633,7 +1633,7 @@ CPSourceFileRef,&
                        "PRINT%RESP_CHARGES_TO_FILE", error=error)
     ELSE
      CALL print_atomic_charges(particle_set,qs_kind_set,output_runinfo,title="RESP charges:",&
-                                             atomic_charges=resp_env%rhs(1:natom))
+                                             atomic_charges=resp_env%rhs(1:natom),error=error)
     ENDIF
 
     CALL timestop(handle)

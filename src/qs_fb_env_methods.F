@@ -39,9 +39,7 @@ MODULE qs_fb_env_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE input_constants,                 ONLY: cholesky_inverse,&
-                                             use_aux_fit_basis_set,&
-                                             use_orb_basis_set
+  USE input_constants,                 ONLY: cholesky_inverse
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -786,8 +784,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_rcut_auto', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: basis_set_id, handle, ikind, &
-                                                nkinds, stat
+    INTEGER                                  :: handle, ikind, nkinds, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: auto_cutoff_scale, kind_radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rcut
@@ -820,24 +817,20 @@ CONTAINS
     ! aux_fit_basis_set is only used when do_admm is TRUE. This can be
     ! seen from the calls to generate_qs_task_list subroutine in
     ! qs_create_task_list, found in qs_environment_methods.F:
-    ! basis_set_id is only set as input parameter for do_admm
+    ! basis_type is only set as input parameter for do_admm
     ! calculations, and if not set, the task list is generated using
-    ! the default basis_set_id=use_orb_basis_set.
-    IF (dft_control%do_admm) THEN
-       basis_set_id = use_aux_fit_basis_set
-    ELSE
-       basis_set_id = use_orb_basis_set
-    END IF
-
+    ! the default basis_set="ORB".
     ALLOCATE(basis_set_list(nkinds), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    CALL basis_set_list_setup(basis_set_list, basis_set_id, qs_kind_set)
+    IF (dft_control%do_admm) THEN
+       CALL basis_set_list_setup(basis_set_list, "AUX_FIT", qs_kind_set, error=error)
+    ELSE
+       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set, error=error)
+    END IF
 
     DO ikind = 1, nkinds
        basis_set => basis_set_list(ikind)%gto_basis_set
-       CALL get_gto_basis_set(gto_basis_set=basis_set, &
-                              kind_radius=kind_radius)
+       CALL get_gto_basis_set(gto_basis_set=basis_set,kind_radius=kind_radius)
        rcut(ikind) = kind_radius * auto_cutoff_scale
     END DO
 
@@ -967,7 +960,7 @@ CONTAINS
        nelectrons = fb_atomic_halo_nelectrons_estimate_Z(halos(ihalo), &
                                                          particle_set)
        ! calculate cost
-       cost = fb_atomic_halo_cost(halos(ihalo), particle_set, qs_kind_set)
+       cost = fb_atomic_halo_cost(halos(ihalo), particle_set, qs_kind_set, error=error)
        CALL fb_atomic_halo_set(atomic_halo=halos(ihalo), &
                                nelectrons=nelectrons, &
                                cost=cost, &
@@ -1018,8 +1011,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_build_trial_fns_auto', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: basis_set_id, counter, handle, icgf, ico, ikind, iset, ishell, &
-      itrial, lshell, max_n_trial, nkinds, nset, old_lshell, stat
+    INTEGER :: counter, handle, icgf, ico, ikind, iset, ishell, itrial, &
+      lshell, max_n_trial, nkinds, nset, old_lshell, stat
     INTEGER, DIMENSION(:), POINTER           :: lmax, nfunctions, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: functions
     LOGICAL                                  :: failure
@@ -1047,28 +1040,26 @@ CONTAINS
                     dft_control=dft_control, &
                     error=error)
 
+    nkinds = SIZE(qs_kind_set)
+
     ! reading from the other parts of the code, it seemed that
     ! aux_fit_basis_set is only used when do_admm is TRUE. This can be
     ! seen from the calls to generate_qs_task_list subroutine in
     ! qs_create_task_list, found in qs_environment_methods.F:
-    ! basis_set_id is only set as input parameter for do_admm
+    ! basis_type is only set as input parameter for do_admm
     ! calculations, and if not set, the task list is generated using
-    ! the default basis_set_id=use_orb_basis_set.
+    ! the default basis_set="ORB".
+    ALLOCATE(basis_set_list(nkinds), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (dft_control%do_admm) THEN
-       basis_set_id = use_aux_fit_basis_set
+       CALL basis_set_list_setup(basis_set_list, "AUX_FIT", qs_kind_set, error=error)
     ELSE
-       basis_set_id = use_orb_basis_set
+       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set, error=error)
     END IF
-
-    nkinds = SIZE(qs_kind_set)
 
     ALLOCATE(nfunctions(nkinds), STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
     nfunctions = 0
-
-    ALLOCATE(basis_set_list(nkinds), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL basis_set_list_setup(basis_set_list, basis_set_id, qs_kind_set)
 
     DO ikind = 1, nkinds
        ! "gto = gaussian type orbital"
@@ -1078,7 +1069,7 @@ CONTAINS
                               lmax=lmax, &
                               nshell=nshell)
        CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
-                        zeff=zeff)
+                        zeff=zeff,error=error)
 
        bset1: DO iset = 1, nset
 !          old_lshell = lmax(iset)
@@ -1122,7 +1113,7 @@ CONTAINS
                               lmax=lmax, &
                               nshell=nshell)
        CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
-                        zeff=zeff)
+                        zeff=zeff,error=error)
        icgf = 0
        itrial = 0
        bset2: DO iset = 1, nset

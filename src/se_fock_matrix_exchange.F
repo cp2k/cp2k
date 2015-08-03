@@ -169,7 +169,7 @@ CONTAINS
      ALLOCATE (se_defined(nkind),se_kind_list(nkind),STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      DO ikind=1,nkind
-        CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind_a)
+        CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind_a, error=error)
         se_kind_list(ikind)%se_param => se_kind_a
         CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
         se_defined(ikind) = (defined .AND. natorb_a >= 1)
@@ -355,7 +355,7 @@ CONTAINS
      ALLOCATE (se_defined(nkind),se_kind_list(nkind),STAT=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      DO ikind=1,nkind
-        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
+        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a, error=error)
         se_kind_list(ikind)%se_param => se_kind_a
         CALL get_se_param(se_kind_a,defined=defined,natorb=natorb_a)
         se_defined(ikind) = (defined .AND. natorb_a >= 1)

@@ -368,7 +368,7 @@ CONTAINS
     IF (PRESENT(sac_kin)) THEN
        DO ikind=1,nkind
           tpot_present(ikind) = .FALSE.
-          CALL get_qs_kind(qs_kind_set(ikind),tnadd_potential=tnadd_potential)
+          CALL get_qs_kind(qs_kind_set(ikind),tnadd_potential=tnadd_potential, error=error)
           IF (ASSOCIATED(tnadd_potential)) THEN
              CALL get_potential(potential=tnadd_potential,radius=tpot_radius(ikind))
              tpot_present(ikind) = .TRUE.

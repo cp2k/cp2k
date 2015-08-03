@@ -229,7 +229,7 @@ MODULE qs_dispersion_utils
              nkind  = SIZE(atomic_kind_set)
              DO ikind = 1, nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind),element_symbol=symbol)
-                CALL get_qs_kind(qs_kind_set(ikind),dispersion=disp)
+                CALL get_qs_kind(qs_kind_set(ikind),dispersion=disp, error=error)
                 IF ( disp%defined ) THEN
                    WRITE (output_unit, fmt="(' vdW PARAMETER| ',T18,'Atom=',A2,"//&
                         "T28,'C6[J*nm^6*mol^-1]=',F8.4,T63,'r(vdW)[A]=',F8.4)") &

@@ -30,8 +30,7 @@ MODULE qs_environment_methods
                                              gth_potential_type
   USE input_constants,                 ONLY: do_ppl_analytic,&
                                              do_ppl_grid,&
-                                             kg_tnadd_embed,&
-                                             use_aux_fit_basis_set
+                                             kg_tnadd_embed
   USE kinds,                           ONLY: dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
@@ -68,6 +67,7 @@ MODULE qs_environment_methods
                                              qs_ks_env_type,&
                                              set_ks_env
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools
+  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_outer_scf,                    ONLY: outer_loop_variables_count
   USE qs_rho0_types,                   ONLY: rho0_mpole_type
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
@@ -198,7 +198,7 @@ SUBROUTINE qs_env_setup(qs_env,unit_nr,error)
        ! If we use auxiliary density matrix methods rebuild fm_pools
        IF(dft_control%do_admm) THEN
          CALL get_qs_kind_set(qs_kind_set, nsgf=n_ao_aux_fit,&
-                                  basis_set_id=use_aux_fit_basis_set)
+                                  basis_type="AUX_FIT",error=error)
          CALL mpools_rebuild_fm_pools(qs_env%mpools_aux_fit,mos=qs_env%mos_aux_fit,&
               blacs_env=blacs_env, para_env=para_env,&
               error=error)
@@ -359,6 +359,8 @@ SUBROUTINE qs_create_task_list(qs_env, error)
                                                 skip_load_balance_distributed,&
                                                 soft_valid
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(task_list_type), POINTER            :: task_list
 
@@ -382,7 +384,7 @@ SUBROUTINE qs_create_task_list(qs_env, error)
        ENDIF
        ! generate the soft task list
        IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
-          CALL get_ks_env(ks_env, task_list_soft=task_list, error=error)  ! task_list == soft_task_list
+          CALL get_ks_env(ks_env, task_list_soft=task_list, error=error)
           IF (.NOT. ASSOCIATED(task_list)) THEN
              CALL allocate_task_list(task_list,error)
              CALL set_ks_env(ks_env, task_list_soft=task_list, error=error)
@@ -400,9 +402,11 @@ SUBROUTINE qs_create_task_list(qs_env, error)
         CALL allocate_task_list(task_list,error)
         CALL set_ks_env(ks_env, task_list_aux_fit=task_list, error=error)
       ENDIF
+      CALL get_ks_env(ks_env,sab_aux_fit=sab_orb,error=error)
       CALL generate_qs_task_list(ks_env, task_list,&
-             reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE.,basis_set_id=use_aux_fit_basis_set, &
-             skip_load_balance_distributed=skip_load_balance_distributed, error=error)
+             reorder_rs_grid_ranks=.FALSE.,soft_valid=.FALSE.,basis_type="AUX_FIT", &
+             skip_load_balance_distributed=skip_load_balance_distributed, &
+             sab_orb_external=sab_orb,error=error)
     END IF
 
     IF (dft_control%qs_control%do_kg) THEN
@@ -723,7 +727,7 @@ END SUBROUTINE qs_env_rebuild_pw_env
 
     CALL get_qs_env(qs_env=qs_env,qs_kind_set=qs_kind_set,error=error)
     DO ikind=1,SIZE(qs_kind_set)
-      CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential)
+      CALL get_qs_kind(qs_kind_set(ikind), gth_potential=gth_potential,error=error)
       IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
       CALL get_potential(potential=gth_potential,nlcc_present=nlcc_present)
       nlcc=nlcc.OR.nlcc_present
@@ -788,16 +792,15 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
     IF(do_admm) THEN
       CALL qs_rho_rebuild(rho_aux_fit,qs_env=qs_env,&
                           rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, &
-                          basis_set_id=use_aux_fit_basis_set, error=error)
+                          admm=.TRUE., error=error)
       CALL qs_rho_rebuild(rho_aux_fit_buffer,qs_env=qs_env,&
                           rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, &
-                          basis_set_id=use_aux_fit_basis_set, error=error)
+                          admm=.TRUE., error=error)
     END IF
 ! ZMP rebuilding external density
     IF (dft_control%apply_external_density) THEN
       CALL qs_rho_rebuild(rho_external,qs_env=qs_env,&
-                           rebuild_grids=rebuild_grids, &
-                           error=error)
+                           rebuild_grids=rebuild_grids, error=error)
       dft_control%read_external_density=.TRUE.
     ENDIF
 

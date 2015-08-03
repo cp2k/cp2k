@@ -1652,9 +1652,6 @@ END SUBROUTINE diag_subspace_allocate
 
     IF( do_prec .AND. (scf_env%iter_count==scf_env%block_davidson_env(1)%first_prec  .OR. &
           MODULO(scf_env%iter_count,scf_env%block_davidson_env(1)%niter_new_prec)==0)) THEN
-!dbg
-!  write(*,*) '++++  RECOMPUTE PRECONDITIONER ++++++++'
-!dbg
        CALL restart_preconditioner(qs_env,scf_env%ot_preconditioner,&
             prec_type=scf_env%block_davidson_env(1)%prec_type,nspins=nspins,error=error)
        CALL prepare_preconditioner(qs_env,mos,matrix_ks,matrix_s,scf_env%ot_preconditioner,&

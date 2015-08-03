@@ -22,7 +22,6 @@ MODULE kg_tnadd_mat
        dbcsr_distribution_obj, dbcsr_type_symmetric
   USE external_potential_types,        ONLY: get_potential,&
                                              local_potential_type
-  USE input_constants,                 ONLY: use_orb_basis_set
   USE kg_environment_types,            ONLY: kg_environment_type
   USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: init_orbital_pointers,&
@@ -179,7 +178,7 @@ CONTAINS
     maxder = ncoset(nder)
 
     CALL get_qs_kind_set(qs_kind_set,maxpol=maxpol,maxco=maxco,maxlgto=maxlgto,&
-                          maxsgf=maxsgf,maxnset=maxnset)
+                         maxsgf=maxsgf,maxnset=maxnset,error=error)
 
     maxl = MAX(maxlgto,maxpol)
     CALL init_orbital_pointers(maxl+nder+1)
@@ -190,7 +189,7 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -202,10 +201,8 @@ CONTAINS
     ALLOCATE (row_blk_sizes(natom),col_blk_sizes(natom), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes,&
-                          basis_set_id=use_orb_basis_set,error=error)
-    CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes,&
-                          basis_set_id=use_orb_basis_set,error=error)
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes, error=error)
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes, error=error)
 
     CALL cp_dbcsr_allocate_matrix_set(matrix_kg,1,error=error)
 
@@ -373,7 +370,7 @@ CONTAINS
        ! loop over all kinds for nonadditive kinetic energy potential atoms
        DO kkind=1,nkind
 
-          CALL get_qs_kind(qs_kind_set(kkind),tnadd_potential=tnadd_potential)
+          CALL get_qs_kind(qs_kind_set(kkind),tnadd_potential=tnadd_potential,error=error)
           IF (.NOT.ASSOCIATED(tnadd_potential)) CYCLE
           CALL get_potential(potential=tnadd_potential,&
                alpha=alpha,cval=cval,ngau=ngau,npol=npol,radius=radius)

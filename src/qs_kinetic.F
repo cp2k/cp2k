@@ -72,7 +72,7 @@ CONTAINS
 !> \param   matrix_t The kinetic energy matrix to be calculated (optional)
 !> \param   matrixkp_t The kinetic energy matrices to be calculated (kpoints,optional)
 !> \param   matrix_name The name of the matrix (i.e. for output)
-!> \param   basis_set_id basis set to be used
+!> \param   basis_type basis set to be used
 !> \param   sab_nl pair list (must be consistent with basis sets!)
 !> \param   calculate_forces (optional)
 !> \param   matrix_p density matrix for force calculation (optional)
@@ -89,7 +89,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE build_kinetic_matrix(ks_env,matrix_t,matrixkp_t,matrix_name,&
-             basis_set_id,sab_nl,calculate_forces,matrix_p,matrixkp_p,&
+             basis_type,sab_nl,calculate_forces,matrix_p,matrixkp_p,&
              eps_filter,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -98,7 +98,7 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: matrixkp_t
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: matrix_name
-    INTEGER, INTENT(IN)                      :: basis_set_id
+    CHARACTER(LEN=*), INTENT(IN)             :: basis_type
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
@@ -190,13 +190,18 @@ CONTAINS
      CPPrecondition(SIZE(sab_nl) > 0,cp_failure_level,routineP,error,failure)
      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl,symmetric=do_symmetric)
 
+     ! prepare basis set
+     ALLOCATE (basis_set_list(nkind),STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     CALL basis_set_list_setup(basis_set_list,basis_type,qs_kind_set,error=error)
+
      IF(dokp) THEN
         CALL cp_dbcsr_allocate_matrix_set(matrixkp_t,1,nimg,error=error)
-        CALL create_sab_matrix(ks_env, matrixkp_t, matrix_name, basis_set_id, basis_set_id, &
+        CALL create_sab_matrix(ks_env, matrixkp_t, matrix_name, basis_set_list, basis_set_list, &
                                sab_nl, do_symmetric, error)
      ELSE
         CALL cp_dbcsr_allocate_matrix_set(matrix_t,1,error=error)
-        CALL create_sab_matrix(ks_env, matrix_t, matrix_name, basis_set_id, basis_set_id, &
+        CALL create_sab_matrix(ks_env, matrix_t, matrix_name, basis_set_list, basis_set_list, &
                                sab_nl, do_symmetric, error)
      END IF
 
@@ -213,18 +218,13 @@ CONTAINS
      END IF
 
      ! *** Allocate work storage ***
-     ldsab = get_memory_usage(qs_kind_set,basis_set_id)
+     ldsab = get_memory_usage(qs_kind_set,basis_type,error=error)
      ALLOCATE (kab(ldsab,ldsab),qab(ldsab,ldsab),STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      IF (do_forces) THEN
         ALLOCATE(dab(ldsab,ldsab,3),pab(ldsab,ldsab),STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
      END IF
-
-     ! prepare basis set
-     ALLOCATE (basis_set_list(nkind),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-     CALL basis_set_list_setup(basis_set_list,basis_set_id,qs_kind_set)
 
      ! Iterate of neighbor list
      CALL neighbor_list_iterator_create(nl_iterator,sab_nl)

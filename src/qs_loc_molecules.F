@@ -275,9 +275,9 @@ CONTAINS
                 i=first_atom+iatom-1
                 atomic_kind=>particle_set(i)%atomic_kind
                 CALL get_atomic_kind(atomic_kind, kind_number=akind)
-                CALL get_qs_kind(qs_kind_set(akind), ghost=ghost)
+                CALL get_qs_kind(qs_kind_set(akind), ghost=ghost,error=error)
                 IF (.NOT.ghost) THEN
-                   CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
+                   CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff,error=error)
                    charge_set(imol_now)=charge_set(imol_now)+zeff
                 END IF
              END DO
@@ -296,9 +296,9 @@ CONTAINS
                 i=first_atom+iatom-1
                 atomic_kind=>particle_set(i)%atomic_kind
                 CALL get_atomic_kind(atomic_kind, kind_number=akind)
-                CALL get_qs_kind(qs_kind_set(akind), ghost=ghost)
+                CALL get_qs_kind(qs_kind_set(akind), ghost=ghost,error=error)
                 IF (.NOT.ghost) THEN
-                   CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
+                   CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff,error=error)
                    ria = pbc(particle_set(i)%r,cell)
                    DO j = 1, 3
                       gvec  = twopi*cell%h_inv(j,:)
@@ -330,9 +330,9 @@ CONTAINS
                 i=first_atom+iatom-1
                 atomic_kind=>particle_set(i)%atomic_kind
                 CALL get_atomic_kind(atomic_kind, kind_number=akind)
-                CALL get_qs_kind(qs_kind_set(akind), ghost=ghost)
+                CALL get_qs_kind(qs_kind_set(akind), ghost=ghost,error=error)
                 IF (.NOT.ghost) THEN
-                   CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff)
+                   CALL get_qs_kind(qs_kind_set(akind), core_charge=zeff,error=error)
                    ria = pbc(particle_set(i)%r,cell) - rcc
                    dipole=dipole + zeff*(ria-rcc)
                    charge_set(imol_now)=charge_set(imol_now)+zeff

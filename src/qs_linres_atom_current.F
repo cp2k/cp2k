@@ -181,7 +181,7 @@ CONTAINS
     !
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxsgf=max_nsgf,&
-                             maxgtops=max_gau)
+                             maxgtops=max_gau, error=error)
 
     eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 
@@ -217,7 +217,7 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind_set(ikind),&
                             atom_list=atom_list,&
                             natom=nat)
-       CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
+       CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom, error=error)
        !
        ! Quick cycle if needed.
        IF(.NOT. paw_atom) CYCLE
@@ -244,7 +244,7 @@ CONTAINS
     ALLOCATE (basis_set_list(nkind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      CALL get_qs_kind(qs_kind_set(ikind),orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -297,10 +297,10 @@ CONTAINS
        DO kkind = 1,nkind
           NULLIFY(paw_proj)
           CALL get_qs_kind(qs_kind_set(kkind),&
-                               orb_basis_set=orb_basis_set,&
+                               basis_set=orb_basis_set,&
                                hard_radius=hard_radius_c,&
                                paw_proj_set=paw_proj,&
-                               paw_atom=paw_atom)
+                               paw_atom=paw_atom, error=error)
           !
           ! Quick cycle if needed.
           IF(.NOT.paw_atom) CYCLE
@@ -455,9 +455,9 @@ CONTAINS
                             atom_list=atom_list,&
                             natom=nat)
        CALL get_qs_kind(qs_kind_set(ikind),&
-                            orb_basis_set=orb_basis_set,&
+                            basis_set=orb_basis_set,&
                             paw_proj_set=paw_proj,&
-                            paw_atom=paw_atom)
+                            paw_atom=paw_atom, error=error)
 
        IF(.NOT. paw_atom) CYCLE
 
@@ -627,7 +627,7 @@ CONTAINS
                     para_env=para_env,&
                     error=error)
 
-    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,maxlgto=maxlgto)
+    CALL get_qs_kind_set(qs_kind_set=qs_kind_set,maxlgto=maxlgto,error=error)
 
     !
     CALL get_current_env(current_env=current_env,&
@@ -657,7 +657,7 @@ CONTAINS
                             paw_atom=paw_atom,&
                             harmonics=harmonics,&
                             hard_radius=hard_radius,&
-                            orb_basis_set=orb_basis_set)
+                            basis_set=orb_basis_set,error=error)
        !
        ! Quick cycle if needed.
        IF(.NOT.paw_atom) CYCLE
@@ -1432,7 +1432,7 @@ CONTAINS
                            grid_atom=grid_atom,&
                            harmonics=harmonics,&
                            hard_radius=hard_radius,&
-                           paw_atom=paw_atom)
+                           paw_atom=paw_atom, error=error)
 
           IF (.NOT.paw_atom) CYCLE
 

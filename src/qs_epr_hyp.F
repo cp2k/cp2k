@@ -183,7 +183,7 @@ CONTAINS
                            atom_list=atom_list,natom=natomkind,z=z)
 
       CALL get_qs_kind(qs_kind_set(ikind),harmonics=harmonics,&
-                       grid_atom=grid_atom,paw_atom=paw_atom,hard_radius=hard_radius)
+                       grid_atom=grid_atom,paw_atom=paw_atom,hard_radius=hard_radius,error=error)
 
       IF(.NOT. paw_atom) CYCLE ! skip the rest and go to next atom type
 

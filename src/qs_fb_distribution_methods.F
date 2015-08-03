@@ -199,7 +199,7 @@ CONTAINS
                                halo_atoms=halo_atoms, &
                                error=error)
        NULLIFY(halo_atoms)
-       cost_per_atom(iatom) = fb_atomic_halo_cost(atomic_halo, particle_set, qs_kind_set)
+       cost_per_atom(iatom) = fb_atomic_halo_cost(atomic_halo, particle_set, qs_kind_set, error=error)
     END DO
     DEALLOCATE(pair_radii, STAT=stat)
     CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)

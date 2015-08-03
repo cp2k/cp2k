@@ -301,13 +301,16 @@ CONTAINS
     ! create neighbor lists for standard use in QS
     CALL build_qs_neighbor_lists(qs_env,para_env,molecular=molecule_only,&
                                  force_env_section=input,error=error)
-    dft_control%qs_control%becke_control%need_pot=.TRUE.
+
+    ! calculate cell index for k-point calculations
     IF(do_kpoints) THEN
-      CALL get_qs_env(qs_env, sab_orb=sab_nl, error=error)
-      CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, dft_control, error)
+       CALL get_qs_env(qs_env, sab_kp=sab_nl, error=error)
+       CALL kpoint_init_cell_index(kpoints, sab_nl, para_env, dft_control, error)
     ENDIF
 
-    ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
+    dft_control%qs_control%becke_control%need_pot=.TRUE.
+
+    ! Calculate the overlap and the core Hamiltonian integral matrix
     IF ( dft_control%qs_control%semi_empirical ) THEN
        CALL build_se_core_matrix(qs_env=qs_env, para_env=para_env,&
                                     calculate_forces=.FALSE.,error=error)

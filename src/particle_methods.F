@@ -85,18 +85,17 @@ CONTAINS
 !> \param first_sgf ...
 !> \param last_sgf ...
 !> \param nsgf ...
-!> \param basis_set_id ...
 !> \param basis ...
 !> \param error ...
 !> \date    14.01.2002
 !> \par History
 !>      - particle type cleaned (13.10.2003,MK)
-!>      - refactoring and add besis set option (17.08.2010,jhu)
+!>      - refactoring and add basis set option (17.08.2010,jhu)
 !> \author  MK
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE get_particle_set(particle_set,qs_kind_set,first_sgf,last_sgf,nsgf,&
-                              basis_set_id,basis,error)
+                              basis,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -104,7 +103,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     INTEGER, DIMENSION(:), INTENT(INOUT), &
       OPTIONAL                               :: first_sgf, last_sgf, nsgf
-    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(gto_basis_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: basis
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -136,10 +134,8 @@ CONTAINS
         CALL get_atomic_kind(particle_set(iparticle)%atomic_kind, kind_number=ikind)
         IF (PRESENT(basis)) THEN
           CALL get_gto_basis_set(gto_basis_set=basis(ikind)%gto_basis_set,nsgf=ns)
-        ELSEIF (PRESENT(basis_set_id)) THEN
-          CALL get_qs_kind(qs_kind_set(ikind), nsgf=ns, basis_set_id=basis_set_id)
         ELSE
-          CALL get_qs_kind(qs_kind_set(ikind), nsgf=ns)
+          CALL get_qs_kind(qs_kind_set(ikind), nsgf=ns, error=error)
         END IF
         IF (PRESENT(nsgf)) nsgf(iparticle) = ns
         IF (PRESENT(first_sgf)) first_sgf(iparticle) = isgf + 1
@@ -620,7 +616,7 @@ CONTAINS
                              element_symbol=element_symbol,&
                              mass=mass,&
                              z=z)
-        CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff)
+        CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, error=error)
         WRITE (UNIT=iw,&
                FMT="(T2,I7,1X,I5,1X,A2,1X,I3,3F12.6,4X,F6.2,2X,F11.4)")&
           iatom,ikind,element_symbol,z,&

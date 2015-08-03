@@ -14,8 +14,9 @@
 ! *****************************************************************************
 MODULE mp2_optimize_ri_basis
   USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE basis_set_container_types,       ONLY: add_basis_set_to_container,&
+                                             remove_basis_from_container
   USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
-                                             deallocate_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
@@ -159,6 +160,7 @@ MODULE mp2_optimize_ri_basis
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
     TYPE(gto_basis_set_type), DIMENSION(:), &
       POINTER                                :: basis_set_RI
+    TYPE(gto_basis_set_type), POINTER        :: ri_aux_basis
     TYPE(hfx_basis_info_type)                :: RI_basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_S0, RI_basis_parameter
@@ -470,6 +472,8 @@ MODULE mp2_optimize_ri_basis
       IF (unit_nr>0) THEN
         WRITE(unit_nr,*)
         DO ikind=1, nkind
+          CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=ri_aux_basis,&
+               basis_type="RI_AUX",error=error)
           WRITE(unit_nr,'(T3,A,A)') atomic_kind_set(ikind)%element_symbol,'   RI_opt_basis'
           WRITE(unit_nr,'(T3,I3)') RI_basis_parameter(ikind)%nset
           DO iset=1, RI_basis_parameter(ikind)%nset
@@ -480,9 +484,8 @@ MODULE mp2_optimize_ri_basis
                                        (1,ishell=1,RI_basis_parameter(ikind)%nshell(iset))
             DO ipgf=1,RI_basis_parameter(ikind)%npgf(iset)
               WRITE(unit_nr,'(T3,10F16.10)') RI_basis_parameter(ikind)%zet(ipgf,iset),&
-                                             (qs_kind_set(ikind)%ri_aux_basis_set%&
-                                             gcc(ipgf,ishell,iset),&
-                                             ishell=1,qs_kind_set(ikind)%ri_aux_basis_set%nshell(iset))
+                                             (ri_aux_basis%gcc(ipgf,ishell,iset),&
+                                             ishell=1,ri_aux_basis%nshell(iset))
             END DO                            
           END DO
           WRITE(unit_nr,*)
@@ -1350,7 +1353,7 @@ MODULE mp2_optimize_ri_basis
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a, zet
     REAL(dp), DIMENSION(:, :, :), POINTER    :: gcc
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: max_rel_dev, max_rel_dev_prev
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, tmp_basis
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: atom_kind
@@ -1381,13 +1384,13 @@ MODULE mp2_optimize_ri_basis
       NULLIFY(atom_kind)
       atom_kind => qs_kind_set(ikind)
 
+      CALL get_qs_kind(qs_kind=atom_kind,basis_set=orb_basis_a,basis_type="RI_AUX",error=error)
       ! save info if the basis was or not associated
-      basis_was_assoc(ikind)=ASSOCIATED(qs_kind_set(ikind)%ri_aux_basis_set)
+      basis_was_assoc(ikind)=ASSOCIATED(orb_basis_a)
 
       ! skip the generation of the initial guess if the RI basis is 
       ! provided in input
-      IF(ASSOCIATED(qs_kind_set(ikind)%ri_aux_basis_set)) THEN
-        CALL get_qs_kind(qs_kind=atom_kind,ri_aux_basis_set=orb_basis_a)
+      IF(basis_was_assoc(ikind)) THEN
         nseta = orb_basis_a%nset
         la_max => orb_basis_a%lmax
         la_min => orb_basis_a%lmin
@@ -1480,14 +1483,11 @@ MODULE mp2_optimize_ri_basis
         DEALLOCATE(RI_num_sgf_per_l)
 
         ! deallocate the old basis before moving on
-        CALL deallocate_gto_basis_set(qs_kind_set(ikind)%ri_aux_basis_set,error)
-
-        ! IF(qs_env%para_env%mepos==0) THEN
-        ! END IF
+        CALL remove_basis_from_container(qs_kind_set(ikind)%basis_sets,basis_type="RI_AUX",error=error)
 
       ELSE
  
-        CALL get_qs_kind(qs_kind=atom_kind,orb_basis_set=orb_basis_a)
+        CALL get_qs_kind(qs_kind=atom_kind,basis_set=orb_basis_a,error=error)
 
         sphi_a => orb_basis_a%sphi
         nseta = orb_basis_a%nset
@@ -1710,9 +1710,11 @@ MODULE mp2_optimize_ri_basis
       END IF ! RI basis not associated
 
       ! create the new basis
-      NULLIFY(qs_kind_set(ikind)%ri_aux_basis_set)
-      CALL create_ri_basis(qs_kind_set(ikind)%ri_aux_basis_set,&
-                           RI_nset,RI_l_expo,RI_exponents,error)
+      NULLIFY(tmp_basis)
+      CALL create_ri_basis(tmp_basis,RI_nset,RI_l_expo,RI_exponents,error)
+      CALL add_basis_set_to_container(qs_kind_set(ikind)%basis_sets,tmp_basis,"RI_AUX",error=error)
+!d    CALL copy_gto_basis_set(tmp_basis,qs_kind_set(ikind)%ri_aux_basis_set,error)
+
       DEALLOCATE(RI_exponents)
       DEALLOCATE(RI_l_expo)
 

@@ -169,7 +169,7 @@ CONTAINS
              ria = pbc(ria-center,cell)+center
              atomic_kind => particle_set(iatom)%atomic_kind
              CALL get_atomic_kind(atomic_kind, kind_number=akind )
-             CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
+             CALL get_qs_kind(qs_kind_set(akind), core_charge=charge,error=error)
              rpoint(:) = rpoint(:) + charge*ria(:)
              IF (PRESENT(drpoint)) drpoint = drpoint + charge*particle_set(iatom)%v
              ztot = ztot + charge
@@ -182,7 +182,7 @@ CONTAINS
                 ria = pbc(ria,cell)
                 atomic_kind => particle_set(iatom)%atomic_kind
                 CALL get_atomic_kind(atomic_kind, kind_number=akind )
-                CALL get_qs_kind(qs_kind_set(akind), core_charge=charge)
+                CALL get_qs_kind(qs_kind_set(akind), core_charge=charge,error=error)
                 rpoint(:) = rpoint(:) + charge*ria(:)
                 IF (PRESENT(drpoint)) drpoint = drpoint + charge*particle_set(iatom)%v
                 ztot = ztot + charge

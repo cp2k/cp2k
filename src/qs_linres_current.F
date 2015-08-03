@@ -760,7 +760,7 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
          maxco=maxco,&
          maxsgf=maxsgf,&
-         maxsgf_set=maxsgf_set)
+         maxsgf_set=maxsgf_set, error=error)
 
     Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp
     Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
@@ -797,7 +797,7 @@ CONTAINS
        qs_kind => qs_kind_set(ikind)
 
        CALL get_qs_kind(qs_kind=qs_kind,&
-            orb_basis_set=orb_basis_set)
+            basis_set=orb_basis_set, error=error)
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -849,7 +849,7 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,orb_basis_set=basis_set_a)
+      CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a,error=error)
       IF (ASSOCIATED(basis_set_a)) THEN
         basis_set_list(ikind)%gto_basis_set => basis_set_a
       ELSE
@@ -1074,7 +1074,7 @@ CONTAINS
           IF (ikind .NE. ikind_old ) THEN
              CALL get_qs_kind(qs_kind_set(ikind),&
                   softb = my_soft, &
-                  orb_basis_set=orb_basis_set)
+                  basis_set=orb_basis_set, error=error)
 
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfa,&
@@ -1093,7 +1093,7 @@ CONTAINS
 
              CALL get_qs_kind(qs_kind_set(jkind),&
                   softb = my_soft, &
-                  orb_basis_set=orb_basis_set)
+                  basis_set=orb_basis_set, error=error)
 
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfb,&

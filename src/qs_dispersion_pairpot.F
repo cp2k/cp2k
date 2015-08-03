@@ -994,7 +994,7 @@ CONTAINS
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
-          CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a)
+          CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a,error=error)
           dodisp(ikind)=disp_a%defined
           ghost(ikind)=ghost_a
           atomnumber(ikind)=za
@@ -1627,11 +1627,11 @@ CONTAINS
              END IF
              DO ikind=1,nkind
                 CALL get_atomic_kind(atomic_kind_set(ikind), natom=na, z=za)
-                CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a)
+                CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a,error=error)
                 IF (.NOT.disp_a%defined .OR. ghost_a) CYCLE
                 DO jkind=1,nkind
                    CALL get_atomic_kind(atomic_kind_set(jkind), natom=nb, z=zb)
-                   CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_b, ghost=ghost_b)
+                   CALL get_qs_kind(qs_kind_set(jkind), dispersion=disp_b, ghost=ghost_b,error=error)
                    IF (.NOT.disp_b%defined .OR. ghost_b) CYCLE
                    CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,za,zb,&
                       cnkind(ikind),cnkind(jkind),dispersion_env%k3,cc6ab,dcc6aba,dcc6abb)
@@ -1641,7 +1641,7 @@ CONTAINS
                    IF (dispersion_env%doabc) THEN
                       DO kkind=1,nkind
                          CALL get_atomic_kind(atomic_kind_set(kkind), natom=nc, z=zc)
-                         CALL get_qs_kind(qs_kind_set(kkind), dispersion=disp_c, ghost=ghost_c)
+                         CALL get_qs_kind(qs_kind_set(kkind), dispersion=disp_c, ghost=ghost_c,error=error)
                          IF (.NOT.disp_c%defined .OR. ghost_c) CYCLE
                          CALL getc6(maxc,max_elem,dispersion_env%c6ab,dispersion_env%maxci,za,zb,&
                             cnkind(ikind),cnkind(jkind),dispersion_env%k3,cc6ab,dcc6aba,dcc6abb)

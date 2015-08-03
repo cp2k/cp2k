@@ -207,9 +207,9 @@ CONTAINS
         atomic_kind => molecule_kind%atom_list(iatom)%atomic_kind
         CALL get_atomic_kind(atomic_kind, kind_number=ikind)
         CALL get_qs_kind(qs_kind_set(ikind),&
-                         orb_basis_set=orb_basis_set,&
+                         basis_set=orb_basis_set,&
                          all_potential=all_potential,&
-                         gth_potential=gth_potential)
+                         gth_potential=gth_potential, error=error)
 
         ! Get the electronic state of the atom that is used
         !  to calculate the ATOMIC GUESS

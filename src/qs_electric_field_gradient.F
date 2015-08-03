@@ -308,7 +308,7 @@ CONTAINS
     DO ikind = 1,nkind
       NULLIFY(atom_list)
       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list,natom=natomkind)
-      CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom)
+      CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom,error=error)
       DO iat = 1,natomkind
         iatom = atom_list(iat)
         ra = particle_set(iatom)%r
@@ -492,8 +492,8 @@ CONTAINS
     NULLIFY(harmonics)
     NULLIFY(lmin,lmax,npgf,zet,my_CG,coeff)
 
-    CALL get_qs_kind(qs_kind=qs_kind, orb_basis_set=orb_basis,&
-                         paw_proj_set=paw_proj,harmonics=harmonics)
+    CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis,&
+                         paw_proj_set=paw_proj,harmonics=harmonics, error=error)
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                            maxl=maxl,npgf=npgf,nset=nset,zet=zet,&

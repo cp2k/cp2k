@@ -46,10 +46,9 @@ MODULE qs_integrate_potential_product
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
-  USE input_constants,                 ONLY: do_admm_exch_scaling_merlot,&
-                                             use_aux_fit_basis_set,&
-                                             use_orb_basis_set
-  USE kinds,                           ONLY: dp,&
+  USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              int_8
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: ncoset
@@ -112,7 +111,7 @@ CONTAINS
 !> \param ispin ...
 !> \param compute_tau ...
 !> \param gapw ...
-!> \param basis_set_id ...
+!> \param basis_type ...
 !> \param pw_env_external ...
 !> \param task_list_external ...
 !> \param error ...
@@ -135,7 +134,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE integrate_v_rspace(v_rspace, hmat, hmat_kp, pmat, pmat_kp, &
        qs_env, calculate_forces, force_adm, ispin, &
-       compute_tau, gapw, basis_set_id, pw_env_external, task_list_external, error)
+       compute_tau, gapw, basis_type, pw_env_external, task_list_external, error)
 
     TYPE(pw_p_type)                          :: v_rspace
     TYPE(cp_dbcsr_p_type), INTENT(INOUT), &
@@ -151,7 +150,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: force_adm
     INTEGER, INTENT(IN), OPTIONAL            :: ispin
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
-    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
+    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: basis_type
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env_external
     TYPE(task_list_type), OPTIONAL, POINTER  :: task_list_external
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -159,12 +158,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_rspace', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(len=default_string_length)     :: my_basis_type
     INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, igrid_level, &
       ikind, ikind_old, ilevel, img, ipair, ipgf, ipgf_new, iset, iset_new, &
       iset_old, itask, ithread, jatom, jkind, jkind_old, jpgf, jpgf_new, &
-      jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, &
-      my_basis_set_id, na1, na2, natom, nb1, nb2, ncoa, ncob, nimages, nkind, &
-      nseta, nsetb, nthread, offs_dv, sgfa, sgfb, stat
+      jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, na1, na2, &
+      natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, nthread, &
+      offs_dv, sgfa, sgfb, stat
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -249,27 +249,27 @@ CONTAINS
     my_force_adm = .FALSE. 
     IF (PRESENT(force_adm)) my_force_adm = force_adm
 
-    ! this sets the basis set to be used. GAPW(==soft basis) overwrites basis_set_id
-    ! default is "use_orb_basis_set"
+    ! this sets the basis set to be used. GAPW(==soft basis) overwrites basis_type
+    ! default is "ORB"
     my_gapw = .FALSE.
     IF (PRESENT(gapw)) my_gapw = gapw
-    IF (PRESENT(basis_set_id)) THEN
-       my_basis_set_id = basis_set_id
-    ELSE
-       my_basis_set_id = use_orb_basis_set
+    IF(PRESENT(basis_type)) THEN
+       my_basis_type = basis_type
+    ELSE 
+       my_basis_type = "ORB"
     END IF
 
     ! get the task lists
     ! task lists have to be in sync with basis sets
     ! there is an option to provide the task list from outside (not through qs_env)
     ! outside option has highest priority
-    SELECT CASE (my_basis_set_id)
-    CASE (use_orb_basis_set)
+    SELECT CASE (my_basis_type)
+    CASE ("ORB")
       CALL get_qs_env(qs_env=qs_env,&
          task_list=task_list,&
          task_list_soft=task_list_soft,&
          error=error)
-    CASE (use_aux_fit_basis_set)
+    CASE ("AUX_FIT")
       CALL get_qs_env(qs_env=qs_env,&
          task_list_aux_fit=task_list,&
          task_list_soft=task_list_soft,&
@@ -356,7 +356,7 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
          maxco=maxco,&
          maxsgf_set=maxsgf_set,&
-         basis_set_id=my_basis_set_id)
+         basis_type=my_basis_type,error=error)
 
     distributed_grids = .FALSE.
     DO igrid_level = 1, gridlevel_info%ngrid_levels
@@ -443,17 +443,9 @@ CONTAINS
     maxset=0
     maxpgf=0
     DO ikind=1,nkind
-       SELECT CASE (my_basis_set_id)
-       CASE (use_orb_basis_set)
-         CALL get_qs_kind(qs_kind_set(ikind),&
-              softb = my_gapw, &
-              orb_basis_set=orb_basis_set)
-       CASE (use_aux_fit_basis_set)
-         CALL get_qs_kind(qs_kind_set(ikind),&
-              softb = my_gapw, &
-              aux_fit_basis_set=orb_basis_set,&
-              basis_set_id=my_basis_set_id)
-       END SELECT
+       CALL get_qs_kind(qs_kind_set(ikind),&
+            softb = my_gapw, &
+            basis_set=orb_basis_set,basis_type=my_basis_type,error=error)
 
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
@@ -476,7 +468,7 @@ CONTAINS
 
 !$omp parallel default(none), &
 !$omp shared(workt,habt,hdabt,hadbt,pabt,tasks,particle_set,natom,maxset), &
-!$omp shared(maxpgf,my_basis_set_id,my_gapw,dhmat,deltap,use_virial,admm_scal_fac), &
+!$omp shared(maxpgf,my_basis_type,my_gapw,dhmat,deltap,use_virial,admm_scal_fac), &
 !$omp shared(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
 !$omp shared(map_consistent,eps_gvg_rspace,force,virial,cell,atom_of_kind,dist_ab), &
 !$omp shared(gridlevel_info,task_list,failure,block_touched,nthread,qs_kind_set), &
@@ -550,17 +542,9 @@ CONTAINS
           END IF
 
           IF (ikind .NE. ikind_old ) THEN
-             SELECT CASE (my_basis_set_id)
-             CASE (use_orb_basis_set)
-               CALL get_qs_kind(qs_kind_set(ikind),&
-                    softb = my_gapw, &
-                    orb_basis_set=orb_basis_set)
-             CASE (use_aux_fit_basis_set)
-               CALL get_qs_kind(qs_kind_set(ikind),&
-                    softb = my_gapw, &
-                    aux_fit_basis_set=orb_basis_set,&
-                    basis_set_id = my_basis_set_id)
-             END SELECT
+             CALL get_qs_kind(qs_kind_set(ikind),&
+                  softb = my_gapw, &
+                  basis_set=orb_basis_set,basis_type=my_basis_type,error=error)
 
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfa,&
@@ -576,17 +560,9 @@ CONTAINS
           ENDIF
 
           IF (jkind .NE. jkind_old ) THEN
-             SELECT CASE (my_basis_set_id)
-             CASE (use_orb_basis_set)
-               CALL get_qs_kind(qs_kind_set(jkind),&
-                    softb = my_gapw, &
-                    orb_basis_set=orb_basis_set)
-             CASE (use_aux_fit_basis_set)
-               CALL get_qs_kind(qs_kind_set(jkind),&
-                    softb = my_gapw, &
-                    aux_fit_basis_set=orb_basis_set,&
-                    basis_set_id=my_basis_set_id)
-             END SELECT
+             CALL get_qs_kind(qs_kind_set(jkind),&
+                  softb = my_gapw, &
+                  basis_set=orb_basis_set,basis_type=my_basis_type,error=error)
              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                   first_sgf=first_sgfb,&
                   lmax=lb_max,&

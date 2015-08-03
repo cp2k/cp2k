@@ -135,7 +135,7 @@ CONTAINS
       NULLIFY(grid_atom,harmonics)
       CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list,natom=natom)
       CALL get_qs_kind(qs_kind_set(ikind), grid_atom=grid_atom,&
-                           paw_atom=paw_atom, harmonics=harmonics)
+                           paw_atom=paw_atom, harmonics=harmonics, error=error)
 
 !     Calculate rho1_h and rho1_s on the radial grids centered on the atomic position
       IF(paw_atom) &

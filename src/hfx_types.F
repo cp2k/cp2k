@@ -45,8 +45,7 @@ MODULE hfx_types
        do_hfx_potential_gaussian, do_hfx_potential_id, do_hfx_potential_long, &
        do_hfx_potential_mix_cl, do_hfx_potential_mix_cl_trunc, &
        do_hfx_potential_mix_lg, do_hfx_potential_short, &
-       do_hfx_potential_truncated, hfx_do_eval_energy, hfx_do_eval_forces, &
-       use_aux_fit_basis_set
+       do_hfx_potential_truncated, hfx_do_eval_energy, hfx_do_eval_forces
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -77,6 +76,7 @@ MODULE hfx_types
   PUBLIC :: hfx_type, hfx_create, hfx_release,&
             hfx_set_distr_energy,&
             hfx_set_distr_forces,&
+            hfx_cell_loop_info_type,&
             hfx_cell_type, hfx_distribution,&
             hfx_potential_type, hfx_screening_type,&
             hfx_memory_type, hfx_load_balance_type, hfx_general_type,&
@@ -88,7 +88,8 @@ MODULE hfx_types
             pair_set_list_type, hfx_p_kind, hfx_2D_map, hfx_pgf_list,&
             hfx_pgf_product_list, hfx_block_range_type,&
             alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax,&
-            hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types
+            hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types,&
+            set_cell_info
 
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6
@@ -132,6 +133,16 @@ MODULE hfx_types
     REAL(dp)                                 :: eps_schwarz_forces  !! threshold
     LOGICAL                                  :: do_p_screening_forces  !! screen on P^2 ?
     LOGICAL                                  :: do_initial_p_screening !! screen on inital guess?
+  END TYPE
+! *****************************************************************************
+  TYPE hfx_cell_loop_info_type
+    LOGICAL                                  :: dokp
+    INTEGER                                  :: image_ks
+    INTEGER, DIMENSION(3)                    :: cell_ks
+    INTEGER                                  :: image_pm
+    INTEGER, DIMENSION(3)                    :: cell_pm
+    INTEGER, DIMENSION(:, :), POINTER        :: index_to_cell => NULL()
+    INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index => NULL()
   END TYPE
 
 ! *****************************************************************************
@@ -984,19 +995,19 @@ MODULE hfx_types
     max_set = 0
     DO ikind = 1,nkind
         IF( .NOT. do_admm ) THEN
-          CALL get_qs_kind(qs_kind_set(ikind), orb_basis_set=orb_basis_a)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_a, basis_type="ORB", error=error)
           CALL get_qs_kind_set(qs_kind_set,&
                                maxsgf=basis_info%max_sgf,&
                                maxnset=basis_info%max_set,&
-                               maxlgto=basis_info%max_am)
+                               maxlgto=basis_info%max_am, error=error)
 
         ELSE
-          CALL get_qs_kind(qs_kind_set(ikind), aux_fit_basis_set=orb_basis_a)
+          CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_a, basis_type="AUX_FIT", error=error)
           CALL get_qs_kind_set(qs_kind_set,&
                                maxsgf=basis_info%max_sgf,&
                                maxnset=basis_info%max_set,&
                                maxlgto=basis_info%max_am,&
-                               basis_set_id=use_aux_fit_basis_set)
+                               basis_type="AUX_FIT", error=error)
         END IF
         IF (basis_info%max_set<max_set) STOP "UNEXPECTED MAX_SET"
         max_set = MAX(max_set,basis_info%max_set)
@@ -2332,6 +2343,27 @@ MODULE hfx_types
 
   END SUBROUTINE alloc_containers
 
+! *****************************************************************************
+!> \brief ...
+!> \param cli ...
+! *****************************************************************************
+  SUBROUTINE set_cell_info(cli)
+    TYPE(hfx_cell_loop_info_type)            :: cli
+
+    INTEGER                                  :: i1, i2, i3, id
+
+    DO i3=LBOUND(cli%cell_to_index,3),UBOUND(cli%cell_to_index,3)
+      DO i2=LBOUND(cli%cell_to_index,2),UBOUND(cli%cell_to_index,2)
+        DO i1=LBOUND(cli%cell_to_index,1),UBOUND(cli%cell_to_index,1)
+          id = cli%cell_to_index(i1,i2,i3)
+          cli%index_to_cell(1,id) = i1
+          cli%index_to_cell(2,id) = i2
+          cli%index_to_cell(3,id) = i3
+        END DO
+      END DO
+    END DO
+
+  END SUBROUTINE set_cell_info
 
 END MODULE hfx_types
 

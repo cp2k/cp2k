@@ -121,7 +121,6 @@ MODULE hfx_screening_methods
 !> \param pmax_atom ...
 !> \param full_density_alpha ...
 !> \param full_density_beta ...
-!> \param image ...
 !> \param natom ...
 !> \param kind_of ...
 !> \param basis_parameter ...
@@ -134,7 +133,7 @@ MODULE hfx_screening_methods
 !>      - updates for each pair of shells the maximum absolute value of p
 ! *****************************************************************************
   SUBROUTINE update_pmax_mat(pmax_set, map_atom_to_kind_atom, set_offset, atomic_block_offset, &
-                             pmax_atom, full_density_alpha, full_density_beta, image, natom, &
+                             pmax_atom, full_density_alpha, full_density_beta, natom, &
                              kind_of,basis_parameter, &
                              nkind, is_assoc_atomic_block)
 
@@ -145,7 +144,7 @@ MODULE hfx_screening_methods
     REAL(dp), DIMENSION(:, :), POINTER       :: pmax_atom, &
                                                 full_density_alpha, &
                                                 full_density_beta
-    INTEGER, INTENT(IN)                      :: image, natom
+    INTEGER, INTENT(IN)                      :: natom
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -155,19 +154,21 @@ MODULE hfx_screening_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_pmax_mat', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: act_atomic_block_offset, act_set_offset, handle, i, jatom, &
-      jkind, jset, katom, kind_kind_idx, kkind, kset, mb, mc, nsetb, nsetc
+    INTEGER :: act_atomic_block_offset, act_set_offset, handle, i, img, &
+      jatom, jkind, jset, katom, kind_kind_idx, kkind, kset, mb, mc, nimg, &
+      nsetb, nsetc
     INTEGER, DIMENSION(:), POINTER           :: nsgfb, nsgfc
     REAL(dp)                                 :: pmax_tmp
 
     CALL timeset(routineN,handle)
-
 
     DO i = 1,SIZE(pmax_set)
       pmax_set(i)%p_kind = 0.0_dp
     END DO
 
     pmax_atom = log_zero
+
+    nimg = SIZE(full_density_alpha,2)
 
     DO jatom=1,natom
       jkind = kind_of(jatom)
@@ -186,14 +187,16 @@ MODULE hfx_screening_methods
             IF( katom >= jatom ) THEN
               pmax_tmp = 0.0_dp
               act_set_offset = set_offset(kset,jset,kkind,jkind)
-              i = act_set_offset + act_atomic_block_offset - 1
-              DO mc = 1,nsgfc(kset)
-                DO mb = 1,nsgfb(jset)
-                  pmax_tmp=MAX(pmax_tmp,ABS(full_density_alpha(i,image)))
-                  IF( ASSOCIATED(full_density_beta) ) THEN
-                    pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(i,image)))
-                  END IF
-                  i=i+1
+              DO img=1,nimg
+                i = act_set_offset + act_atomic_block_offset - 1
+                DO mc = 1,nsgfc(kset)
+                  DO mb = 1,nsgfb(jset)
+                    pmax_tmp=MAX(pmax_tmp,ABS(full_density_alpha(i,img)))
+                    IF( ASSOCIATED(full_density_beta) ) THEN
+                      pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(i,img)))
+                    END IF
+                    i=i+1
+                  ENDDO
                 ENDDO
               ENDDO
               IF(pmax_tmp == 0.0_dp) THEN
@@ -209,14 +212,16 @@ MODULE hfx_screening_methods
             ELSE
               pmax_tmp = 0.0_dp
               act_set_offset = set_offset(jset,kset,jkind,kkind)
-              DO mc = 1,nsgfc(kset)
-                i = act_set_offset + act_atomic_block_offset -1 + mc -1
-                DO mb = 1,nsgfb(jset)
-                  pmax_tmp=MAX(pmax_tmp,ABS(full_density_alpha(i,image)))
-                  IF( ASSOCIATED(full_density_beta) ) THEN
-                    pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(i,image)))
-                  END IF
-                  i= i + nsgfc(kset)
+              DO img=1,nimg
+                DO mc = 1,nsgfc(kset)
+                  i = act_set_offset + act_atomic_block_offset -1 + mc -1
+                  DO mb = 1,nsgfb(jset)
+                    pmax_tmp=MAX(pmax_tmp,ABS(full_density_alpha(i,img)))
+                    IF( ASSOCIATED(full_density_beta) ) THEN
+                      pmax_tmp=MAX(pmax_tmp,ABS(full_density_beta(i,img)))
+                    END IF
+                    i= i + nsgfc(kset)
+                  ENDDO
                 ENDDO
               ENDDO
               IF(pmax_tmp == 0.0_dp) THEN
@@ -381,7 +386,7 @@ MODULE hfx_screening_methods
     DO ikind=1,nkind
       NULLIFY(qs_kind,orb_basis)
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
       NULLIFY(la_max,la_min,npgfa,zeta)
 
       la_max => basis_parameter(ikind)%lmax
@@ -398,7 +403,7 @@ MODULE hfx_screening_methods
       DO jkind = 1,nkind
         NULLIFY(qs_kind,orb_basis)
         qs_kind => qs_kind_set(jkind)
-        CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
+        CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
 
         lb_max => basis_parameter(jkind)%lmax
@@ -483,7 +488,7 @@ MODULE hfx_screening_methods
     DO ikind=1,nkind
       NULLIFY(qs_kind,orb_basis)
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
       NULLIFY(la_max,la_min,npgfa,zeta)
 !      CALL get_gto_basis_set(gto_basis_set=orb_basis,&
 !                             lmax=la_max,&
@@ -508,7 +513,7 @@ MODULE hfx_screening_methods
       DO jkind = 1,nkind
         NULLIFY(qs_kind,orb_basis)
         qs_kind => qs_kind_set(jkind)
-        CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
+        CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
 
         lb_max => basis_parameter(jkind)%lmax
@@ -576,7 +581,7 @@ MODULE hfx_screening_methods
     DO ikind=1,nkind
       NULLIFY(qs_kind,orb_basis)
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
       NULLIFY(la_max,la_min,npgfa,zeta)
 
       la_max => basis_parameter(ikind)%lmax
@@ -592,7 +597,7 @@ MODULE hfx_screening_methods
       DO jkind = 1,nkind
         NULLIFY(qs_kind,orb_basis)
         qs_kind => qs_kind_set(jkind)
-        CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
+        CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
 
         lb_max => basis_parameter(jkind)%lmax
@@ -746,7 +751,7 @@ MODULE hfx_screening_methods
     DO ikind=1,nkind
       NULLIFY(qs_kind,orb_basis)
       qs_kind => qs_kind_set(ikind)
-      CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
+      CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
       NULLIFY(la_max,la_min,npgfa,zeta)
 
       la_max => basis_parameter(ikind)%lmax
@@ -763,7 +768,7 @@ MODULE hfx_screening_methods
       DO jkind = 1,nkind
         NULLIFY(qs_kind,orb_basis)
         qs_kind => qs_kind_set(jkind)
-        CALL get_qs_kind(qs_kind=qs_kind,orb_basis_set=orb_basis)
+        CALL get_qs_kind(qs_kind=qs_kind,basis_set=orb_basis,error=error)
         NULLIFY(lb_max,lb_min,npgfb,zetb)
 
         lb_max => basis_parameter(jkind)%lmax

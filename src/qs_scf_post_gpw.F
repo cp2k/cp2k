@@ -65,8 +65,7 @@ MODULE qs_scf_post_gpw
                                              do_loc_lumo,&
                                              ot_precond_full_all,&
                                              ref_charge_atomic,&
-                                             ref_charge_mulliken,&
-                                             use_orb_basis_set
+                                             ref_charge_mulliken
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_get_ivals,&
                                              section_get_lval,&
@@ -1132,9 +1131,9 @@ CONTAINS
           ! Nuclear charges
           DO i=1,SIZE(particle_set)
              CALL get_atomic_kind(particle_set(i)%atomic_kind,kind_number=ikind)
-             CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost)
+             CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost, error=error)
              IF (.NOT.ghost) THEN
-                CALL get_qs_kind(qs_kind_set(ikind), core_charge=zeff)
+                CALL get_qs_kind(qs_kind_set(ikind), core_charge=zeff, error=error)
                 ria = pbc(particle_set(i)%r, cell)
                 DO j = 1, 3
                    gvec  = twopi*cell%h_inv(j,:)
@@ -1167,9 +1166,9 @@ CONTAINS
           ! Charges of the atoms involved
           DO i=1,SIZE(particle_set)
              CALL get_atomic_kind(particle_set(i)%atomic_kind, kind_number=ikind)
-             CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost)
+             CALL get_qs_kind(qs_kind_set(ikind), ghost=ghost, error=error)
              IF (.NOT.ghost) THEN
-                CALL get_qs_kind(qs_kind_set(ikind), core_charge=zeff)
+                CALL get_qs_kind(qs_kind_set(ikind), core_charge=zeff, error=error)
                 ria = pbc(particle_set(i)%r, cell)
                 dipole=dipole + zeff*(ria-rcc)
              END IF
@@ -1236,12 +1235,11 @@ CONTAINS
 !> \param particles ...
 !> \param homo ...
 !> \param ispin ...
-!> \param basis_set_id ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env,&
-       mo_coeff, wf_g, wf_r, particles, homo, ispin, basis_set_id, error)
+       mo_coeff, wf_g, wf_r, particles, homo, ispin, error)
     TYPE(section_vals_type), POINTER         :: input, dft_section
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1250,15 +1248,13 @@ CONTAINS
     TYPE(pw_p_type)                          :: wf_g, wf_r
     TYPE(particle_list_type), POINTER        :: particles
     INTEGER, INTENT(IN)                      :: homo, ispin
-    INTEGER, INTENT(IN), OPTIONAL            :: basis_set_id
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_occ_cubes', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube, title
-    INTEGER                                  :: handle, ivector, &
-                                                my_basis_set_id, nhomo, &
+    INTEGER                                  :: handle, ivector, nhomo, &
                                                 unit_nr
     LOGICAL                                  :: append_cube
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1271,12 +1267,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
-
-    IF(PRESENT(basis_set_id)) THEN
-      my_basis_set_id = basis_set_id
-    ELSE
-      my_basis_set_id = use_orb_basis_set
-    END IF
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
          error=error),cp_p_file) .AND. section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE",error=error)) THEN
@@ -1296,7 +1286,7 @@ CONTAINS
                           pw_env=pw_env,&
                           error=error)
           CALL calculate_wavefunction(mo_coeff,ivector,wf_r,wf_g,atomic_kind_set,qs_kind_set,&
-               cell,dft_control,particle_set,pw_env ,basis_set_id=my_basis_set_id, error=error)
+               cell,dft_control,particle_set,pw_env,error=error)
           WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",ivector,"_",ispin
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",extension=".cube",&
                middle_name=TRIM(filename),file_position=my_pos_cube,log_filename=.FALSE.,error=error)
@@ -2526,7 +2516,7 @@ CONTAINS
                 np = particles%n_els
                 DO iat=1,np
                    CALL get_atomic_kind(particles%els(iat)%atomic_kind,kind_number=ikind)
-                   CALL get_qs_kind(qs_kind_set(ikind), grid_atom=grid_atom)
+                   CALL get_qs_kind(qs_kind_set(ikind), grid_atom=grid_atom, error=error)
                    rho_atom => rho_atom_set(iat)
                    IF(ASSOCIATED(rho_atom%rho_rad_h(1)%r_coef)) THEN
                       nr = SIZE(rho_atom%rho_rad_h(1)%r_coef,1)
@@ -3211,7 +3201,7 @@ CONTAINS
     SELECT CASE (refc)
        CASE (ref_charge_atomic)
           DO ikind=1,nkind
-             CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff)
+             CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff, error=error)
              atomic_kind => atomic_kind_set(ikind)
              CALL get_atomic_kind(atomic_kind,atom_list=atom_list)
              DO iat=1,SIZE(atom_list)
@@ -3247,7 +3237,7 @@ CONTAINS
        DO iat=1,natom
           atomic_kind => particle_set(iat)%atomic_kind
           CALL get_atomic_kind(atomic_kind,kind_number=ikind)
-          CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom)
+          CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom, error=error)
           IF(paw_atom) THEN
              charges(iat,1:nspin) = charges(iat,1:nspin) + mp_rho(iat)%q0(1:nspin)
           END IF

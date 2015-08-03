@@ -554,9 +554,6 @@ CONTAINS
           ELSE
              alpha(ispin) = tr_rz0(ispin) / tr_pAp(ispin)
           ENDIF
-!dbg
-!   write(*,*) 'alpha', tr_rz0(ispin),  tr_pAp(ispin), alpha(ispin) 
-!dbg
           !
           ! x_j+1 = x_j + alpha * p_j
           CALL cp_fm_scale_and_add(1.0_dp,psi1(ispin)%matrix,alpha(ispin),p(ispin)%matrix,error=error)
@@ -624,9 +621,6 @@ CONTAINS
           ELSE
              beta(ispin) = tr_rz1(ispin) / tr_rz0(ispin)
           ENDIF
-!dbg
-!   write(*,*) 'beta', tr_rz1(ispin),  tr_rz0(ispin),  beta(ispin)
-!dbg
           !
           ! p_j+1 = z_j+1 + beta * p_j
           CALL cp_fm_scale_and_add(beta(ispin),p(ispin)%matrix,1.0_dp,z(ispin)%matrix,error=error)

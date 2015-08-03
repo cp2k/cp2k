@@ -125,7 +125,7 @@ CONTAINS
     eb3 = 0.0_dp
     CALL get_qs_env(qs_env=qs_env,local_particles=local_particles,error=error)
     DO ikind=1,SIZE(local_particles%n_el)
-       CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+       CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind, error=error)
        CALL get_dftb_atom_param(dftb_kind,dudq=ua,zeff=zeff)
        DO ia=1,local_particles%n_el(ikind)
           iatom=local_particles%list(ikind)%array(ia)
@@ -190,11 +190,11 @@ CONTAINS
 
           ikind  = kind_of(iatom)
           atom_i = atom_of_kind(iatom)
-          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
           CALL get_dftb_atom_param(dftb_kind,dudq=ui)
           jkind  = kind_of(jatom)
           atom_j = atom_of_kind(jatom)
-          CALL get_qs_kind(qs_kind_set(jkind),dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(jkind),dftb_parameter=dftb_kind, error=error)
           CALL get_dftb_atom_param(dftb_kind,dudq=uj)
           !
           gmij = -0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
@@ -271,10 +271,10 @@ CONTAINS
           END IF
 
           ikind  = kind_of(iatom)
-          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind, error=error)
           CALL get_dftb_atom_param(dftb_kind,dudq=ui)
           jkind  = kind_of(jatom)
-          CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind)
+          CALL get_qs_kind(qs_kind_set(jkind), dftb_parameter=dftb_kind, error=error)
           CALL get_dftb_atom_param(dftb_kind,dudq=uj)
           gmij = -0.5_dp*(ui*mcharge(iatom)**2 + uj*mcharge(jatom)**2)
           !

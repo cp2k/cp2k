@@ -135,9 +135,9 @@ CONTAINS
     CALL get_atomic_kind(atomic_kind,z=z)
     NULLIFY(all_potential,gth_potential,orb_basis_set)
     CALL get_qs_kind(qs_kind,zeff=zeff,&
-                     orb_basis_set=orb_basis_set,&
+                     basis_set=orb_basis_set,&
                      all_potential=all_potential,&
-                     gth_potential=gth_potential)
+                     gth_potential=gth_potential, error=error)
 
     !!RZK CALL get_qs_kind(qs_kind,&
     !!RZK                  bs_occupation=bs_occupation,&
@@ -530,7 +530,7 @@ CONTAINS
     NULLIFY(all_potential, gth_potential)
     CALL get_qs_kind(qs_kind,zeff=zeff,&
                      all_potential=all_potential,&
-                     gth_potential=gth_potential)
+                     gth_potential=gth_potential, error=error)
 
     IF(PRESENT(allelectron)) THEN
        IF(allelectron) THEN
@@ -941,7 +941,7 @@ CONTAINS
     IF(rel_control%rel_method == rel_none) RETURN
 
     NULLIFY(all_potential,orb_basis_set)
-    CALL get_qs_kind(qs_kind, orb_basis_set=orb_basis_set, all_potential=all_potential)
+    CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, all_potential=all_potential, error=error)
 
     CPPostcondition(ASSOCIATED(orb_basis_set), cp_failure_level, routineP, error, failure)
 
@@ -949,7 +949,7 @@ CONTAINS
        ! only all electron atoms will get the relativistic correction
 
        CALL get_atomic_kind(atomic_kind,z=z)
-       CALL get_qs_kind(qs_kind,zeff=zeff)
+       CALL get_qs_kind(qs_kind,zeff=zeff,error=error)
        NULLIFY(atom)
        CALL create_atom_type(atom,error)
        NULLIFY(atom%xc_section)

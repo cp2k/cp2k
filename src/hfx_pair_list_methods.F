@@ -17,7 +17,7 @@ MODULE hfx_pair_list_methods
   USE hfx_types,                       ONLY: &
        hfx_basis_type, hfx_block_range_type, hfx_cell_type, hfx_pgf_list, &
        hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, &
-       pair_list_type, pair_set_list_type
+       pair_list_type, pair_set_list_type, hfx_cell_loop_info_type
   USE input_constants,                 ONLY: &
        do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
        do_hfx_potential_id, do_hfx_potential_long, do_hfx_potential_mix_cl, &
@@ -59,10 +59,11 @@ MODULE hfx_pair_list_methods
 !> \param potential_parameter ...
 !> \param m_max ...
 !> \param do_periodic ...
+!> \param cell_loop_info ...
 ! *****************************************************************************
   SUBROUTINE build_pgf_product_list(nneighbors3, list1, list2, product_list, nproducts, &
                                     log10_pmax, log10_eps_schwarz, neighbor_cells,&
-                                    cell, potential_parameter, m_max, do_periodic)
+                                    cell, potential_parameter, m_max, do_periodic, cell_loop_info)
 
     INTEGER                                  :: nneighbors3
     TYPE(hfx_pgf_list)                       :: list1, list2
@@ -76,6 +77,7 @@ MODULE hfx_pair_list_methods
     TYPE(hfx_potential_type)                 :: potential_parameter
     INTEGER, INTENT(IN)                      :: m_max
     LOGICAL, INTENT(IN)                      :: do_periodic
+    TYPE(hfx_cell_loop_info_type)            :: cell_loop_info
 
     INTEGER                                  :: i, j, k, l, nimages1, nimages2
     LOGICAL                                  :: use_gamma
