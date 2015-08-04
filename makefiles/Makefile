@@ -440,16 +440,8 @@ endif
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
-%.o: %.cpp %.cxx %.cc
-ifneq ($(CXX),)
-ifneq ($(CXXFLAGS),)
+%.o: %.cpp
 	$(CXX) -c $(CXXFLAGS) $<
-else
-	$(CXX) -c $(CFLAGS) $<
-endif
-else
-	$(CC) -c $(CFLAGS) $<
-endif
 
 ifneq ($(LIBDIR),)
 $(LIBDIR)/%:
