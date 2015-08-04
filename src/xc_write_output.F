@@ -49,7 +49,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: ifun, ifunc_name, il, myfun, &
-                                                vmajor, vminor, vmicro
+                                                vmajor, vmicro, vminor
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section
 

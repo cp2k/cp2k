@@ -463,7 +463,8 @@ CONTAINS
     CHARACTER(len=20)                        :: tmpStr
     CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
     INTEGER                                  :: ifun, ifunc_name, il, meth, &
-                                                myfun, reltyp, vmajor, vminor, vmicro
+                                                myfun, reltyp, vmajor, &
+                                                vmicro, vminor
     LOGICAL                                  :: failure, lsd
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
                                                 xc_section
