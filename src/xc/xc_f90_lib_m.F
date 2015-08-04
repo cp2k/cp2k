@@ -103,6 +103,18 @@ MODULE xc_f90_lib_m
       TYPE(xc_f90_pointer_t), INTENT(in) :: info
     END FUNCTION xc_f90_info_flags
 
+#if defined(__LIBXC3)
+
+    SUBROUTINE xc_f90_info_refs(info, number, s)
+      USE xc_f90_types_m, ONLY: xc_f90_pointer_t, xc_f90_kind
+    TYPE(xc_f90_pointer_t), INTENT(in)       :: info
+    INTEGER, INTENT(inout)                   :: number
+    CHARACTER(len=*), INTENT(out)            :: s
+
+    END SUBROUTINE xc_f90_info_refs
+
+#else
+
     SUBROUTINE xc_f90_info_refs(info, number, str, s)
       USE xc_f90_types_m, ONLY: xc_f90_pointer_t, xc_f90_kind
     TYPE(xc_f90_pointer_t), INTENT(in)       :: info
@@ -115,6 +127,8 @@ MODULE xc_f90_lib_m
 ! the string that is output
 
     END SUBROUTINE xc_f90_info_refs
+
+#endif
 
     INTEGER FUNCTION xc_f90_family_from_id(id)
       USE xc_f90_types_m, ONLY: xc_f90_pointer_t, xc_f90_kind

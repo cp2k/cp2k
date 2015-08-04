@@ -43,9 +43,9 @@
 ! *****************************************************************************
 MODULE xc_libxc
 #if defined (__LIBXC)
-This version of CP2K ONLY works with libxc version 2
+This version of CP2K ONLY works with libxc versions 2 or 3
 #endif
-#if defined (__LIBXC2)
+#if defined __LIBXC2 || __LIBXC3
   USE bibliography,                    ONLY: Marques2012,&
                                              cite_reference
   
@@ -108,7 +108,10 @@ CONTAINS
     INTEGER                                  :: func_id, ii
     REAL(KIND=dp)                            :: sc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: scale
-    TYPE(xc_f90_pointer_t)                   :: str, xc_func, xc_info
+    TYPE(xc_f90_pointer_t)                   :: xc_func, xc_info
+#if defined(__LIBXC2)
+    TYPE(xc_f90_pointer_t)                   :: str
+#endif
 
     CALL section_vals_val_get(libxc_params,"functional",c_vals=func_name,error=error)
     CALL section_vals_val_get(libxc_params,"scale",r_vals=scale,error=error)
@@ -146,7 +149,13 @@ CONTAINS
        shortform = TRIM(s1)//' ('//TRIM(s2)//')'
     END IF
     ii = 0
+#if defined(__LIBXC3)
+    CALL xc_f90_info_refs(xc_info, ii, s1)
+#elif defined(__LIBXC2)
     CALL xc_f90_info_refs(xc_info, ii, str, s1)
+#else
+    STOP "LIBXC"
+#endif
     IF ( PRESENT ( reference ) ) THEN
        WRITE(reference,"(a,' {scale=',f5.3,',spin-unpolarized}')") TRIM(s1), sc
     END IF
@@ -214,7 +223,10 @@ CONTAINS
     INTEGER                                  :: func_id, ii
     REAL(KIND=dp)                            :: sc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: scale
-    TYPE(xc_f90_pointer_t)                   :: str, xc_func, xc_info
+    TYPE(xc_f90_pointer_t)                   :: xc_func, xc_info
+#if defined(__LIBXC2)
+    TYPE(xc_f90_pointer_t)                   :: str
+#endif
 
     CALL section_vals_val_get(libxc_params,"functional",c_vals=func_name,error=error)
     CALL section_vals_val_get(libxc_params,"scale",r_vals=scale,error=error)
@@ -252,7 +264,13 @@ CONTAINS
        shortform = TRIM(s1)//' ('//TRIM(s2)//')'
     END IF
     ii = 0
+#if defined(__LIBXC3)
+    CALL xc_f90_info_refs(xc_info, ii, s1)
+#elif defined(__LIBXC2)
     CALL xc_f90_info_refs(xc_info, ii, str, s1)
+#else
+    STOP "LIBXC"
+#endif
     IF ( PRESENT ( reference ) ) THEN
        WRITE(reference,"(a,' {scale=',f5.3,',spin-polarized}')") TRIM(s1), sc
     END IF
@@ -2681,6 +2699,7 @@ CONTAINS
     IF (TRIM(func_name) == 'XC_MGGA_X_MK00B')               get_func_id = 243  !  Exchange for accurate virtual orbital energies (v. B) 
     IF (TRIM(func_name) == 'XC_MGGA_X_BLOC')                get_func_id = 244  !  functional with balanced localization 
     IF (TRIM(func_name) == 'XC_MGGA_X_MODTPSS')             get_func_id = 245  !  Modified Perdew, Tao, Staroverov & Scuseria exchange 
+!V3 IF (TRIM(func_name) == 'XC_MGGA_XC_B97M_V')             get_func_id = 254  !  Mardirossian and Head-Gordon
     IF (TRIM(func_name) == 'XC_HYB_MGGA_X_M11')             get_func_id = 225  !  M11 functional of Minnesota 
     IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_M05')            get_func_id = 438  !  M05 functional of Minnesota
     IF (TRIM(func_name) == 'XC_HYB_MGGA_XC_M05_2X')         get_func_id = 439  !  M05-2X functional of Minnesota

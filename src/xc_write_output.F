@@ -49,7 +49,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: ifun, ifunc_name, il, myfun, &
-                                                vmajor, vminor
+                                                vmajor, vminor, vmicro
     LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section
 
@@ -78,13 +78,16 @@ CONTAINS
                                          ifunc_name=1,&
                                          error=error)
              IF (TRIM(xc_fun%section%name) == "LIBXC") THEN
-#if defined(__LIBXC2)
+#if defined(__LIBXC3)
+               CALL xc_f90_version(vmajor,vminor,vmicro)
+#elif defined(__LIBXC2)
                CALL xc_f90_version(vmajor,vminor)
+               vmicro=0
 #else
-               vmajor=0 ; vminor=0
+               vmajor=0 ; vminor=0 ; vmicro=0
 #endif
-               WRITE (output_unit, fmt="(A,i1,A,i1,A)") ' FUNCTIONAL| LIBXC version ', vmajor, ".", vminor, &
-                      ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))'
+               WRITE (output_unit, fmt="(A,i1,A,i1,A,i1,A)") ' FUNCTIONAL| LIBXC Vers. ', vmajor, ".", vminor, &
+                      ".", vmicro,' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))'
                WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
                il = LEN_TRIM(reference)
                IF (il < 67) THEN

@@ -1716,6 +1716,11 @@ CPSourceFileRef,&
 
         ! ** Add laplace part to vxc_rho
         IF( has_laplace ) THEN
+          IF (use_virial) THEN
+            CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Stress tensor not available for Laplace functionals.", &
+               error=error, error_level=cp_failure_level)
+          END IF
           nd_laplace = RESHAPE((/2,0,0,0,2,0,0,0,2/),(/3,3/))
           IF(lsd) THEN
             IF( ispin == 1) THEN
@@ -1857,6 +1862,11 @@ CPSourceFileRef,&
 
      ! tau part
      IF (has_tau) THEN
+        IF (use_virial) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+             message="Stress tensor not available for Meta-functionals.", &
+             error=error, error_level=cp_failure_level)
+        END IF
         ALLOCATE(vxc_tau(nspins), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ispin=1,nspins

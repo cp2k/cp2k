@@ -42,7 +42,7 @@ MODULE xc_derivatives
                                              optx_lda_info,&
                                              optx_lsd_eval,&
                                              optx_lsd_info
-#if defined (__LIBXC2)
+#if defined __LIBXC2 || __LIBXC3
   USE xc_libxc,                        ONLY: libxc_lda_eval,&
                                              libxc_lda_info,&
                                              libxc_lsd_eval,&
@@ -241,7 +241,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
            CALL optx_lda_info(reference,shortform,needs,max_deriv,error=error)
         ENDIF
      CASE("LIBXC","KE_LIBXC")
-#if defined (__LIBXC2)
+#if defined __LIBXC2 || __LIBXC3
         IF (lsd) THEN
            CALL libxc_lsd_info(functional,reference,shortform,needs,max_deriv,&
                 ifunc_name,error=error)
@@ -487,7 +487,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
            CALL optx_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
         ENDIF
      CASE("LIBXC","KE_LIBXC")
-#if defined (__LIBXC2)
+#if defined __LIBXC2 || __LIBXC3
         IF (lsd) THEN
            CALL libxc_lsd_eval(rho_set,deriv_set,deriv_order,functional,ifunc_name,error=error)
         ELSE
