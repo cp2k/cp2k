@@ -162,6 +162,7 @@ Note that you should **NOT** use libinit-1.1.3.
     During the installation, the directory $(LIBXC_DIR)/lib is created.
   * Add -D__LIBXC2 to DFLAGS and -L$(LIBXC_DIR)/lib -lxc to LIBS.
   * Add -D__LIBXC2 to DFLAGS and -L$(LIBXC_DIR)/lib -lxcf90 -lxc to LIBS for version 2.2.0.
+  * Add -D__LIBXC3 to DFLAGS and -L$(LIBXC_DIR)/lib -lxcf90 -lxc to LIBS for version 3.*.*.
 
 ==== 2l. ELPA ====
 Library ELPA for the solution of the eigenvalue problem
