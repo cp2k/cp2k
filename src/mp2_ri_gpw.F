@@ -384,7 +384,7 @@ MODULE mp2_ri_gpw
 
     ! calculate L^{-1}
     CALL calculate_Lmin1(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
-                         eps_filter,fm_matrix_L,ngroup,color_sub,dimen_RI,&
+                         fm_matrix_L,ngroup,color_sub,dimen_RI,&
                          mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
                          my_group_L_size,my_group_L_start,my_group_L_end,sab_orb_sub,&
                          sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,&
@@ -520,15 +520,15 @@ MODULE mp2_ri_gpw
       CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb, error=error_sub)
 
       CALL grep_my_integrals(para_env_sub,fm_BIb_jb,BIb_C(i_counter,1:my_B_size,1:homo),max_row_col_local,&
-                             homo,virtual,sub_proc_map,local_col_row_info,&
-                             my_B_virtual_end,my_B_virtual_start,my_B_size,&
+                             sub_proc_map,local_col_row_info,&
+                             my_B_virtual_end,my_B_virtual_start,&
                              error_sub)
       IF(do_alpha_beta) THEN
         CALL copy_dbcsr_to_fm(matrix_ia_jb_beta, fm_BIb_jb_beta, error=error_sub)
         CALL grep_my_integrals(para_env_sub,fm_BIb_jb_beta,&
                                BIb_C_beta(i_counter,1:my_B_size_beta,1:homo_beta),max_row_col_local_beta,&
-                               homo_beta,virtual_beta,sub_proc_map,local_col_row_info_beta,&
-                               my_B_virtual_end_beta,my_B_virtual_start_beta,my_B_size_beta,&
+                               sub_proc_map,local_col_row_info_beta,&
+                               my_B_virtual_end_beta,my_B_virtual_start_beta,&
                                error_sub)
       END IF
 
@@ -550,8 +550,8 @@ MODULE mp2_ri_gpw
         CALL copy_dbcsr_to_fm(matrix_in_jm, fm_BIb_gw, error=error_sub)
         CALL grep_my_integrals(para_env_sub,fm_BIb_gw,BIb_C_gw(i_counter,1:my_B_all_size,1:gw_corr_lev_total),&
                                max_row_col_local_gw,&
-                               gw_corr_lev_total,nmo,sub_proc_map,local_col_row_info_gw,&
-                               my_B_all_end,my_B_all_start,my_B_all_size,&
+                               sub_proc_map,local_col_row_info_gw,&
+                               my_B_all_end,my_B_all_start,&
                                error_sub)
 
         ! the same for beta
@@ -568,8 +568,8 @@ MODULE mp2_ri_gpw
           CALL copy_dbcsr_to_fm(matrix_in_jm_beta, fm_BIb_gw_beta, error=error_sub)
           CALL grep_my_integrals(para_env_sub,fm_BIb_gw_beta,BIb_C_gw_beta(i_counter,1:my_B_all_size,1:gw_corr_lev_total),&
                                  max_row_col_local_gw,&
-                                 gw_corr_lev_total,nmo,sub_proc_map,local_col_row_info_gw,&
-                                 my_B_all_end,my_B_all_start,my_B_all_size,&
+                                 sub_proc_map,local_col_row_info_gw,&
+                                 my_B_all_end,my_B_all_start,&
                                  error_sub)
         END IF
 
@@ -642,8 +642,8 @@ MODULE mp2_ri_gpw
         CALL copy_dbcsr_to_fm(matrix_in_jm, fm_BIb_gw, error=error_sub)
         CALL grep_my_integrals(para_env_sub,fm_BIb_gw,BIb_C_gw_trunc(i_counter,1:my_B_all_size,1:gw_corr_lev_total),&
                                max_row_col_local_gw,&
-                               gw_corr_lev_total,nmo,sub_proc_map,local_col_row_info_gw,&
-                               my_B_all_end,my_B_all_start,my_B_all_size,&
+                               sub_proc_map,local_col_row_info_gw,&
+                               my_B_all_end,my_B_all_start,&
                                error_sub)
 
         DO iiB=1,my_B_all_size
@@ -876,7 +876,6 @@ MODULE mp2_ri_gpw
 !> \param para_env_sub ...
 !> \param para_env_L ...
 !> \param mp2_memory ...
-!> \param eps_filter ...
 !> \param fm_matrix_L ...
 !> \param ngroup ...
 !> \param color_sub ...
@@ -904,7 +903,7 @@ MODULE mp2_ri_gpw
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE calculate_Lmin1(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
-                             eps_filter,fm_matrix_L,ngroup,color_sub,dimen_RI,&
+                             fm_matrix_L,ngroup,color_sub,dimen_RI,&
                              mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
                              my_group_L_size,my_group_L_start,my_group_L_end,sab_orb_sub,&
                              sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,&
@@ -912,7 +911,7 @@ MODULE mp2_ri_gpw
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub, &
                                                 para_env_L
-    REAL(KIND=dp)                            :: mp2_memory, eps_filter
+    REAL(KIND=dp)                            :: mp2_memory
     TYPE(cp_fm_type), POINTER                :: fm_matrix_L
     INTEGER                                  :: ngroup, color_sub, dimen_RI
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -2418,28 +2417,24 @@ MODULE mp2_ri_gpw
 !> \param fm_BIb_jb ...
 !> \param BIb_jb ...
 !> \param max_row_col_local ...
-!> \param homo ...
-!> \param virtual ...
 !> \param proc_map ...
 !> \param local_col_row_info ...
 !> \param my_B_virtual_end ...
 !> \param my_B_virtual_start ...
-!> \param my_B_size ...
 !> \param error_sub ...
 ! *****************************************************************************
   SUBROUTINE grep_my_integrals(para_env_sub,fm_BIb_jb,BIb_jb,max_row_col_local,&
-                               homo,virtual,proc_map,local_col_row_info,&
-                               my_B_virtual_end,my_B_virtual_start,my_B_size,&
+                               proc_map,local_col_row_info,&
+                               my_B_virtual_end,my_B_virtual_start,&
                                error_sub)
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
     TYPE(cp_fm_type), POINTER                :: fm_BIb_jb
     REAL(KIND=dp), DIMENSION(:, :)           :: BIb_jb
-    INTEGER                                  :: max_row_col_local, homo, &
-                                                virtual
+    INTEGER                                  :: max_row_col_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info
     INTEGER                                  :: my_B_virtual_end, &
-                                                my_B_virtual_start, my_B_size
+                                                my_B_virtual_start
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_my_integrals', &
@@ -2663,7 +2658,7 @@ MODULE mp2_ri_gpw
     starts_array, starts_B_virtual,homo, dimen_RI, unit_nr,color_sub,best_block_size,best_integ_group_size, block_size, &
     integ_group_size,min_integ_group_size, my_B_size,my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
     my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, num_integ_group,pos_integ_group, virtual,my_alpha_beta_case, &
-    my_open_shell_SS, actual_flop_rate, mem_for_aK, mem_for_comm, mem_for_iaK,mem_for_rep, mem_min, mem_per_group, mem_real)
+    my_open_shell_SS, mem_for_aK, mem_for_comm, mem_for_iaK,mem_for_rep, mem_min, mem_per_group, mem_real)
 
     IF(my_alpha_beta_case) THEN
       my_B_virtual_start_beta=starts_B_virtual_beta(para_env_sub%mepos)
@@ -2680,10 +2675,10 @@ MODULE mp2_ri_gpw
     ! now create a group that contains all the proc that have the same virtual starting point
     ! in the integ group
     ! sub_sub_color=para_env_sub%mepos
-    CALL mp2_ri_create_group(BIb_C,para_env,para_env_sub,homo,color_sub, ends_array, ends_B_virtual, &
-                 sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,calc_forces,error, error_sub,&
-                 comm_exchange,integ_group_size, my_B_size,iiB, my_B_virtual_end,my_B_virtual_start, my_group_L_end,&
-                 my_group_L_size, my_group_L_size_orig, my_group_L_start,my_new_group_L_size, ngroup, &
+    CALL mp2_ri_create_group(BIb_C,para_env,para_env_sub,homo,color_sub, &
+                 sizes_array,calc_forces,error, error_sub,&
+                 comm_exchange,integ_group_size, my_B_size,iiB, my_group_L_end,&
+                 my_group_L_size, my_group_L_size_orig, my_group_L_start,my_new_group_L_size, &
                  sub_sub_color,integ_group_pos2color_sub,new_sizes_array, proc_map, proc_map_rep, sizes_array_orig,&
                  sub_proc_map,ranges_info_array,para_env_exchange,para_env_rep,num_integ_group)
 
@@ -3005,7 +3000,7 @@ MODULE mp2_ri_gpw
               Eigenval, homo, dimen_RI, error_sub, b_global, iiB, jjB, my_B_size, &
               my_B_virtual_end, my_B_virtual_start, my_i, my_j, proc_receive, proc_send,proc_shift, &
               rec_B_size, rec_B_virtual_end, rec_B_virtual_start, send_B_size, send_B_virtual_end, & 
-              send_B_virtual_start, virtual, proc_map, sub_proc_map,external_ab, local_ab,&
+              send_B_virtual_start, virtual, sub_proc_map,external_ab, local_ab,&
               send_ab, t_ab,local_i_aL, local_j_aL, Y_i_aP, Y_j_aP)
 
             END IF
@@ -3066,7 +3061,7 @@ MODULE mp2_ri_gpw
                ij_index, irep, kkk, Lend_pos, lll, Lstart_pos, my_B_size, my_block_size, my_group_L_size, my_i,&
                my_ij_pairs, my_j, ngroup, num_integ_group, proc_receive, proc_send, proc_shift, rec_block_size,&
                rec_i, rec_ij_index, rec_j, send_L_size, start_point, integ_group_pos2color_sub,num_ij_pairs, &
-               proc_map, ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
+               ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
                null_mat_rec, null_mat_send, sizes_array )
       END IF
 
@@ -3496,9 +3491,9 @@ MODULE mp2_ri_gpw
       mp2_env%ri_grad%Gamma_P_ia(:,:,:)=BIb_C
       DEALLOCATE(BIb_C)
 
-      CALL complete_gamma(mp2_env,B_ia_Q,dimen_RI,homo,virtual,para_env,para_env_sub,ngroup,color_sub,&
+      CALL complete_gamma(mp2_env,B_ia_Q,dimen_RI,homo,virtual,para_env,para_env_sub,ngroup,&
                           my_group_L_size,my_group_L_start,my_group_L_end,&
-                          my_B_size,my_B_virtual_start,my_B_virtual_end,&
+                          my_B_size,my_B_virtual_start,&
                           ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&     
                           sub_proc_map,error,error_sub)                   
 
@@ -3561,21 +3556,10 @@ MODULE mp2_ri_gpw
 !> \param para_env_sub ...
 !> \param para_env_exchange ...
 !> \param para_env_rep ...
-!> \param ngroup ...
-!> \param integ_group_size ...
-!> \param num_integ_group ...
 !> \param homo ...
-!> \param proc_map ...
 !> \param proc_map_rep ...
-!> \param ends_array ...
-!> \param ends_B_virtual ...
 !> \param sizes_array ...
-!> \param sizes_B_virtual ...
-!> \param starts_array ...
-!> \param starts_B_virtual ...
 !> \param my_B_size ...
-!> \param my_B_virtual_start ...
-!> \param my_B_virtual_end ...
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
@@ -3585,9 +3569,9 @@ MODULE mp2_ri_gpw
 !> \param error_sub ...
 ! *****************************************************************************
     SUBROUTINE replicate_iaK_2intgroup(BIb_C,para_env,para_env_sub,para_env_exchange,para_env_rep,&
-                                       ngroup,integ_group_size,num_integ_group,homo,proc_map,proc_map_rep,&
-                                       ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                       my_B_size,my_B_virtual_start,my_B_virtual_end,&
+                                       homo,proc_map_rep,&
+                                       sizes_array,&
+                                       my_B_size,&
                                        my_group_L_size,my_group_L_start,my_group_L_end,&
                                        my_new_group_L_size,new_sizes_array,ranges_info_array,&
                                        error_sub)
@@ -3596,13 +3580,12 @@ MODULE mp2_ri_gpw
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub, &
                                                 para_env_exchange, &
                                                 para_env_rep
-    INTEGER                                  :: ngroup, integ_group_size, &
-                                                num_integ_group, homo
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: proc_map, proc_map_rep, ends_array, &
-      ends_B_virtual, sizes_array, sizes_B_virtual, starts_array, &
-      starts_B_virtual
-    INTEGER :: my_B_size, my_B_virtual_start, my_B_virtual_end, &
-      my_group_L_size, my_group_L_start, my_group_L_end, my_new_group_L_size
+    INTEGER                                  :: homo
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map_rep, sizes_array
+    INTEGER                                  :: my_B_size, my_group_L_size, &
+                                                my_group_L_start, &
+                                                my_group_L_end, &
+                                                my_new_group_L_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: new_sizes_array
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ranges_info_array
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
@@ -4008,12 +3991,7 @@ MODULE mp2_ri_gpw
 !> \param para_env_sub ...
 !> \param homo ...
 !> \param color_sub ...
-!> \param ends_array ...
-!> \param ends_B_virtual ...
 !> \param sizes_array ...
-!> \param sizes_B_virtual ...
-!> \param starts_array ...
-!> \param starts_B_virtual ...
 !> \param calc_forces ...
 !> \param error ...
 !> \param error_sub ...
@@ -4021,14 +3999,11 @@ MODULE mp2_ri_gpw
 !> \param integ_group_size ...
 !> \param my_B_size ...
 !> \param iiB ...
-!> \param my_B_virtual_end ...
-!> \param my_B_virtual_start ...
 !> \param my_group_L_end ...
 !> \param my_group_L_size ...
 !> \param my_group_L_size_orig ...
 !> \param my_group_L_start ...
 !> \param my_new_group_L_size ...
-!> \param ngroup ...
 !> \param sub_sub_color ...
 !> \param integ_group_pos2color_sub ...
 !> \param new_sizes_array ...
@@ -4041,24 +4016,22 @@ MODULE mp2_ri_gpw
 !> \param para_env_rep ...
 !> \param num_integ_group ...
 ! *****************************************************************************
-    SUBROUTINE mp2_ri_create_group(BIb_C,para_env,para_env_sub,homo,color_sub, ends_array, ends_B_virtual, &
-                 sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,calc_forces,error, error_sub,&
-                 comm_exchange,integ_group_size, my_B_size,iiB, my_B_virtual_end,my_B_virtual_start, my_group_L_end,&
-                 my_group_L_size, my_group_L_size_orig, my_group_L_start,my_new_group_L_size, ngroup, &
+    SUBROUTINE mp2_ri_create_group(BIb_C,para_env,para_env_sub,homo,color_sub, &
+                 sizes_array,calc_forces,error, error_sub,&
+                 comm_exchange,integ_group_size, my_B_size,iiB, my_group_L_end,&
+                 my_group_L_size, my_group_L_size_orig, my_group_L_start,my_new_group_L_size, &
                  sub_sub_color,integ_group_pos2color_sub,new_sizes_array, proc_map, proc_map_rep, sizes_array_orig,&
                  sub_proc_map,ranges_info_array,para_env_exchange,para_env_rep, num_integ_group)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     INTEGER                                  :: homo, color_sub
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
-      sizes_array, sizes_B_virtual, starts_array, starts_B_virtual
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes_array
     LOGICAL, INTENT(IN)                      :: calc_forces
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
     INTEGER :: comm_exchange, integ_group_size, my_B_size, iiB, &
-      my_B_virtual_end, my_B_virtual_start, my_group_L_end, my_group_L_size, &
-      my_group_L_size_orig, my_group_L_start, my_new_group_L_size, ngroup, &
-      sub_sub_color
+      my_group_L_end, my_group_L_size, my_group_L_size_orig, &
+      my_group_L_start, my_new_group_L_size, sub_sub_color
     INTEGER, ALLOCATABLE, DIMENSION(:) :: integ_group_pos2color_sub, &
       new_sizes_array, proc_map, proc_map_rep, sizes_array_orig, sub_proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ranges_info_array
@@ -4098,9 +4071,9 @@ MODULE mp2_ri_gpw
     END DO
 
     CALL replicate_iaK_2intgroup(BIb_C,para_env,para_env_sub,para_env_exchange,para_env_rep,&
-                                 ngroup,integ_group_size,num_integ_group,homo,proc_map,proc_map_rep,&
-                                 ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                                 my_B_size,my_B_virtual_start,my_B_virtual_end,&
+                                 homo,proc_map_rep,&
+                                 sizes_array,&
+                                 my_B_size,&
                                  my_group_L_size,my_group_L_start,my_group_L_end,&
                                  my_new_group_L_size,new_sizes_array,ranges_info_array,&
                                  error_sub)
@@ -4165,7 +4138,6 @@ MODULE mp2_ri_gpw
 !> \param virtual ...
 !> \param my_alpha_beta_case ...
 !> \param my_open_shell_SS ...
-!> \param actual_flop_rate ...
 !> \param mem_for_aK ...
 !> \param mem_for_comm ...
 !> \param mem_for_iaK ...
@@ -4178,7 +4150,7 @@ MODULE mp2_ri_gpw
     starts_array, starts_B_virtual,homo, dimen_RI, unit_nr,color_sub,best_block_size,best_integ_group_size, block_size, &
     integ_group_size,min_integ_group_size, my_B_size,my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
     my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, num_integ_group,pos_integ_group, virtual,my_alpha_beta_case,&
-    my_open_shell_SS,actual_flop_rate, mem_for_aK, mem_for_comm, mem_for_iaK,mem_for_rep, mem_min, mem_per_group, mem_real)
+    my_open_shell_SS,mem_for_aK, mem_for_comm, mem_for_iaK,mem_for_rep, mem_min, mem_per_group, mem_real)
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
@@ -4190,8 +4162,10 @@ MODULE mp2_ri_gpw
       num_IJ_blocks, num_integ_group, pos_integ_group, virtual
     LOGICAL                                  :: my_alpha_beta_case, &
                                                 my_open_shell_SS
-    REAL(KIND=dp) :: actual_flop_rate, mem_for_aK, mem_for_comm, mem_for_iaK, &
-      mem_for_rep, mem_min, mem_per_group, mem_real
+    REAL(KIND=dp)                            :: mem_for_aK, mem_for_comm, &
+                                                mem_for_iaK, mem_for_rep, &
+                                                mem_min, mem_per_group, &
+                                                mem_real
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_get_sizes', &
       routineP = moduleN//':'//routineN
@@ -4258,8 +4232,7 @@ MODULE mp2_ri_gpw
 
       IF(.NOT.(mp2_env%ri_mp2%block_size>0)) THEN
         mem_for_comm=mem_per_group-2.0_dp*mem_for_iaK/best_integ_group_size
-        ! calculate the maximum block size and make sure it is not smaller than 1
-        best_block_size=MAX(INT(mem_for_comm/(2.0_dp*mem_for_aK)),1)
+        !k_size=MAX(INT(mem_for_comm/(2.0_dp*mem_for_aK)),1)
         DO 
           num_IJ_blocks=(homo/best_block_size)
           num_IJ_blocks=(num_IJ_blocks*num_IJ_blocks-num_IJ_blocks)/2
@@ -4333,7 +4306,6 @@ MODULE mp2_ri_gpw
 !> \param send_B_virtual_end ...
 !> \param send_B_virtual_start ...
 !> \param virtual ...
-!> \param proc_map ...
 !> \param sub_proc_map ...
 !> \param external_ab ...
 !> \param local_ab ...
@@ -4348,7 +4320,7 @@ MODULE mp2_ri_gpw
                Eigenval, homo, dimen_RI, error_sub, b_global, iiB, jjB, my_B_size, &
                my_B_virtual_end, my_B_virtual_start, my_i, my_j, proc_receive, proc_send,proc_shift, &
                rec_B_size, rec_B_virtual_end, rec_B_virtual_start, send_B_size, send_B_virtual_end, & 
-               send_B_virtual_start, virtual, proc_map, sub_proc_map,external_ab, local_ab,&
+               send_B_virtual_start, virtual, sub_proc_map,external_ab, local_ab,&
                send_ab, t_ab,local_i_aL, local_j_aL, Y_i_aP, Y_j_aP)
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
@@ -4362,7 +4334,7 @@ MODULE mp2_ri_gpw
       my_B_virtual_start, my_i, my_j, proc_receive, proc_send, proc_shift, &
       rec_B_size, rec_B_virtual_end, rec_B_virtual_start, send_B_size, &
       send_B_virtual_end, send_B_virtual_start, virtual
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map, sub_proc_map
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sub_proc_map
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: external_ab, local_ab, &
                                                 send_ab, t_ab
@@ -4579,7 +4551,6 @@ MODULE mp2_ri_gpw
 !> \param start_point ...
 !> \param integ_group_pos2color_sub ...
 !> \param num_ij_pairs ...
-!> \param proc_map ...
 !> \param ij_map ...
 !> \param ranges_info_array ...
 !> \param Y_i_aP ...
@@ -4593,7 +4564,7 @@ MODULE mp2_ri_gpw
                ij_index, irep, kkk, Lend_pos, lll, Lstart_pos, my_B_size, my_block_size, my_group_L_size, my_i,&
                my_ij_pairs, my_j, ngroup, num_integ_group, proc_receive, proc_send, proc_shift, rec_block_size,&
                rec_i, rec_ij_index, rec_j, send_L_size, start_point, integ_group_pos2color_sub,num_ij_pairs, &
-               proc_map, ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
+               ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
                null_mat_rec, null_mat_send,sizes_array )
 
     TYPE(mp2_type), POINTER                  :: mp2_env
@@ -4604,7 +4575,7 @@ MODULE mp2_ri_gpw
       proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, rec_j, &
       send_L_size, start_point
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: integ_group_pos2color_sub, &
-                                                num_ij_pairs, proc_map
+                                                num_ij_pairs
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ranges_info_array
     REAL(KIND=dp), ALLOCATABLE, &
@@ -4618,6 +4589,7 @@ MODULE mp2_ri_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BI_C_rec, BI_C_send

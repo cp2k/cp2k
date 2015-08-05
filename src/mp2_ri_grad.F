@@ -77,7 +77,6 @@ MODULE mp2_ri_grad
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_p_type,&
                                              rs_grid_release,&
@@ -108,7 +107,6 @@ MODULE mp2_ri_grad
 !> \param mp2_env ...
 !> \param para_env ...
 !> \param para_env_sub ...
-!> \param color_sub ...
 !> \param dft_control ...
 !> \param cell ...
 !> \param particle_set ...
@@ -126,26 +124,23 @@ MODULE mp2_ri_grad
 !> \param rho_g ...
 !> \param pot_g ...
 !> \param mat_munu ...
-!> \param sab_orb_sub ...
 !> \param pw_env_sub ...
 !> \param poisson_env ...
 !> \param auxbas_pw_pool ...
 !> \param task_list_sub ...
-!> \param unit_nr ...
 !> \param blacs_env_sub ...
 !> \param error ...
 !> \param error_sub ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
-  SUBROUTINE calc_ri_mp2_nonsep(qs_env,mp2_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+  SUBROUTINE calc_ri_mp2_nonsep(qs_env,mp2_env,para_env,para_env_sub,dft_control,cell,particle_set,&
                                 atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,dimen_RI,Eigenval,&
                                 my_group_L_start,my_group_L_end,my_group_L_size,rho_r,rho_g,pot_g,&
-                                mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                                unit_nr,blacs_env_sub,error,error_sub)
+                                mat_munu,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                                blacs_env_sub,error,error_sub)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
-    INTEGER                                  :: color_sub
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
@@ -162,13 +157,10 @@ MODULE mp2_ri_grad
                                                 my_group_L_size
     TYPE(pw_p_type)                          :: rho_r, rho_g, pot_g
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb_sub
     TYPE(pw_env_type), POINTER               :: pw_env_sub
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(task_list_type), POINTER            :: task_list_sub
-    INTEGER                                  :: unit_nr
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
 
@@ -777,8 +769,7 @@ MODULE mp2_ri_grad
 
            END DO
 
-           ! CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
-           !             1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+           ! CALL dgemm("T","N".0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
            !             I_tmp2(1,1),SIZE(I_tmp2,1),&
            !             1.0_dp,I_ab(1,1),SIZE(I_ab,1))
            ! L_local_col(offset-nsgfa(iset)+1:offset,i_counter)=I_ab(1:nsgfa(iset),1)
@@ -872,7 +863,7 @@ MODULE mp2_ri_grad
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL create_W_P(qs_env,mp2_env,mo_coeff,homo,virtual,dimen,para_env,para_env_sub,&
-                    color_sub,Eigenval,L1_mu_i,L2_nu_a,error,error_sub)
+                    Eigenval,L1_mu_i,L2_nu_a,error,error_sub)
 
     CALL timestop(handle)
 
@@ -888,7 +879,6 @@ MODULE mp2_ri_grad
 !> \param dimen ...
 !> \param para_env ...
 !> \param para_env_sub ...
-!> \param color_sub ...
 !> \param Eigenval ...
 !> \param L1_mu_i ...
 !> \param L2_nu_a ...
@@ -896,13 +886,12 @@ MODULE mp2_ri_grad
 !> \param error_sub ...
 ! *****************************************************************************
   SUBROUTINE create_W_P(qs_env,mp2_env,mo_coeff,homo,virtual,dimen,para_env,para_env_sub,&
-                        color_sub,Eigenval,L1_mu_i,L2_nu_a,error,error_sub)
+                        Eigenval,L1_mu_i,L2_nu_a,error,error_sub)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     INTEGER                                  :: homo, virtual, dimen
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
-    INTEGER                                  :: color_sub
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     TYPE(cp_fm_type), POINTER                :: L1_mu_i, L2_nu_a
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub

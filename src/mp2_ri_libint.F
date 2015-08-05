@@ -47,7 +47,6 @@ MODULE mp2_ri_libint
        hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, &
        hfx_type, log_zero, pair_set_list_type
   USE input_constants,                 ONLY: do_mp2_potential_TShPSC
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE message_passing,                 ONLY: mp_sum
@@ -92,24 +91,20 @@ MODULE mp2_ri_libint
 !> \param mp2_env ...
 !> \param C ...
 !> \param kind_of ...
-!> \param basis_parameter ...
-!> \param particle_set ...
 !> \param RI_basis_parameter ...
 !> \param RI_basis_info ...
 !> \param basis_S0 ...
 !> \param RI_index_table ...
 !> \param qs_env ...
-!> \param hfx_section ...
 !> \param para_env ...
-!> \param unit_nr ...
 !> \param Lai ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE libint_ri_mp2(dimen,RI_dimen,occupied,natom,mp2_biel,mp2_env,C,&
-                           kind_of,basis_parameter,particle_set,&     
+                           kind_of,&     
                            RI_basis_parameter,RI_basis_info,basis_S0,RI_index_table,&                                       
-                           qs_env,hfx_section,para_env, &                        
-                           unit_nr,Lai,error)                                            
+                           qs_env,para_env, &                        
+                           Lai,error)                                            
     INTEGER                                  :: dimen, RI_dimen, occupied, &
                                                 natom
     TYPE(mp2_biel_type)                      :: mp2_biel
@@ -117,19 +112,13 @@ MODULE mp2_ri_libint
     REAL(KIND=dp), DIMENSION(dimen, dimen)   :: C
     INTEGER, DIMENSION(:)                    :: kind_of
     TYPE(hfx_basis_type), DIMENSION(:), &
-      POINTER                                :: basis_parameter
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: RI_basis_parameter
     TYPE(hfx_basis_info_type)                :: RI_basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_S0
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: RI_index_table
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: unit_nr
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: Lai
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -152,7 +141,7 @@ MODULE mp2_ri_libint
                              basis_S0,error)
     END IF
  
-    CALL  calc_lai_libint(mp2_env,qs_env,hfx_section,para_env,&
+    CALL  calc_lai_libint(mp2_env,qs_env,para_env,&
                           mp2_biel,dimen,C,occupied,&
                           RI_basis_parameter,RI_basis_info,RI_index_table,RI_dimen,basis_S0,&
                           Lai,error)   
@@ -450,7 +439,6 @@ MODULE mp2_ri_libint
 !> \brief 
 !> \param mp2_env ...
 !> \param qs_env   ...
-!> \param hfx_section input_section HFX
 !> \param para_env ...
 !> \param mp2_biel ...
 !> \param dimen ...
@@ -468,14 +456,13 @@ MODULE mp2_ri_libint
 !>      08.2013 created [Mauro Del Ben]
 !> \author Mauro Del Ben
 ! *****************************************************************************
-  SUBROUTINE calc_lai_libint(mp2_env,qs_env,hfx_section,para_env,& 
+  SUBROUTINE calc_lai_libint(mp2_env,qs_env,para_env,& 
                              mp2_biel,dimen,C,occupied,&
                              RI_basis_parameter,RI_basis_info,RI_index_table,RI_dimen,basis_S0,&
                              Lai,error)
 
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mp2_biel_type)                      :: mp2_biel
     INTEGER                                  :: dimen

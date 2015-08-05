@@ -915,7 +915,7 @@ CONTAINS
 
     IF (PRESENT(helium_env)) THEN
       ! Update HELIUM section
-      CALL update_motion_helium(motion_section, helium_env, error)
+      CALL update_motion_helium(helium_env, error)
     END IF
 
     CALL timestop(handle)
@@ -1050,7 +1050,6 @@ CONTAINS
 
 ! ***************************************************************************
 !> \brief  Update HELIUM section in the input structure.
-!> \param motion_section ...
 !> \param helium ...
 !> \param error ...
 !> \date   2009-11-12
@@ -1059,9 +1058,8 @@ CONTAINS
 !>         to the input structure, so that it can be used for I/O, etc.
 !> \note   Moved from the helium_io module directly, might be done better way
 ! *****************************************************************************
-  SUBROUTINE update_motion_helium(motion_section, helium, error)
+  SUBROUTINE update_motion_helium(helium, error)
 
-    TYPE(section_vals_type), POINTER         :: motion_section
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

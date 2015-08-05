@@ -390,8 +390,8 @@ MODULE mp2_gpw
     ! output the two part of the C matrix (virtual, occupied)
     CALL replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
                                    mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,my_do_gw,&
-                                   gw_corr_lev_occ,gw_corr_lev_virt,blacs_env_sub,&
-                                   unit_nr,error,error_sub)
+                                   gw_corr_lev_occ,gw_corr_lev_virt,&
+                                   error,error_sub)
 
     ! if open shell case replicate also the coefficient matrix for the beta orbitals 
     nspins=SIZE(mos_mp2)
@@ -408,8 +408,8 @@ MODULE mp2_gpw
 
       CALL replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff_beta,dimen,homo_beta,mat_munu,&
                                      mo_coeff_o_beta,mo_coeff_v_beta,mo_coeff_all_beta,mo_coeff_gw_beta,&
-                                     my_do_gw,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,blacs_env_sub,&
-                                     unit_nr,error,error_sub)
+                                     my_do_gw,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,&
+                                     error,error_sub)
     END IF
 
     ! hack hack hack XXXXXXXXXXXXXXX rebuilds the pw_en with the new cutoffs
@@ -502,7 +502,7 @@ MODULE mp2_gpw
         IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Alpha (ia|'
         CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
                              atomic_kind_set,qs_kind_set,mo_coeff,Eigenval,nmo,homo,rho_r,rho_g,pot_g,&
-                             mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                             mat_munu,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                              mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
                              mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub,&
                              homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,Eigenval_beta,Emp2_AB)
@@ -512,7 +512,7 @@ MODULE mp2_gpw
         IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Beta (ia|'
         CALL mp2_gpw_compute(Emp2_BB,Emp2_Cou_BB,Emp2_EX_BB,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
                              atomic_kind_set,qs_kind_set,mo_coeff_beta,Eigenval_beta,nmo,homo_beta,rho_r,rho_g,pot_g,&
-                             mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                             mat_munu,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                              mo_coeff_o_beta,mo_coeff_v_beta,mp2_env%mp2_gpw%eps_filter,unit_nr,&
                              mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub)
         
@@ -520,7 +520,7 @@ MODULE mp2_gpw
         ! closed shell case
         CALL mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
                              atomic_kind_set,qs_kind_set,mo_coeff,Eigenval,nmo,homo,rho_r,rho_g,pot_g,&
-                             mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                             mat_munu,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                              mo_coeff_o,mo_coeff_v,mp2_env%mp2_gpw%eps_filter,unit_nr,&
                              mp2_env%mp2_memory,calc_ex,blacs_env_sub,error_sub)
       END IF
@@ -686,11 +686,11 @@ MODULE mp2_gpw
           ! CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix,sab_orb_sub,error_sub)
           ! CALL array_release (row_blk_sizes)
 
-          CALL  calc_ri_mp2_nonsep(qs_env,mp2_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
+          CALL  calc_ri_mp2_nonsep(qs_env,mp2_env,para_env,para_env_sub,dft_control,cell,particle_set,&
                                    atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,dimen_RI,Eigenval,&
                                    my_group_L_start,my_group_L_end,my_group_L_size,rho_r,rho_g,pot_g,&
-                                   mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                                   unit_nr,blacs_env_sub,error,error_sub)
+                                   mat_munu,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                                   blacs_env_sub,error,error_sub)
 
           ! release
           CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw,error=error_sub)
@@ -800,7 +800,7 @@ MODULE mp2_gpw
 
     ! finally solve the z-vector equation if forces are required
     IF(calc_forces) THEN
-      CALL solve_z_vector_eq(qs_env,mp2_env,para_env,dft_control,cell,particle_set,&
+      CALL solve_z_vector_eq(qs_env,mp2_env,para_env,dft_control,&
                              atomic_kind_set,mo_coeff,nmo,homo,Eigenval,unit_nr,error)
     END IF   
 
@@ -837,7 +837,6 @@ MODULE mp2_gpw
 !> \param rho_g ...
 !> \param pot_g ...
 !> \param mat_munu ...
-!> \param sab_orb_sub ...
 !> \param pw_env_sub ...
 !> \param poisson_env ...
 !> \param auxbas_pw_pool ...
@@ -858,7 +857,7 @@ MODULE mp2_gpw
 ! *****************************************************************************
   SUBROUTINE mp2_gpw_compute(Emp2,Emp2_Cou,Emp2_EX,qs_env,para_env,para_env_sub,color_sub,dft_control,&
                  cell,particle_set,atomic_kind_set,qs_kind_set,mo_coeff,Eigenval,nmo,homo,&
-                 rho_r,rho_g,pot_g,mat_munu,sab_orb_sub,pw_env_sub,&
+                 rho_r,rho_g,pot_g,mat_munu,pw_env_sub,&
                  poisson_env,auxbas_pw_pool,task_list_sub,mo_coeff_o,mo_coeff_v,eps_filter,unit_nr,&
                  mp2_memory,calc_ex,blacs_env_sub,error_sub,homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,Eigenval_beta,Emp2_AB)
 
@@ -879,8 +878,6 @@ MODULE mp2_gpw
     INTEGER                                  :: nmo, homo
     TYPE(pw_p_type)                          :: rho_r, rho_g, pot_g
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb_sub
     TYPE(pw_env_type), POINTER               :: pw_env_sub
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
@@ -1138,10 +1135,10 @@ MODULE mp2_gpw
     ! replicate on a local array on proc 0 the occupied and virtual wavevectior
     ! needed for the calculation of the WF's by calculate_wavefunction
     ! (external vector)
-    CALL grep_occ_virt_wavefunc(para_env_sub,nmo,homo,virtual,&
+    CALL grep_occ_virt_wavefunc(para_env_sub,nmo,&
                                 my_I_occupied_start,my_I_occupied_end,my_I_batch_size,&
                                 my_A_virtual_start,my_A_virtual_end,my_A_batch_size,&
-                                mo_coeff_o,mo_coeff_v,my_Cocc,my_Cvirt,unit_nr,error_sub)
+                                mo_coeff_o,mo_coeff_v,my_Cocc,my_Cvirt,error_sub)
 
 
     ! divide the b states in the sub_group in such a way to create
@@ -1340,8 +1337,8 @@ MODULE mp2_gpw
           CALL timeset(routineN//"_E_Ex_1",handle3)
           CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb, error=error_sub)
           CALL grep_my_integrals(para_env_sub,fm_BIb_jb,BIb_C(1:my_B_size,1:homo,i_counter),max_row_col_local,&
-                                 homo,virtual,sub_proc_map,local_col_row_info,&
-                                 my_B_virtual_end,my_B_virtual_start,my_B_size,&
+                                 sub_proc_map,local_col_row_info,&
+                                 my_B_virtual_end,my_B_virtual_start,&
                                  error_sub)
           CALL timestop(handle3)
         END IF
@@ -1489,28 +1486,24 @@ MODULE mp2_gpw
 !> \param fm_BIb_jb ...
 !> \param BIb_jb ...
 !> \param max_row_col_local ...
-!> \param homo ...
-!> \param virtual ...
 !> \param proc_map ...
 !> \param local_col_row_info ...
 !> \param my_B_virtual_end ...
 !> \param my_B_virtual_start ...
-!> \param my_B_size ...
 !> \param error_sub ...
 ! *****************************************************************************
   SUBROUTINE grep_my_integrals(para_env_sub,fm_BIb_jb,BIb_jb,max_row_col_local,&
-                               homo,virtual,proc_map,local_col_row_info,&
-                               my_B_virtual_end,my_B_virtual_start,my_B_size,&
+                               proc_map,local_col_row_info,&
+                               my_B_virtual_end,my_B_virtual_start,&
                                error_sub)
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
     TYPE(cp_fm_type), POINTER                :: fm_BIb_jb
     REAL(KIND=dp), DIMENSION(:, :)           :: BIb_jb
-    INTEGER                                  :: max_row_col_local, homo, &
-                                                virtual
+    INTEGER                                  :: max_row_col_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info
     INTEGER                                  :: my_B_virtual_end, &
-                                                my_B_virtual_start, my_B_size
+                                                my_B_virtual_start
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_my_integrals', &
@@ -1626,15 +1619,13 @@ MODULE mp2_gpw
 !> \param my_do_gw ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
-!> \param blacs_env_sub ...
-!> \param unit_nr ...
 !> \param error ...
 !> \param error_sub ...
 ! *****************************************************************************
   SUBROUTINE replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
                                        mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,my_do_gw,&
-                                       gw_corr_lev_occ,gw_corr_lev_virt,blacs_env_sub,&
-                                       unit_nr,error,error_sub)
+                                       gw_corr_lev_occ,gw_corr_lev_virt,&
+                                       error,error_sub)
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -1645,8 +1636,6 @@ MODULE mp2_gpw
     LOGICAL                                  :: my_do_gw
     INTEGER                                  :: gw_corr_lev_occ, &
                                                 gw_corr_lev_virt
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
-    INTEGER                                  :: unit_nr
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_mat_to_subgroup', &
@@ -1879,8 +1868,6 @@ MODULE mp2_gpw
 !> \brief ...
 !> \param para_env_sub ...
 !> \param dimen ...
-!> \param homo ...
-!> \param virtual ...
 !> \param my_I_occupied_start ...
 !> \param my_I_occupied_end ...
 !> \param my_I_batch_size ...
@@ -1891,21 +1878,19 @@ MODULE mp2_gpw
 !> \param mo_coeff_v ...
 !> \param my_Cocc ...
 !> \param my_Cvirt ...
-!> \param unit_nr ...
 !> \param error_sub ...
 ! *****************************************************************************
-  SUBROUTINE grep_occ_virt_wavefunc(para_env_sub,dimen,homo,virtual,&
+  SUBROUTINE grep_occ_virt_wavefunc(para_env_sub,dimen,&
                                     my_I_occupied_start,my_I_occupied_end,my_I_batch_size,&
                                     my_A_virtual_start,my_A_virtual_end,my_A_batch_size,&
-                                    mo_coeff_o,mo_coeff_v,my_Cocc,my_Cvirt,unit_nr,error_sub)
+                                    mo_coeff_o,mo_coeff_v,my_Cocc,my_Cvirt,error_sub)
 
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
-    INTEGER :: dimen, homo, virtual, my_I_occupied_start, my_I_occupied_end, &
+    INTEGER :: dimen, my_I_occupied_start, my_I_occupied_end, &
       my_I_batch_size, my_A_virtual_start, my_A_virtual_end, my_A_batch_size
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: my_Cocc, my_Cvirt
-    INTEGER                                  :: unit_nr
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_occ_virt_wavefunc', &

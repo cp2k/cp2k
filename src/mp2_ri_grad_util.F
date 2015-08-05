@@ -71,13 +71,11 @@ MODULE mp2_ri_grad_util
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param ngroup ...
-!> \param color_sub ...
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
 !> \param my_B_size ...
 !> \param my_B_virtual_start ...
-!> \param my_B_virtual_end ...
 !> \param ends_array ...
 !> \param ends_B_virtual ...
 !> \param sizes_array ...
@@ -89,9 +87,9 @@ MODULE mp2_ri_grad_util
 !> \param error_sub ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
-  SUBROUTINE complete_gamma(mp2_env,B_ia_Q,dimen_RI,homo,virtual,para_env,para_env_sub,ngroup,color_sub,&
+  SUBROUTINE complete_gamma(mp2_env,B_ia_Q,dimen_RI,homo,virtual,para_env,para_env_sub,ngroup,&
                             my_group_L_size,my_group_L_start,my_group_L_end,&
-                            my_B_size,my_B_virtual_start,my_B_virtual_end,&
+                            my_B_size,my_B_virtual_start,&
                             ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
                             sub_proc_map,error,error_sub)
 
@@ -100,8 +98,8 @@ MODULE mp2_ri_grad_util
       DIMENSION(:, :, :)                     :: B_ia_Q
     INTEGER                                  :: dimen_RI, homo, virtual
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
-    INTEGER :: ngroup, color_sub, my_group_L_size, my_group_L_start, &
-      my_group_L_end, my_B_size, my_B_virtual_start, my_B_virtual_end
+    INTEGER :: ngroup, my_group_L_size, my_group_L_start, my_group_L_end, &
+      my_B_size, my_B_virtual_start
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
       sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
       sub_proc_map
@@ -311,15 +309,15 @@ MODULE mp2_ri_grad_util
 
     ! create the fm matrix Gamma
     CALL array2fm(Gamma_2D,dimen_ia,dimen_RI,para_env,blacs_env,proc_map,&
-                  my_ia_size,my_ia_start,my_ia_end,&
-                  my_group_L_size,my_group_L_start,my_group_L_end,&
+                  my_ia_start,my_ia_end,&
+                  my_group_L_start,my_group_L_end,&
                   sizes,starts,ends,&
                   group_grid_2_mepos,para_env_sub%num_pe,ngroup,&
                   fm_Y,error)
     ! create the fm matrix B_ia_P
     CALL array2fm(BIb_C_2D,dimen_ia,dimen_RI,para_env,blacs_env,proc_map,&
-                  my_ia_size,my_ia_start,my_ia_end,&
-                  my_group_L_size,my_group_L_start,my_group_L_end,&
+                  my_ia_start,my_ia_end,&
+                  my_group_L_start,my_group_L_end,&
                   sizes,starts,ends,&
                   group_grid_2_mepos,para_env_sub%num_pe,ngroup,&
                   fm_ia_P,error)
@@ -369,8 +367,8 @@ MODULE mp2_ri_grad_util
     mp2_env%ri_grad%Gamma_PQ(:,:)=mp2_env%ri_grad%PQ_half
     
     CALL array2fm(mp2_env%ri_grad%Gamma_PQ,dimen_RI,dimen_RI,para_env,blacs_env,proc_map,&
-                  my_P_size,my_P_start,my_P_end,&
-                  my_group_L_size,my_group_L_start,my_group_L_end,&
+                  my_P_start,my_P_end,&
+                  my_group_L_start,my_group_L_end,&
                   sizes,starts,ends,&
                   group_grid_2_mepos,para_env_sub%num_pe,ngroup,&
                   PQ_half,error)
@@ -522,8 +520,8 @@ MODULE mp2_ri_grad_util
     END IF
 
     ! create the Gamma_ia_P in DCSR style
-    CALL create_dbcsr_gamma(Gamma_2D,homo,virtual,dimen_ia,dimen_RI,para_env_sub,sub_proc_map,&
-                            my_ia_size,my_ia_start,my_ia_end,my_group_L_size,&
+    CALL create_dbcsr_gamma(Gamma_2D,homo,virtual,dimen_ia,para_env_sub,sub_proc_map,&
+                            my_ia_start,my_ia_end,my_group_L_size,&
                             sizes_ia,starts_ia,ends_ia,&
                             mp2_env,error_sub)
 
@@ -590,10 +588,8 @@ MODULE mp2_ri_grad_util
 !> \param para_env ...
 !> \param blacs_env ...
 !> \param proc_map ...
-!> \param my_rows ...
 !> \param my_start_row ...
 !> \param my_end_row ...
-!> \param my_cols ...
 !> \param my_start_col ...
 !> \param my_end_col ...
 !> \param sizes ...
@@ -606,8 +602,8 @@ MODULE mp2_ri_grad_util
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE array2fm(mat2D,num_rows,num_cols,para_env,blacs_env,proc_map,&
-                      my_rows,my_start_row,my_end_row,&
-                      my_cols,my_start_col,my_end_col,&
+                      my_start_row,my_end_row,&
+                      my_start_col,my_end_col,&
                       sizes,starts,ends,&
                       group_grid_2_mepos,ngroup_row,ngroup_col,&
                       fm_mat,error)
@@ -618,8 +614,7 @@ MODULE mp2_ri_grad_util
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map
-    INTEGER                                  :: my_rows, my_start_row, &
-                                                my_end_row, my_cols, &
+    INTEGER                                  :: my_start_row, my_end_row, &
                                                 my_start_col, my_end_col
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: sizes, starts, ends, &
                                                 group_grid_2_mepos
@@ -1413,10 +1408,8 @@ MODULE mp2_ri_grad_util
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen_ia ...
-!> \param dimen_RI ...
 !> \param para_env_sub ...
 !> \param sub_proc_map ...
-!> \param my_ia_size ...
 !> \param my_ia_start ...
 !> \param my_ia_end ...
 !> \param my_group_L_size ...
@@ -1426,18 +1419,17 @@ MODULE mp2_ri_grad_util
 !> \param mp2_env ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_dbcsr_gamma(Gamma_2D,homo,virtual,dimen_ia,dimen_RI,para_env_sub,sub_proc_map,&
-                                my_ia_size,my_ia_start,my_ia_end,my_group_L_size,&
+  SUBROUTINE create_dbcsr_gamma(Gamma_2D,homo,virtual,dimen_ia,para_env_sub,sub_proc_map,&
+                                my_ia_start,my_ia_end,my_group_L_size,&
                                 sizes_ia,starts_ia,ends_ia,&
                                 mp2_env,error)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Gamma_2D
-    INTEGER                                  :: homo, virtual, dimen_ia, &
-                                                dimen_RI
+    INTEGER                                  :: homo, virtual, dimen_ia
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sub_proc_map
-    INTEGER                                  :: my_ia_size, my_ia_start, &
-                                                my_ia_end, my_group_L_size
+    INTEGER                                  :: my_ia_start, my_ia_end, &
+                                                my_group_L_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes_ia, starts_ia, ends_ia
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_error_type), INTENT(inout)       :: error

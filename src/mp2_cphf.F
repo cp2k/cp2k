@@ -11,7 +11,6 @@
 ! *****************************************************************************
 MODULE mp2_cphf
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_types,                      ONLY: cell_type
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -52,7 +51,6 @@ MODULE mp2_cphf
   USE mathconstants,                   ONLY: fourpi
   USE message_passing,                 ONLY: mp_sum
   USE mp2_types,                       ONLY: mp2_type
-  USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_axpy,&
@@ -115,8 +113,6 @@ MODULE mp2_cphf
 !> \param mp2_env ...
 !> \param para_env ...
 !> \param dft_control ...
-!> \param cell ...
-!> \param particle_set ...
 !> \param atomic_kind_set ...
 !> \param mo_coeff ...
 !> \param nmo ...
@@ -126,15 +122,12 @@ MODULE mp2_cphf
 !> \param error ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
-  SUBROUTINE solve_z_vector_eq(qs_env,mp2_env,para_env,dft_control,cell,particle_set,&
+  SUBROUTINE solve_z_vector_eq(qs_env,mp2_env,para_env,dft_control,&
                                atomic_kind_set,mo_coeff,nmo,homo,Eigenval,unit_nr,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -365,9 +358,9 @@ MODULE mp2_cphf
     transf_type_in=1
     transf_type_out=1
     out_alpha=0.5_dp
-    CALL cphf_like_update(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
-                          mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,dft_control,&
-                          hfx_sections,energy,n_rep_hf,pw_env,poisson_env,&
+    CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
+                          mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
+                          hfx_sections,energy,n_rep_hf,poisson_env,&
                           rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                           P_mo,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
                           L_jb,transf_type_out,error,&
@@ -377,9 +370,9 @@ MODULE mp2_cphf
     transf_type_in=2
     transf_type_out=1
     out_alpha=0.5_dp
-    CALL cphf_like_update(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
-                          mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,dft_control,&
-                          hfx_sections,energy,n_rep_hf,pw_env,poisson_env,&
+    CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
+                          mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
+                          hfx_sections,energy,n_rep_hf,poisson_env,&
                           rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                           P_mo,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
                           L_jb,transf_type_out,error)
@@ -393,8 +386,8 @@ MODULE mp2_cphf
     CALL cp_fm_set_all(P_ia, 0.0_dp,error=error)
 
     CALL solve_z_vector_eq_low(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
-                               mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,blacs_env,dft_control,&
-                               hfx_sections,energy,n_rep_hf,pw_env,poisson_env,&
+                               mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,blacs_env,&
+                               hfx_sections,energy,n_rep_hf,poisson_env,&
                                rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                                L_jb,fm_G_mu_nu,fm_back,P_ia,error)
     
@@ -444,9 +437,9 @@ MODULE mp2_cphf
     transf_type_in=4
     transf_type_out=2
     out_alpha=-0.5_dp
-    CALL cphf_like_update(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
-                          mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,dft_control,&
-                          hfx_sections,energy,n_rep_hf,pw_env,poisson_env,&
+    CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
+                          mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
+                          hfx_sections,energy,n_rep_hf,poisson_env,&
                           rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                           P_mo,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
                           W_mo,transf_type_out,error)
@@ -680,21 +673,17 @@ MODULE mp2_cphf
 !>        transf_type_out = 1 -> occ-vit transformation 
 !>        transf_type_out = 2 -> occ-occ transformation
 !> \param qs_env ...
-!> \param mp2_env ...
 !> \param para_env ...
 !> \param homo ...
 !> \param virtual ...
 !> \param dimen ...
-!> \param unit_nr ...
 !> \param mo_coeff ...
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
-!> \param dft_control ...
 !> \param hfx_sections ...
 !> \param energy ...
 !> \param n_rep_hf ...
-!> \param pw_env ...
 !> \param poisson_env ...
 !> \param rho_work ...
 !> \param pot_g ...
@@ -713,24 +702,21 @@ MODULE mp2_cphf
 !> \param recalc_hfx_integrals ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
-  SUBROUTINE cphf_like_update(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
-                              mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,dft_control,&
-                              hfx_sections,energy,n_rep_hf,pw_env,poisson_env,&
+  SUBROUTINE cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
+                              mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
+                              hfx_sections,energy,n_rep_hf,poisson_env,&
                               rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                               fm_mo,fm_ao,fm_back,transf_type_in,out_alpha,&
                               fm_mo_out,transf_type_out,error,recalc_hfx_integrals)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: homo, virtual, dimen, unit_nr
+    INTEGER                                  :: homo, virtual, dimen
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_o, &
                                                 mo_coeff_v
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: hfx_sections
     TYPE(qs_energy_type), POINTER            :: energy
     INTEGER                                  :: n_rep_hf
-    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(qs_rho_type), POINTER               :: rho_work
     TYPE(pw_p_type)                          :: pot_g, rho_g, rho_r
@@ -1006,11 +992,9 @@ MODULE mp2_cphf
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
 !> \param blacs_env ...
-!> \param dft_control ...
 !> \param hfx_sections ...
 !> \param energy ...
 !> \param n_rep_hf ...
-!> \param pw_env ...
 !> \param poisson_env ...
 !> \param rho_work ...
 !> \param pot_g ...
@@ -1026,8 +1010,8 @@ MODULE mp2_cphf
 !> \author Mauro Del Ben 
 ! *****************************************************************************
   SUBROUTINE solve_z_vector_eq_low(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
-                                   mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,blacs_env,dft_control,&
-                                   hfx_sections,energy,n_rep_hf,pw_env,poisson_env,&
+                                   mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,blacs_env,&
+                                   hfx_sections,energy,n_rep_hf,poisson_env,&
                                    rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                                    L_jb,fm_G_mu_nu,fm_back,P_ia,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -1038,11 +1022,9 @@ MODULE mp2_cphf
                                                 mo_coeff_v
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: hfx_sections
     TYPE(qs_energy_type), POINTER            :: energy
     INTEGER                                  :: n_rep_hf
-    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(qs_rho_type), POINTER               :: rho_work
     TYPE(pw_p_type)                          :: pot_g, rho_g, rho_r
@@ -1129,9 +1111,9 @@ MODULE mp2_cphf
 
         ! calculate matrix-vector product
         CALL cp_fm_set_all(Ap, 0.0_dp,error=error)
-        CALL cphf_like_update(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
-                              mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,dft_control,&
-                              hfx_sections,energy,n_rep_hf,pw_env,poisson_env,&
+        CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
+                              mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
+                              hfx_sections,energy,n_rep_hf,poisson_env,&
                               rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                               pk,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
                               Ap,transf_type_out,error)
@@ -1271,9 +1253,9 @@ MODULE mp2_cphf
         CALL cp_fm_create(Ax(iiter)%matrix, fm_struct_tmp, name="Ai",error=error)
         CALL cp_fm_set_all(Ax(iiter)%matrix, 0.0_dp, error=error)
         ! performe the matrix-vector product (CPHF like update) 
-        CALL cphf_like_update(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
-                              mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,dft_control,&
-                              hfx_sections,energy,n_rep_hf,pw_env,poisson_env,&
+        CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
+                              mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
+                              hfx_sections,energy,n_rep_hf,poisson_env,&
                               rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                               xn(iiter)%matrix,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
                               Ax(iiter)%matrix,transf_type_out,error)
