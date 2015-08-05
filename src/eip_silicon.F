@@ -718,83 +718,77 @@ CONTAINS
      IF (npr.le.1) THEN !serial if too few processors to gain by parallelizing
 
 ! set ncx for serial case, ncx for parallel case set below
-        ncx=8
-1234    ncx=ncx*2
-        ALLOCATE(icell(0:ncx,-1:ll1,-1:ll2,-1:ll3))
-        DO l3=-1,ll3
-        DO l2=-1,ll2
-        DO l1=-1,ll1
-        icell(0,l1,l2,l3)=0
-        ENDDO
-        ENDDO
-        ENDDO
-        rlc1i=ll1/alat(1)
-        rlc2i=ll2/alat(2)
-        rlc3i=ll3/alat(3)
+        ncx=16
+        loop_ncx_s: DO
+           ALLOCATE(icell(0:ncx,-1:ll1,-1:ll2,-1:ll3))
+           icell(0,-1:ll1,-1:ll2,-1:ll3)=0
+           rlc1i=ll1/alat(1)
+           rlc2i=ll2/alat(2)
+           rlc3i=ll3/alat(3)
 
-        DO 983,iat=1,nat
-        rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
-        rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
-        rxyz0(3,iat)=MODULO(MODULO(rxyz0(3,iat),alat(3)),alat(3))
-        l1=INT(rxyz0(1,iat)*rlc1i)
-        l2=INT(rxyz0(2,iat)*rlc2i)
-        l3=INT(rxyz0(3,iat)*rlc3i)
+           loop_iat_s: DO iat=1,nat
+              rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
+              rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
+              rxyz0(3,iat)=MODULO(MODULO(rxyz0(3,iat),alat(3)),alat(3))
+              l1=INT(rxyz0(1,iat)*rlc1i)
+              l2=INT(rxyz0(2,iat)*rlc2i)
+              l3=INT(rxyz0(3,iat)*rlc3i)
 
-        ii=icell(0,l1,l2,l3)
-        ii=ii+1
-        icell(0,l1,l2,l3)=ii
-        IF (ii.gt.ncx) THEN
-        WRITE(10,*) count,'NCX too small',ncx
-        DEALLOCATE(icell)
-        GOTO 1234
-        ENDIF
-        icell(ii,l1,l2,l3)=iat
-983     CONTINUE
+              ii=icell(0,l1,l2,l3)
+              ii=ii+1
+              icell(0,l1,l2,l3)=ii
+              IF (ii.gt.ncx) THEN
+                 WRITE(10,*) count,'NCX too small',ncx
+                 DEALLOCATE(icell)
+                 ncx=ncx*2
+                 CYCLE loop_ncx_s
+              ENDIF
+              icell(ii,l1,l2,l3)=iat
+           END DO loop_iat_s
+           EXIT loop_ncx_s
+        END DO loop_ncx_s
 
      ELSE  ! parallel case
 
 ! periodization of particles can be done in parallel
 !$omp parallel do shared (alat,nat,rxyz0) private(iat) default(none)
-        DO 5983,iat=1,nat
-        rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
-        rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
-        rxyz0(3,iat)=MODULO(MODULO(rxyz0(3,iat),alat(3)),alat(3))
-5983    CONTINUE
+        DO iat=1,nat
+           rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
+           rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
+           rxyz0(3,iat)=MODULO(MODULO(rxyz0(3,iat),alat(3)),alat(3))
+        END DO
 !$omp end parallel do
 
 ! assignment to cell is done serially
 ! set ncx for parallel case, ncx for serial case set above
-        ncx=8
-4321    ncx=ncx*2
-        ALLOCATE(icell(0:ncx,-1:ll1,-1:ll2,-1:ll3))
-        DO l3=-1,ll3
-        DO l2=-1,ll2
-        DO l1=-1,ll1
-        icell(0,l1,l2,l3)=0
-        ENDDO
-        ENDDO
-        ENDDO
+        ncx=16
+        loop_ncx_p: DO
+           ALLOCATE(icell(0:ncx,-1:ll1,-1:ll2,-1:ll3))
+           icell(0,-1:ll1,-1:ll2,-1:ll3)=0
 
-        rlc1i=ll1/alat(1)
-        rlc2i=ll2/alat(2)
-        rlc3i=ll3/alat(3)
+           rlc1i=ll1/alat(1)
+           rlc2i=ll2/alat(2)
+           rlc3i=ll3/alat(3)
 
-        DO 6983,iat=1,nat
-        l1=INT(rxyz0(1,iat)*rlc1i)
-        l2=INT(rxyz0(2,iat)*rlc2i)
-        l3=INT(rxyz0(3,iat)*rlc3i)
-        ii=icell(0,l1,l2,l3)
-        ii=ii+1
-        icell(0,l1,l2,l3)=ii
-        IF (ii.gt.ncx) THEN
-        WRITE(10,*) count,'NCX too small',ncx
-        DEALLOCATE(icell)
-        GOTO 4321
-        ENDIF
-        icell(ii,l1,l2,l3)=iat
-6983    CONTINUE
+           loop_iat_p: DO iat=1,nat
+              l1=INT(rxyz0(1,iat)*rlc1i)
+              l2=INT(rxyz0(2,iat)*rlc2i)
+              l3=INT(rxyz0(3,iat)*rlc3i)
+              ii=icell(0,l1,l2,l3)
+              ii=ii+1
+              icell(0,l1,l2,l3)=ii
+              IF (ii.gt.ncx) THEN
+                 WRITE(10,*) count,'NCX too small',ncx
+                 DEALLOCATE(icell)
+                 ncx=ncx*2
+                 CYCLE loop_ncx_p
+              ENDIF
+              icell(ii,l1,l2,l3)=iat
+           END DO loop_iat_p
+           EXIT loop_ncx_p
+        END DO loop_ncx_p
 
-    ENDIF
+     ENDIF
 
 ! duplicate all atoms within boundary layer
         laymx=ncx*(2*ll1*ll2+2*ll1*ll3+2*ll2*ll3+4*ll1+4*ll2+4*ll3+8)
@@ -1183,58 +1177,61 @@ CONTAINS
         ENDDO
 
         ALLOCATE(lsta(2,nat))
-        nnbrx=8
-2345    nnbrx=3*nnbrx/2
-        ALLOCATE(lstb(nnbrx*nat),rel(5,nnbrx*nat))
+        nnbrx=12
+        loop_nnbrx: DO
+           ALLOCATE(lstb(nnbrx*nat),rel(5,nnbrx*nat))
 
-        indlstx=0
+           indlstx=0
 
 !$omp parallel default(none) &
 !$omp private(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
 !$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
 !$omp rel,rxyz,cut,myspaceout)
 
-        npr=1
-!$       npr=omp_get_num_threads()
-        iam=0
-!$       iam=omp_get_thread_num()
+           npr=1
+!$         npr=omp_get_num_threads()
+           iam=0
+!$         iam=omp_get_thread_num()
 
-        cut2=cut**2
+           cut2=cut**2
 ! assign contiguous portions of the arrays lstb and rel to the threads
-        myspace=(nat*nnbrx)/npr
-        IF (iam.eq.0) myspaceout=myspace
+           myspace=(nat*nnbrx)/npr
+           IF (iam.eq.0) myspaceout=myspace
 ! Verlet list, relative positions
-        indlst=0
-      DO 6003,l3=0,ll3-1
-      DO 6002,l2=0,ll2-1
-      DO 6001,l1=0,ll1-1
-      DO 6000,ii=1,icell(0,l1,l2,l3)
-        iat=icell(ii,l1,l2,l3)
-        IF ( ((iat-1)*npr)/nat .EQ. iam) THEN
-!       write(*,*) 'sublstiat:iam,iat',iam,iat
-        lsta(1,iat)=iam*myspace+indlst+1
-        CALL sublstiat_b(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
-             rxyz,icell,lstb(iam*myspace+1),lay,rel(1,iam*myspace+1),cut2,indlst)
-        lsta(2,iat)=iam*myspace+indlst
-!        write(*,'(a,4(x,i3),100(x,i2))') &
-!               'iam,iat,lsta',iam,iat,lsta(1,iat),lsta(2,iat), &
-!                    (lstb(j),j=lsta(1,iat),lsta(2,iat))
-        ENDIF
-
-6000    CONTINUE
-6001    CONTINUE
-6002    CONTINUE
-6003    CONTINUE
+           indlst=0
+           loop_l3: DO l3=0,ll3-1
+              loop_l2: DO l2=0,ll2-1
+                 loop_l1: DO l1=0,ll1-1
+                    loop_ii: DO ii=1,icell(0,l1,l2,l3)
+                       iat=icell(ii,l1,l2,l3)
+                       IF ( ((iat-1)*npr)/nat .EQ. iam) THEN
+!                          write(*,*) 'sublstiat:iam,iat',iam,iat
+                          lsta(1,iat)=iam*myspace+indlst+1
+                          CALL sublstiat_b(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
+                                           rxyz,icell,lstb(iam*myspace+1),lay, &
+                                           rel(1,iam*myspace+1),cut2,indlst)
+                          lsta(2,iat)=iam*myspace+indlst
+!                          write(*,'(a,4(x,i3),100(x,i2))') &
+!                           'iam,iat,lsta',iam,iat,lsta(1,iat),lsta(2,iat), &
+!                           (lstb(j),j=lsta(1,iat),lsta(2,iat))
+                       END IF
+                    END DO loop_ii
+                 END DO loop_l1
+              END DO loop_l2
+           END DO loop_l3
 !$omp critical
-        indlstx=MAX(indlstx,indlst)
+           indlstx=MAX(indlstx,indlst)
 !$omp end critical
 !$omp end parallel
 
            IF (indlstx.ge.myspaceout) THEN
-               WRITE(10,*) count,'NNBRX too  small', nnbrx
-               DEALLOCATE(lstb,rel)
-               GOTO 2345
-           ENDIF
+              WRITE(10,*) count,'NNBRX too  small', nnbrx
+              DEALLOCATE(lstb,rel)
+              nnbrx=3*nnbrx/2
+              CYCLE loop_nnbrx
+           END IF
+           EXIT loop_nnbrx
+        END DO loop_nnbrx
 
         istopg=0
 
@@ -1891,80 +1888,74 @@ CONTAINS
      IF (npr.le.1) THEN !serial if too few processors to gain by parallelizing
 
 ! set ncx for serial case, ncx for parallel case set below
-        ncx=8
-1234    ncx=ncx*2
-        ALLOCATE(icell(0:ncx,-1:ll1,-1:ll2,-1:ll3))
-        DO 984,l3=-1,ll3
-        DO 985,l2=-1,ll2
-        DO 986,l1=-1,ll1
-        icell(0,l1,l2,l3)=0
-986     CONTINUE
-985     CONTINUE
-984     CONTINUE
-        rlc1i=INT(ll1/alat(1))
-        rlc2i=INT(ll2/alat(2))
-        rlc3i=INT(ll3/alat(3))
+        ncx=16
+        loop_ncx_s: DO
+           ALLOCATE(icell(0:ncx,-1:ll1,-1:ll2,-1:ll3))
+           icell(0,-1:ll1,-1:ll2,-1:ll3)=0
+           rlc1i=INT(ll1/alat(1))
+           rlc2i=INT(ll2/alat(2))
+           rlc3i=INT(ll3/alat(3))
 
-        DO 983,iat=1,nat
-        rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
-        rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
-        rxyz0(3,iat)=MODULO(MODULO(rxyz0(3,iat),alat(3)),alat(3))
-        l1=INT(rxyz0(1,iat)*rlc1i)
-        l2=INT(rxyz0(2,iat)*rlc2i)
-        l3=INT(rxyz0(3,iat)*rlc3i)
+           loop_iat_s: DO iat=1,nat
+              rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
+              rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
+              rxyz0(3,iat)=MODULO(MODULO(rxyz0(3,iat),alat(3)),alat(3))
+              l1=INT(rxyz0(1,iat)*rlc1i)
+              l2=INT(rxyz0(2,iat)*rlc2i)
+              l3=INT(rxyz0(3,iat)*rlc3i)
 
-        ii=icell(0,l1,l2,l3)
-        ii=ii+1
-        icell(0,l1,l2,l3)=ii
-        IF (ii.gt.ncx) THEN
-        WRITE(10,*) count,'NCX too small',ncx
-        DEALLOCATE(icell)
-        GOTO 1234
-        ENDIF
-        icell(ii,l1,l2,l3)=iat
-983     CONTINUE
+              ii=icell(0,l1,l2,l3)
+              ii=ii+1
+              icell(0,l1,l2,l3)=ii
+              IF (ii.gt.ncx) THEN
+                 WRITE(10,*) count,'NCX too small',ncx
+                 DEALLOCATE(icell)
+                 ncx=ncx*2
+                 CYCLE loop_ncx_s
+              END IF
+              icell(ii,l1,l2,l3)=iat
+           END DO loop_iat_s
+           EXIT loop_ncx_s
+        END DO loop_ncx_s
 
      ELSE  ! parallel case
 
 ! periodization of particles can be done in parallel
 !$omp parallel do shared (alat,nat,rxyz0) private(iat) default(none)
-        DO 5983,iat=1,nat
-        rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
-        rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
-        rxyz0(3,iat)=MODULO(MODULO(rxyz0(3,iat),alat(3)),alat(3))
-5983    CONTINUE
+        DO iat=1,nat
+           rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
+           rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
+           rxyz0(3,iat)=MODULO(MODULO(rxyz0(3,iat),alat(3)),alat(3))
+        END DO
 !$omp end parallel do
 
 ! assignment to cell is done serially
 ! set ncx for parallel case, ncx for serial case set above
-        ncx=8
-4321    ncx=ncx*2
-        ALLOCATE(icell(0:ncx,-1:ll1,-1:ll2,-1:ll3))
-        DO 3984,l3=-1,ll3
-        DO 3985,l2=-1,ll2
-        DO 3986,l1=-1,ll1
-        icell(0,l1,l2,l3)=0
-3986    CONTINUE
-3985    CONTINUE
-3984    CONTINUE
-        rlc1i=INT(ll1/alat(1))
-        rlc2i=INT(ll2/alat(2))
-        rlc3i=INT(ll3/alat(3))
+        ncx=16
+        loop_ncx_p: DO
+           ALLOCATE(icell(0:ncx,-1:ll1,-1:ll2,-1:ll3))
+           icell(0,-1:ll1,-1:ll2,-1:ll3)=0
+           rlc1i=INT(ll1/alat(1))
+           rlc2i=INT(ll2/alat(2))
+           rlc3i=INT(ll3/alat(3))
 
-        DO 6983,iat=1,nat
-        l1=INT(rxyz0(1,iat)*rlc1i)
-        l2=INT(rxyz0(2,iat)*rlc2i)
-        l3=INT(rxyz0(3,iat)*rlc3i)
-        ii=icell(0,l1,l2,l3)
-        ii=ii+1
-        icell(0,l1,l2,l3)=ii
-        IF (ii.gt.ncx) THEN
-        WRITE(10,*) count,'NCX too small',ncx
-        DEALLOCATE(icell)
-        GOTO 4321
-        ENDIF
-        icell(ii,l1,l2,l3)=iat
-6983    CONTINUE
+           loop_iat_p: DO iat=1,nat
+              l1=INT(rxyz0(1,iat)*rlc1i)
+              l2=INT(rxyz0(2,iat)*rlc2i)
+              l3=INT(rxyz0(3,iat)*rlc3i)
+              ii=icell(0,l1,l2,l3)
+              ii=ii+1
+              icell(0,l1,l2,l3)=ii
+              IF (ii.gt.ncx) THEN
+                 WRITE(10,*) count,'NCX too small',ncx
+                 DEALLOCATE(icell)
+                 ncx=ncx*2
+                 CYCLE loop_ncx_p
+              END IF
+              icell(ii,l1,l2,l3)=iat
+           END DO loop_iat_p
+           EXIT loop_ncx_p
+        END DO loop_ncx_p
 
     ENDIF
 
@@ -2355,58 +2346,62 @@ CONTAINS
         ENDDO
 
         ALLOCATE(lsta(2,nat))
-        nnbrx=24
-2345    nnbrx=3*nnbrx/2
-        ALLOCATE(lstb(nnbrx*nat),rel(5,nnbrx*nat))
+        nnbrx=36
+        loop_nnbrx: DO
+           ALLOCATE(lstb(nnbrx*nat),rel(5,nnbrx*nat))
 
-        indlstx=0
+           indlstx=0
 
 !$omp parallel default(none)  &
 !$omp private(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
 !$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
 !$omp rel,rxyz,cut,myspaceout)
 
-        npr=1
-!$       npr=omp_get_num_threads()
-        iam=0
-!$       iam=omp_get_thread_num()
+           npr=1
+!$         npr=omp_get_num_threads()
+           iam=0
+!$         iam=omp_get_thread_num()
 
-        cut2=cut**2
+           cut2=cut**2
 ! assign contiguous portions of the arrays lstb and rel to the threads
-        myspace=(nat*nnbrx)/npr
-        IF (iam.eq.0) myspaceout=myspace
+           myspace=(nat*nnbrx)/npr
+           IF (iam.eq.0) myspaceout=myspace
 ! Verlet list, relative positions
-        indlst=0
-      DO 6000,l3=0,ll3-1
-      DO 6001,l2=0,ll2-1
-      DO 6002,l1=0,ll1-1
-      DO 6600,ii=1,icell(0,l1,l2,l3)
-        iat=icell(ii,l1,l2,l3)
-        IF ( ((iat-1)*npr)/nat .EQ. iam) THEN
-!       write(*,*) 'sublstiat:iam,iat',iam,iat
-        lsta(1,iat)=iam*myspace+indlst+1
-        CALL sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
-             rxyz,icell,lstb(iam*myspace+1),lay,rel(1,iam*myspace+1),cut2,indlst)
-        lsta(2,iat)=iam*myspace+indlst
-!        write(*,'(a,4(x,i3),100(x,i2))') &
-!               'iam,iat,lsta',iam,iat,lsta(1,iat),lsta(2,iat), &
-!                    (lstb(j),j=lsta(1,iat),lsta(2,iat))
-        ENDIF
+           indlst=0
+           loop_l3: DO l3=0,ll3-1
+              loop_l2: DO l2=0,ll2-1
+                 loop_l1: DO l1=0,ll1-1
+                    loop_ii: DO ii=1,icell(0,l1,l2,l3)
+                       iat=icell(ii,l1,l2,l3)
+                       IF ( ((iat-1)*npr)/nat .EQ. iam) THEN
+!                          write(*,*) 'sublstiat:iam,iat',iam,iat
+                          lsta(1,iat)=iam*myspace+indlst+1
+                          CALL sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
+                                           rxyz,icell,lstb(iam*myspace+1),lay, &
+                                           rel(1,iam*myspace+1),cut2,indlst)
+                                           lsta(2,iat)=iam*myspace+indlst
+!                          write(*,'(a,4(x,i3),100(x,i2))') &
+!                                'iam,iat,lsta',iam,iat,lsta(1,iat),lsta(2,iat), &
+!                                (lstb(j),j=lsta(1,iat),lsta(2,iat))
+                       END IF
+                    END DO loop_ii
+                 END DO loop_l1
+              END DO loop_l2
+           END DO loop_l3
 
-6600    CONTINUE
-6002    CONTINUE
-6001    CONTINUE
-6000    CONTINUE
 !$omp critical
-        indlstx=MAX(indlstx,indlst)
+           indlstx=MAX(indlstx,indlst)
 !$omp end critical
 !$omp end parallel
 
            IF (indlstx.ge.myspaceout) THEN
                WRITE(10,*) count,'NNBRX too  small', nnbrx
                DEALLOCATE(lstb,rel)
-               GOTO 2345
-           ENDIF
+               nnbrx=3*nnbrx/2
+               CYCLE loop_nnbrx
+           END IF
+           EXIT loop_nnbrx
+        END DO loop_nnbrx
 
         istopg=0
 !$omp parallel default(none)  &
@@ -2977,33 +2972,33 @@ CONTAINS
         INTEGER       :: jat,jj,k1,k2,k3
         REAL(KIND=dp) :: rr2,tt,xrel,yrel,zrel,tti
 
-        DO 6363,k3=l3-1,l3+1
-        DO 6364,k2=l2-1,l2+1
-        DO 6365,k1=l1-1,l1+1
-        DO 6366,jj=1,icell(0,k1,k2,k3)
-          jat=icell(jj,k1,k2,k3)
-          IF (jat.eq.iat) GOTO 6363 !This looks like it should just be a CYCLE statement, but this GOTO exits three loops simultanuously
-          xrel= rxyz(1,iat)-rxyz(1,jat)
-          yrel= rxyz(2,iat)-rxyz(2,jat)
-          zrel= rxyz(3,iat)-rxyz(3,jat)
-          rr2=xrel**2 + yrel**2 + zrel**2
-          IF ( rr2 .LE. cut2 ) THEN
-           indlst=MIN(indlst,myspace-1)
-           lstb(indlst)=lay(jat)
-!        write(*,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
-           tt=SQRT(rr2)
-           tti=1.e0_dp/tt
-           rel(1,indlst)=xrel*tti
-           rel(2,indlst)=yrel*tti
-           rel(3,indlst)=zrel*tti
-           rel(4,indlst)=tt
-           rel(5,indlst)=tti
-           indlst= indlst+1
-          ENDIF
-6366      CONTINUE
-6365      CONTINUE
-6364      CONTINUE
-6363      CONTINUE
+        loop_k3: DO k3=l3-1,l3+1
+           loop_k2: DO k2=l2-1,l2+1
+              loop_k1: DO k1=l1-1,l1+1
+                 loop_jj: DO jj=1,icell(0,k1,k2,k3)
+                    jat=icell(jj,k1,k2,k3)
+                    IF (jat.eq.iat) CYCLE loop_k3
+                    xrel= rxyz(1,iat)-rxyz(1,jat)
+                    yrel= rxyz(2,iat)-rxyz(2,jat)
+                    zrel= rxyz(3,iat)-rxyz(3,jat)
+                    rr2=xrel**2 + yrel**2 + zrel**2
+                    IF ( rr2 .LE. cut2 ) THEN
+                       indlst=MIN(indlst,myspace-1)
+                       lstb(indlst)=lay(jat)
+!                       write(*,*) 'iat,indlst,lay(jat)',iat,indlst,lay(jat)
+                       tt=SQRT(rr2)
+                       tti=1.e0_dp/tt
+                       rel(1,indlst)=xrel*tti
+                       rel(2,indlst)=yrel*tti
+                       rel(3,indlst)=zrel*tti
+                       rel(4,indlst)=tt
+                       rel(5,indlst)=tti
+                       indlst= indlst+1
+                    END IF
+                 END DO loop_jj
+              END DO loop_k1
+           END DO loop_k2
+        END DO loop_k3
 
         RETURN
         END SUBROUTINE sublstiat_l
