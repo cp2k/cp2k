@@ -231,7 +231,6 @@ CONTAINS
 !> \param dx ...
 !> \param xi ...
 !> \param conv ...
-!> \param ediff ...
 !> \param pred ...
 !> \param rat ...
 !> \param step ...
@@ -241,7 +240,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
   SUBROUTINE gopt_f_io(gopt_env, force_env, root_section, its, opt_energy,&
-       output_unit, eold, emin, wildcard, gopt_param, ndf, dx, xi, conv, ediff, pred, rat,&
+       output_unit, eold, emin, wildcard, gopt_param, ndf, dx, xi, conv, pred, rat,&
        step, rad, used_time, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(force_env_type), POINTER            :: force_env
@@ -258,7 +257,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: xi
     LOGICAL, OPTIONAL                        :: conv
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: ediff, pred, rat, step, rad
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pred, rat, step, rad
     REAL(KIND=dp)                            :: used_time
     TYPE(cp_error_type), INTENT(inout)       :: error
 

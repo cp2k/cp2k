@@ -272,13 +272,11 @@ CONTAINS
                    x=cts_env%matrix_x,&
                    res=cts_env%matrix_res,&
                    neglect_quadratic_term=cts_env%neglect_quadratic_term,&
-                   tensor_type=cts_env%tensor_type,&
                    conjugator=cts_env%conjugator,&
                    max_iter=cts_env%max_iter,&
                    eps_convergence=cts_env%eps_convergence,&
                    eps_filter=cts_env%eps_filter,&
                    converged=cts_env%converged,&
-                   level=1,&
                    error=error)
        
            IF (cts_env%converged) THEN
@@ -402,13 +400,11 @@ CONTAINS
                    x=cts_env%matrix_x,&
                    res=cts_env%matrix_res,&
                    neglect_quadratic_term=cts_env%neglect_quadratic_term,&
-                   tensor_type=cts_env%tensor_type,&
                    conjugator=cts_env%conjugator,&
                    max_iter=cts_env%max_iter,&
                    eps_convergence=cts_env%eps_convergence,&
                    eps_filter=cts_env%eps_filter,&
                    converged=cts_env%converged,&
-                   level=1,&
                    error=error)
        
            IF (cts_env%converged) THEN
@@ -780,13 +776,11 @@ CONTAINS
 !> \param x ...
 !> \param res ...
 !> \param neglect_quadratic_term ...
-!> \param tensor_type ...
 !> \param conjugator ...
 !> \param max_iter ...
 !> \param eps_convergence ...
 !> \param eps_filter ...
 !> \param converged ...
-!> \param level ...
 !> \param error ...
 !> \par History
 !>       2011.06 created [Rustam Z Khaliullin]
@@ -795,8 +789,8 @@ CONTAINS
 ! *****************************************************************************
    RECURSIVE SUBROUTINE solve_riccati_equation(pp,qq,qp,pq,oo,vv,x,res,&
                neglect_quadratic_term,&
-               tensor_type,conjugator,max_iter,eps_convergence,eps_filter,&
-               converged,level,error)
+               conjugator,max_iter,eps_convergence,eps_filter,&
+               converged,error)
     
     TYPE(cp_dbcsr_type), INTENT(IN)          :: pp, qq
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: qp
@@ -806,11 +800,9 @@ CONTAINS
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: x
     TYPE(cp_dbcsr_type), INTENT(OUT)         :: res
     LOGICAL, INTENT(IN)                      :: neglect_quadratic_term
-    INTEGER, INTENT(IN)                      :: tensor_type, conjugator, &
-                                                max_iter
+    INTEGER, INTENT(IN)                      :: conjugator, max_iter
     REAL(KIND=dp), INTENT(IN)                :: eps_convergence, eps_filter
     LOGICAL, INTENT(OUT)                     :: converged
-    INTEGER, INTENT(IN)                      :: level
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'solve_riccati_equation', &

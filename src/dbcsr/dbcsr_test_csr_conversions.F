@@ -76,7 +76,7 @@ PROGRAM dbcsr_test_csr_conversions
        myprow=myploc(1), mypcol=myploc(2))
   DEALLOCATE(pgrid)
 
-  CALL dbcsr_init_lib (group=mp_comm, error=error)
+  CALL dbcsr_init_lib (error=error)
   CALL dbcsr_set_default_config (error=error)
 
   io_unit = 0

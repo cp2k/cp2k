@@ -339,7 +339,7 @@ CONTAINS
        t_diff=t_now-t_old
        t_old=t_now
        CALL gopt_f_io(gopt_env, force_env, root_section, its, etot, output_unit,&
-            eold, emin, wildcard, gopt_param, ndf, dr, g, conv, ediff, pred, rat,&
+            eold, emin, wildcard, gopt_param, ndf, dr, g, conv, pred, rat,&
             step, rad, used_time=t_diff, error=error)
 
        IF (conv.OR.(its==maxiter)) EXIT

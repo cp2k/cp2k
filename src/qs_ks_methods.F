@@ -613,7 +613,7 @@ CONTAINS
 
        ! *** Add Hartree-Fock contribution if required ***
        IF ( do_hfx ) THEN
-         CALL hfx_ks_matrix(ks_env,qs_env,ks_matrix,rho,energy,calculate_forces,&
+         CALL hfx_ks_matrix(qs_env,ks_matrix,rho,energy,calculate_forces,&
               just_energy,v_rspace_new,v_tau_rspace,error=error)
 !!       Adiabatic rescaling  only if do_hfx; right?????
        END IF !do_hfx

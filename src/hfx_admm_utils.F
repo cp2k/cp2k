@@ -202,7 +202,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Add the hfx contributions to the Hamiltonian
 !>
-!> \param ks_env ...
 !> \param qs_env ...
 !> \param matrix_ks ...
 !> \param rho ...
@@ -216,10 +215,9 @@ CONTAINS
 !>     refactoring 03-2011 [MI]
 ! *****************************************************************************
 
-  SUBROUTINE hfx_ks_matrix(ks_env,qs_env,matrix_ks,rho,energy,calculate_forces,&
+  SUBROUTINE hfx_ks_matrix(qs_env,matrix_ks,rho,energy,calculate_forces,&
               just_energy, v_rspace_new,v_tau_rspace,error)
 
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_ks

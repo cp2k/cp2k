@@ -934,7 +934,7 @@ MODULE helium_methods
         CALL helium_write_line("Bead coordinates pre-sampled.",error)
       END IF
     ELSE
-      CALL helium_coord_init( helium, pint_env, error )
+      CALL helium_coord_init( helium, error )
       CALL helium_write_line("Bead coordinates initialized as random.",error)
       IF ( (explicit_presample .AND. presample) .OR. &
            (.NOT. explicit_presample) ) THEN
@@ -990,14 +990,12 @@ MODULE helium_methods
 ! ***************************************************************************
 !> \brief  Initialize helium coordinates with random positions.
 !> \param helium ...
-!> \param pint_env ...
 !> \param error ...
 !> \date   2009-11-09
 !> \author Lukasz Walewski
 ! *****************************************************************************
-  SUBROUTINE helium_coord_init( helium, pint_env, error )
+  SUBROUTINE helium_coord_init( helium, error )
     TYPE(helium_solvent_type), POINTER       :: helium
-    TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_coord_init', &

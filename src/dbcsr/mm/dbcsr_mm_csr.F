@@ -205,7 +205,7 @@ MODULE dbcsr_mm_csr
          factor=default_resize_factor, error=error)
 
     CALL dbcsr_mm_csr_multiply_low(this, left=left, right=right,&
-            mi=mi, mf=mf,ni=ni, nf=nf, ki=ki, kf=kf,&
+            mi=mi, mf=mf, ki=ki, kf=kf,&
             ai=ai, af=af,&
             bi=bi, bf=bf,&
             c_row_i=this%product_wm%row_i,&
@@ -245,8 +245,6 @@ MODULE dbcsr_mm_csr
 !> \param right ...
 !> \param mi ...
 !> \param mf ...
-!> \param ni ...
-!> \param nf ...
 !> \param ki ...
 !> \param kf ...
 !> \param ai ...
@@ -287,7 +285,7 @@ MODULE dbcsr_mm_csr
 !> \param b_norms ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_csr_multiply_low(this, left, right, mi, mf, ni, nf, ki, kf,&
+  SUBROUTINE dbcsr_mm_csr_multiply_low(this, left, right, mi, mf, ki, kf,&
        ai, af, bi, bf,&
        c_row_i, c_col_i, c_blk_p, lastblk, datasize,&
        m_sizes, n_sizes, k_sizes,&
@@ -302,8 +300,7 @@ MODULE dbcsr_mm_csr
        error)
     TYPE(dbcsr_mm_csr_type), INTENT(INOUT)   :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
-    INTEGER, INTENT(IN)                      :: mi, mf, ni, nf, ki, kf, ai, &
-                                                af, bi, bf
+    INTEGER, INTENT(IN)                      :: mi, mf, ki, kf, ai, af, bi, bf
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: c_row_i, c_col_i, c_blk_p
     INTEGER, INTENT(INOUT)                   :: lastblk, datasize
     INTEGER, DIMENSION(:), INTENT(IN)        :: m_sizes, n_sizes, k_sizes, &
@@ -497,16 +494,15 @@ MODULE dbcsr_mm_csr
 !> \param product ...
 !> \param m_sizes ...
 !> \param n_sizes ...
-!> \param k_sizes ...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_csr_init(this, left, right, product, &
-    m_sizes, n_sizes, k_sizes, error)
+    m_sizes, n_sizes, error)
     TYPE(dbcsr_mm_csr_type), INTENT(INOUT)   :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
-    INTEGER, DIMENSION(:), POINTER           :: m_sizes, n_sizes, k_sizes
+    INTEGER, DIMENSION(:), POINTER           :: m_sizes, n_sizes
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_csr_init', &

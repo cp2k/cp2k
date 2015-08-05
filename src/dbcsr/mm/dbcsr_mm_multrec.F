@@ -367,7 +367,7 @@ MODULE dbcsr_mm_multrec
     CALL dbcsr_mm_csr_init(this%csr, &
        left=left, right=right, product=product, &
        m_sizes=this%m_sizes, n_sizes=this%n_sizes,& 
-       k_sizes=this%k_sizes, error=error)
+       error=error)
 
     this%initialized = .TRUE.
     CALL dbcsr_error_stop(error_handler, error)

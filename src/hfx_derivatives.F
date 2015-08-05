@@ -529,7 +529,7 @@ MODULE hfx_derivatives
     !! Get the full density from all the processors
     CALL timeset(routineN//"_getP",handle_getP)
     CALL get_full_density(para_env, full_density_alpha(:,1), rho_ao(1,1)%matrix, shm_number_of_p_entries,&
-                          shm_block_offset, natom, &
+                          shm_block_offset,&
                           kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
                           antisymmetric=is_anti_symmetric,error=error)
     ! for now only closed shell case
@@ -538,7 +538,7 @@ MODULE hfx_derivatives
       ALLOCATE(full_density_mp2(shm_block_offset(ncpu+1)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL get_full_density(para_env, full_density_mp2, rho_ao_mp2(1)%matrix, shm_number_of_p_entries,&
-                            shm_block_offset, natom, &
+                            shm_block_offset,&
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
                             antisymmetric=is_anti_symmetric,error=error)
     END IF
@@ -547,7 +547,7 @@ MODULE hfx_derivatives
       ALLOCATE(full_density_beta(shm_block_offset(ncpu+1),1),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       CALL get_full_density(para_env, full_density_beta(:,1), rho_ao(2,1)%matrix, shm_number_of_p_entries,&
-                            shm_block_offset, natom, &
+                            shm_block_offset,&
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
                             antisymmetric=is_anti_symmetric,error=error)
     END IF

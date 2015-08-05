@@ -631,7 +631,6 @@ CONTAINS
 !> \param[out] images        new image distribution
 !> \param[in] my_bins        Basis for the new images
 !> \param[in] nbins          number of bins in the new real distribution
-!> \param[in] multiplicity   multiplicity
 !> \param[in] nimages        number of images in the new distribution
 !> \par Definition of multiplicity and nimages
 !>      Multiplicity and decimation (number of images) are used to
@@ -659,10 +658,10 @@ CONTAINS
 !>      could be better.
 ! *****************************************************************************
   SUBROUTINE reimage_distribution (images, my_bins,&
-       nbins, multiplicity, nimages)
+       nbins, nimages)
     INTEGER, DIMENSION(:), INTENT(OUT)       :: images
     INTEGER, DIMENSION(:), INTENT(IN)        :: my_bins
-    INTEGER, INTENT(IN)                      :: nbins, multiplicity, nimages
+    INTEGER, INTENT(IN)                      :: nbins, nimages
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reimage_distribution', &
       routineP = moduleN//':'//routineN
@@ -939,9 +938,7 @@ CONTAINS
           ELSE
              row_dist_data => dbcsr_distribution_row_dist (dist)
              CALL reimage_distribution (row_img_data,&
-                  row_dist_data,&
-                  nprows,&
-                  imgdist%i%row_multiplicity, imgdist%i%row_decimation) !the multiplicity argument is being ignored
+                  row_dist_data,nprows,imgdist%i%row_decimation)
           ENDIF
        ENDIF
     ENDIF
@@ -1001,8 +998,7 @@ CONTAINS
              col_dist_data => dbcsr_distribution_col_dist (dist)
              CALL reimage_distribution (col_img_data,&
                   col_dist_data,&
-                  npcols,&
-                  imgdist%i%col_multiplicity, imgdist%i%col_decimation) !the multiplicity argument is being ignored
+                  npcols,imgdist%i%col_decimation)
           ENDIF
        ENDIF
     ENDIF

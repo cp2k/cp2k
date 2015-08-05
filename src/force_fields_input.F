@@ -259,7 +259,7 @@ CPSourceFileRef,&
           ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm+ngp+ntersoff+nsiepmann
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nquip,quip=.TRUE.,error=error)
-             CALL read_quip_section(inp_info%nonbonded,tmp_section2,ntot,para_env,mm_section,error)
+             CALL read_quip_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
        END IF
 
@@ -606,17 +606,13 @@ CPSourceFileRef,&
 !> \param nonbonded ...
 !> \param section ...
 !> \param start ...
-!> \param para_env ...
-!> \param mm_section ...
 !> \param error ...
 !> \author teo
 ! *****************************************************************************
-  SUBROUTINE read_quip_section(nonbonded, section, start, para_env, mm_section, error)
+  SUBROUTINE read_quip_section(nonbonded, section, start, error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_quip_section', &

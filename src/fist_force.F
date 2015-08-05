@@ -326,7 +326,7 @@ CONTAINS
                atomic_kind_set=atomic_kind_set, use_virial=use_virial, &
                error=error)
           CALL force_nonbond_manybody(fist_nonbond_env, particle_set, cell, f_nonbond, pv_nonbond,&
-               atprop_env=atprop_env, use_virial=use_virial, error=error)
+               use_virial=use_virial, error=error)
        END IF
     ELSE
        f_nonbond  = 0.0_dp

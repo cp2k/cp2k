@@ -199,7 +199,7 @@ CONTAINS
 
     CALL pw_cuda_init()
 
-    CALL cp_dbcsr_init_lib (group=mpi_comm, error=error)
+    CALL cp_dbcsr_init_lib (error=error)
 
     NULLIFY(globenv, force_env)
 
@@ -265,7 +265,7 @@ CONTAINS
        CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=0, error=error)
        CALL pw_cuda_finalize()
        CALL farming_run(input_declaration, root_section, para_env, suberror )
-       CALL cp_dbcsr_init_lib(group=mpi_comm, error=error)
+       CALL cp_dbcsr_init_lib(error=error)
        CALL pw_cuda_init()
     CASE (do_opt_basis)
        CALL run_optimize_basis (input_declaration, root_section, para_env, suberror)

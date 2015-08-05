@@ -1618,11 +1618,10 @@ CONTAINS
 !> \param chm_info ...
 !> \param inp_info ...
 !> \param gro_info ...
-!> \param amb_info ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE force_field_pack_impr (particle_set, molecule_kind_set, molecule_set, &
-       Ainfo, chm_info, inp_info, gro_info, amb_info, error)
+       Ainfo, chm_info, inp_info, gro_info, error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1635,7 +1634,6 @@ CONTAINS
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(gromos_info_type), POINTER          :: gro_info
-    TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_impr', &

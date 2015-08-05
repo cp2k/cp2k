@@ -297,7 +297,7 @@ CONTAINS
         force_env => f_env%force_env
         CALL force_env_get(force_env,qs_env=qs_env,error=error)
         CALL get_qs_env(qs_env, ks_env=ks_env, error=error)
-        CALL update_basis_set(opt_bas,set_id,bas_id,qs_env,error)
+        CALL update_basis_set(opt_bas,bas_id,qs_env,error)
         CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,force_env_section=qs_env%input,error=error)
         CALL calculate_overlap(ks_env,"S_AB_AUX",error)
         CALL get_qs_env(qs_env,&

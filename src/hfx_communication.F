@@ -59,7 +59,6 @@ MODULE hfx_communication
 !> \param rho Distributed density
 !> \param number_of_p_entries Maximal buffer size
 !> \param block_offset ...
-!> \param natom ...
 !> \param kind_of ...
 !> \param basis_parameter ...
 !> \param get_max_vals_spin ...
@@ -77,7 +76,7 @@ MODULE hfx_communication
 !>        with messages [Joost]
 ! *****************************************************************************
   SUBROUTINE get_full_density(para_env, full_density, rho, number_of_p_entries, &
-                              block_offset, natom,  kind_of, basis_parameter,&
+                              block_offset,  kind_of, basis_parameter,&
                               get_max_vals_spin, rho_beta, antisymmetric, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -85,7 +84,6 @@ MODULE hfx_communication
     TYPE(cp_dbcsr_type), POINTER             :: rho
     INTEGER, INTENT(IN)                      :: number_of_p_entries
     INTEGER, DIMENSION(:), POINTER           :: block_offset
-    INTEGER, INTENT(IN)                      :: natom
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -206,7 +204,6 @@ MODULE hfx_communication
 !> \param ks_matrix Distributed Kohn-Sham matrix
 !> \param number_of_p_entries Maximal buffer size
 !> \param block_offset ...
-!> \param natom ...
 !> \param kind_of ...
 !> \param basis_parameter ...
 !> \param off_diag_fac ...
@@ -220,7 +217,7 @@ MODULE hfx_communication
 !>      - Communication with left/right node only
 ! *****************************************************************************
   SUBROUTINE distribute_ks_matrix(para_env, full_ks, ks_matrix, number_of_p_entries, &
-                                  block_offset, natom, kind_of, basis_parameter, &
+                                  block_offset, kind_of, basis_parameter, &
                                   off_diag_fac, diag_fac, error)
 
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -228,7 +225,6 @@ MODULE hfx_communication
     TYPE(cp_dbcsr_type), POINTER             :: ks_matrix
     INTEGER, INTENT(IN)                      :: number_of_p_entries
     INTEGER, DIMENSION(:), POINTER           :: block_offset
-    INTEGER, INTENT(IN)                      :: natom
     INTEGER                                  :: kind_of(*)
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
@@ -404,7 +400,7 @@ MODULE hfx_communication
     END IF
     DO img=1,nimages
        CALL distribute_ks_matrix(para_env, full_ks(:,img), ks_matrix(1,img)%matrix, actual_x_data%number_of_p_entries, &
-                                 actual_x_data%block_offset, natom, kind_of, basis_parameter, &
+                                 actual_x_data%block_offset, kind_of, basis_parameter, &
                                  off_diag_fac=0.5_dp,error=error)
     END DO
     DEALLOCATE(actual_x_data%full_ks_alpha, STAT=stat)
@@ -417,7 +413,7 @@ MODULE hfx_communication
       END IF
       DO img=1,nimages
          CALL distribute_ks_matrix(para_env, full_ks(:,img), ks_matrix(2,img)%matrix, actual_x_data%number_of_p_entries, &
-                              actual_x_data%block_offset, natom, kind_of, basis_parameter, &
+                              actual_x_data%block_offset, kind_of, basis_parameter, &
                               off_diag_fac=0.5_dp,error=error)
       END DO
       DEALLOCATE(actual_x_data%full_ks_beta, STAT=stat)

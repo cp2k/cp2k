@@ -492,15 +492,15 @@ CONTAINS
   !-----------------------------------------------------------------------
 
 ! *****************************************************************************
-!> \brief ...
-!> \param n ...
-!> \param matrix_ev2 ...
-!> \param matrix_v ...
-!> \param matrix_pVp ...
-!> \param aa ...
-!> \param rr ...
-!> \param tt ...
-!> \param e ...
+!> \brief 2nd order DK-approximation (original DK-transformation with U = SQRT(1+W^2) + W) 
+!> \param n Dimension of matrices  
+!> \param matrix_ev2 even2 output matrix = final result
+!> \param matrix_v symmetric (n x n)-matrix containing (A V A) 
+!> \param matrix_pVp symmetric (n x n)-matrix containing (A P V P A) 
+!> \param aa A-Factors (DIAGONAL
+!> \param rr R-Factors (DIAGONAL) 
+!> \param tt Nonrel. kinetic Energy (DIAGONAL)   
+!> \param e Rel. Energy = SQRT(p^2*c^2 + c^4)  (DIAGONAL)
 !> \param matrix_aux ...
 !> \param error ...
 ! *****************************************************************************
@@ -510,8 +510,6 @@ CONTAINS
     !                                                                      *
     !     Alexander Wolf, last modified: 20.02.2002 - DKH2                 *
     !                                                                      *
-    !     2nd order DK-approximation ( original DK-transformation with     *
-    !                                       U = SQRT(1+W^2) + W        )   *
     !                                                                      *
     !     Version: 1.1  (20.2.2002) :  Usage of SR mat_add included        *
     !              1.0  (6.2.2002)                                         *
@@ -520,23 +518,6 @@ CONTAINS
     !     2008       Jens Thar: transfer to CP2K                           *
     !                                                                      *
     !     ev2 = 1/2 [W1,O1]                                                *
-    !                                                                      *
-    !         ----  Meaning of Parameters  ----                            *
-    !                                                                      *
-    !     n           in   Dimension of matrices                           *
-    !     ev2         out  even2 output matrix = final result              *
-    !     vv          in   potential v                                     *
-    !     gg          in   pvp                                             *
-    !     aa          in   A-Factors (DIAGONAL)                            *
-    !     rr          in   R-Factors (DIAGONAL)                            *
-    !     tt          in   Nonrel. kinetic Energy (DIAGONAL)               *
-    !     e           in   Rel. Energy = SQRT(p^2*c^2 + c^4)  (DIAGONAL)   *
-    !     matrix_v    symmetric (n x n)-matrix containing (A V A)          *
-    !     matrix_pvp  symmetric (n x n)-matrix containing (A P V P A)      *
-    !     vh          symmetric (n x n)-matrix containing (A V~ A)         *
-    !     pvph        symmetric (n x n)-matrix containing (A P V~ P A)     *
-    !     w1o1        W1*O1 (2-component form)                             *
-    !     o1w1        O1*W1 (2-component form)                             *
     !                                                                      *
     !***********************************************************************
 
@@ -593,13 +574,13 @@ CONTAINS
 
     !  Calculate  vh = A V~ A:
 
-    CALL mat_1_over_h(matrix_v,matrix_avva,n,e,matrix_aux,error)
+    CALL mat_1_over_h(matrix_v,matrix_avva,e,matrix_aux,error)
     CALL cp_fm_to_fm(matrix_avva,matrix_aux2,error)
     CALL mat_axa(matrix_aux2,matrix_avva,n,aa,matrix_aux,error)
 
     !  Calculate  pvph = A P V~ P A:
 
-    CALL mat_1_over_h(matrix_pVp,matrix_apVVpa,n,e,matrix_aux,error)
+    CALL mat_1_over_h(matrix_pVp,matrix_apVVpa,e,matrix_aux,error)
     CALL cp_fm_to_fm(matrix_apVVpa,matrix_aux2,error)
     CALL mat_arxra(matrix_aux2,matrix_apVVpa,n,aa,rr,matrix_aux,error)
 
@@ -739,13 +720,13 @@ CONTAINS
 
     !  Calculate  vh = A V~ A:
 
-    CALL mat_1_over_h(matrix_v,matrix_avva,n,e,matrix_aux,error)
+    CALL mat_1_over_h(matrix_v,matrix_avva,e,matrix_aux,error)
     CALL cp_fm_to_fm(matrix_avva,matrix_aux2,error)
     CALL mat_axa(matrix_aux2,matrix_avva,n,aa,matrix_aux,error)
 
     !  Calculate  pvph = A P V~ P A:
 
-    CALL mat_1_over_h(matrix_pVp,matrix_apVVpa,n,e,matrix_aux,error)
+    CALL mat_1_over_h(matrix_pVp,matrix_apVVpa,e,matrix_aux,error)
     CALL cp_fm_to_fm(matrix_apVVpa,matrix_aux2,error)
     CALL mat_arxra(matrix_aux2,matrix_apVVpa,n,aa,rr,matrix_aux,error)
 
@@ -800,12 +781,8 @@ CONTAINS
 !> \param pe1p ...
 !> \param vv ...
 !> \param gg ...
-!> \param aa ...
-!> \param rr ...
-!> \param tt ...
-!> \param e ...
 ! *****************************************************************************
-  SUBROUTINE even4a (n,ev4,e1,pe1p,vv,gg,aa,rr,tt,e)
+  SUBROUTINE even4a (n,ev4,e1,pe1p,vv,gg)
 
     !***********************************************************************
     !                                                                      *
@@ -860,7 +837,6 @@ CONTAINS
       INTENT(OUT)                            :: ev4
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: e1, pe1p, vv, gg
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: aa, rr, tt, e
 
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :) :: o1w1, pvp, pvph, scr_1, &
       scr_2, scr_3, scr_4, scrh_1, scrh_2, scrh_3, scrh_4, sum_1, sum_2, v, &
@@ -1081,12 +1057,11 @@ CONTAINS
 !> \brief ...
 !> \param matrix_p ...
 !> \param matrix_pp ...
-!> \param n ...
 !> \param e ...
 !> \param matrix_aux ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE mat_1_over_h (matrix_p,matrix_pp,n,e,matrix_aux,error)
+  SUBROUTINE mat_1_over_h (matrix_p,matrix_pp,e,matrix_aux,error)
 
     !***********************************************************************
     !                                                                      *
@@ -1094,12 +1069,10 @@ CONTAINS
     !                                                                      *
     !   p    in  REAL(:,:) :   matrix p                                    *
     !   e    in  REAL(:)   :   rel. energy (diagonal)                      *
-    !   n    in  INTEGER                                                   *
     !                                                                      *
     !***********************************************************************
 
     TYPE(cp_fm_type), POINTER                :: matrix_p, matrix_pp
-    INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: e
     TYPE(cp_fm_type), POINTER                :: matrix_aux
     TYPE(cp_error_type), INTENT(inout)       :: error

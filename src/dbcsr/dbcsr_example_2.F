@@ -74,7 +74,7 @@ PROGRAM dbcsr_example_2
   !***************************************************************************************
   !
   ! initialize libdbcsr
-  CALL dbcsr_init_lib (group=mp_comm, error=error)
+  CALL dbcsr_init_lib (error=error)
   CALL dbcsr_set_default_config (error=error)
 
   !

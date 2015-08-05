@@ -94,7 +94,7 @@ PROGRAM dbcsr_performance_driver
 
   !
   ! initialize libdbcsr
-  CALL dbcsr_init_lib (mp_comm, error)
+  CALL dbcsr_init_lib (error)
   CALL dbcsr_set_default_config (error=error)
 
   !

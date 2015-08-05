@@ -201,9 +201,7 @@ CONTAINS
     eigensolver_section => section_vals_get_subs_vals(root_section,"TEST%EIGENSOLVER",error=error)
     CALL section_vals_get(eigensolver_section,explicit=explicit, error=error)
     IF (explicit) THEN
-      CALL eigensolver_test( para_env, iw,eigensolver_section,&
-                                blacs_grid_layout=globenv%blacs_grid_layout,&
-                                blacs_repeatable=globenv%blacs_repeatable, error=error )
+      CALL eigensolver_test( para_env, iw,eigensolver_section,error=error )
     ENDIF
 
 
@@ -1193,20 +1191,16 @@ CONTAINS
 !> \param para_env ...
 !> \param iw ...
 !> \param eigensolver_section ...
-!> \param blacs_grid_layout ...
-!> \param blacs_repeatable ...
 !> \param error ...
 !> \par History
 !>      JGH  6-Feb-2001 : Test and performance code
 !> \author JGH  1-JAN-2001
 ! *****************************************************************************
-  SUBROUTINE eigensolver_test(para_env, iw, eigensolver_section, blacs_grid_layout, blacs_repeatable, error )
+  SUBROUTINE eigensolver_test(para_env, iw, eigensolver_section,error )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw
     TYPE(section_vals_type), POINTER         :: eigensolver_section
-    INTEGER                                  :: blacs_grid_layout
-    LOGICAL                                  :: blacs_repeatable
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eigensolver_test', &
@@ -1676,7 +1670,6 @@ CONTAINS
    
        CALL dbcsr_run_tests (para_env%group, iw, nproc,&
             (/ m, n, k /),&
-            types,&
             (/ transa_p, transb_p /),&
             bs_m, bs_n, bs_k,&
             (/ s_a, s_b, s_c /),&

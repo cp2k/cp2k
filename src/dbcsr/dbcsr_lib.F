@@ -42,11 +42,9 @@ MODULE dbcsr_lib
 !> \brief Initialize the DBCSR library
 !>
 !> Prepares the DBCSR library for use.
-!> \param group ...
 !> \param[in,out] error     error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_lib (group, error)
-    INTEGER, INTENT(IN)                      :: group
+  SUBROUTINE dbcsr_init_lib (error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_lib', &

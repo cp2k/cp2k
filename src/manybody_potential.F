@@ -14,7 +14,6 @@
 MODULE manybody_potential
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE atprop_types,                    ONLY: atprop_type
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -354,7 +353,6 @@ CONTAINS
 !> \param cell ...
 !> \param f_nonbond ...
 !> \param pv_nonbond ...
-!> \param atprop_env ...
 !> \param use_virial ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -363,7 +361,7 @@ CONTAINS
 !> \author I-Feng W. Kuo, Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE force_nonbond_manybody ( fist_nonbond_env, particle_set, cell,  &
-       f_nonbond, pv_nonbond, atprop_env, use_virial, error )
+       f_nonbond, pv_nonbond, use_virial, error )
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
@@ -371,7 +369,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: f_nonbond, pv_nonbond
-    TYPE(atprop_type), POINTER               :: atprop_env
     LOGICAL, INTENT(IN)                      :: use_virial
     TYPE(cp_error_type), INTENT(inout)       :: error
 

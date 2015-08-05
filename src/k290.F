@@ -283,7 +283,7 @@ CONTAINS
        csym%delta = 1.e-6_dp
     END IF
     !..calculate symmetry operations and generate kpoints
-    CALL k290prg(csym%punit,csym%nat,csym%nkpoint,csym%nsp,csym%iq1,csym%iq2,csym%iq3,&
+    CALL k290prg(csym%punit,csym%nat,csym%nkpoint,csym%iq1,csym%iq2,csym%iq3,&
          csym%istriz,csym%a1,csym%a2,csym%a3,csym%alat,csym%strain,csym%xkappa,&
          rx,tvec,csym%ty,isc,f0,csym%ntvec,csym%wvk0,csym%ihg,csym%ihc,csym%isy,&
          csym%li,csym%nc,csym%indpg,csym%ib,csym%v,csym%r,csym%origin,csym%xb,&
@@ -427,7 +427,6 @@ CONTAINS
 !> \param iout ...
 !> \param nat ...
 !> \param nkpoint ...
-!> \param nsp ...
 !> \param iq1 ...
 !> \param iq2 ...
 !> \param iq3 ...
@@ -525,11 +524,11 @@ CONTAINS
 !>       "COMPUTER PHYSICS COMMUNICATIONS" PACKAGE "ACMI" - (1971,1974)
 !>       WORLTON-WARREN).
 ! *****************************************************************************
-  SUBROUTINE k290prg(iout,nat,nkpoint,nsp,iq1,iq2,iq3,istriz,a1,a2,a3, &
+  SUBROUTINE k290prg(iout,nat,nkpoint,iq1,iq2,iq3,istriz,a1,a2,a3, &
        alat,strain,xkapa,rx,tvec,ty,isc,f0,ntvec,wvk0,ihg,ihc,isy,li,nc,indpg,ib,v,r,&
        xb,origin,wvkl,lwght,lrot,nhash,includ,list,rlist,delta,error)
-    INTEGER                                  :: iout, nat, nkpoint, nsp, iq1, &
-                                                iq2, iq3, istriz
+    INTEGER                                  :: iout, nat, nkpoint, iq1, iq2, &
+                                                iq3, istriz
     REAL(KIND=dp)                            :: a1(3), a2(3), a3(3), alat, &
                                                 strain(6), xkapa(3,nat), &
                                                 rx(3,nat), tvec(3,nat)
@@ -597,7 +596,7 @@ CONTAINS
     !----------------------------------------------------------------------------!
     !      GROUP-THEORY ANALYSIS OF LATTICE
     !----------------------------------------------------------------------------!
-    CALL group1(iout,a1,a2,a3,nat,ty,xkapa,b1,b2,b3,ihg,ihc,isy,li,nc, &
+    CALL group1(a1,a2,a3,nat,ty,xkapa,b1,b2,b3,ihg,ihc,isy,li,nc, &
          indpg,ib,ntvec,v,f0,xb,r,tvec,origin,rx,isc,delta,error)
     !----------------------------------------------------------------------------!
     DO n = nc + 1, 48
@@ -623,7 +622,7 @@ CONTAINS
                       ' The (unstrained) bravais lattice ', &
                       ' (used for generating the largest possible mesh in the B.Z.)'
        !----------------------------------------------------------------------------!
-       CALL group1(iout,a01,a02,a03,1,ty,x0,b01,b02,b03,ihg0,ihc0,isy0,li0, &
+       CALL group1(a01,a02,a03,1,ty,x0,b01,b02,b03,ihg0,ihc0,isy0,li0, &
             nc0,indpg0,ib0,ntvec0,v0,f00,xb0,r0,tvec0,origin0,rx,isc,delta,error)
        !----------------------------------------------------------------------------!
        !   It is assumed that the same 'type' of symmetry operations
@@ -742,7 +741,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param iout ...
 !> \param a1 ...
 !> \param a2 ...
 !> \param a3 ...
@@ -873,9 +871,8 @@ CONTAINS
 !>       NONSYMMORPHIC AND WHETHER THE POINT GROUP OF THE CRYSTAL
 !>       CONTAINS INVERSION.
 ! *****************************************************************************
-  SUBROUTINE group1(iout,a1,a2,a3,nat,ty,x,b1,b2,b3,ihg,ihc,isy,li,nc, &
+  SUBROUTINE group1(a1,a2,a3,nat,ty,x,b1,b2,b3,ihg,ihc,isy,li,nc, &
        indpg,ib,ntvec,v,f0,xb,r,tvec,origin,rx,isc,delta,error)
-    INTEGER                                  :: iout
     REAL(KIND=dp)                            :: a1(3), a2(3), a3(3)
     INTEGER                                  :: nat, ty(nat)
     REAL(KIND=dp)                            :: x(3,nat), b1(3), b2(3), b3(3)
@@ -940,7 +937,7 @@ CONTAINS
     END IF
     !------------------------------------------------------------------------------!
     !     Determination of the space group
-    CALL atftm1(iout,r,v,x,f0,xb,origin,ib,ty,nat,ihg,rx,nc,indpg,ntvec,a,ai, &
+    CALL atftm1(r,v,x,f0,xb,origin,ib,ty,nat,ihg,rx,nc,indpg,ntvec,a,ai, &
          li,isy,isc,delta,error)
     !------------------------------------------------------------------------------!
   END SUBROUTINE group1
@@ -1292,7 +1289,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param iout ...
 !> \param r ...
 !> \param v ...
 !> \param x ...
@@ -1365,9 +1361,8 @@ CONTAINS
 !>                  LI.GT.0 : there is inversion in the point
 !>                            group of the crystal
 ! *****************************************************************************
-  SUBROUTINE atftm1(iout,r,v,x,f0,xb,origin,ib,ty,nat,ihg,rx,nc,indpg,ntvec, &
+  SUBROUTINE atftm1(r,v,x,f0,xb,origin,ib,ty,nat,ihg,rx,nc,indpg,ntvec, &
        a,ai,li,isy,isc,delta,error)
-    INTEGER                                  :: iout
     REAL(KIND=dp)                            :: r(3,3,48), v(3,48), xb(3), &
                                                 origin(3)
     INTEGER                                  :: ib(48), nat, ty(nat), &

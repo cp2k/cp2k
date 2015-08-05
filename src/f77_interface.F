@@ -296,7 +296,7 @@ CONTAINS
        CALL pw_cuda_init()
 
        ! Initialize the DBCSR configuration
-       CALL cp_dbcsr_init_lib (group=mpi_comm_default, error=error)
+       CALL cp_dbcsr_init_lib (error=error)
 
     ELSE
        ierr=cp_failure_level
@@ -860,7 +860,7 @@ CPSourceFileRef,&
           CASE (do_eip)
              CALL eip_env_create(eip_env, error=my_error)
              CALL eip_init(eip_env, root_section, my_para_env, force_env_section=force_env_section,&
-                  subsys_section=subsys_section, use_motion_section=use_motion_section, error=my_error)
+                  subsys_section=subsys_section, error=my_error)
              CALL force_env_create(my_force_env, root_section, eip_env=eip_env, para_env=my_para_env,&
                   globenv=globenv, force_env_section=force_env_section, error=my_error)
              CALL eip_env_release(eip_env, error=my_error)

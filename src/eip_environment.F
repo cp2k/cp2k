@@ -64,7 +64,6 @@ CONTAINS
 !> \param para_env ...
 !> \param force_env_section ...
 !> \param subsys_section ...
-!> \param use_motion_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
@@ -72,13 +71,12 @@ CONTAINS
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
   SUBROUTINE eip_init(eip_env, root_section, para_env, force_env_section,&
-       subsys_section, use_motion_section, error)
+       subsys_section, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 subsys_section
-    LOGICAL, INTENT(IN)                      :: use_motion_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init', &

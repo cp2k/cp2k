@@ -246,7 +246,7 @@ CONTAINS
     ! 11. Impropers
     !-----------------------------------------------------------------------------
     CALL force_field_pack_impr (particle_set, molecule_kind_set, molecule_set,   &
-         Ainfo, chm_info, inp_info, gro_info, amb_info, error)
+         Ainfo, chm_info, inp_info, gro_info, error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 12. Out of plane bends

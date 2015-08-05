@@ -203,7 +203,6 @@ CONTAINS
 !> \param matrix_pq_template ...
 !> \param matrix_t ...
 !> \param matrix_v ...
-!> \param matrix_x ...
 !> \param copy_matrix_x ...
 !> \param energy_correction ...
 !> \param calculate_energy_corr ...
@@ -217,7 +216,7 @@ CONTAINS
     update_p,update_q,eps_convergence,eps_filter,max_iter,&
     p_index_up,p_index_down,q_index_up,q_index_down,matrix_ks,matrix_p,&
     matrix_qp_template,matrix_pq_template,&
-    matrix_t,matrix_v,matrix_x,copy_matrix_x,energy_correction,calculate_energy_corr,&
+    matrix_t,matrix_v,copy_matrix_x,energy_correction,calculate_energy_corr,&
     converged,qq_preconditioner_full,pp_preconditioner_full,&
     error)
 
@@ -230,7 +229,7 @@ CONTAINS
     INTEGER, OPTIONAL                        :: max_iter
     TYPE(cp_dbcsr_type), OPTIONAL, POINTER :: p_index_up, p_index_down, &
       q_index_up, q_index_down, matrix_ks, matrix_p, matrix_qp_template, &
-      matrix_pq_template, matrix_t, matrix_v, matrix_x
+      matrix_pq_template, matrix_t, matrix_v
     TYPE(cp_dbcsr_type), OPTIONAL            :: copy_matrix_x
     REAL(KIND=dp), OPTIONAL                  :: energy_correction
     LOGICAL, OPTIONAL                        :: calculate_energy_corr, &

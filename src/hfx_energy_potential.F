@@ -791,7 +791,7 @@ MODULE hfx_energy_potential
       CALL timeset(routineN//"_getP",handle_getP)
       DO img=1,nkimages
          CALL get_full_density(para_env, full_density_alpha(:,img), rho_ao(ispin,img)%matrix, shm_number_of_p_entries,&
-                               shm_master_x_data%block_offset, natom, &
+                               shm_master_x_data%block_offset, &
                                kind_of, basis_parameter, get_max_vals_spin=.FALSE., antisymmetric=is_anti_symmetric,& 
                                error=error)
       END DO
@@ -800,7 +800,7 @@ MODULE hfx_energy_potential
         ALLOCATE(full_density_beta(shm_block_offset(ncpu+1),nkimages),STAT=stat)
         DO img=1,nkimages
            CALL get_full_density(para_env, full_density_beta(:,img), rho_ao(2,img)%matrix, shm_number_of_p_entries,&
-                                 shm_master_x_data%block_offset, natom,  &
+                                 shm_master_x_data%block_offset, &
                                  kind_of, basis_parameter, get_max_vals_spin=.FALSE.,antisymmetric=is_anti_symmetric,&
                                  error=error)
         END DO
@@ -830,7 +830,7 @@ MODULE hfx_energy_potential
         CALL timeset(routineN//"_getP",handle_getP)
         DO img=1,nkimages
            CALL get_full_density(para_env, full_density_alpha(:,img), rho_ao(1,img)%matrix, shm_number_of_p_entries,&
-                                 shm_master_x_data%block_offset, natom,  &
+                                 shm_master_x_data%block_offset, &
                                  kind_of, basis_parameter,  get_max_vals_spin=.TRUE., &
                                  rho_beta=rho_ao(2,img)%matrix, antisymmetric=is_anti_symmetric, error=error)
         END DO
@@ -856,7 +856,7 @@ MODULE hfx_energy_potential
       ! ** Now get the density(ispin)
       DO img=1,nkimages
          CALL get_full_density(para_env, full_density_alpha(:,img), rho_ao(ispin,img)%matrix, shm_number_of_p_entries,&
-                               shm_master_x_data%block_offset, natom, &
+                               shm_master_x_data%block_offset, &
                                kind_of, basis_parameter, get_max_vals_spin=.FALSE., &
                                antisymmetric=is_anti_symmetric, error=error)
       END DO
@@ -1733,7 +1733,7 @@ MODULE hfx_energy_potential
                            primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf,&
                            kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom,&
                            iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set,&
-                           atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac, is_anti_symmetric)
+                           atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
                       IF( .NOT. treat_lsd_in_core ) THEN
                         IF( nspins == 2 ) THEN
                           CALL update_fock_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
@@ -1741,8 +1741,7 @@ MODULE hfx_energy_potential
                                primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf,&
                                kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom,&
                                iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set,offset_ac_set,&
-                               atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac,&
-                               is_anti_symmetric)
+                               atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
                         END IF
                       END IF
                     ELSE
@@ -1752,7 +1751,7 @@ MODULE hfx_energy_potential
                            primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf,&
                            kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom,&
                            iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set,&
-                           atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac, is_anti_symmetric)
+                           atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
                       IF( .NOT. treat_lsd_in_core ) THEN
                         IF( nspins == 2 ) THEN
                           CALL update_fock_matrix_as(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
@@ -1760,8 +1759,7 @@ MODULE hfx_energy_potential
                                primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf,&
                                kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom,&
                                iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set,offset_ac_set,&
-                               atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac,&
-                               is_anti_symmetric)
+                               atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
                         END IF
                       END IF           
                     END IF
@@ -1963,7 +1961,7 @@ MODULE hfx_energy_potential
       CALL timeset(routineN//"_dist_KS",handle_dist_ks)
       DO img=1,nkimages
          CALL distribute_ks_matrix(para_env, full_ks_alpha(:,img), ks_matrix(ispin,img)%matrix, shm_number_of_p_entries, &
-                                   shm_block_offset, natom, kind_of, basis_parameter, &
+                                   shm_block_offset, kind_of, basis_parameter, &
                                    off_diag_fac=0.5_dp,diag_fac=afac,error=error)
       END DO
 
@@ -1974,7 +1972,7 @@ MODULE hfx_energy_potential
         IF(nspins == 2) THEN
           DO img=1,nkimages
              CALL distribute_ks_matrix(para_env, full_ks_beta(:,img), ks_matrix(2,img)%matrix, shm_number_of_p_entries, &
-                                       shm_block_offset, natom, kind_of, basis_parameter, &
+                                       shm_block_offset, kind_of, basis_parameter, &
                                        off_diag_fac=0.5_dp, diag_fac=afac, error=error)
           END DO
           NULLIFY(full_ks_beta)
@@ -2539,7 +2537,6 @@ MODULE hfx_energy_potential
 !> \param atomic_offset_bc ...
 !> \param atomic_offset_ad ...
 !> \param atomic_offset_ac ...
-!> \param anti_symmetric ...
 !> \par History
 !>      03.2009 created [Manuel Guidon]
 !> \author Manuel Guidon
@@ -2551,7 +2548,7 @@ MODULE hfx_energy_potential
                                 iatom, jatom, katom, latom, &
                                 iset, jset, kset, lset,  offset_bd_set, offset_bc_set, offset_ad_set,&
                                 offset_ac_set, atomic_offset_bd, atomic_offset_bc, atomic_offset_ad,&
-                                atomic_offset_ac,anti_symmetric)
+                                atomic_offset_ac)
 
     INTEGER, INTENT(IN)                      :: ma_max, mb_max, mc_max, md_max
     REAL(dp), INTENT(IN)                     :: fac, symm_fac
@@ -2569,7 +2566,6 @@ MODULE hfx_energy_potential
                                                 atomic_offset_bc, &
                                                 atomic_offset_ad, &
                                                 atomic_offset_ac
-    LOGICAL                                  :: anti_symmetric
 
     INTEGER                                  :: i, j, ma, mb, mc, md, &
                                                 offset_ac, offset_ad, &
@@ -2798,7 +2794,6 @@ MODULE hfx_energy_potential
 !> \param atomic_offset_bc ...
 !> \param atomic_offset_ad ...
 !> \param atomic_offset_ac ...
-!> \param anti_symmetric ...
 ! *****************************************************************************
   SUBROUTINE update_fock_matrix_as(ma_max, mb_max, mc_max, md_max, &
                                 fac, symm_fac, density, ks, prim, &
@@ -2806,7 +2801,7 @@ MODULE hfx_energy_potential
                                 iatom, jatom, katom, latom, &
                                 iset, jset, kset, lset,  offset_bd_set, offset_bc_set, offset_ad_set,&
                                 offset_ac_set, atomic_offset_bd, atomic_offset_bc, atomic_offset_ad,&
-                                atomic_offset_ac,anti_symmetric)
+                                atomic_offset_ac)
 
     INTEGER, INTENT(IN)                      :: ma_max, mb_max, mc_max, md_max
     REAL(dp), INTENT(IN)                     :: fac, symm_fac
@@ -2824,7 +2819,6 @@ MODULE hfx_energy_potential
                                                 atomic_offset_bc, &
                                                 atomic_offset_ad, &
                                                 atomic_offset_ac
-    LOGICAL                                  :: anti_symmetric
 
     INTEGER                                  :: i, j, ma, mb, mc, md, &
                                                 offset_ac, offset_ad, &

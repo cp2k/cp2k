@@ -388,11 +388,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initializes DBCSR
-!> \param group ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_init_lib (group, error)
-    INTEGER, INTENT(IN)                      :: group
+  SUBROUTINE cp_dbcsr_init_lib (error)
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init_lib', &
@@ -402,7 +400,7 @@ CONTAINS
 
     CALL cite_reference(Borstnik2014)
 
-    CALL dbcsr_init_lib (group, dbcsr_error)
+    CALL dbcsr_init_lib (dbcsr_error)
   END SUBROUTINE cp_dbcsr_init_lib
 
 ! *****************************************************************************
