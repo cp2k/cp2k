@@ -89,7 +89,7 @@ MODULE hfx_types
             hfx_pgf_product_list, hfx_block_range_type,&
             alloc_containers, dealloc_containers, hfx_task_list_type, init_t_c_g0_lmax,&
             hfx_create_neighbor_cells, hfx_create_basis_types, hfx_release_basis_types,&
-            set_cell_info
+            set_cell_info, get_cell_index
 
 #define CACHE_SIZE 1024
 #define BITS_MAX_VAL 6
@@ -310,6 +310,7 @@ MODULE hfx_types
     REAL(dp)                                 :: P(3)
     REAL(dp)                                 :: R
     REAL(dp)                                 :: pgf_max
+    REAL(dp), DIMENSION(3)                   :: bcell
   END TYPE
 
 ! *****************************************************************************
@@ -2352,18 +2353,52 @@ MODULE hfx_types
 
     INTEGER                                  :: i1, i2, i3, id
 
+    cli%index_to_cell = 0
     DO i3=LBOUND(cli%cell_to_index,3),UBOUND(cli%cell_to_index,3)
       DO i2=LBOUND(cli%cell_to_index,2),UBOUND(cli%cell_to_index,2)
         DO i1=LBOUND(cli%cell_to_index,1),UBOUND(cli%cell_to_index,1)
           id = cli%cell_to_index(i1,i2,i3)
-          cli%index_to_cell(1,id) = i1
-          cli%index_to_cell(2,id) = i2
-          cli%index_to_cell(3,id) = i3
+          IF(id > 0 .AND. id <= SIZE(cli%index_to_cell,2)) THEN
+            cli%index_to_cell(1,id) = i1
+            cli%index_to_cell(2,id) = i2
+            cli%index_to_cell(3,id) = i3
+          END IF
         END DO
       END DO
     END DO
 
   END SUBROUTINE set_cell_info
+
+! *****************************************************************************
+!> \brief ...
+!> \param cti ...
+!> \param i1 ...
+!> \param i2 ...
+!> \param i3 ...
+!> \retval cindex ...
+! *****************************************************************************
+  FUNCTION get_cell_index(cti,i1,i2,i3) RESULT(cindex)
+    INTEGER, DIMENSION(:, :, :), POINTER     :: cti
+    INTEGER                                  :: i1, i2, i3, cindex
+
+    INTEGER                                  :: nl1, nl2, nl3, nu1, nu2, nu3
+
+    cindex = 0
+
+    nl1 = LBOUND(cti,1)
+    nl2 = LBOUND(cti,2)
+    nl3 = LBOUND(cti,3)
+    nu1 = UBOUND(cti,1)
+    nu2 = UBOUND(cti,2)
+    nu3 = UBOUND(cti,3)
+
+    IF(i1<nl1 .OR. i1>nu1) RETURN
+    IF(i2<nl2 .OR. i2>nu2) RETURN
+    IF(i3<nl3 .OR. i3>nu3) RETURN
+   
+    cindex = cti(i1,i2,i3)
+
+  END FUNCTION get_cell_index
 
 END MODULE hfx_types
 

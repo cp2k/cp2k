@@ -15,9 +15,10 @@ MODULE hfx_pair_list_methods
   USE gamma,                           ONLY: fgamma=>fgamma_0
   USE hfx_libint_wrapper_types,        ONLY: prim_data_f_size
   USE hfx_types,                       ONLY: &
-       hfx_basis_type, hfx_block_range_type, hfx_cell_loop_info_type, &
-       hfx_cell_type, hfx_pgf_list, hfx_pgf_product_list, hfx_potential_type, &
-       hfx_screen_coeff_type, pair_list_type, pair_set_list_type
+       get_cell_index, hfx_basis_type, hfx_block_range_type, &
+       hfx_cell_loop_info_type, hfx_cell_type, hfx_pgf_list, &
+       hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, &
+       pair_list_type, pair_set_list_type
   USE input_constants,                 ONLY: &
        do_hfx_potential_coulomb, do_hfx_potential_gaussian, &
        do_hfx_potential_id, do_hfx_potential_long, do_hfx_potential_mix_cl, &
@@ -79,7 +80,10 @@ MODULE hfx_pair_list_methods
     LOGICAL, INTENT(IN)                      :: do_periodic
     TYPE(hfx_cell_loop_info_type)            :: cell_loop_info
 
-    INTEGER                                  :: i, j, k, l, nimages1, nimages2
+    INTEGER                                  :: cqt, cr, cs, ct, i, j, k, l, &
+                                                nimages1, nimages2
+    INTEGER, DIMENSION(3)                    :: cell_qt, cell_r, cell_s, &
+                                                cell_t
     LOGICAL                                  :: dokp, use_gamma
     REAL(dp) :: C11(3), Eta, EtaInv, factor, Fm(prim_data_f_size), omega2, &
       omega_corr, omega_corr2, P(3), pgf_max_1, pgf_max_2, PQ(3), Q(3), R, &
@@ -88,6 +92,9 @@ MODULE hfx_pair_list_methods
       W(3), Zeta1, Zeta_C, Zeta_D, ZetapEtaInv
 
     dokp = cell_loop_info%dokp
+    IF(dokp) THEN
+      cell_qt = cell_loop_info%cell_pm - cell_loop_info%cell_ks
+    END IF
 
     nimages1 = list1%nimages
     nimages2 = list2%nimages
@@ -104,6 +111,13 @@ MODULE hfx_pair_list_methods
       pgf_max_1 = list1%image_list(i)%pgf_max
       ra = list1%image_list(i)%ra
       rb = list1%image_list(i)%rb
+      IF(dokp) THEN
+        cell_s = NINT(list1%image_list(i)%bcell)
+        cs = get_cell_index(cell_loop_info%cell_to_index,cell_s(1),cell_s(2),cell_s(3))
+        IF(cs == 0) CYCLE
+        cell_s = NINT(list1%image_list(i)%bcell) + cell_qt
+        cqt = get_cell_index(cell_loop_info%cell_to_index,cell_s(1),cell_s(2),cell_s(3))
+      END IF
       DO j = 1,nimages2
         pgf_max_2 = list2%image_list(j)%pgf_max
         IF(pgf_max_1 + pgf_max_2 + log10_pmax < log10_eps_schwarz ) CYCLE
@@ -112,6 +126,12 @@ MODULE hfx_pair_list_methods
         S1234b = list2%image_list(j)%S1234
         rc = list2%image_list(j)%ra
         rd = list2%image_list(j)%rb
+        IF(dokp) THEN
+          cell_r = NINT(list2%image_list(j)%bcell)
+          cr = get_cell_index(cell_loop_info%cell_to_index,cell_r(1),cell_r(2),cell_r(3))
+          IF(cr == 0) CYCLE
+          IF(cqt/=cr) CYCLE
+        END IF
 
         ZetapEtaInv = Zeta1+Eta
         ZetapEtaInv = 1.0_dp/ZetapEtaInv
@@ -127,6 +147,11 @@ MODULE hfx_pair_list_methods
         END IF
 
         DO k = 1,SIZE(neighbor_cells)
+          IF(dokp) THEN
+            cell_t = NINT(neighbor_cells(k)%cell)
+            ct = cell_loop_info%cell_to_index(cell_t(1),cell_t(2),cell_t(3))
+            IF(ct/=cell_loop_info%image_ks) CYCLE
+          END IF
           IF( do_periodic )  THEN
             C11 = temp_CC + neighbor_cells(k)%cell_r(:)
             tmp_D = temp_DD + neighbor_cells(k)%cell_r(:)
@@ -145,6 +170,11 @@ MODULE hfx_pair_list_methods
             IF( rpq2 > (R1 + R2 + potential_parameter%cutoff_radius*2.0_dp)**2) CYCLE
           END IF
           nproducts = nproducts + 1
+!deb
+          IF(dokp) THEN
+            WRITE(6,'(A,4I4)') "S T Q R",cs,ct,cell_loop_info%image_pm,cr
+          END IF
+!deb
 
           T = Rho * rpq2
           SELECT CASE(potential_parameter%potential_type)
@@ -292,7 +322,6 @@ MODULE hfx_pair_list_methods
 
   END SUBROUTINE build_pgf_product_list
 
-
 ! *****************************************************************************
 !> \brief ...
 !> \param npgfa ...
@@ -386,6 +415,7 @@ MODULE hfx_pair_list_methods
           list(element_counter)%image_list(nimages(element_counter))%ra = ra
           list(element_counter)%image_list(nimages(element_counter))%rb = im_B
           list(element_counter)%image_list(nimages(element_counter))%rab2 = rab2
+          list(element_counter)%image_list(nimages(element_counter))%bcell = neighbor_cells(i)%cell
         END DO
       END DO
       nelements = MAX(nelements,element_counter)
