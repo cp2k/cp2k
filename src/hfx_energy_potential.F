@@ -210,7 +210,7 @@ MODULE hfx_energy_potential
       hf_fraction, ln_10, log10_eps_schwarz, log10_pmax, max_contraction_val, &
       max_val1, max_val2, max_val2_set, pmax_atom, pmax_blocks, pmax_entry, &
       ra(3), rab2, rb(3), rc(3), rcd2, rd(3), screen_kind_ij, screen_kind_kl, &
-      spherical_estimate, symm_fac, xpri1, xpri2
+      spherical_estimate, symm_fac
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: ee_buffer1, ee_buffer2, &
       ee_primitives_tmp, ee_work, ee_work2, kac_buf, kad_buf, kbc_buf, &
       kbd_buf, pac_buf, pad_buf, pbc_buf, pbd_buf, primitive_integrals
@@ -1205,8 +1205,6 @@ MODULE hfx_energy_potential
       IF( .NOT. do_it ) CYCLE
 !$OMP MASTER
       CALL timeset(routineN//"_bin",handle_bin)
-      xpri1 = 0.0_dp
-      xpri2 = 0.0_dp
 !$OMP END MASTER
       bintime_start=m_walltime()
       my_istart = distribution_energy%istart
