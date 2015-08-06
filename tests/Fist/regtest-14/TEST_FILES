@@ -3,7 +3,7 @@ argon-nve.inp    2    1.0E-14    -0.174623742212E+00
 argon-nose.inp    2    1.0E-14    -0.169562375558E+00
 argon-csvr.inp    2    1.0E-14    -0.170032262039E+00
 argon-gle.inp    2    1.0E-14    -0.178882251343E+00
-argon-gle_r.inp    2    1.0E-14    -0.170320310331E+00
+argon-gle_r.inp    2    2.0E-11    -0.170320310331E+00
 #new FF
 water_mm3.inp    11    1.0E-14    0.003534941656640
 #mol_set + amber

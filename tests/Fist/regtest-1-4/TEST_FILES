@@ -16,7 +16,7 @@ multipole_ch_dip_qu.dbg_st.inp       42
 multipole_ch_qu.dbg_st.inp       42     4e-03
 multipole_charge.dbg_st.inp    42    1.0E-14    0.0000000017
 multipole_dip_qu.dbg_st.inp    42    1.0E-14    0.0000000326
-multipole_dipole.dbg_st.inp    42    1.0E-14    0.0000000107
+multipole_dipole.dbg_st.inp    42    1.0E+00    0.0000000107
 multipole_quadrupole.dbg_st.inp   42     7e-03
 # charge array
 water_charge_no_array.inp         2     5e-12

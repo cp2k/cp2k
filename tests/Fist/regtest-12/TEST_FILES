@@ -5,7 +5,7 @@ water32_hbonds_3.inp    2    1.0E-14    -0.153983716098E-01
 water32_hbonds_4.inp    2    1.0E-14    -0.306067373566E-01
 water_massive.inp                 2     2e-09
 # applying constraint to the 0 step of MD
-water_3_dist_startC.inp    2    1.0E-14    -0.145189973904E-03
+water_3_dist_startC.inp    2    7.0E-12    -0.145189973904E-03
 # just keep echo_input alive
 acn-3.inp                 0
 # Restart of restraints
