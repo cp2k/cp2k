@@ -1051,7 +1051,7 @@ END SUBROUTINE ma_get_mempol
      my_info%node = node
    ENDIF
  ENDIF
-#elif defined (__LINUMA)
+#elif defined (__LIBNUMA)
  IF(id .EQ. 0) THEN
    !usually node 0 and core 0 are the ones connect to I/O
    my_info%node = 0

@@ -57,7 +57,6 @@ Flag __LIBDERIV_MAX_AM1 not mentioned in INSTALL
 Flag __LIBINT_MAX_AM not mentioned in INSTALL
 Flag __LIBXSMM not mentioned in INSTALL
 Flag __LIBXSMM not mentioned in cp2k_flags()
-Flag __LINUMA not mentioned in INSTALL
 Flag __MAX_CONTR not mentioned in INSTALL
 Flag __MIC__ not mentioned in INSTALL
 Flag __MIC__ not mentioned in cp2k_flags()
