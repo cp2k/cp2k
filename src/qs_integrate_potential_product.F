@@ -43,7 +43,6 @@ MODULE qs_integrate_potential_product
        cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_p_type, &
        cp_dbcsr_row_block_sizes, cp_dbcsr_type, cp_dbcsr_work_create, &
        dbcsr_distribution_has_threads
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
@@ -201,7 +200,6 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: deltap, dhmat, htemp
     TYPE(cp_dbcsr_type), POINTER             :: href
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -292,7 +290,6 @@ CONTAINS
          cell=cell,&
          dft_control=dft_control,&
          particle_set=particle_set,&
-         para_env=para_env,&
          force=force,&
          virial=virial,error=error)
 

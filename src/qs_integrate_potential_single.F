@@ -63,10 +63,13 @@ MODULE qs_integrate_potential_single
   USE qs_integrate_potential_low,      ONLY: integrate_pgf_product_rspace
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
-  USE realspace_grid_types,            ONLY: &
-       pw2rs, realspace_grid_desc_p_type, realspace_grid_desc_type, &
-       realspace_grid_p_type, realspace_grid_type, rs_grid_release, &
-       rs_grid_retain, rs_grid_zero, rs_pw_transfer
+  USE realspace_grid_types,            ONLY: pw2rs,&
+                                             realspace_grid_p_type,&
+                                             realspace_grid_type,&
+                                             rs_grid_release,&
+                                             rs_grid_retain,&
+                                             rs_grid_zero,&
+                                             rs_pw_transfer
   USE rs_pw_interface,                 ONLY: potential_pw2rs
   USE scptb_types,                     ONLY: get_scptb_parameter,&
                                              scp_vector_type,&
@@ -129,7 +132,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -138,7 +140,6 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(virial_type), POINTER               :: virial
@@ -146,11 +147,10 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    NULLIFY(pw_env,auxbas_rs_desc,cores)
+    NULLIFY(pw_env,cores)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
-                    auxbas_rs_grid=rs_v,error=error)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v,error=error)
     CALL rs_grid_retain(rs_v,error=error)
 
     CALL rs_pw_transfer(rs_v,scp_pot%pw,pw2rs,error=error)
@@ -161,7 +161,7 @@ CONTAINS
          cell=cell,&
          dft_control=dft_control,&
          particle_set=particle_set,&
-         para_env=para_env,pw_env=pw_env,&
+         pw_env=pw_env,&
          force=force,virial=virial,error=error)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer).AND.calculate_forces
@@ -297,7 +297,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(particle_type), DIMENSION(:), &
@@ -307,18 +306,16 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    NULLIFY(pw_env,auxbas_rs_desc,cores)
+    NULLIFY(pw_env,cores)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
-                    auxbas_rs_grid=rs_v,error=error)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v,error=error)
     CALL rs_grid_retain(rs_v,error=error)
 
     CALL rs_pw_transfer(rs_v,rho_rspace%pw,pw2rs,error=error)
@@ -329,7 +326,7 @@ CONTAINS
          cell=cell,&
          dft_control=dft_control,&
          particle_set=particle_set,&
-         para_env=para_env,pw_env=pw_env,&
+         pw_env=pw_env,&
          force=force,virial=virial,error=error)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -496,7 +493,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(particle_type), DIMENSION(:), &
@@ -506,18 +502,16 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    NULLIFY(pw_env,auxbas_rs_desc,cores)
+    NULLIFY(pw_env,cores)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
-                    auxbas_rs_grid=rs_v,error=error)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v,error=error)
     CALL rs_grid_retain(rs_v,error=error)
 
     CALL rs_pw_transfer(rs_v,rho_rspace%pw,pw2rs,error=error)
@@ -528,7 +522,7 @@ CONTAINS
          cell=cell,&
          dft_control=dft_control,&
          particle_set=particle_set,&
-         para_env=para_env,pw_env=pw_env,&
+         pw_env=pw_env,&
          force=force,virial=virial,error=error)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -707,7 +701,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -716,7 +709,6 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(virial_type), POINTER               :: virial
 
@@ -733,7 +725,7 @@ CONTAINS
 
     failure = .FALSE.
     IF(.NOT. skip_fcore) THEN
-        NULLIFY(pw_env,auxbas_rs_desc)
+        NULLIFY(pw_env)
         ALLOCATE (cores(1),STAT=stat)
         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE (hab(1,1),STAT=stat)
@@ -742,8 +734,7 @@ CONTAINS
         CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
         CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
-        CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
-                        auxbas_rs_grid=rs_v,error=error)
+        CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v,error=error)
         CALL rs_grid_retain(rs_v,error=error)
 
         CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs,error=error)
@@ -754,7 +745,7 @@ CONTAINS
              cell=cell,&
              dft_control=dft_control,&
              particle_set=particle_set,&
-             para_env=para_env,pw_env=pw_env,&
+             pw_env=pw_env,&
              force=force,&
              virial=virial,&
              atprop=atprop,&
@@ -906,8 +897,6 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(realspace_grid_desc_p_type), &
-      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(realspace_grid_type), POINTER       :: rs_grid
@@ -918,14 +907,14 @@ CONTAINS
     NULLIFY(atomic_kind_set, qs_kind_set, atom_list, cell, dft_control,&
             first_sgfa, gridlevel_info, hab, la_max, la_min, lri_basis_set,&
             npgfa, nsgf_seta, pab, para_env, particle_set, pw_env, rpgfa, &
-            rs_descs, rs_grid, rs_v, virial, set_radius_a, sphi_a,  work_f,&
+            rs_grid, rs_v, virial, set_radius_a, sphi_a,  work_f,&
             work_i, zeta)
 
     failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
 
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_v, error=error)
+    CALL pw_env_get(pw_env, rs_grids=rs_v, error=error)
     DO i=1,SIZE(rs_v)
       CALL rs_grid_retain(rs_v(i)%rs_grid,error=error)
       CALL rs_grid_zero(rs_v(i)%rs_grid)

@@ -51,7 +51,6 @@ MODULE qs_collocate_density
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: compute_cube_center,&
                                              cube_info_type,&
                                              return_cube,&
@@ -118,10 +117,14 @@ MODULE qs_collocate_density
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_set,&
                                              qs_rho_type
-  USE realspace_grid_types,            ONLY: &
-       realspace_grid_desc_p_type, realspace_grid_desc_type, &
-       realspace_grid_p_type, realspace_grid_type, rs2pw, rs_grid_release, &
-       rs_grid_retain, rs_grid_zero, rs_pw_transfer
+  USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                             realspace_grid_p_type,&
+                                             realspace_grid_type,&
+                                             rs2pw,&
+                                             rs_grid_release,&
+                                             rs_grid_retain,&
+                                             rs_grid_zero,&
+                                             rs_pw_transfer
   USE rs_pw_interface,                 ONLY: density_rs2pw,&
                                              density_rs2pw_basic
   USE scptb_types,                     ONLY: get_scptb_parameter,&
@@ -196,7 +199,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type)                     :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
@@ -205,7 +207,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_rho
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
 
@@ -214,7 +215,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(cell,dft_control,pab,qs_kind_set,particle_set,atomic_kind_set,&
-         atom_list,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,cores)
+         atom_list,pw_env,rs_rho,auxbas_pw_pool,cores)
 
     CALL get_qs_env(qs_env=qs_env,&
                     qs_kind_set=qs_kind_set,&
@@ -222,8 +223,8 @@ CONTAINS
                     dft_control=dft_control,&
                     cell=cell,&
                     particle_set=particle_set,&
-                    para_env=para_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+                    pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     cube_info=pw_env%cube_info(1)
     CALL rs_grid_retain(rs_rho, error=error)
@@ -332,7 +333,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type)                     :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gth_potential_type), POINTER        :: gth_potential
@@ -342,7 +342,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
     CALL timeset(routineN,handle)
@@ -350,7 +349,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(cell,dft_control,pab,particle_set,atomic_kind_set,qs_kind_set,&
-         atom_list,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,cores)
+         atom_list,pw_env,rs_rho,auxbas_pw_pool,cores)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -358,8 +357,8 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    para_env=para_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+                    pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     cube_info=pw_env%cube_info(1)
     ! be careful in parallel nsmax is choosen with multigrid in mind!
@@ -523,7 +522,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type)                     :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gth_potential_type), POINTER        :: gth_potential
@@ -533,7 +531,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
     CALL timeset(routineN,handle)
@@ -541,7 +538,7 @@ CONTAINS
     failure = .FALSE.
 
     NULLIFY(cell,dft_control,pab,atomic_kind_set,qs_kind_set,particle_set,&
-         atom_list,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,cores)
+         atom_list,pw_env,rs_rho,auxbas_pw_pool,cores)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -549,8 +546,8 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    para_env=para_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+                    pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     cube_info=pw_env%cube_info(1)
     ! be careful in parallel nsmax is choosen with multigrid in mind!
@@ -729,15 +726,13 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(realspace_grid_desc_p_type), &
-      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
 
     NULLIFY(aux_basis_set, atomic_kind_set, qs_kind_set, npgfa, cell, particle_set, &
             sphi_a, rs_rho, pw_env, cube_info, dft_control, rho, rho_r, rho_g, atom_list, &
             first_sgfa, pab, work, tot_rho_r)
-    NULLIFY(gridlevel_info, rs_descs, pw_pools, mgrid_gspace, mgrid_rspace)
+    NULLIFY(gridlevel_info, pw_pools, mgrid_gspace, mgrid_rspace)
 
     CALL timeset(routineN,handle)
 
@@ -758,8 +753,7 @@ CONTAINS
 
     ! *** set up the pw multi-grids *** !
     CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineP, error, failure)
-    CALL pw_env_get(pw_env=pw_env, rs_descs=rs_descs, rs_grids=rs_rho, &
-                    pw_pools=pw_pools, error=error)
+    CALL pw_env_get(pw_env=pw_env, rs_grids=rs_rho, pw_pools=pw_pools, error=error)
 
     CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
                               use_data=REALDATA3D, in_space=REALSPACE, &
@@ -915,7 +909,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -929,16 +922,14 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(realspace_grid_desc_p_type), &
-      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
     TYPE(realspace_grid_type), POINTER       :: rs_grid
 
     NULLIFY(aci, atomic_kind_set, qs_kind_set, atom_list, cell, cube_info,&
             dft_control, first_sgfa, gridlevel_info, la_max, la_min, lri_basis_set,&
-            logger, mgrid_gspace, mgrid_rspace, npgfa, nsgfa, pab, para_env,&
-            particle_set, pw_env, pw_pools, rs_descs, rs_grid, rs_rho, sphi_a,&
+            logger, mgrid_gspace, mgrid_rspace, npgfa, nsgfa, pab, &
+            particle_set, pw_env, pw_pools, rs_grid, rs_rho, sphi_a,&
             work, zeta)
 
     CALL timeset(routineN,handle)
@@ -948,7 +939,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell, particle_set=particle_set, &
-                    para_env=para_env, pw_env=pw_env,&
+                    pw_env=pw_env,&
                     dft_control=dft_control, error=error)
 
     cube_info => pw_env%cube_info
@@ -958,8 +949,7 @@ CONTAINS
 
     ! *** set up the pw multi-grids *** !
     CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineP, error, failure)
-    CALL pw_env_get(pw_env=pw_env, rs_descs=rs_descs, rs_grids=rs_rho, &
-                    pw_pools=pw_pools, error=error)
+    CALL pw_env_get(pw_env=pw_env, rs_grids=rs_rho, pw_pools=pw_pools, error=error)
 
     CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
                              use_data=REALDATA3D,&
@@ -1135,7 +1125,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type)                     :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
@@ -1145,12 +1134,11 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
     CALL timeset(routineN,handle)
     NULLIFY(cell,dft_control,pab,atomic_kind_set,qs_kind_set,particle_set,&
-         atom_list,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,cores)
+         atom_list,pw_env,rs_rho,auxbas_pw_pool,cores)
     ALLOCATE (pab(1,1),STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "pab",dp_size)
@@ -1164,8 +1152,8 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    para_env=para_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+                    pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     cube_info=pw_env%cube_info(1)
     ! be careful in parallel nsmax is choosen with multigrid in mind!
@@ -1273,16 +1261,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rhoc_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
     CALL timeset(routineN,handle)
-    NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool)
+    NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_pw_pool)
     ALLOCATE (pab(1,1),STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "pab",dp_size)
@@ -1290,8 +1276,8 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     cell=cell,&
                     dft_control=dft_control,&
-                    para_env=para_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+                    pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     CALL rs_grid_retain(rs_rho, error=error)
     CALL rs_grid_zero(rs_rho)
@@ -1369,18 +1355,15 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rhoc_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
     CALL timeset(routineN,handle)
    
-    NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,&
-            para_env,cores)
+    NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_pw_pool,cores)
    
     ALLOCATE (pab(1,1),STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1389,8 +1372,8 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     cell=cell,&
                     dft_control=dft_control,&
-                    para_env=para_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+                    pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     CALL rs_grid_retain(rs_rho, error=error)
     CALL rs_grid_zero(rs_rho)
@@ -1478,18 +1461,16 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rhoc_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
     CALL timeset(routineN,handle)
-    NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,&
+    NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_pw_pool,&
             particle_set)
     ALLOCATE (pab(1,1),STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1499,8 +1480,8 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    para_env=para_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+                    pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     CALL rs_grid_retain(rs_rho, error=error)
     CALL rs_grid_zero(rs_rho)
@@ -1578,20 +1559,18 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: rhoc_r
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
     CALL timeset(routineN,handle)
    
-    NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_rs_desc,auxbas_pw_pool,&
-            para_env,particle_set)
+    NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_pw_pool,&
+            particle_set)
    
     ALLOCATE (pab(1,1),STAT=ierr)
     IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1601,8 +1580,8 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    para_env=para_env,pw_env=pw_env,error=error)
-    CALL pw_env_get(pw_env,auxbas_rs_desc=auxbas_rs_desc,auxbas_rs_grid=rs_rho,&
+                    pw_env=pw_env,error=error)
+    CALL pw_env_get(pw_env,auxbas_rs_grid=rs_rho,&
          auxbas_pw_pool=auxbas_pw_pool,error=error)
     CALL rs_grid_retain(rs_rho, error=error)
     CALL rs_grid_zero(rs_rho)
@@ -1729,7 +1708,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: deltap
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1756,7 +1734,7 @@ CONTAINS
 
     NULLIFY(qs_kind, cell, dft_control, orb_basis_set, deltap, &
          qs_kind_set, particle_set, rs_rho, pw_env, rs_descs, &
-         para_env, dist_ab, la_max, la_min, &
+         dist_ab, la_max, la_min, &
          lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, &
          sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, &
          workt,lgrid)
@@ -1806,7 +1784,6 @@ CONTAINS
          cell=cell,&
          dft_control=dft_control,&
          particle_set=particle_set,&
-         para_env=para_env,&
          pw_env=pw_env,&
          error=error)
 
@@ -2280,7 +2257,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: deltap
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -2309,7 +2285,7 @@ CONTAINS
 
     NULLIFY(qs_kind, cell, dft_control, orb_basis_set, deltap, &
          qs_kind_set, sab_orb, particle_set, rs_rho, pw_env, rs_descs, &
-         para_env, dist_ab, la_max, la_min, &
+         dist_ab, la_max, la_min, &
          lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, &
          sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, tasks, pabt, &
          workt)
@@ -2332,7 +2308,6 @@ CONTAINS
          dft_control=dft_control,&
          particle_set=particle_set,&
          sab_orb=sab_orb,&
-         para_env=para_env,&
          pw_env=pw_env,&
          error=error)
 
@@ -2703,8 +2678,6 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: mgrid_gspace, mgrid_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    TYPE(realspace_grid_desc_p_type), &
-      DIMENSION(:), POINTER                  :: rs_descs
     TYPE(REALSPACE_GRID_P_TYPE), &
       DIMENSION(:), POINTER                  :: rs_rho
 
@@ -2722,7 +2695,7 @@ CONTAINS
          pab,work,la_max, la_min,&
          npgfa, nsgfa, &
          sphi_a, zeta, first_sgfa,&
-         rs_rho,rs_descs,pw_pools,mgrid_rspace,mgrid_gspace)
+         rs_rho,pw_pools,mgrid_rspace,mgrid_gspace)
 
     IF (PRESENT(external_vector)) THEN
        nao=SIZE(external_vector)
@@ -2740,7 +2713,7 @@ CONTAINS
 
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, pw_pools=pw_pools, &
+    CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, &
         cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
 
     CALL pw_pools_create_pws(pw_pools,mgrid_gspace,&
