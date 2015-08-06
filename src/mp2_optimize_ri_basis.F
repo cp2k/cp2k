@@ -25,7 +25,6 @@ MODULE mp2_optimize_ri_basis
   USE hfx_libint_wrapper_types,        ONLY: build_eri_size
   USE hfx_types,                       ONLY: hfx_basis_info_type,&
                                              hfx_basis_type
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: default_output_unit
   USE memory_utilities,                ONLY: reallocate
@@ -82,7 +81,6 @@ MODULE mp2_optimize_ri_basis
 !> \param kind_of ...
 !> \param qs_env ...
 !> \param rho ...
-!> \param hfx_sections ...
 !> \param para_env ...
 !> \param unit_nr ...
 !> \param error ...
@@ -93,7 +91,7 @@ MODULE mp2_optimize_ri_basis
 ! *****************************************************************************
  SUBROUTINE optimize_ri_basis_main(Emp2,Emp2_Cou,Emp2_ex,Emp2_S,Emp2_T,dimen,natom,homo, &
                                      mp2_biel,mp2_env,C,Auto,kind_of,&
-                                     qs_env,rho,hfx_sections,para_env, &
+                                     qs_env,rho,para_env, &
                                      unit_nr,error,homo_beta,C_beta,Auto_beta)
 
     REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_ex, &
@@ -107,7 +105,6 @@ MODULE mp2_optimize_ri_basis
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: hfx_sections
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: unit_nr
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -181,7 +178,7 @@ MODULE mp2_optimize_ri_basis
       Emp2_AA_Cou=0.0_dp
       Emp2_AA_ex=0.0_dp
       CALL calc_elem_ij_proc(homo,homo,para_env,elements_ij_proc,ij_list_proc,error)
-      CALL mp2_canonical_direct_single_batch(Emp2_AA,Emp2_AA_Cou,Emp2_AA_ex,mp2_env,qs_env,rho,hfx_sections,para_env,&
+      CALL mp2_canonical_direct_single_batch(Emp2_AA,Emp2_AA_Cou,Emp2_AA_ex,mp2_env,qs_env,rho,para_env,&
                                              mp2_biel,dimen,C,Auto,0,homo,homo,&
                                              elements_ij_proc,ij_list_proc,homo,0,&
                                              Integ_MP2=Integ_MP2_AA,error=error)
@@ -195,7 +192,7 @@ MODULE mp2_optimize_ri_basis
       Emp2_BB_Cou=0.0_dp
       Emp2_BB_ex=0.0_dp
       CALL calc_elem_ij_proc(homo_beta,homo_beta,para_env,elements_ij_proc,ij_list_proc,error)
-      CALL mp2_canonical_direct_single_batch(Emp2_BB,Emp2_BB_Cou,Emp2_BB_ex,mp2_env,qs_env,rho,hfx_sections,para_env,&
+      CALL mp2_canonical_direct_single_batch(Emp2_BB,Emp2_BB_Cou,Emp2_BB_ex,mp2_env,qs_env,rho,para_env,&
                                              mp2_biel,dimen,C_beta,Auto_beta,0,homo_beta,homo_beta,&
                                              elements_ij_proc,ij_list_proc,homo_beta,0,&
                                              Integ_MP2=Integ_MP2_BB,error=error)
@@ -209,7 +206,7 @@ MODULE mp2_optimize_ri_basis
       Emp2_AB_Cou=0.0_dp
       Emp2_AB_ex=0.0_dp
       CALL calc_elem_ij_proc(homo,homo_beta,para_env,elements_ij_proc,ij_list_proc,error)
-      CALL mp2_canonical_direct_single_batch(Emp2_AB,Emp2_AB_Cou,Emp2_AB_ex,mp2_env,qs_env,rho,hfx_sections,para_env,&
+      CALL mp2_canonical_direct_single_batch(Emp2_AB,Emp2_AB_Cou,Emp2_AB_ex,mp2_env,qs_env,rho,para_env,&
                                              mp2_biel,dimen,C,Auto,0,homo,homo,&
                                              elements_ij_proc, ij_list_proc,homo_beta,0,&
                                              homo_beta,C_beta,Auto_beta,Integ_MP2=Integ_MP2_AB,error=error)
@@ -237,7 +234,7 @@ MODULE mp2_optimize_ri_basis
     ELSE
       ! close shell case
       CALL calc_elem_ij_proc(homo,homo,para_env,elements_ij_proc,ij_list_proc,error)
-      CALL mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,hfx_sections,para_env,&
+      CALL mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,para_env,&
                                              mp2_biel,dimen,C,Auto,0,homo,homo,&
                                              elements_ij_proc,ij_list_proc,homo,0,&
                                              Integ_MP2=Integ_MP2,error=error)

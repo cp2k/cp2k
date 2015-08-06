@@ -35,7 +35,6 @@ MODULE mp2_direct_method
        hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, &
        hfx_type, log_zero, pair_set_list_type
   USE input_constants,                 ONLY: do_mp2_potential_TShPSC
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathconstants,                   ONLY: zero
@@ -77,7 +76,6 @@ MODULE mp2_direct_method
 !> \param mp2_env ...
 !> \param qs_env ...
 !> \param rho density matrix
-!> \param hfx_section input_section HFX
 !> \param para_env ...
 !> \param mp2_biel ...
 !> \param dimen ...
@@ -100,7 +98,7 @@ MODULE mp2_direct_method
 !>      06.2011 created [Mauro Del Ben]
 !> \author Mauro Del Ben
 ! *****************************************************************************
-  SUBROUTINE mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,hfx_section,para_env,&
+  SUBROUTINE mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,para_env,&
                                                mp2_biel,dimen,C,Auto,i_batch_start,Ni_occupied,&
                                                occupied,elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start,&
                                                occupied_beta,C_beta,Auto_beta,Integ_MP2,error)
@@ -109,7 +107,6 @@ MODULE mp2_direct_method
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: hfx_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mp2_biel_type)                      :: mp2_biel
     INTEGER                                  :: dimen

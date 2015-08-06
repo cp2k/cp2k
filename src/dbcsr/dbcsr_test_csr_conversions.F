@@ -125,7 +125,7 @@ PROGRAM dbcsr_test_csr_conversions
     CALL RANDOM_NUMBER(rn_array)
     col_dist = FLOOR(rn_array(1:nblkcols_total) * npdims(2))
 
-    CALL make_random_dbcsr_matrix(matrix_a, mp_env,nblkcols_total,nblkrows_total,&
+    CALL make_random_dbcsr_matrix(matrix_a, mp_env,&
       col_blk_sizes, row_blk_sizes, col_dist, row_dist, sparsity, error)
 
     WRITE (UNIT=k_str,FMT='(I0)') k
@@ -160,8 +160,6 @@ CONTAINS
 !> \brief Create a DBCSR matrix with random values and random blocks
 !> \param matrix_a ...
 !> \param mp_env ...
-!> \param nblkcols_total ...
-!> \param nblkrows_total ...
 !> \param col_blk_sizes ...
 !> \param row_blk_sizes ...
 !> \param col_dist ...
@@ -169,11 +167,10 @@ CONTAINS
 !> \param sparsity ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE make_random_dbcsr_matrix(matrix_a, mp_env, nblkcols_total, nblkrows_total,&
+  SUBROUTINE make_random_dbcsr_matrix(matrix_a, mp_env,&
                         col_blk_sizes, row_blk_sizes, col_dist, row_dist, sparsity, error) 
     TYPE(dbcsr_obj), INTENT(OUT)             :: matrix_a
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
-    INTEGER, INTENT(IN)                      :: nblkcols_total, nblkrows_total
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes, &
                                                 col_dist, row_dist
     REAL(real_8), INTENT(IN)                 :: sparsity

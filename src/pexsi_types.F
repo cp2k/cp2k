@@ -223,7 +223,6 @@ CONTAINS
 !>        DFT calculations (PEXSI) to the unrestricted case (as is the case where
 !>        the density matrix method is called in the linear scaling code).
 !> \param[in] direction ...
-!> \param[in] nspin ...
 !> \param[in,out] numElectron ...
 !> \param matrix_p ...
 !> \param matrix_w ...
@@ -233,8 +232,8 @@ CONTAINS
 !>      01.2015 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE convert_nspin_cp2k_pexsi(direction, nspin, numElectron, matrix_p, matrix_w, kTS, error)
-    INTEGER, INTENT(IN)                      :: direction, nspin
+  SUBROUTINE convert_nspin_cp2k_pexsi(direction, numElectron, matrix_p, matrix_w, kTS, error)
+    INTEGER, INTENT(IN)                      :: direction
     REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: numElectron
     TYPE(cp_dbcsr_type), INTENT(INOUT), &
       OPTIONAL                               :: matrix_p

@@ -499,7 +499,7 @@ MODULE mp2
          Emp2_AA_Cou=0.0_dp
          Emp2_AA_ex=0.0_dp
          CALL mp2_direct_energy(dimen,nelec_alpha,nelec_alpha,mp2_biel,mp2_env,C_alpha,Auto_alpha,Emp2_AA,Emp2_AA_Cou,Emp2_AA_ex,&
-                                qs_env,rho,hfx_sections,para_env, &
+                                qs_env,rho,para_env, &
                                 unit_nr,error=error)
          IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy Alpha-Alpha = ', Emp2_AA
          IF (unit_nr>0) WRITE(unit_nr,*)
@@ -508,7 +508,7 @@ MODULE mp2
          Emp2_BB_Cou=0.0_dp
          Emp2_BB_ex=0.0_dp
          CALL mp2_direct_energy(dimen,nelec_beta,nelec_beta,mp2_biel,mp2_env,C_beta,Auto_beta,Emp2_BB,Emp2_BB_Cou,Emp2_BB_ex,&
-                                qs_env,rho,hfx_sections,para_env, &
+                                qs_env,rho,para_env, &
                                 unit_nr,error=error)
          IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy Beta-Beta= ', Emp2_BB
          IF (unit_nr>0) WRITE(unit_nr,*)
@@ -518,7 +518,7 @@ MODULE mp2
          Emp2_AB_ex=0.0_dp
          CALL mp2_direct_energy(dimen,nelec_alpha,nelec_beta,mp2_biel,mp2_env,C_alpha,&
                                 Auto_alpha,Emp2_AB,Emp2_AB_Cou,Emp2_AB_ex,&
-                                qs_env,rho,hfx_sections,para_env, &
+                                qs_env,rho,para_env, &
                                 unit_nr,C_beta,Auto_beta,error=error)
          IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.14)') 'MP2 Energy Alpha-Beta= ', Emp2_AB
          IF (unit_nr>0) WRITE(unit_nr,*)
@@ -548,7 +548,7 @@ MODULE mp2
          Auto(:)=mo_eigenvalues(:)
 
          CALL mp2_direct_energy(dimen,nelectron/2,nelectron/2,mp2_biel,mp2_env,C,Auto,Emp2,Emp2_Cou,Emp2_ex,&
-                                qs_env,rho,hfx_sections,para_env, &
+                                qs_env,rho,para_env, &
                                 unit_nr,error=error)
 
 
@@ -592,7 +592,7 @@ MODULE mp2
          ! optimize basis
          CALL optimize_ri_basis_main(Emp2,Emp2_Cou,Emp2_ex,Emp2_S,Emp2_T,dimen,natom,nelectron, &
                                      mp2_biel,mp2_env,C,Auto,&
-                                     kind_of,qs_env,rho,hfx_sections,para_env, &
+                                     kind_of,qs_env,rho,para_env, &
                                      unit_nr,error,&
                                      nelec_beta,C_beta,Auto_beta)
 
@@ -600,7 +600,7 @@ MODULE mp2
          ! optimize basis
          CALL optimize_ri_basis_main(Emp2,Emp2_Cou,Emp2_ex,Emp2_S,Emp2_T,dimen,natom,nelectron/2, &
                                      mp2_biel,mp2_env,C,Auto,&
-                                     kind_of,qs_env,rho,hfx_sections,para_env, &
+                                     kind_of,qs_env,rho,para_env, &
                                      unit_nr,error)
        END IF
 
@@ -790,7 +790,6 @@ MODULE mp2
 !> \param Emp2_ex ...
 !> \param qs_env ...
 !> \param rho ...
-!> \param hfx_sections ...
 !> \param para_env ...
 !> \param unit_nr ...
 !> \param C_j ...
@@ -798,7 +797,7 @@ MODULE mp2
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE mp2_direct_energy(dimen,occ_i,occ_j,mp2_biel,mp2_env,C_i,Auto_i,Emp2,Emp2_Cou,Emp2_ex,&
-                               qs_env,rho,hfx_sections,para_env, &
+                               qs_env,rho,para_env, &
                                unit_nr,C_j,Auto_j,error)
     INTEGER                                  :: dimen, occ_i, occ_j
     TYPE(mp2_biel_type)                      :: mp2_biel
@@ -808,7 +807,6 @@ MODULE mp2
     REAL(KIND=dp)                            :: Emp2, Emp2_Cou, Emp2_ex
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(section_vals_type), POINTER         :: hfx_sections
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: unit_nr
     REAL(KIND=dp), DIMENSION(dimen, dimen), &
@@ -1068,12 +1066,12 @@ MODULE mp2
          DEALLOCATE(ij_list_proc_temp)
 
          IF(.NOT.alpha_beta_case) THEN
-           CALL mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,hfx_sections,para_env_sub,&
+           CALL mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,para_env_sub,&
                                         mp2_biel,dimen,C_i,Auto_i,i_batch_start,Ni_occupied,occ_i,&
                                         elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start,&
                                         error=error)
          ELSE
-           CALL mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,hfx_sections,para_env_sub,&
+           CALL mp2_canonical_direct_single_batch(Emp2,Emp2_Cou,Emp2_ex,mp2_env,qs_env,rho,para_env_sub,&
                                         mp2_biel,dimen,C_i,Auto_i,i_batch_start,Ni_occupied,occ_i,&
                                         elements_ij_proc, ij_list_proc,Nj_occupied,j_batch_start,&
                                         occ_j,C_j,Auto_j,error=error)

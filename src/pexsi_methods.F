@@ -461,7 +461,7 @@ CONTAINS
       error)
 
     ! convert to spin restricted before passing number of electrons to PEXSI
-    CALL convert_nspin_cp2k_pexsi(cp2k_to_pexsi, pexsi_env%nspin, &
+    CALL convert_nspin_cp2k_pexsi(cp2k_to_pexsi, &
                     numElectron=nelectron_exact_pexsi, error=error)
 
     ! Call DFT driver of PEXSI doing the actual calculation
@@ -520,7 +520,7 @@ CONTAINS
     CALL cp_dbcsr_copy(matrix_w%matrix, pexsi_env%dbcsr_template_matrix_nonsym, error=error)
 
     ! Convert to spin unrestricted
-    CALL convert_nspin_cp2k_pexsi(pexsi_to_cp2k, pexsi_env%nspin, matrix_p = matrix_p, & 
+    CALL convert_nspin_cp2k_pexsi(pexsi_to_cp2k, matrix_p = matrix_p, & 
                                   matrix_w = matrix_w, kTS = kTS, error = error)
 
     ! Pass resulting mu as initial guess for next SCF to PEXSI

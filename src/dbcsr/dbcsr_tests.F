@@ -253,7 +253,7 @@ CONTAINS
 
     SELECT CASE (test_type)
     CASE(dbcsr_test_mm)
-       CALL test_multiplies_multiproc (mp_group, group_sizes,&
+       CALL test_multiplies_multiproc (group_sizes,&
             matrix_a, matrix_b, matrix_c, t_a, t_b,&
             dbcsr_scalar (REAL(alpha, real_8)), dbcsr_scalar (REAL(beta, real_8)),&
             n_loops=n_loops, eps=eps,&
@@ -367,7 +367,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Performs a variety of matrix multiplies of same matrices on different
 !>        processor grids
-!> \param[in] mp_group          MPI communicator
 !> \param[in] group_sizes       array of (sub) communicator
 !>                              sizes to test (2-D)
 !> \param matrix_a matrices to multiply
@@ -384,12 +383,11 @@ CONTAINS
 !> \param[in] io_unit           which unit to write to, if not negative
 !> \param always_checksum ...
 ! *****************************************************************************
-  SUBROUTINE test_multiplies_multiproc (mp_group, group_sizes,&
+  SUBROUTINE test_multiplies_multiproc (group_sizes,&
        matrix_a, matrix_b, matrix_c,&
        transa, transb, alpha, beta, limits, retain_sparsity,&
        n_loops, eps,&
        io_unit, always_checksum)
-    INTEGER, INTENT(IN)                      :: mp_group
     INTEGER, DIMENSION(:, :)                 :: group_sizes
     TYPE(dbcsr_obj), INTENT(in)              :: matrix_a, matrix_b, matrix_c
     CHARACTER, INTENT(in)                    :: transa, transb
