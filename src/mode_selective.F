@@ -497,11 +497,15 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: hes_filename
     INTEGER                                  :: hesunit, i, j, jj, k, natoms, &
-                                                ncoord, stat
+                                                ncoord, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_val, norm
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_io_unit(logger)
 
     natoms=SIZE(particles)
     ncoord=3*natoms
@@ -527,11 +531,13 @@ CONTAINS
           READ(UNIT=hesunit,IOSTAT=stat) ms_vib%hes_bfgs(:,i)
        ENDDO
        CALL close_file(hesunit)
-       IF (stat /= 0) THEN
-          WRITE(*,FMT="(/,T2,A)")"**  Error while reading HESSIAN **"
-       ELSE
-          WRITE(*,FMT="(/,T2,A)")&
-               "*** Initial Hessian has been read successfully ***"
+       IF (output_unit > 0) THEN
+          IF (stat /= 0) THEN
+             WRITE(output_unit,FMT="(/,T2,A)")"**  Error while reading HESSIAN **"
+          ELSE
+             WRITE(output_unit,FMT="(/,T2,A)")&
+                  "*** Initial Hessian has been read successfully ***"
+          END IF
        END IF
        DO i = 1, ncoord
           DO j = 1, ncoord
@@ -618,12 +624,17 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: ms_filename
     INTEGER                                  :: hesunit, i, j, mat, natoms, &
-                                                ncoord, stat, statint
+                                                ncoord, output_unit, stat, &
+                                                statint
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ind
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenval
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: approx_H
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_io_unit(logger)
 
     natoms=SIZE(particles)
     ncoord=3*natoms
@@ -660,13 +671,15 @@ CONTAINS
        READ(UNIT=hesunit,IOSTAT=stat)ms_vib%b_mat
        READ(UNIT=hesunit,IOSTAT=stat)ms_vib%s_mat
        IF(calc_intens) READ(UNIT=hesunit,IOSTAT=statint)ms_vib%dip_deriv(:,1:ms_vib%mat_size)
-       IF(statint/=0) WRITE(*,FMT="(/,T2,A)")"**  Error while reading MS_RESTART,",&
+       IF(statint/=0 .AND. output_unit > 0) WRITE(output_unit,FMT="(/,T2,A)")"**  Error while reading MS_RESTART,",&
             "intensities are requested but not present in restart file **"
        CALL close_file(hesunit)
-       IF (stat /= 0) THEN
-          WRITE(*,FMT="(/,T2,A)")"**  Error while reading MS_RESTART **"
-       ELSE
-          WRITE(*,FMT="(/,T2,A)")"*** RESTART has been read successfully ***"
+       IF (output_unit > 0) THEN
+          IF (stat /= 0) THEN
+             WRITE(output_unit,FMT="(/,T2,A)")"**  Error while reading MS_RESTART **"
+          ELSE
+             WRITE(output_unit,FMT="(/,T2,A)")"*** RESTART has been read successfully ***"
+          END IF
        END IF
     END IF
     CALL mp_bcast(ms_vib%b_mat,para_env%source,para_env%group)
@@ -745,7 +758,8 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: ms_filename
     CHARACTER(LEN=max_line_length)           :: info
     INTEGER                                  :: i, istat, iw, j, jj, k, &
-                                                nvibs, output_molden, stat
+                                                nvibs, output_molden, &
+                                                output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_val, norm
@@ -757,6 +771,8 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_io_unit(logger)
+
     CALL section_vals_val_get(ms_vib_section,"RESTART_FILE_NAME",c_val=ms_filename,&
             error=error)
     IF(ms_filename=="") output_molden=cp_print_key_unit_nr(logger,input,&
@@ -819,10 +835,12 @@ CONTAINS
           END DO
        END DO
        IF(ms_filename.NE."")  CALL close_file(iw)
-       IF (istat /= 0) THEN
-          WRITE(*,FMT="(/,T2,A)")"**  Error while reading MOLDEN file **"
-       ELSE
-          WRITE(*,FMT="(/,T2,A)")"*** MOLDEN file has been read successfully ***"
+       IF (output_unit > 0) THEN
+          IF (istat /= 0) THEN
+             WRITE(output_unit,FMT="(/,T2,A)")"**  Error while reading MOLDEN file **"
+          ELSE
+             WRITE(output_unit,FMT="(/,T2,A)")"*** MOLDEN file has been read successfully ***"
+          END IF
        END IF
        !!!!!!!    select modes     !!!!!!
        ALLOCATE(tmp(nvibs),stat=stat)

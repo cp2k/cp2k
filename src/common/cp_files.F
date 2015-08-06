@@ -479,7 +479,7 @@ CONTAINS
        WRITE (UNIT=debug_unit,FMT="(T3,A)") "FORM    : "//TRIM(ADJUSTL(form_string))
        WRITE (UNIT=debug_unit,FMT="(T3,A)") "ACTION  : "//TRIM(ADJUSTL(action_string))
        WRITE (UNIT=debug_unit,FMT="(T2,A)") "END DEBUG "//TRIM(ADJUSTL(routineN))
-       CALL print_preconnection_list()
+       CALL print_preconnection_list(debug_unit)
     END IF
 
   END SUBROUTINE open_file
@@ -585,33 +585,43 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Print the list of preconnected units
+!> \param output_unit which unit to print to (optional)
 !> \par History
 !>      - Creation (22.02.2011,MK)
 !> \author Matthias Krack (MK)
 ! *****************************************************************************
-  SUBROUTINE print_preconnection_list()
+  SUBROUTINE print_preconnection_list(output_unit)
+    INTEGER, INTENT(IN), OPTIONAL            :: output_unit
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_preconnection_list', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ic, nc
+    INTEGER                                  :: ic, nc, unit
+
+    IF (PRESENT(output_unit)) THEN
+      unit = output_unit
+    ELSE
+      unit = default_output_unit
+    ENDIF
 
     nc = SIZE(preconnected)
 
-    WRITE (UNIT=default_output_unit,FMT="(A,/,A)")&
-      " LIST OF PRECONNECTED LOGICAL UNITS",&
-      "  Slot   Unit number   File name"
-    DO ic=1,nc
-       IF (preconnected(ic)%unit_number > 0) THEN
-          WRITE (UNIT=default_output_unit,FMT="(I6,3X,I6,8X,A)")&
-            ic,preconnected(ic)%unit_number,&
-            TRIM(ADJUSTL(preconnected(ic)%file_name))
-       ELSE
-          WRITE (UNIT=default_output_unit,FMT="(I6,17X,A)")&
-            ic,"UNUSED"
-       END IF
-    END DO
+    IF (output_unit > 0) THEN
 
+       WRITE (UNIT=output_unit,FMT="(A,/,A)")&
+         " LIST OF PRECONNECTED LOGICAL UNITS",&
+         "  Slot   Unit number   File name"
+       DO ic=1,nc
+          IF (preconnected(ic)%unit_number > 0) THEN
+             WRITE (UNIT=output_unit,FMT="(I6,3X,I6,8X,A)")&
+               ic,preconnected(ic)%unit_number,&
+               TRIM(ADJUSTL(preconnected(ic)%file_name))
+          ELSE
+             WRITE (UNIT=output_unit,FMT="(I6,17X,A)")&
+               ic,"UNUSED"
+          END IF
+       END DO
+    END IF
   END SUBROUTINE print_preconnection_list
 
 END MODULE cp_files

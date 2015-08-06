@@ -102,16 +102,21 @@ CONTAINS
           ! Umbrella Integration..
           CALL force_env_get(force_env, subsys=subsys, error=error)
           fe_env%nr_points = fe_env%nr_points + 1
+          output_unit = cp_logger_get_default_io_unit(logger)
           DO ic=1,fe_env%ncolvar
              cv => fe_env%uivar(ic)
              icolvar = cv%icolvar
              CALL colvar_eval_glob_f(icolvar,force_env,error=error)
              CALL reallocate(cv%ss,1,fe_env%nr_points)
              cv%ss(fe_env%nr_points) = subsys%colvar_p(icolvar)%colvar%ss
-             WRITE(*,*)"COLVAR::",cv%ss(fe_env%nr_points)
+             IF (output_unit > 0) THEN
+                WRITE(output_unit,*)"COLVAR::",cv%ss(fe_env%nr_points)
+             END IF
           END DO
           stat_sign_points = fe_env%nr_points - fe_env%nr_rejected
-          WRITE(*,*)fe_env%nr_points, stat_sign_points
+          IF (output_unit > 0) THEN
+             WRITE(output_unit,*)fe_env%nr_points, stat_sign_points
+          END IF
           ! Start statistical analysis when enough CG data points have been collected
           IF ( (fe_env%conv_par%cg_width*fe_env%conv_par%cg_points <= stat_sign_points).AND.&
                (MOD(stat_sign_points,fe_env%conv_par%cg_width)==0) ) THEN
@@ -157,7 +162,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Print prolog of free energy output section
-!> \param output_unit ...
+!> \param output_unit which unit to print to
 !> \param error ...
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
@@ -177,7 +182,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Print epilog of free energy output section
-!> \param output_unit ...
+!> \param output_unit which unit to print to
 !> \param error ...
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
@@ -199,7 +204,7 @@ CONTAINS
 !> \param fe_env ...
 !> \param trend_free ...
 !> \param nr_points ...
-!> \param output_unit ...
+!> \param output_unit which unit to print to
 !> \param error ...
 !> \par History
 !>      Teodoro Laino (01.2007) [tlaino]
@@ -227,13 +232,15 @@ CONTAINS
     test_std   = .TRUE.
     ncolvar    = fe_env%ncolvar
     ! Number of coarse grained points
-    WRITE(*,*)nr_points, fe_env%conv_par%cg_width
+    IF (output_unit>0) THEN
+       WRITE(output_unit,*)nr_points, fe_env%conv_par%cg_width
+    END IF
     ng_points = nr_points/fe_env%conv_par%cg_width
     my_reject = 0
     ! Allocate storage
     CALL create_tmp_data(fe_env,wrk,ng_points,ncolvar,error)
     ! Compute the Coarse Grained data set using a reverse cumulative strategy
-    CALL create_csg_data(fe_env,ng_points,error)
+    CALL create_csg_data(fe_env,ng_points,output_unit,error)
     ! Test on coarse grained average
     DO j = 1, ncolvar
        ii = 1
@@ -377,13 +384,14 @@ CONTAINS
 !> \brief Fills in temporary arrays with coarse grained data
 !> \param fe_env ...
 !> \param ng_points ...
+!> \param output_unit which unit to print to
 !> \param error ...
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE create_csg_data(fe_env,ng_points,error)
+  SUBROUTINE create_csg_data(fe_env,ng_points,output_unit,error)
     TYPE(free_energy_type), POINTER          :: fe_env
-    INTEGER, INTENT(IN)                      :: ng_points
+    INTEGER, INTENT(IN)                      :: ng_points, output_unit
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_csg_data', &
@@ -394,8 +402,10 @@ CONTAINS
     DO i = 1, ng_points
        istart = fe_env%nr_points -    (i)*fe_env%conv_par%cg_width + 1
        iend   = fe_env%nr_points -  (i-1)*fe_env%conv_par%cg_width
-       WRITE(*,*)istart, iend
-       CALL eval_cov_matrix(fe_env,cg_index=i,istart=istart,iend=iend,error=error)
+       IF (output_unit > 0) THEN
+          WRITE(output_unit,*)istart, iend
+       END IF
+       CALL eval_cov_matrix(fe_env,cg_index=i,istart=istart,iend=iend,output_unit=output_unit,error=error)
     END DO
 
   END SUBROUTINE create_csg_data
@@ -406,7 +416,7 @@ CONTAINS
 !> \param fe_env ...
 !> \param test_passed ...
 !> \param nr_points ...
-!> \param output_unit ...
+!> \param output_unit which unit to print to
 !> \param error ...
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
@@ -434,7 +444,9 @@ CONTAINS
        test_passed = fe_env%conv_par%test_vn.AND.fe_env%conv_par%test_sw
        IF (test_passed) EXIT
        fe_env%conv_par%cg_width = fe_env%conv_par%cg_width + 1
-       WRITE(*,*)"New coarse grained width:",fe_env%conv_par%cg_width
+       IF (output_unit > 0) THEN
+          WRITE(output_unit,*)"New coarse grained width:",fe_env%conv_par%cg_width
+       END IF
     END DO
     IF (fe_env%conv_par%cg_width==fe_env%conv_par%max_cg_width.AND.(.NOT.(test_passed))) THEN
        CALL ui_check_norm_sc_low(fe_env,nr_points,output_unit,error)
@@ -448,7 +460,7 @@ CONTAINS
 !>      coarse grained data - Low Level routine
 !> \param fe_env ...
 !> \param nr_points ...
-!> \param output_unit ...
+!> \param output_unit which unit to print to
 !> \param error ...
 !> \par History
 !>      Teodoro Laino (02.2007) [tlaino]
@@ -479,7 +491,7 @@ CONTAINS
     sdv_test_passed = .TRUE.
     ng_points = nr_points/fe_env%conv_par%cg_width
     CALL create_tmp_data(fe_env,wrk,ng_points,ncolvar,error)
-    CALL create_csg_data(fe_env,ng_points,error)
+    CALL create_csg_data(fe_env,ng_points,output_unit,error)
     ! Testing Averages
     DO j = 1, ncolvar
        DO i = 1, ng_points
@@ -545,7 +557,7 @@ CONTAINS
 !> \param fe_env ...
 !> \param converged ...
 !> \param nr_points ...
-!> \param output_unit ...
+!> \param output_unit which unit to print to
 !> \param error ...
 !> \par History
 !>      Teodoro Laino (01.2007) [tlaino]
@@ -577,7 +589,7 @@ CONTAINS
        ! We can finally compute the error on average and covariance matrix
        ! and check if we converged..
        CALL create_tmp_data(fe_env,ng_points=ng_points,ncolvar=ncolvar,error=error)
-       CALL create_csg_data(fe_env,ng_points,error)
+       CALL create_csg_data(fe_env,ng_points,output_unit,error)
        ALLOCATE(covmx(ncolvar,ncolvar),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(avgmx(ncolvar),stat=stat)
@@ -597,8 +609,10 @@ CONTAINS
 
        ! Compute errors on average and standard deviation
        CALL compute_avg_std_errors(fe_env, ncolvar, avgmx, covmx, avg_std, cov_std, error)
-       WRITE(*,*)"pippo",avgmx, covmx
-       WRITE(*,*)"pippo",avg_std, cov_std
+       IF (output_unit>0) THEN 
+          WRITE(output_unit,*)"pippo",avgmx, covmx
+          WRITE(output_unit,*)"pippo",avg_std, cov_std
+       END IF
        ! Convergence of the averages
        max_error_avg = SQRT(MAXVAL(ABS(avg_std))/REAL(ng_points,KIND=dp))/MINVAL(avgmx)
        max_error_std = SQRT(MAXVAL(ABS(cov_std))/REAL(ng_points,KIND=dp))/MINVAL(covmx)
@@ -771,15 +785,17 @@ CONTAINS
 !> \param cg_index ...
 !> \param istart ...
 !> \param iend ...
+!> \param output_unit which unit to print to
 !> \param covmx ...
 !> \param avgs ...
 !> \param error ...
 !> \par History
 !>      Teodoro Laino (01.2007) [tlaino]
 ! *****************************************************************************
-  SUBROUTINE eval_cov_matrix(fe_env,cg_index,istart,iend,covmx,avgs,error)
+  SUBROUTINE eval_cov_matrix(fe_env,cg_index,istart,iend,output_unit,covmx,avgs,error)
     TYPE(free_energy_type), POINTER          :: fe_env
-    INTEGER, INTENT(IN)                      :: cg_index, istart, iend
+    INTEGER, INTENT(IN)                      :: cg_index, istart, iend, &
+                                                output_unit
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: covmx
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
@@ -830,7 +846,9 @@ CONTAINS
              fe_env%cg_data(cg_index)%var(ic,jc) = fe_env%cg_data(cg_index)%var(jc,ic)
           END DO
        END DO
-       WRITE(*,*)"eval_cov_matrix",istart, iend,  fe_env%cg_data(cg_index)%avg, fe_env%cg_data(cg_index)%var
+       IF (output_unit > 0) THEN
+          WRITE(output_unit,*)"eval_cov_matrix",istart, iend,  fe_env%cg_data(cg_index)%avg, fe_env%cg_data(cg_index)%var
+       END IF
        IF (PRESENT(covmx)) covmx = fe_env%cg_data(cg_index)%var
        IF (PRESENT(avgs))  avgs  = fe_env%cg_data(cg_index)%avg
     END IF

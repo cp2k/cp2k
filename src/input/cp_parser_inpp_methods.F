@@ -20,7 +20,6 @@ MODULE cp_parser_inpp_methods
   USE cp_parser_inpp_types,            ONLY: inpp_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length
-  USE machine,                         ONLY: default_output_unit
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: is_whitespace,&
                                              uppercase
@@ -67,9 +66,13 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: cond1, cond2, filename, &
                                                 mytag, value, varname
     CHARACTER(LEN=max_message_length)        :: message
-    INTEGER                                  :: i, indf, indi, istat, pos1, &
-                                                pos2, unit
+    INTEGER                                  :: i, indf, indi, istat, &
+                                                output_unit, pos1, pos2, unit
     LOGICAL                                  :: check, failure
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_io_unit(logger)
 
     failure = .TRUE.
     CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,error,failure)
@@ -144,11 +147,11 @@ CONTAINS
                       file_action="READ",&
                       unit_number=unit)
 
-       IF (debug_this_module) THEN
+       IF (debug_this_module .AND. output_unit > 0) THEN
           WRITE(UNIT=message,FMT="(3A,I6,2A)") "INPP_@INCLUDE: in file: ",&
                TRIM(input_file_name),"  Line:",input_line_number,&
                " Opened include file: ",TRIM(filename)
-          WRITE(default_output_unit,*) TRIM(message)
+          WRITE(output_unit,*) TRIM(message)
        END IF
 
        ! make room, save status and position the parser at the beginning of new file.
@@ -207,20 +210,20 @@ CONTAINS
           CALL reallocate(p_long=inpp%variable_value,lb_new=1,ub_new=inpp%num_variables)
           inpp%variable_name(inpp%num_variables)=varname
           inpp%variable_value(inpp%num_variables)=value
-          IF (debug_this_module) THEN
+          IF (debug_this_module .AND. output_unit > 0) THEN
              WRITE(UNIT=message,FMT="(3A,I6,4A)") "INPP_@SET: in file: ",&
                   TRIM(input_file_name),"  Line:",input_line_number,&
                   " Set new variable ", TRIM(varname), " to value: ",TRIM(value)
-             WRITE(default_output_unit,*) TRIM(message)
+             WRITE(output_unit,*) TRIM(message)
           END IF
        ELSE
           ! reassign variable
-          IF (debug_this_module) THEN
+          IF (debug_this_module .AND. output_unit > 0) THEN
              WRITE(UNIT=message,FMT="(3A,I6,6A)") "INPP_@SET: in file: ",&
                   TRIM(input_file_name),"  Line:",input_line_number,&
                   " Change variable ", TRIM(varname), " from value: ",&
                   TRIM(inpp%variable_value(indi)), " to value: ",TRIM(value)
-             WRITE(default_output_unit,*) TRIM(message)
+             WRITE(output_unit,*) TRIM(message)
           END IF
           inpp%variable_value(indi)=value
        ENDIF
@@ -305,31 +308,31 @@ CONTAINS
        ENDIF
 
        IF ((TRIM(cond1)==TRIM(cond2)) .EQV. check) THEN
-          IF (debug_this_module) THEN
+          IF (debug_this_module .AND. output_unit > 0) THEN
              WRITE(UNIT=message,FMT="(3A,I6,A)") "INPP_@IF: in file: ",&
                   TRIM(input_file_name),"  Line:",input_line_number,&
                   " Conditional ("//TRIM(cond1)//","//TRIM(cond2)//&
                   ") resolves to true. Continuing parsing."
-             WRITE(default_output_unit,*) TRIM(message)
+             WRITE(output_unit,*) TRIM(message)
           END IF
           ! resolves to true. keep on reading normally...
           RETURN
        ELSE
-          IF (debug_this_module) THEN
+          IF (debug_this_module .AND. output_unit > 0) THEN
              WRITE(UNIT=message,FMT="(3A,I6,A)") "INPP_@IF: in file: ",&
                   TRIM(input_file_name),"  Line:",input_line_number,&
                   " Conditional ("//TRIM(cond1)//","//TRIM(cond2)//&
                   ") resolves to false. Skipping Lines."
-             WRITE(default_output_unit,*) TRIM(message)
+             WRITE(output_unit,*) TRIM(message)
           END IF
           istat=0
           DO WHILE(istat==0)
              input_line_number = input_line_number + 1
              READ (UNIT=input_unit,FMT="(A)",IOSTAT=istat) input_line
-             IF (debug_this_module) THEN
+             IF (debug_this_module .AND. output_unit > 0) THEN
                 WRITE(UNIT=message,FMT="(1A,I6,2A)") "INPP_@IF: skipping line ",&
                   input_line_number, ": ",TRIM(input_line)
-                WRITE(default_output_unit,*) TRIM(message)
+                WRITE(output_unit,*) TRIM(message)
              END IF
 
              indi = INDEX(input_line,"@")
@@ -351,7 +354,9 @@ CONTAINS
              CALL uppercase(mytag)
              IF(INDEX(mytag,"@ENDIF")>0) THEN
                 ! ok found it. go back to normal
-                IF (debug_this_module) WRITE(default_output_unit,*) "INPP_@IF: found @ENDIF. End of skipping."
+                IF (debug_this_module .AND. output_unit > 0) THEN
+                   WRITE(output_unit,*) "INPP_@IF: found @ENDIF. End of skipping."
+                END IF
                 RETURN
              ENDIF
           END DO
@@ -364,16 +369,20 @@ CONTAINS
        ENDIF
 
     CASE ("@ENDIF")
-       IF (debug_this_module) WRITE(default_output_unit,*) "INPP_@IF: found @ENDIF in normal parsing. Ignoring it."
+       IF (debug_this_module .AND. output_unit > 0) THEN
+          WRITE(output_unit,*) "INPP_@IF: found @ENDIF in normal parsing. Ignoring it."
+       END IF
        ! nothing to do. just return to skip the line.
        RETURN
 
     CASE ("@PRINT")
        ! for debugging of variables etc.
-       WRITE(UNIT=message,FMT="(3A,I6,2A)") "INPP_@PRINT: in file: ",&
-            TRIM(input_file_name),"  Line:",input_line_number,&
-            " Text: ",TRIM(input_line(indf:))
-       WRITE(default_output_unit,*) TRIM(message)
+       IF (output_unit > 0) THEN
+          WRITE(UNIT=message,FMT="(3A,I6,2A)") "INPP_@PRINT: in file: ",&
+               TRIM(input_file_name),"  Line:",input_line_number,&
+               " Text: ",TRIM(input_line(indf:))
+          WRITE(output_unit,*) TRIM(message)
+       END IF
        RETURN
        ! Do Nothing..
     END SELECT

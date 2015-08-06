@@ -1297,16 +1297,16 @@ CPSourceFileRef,&
           END SELECT
           SELECT CASE (dft_control%sccs_control%derivative_method)
           CASE (sccs_derivative_fft)
-             WRITE (UNIT=*,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
+             WRITE (UNIT=output_unit,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
               ADJUSTR("FFT")
           CASE (sccs_derivative_cd3)
-             WRITE (UNIT=*,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
+             WRITE (UNIT=output_unit,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
               ADJUSTR("3-point stencil central differences")
           CASE (sccs_derivative_cd5)
-             WRITE (UNIT=*,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
+             WRITE (UNIT=output_unit,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
               ADJUSTR("5-point stencil central differences")
           CASE (sccs_derivative_cd7)
-             WRITE (UNIT=*,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
+             WRITE (UNIT=output_unit,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
               ADJUSTR("7-point stencil central differences")
           CASE DEFAULT
              CALL stop_program(routineN,moduleN,__LINE__,&

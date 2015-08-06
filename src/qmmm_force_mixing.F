@@ -83,7 +83,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: adaptive_exclude_molecules(:)
     INTEGER :: i_rep_section, i_rep_val, ip, max_n_qm, n_new, n_rep_exclude, &
-      n_rep_section, n_rep_val, natoms, QM_extended_seed_min_label_val
+      n_rep_section, n_rep_val, natoms, output_unit, &
+      QM_extended_seed_min_label_val
     INTEGER, ALLOCATABLE                     :: new_full_labels(:), &
                                                 orig_full_labels(:)
     INTEGER, POINTER :: broken_bonds(:), cur_indices(:), cur_labels(:), &
@@ -93,6 +94,7 @@ CONTAINS
     REAL(dp), ALLOCATABLE                    :: nearest_dist(:)
     REAL(dp), POINTER                        :: r_buf(:), r_core(:), r_qm(:)
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nlist
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(molecule_type), DIMENSION(:), &
@@ -104,6 +106,9 @@ CONTAINS
                                                 non_adaptive_section, &
                                                 qm_kind_section, &
                                                 restart_section
+
+    logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_io_unit(logger)
 
 IF (debug_this_module) PRINT *, "BOB starting update_force_mixing_labels"
     ! get cur indices, labels
@@ -289,8 +294,8 @@ IF (debug_this_module) PRINT *, "BOB buffer new_labels ",new_labels(1:n_new)
      CALL fist_neighbor_deallocate(nlist,error)
 
      ![NB] perhap be controlled by some &PRINT section?
-     IF (force_env%para_env%ionode) THEN
-       WRITE(unit=*, fmt='(A,A,I6,A,I5,A,I5,A,I5)') &
+     IF (force_env%para_env%ionode .AND. output_unit > 0) THEN
+       WRITE(unit=output_unit, fmt='(A,A,I6,A,I5,A,I5,A,I5)') &
           "QMMM FORCE MIXING final count (not including links): ",&
           " N_QM core_list ", COUNT(new_labels == force_mixing_label_QM_core_list), &
           " N_QM core ",      COUNT(new_labels == force_mixing_label_QM_core), &

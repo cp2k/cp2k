@@ -790,7 +790,8 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: section_label, section_name
     INTEGER                                  :: handle, i, idx, input_unit, &
-                                                istat, j, nhc_size
+                                                istat, j, nhc_size, &
+                                                output_unit
     LOGICAL                                  :: debug, failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rbuf
     TYPE(cp_logger_type), POINTER            :: logger
@@ -804,6 +805,8 @@ CONTAINS
     ! Set to .TRUE. for debug mode, i.e. all data read are written to stdout
     NULLIFY (logger)
     logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_io_unit(logger)
+
     IF (logger%iter_info%print_level >= debug_print_level) THEN
        debug = .TRUE.
     ELSE
@@ -834,8 +837,8 @@ CONTAINS
                             "> does not match the requested section name <"//&
                             TRIM(section_name)//">.")
        END IF
-       IF (debug) THEN
-          WRITE (UNIT=*,FMT="(T2,A,/,T2,A,I0)")&
+       IF (debug .AND. output_unit > 0) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,/,T2,A,I0)")&
             "BEGIN of "//TRIM(ADJUSTL(section_label))//&
             " section data read in binary format from file "//&
             TRIM(binary_restart_file_name),&
@@ -859,8 +862,8 @@ CONTAINS
                                          "eta -> rbuf (IOSTAT = "//&
                                          TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                          input_unit,para_env)
-          IF (debug) THEN
-             WRITE (UNIT=*,FMT="(T2,A,/,(4(1X,ES25.16)))")&
+          IF (debug .AND. output_unit > 0) THEN
+             WRITE (UNIT=output_unit,FMT="(T2,A,/,(4(1X,ES25.16)))")&
                "&COORD",rbuf(1:nhc_size)
           END IF
        END IF
@@ -880,8 +883,8 @@ CONTAINS
                                          "veta -> rbuf (IOSTAT = "//&
                                          TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                          input_unit,para_env)
-          IF (debug) THEN
-             WRITE (UNIT=*,FMT="(T2,A,/,(4(1X,ES25.16)))")&
+          IF (debug .AND. output_unit > 0) THEN
+             WRITE (UNIT=output_unit,FMT="(T2,A,/,(4(1X,ES25.16)))")&
                "&VELOCITY",rbuf(1:nhc_size)
           END IF
        END IF
@@ -901,8 +904,8 @@ CONTAINS
                                          "mnhc -> rbuf (IOSTAT = "//&
                                          TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                          input_unit,para_env)
-          IF (debug) THEN
-             WRITE (UNIT=*,FMT="(T2,A,/,(4(1X,ES25.16)))")&
+          IF (debug .AND. output_unit > 0) THEN
+             WRITE (UNIT=output_unit,FMT="(T2,A,/,(4(1X,ES25.16)))")&
                "&MASS:",rbuf(1:nhc_size)
           END IF
        END IF
@@ -922,8 +925,8 @@ CONTAINS
                                          "fnhc -> rbuf (IOSTAT = "//&
                                          TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                          input_unit,para_env)
-          IF (debug) THEN
-             WRITE (UNIT=*,FMT="(T2,A,/,(4(1X,ES25.16)))")&
+          IF (debug .AND. output_unit > 0) THEN
+             WRITE (UNIT=output_unit,FMT="(T2,A,/,(4(1X,ES25.16)))")&
                "&FORCE",rbuf(1:nhc_size)
           END IF
        END IF
@@ -944,8 +947,8 @@ CONTAINS
     END IF
 
     IF (para_env%ionode) THEN
-       IF (debug) THEN
-          WRITE (UNIT=*,FMT="(T2,A)")&
+       IF (debug .AND. output_unit > 0 ) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A)")&
             "END of"//TRIM(ADJUSTL(section_label))//&
             " section data read in binary format from file "//&
             TRIM(binary_restart_file_name)

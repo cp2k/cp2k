@@ -133,10 +133,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'add_saop_pot', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dft_method_id, homo, i, &
-                                                ispin, j, k, nspins, orb, &
-                                                stat, xc_deriv_method_id, &
-                                                xc_rho_smooth_id
+    INTEGER :: dft_method_id, homo, i, ispin, j, k, nspins, orb, output_unit, &
+      stat, xc_deriv_method_id, xc_rho_smooth_id
     INTEGER, DIMENSION(2)                    :: ncol, nrow
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: compute_virial, failure, &
@@ -187,8 +185,9 @@ CONTAINS
     NULLIFY(orbital_density_matrix, dummy,xc_section_tmp,xc_fun_section_tmp)
     logger => cp_error_get_logger(error)
     ionode = (logger%para_env%mepos==logger%para_env%source)
+    output_unit = cp_logger_get_default_io_unit(logger)
 
-    IF (ionode) WRITE (*, *) " in "//routineP
+    IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) " in "//routineP
 
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&

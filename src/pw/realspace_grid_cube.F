@@ -230,13 +230,17 @@ CPSourceFileRef,&
 
     INTEGER                                  :: extunit, gid, handle, i, ip, &
                                                 j, k, master, my_rank, nat, &
-                                                ndum, num_pe, tag
+                                                ndum, num_pe, output_unit, tag
     INTEGER, DIMENSION(3)                    :: lbounds, lbounds_local, &
                                                 npoints, npoints_local, &
                                                 ubounds, ubounds_local
     LOGICAL                                  :: failure
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: buffer
     REAL(kind=dp), DIMENSION(3)              :: dr, rdum
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_io_unit(logger)
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
@@ -262,8 +266,10 @@ CPSourceFileRef,&
    !pw grids at most pencils - all processors have a full set of z data for x,y 
    ALLOCATE(buffer(lbounds(3):ubounds(3)))
 
-   IF ( my_rank == 0 ) THEN
-      WRITE(*,FMT="(/,(T3,A,T61,A30))")"Reading the cube file:     ",filename
+   IF ( my_rank == 0) THEN
+      IF (output_unit > 0) THEN
+         WRITE(output_unit,FMT="(/,(T3,A,T61,A30))")"Reading the cube file:     ",filename
+      END IF
 
       CALL open_file(file_name=filename,&
            file_status="OLD",&
@@ -278,10 +284,11 @@ CPSourceFileRef,&
       READ(extunit,*) nat,rdum
       DO i=1,3
          READ(extunit,*) ndum,rdum
-         IF (ndum/=npoints(i).OR.(ABS(rdum(i)-dr(i)) > 1e-4 )) THEN   
-            WRITE(*,*) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
-            WRITE(*,*) "Restart from density | ",ndum," DIFFERS FROM ", npoints(i) 
-            WRITE(*,*) "Restart from density | ",rdum," DIFFERS FROM ", dr(i)
+         IF ((ndum/=npoints(i).OR.(ABS(rdum(i)-dr(i)) > 1e-4 )) .AND. &
+             output_unit > 0) THEN   
+            WRITE(output_unit,*) "Restart from density | ERROR! | CUBE FILE NOT COINCIDENT WITH INTERNAL GRID ", i
+            WRITE(output_unit,*) "Restart from density | ",ndum," DIFFERS FROM ", npoints(i) 
+            WRITE(output_unit,*) "Restart from density | ",rdum," DIFFERS FROM ", dr(i)
          ENDIF
       ENDDO
       !ignore atomic postion data - read from coord or topology instead

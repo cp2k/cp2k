@@ -128,7 +128,7 @@ CONTAINS
     CHARACTER(LEN=30), DIMENSION(2), PARAMETER :: &
       keys = (/"PRINT%RESTART_HISTORY","PRINT%RESTART        "/)
 
-    INTEGER                                  :: handle, ikey, ires, &
+    INTEGER                                  :: handle, ikey, ires, log_unit, &
                                                 nforce_eval
     LOGICAL                                  :: failure, save_mem, &
                                                 write_binary_restart_file
@@ -160,6 +160,7 @@ CONTAINS
           CALL update_subsys_release(md_env,force_env,root_section,error)
           CALL update_motion_release(motion_section,error)
           DO ikey=1,SIZE(keys)
+             log_unit = cp_logger_get_default_io_unit(logger)
              IF (BTEST(cp_print_key_should_output(logger%iter_info,&
                        motion_section,keys(ikey),error=error),cp_p_file)) THEN
                 ires = cp_print_key_unit_nr(logger,motion_section,TRIM(keys(ikey)),&
@@ -170,7 +171,7 @@ CONTAINS
                                             file_status="UNKNOWN",&
                                             do_backup=(ikey==2),&
                                             error=error)
-                CALL write_binary_restart(ires,root_section,md_env,force_env,error=error)
+                CALL write_binary_restart(ires,log_unit,root_section,md_env,force_env,error=error)
                 CALL cp_print_key_finished_output(ires,logger,motion_section,&
                                                   TRIM(keys(ikey)),error=error)
              END IF
@@ -2334,7 +2335,8 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   Write all input sections scaling in size with the number of atoms
 !>          in the system to an external file in binary format
-!> \param output_unit ...
+!> \param output_unit binary file to write to
+!> \param log_unit unit for logging debug information
 !> \param root_section ...
 !> \param md_env ...
 !> \param force_env ...
@@ -2344,10 +2346,10 @@ CONTAINS
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_binary_restart(output_unit,root_section,md_env,force_env,&
+  SUBROUTINE write_binary_restart(output_unit,log_unit,root_section,md_env,force_env,&
                                   error)
 
-    INTEGER, INTENT(IN)                      :: output_unit
+    INTEGER, INTENT(IN)                      :: output_unit, log_unit
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
@@ -2408,11 +2410,14 @@ CONTAINS
     END IF
 
     CALL section_vals_val_get(root_section,"GLOBAL%PRINT_LEVEL",i_val=print_level,error=error)
+
     IF (print_level > 1) THEN
        print_info = .TRUE.
     ELSE
        print_info = .FALSE.
     END IF
+
+    
 
     CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=run_type,error=error)
     write_velocities = ((run_type == mol_dyn_run).OR.&
@@ -2463,14 +2468,16 @@ CONTAINS
                                "> which should be linked to the binary restart file",&
                                para_env)
           END IF
-          WRITE (UNIT=*,FMT="(T2,A,/,/,(T3,A,T71,I10))")&
-            "Writing binary restart file "//TRIM(ADJUSTL(binary_restart_file_name)),&
-            "Number of atomic kinds:",natomkind,&
-            "Number of atoms:",natom,&
-            "Number of cores (only core-shell model):",ncore,&
-            "Number of shells (only core-shell model):",nshell,&
-            "Number of molecule kinds:",nmoleculekind,&
-            "Number of molecules",nmolecule
+          IF (log_unit > 0) THEN
+             WRITE (UNIT=log_unit,FMT="(T2,A,/,/,(T3,A,T71,I10))")&
+               "Writing binary restart file "//TRIM(ADJUSTL(binary_restart_file_name)),&
+               "Number of atomic kinds:",natomkind,&
+               "Number of atoms:",natom,&
+               "Number of cores (only core-shell model):",ncore,&
+               "Number of shells (only core-shell model):",nshell,&
+               "Number of molecule kinds:",nmoleculekind,&
+               "Number of molecules",nmolecule
+          END IF
 
           n_int_size = n_int_size + 6
        END IF
@@ -2662,7 +2669,7 @@ CONTAINS
        ! Nose-Hoover thermostats
        IF (thermostat_part%type_of_thermostat == do_thermo_nose) THEN
           nhc => thermostat_part%nhc
-          CALL write_binary_thermostats_nose(nhc,output_unit,section_label,&
+          CALL write_binary_thermostats_nose(nhc,output_unit,log_unit,section_label,&
                                              n_char_size,n_dp_size,n_int_size,&
                                              print_info,para_env,error)
        END IF
@@ -2677,9 +2684,9 @@ CONTAINS
        ENDIF
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
-       IF (output_unit > 0) THEN ! only ionode
+       IF (output_unit > 0 .AND. log_unit > 0) THEN ! only ionode
           IF (print_info) THEN
-             WRITE (UNIT=*,FMT="(T3,A,T71,I10)")&
+             WRITE (UNIT=log_unit,FMT="(T3,A,T71,I10)")&
               "NHC size ("//TRIM(ADJUSTL(section_label))//")",nhc_size
           END IF
        END IF
@@ -2691,7 +2698,7 @@ CONTAINS
        ! Nose-Hoover thermostats
        IF (thermostat_shell%type_of_thermostat == do_thermo_nose) THEN
           nhc => thermostat_shell%nhc
-          CALL write_binary_thermostats_nose(nhc,output_unit,section_label,&
+          CALL write_binary_thermostats_nose(nhc,output_unit,log_unit,section_label,&
                                              n_char_size,n_dp_size,n_int_size,&
                                              print_info,para_env,error)
        END IF
@@ -2706,9 +2713,9 @@ CONTAINS
        ENDIF
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
-       IF (output_unit > 0) THEN ! only ionode
+       IF (output_unit > 0 .AND. log_unit > 0) THEN ! only ionode
           IF (print_info) THEN
-             WRITE (UNIT=*,FMT="(T3,A,T71,I10)")&
+             WRITE (UNIT=log_unit,FMT="(T3,A,T71,I10)")&
                "NHC size ("//TRIM(ADJUSTL(section_label))//")",nhc_size
           END IF
        END IF
@@ -2728,8 +2735,8 @@ CONTAINS
        ENDIF
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
-       IF (print_info) THEN
-          WRITE (UNIT=*,FMT="(T3,A,T78,A3)")&
+       IF (print_info .AND. log_unit > 0) THEN
+          WRITE (UNIT=log_unit,FMT="(T3,A,T78,A3)")&
             "Write "//TRIM(ADJUSTL(section_label))//" section",MERGE("YES"," NO",write_velocities)
        END IF
        IF (write_velocities) THEN
@@ -2758,8 +2765,8 @@ CONTAINS
                                        output_unit,para_env)
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
-       IF (print_info) THEN
-          WRITE (UNIT=*,FMT="(T3,A,T78,A3)")&
+       IF (print_info .AND. log_unit > 0) THEN
+          WRITE (UNIT=log_unit,FMT="(T3,A,T78,A3)")&
             "Write "//TRIM(ADJUSTL(section_label))//" section",MERGE("YES"," NO",write_velocities)
        END IF
        IF (nshell > 0) THEN
@@ -2789,8 +2796,8 @@ CONTAINS
                                        output_unit,para_env)
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
-       IF (print_info) THEN
-          WRITE (UNIT=*,FMT="(T3,A,T78,A3)")&
+       IF (print_info .AND. log_unit > 0) THEN
+          WRITE (UNIT=log_unit,FMT="(T3,A,T78,A3)")&
             "Write "//TRIM(ADJUSTL(section_label))//" section",MERGE("YES"," NO",write_velocities)
        END IF
        IF (ncore > 0) THEN
@@ -2815,12 +2822,12 @@ CONTAINS
 
     ! Optionally, print a small I/O statistics
     IF (output_unit > 0) THEN ! only ionode
-       IF (print_info) THEN
-          WRITE (UNIT=*,FMT="(/,(T2,I10,1X,I0,A,T68,I10,A))")&
+       IF (print_info .AND. log_unit > 0) THEN
+          WRITE (UNIT=log_unit,FMT="(/,(T2,I10,1X,I0,A,T68,I10,A))")&
             n_char_size,int_size,"-byte characters written",n_char_size*int_size/1024," KB",&
             n_dp_size,dp_size,"-byte floating point numbers written",n_dp_size*dp_size/1024," KB",&
             n_int_size,int_size,"-byte integer numbers written",n_int_size*int_size/1024," KB"
-          WRITE (UNIT=*,FMT="(/,T2,A)")&
+          WRITE (UNIT=log_unit,FMT="(/,T2,A)")&
             "Binary restart file "//TRIM(ADJUSTL(binary_restart_file_name))//" written"
        END IF
     END IF ! ionode only
@@ -2833,7 +2840,8 @@ CONTAINS
 !> \brief   Write an input section for Nose thermostats to an external file in
 !>          binary format
 !> \param nhc ...
-!> \param output_unit ...
+!> \param output_unit binary file to write to
+!> \param log_unit unit for logging debug information
 !> \param section_label ...
 !> \param n_char_size ...
 !> \param n_dp_size ...
@@ -2846,12 +2854,12 @@ CONTAINS
 !> \author  Matthias Krack (MK)
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE write_binary_thermostats_nose(nhc,output_unit,section_label,&
+  SUBROUTINE write_binary_thermostats_nose(nhc,output_unit,log_unit,section_label,&
                                            n_char_size,n_dp_size,n_int_size,&
                                            print_info,para_env,error)
 
     TYPE(lnhc_parameters_type), POINTER      :: nhc
-    INTEGER, INTENT(IN)                      :: output_unit
+    INTEGER, INTENT(IN)                      :: output_unit, log_unit
     CHARACTER(LEN=default_string_length), &
       INTENT(IN)                             :: section_label
     INTEGER, INTENT(INOUT)                   :: n_char_size, n_dp_size, &
@@ -2886,8 +2894,8 @@ CONTAINS
                                        output_unit,para_env)
        n_char_size = n_char_size + LEN(section_label)
        n_int_size = n_int_size + 1
-       IF (print_info) THEN
-          WRITE (UNIT=*,FMT="(T3,A,T71,I10)")&
+       IF (print_info .AND. log_unit > 0) THEN
+          WRITE (UNIT=log_unit,FMT="(T3,A,T71,I10)")&
             "NHC size ("//TRIM(ADJUSTL(section_label))//")",nhc_size
        END IF
        ! eta
