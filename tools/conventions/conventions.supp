@@ -114,55 +114,18 @@ cp_files.F: Found OPEN statement in procedure "open_file"
 cp_fm_basic_linalg.F: Unused dummy argument 'correct_sign' at (1)
 cp_fm_diag.F: Unused parameter 'vl' declared at (1)
 cp_fm_diag.F: Unused parameter 'vu' declared at (1)
-ct_methods.F: Unused dummy argument 'level' at (1)
-ct_methods.F: Unused dummy argument 'tensor_type' at (1)
-ct_types.F: Unused dummy argument 'matrix_x' at (1)
-cuda_profiling.F: Unused dummy argument 'routinen' at (1)
-dbcsr_dist_operations.F: Unused dummy argument 'multiplicity' at (1)
 dbcsr_dist_operations.F: Unused dummy argument 'transpose' at (1)
-dbcsr_dist_operations.F: Unused parameter 'dbg' declared at (1)
 dbcsr_geev.F: Unused dummy argument 'jobvl' at (1)
 dbcsr_geev.F: Unused dummy argument 'jobvr' at (1)
-dbcsr_lib.F: Unused dummy argument 'group' at (1)
-dbcsr_mm_cannon.F: Unused parameter 'rc_c' declared at (1)
-dbcsr_mm_cannon.F: Unused parameter 'rc_r' declared at (1)
-dbcsr_mm_csr.F: Unused dummy argument 'k_sizes' at (1)
-dbcsr_mm_csr.F: Unused dummy argument 'nf' at (1)
-dbcsr_mm_csr.F: Unused dummy argument 'ni' at (1)
-dbcsr_mm_csr.F: Unused parameter 'local_timing' declared at (1)
 dbcsr_mm_hostdrv.F: Unused dummy argument 'this' at (1)
 dbcsr_mm_hostdrv_c.f90: Unused dummy argument 'stack_descr' at (1)
 dbcsr_mm_hostdrv_d.f90: Unused dummy argument 'stack_descr' at (1)
 dbcsr_mm_hostdrv_s.f90: Unused dummy argument 'stack_descr' at (1)
 dbcsr_mm_hostdrv_z.f90: Unused dummy argument 'stack_descr' at (1)
-dbcsr_mm_multrec.F: Unused parameter 'dbg' declared at (1)
-dbcsr_mm_sched.F: Unused dummy argument 'this' at (1)
-dbcsr_operations.F: Unused dummy argument 'name' at (1)
-dbcsr_test_add.F: Unused parameter 'fmt_desc' declared at (1)
-dbcsr_test_add.F: Unused parameter 'trans' declared at (1)
 dbcsr_test_csr_conversions.F: Unused dummy argument 'nblkcols_total' at (1)
 dbcsr_test_csr_conversions.F: Unused dummy argument 'nblkrows_total' at (1)
-dbcsr_test_multiply.F: Unused parameter 'fmt_desc' declared at (1)
-dbcsr_test_multiply.F: Unused parameter 'fmt_per_run_local' declared at (1)
-dbcsr_test_multiply.F: Unused parameter 'fmt_per_run_total' declared at (1)
-dbcsr_tests.F: Unused dummy argument 'eps' at (1)
-dbcsr_tests.F: Unused dummy argument 'matrix_types' at (1)
 dbcsr_tests.F: Unused dummy argument 'mp_group' at (1)
-dbcsr_transformations.F: Unused parameter 'debug_level' declared at (1)
-dbcsr_transformations.F: Unused parameter 'metalen' declared at (1)
-dbcsr_work_operations.F: Unused dummy argument 'reuse' at (1)
-dbcsr_work_operations.F: Unused parameter 'index_blocks' declared at (1)
-dbcsr_work_operations.F: Unused parameter 'index_data' declared at (1)
-dkh_main.F: Unused dummy argument 'aa' at (1)
-dkh_main.F: Unused dummy argument 'e' at (1)
-dkh_main.F: Unused dummy argument 'n' at (1)
-dkh_main.F: Unused dummy argument 'rr' at (1)
-dkh_main.F: Unused dummy argument 'tt' at (1)
 dm_ls_scf.F: Unused dummy argument 'ls_scf_env' at (1)
-eip_environment.F: Unused dummy argument 'use_motion_section' at (1)
-eip_silicon.F: Found GOTO statement in procedure "eip_bazant_silicon"
-eip_silicon.F: Found GOTO statement in procedure "eip_lenosky_silicon"
-eip_silicon.F: Found GOTO statement in procedure "sublstiat_l"
 eip_silicon.F: Found OPEN statement in procedure "eip_bazant_silicon"
 eip_silicon.F: Found OPEN statement in procedure "eip_lenosky_silicon"
 erf_fn.F: Found GOTO statement in procedure "calerf"
@@ -172,11 +135,6 @@ farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
 fft_lib.F: Unused parameter 'dp' which has been explicitly imported at (1)
 fft_tools.F: Unused dummy argument 'group' at (1)
-fft_tools.F: Unused parameter 'cudahostallocmapped' declared at (1)
-fft_tools.F: Unused parameter 'cudahostallocportable' declared at (1)
-force_fields_all.F: Unused dummy argument 'amb_info' at (1)
-force_fields_input.F: Unused dummy argument 'mm_section' at (1)
-force_fields_input.F: Unused dummy argument 'para_env' at (1)
 fparser.F: Copyright banner malformed
 gauss_colloc.F: Found GOTO statement in procedure "collocgauss"
 gauss_colloc.F: Found GOTO statement in procedure "collocgaussflat"
@@ -185,27 +143,14 @@ gauss_colloc.F: Found GOTO statement in procedure "integrategaussfull"
 gauss_colloc.F: Found GOTO statement in procedure "integrategaussfullflat"
 glob_matching.F: Copyright banner malformed
 gopt_f77_methods.h: Copyright banner malformed
-gopt_f_methods.F: Unused dummy argument 'ediff' at (1)
 graph.F: Copyright banner malformed
 graph_methods.F: Copyright banner malformed
 graph_methods.F: Found OPEN statement in procedure "fes_cube_write"
 graph_utils.F: Copyright banner malformed
 graphcon.F: Found GOTO statement in procedure "all_permutations"
-helium_methods.F: Unused dummy argument 'pint_env' at (1)
-hfx_admm_utils.F: Unused dummy argument 'ks_env' at (1)
-hfx_communication.F: Unused dummy argument 'natom' at (1)
-hfx_energy_potential.F: Unused dummy argument 'anti_symmetric' at (1)
-input_cp2k_restarts.F: Unused dummy argument 'motion_section' at (1)
 k290.F: Found GOTO statement in procedure "mesh"
 k290.F: Found GOTO statement in procedure "sppt2"
-k290.F: Unused dummy argument 'iout' at (1)
-k290.F: Unused dummy argument 'nsp' at (1)
 library_tests.F: Routine PILAENV called with an implicit interface.
-library_tests.F: Unused dummy argument 'blacs_grid_layout' at (1)
-library_tests.F: Unused dummy argument 'blacs_repeatable' at (1)
-lri_ks_methods.F: Unused dummy argument 'para_env' at (1)
-lri_optimize_ri_basis.F: Unused dummy argument 'lri_env' at (1)
-lri_optimize_ri_basis.F: Unused dummy argument 'x' at (1)
 ma_affinity.F: Unused dummy argument 'id' at (1)
 ma_affinity.F: Unused dummy argument 'my_core' at (1)
 ma_affinity.F: Unused dummy argument 'my_node' at (1)
@@ -241,7 +186,6 @@ machine_architecture.F: Unused dummy argument 'unit_num' at (1)
 machine_internal.F: Found CLOSE statement in procedure "m_memory_details"
 machine_internal.F: Found OPEN statement in procedure "m_memory"
 machine_internal.F: Found OPEN statement in procedure "m_memory_details"
-manybody_potential.F: Unused dummy argument 'atprop_env' at (1)
 manybody_quip.F: Unused dummy argument 'atomic_kind_set' at (1)
 manybody_quip.F: Unused dummy argument 'cell' at (1)
 manybody_quip.F: Unused dummy argument 'fist_nonbond_env' at (1)
@@ -256,86 +200,11 @@ manybody_siepmann.F: Unused dummy argument 'loc_cell_v' at (1)
 manybody_siepmann.F: Unused dummy argument 'pv_nonbond' at (1)
 message_passing.F: Found CLOSE statement in procedure "mp_file_close"
 message_passing.F: Found OPEN statement in procedure "mp_file_open"
-mixed_environment_utils.F: Unused dummy argument 'mixed_section' at (1)
 mm_collocate_potential.F: Routine COLLOCATE_GF_NPBC called with an implicit interface.
 mm_collocate_potential.F: Routine INTEGRATE_GF_NPBC called with an implicit interface.
-mode_selective.F: Unused dummy argument 'output_unit_ms' at (1)
-mol_force.F: Unused dummy argument 't32' at (1)
-mp2.F: Unused dummy argument 'basis_parameter' at (1)
-mp2.F: Unused dummy argument 'kind_of' at (1)
-mp2.F: Unused dummy argument 'matrix_ks' at (1)
-mp2_cphf.F: Unused dummy argument 'cell' at (1)
-mp2_cphf.F: Unused dummy argument 'dft_control' at (1)
-mp2_cphf.F: Unused dummy argument 'mp2_env' at (1)
-mp2_cphf.F: Unused dummy argument 'particle_set' at (1)
-mp2_cphf.F: Unused dummy argument 'pw_env' at (1)
-mp2_cphf.F: Unused dummy argument 'unit_nr' at (1)
-mp2_direct_method.F: Unused dummy argument 'emp2_ex' at (1)
 mp2_direct_method.F: Unused dummy argument 'hfx_section' at (1)
-mp2_direct_method.F: Unused dummy argument 'i_batch_start' at (1)
-mp2_direct_method.F: Unused dummy argument 'ij_list_proc' at (1)
-mp2_direct_method.F: Unused dummy argument 'multiple' at (1)
-mp2_direct_method.F: Unused dummy argument 'ni_occupied' at (1)
-mp2_direct_method.F: Unused dummy argument 'nj_occupied' at (1)
-mp2_direct_method.F: Unused dummy argument 'para_env' at (1)
-mp2_gpw.F: Unused dummy argument 'blacs_env_sub' at (1)
-mp2_gpw.F: Unused dummy argument 'homo' at (1)
-mp2_gpw.F: Unused dummy argument 'my_b_size' at (1)
-mp2_gpw.F: Unused dummy argument 'sab_orb_sub' at (1)
-mp2_gpw.F: Unused dummy argument 'unit_nr' at (1)
-mp2_gpw.F: Unused dummy argument 'virtual' at (1)
-mp2_optimize_ri_basis.F: Unused dummy argument 'basis_set_ri' at (1)
-mp2_optimize_ri_basis.F: Unused dummy argument 'basis_set_ri_original' at (1)
-mp2_optimize_ri_basis.F: Unused dummy argument 'dimen_ri' at (1)
-mp2_optimize_ri_basis.F: Unused dummy argument 'dri_ref' at (1)
-mp2_optimize_ri_basis.F: Unused dummy argument 'emp2_ri_ref' at (1)
-mp2_optimize_ri_basis.F: Unused dummy argument 'kind_of' at (1)
-mp2_optimize_ri_basis.F: Unused dummy argument 'matrix_ks' at (1)
-mp2_optimize_ri_basis.F: Unused dummy argument 'natom' at (1)
-mp2_optimize_ri_basis.F: Unused dummy argument 'ndof' at (1)
-mp2_optimize_ri_basis.F: Unused dummy argument 'nkind' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'actual_flop_rate' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'ends_array' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'ends_b_virtual' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'eps_filter' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'homo' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'integ_group_size' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'my_b_size' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'my_b_virtual_end' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'my_b_virtual_start' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'ngroup' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'num_integ_group' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'proc_map' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'sizes_b_virtual' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'starts_array' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'starts_b_virtual' at (1)
-mp2_ri_gpw.F: Unused dummy argument 'virtual' at (1)
-mp2_ri_grad.F: Unused dummy argument 'color_sub' at (1)
-mp2_ri_grad.F: Unused dummy argument 'sab_orb_sub' at (1)
-mp2_ri_grad.F: Unused dummy argument 'unit_nr' at (1)
-mp2_ri_grad_util.F: Unused dummy argument 'color_sub' at (1)
-mp2_ri_grad_util.F: Unused dummy argument 'dimen_ri' at (1)
-mp2_ri_grad_util.F: Unused dummy argument 'my_b_virtual_end' at (1)
-mp2_ri_grad_util.F: Unused dummy argument 'my_cols' at (1)
-mp2_ri_grad_util.F: Unused dummy argument 'my_ia_size' at (1)
-mp2_ri_grad_util.F: Unused dummy argument 'my_rows' at (1)
-mp2_ri_libint.F: Unused dummy argument 'basis_parameter' at (1)
-mp2_ri_libint.F: Unused dummy argument 'hfx_section' at (1)
-mp2_ri_libint.F: Unused dummy argument 'particle_set' at (1)
-mp2_ri_libint.F: Unused dummy argument 'unit_nr' at (1)
-mp2_ri_libint.F: Unused parameter 'due' declared at (1)
-mp2_ri_libint.F: Unused parameter 'zero' declared at (1)
-neb_opt_utils.F: Unused dummy argument 'output_unit' at (1)
-optbas_fenv_manipulation.F: Unused dummy argument 'set_id' at (1)
-optimize_basis_utils.F: Unused dummy argument 'output_file' at (1)
-optimize_basis_utils.F: Unused dummy argument 'write_it' at (1)
 pexsi_types.F: Unused dummy argument 'nspin' at (1)
 powell.F: Found GOTO statement in procedure "newuob"
-preconditioner_makes.F: Unused dummy argument 'mixed_precision' at (1)
-preconditioner_makes.F: Unused dummy argument 'solver_type' at (1)
-preconditioner_makes.F: Unused parameter 'eval_shift' declared at (1)
-preconditioner_makes.F: Unused parameter 'fudge_factor' declared at (1)
-preconditioner_solvers.F: Unused dummy argument 'matrix_s' at (1)
 qs_integrate_potential_low.F: Routine CALL_TO_XYZ_TO_VAB called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_0 called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_1 called with an implicit interface.
@@ -349,22 +218,11 @@ qs_integrate_potential_low.F: Routine INTEGRATE_CORE_8 called with an implicit i
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_9 called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_DEFAULT called with an implicit interface.
 qs_linres_op.F: Routine INDXL2G called with an implicit interface.
-qs_loc_methods.F: Unused dummy argument 'loc_section' at (1)
 qs_loc_utils.F: Routine PZROT called with an implicit interface.
 qs_localization_methods.F: Routine PZROT called with an implicit interface.
 qs_mo_io.F: Unused dummy argument 'atomic_kind_set' at (1)
 qs_scf_loop_utils.F: Unused dummy argument 'do_kpoints' at (1)
-rpa_communication.F: Unused dummy argument 'number_of_rec' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'dimen_ia' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'dimen_ri' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'ends_array' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'four' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'pig' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'sizes_array' at (1)
-rpa_ri_gpw.F: Unused dummy argument 'starts_array' at (1)
-rpa_ri_gpw.F: Unused parameter 'use_gemm' declared at (1)
 semi_empirical_int3_utils.F: Routine EVAL called with an implicit interface.
-semi_empirical_int3_utils.F: Unused dummy argument 'r' at (1)
 semi_empirical_int_args.h: Copyright banner malformed
 semi_empirical_int_debug.F: Routine CHECK_VALUE called with an implicit interface.
 semi_empirical_int_debug.h: Copyright banner malformed
@@ -383,7 +241,6 @@ xc_f90_lib_m.F: Copyright banner malformed
 xc_f90_types_m.F: Copyright banner malformed
 xc_pade.F: Unused dummy argument 'derivative_set' at (1)
 xc_write_output.F: Routine XC_F90_VERSION called with an implicit interface.
-xc_xbecke_roussel.F: Unused dummy argument 'r' at (1)
 xml_parser.F: Copyright banner malformed
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_0_0 called with an implicit interface.
