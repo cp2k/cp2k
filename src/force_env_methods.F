@@ -1401,20 +1401,20 @@ CPSourceFileRef,&
        mixed_energy%pot=lambda*energies(1) + (1.0_dp-lambda)*energies(2)
        ! General Mapping of forces...
        CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
-            lambda, 1, nforce_eval, map_index, mixed_section, mapping_section, .TRUE., error)
+            lambda, 1, nforce_eval, map_index, mapping_section, .TRUE., error)
        CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
-            (1.0_dp-lambda), 2, nforce_eval, map_index, mixed_section, mapping_section, .FALSE., error)
+            (1.0_dp-lambda), 2, nforce_eval, map_index, mapping_section, .FALSE., error)
     CASE(mix_minimum)
        ! Support offered only 2 force_eval
        CPPrecondition(nforce_eval==2,cp_failure_level,routineP,error,failure)
        IF (energies(1)<energies(2)) THEN
           mixed_energy%pot=energies(1)
           CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
-               1.0_dp, 1, nforce_eval, map_index, mixed_section, mapping_section, .TRUE., error)
+               1.0_dp, 1, nforce_eval, map_index, mapping_section, .TRUE., error)
        ELSE
           mixed_energy%pot=energies(2)
           CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
-               1.0_dp, 2, nforce_eval, map_index, mixed_section, mapping_section, .TRUE., error)
+               1.0_dp, 2, nforce_eval, map_index, mapping_section, .TRUE., error)
        ENDIF
     CASE(mix_coupled)
        ! Support offered only 2 force_eval
@@ -1427,9 +1427,9 @@ CPSourceFileRef,&
        mixed_energy%pot=(energies(1)+energies(2)-sd)/2.0_dp
        ! General Mapping of forces...
        CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
-            der_1, 1, nforce_eval, map_index, mixed_section, mapping_section, .TRUE., error)
+            der_1, 1, nforce_eval, map_index, mapping_section, .TRUE., error)
        CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
-            der_2, 2, nforce_eval, map_index, mixed_section, mapping_section, .FALSE., error)
+            der_2, 2, nforce_eval, map_index, mapping_section, .FALSE., error)
     CASE(mix_restrained)
        ! Support offered only 2 force_eval
        CPPrecondition(nforce_eval==2,cp_failure_level,routineP,error,failure)
@@ -1442,9 +1442,9 @@ CPSourceFileRef,&
        der_1 = 1.0_dp - der_2
        ! General Mapping of forces...
        CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
-            der_1, 1, nforce_eval, map_index, mixed_section, mapping_section, .TRUE., error)
+            der_1, 1, nforce_eval, map_index, mapping_section, .TRUE., error)
        CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
-            der_2, 2, nforce_eval, map_index, mixed_section, mapping_section, .FALSE., error)
+            der_2, 2, nforce_eval, map_index, mapping_section, .FALSE., error)
     CASE(mix_generic)
        ! Support any number of force_eval sections
        gen_section => section_vals_get_subs_vals(mixed_section,"GENERIC",error=error)
@@ -1473,7 +1473,7 @@ CPSourceFileRef,&
           END IF
           ! General Mapping of forces...
           CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
-               dedf, iforce_eval, nforce_eval, map_index, mixed_section, mapping_section, .FALSE., error)
+               dedf, iforce_eval, nforce_eval, map_index, mapping_section, .FALSE., error)
           force_env%mixed_env%val(iforce_eval) = energies(iforce_eval)
        END DO
        ! Let's store the needed information..

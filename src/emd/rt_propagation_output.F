@@ -246,7 +246,7 @@ CONTAINS
              ENDIF
           ENDIF
           CALL write_rt_mos_to_restart(qs_env%mos,mos_new,particle_set,&
-                            dft_section,atomic_kind_set,qs_kind_set,error)
+                            dft_section,qs_kind_set,error)
        ENDIF
     ENDIF
     

@@ -250,7 +250,7 @@ MODULE timings
     handle = routine_id
 
 #if defined( __CUDA_PROFILING )
-   CALL cuda_nvtx_range_push(routineN)
+   CALL cuda_nvtx_range_push()
 #endif
 
 !$OMP END CRITICAL(time_setstop)

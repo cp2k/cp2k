@@ -120,32 +120,32 @@ CONTAINS
     ij  = indexa(1, 1)
     zi  = -sepi%zeff
     zj  = -sepj%zeff
-    core_core = ijkl_low_3(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, r, itype, coeff_int_3, error) * zi * zj
+    core_core = ijkl_low_3(sepi, sepj, ij, ij, 0, 0, 0, 0, -1, itype, coeff_int_3, error) * zi * zj
 
     ! Electron(i)-Nuclei(j)   contribution
     kl = indexa(1, 1)
-    e1b(1) = ijkl_low_3 (sepi, sepj, kl, ij, 0, 0, 0, 0, 2, r, itype, coeff_int_3, error) * zj
+    e1b(1) = ijkl_low_3 (sepi, sepj, kl, ij, 0, 0, 0, 0, 2, itype, coeff_int_3, error) * zj
     IF (sepi%natorb > 1) THEN
        kl = indexa(2, 2)
-       e1b(2) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, r, itype, coeff_int_3, error) * zj
+       e1b(2) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3, error) * zj
        kl = indexa(3, 3)
-       e1b(3) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, r, itype, coeff_int_3, error) * zj
+       e1b(3) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3, error) * zj
        kl = indexa(4, 4)
-       e1b(4) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, r, itype, coeff_int_3, error) * zj
+       e1b(4) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3, error) * zj
        ! Consistency check
        CPPostcondition(e1b(2)==e1b(3),cp_failure_level,routineP,error,failure)
        CPPostcondition(e1b(3)==e1b(4),cp_failure_level,routineP,error,failure)
        IF (sepi%dorb) THEN
           kl = indexa(5, 5)
-          e1b(5) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, r, itype, coeff_int_3, error) * zj
+          e1b(5) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3, error) * zj
           kl = indexa(6, 6)
-          e1b(6) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, r, itype, coeff_int_3, error) * zj
+          e1b(6) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3, error) * zj
           kl = indexa(7, 7)
-          e1b(7) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, r, itype, coeff_int_3, error) * zj
+          e1b(7) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3, error) * zj
           kl = indexa(8, 8)
-          e1b(8) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, r, itype, coeff_int_3, error) * zj
+          e1b(8) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3, error) * zj
           kl = indexa(9, 9)
-          e1b(9) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, r, itype, coeff_int_3, error) * zj
+          e1b(9) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3, error) * zj
           ! Consistency check
           CPPostcondition(e1b(5)==e1b(6),cp_failure_level,routineP,error,failure)
           CPPostcondition(e1b(6)==e1b(7),cp_failure_level,routineP,error,failure)
@@ -156,28 +156,28 @@ CONTAINS
 
     ! Electron(j)-Nuclei(i)   contribution
     kl = indexa(1, 1)
-    e2a(1) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, r, itype, coeff_int_3, error) * zi
+    e2a(1) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 0, 0, 1, itype, coeff_int_3, error) * zi
     IF (sepj%natorb > 1) THEN
        kl = indexa(2, 2)
-       e2a(2) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, r, itype, coeff_int_3, error) * zi
+       e2a(2) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3, error) * zi
        kl = indexa(3, 3)
-       e2a(3) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, r, itype, coeff_int_3, error) * zi
+       e2a(3) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3, error) * zi
        kl = indexa(4, 4)
-       e2a(4) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, r, itype, coeff_int_3, error) * zi
+       e2a(4) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3, error) * zi
        ! Consistency check
        CPPostcondition(e2a(2)==e2a(3),cp_failure_level,routineP,error,failure)
        CPPostcondition(e2a(3)==e2a(4),cp_failure_level,routineP,error,failure)
        IF (sepj%dorb) THEN
           kl = indexa(5, 5)
-          e2a(5) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, r, itype, coeff_int_3, error) * zi
+          e2a(5) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3, error) * zi
           kl = indexa(6, 6)
-          e2a(6) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, r, itype, coeff_int_3, error) * zi
+          e2a(6) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3, error) * zi
           kl = indexa(7, 7)
-          e2a(7) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, r, itype, coeff_int_3, error) * zi
+          e2a(7) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3, error) * zi
           kl = indexa(8, 8)
-          e2a(8) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, r, itype, coeff_int_3, error) * zi
+          e2a(8) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3, error) * zi
           kl = indexa(9, 9)
-          e2a(9) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, r, itype, coeff_int_3, error) * zi
+          e2a(9) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3, error) * zi
           ! Consistency check
           CPPostcondition(e2a(5)==e2a(6),cp_failure_level,routineP,error,failure)
           CPPostcondition(e2a(6)==e2a(7),cp_failure_level,routineP,error,failure)
@@ -205,7 +205,7 @@ CONTAINS
           kl = indexa(j,j)
           kr = kr + 1
           sepi%expns3_int(jkind)%expns3%w(kr) = &
-               ijkl_low_3 (sepi, sepj, ij, kl, li, li, lk, lk, 0, r, do_method_undef, coeff_int_3, error)
+               ijkl_low_3 (sepi, sepj, ij, kl, li, li, lk, lk, 0, do_method_undef, coeff_int_3, error)
        END DO
     END DO
 
@@ -219,7 +219,7 @@ CONTAINS
           kl = indexa(j,j)
           kr = kr + 1
           sepj%expns3_int(ikind)%expns3%w(kr) = &
-               ijkl_low_3 (sepj, sepi, ij, kl, li, li, lk, lk, 0, r, do_method_undef, coeff_int_3, error)
+               ijkl_low_3 (sepj, sepi, ij, kl, li, li, lk, lk, 0, do_method_undef, coeff_int_3, error)
        END DO
     END DO
 

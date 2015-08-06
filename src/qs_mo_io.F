@@ -310,12 +310,11 @@ CONTAINS
 !> \param rt_mos ...
 !> \param particle_set ...
 !> \param dft_section ...
-!> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE write_rt_mos_to_restart(mo_array,rt_mos,particle_set,dft_section,&
-                                     atomic_kind_set,qs_kind_set,error)
+                                     qs_kind_set,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -324,8 +323,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(cp_error_type), INTENT(inout)       :: error

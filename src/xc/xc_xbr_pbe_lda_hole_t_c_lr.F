@@ -391,7 +391,7 @@ CONTAINS
           IF( yval <= 0.0_dp) THEN
             CALL x_br_lsd_y_lte_0(my_rho, my_ndrho, my_tau, my_laplace_rho, e_0_br, &
                                   e_rho_br, e_ndrho_br, e_tau_br, e_laplace_rho_br,&
-                                  sx, R, gamma, grad_deriv, error)
+                                  sx, gamma, grad_deriv, error)
             ! VERY UGLY HACK e_0 has to multiplied by the factor 2
             e_0_br = 2.0_dp * e_0_br
           ELSE
@@ -723,7 +723,7 @@ CONTAINS
           IF( yval <= 0.0_dp) THEN
             CALL x_br_lsd_y_lte_0(my_rho, my_ndrho, my_tau, my_laplace_rho, e_0_br, &
                                   e_rho_br, e_ndrho_br, e_tau_br, e_laplace_rho_br,&
-                                  sx, R, gamma, grad_deriv, error)
+                                  sx, gamma, grad_deriv, error)
           ELSE
             CALL x_br_lsd_y_gt_0(my_rho, my_ndrho, my_tau, my_laplace_rho, e_0_br, &
                                  e_rho_br, e_ndrho_br, e_tau_br, e_laplace_rho_br,&

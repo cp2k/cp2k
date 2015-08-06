@@ -508,7 +508,7 @@ CONTAINS
             localized_wfn_control=localized_wfn_control,error=error)
        loc_section => section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
        print_loc_section => section_vals_get_subs_vals(loc_section,"PRINT",error=error)
-       CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,error=error)
+       CALL qs_loc_driver(qs_env,qs_loc_env,print_loc_section,myspin=1,error=error)
        ra(1:3) = particle_set(iatom)%r(1:3)
 
        NULLIFY(atomic_kind)

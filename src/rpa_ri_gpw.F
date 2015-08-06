@@ -472,7 +472,7 @@ MODULE rpa_ri_gpw
                           dimen_RI,dimen_ia,dimen_ia,color_rpa_group,&
                           mp2_env%block_size_row,mp2_env%block_size_col,unit_nr,&
                           my_ia_size,my_ia_start,my_ia_end,&
-                          sizes_array,starts_array,ends_array,my_group_L_size,my_group_L_start,my_group_L_end,&
+                          my_group_L_size,my_group_L_start,my_group_L_end,&
                           para_env_RPA,fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,error_sub)
 
     ! for GW, we need other matrix fm_mat_S  
@@ -481,14 +481,14 @@ MODULE rpa_ri_gpw
 !                            dimen_RI,dimen_nm_gw,dimen_ia,color_rpa_group,&
 !                            mp2_env%block_size_row,mp2_env%block_size_col,unit_nr,&
 !                            my_nm_gw_size,my_nm_gw_start,my_nm_gw_end,&
-!                            sizes_array,starts_array,ends_array,my_group_L_size,my_group_L_start,my_group_L_end,&
+!                            my_group_L_size,my_group_L_start,my_group_L_end,&
 !                            para_env_RPA,fm_mat_S_gw,fm_mat_R_gw_gemm,fm_mat_R_gw,error,error_sub,&
 !                            .TRUE.,fm_mat_Q%matrix_struct%context,fm_mat_S%matrix_struct%context)
       CALL create_integ_mat(BIb_C_2D_gw,para_env,para_env_sub,color_sub,ngroup,integ_group_size,&
                             dimen_RI,dimen_nm_gw,dimen_ia,color_rpa_group,&
                             mp2_env%block_size_row,mp2_env%block_size_col,unit_nr,&
                             my_nm_gw_size,my_nm_gw_start,my_nm_gw_end,&
-                            sizes_array,starts_array,ends_array,my_group_L_size,my_group_L_start,my_group_L_end,&
+                            my_group_L_size,my_group_L_start,my_group_L_end,&
                             para_env_RPA,fm_mat_S_gw,fm_mat_R_gw_gemm,fm_mat_R_gw,error,error_sub,&
                             .TRUE.,fm_mat_Q%matrix_struct%context,fm_mat_Q%matrix_struct%context)
 
@@ -500,7 +500,7 @@ MODULE rpa_ri_gpw
                               dimen_RI,dimen_nm_gw,dimen_ia,color_rpa_group,&
                               mp2_env%block_size_row,mp2_env%block_size_col,unit_nr,&
                               my_nm_gw_size,my_nm_gw_start,my_nm_gw_end,&
-                              sizes_array,starts_array,ends_array,my_group_L_size,my_group_L_start,my_group_L_end,&
+                              my_group_L_size,my_group_L_start,my_group_L_end,&
                               para_env_RPA,fm_mat_S_gw_beta,fm_mat_R_gw_gemm_beta,fm_mat_R_gw_beta,error,error_sub,&
                               .TRUE.,fm_mat_Q%matrix_struct%context,fm_mat_Q%matrix_struct%context,.TRUE.)
 
@@ -514,7 +514,7 @@ MODULE rpa_ri_gpw
                             dimen_RI,dimen_ia_beta,dimen_ia_beta,color_rpa_group,&
                             mp2_env%block_size_row,mp2_env%block_size_col,unit_nr,&
                             my_ia_size_beta,my_ia_start_beta,my_ia_end_beta,&
-                            sizes_array,starts_array,ends_array,my_group_L_size,my_group_L_start,my_group_L_end,&
+                            my_group_L_size,my_group_L_start,my_group_L_end,&
                             para_env_RPA,fm_mat_S_beta,fm_mat_Q_gemm_beta,fm_mat_Q_beta,error,error_sub,&
                             .TRUE.,fm_mat_Q%matrix_struct%context)
 
@@ -752,9 +752,6 @@ MODULE rpa_ri_gpw
 !> \param my_ia_size ...
 !> \param my_ia_start ...
 !> \param my_ia_end ...
-!> \param sizes_array ...
-!> \param starts_array ...
-!> \param ends_array ...
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
@@ -773,7 +770,7 @@ MODULE rpa_ri_gpw
                                 dimen_RI,dimen_ia,dimen_ia_for_block_size,color_rpa_group,&
                                 ext_row_block_size,ext_col_block_size,unit_nr,&
                                 my_ia_size,my_ia_start,my_ia_end,&
-                                sizes_array,starts_array,ends_array,my_group_L_size,my_group_L_start,my_group_L_end,&
+                                my_group_L_size,my_group_L_start,my_group_L_end,&
                                 para_env_RPA,fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,error,error_sub,beta_case,&
                                 blacs_env_ext,blacs_env_ext_S,do_gw_open_shell)
 
@@ -782,12 +779,8 @@ MODULE rpa_ri_gpw
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     INTEGER :: color_sub, ngroup, integ_group_size, dimen_RI, dimen_ia, &
       dimen_ia_for_block_size, color_rpa_group, ext_row_block_size, &
-      ext_col_block_size, unit_nr, my_ia_size, my_ia_start, my_ia_end
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes_array, starts_array, &
-                                                ends_array
-    INTEGER                                  :: my_group_L_size, &
-                                                my_group_L_start, &
-                                                my_group_L_end
+      ext_col_block_size, unit_nr, my_ia_size, my_ia_start, my_ia_end, &
+      my_group_L_size, my_group_L_start, my_group_L_end
     TYPE(cp_para_env_type), POINTER          :: para_env_RPA
     TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_Q_gemm, &
                                                 fm_mat_Q
@@ -1698,12 +1691,12 @@ MODULE rpa_ri_gpw
   
       a_scaling=1.0_dp
       IF(my_open_shell) THEN
-        CALL calc_scaling_factor(a_scaling,para_env,para_env_RPA,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
+        CALL calc_scaling_factor(a_scaling,para_env,para_env_RPA,homo,virtual,Eigenval,&
                                  num_integ_points,num_integ_group,color_rpa_group,&
                                  tj,wj,fm_mat_S,error,&
                                  homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta)
       ELSE
-        CALL calc_scaling_factor(a_scaling,para_env,para_env_RPA,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
+        CALL calc_scaling_factor(a_scaling,para_env,para_env_RPA,homo,virtual,Eigenval,&
                                  num_integ_points,num_integ_group,color_rpa_group,&
                                  tj,wj,fm_mat_S,error)
       END IF
@@ -2056,7 +2049,7 @@ MODULE rpa_ri_gpw
         ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
         CALL cp_fm_set_all(matrix=fm_mat_Q,alpha=0.0_dp,error=error)
         CALL fm_redistribute(fm_mat_Q_gemm,fm_mat_Q,RPA_proc_map,buffer_rec,buffer_send,&
-                             number_of_rec,number_of_send,&
+                             number_of_send,&
                              map_send_size,map_rec_size,local_size_source,para_env_RPA,error)
  
         IF(my_open_shell) THEN
@@ -2138,7 +2131,7 @@ MODULE rpa_ri_gpw
           ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
           CALL cp_fm_set_all(matrix=fm_mat_Q_beta,alpha=0.0_dp,error=error)
           CALL fm_redistribute(fm_mat_Q_gemm_beta,fm_mat_Q_beta,RPA_proc_map,buffer_rec_beta,buffer_send_beta,&
-                               number_of_rec_beta,number_of_send_beta,&
+                               number_of_send_beta,&
                                map_send_size_beta,map_rec_size_beta,local_size_source_beta,para_env_RPA,error)
   
           CALL cp_fm_scale_and_add(alpha=1.0_dp,matrix_a=fm_mat_Q,beta=1.0_dp,matrix_b=fm_mat_Q_beta,error=error)
@@ -2236,7 +2229,7 @@ MODULE rpa_ri_gpw
           ! copy/redistribute fm_mat_Q to fm_mat_Q_gemm
   !        CALL cp_fm_set_all(matrix=fm_mat_Q_gemm,alpha=0.0_dp,error=error)
   !        CALL fm_redistribute(fm_mat_Q,fm_mat_Q_gemm,RPA_proc_map,buffer_rec_gw,buffer_send_gw,&
-  !                             number_of_rec_gw,number_of_send_gw,&
+  !                             number_of_send_gw,&
   !                             map_send_size_gw,map_rec_size_gw,local_size_source_gw,para_env_RPA,error)
   
           ! S_work_(nm)Q = B_(nm)P * ([1+Q]^-1-1)_PQ
@@ -2501,8 +2494,6 @@ MODULE rpa_ri_gpw
 !> \param para_env_RPA ...
 !> \param homo ...
 !> \param virtual ...
-!> \param dimen_RI ...
-!> \param dimen_ia ...
 !> \param Eigenval ...
 !> \param num_integ_points ...
 !> \param num_integ_group ...
@@ -2517,14 +2508,13 @@ MODULE rpa_ri_gpw
 !> \param Eigenval_beta ...
 !> \param fm_mat_S_beta ...
 ! *****************************************************************************
-    SUBROUTINE  calc_scaling_factor(a_scaling_ext,para_env,para_env_RPA,homo,virtual,dimen_RI,dimen_ia,Eigenval,&
+    SUBROUTINE  calc_scaling_factor(a_scaling_ext,para_env,para_env_RPA,homo,virtual,Eigenval,&
                                     num_integ_points,num_integ_group,color_rpa_group,&
                                     tj_ext,wj_ext,fm_mat_S,error,&
                                     homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta)
     REAL(KIND=dp)                            :: a_scaling_ext
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_RPA
-    INTEGER                                  :: homo, virtual, dimen_RI, &
-                                                dimen_ia
+    INTEGER                                  :: homo, virtual
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     INTEGER                                  :: num_integ_points, &
                                                 num_integ_group, &
@@ -2776,7 +2766,7 @@ MODULE rpa_ri_gpw
       a_scaling=a_high
  
       CALL calculate_objfunc(a_scaling,left_term,first_deriv,num_integ_points,my_open_shell,&
-                             ZERO,ONE,FOUR,PIG,M_ia,cottj,wj,D_ia,D_ia_beta,M_ia_beta,&
+                             ZERO,ONE,M_ia,cottj,wj,D_ia,D_ia_beta,M_ia_beta,&
                              nrow_local,nrow_local_beta,num_integ_group,color_rpa_group,&
                              para_env,para_env_row,para_env_row_beta)
       left_term=left_term/FOUR/PIG*a_scaling
@@ -2796,7 +2786,7 @@ MODULE rpa_ri_gpw
           a_scaling=(a_low+a_high)/2.0_dp
 
           CALL calculate_objfunc(a_scaling,left_term,first_deriv,num_integ_points,my_open_shell,&
-                                 ZERO,ONE,FOUR,PIG,M_ia,cottj,wj,D_ia,D_ia_beta,M_ia_beta,&
+                                 ZERO,ONE,M_ia,cottj,wj,D_ia,D_ia_beta,M_ia_beta,&
                                  nrow_local,nrow_local_beta,num_integ_group,color_rpa_group,&
                                  para_env,para_env_row,para_env_row_beta)
           left_term=left_term/FOUR/PIG*a_scaling
@@ -2851,8 +2841,6 @@ MODULE rpa_ri_gpw
 !> \param my_open_shell ...
 !> \param ZERO ...
 !> \param ONE ...
-!> \param FOUR ...
-!> \param PIG ...
 !> \param M_ia ...
 !> \param cottj ...
 !> \param wj ...
@@ -2868,14 +2856,14 @@ MODULE rpa_ri_gpw
 !> \param para_env_row_beta ...
 ! *****************************************************************************
     SUBROUTINE calculate_objfunc(a_scaling,left_term,first_deriv,num_integ_points,my_open_shell,&
-                                 ZERO,ONE,FOUR,PIG,M_ia,cottj,wj,D_ia,D_ia_beta,M_ia_beta,&
+                                 ZERO,ONE,M_ia,cottj,wj,D_ia,D_ia_beta,M_ia_beta,&
                                  nrow_local,nrow_local_beta,num_integ_group,color_rpa_group,&
                                  para_env,para_env_row,para_env_row_beta)
     REAL(KIND=dp)                            :: a_scaling, left_term, &
                                                 first_deriv
     INTEGER                                  :: num_integ_points
     LOGICAL                                  :: my_open_shell
-    REAL(KIND=dp)                            :: zero, one, four, pig
+    REAL(KIND=dp)                            :: zero, one
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: M_ia, cottj, wj, D_ia, &
                                                 D_ia_beta, M_ia_beta
     INTEGER                                  :: nrow_local, nrow_local_beta, &

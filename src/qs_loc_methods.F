@@ -132,7 +132,6 @@ CONTAINS
 !> \param cell ...
 !> \param weights ...
 !> \param ispin ...
-!> \param loc_section ...
 !> \param print_loc_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -145,7 +144,7 @@ CONTAINS
 !>       The file for the centers and the spreads have a xyz format
 ! *****************************************************************************
   SUBROUTINE optimize_loc_berry( method, qs_loc_env, vectors, op_sm_set, &
-       zij_fm_set, para_env, cell, weights,  ispin, loc_section, print_loc_section,&
+       zij_fm_set, para_env, cell, weights,  ispin, print_loc_section,&
        error)
 
     INTEGER, INTENT(IN)                      :: method
@@ -159,7 +158,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
+    TYPE(section_vals_type), POINTER         :: print_loc_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_berry', &
@@ -280,7 +279,6 @@ CONTAINS
 !> \param vectors ...
 !> \param zij_fm_set ...
 !> \param ispin ...
-!> \param loc_section ...
 !> \param print_loc_section ...
 !> \param error ...
 !> \par History
@@ -288,7 +286,7 @@ CONTAINS
 !> \author MI
 ! *****************************************************************************
   SUBROUTINE  optimize_loc_pipek(qs_env, method, qs_loc_env, vectors, zij_fm_set,&
-       ispin, loc_section, print_loc_section, error)
+       ispin, print_loc_section, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: method
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
@@ -296,7 +294,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: zij_fm_set
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
+    TYPE(section_vals_type), POINTER         :: print_loc_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optimize_loc_pipek', &
@@ -632,7 +630,6 @@ CONTAINS
 !> \brief set up the calculation of localized orbitals
 !> \param qs_env ...
 !> \param qs_loc_env ...
-!> \param loc_section ...
 !> \param print_loc_section ...
 !> \param myspin ...
 !> \param ext_mo_coeff ...
@@ -641,12 +638,12 @@ CONTAINS
 !>      04.2005 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin,&
+  SUBROUTINE qs_loc_driver(qs_env,qs_loc_env,print_loc_section,myspin,&
        ext_mo_coeff,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(section_vals_type), POINTER         :: loc_section, print_loc_section
+    TYPE(section_vals_type), POINTER         :: print_loc_section
     INTEGER, INTENT(IN), OPTIONAL            :: myspin
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: ext_mo_coeff
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -738,7 +735,7 @@ CONTAINS
           CALL cp_fm_struct_release(tmp_fm_struct,error=error)
 
           CALL optimize_loc_berry(loc_method, qs_loc_env, moloc_coeff(ispin)%matrix, op_sm_set,&
-               op_fm_set, para_env, cell, weights, ispin, loc_section, print_loc_section,  error=error)
+               op_fm_set, para_env, cell, weights, ispin, print_loc_section,  error=error)
 
           ! Here we dealloctate op_fm_set
           IF(ASSOCIATED(op_fm_set)) THEN
@@ -758,7 +755,7 @@ CONTAINS
 
        CASE(op_loc_pipek)
           CALL  optimize_loc_pipek(qs_env, loc_method, qs_loc_env, moloc_coeff(ispin)%matrix,&
-               op_fm_set,  ispin, loc_section, print_loc_section, error=error)
+               op_fm_set,  ispin, print_loc_section, error=error)
 
        END SELECT
 

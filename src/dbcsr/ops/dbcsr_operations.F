@@ -2052,7 +2052,6 @@ CONTAINS
 !> \brief Crop and copies a matrix.
 !> \param[inout] matrix_b       target DBCSR matrix
 !> \param[in]    matrix_a       source DBCSR matrix
-!> \param[in]    name           (optional) name of the new matrix
 !> \param[in]    full_row_bounds      (optional) rows to extract (array of
 !>                                    size 2 holding the lower and upper
 !>                                    inclusive bounds)
@@ -2062,12 +2061,11 @@ CONTAINS
 !> \param shallow_data ...
 !> \param[in,out] error         cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_crop_matrix(matrix_b, matrix_a, name,&
+  SUBROUTINE dbcsr_crop_matrix(matrix_b, matrix_a, &
        full_row_bounds, full_column_bounds, &
        shallow_data, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_b
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
     INTEGER, DIMENSION(2), INTENT(IN), &
       OPTIONAL                               :: full_row_bounds, &
                                                 full_column_bounds

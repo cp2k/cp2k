@@ -969,7 +969,7 @@ MODULE helium_methods
         END IF
       ELSE
         IF ( .NOT. coords_presampled ) THEN
-          CALL helium_force_init( helium, pint_env, error )
+          CALL helium_force_init( helium, error )
           CALL helium_write_line("Forces on the solute initialized as zero.",error)
         END IF
       END IF
@@ -1120,7 +1120,6 @@ MODULE helium_methods
 ! ***************************************************************************
 !> \brief  Initialize forces exerted on the solute.
 !> \param helium ...
-!> \param pint_env ...
 !> \param error ...
 !> \date   2009-11-10
 !> \author Lukasz Walewski
@@ -1128,9 +1127,8 @@ MODULE helium_methods
 !>         positions, hence this function should be called AFTER
 !>         helium_coord_init/restore.
 ! *****************************************************************************
-  SUBROUTINE helium_force_init( helium, pint_env, error )
+  SUBROUTINE helium_force_init( helium,error )
     TYPE(helium_solvent_type), POINTER       :: helium
-    TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_force_init', &

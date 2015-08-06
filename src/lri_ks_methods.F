@@ -22,7 +22,6 @@ MODULE lri_ks_methods
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE input_section_types,             ONLY: section_get_ivals,&
                                              section_get_lval,&
@@ -75,12 +74,11 @@ CONTAINS
 !> \param lri_v_int integrals of potential * ri basis set
 !> \param h_matrix KS matrix, on entry containing the core hamiltonian
 !> \param atomic_kind_set ...
-!> \param para_env ...
 !> \param error ...
 !> \note including this in lri_environment_methods?
 ! *****************************************************************************
   SUBROUTINE calculate_lri_ks_matrix(lri_env, lri_v_int, h_matrix, &
-                                     atomic_kind_set, para_env,  error)
+                                     atomic_kind_set, error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_kind_type), DIMENSION(:), &
@@ -88,7 +86,6 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER             :: h_matrix
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(*), PARAMETER :: routineN = 'calculate_lri_ks_matrix', &

@@ -51,7 +51,6 @@ CONTAINS
 !> \param iforce_eval ...
 !> \param nforce_eval ...
 !> \param map_index ...
-!> \param mixed_section ...
 !> \param mapping_section ...
 !> \param overwrite ...
 !> \param error variable to control error logging, stopping,...
@@ -59,7 +58,7 @@ CONTAINS
 !> \author Teodoro Laino - University of Zurich [tlaino] - 05.2007
 ! *****************************************************************************
   SUBROUTINE mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces,&
-      virials, results, factor, iforce_eval, nforce_eval, map_index, mixed_section,&
+      virials, results, factor, iforce_eval, nforce_eval, map_index,&
       mapping_section, overwrite, error)
 
     TYPE(particle_list_type), POINTER        :: particles_mix
@@ -74,7 +73,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: factor
     INTEGER, INTENT(IN)                      :: iforce_eval, nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: map_index
-    TYPE(section_vals_type), POINTER         :: mixed_section, mapping_section
+    TYPE(section_vals_type), POINTER         :: mapping_section
     LOGICAL, INTENT(IN)                      :: overwrite
     TYPE(cp_error_type), INTENT(inout)       :: error
 

@@ -139,10 +139,8 @@ MODULE cuda_profiling
  ! *****************************************************************************
 ! *****************************************************************************
 !> \brief ...
-!> \param routineN ...
 ! *****************************************************************************
-  SUBROUTINE cuda_nvtx_range_push(routineN)
-    CHARACTER(LEN=*), INTENT(IN)             :: routineN
+  SUBROUTINE cuda_nvtx_range_push()
 
     STOP "cuda_nvtx_range_push: __CUDA_PROFILING not compiled in."
   END SUBROUTINE cuda_nvtx_range_push

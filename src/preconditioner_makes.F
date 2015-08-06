@@ -74,13 +74,11 @@ CONTAINS
 !> \param energy_homo ...
 !> \param eigenvalues_ot ...
 !> \param energy_gap ...
-!> \param solver_type ...
-!> \param my_mixed_precision ...
 !> \param my_solver_type ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE make_preconditioner_matrix(preconditioner_env, matrix_h, matrix_s, matrix_t, mo_coeff,&
-                           energy_homo, eigenvalues_ot, energy_gap, solver_type, my_mixed_precision,&
+                           energy_homo, eigenvalues_ot, energy_gap,&
                            my_solver_type, error)
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_dbcsr_type), POINTER             :: matrix_h
@@ -89,8 +87,6 @@ CONTAINS
     REAL(KIND=dp)                            :: energy_homo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
     REAL(KIND=dp)                            :: energy_gap
-    INTEGER, INTENT(IN)                      :: solver_type
-    LOGICAL                                  :: my_mixed_precision
     INTEGER                                  :: my_solver_type
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -127,7 +123,7 @@ CONTAINS
        IF (.NOT.( PRESENT(matrix_s) .AND. PRESENT(matrix_t) )) &
           CALL stop_program(routineN,moduleN,__LINE__,"Type for S=1 not implemented")
        CALL make_full_kinetic(preconditioner_env, matrix_t, matrix_s, energy_gap, &
-                             my_mixed_precision, error=error)
+                             error=error)
     CASE (ot_precond_full_single_inverse)
        IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
        CALL make_full_single_inverse(preconditioner_env, mo_coeff, matrix_h, energy_gap, &
@@ -190,15 +186,13 @@ CONTAINS
 !> \param matrix_t ...
 !> \param matrix_s ...
 !> \param energy_gap ...
-!> \param mixed_precision ...
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
-                               energy_gap, mixed_precision, error)
+                               energy_gap, error)
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_dbcsr_type), POINTER             :: matrix_t, matrix_s
     REAL(KIND=dp)                            :: energy_gap
-    LOGICAL, INTENT(IN)                      :: mixed_precision
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_full_kinetic', &

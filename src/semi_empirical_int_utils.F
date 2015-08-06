@@ -86,7 +86,7 @@ CONTAINS
     IF ((.NOT.se_int_control%pc_coulomb_int).AND.(itype/=do_method_pchg)) THEN
        ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-D integrals
        IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
-          res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
+          res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic,&
                                  itype, charg_int_3, error)
        END IF
     END IF
@@ -165,7 +165,7 @@ CONTAINS
     IF ((.NOT.se_int_control%pc_coulomb_int).AND.(itype/=do_method_pchg)) THEN
        ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-D integrals
        IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
-          res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
+          res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic,&
                                  itype, dcharg_int_3, error)
        END IF
     END IF
@@ -1012,7 +1012,7 @@ CONTAINS
     IF ((.NOT.se_int_control%pc_coulomb_int).AND.(itype/=do_method_pchg)) THEN
        ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-D integrals
        IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
-          res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
+          res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic,&
                                  itype, charg_int_3, error)
        END IF
     END IF
@@ -1097,7 +1097,7 @@ CONTAINS
     IF ((.NOT.se_int_control%pc_coulomb_int).AND.(itype/=do_method_pchg)) THEN
        ! Handle the 1/r^3 term, this term is ALWAYS false for KDSO-D integrals
        IF (se_int_control%shortrange.AND.se_int_control%do_ewald_r3) THEN
-          res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic, r,&
+          res = res - ijkl_low_3(sepi, sepj, ij, kl, li, lj, lk, ll, ic,&
                                  itype, dcharg_int_3, error)
        END IF
     END IF

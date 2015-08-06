@@ -327,7 +327,7 @@ CONTAINS
          END IF
 
       END IF
-      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,print_loc_section,myspin=1,error=error)
+      CALL qs_loc_driver(qs_env,qs_loc_env,print_loc_section,myspin=1,error=error)
     END IF
 
     CPPrecondition(ASSOCIATED(groundstate_coeff),cp_failure_level,routineP,error,failure)

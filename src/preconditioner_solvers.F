@@ -109,7 +109,7 @@ CONTAINS
           CALL make_full_inverse_cholesky(preconditioner_env, matrix_s, my_mixed_precision, error=error)
        ELSE
           preconditioner_env%solver=ot_precond_solver_update
-          CALL make_inverse_update(preconditioner_env, matrix_h, my_mixed_precision, matrix_s, error)
+          CALL make_inverse_update(preconditioner_env, matrix_h, my_mixed_precision, error)
        END IF
     CASE (ot_precond_solver_default)
        preconditioner_env%solver=ot_precond_solver_default
@@ -243,14 +243,12 @@ CONTAINS
 !> \param preconditioner_env ...
 !> \param matrix_h as S is not always present this is a safe template for the transfer
 !> \param mixed_precision ...
-!> \param matrix_s ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE make_inverse_update(preconditioner_env, matrix_h, mixed_precision, matrix_s, error)
+  SUBROUTINE make_inverse_update(preconditioner_env, matrix_h, mixed_precision, error)
     TYPE(preconditioner_type)                :: preconditioner_env
     TYPE(cp_dbcsr_type), POINTER             :: matrix_h
     LOGICAL, INTENT(IN)                      :: mixed_precision
-    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_s
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_inverse_update', &

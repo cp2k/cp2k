@@ -259,7 +259,7 @@ MODULE mp2_laplace
       ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
       CALL cp_fm_set_all(matrix=fm_mat_Q,alpha=0.0_dp,error=error)
       CALL fm_redistribute(fm_mat_Q_gemm,fm_mat_Q,RPA_proc_map,buffer_rec,buffer_send,&
-                           number_of_rec,number_of_send,&
+                           number_of_send,&
                            map_send_size,map_rec_size,local_size_source,para_env_RPA,error)
 
       IF(my_open_shell) THEN
@@ -331,7 +331,7 @@ MODULE mp2_laplace
         ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
         CALL cp_fm_set_all(matrix=fm_mat_Q_beta,alpha=0.0_dp,error=error)
         CALL fm_redistribute(fm_mat_Q_gemm_beta,fm_mat_Q_beta,RPA_proc_map,buffer_rec_beta,buffer_send_beta,&
-                             number_of_rec_beta,number_of_send_beta,&
+                             number_of_send_beta,&
                              map_send_size_beta,map_rec_size_beta,local_size_source_beta,para_env_RPA,error)
 
       END IF

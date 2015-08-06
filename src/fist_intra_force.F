@@ -376,7 +376,7 @@ CONTAINS
              dist2 = DOT_PRODUCT(t34,t32)
              DO imul = 1, torsion_list(itorsion)%torsion_kind%nmul
                 CALL force_torsions(torsion_list(itorsion)%torsion_kind%id_type, &
-                                    s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32,&
+                                    s32, is32,ism,isn,dist1,dist2,tm,tn, t12,&
                                     torsion_list(itorsion)%torsion_kind%k(imul), &
                                     torsion_list(itorsion)%torsion_kind%phi0(imul), &
                                     torsion_list(itorsion)%torsion_kind%m(imul), &
@@ -456,7 +456,7 @@ CONTAINS
              dist1 = DOT_PRODUCT(t12,t32)
              dist2 = DOT_PRODUCT(t34,t32)
              CALL force_imp_torsions( impr_list(itorsion)%impr_kind%id_type, &
-                                      s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
+                                      s32, is32,ism,isn,dist1,dist2,tm,tn, t12, &
                                       impr_list(itorsion)%impr_kind%k, &
                                       impr_list(itorsion)%impr_kind%phi0, &
                                       gt1,gt2,gt3,gt4,energy,fscalar)

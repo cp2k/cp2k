@@ -817,7 +817,7 @@ CONTAINS
 
           scenter => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
 
-          CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,loc_print_section,&
+          CALL qs_loc_driver(qs_env,qs_loc_env,loc_print_section,&
                myspin=ispin,ext_mo_coeff=mo_local(ispin)%matrix,error=error)
 
           ! maps wfc to molecules, and compute the molecular dipoles if required

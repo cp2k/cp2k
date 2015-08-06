@@ -297,12 +297,10 @@ MODULE dbcsr_mm_sched
 
 ! *****************************************************************************
 !> \brief Signal end of a burst of calls to dbcsr_mm_sched_process.
-!> \param this ...
 !> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_sched_end_burst(this, error)
-    TYPE(dbcsr_mm_sched_type), INTENT(INOUT) :: this
+  SUBROUTINE dbcsr_mm_sched_end_burst(error)
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
 !nothing to do here

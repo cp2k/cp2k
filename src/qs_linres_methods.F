@@ -216,7 +216,7 @@ CONTAINS
 
     ! The orbital centers are stored in linres_control%localized_wfn_control
     DO ispin = 1,nspins
-      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,loc_print_section, myspin = ispin,&
+      CALL qs_loc_driver(qs_env,qs_loc_env,loc_print_section, myspin = ispin,&
            ext_mo_coeff=mos_localized(ispin)%matrix,error=error)
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
       CALL cp_fm_to_fm(mos_localized(ispin)%matrix,mo_coeff,error=error)

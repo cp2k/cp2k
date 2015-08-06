@@ -100,7 +100,7 @@ CONTAINS
       CALL init_powell_var(opt_bas%powell_param,powell_section,error)
       opt_bas%powell_param%nvar=SIZE(opt_bas%x_opt)
 
-      CALL generate_derived_basis_sets(opt_bas,.TRUE.,opt_bas%work_basis_file,para_env,error)
+      CALL generate_derived_basis_sets(opt_bas,para_env,error)
  
       CALL generate_basis_combinations(opt_bas,optbas_section,error)
 
@@ -435,17 +435,13 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Initial generation of the basis set from the file and DERIVED_SET
 !> \param opt_bas ...
-!> \param write_it ...
-!> \param output_file ...
 !> \param para_env ...
 !> \param error ...
 !> \author Florian Schiffmann
 ! *****************************************************************************
 
-   SUBROUTINE generate_derived_basis_sets(opt_bas,write_it,output_file,para_env,error)
+   SUBROUTINE generate_derived_basis_sets(opt_bas,para_env,error)
     TYPE(basis_optimization_type)            :: opt_bas
-    LOGICAL                                  :: write_it
-    CHARACTER(LEN=default_path_length)       :: output_file
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 

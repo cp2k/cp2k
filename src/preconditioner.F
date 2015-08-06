@@ -206,7 +206,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     my_solver_type = solver_type
     preconditioner_env%in_use=precon_type
     CALL make_preconditioner_matrix(preconditioner_env, matrix_h, matrix_s, matrix_t, mo_coeff,&
-                       energy_homo, eigenvalues_ot, energy_gap, solver_type, my_mixed_precision,&
+                       energy_homo, eigenvalues_ot, energy_gap, &
                        my_solver_type, error)
 
     CALL solve_preconditioner(my_solver_type,preconditioner_env,matrix_s,matrix_h,my_mixed_precision,error)

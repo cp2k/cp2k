@@ -146,7 +146,7 @@ CONTAINS
       IF ( opt_state%state == 2 ) THEN
         CALL calc_lri_integrals_get_objective(lri_env,lri_density,qs_env,&
                                               lri_opt,opt_state,pmatrix,para_env,&
-                                              nkind,lri_opt%x,error)
+                                              nkind,error)
       ENDIF
 
       IF ( opt_state%state == -1 ) EXIT
@@ -222,7 +222,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     ! *** get parameters 
-    CALL get_optimization_parameter(lri_env,lri_opt,lri_optbas_section,&
+    CALL get_optimization_parameter(lri_opt,lri_optbas_section,&
                                     opt_state,error)
 
     opt_state%nvar =0
@@ -306,17 +306,15 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief read input for optimization
-!> \param lri_env lri environment
 !> \param lri_opt optimization environmnet
 !> \param lri_optbas_section ...
 !> \param opt_state state of the optimizer
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
-  SUBROUTINE get_optimization_parameter(lri_env,lri_opt,lri_optbas_section,&
+  SUBROUTINE get_optimization_parameter(lri_opt,lri_optbas_section,&
                                        opt_state,error)
 
-    TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_opt_type), POINTER              :: lri_opt
     TYPE(section_vals_type), POINTER         :: lri_optbas_section
     TYPE(opt_state_type)                     :: opt_state
@@ -550,14 +548,12 @@ CONTAINS
 !> \param pmatrix density matrix
 !> \param para_env ...
 !> \param nkind number of atomic kinds
-!> \param x parameters to be optimized, i.e. exponents and contraction coeffs 
-!>        of the lri basis set 
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 ! *****************************************************************************
   SUBROUTINE calc_lri_integrals_get_objective(lri_env,lri_density,qs_env,&
                                               lri_opt,opt_state,pmatrix,para_env,&
-                                              nkind,x,error)
+                                              nkind,error)
 
     TYPE(lri_environment_type), POINTER      :: lri_env
     TYPE(lri_density_type), POINTER          :: lri_density
@@ -568,7 +564,6 @@ CONTAINS
       POINTER                                :: pmatrix
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: nkind
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: &

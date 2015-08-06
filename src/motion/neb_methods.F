@@ -508,7 +508,7 @@ CPSourceFileRef,&
           END IF
           sline%wrk = stepsize*sline%wrk
           diis_on = accept_diis_step(istep>max_sd_steps,n_diis,err,crr,set_err,sline,coords,&
-                                     output_unit,check_diis,iw2,error)
+                                     check_diis,iw2,error)
           IF (diis_on) THEN
              neb_env%opt_type_label= "DIIS"
           END IF

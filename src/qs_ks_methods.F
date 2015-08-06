@@ -1005,7 +1005,7 @@ CONTAINS
                  error=error)
           ENDIF
           CALL calculate_lri_ks_matrix(lri_env, lri_v_int, ks_matrix(ispin)%matrix,&
-               atomic_kind_set, para_env, error)
+               atomic_kind_set, error)
        ENDDO
        IF(ASSOCIATED(v_rspace_new)) THEN
           DEALLOCATE(v_rspace_new,stat=stat)

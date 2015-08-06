@@ -473,7 +473,6 @@ CONTAINS
 !> \param max_cbs ...
 !> \param row_blk_offset ...
 !> \param col_blk_offset ...
-!> \param reuse ...
 !> \param reuse_arrays ...
 !> \param mutable_work ...
 !> \param replication_type ...
@@ -484,7 +483,7 @@ CONTAINS
        data_memory_type, index_memory_type,&
        max_rbs, max_cbs,&
        row_blk_offset, col_blk_offset,&
-       reuse, reuse_arrays, mutable_work, replication_type, error)
+       reuse_arrays, mutable_work, replication_type, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_obj), INTENT(IN)              :: template
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: name
@@ -500,8 +499,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: max_rbs, max_cbs
     TYPE(array_i1d_obj), INTENT(IN), &
       OPTIONAL                               :: row_blk_offset, col_blk_offset
-    LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reuse_arrays, &
-                                                mutable_work
+    LOGICAL, INTENT(IN), OPTIONAL            :: reuse_arrays, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 

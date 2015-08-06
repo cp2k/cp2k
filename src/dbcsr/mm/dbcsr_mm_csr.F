@@ -846,7 +846,7 @@ SUBROUTINE flush_stacks(this, left, right, purge, error)
        ENDIF
     END DO
 
-    CALL dbcsr_mm_sched_end_burst(this%sched, error)
+    CALL dbcsr_mm_sched_end_burst(error)
 END SUBROUTINE flush_stacks
 
 

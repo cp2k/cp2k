@@ -153,7 +153,7 @@ CONTAINS
     CALL MS_initial_moves( para_env, nrep , input, globenv,ms_vib,&
          particles,&
          mass,&
-         dx,output_unit,&
+         dx,&
          calc_intens,error)
     ncoord=3*natoms
     ALLOCATE(pos0(ncoord), stat=stat)
@@ -277,13 +277,12 @@ CONTAINS
 !> \param particles ...
 !> \param mass ...
 !> \param dx ...
-!> \param output_unit_ms ...
 !> \param calc_intens ...
 !> \param error ...
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************
   SUBROUTINE MS_initial_moves(para_env, nrep , input, globenv ,ms_vib,particles ,&
-                              mass, dx,output_unit_ms,&
+                              mass, dx,&
                               calc_intens, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: nrep
@@ -294,7 +293,6 @@ CONTAINS
       POINTER                                :: particles
     REAL(Kind=dp), DIMENSION(:)              :: mass
     REAL(KIND=dp)                            :: dx
-    INTEGER                                  :: output_unit_ms
     LOGICAL                                  :: calc_intens
     TYPE(cp_error_type), INTENT(inout)       :: error
 
