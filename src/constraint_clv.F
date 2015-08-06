@@ -974,19 +974,17 @@ CONTAINS
           CPPostcondition(PRESENT(rmat),cp_failure_level,routineP,error,failure)
        END IF
     END IF
-    IF (.NOT.failure) THEN
-       DO iatm = 1, SIZE( lcolv % colvar_old % i_atom )
-          ind = lcolv % colvar_old % i_atom (iatm)
-          !
-          IF (my_roll) THEN
-             ! If ROLL rotate forces
-             CALL matvec_3x3 (f_roll, rmat, lcolv % colvar_old % dsdr(:,iatm)  )
-          ELSE
-             f_roll = lcolv % colvar_old % dsdr(:,iatm)
-          END IF
-          wrk ( :, ind ) = wrk ( :, ind ) - imass(ind) * fac * lambda * f_roll
-       END DO
-    END IF
+    DO iatm = 1, SIZE( lcolv % colvar_old % i_atom )
+       ind = lcolv % colvar_old % i_atom (iatm)
+       !
+       IF (my_roll) THEN
+          ! If ROLL rotate forces
+          CALL matvec_3x3 (f_roll, rmat, lcolv % colvar_old % dsdr(:,iatm)  )
+       ELSE
+          f_roll = lcolv % colvar_old % dsdr(:,iatm)
+       END IF
+       wrk ( :, ind ) = wrk ( :, ind ) - imass(ind) * fac * lambda * f_roll
+    END DO
   END SUBROUTINE update_con_colv
 
 ! *****************************************************************************

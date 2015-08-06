@@ -213,9 +213,7 @@ CONTAINS
        CALL cp_error_common_stop('cp_error_reset',&
             'error structure not initialized')
     END IF
-    IF (.NOT. failure) THEN
-       CALL cp_logger_release(err_to_free%logger)
-    END IF
+    CALL cp_logger_release(err_to_free%logger)
   END SUBROUTINE cp_error_dealloc_ref
 
 ! *****************************************************************************

@@ -122,65 +122,63 @@ CONTAINS
     CALL timeset(routineN,handle)
     ALLOCATE(cp_ddapc_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       cp_ddapc_env%ref_count=1
-       last_cp_ddapc_id=last_cp_ddapc_id+1
-       cp_ddapc_env%id_nr=last_cp_ddapc_id
-       NULLIFY(cp_ddapc_env%AmI,&
-               cp_ddapc_env%Md,&
-               cp_ddapc_env%Mt,&
-               cp_ddapc_env%Mr,&
-               cp_ddapc_env%Ms,&
-               cp_ddapc_env%gfunc,&
-               cp_ddapc_env%w)
-       ! Evaluates gfunc and AmI
-       CALL ddapc_eval_gfunc(cp_ddapc_env%gfunc, cp_ddapc_env%w, gcut, rho_tot_g, radii, error)
-       CALL ddapc_eval_AmI(cp_ddapc_env%AmI,&
-                           cp_ddapc_env%c0,&
-                           cp_ddapc_env%gfunc,&
-                           cp_ddapc_env%w,&
-                           particle_set, &
-                           gcut,&
-                           rho_tot_g,&
-                           radii,&
-                           iw2,&
-                           Vol, error)
-       IF ( cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.&
-            cp_ddapc_ewald%do_decoupling) THEN
-          !
-          ! Evaluate the matrix for the Classical contribution to the coupling/decoupling scheme
-          !
-          param_section => cp_ddapc_ewald%ewald_section
-          !NB parallelized ewald_ddapc_pot() needs cp_para_env
-          CALL ewald_ddapc_pot(cp_para_env, cp_ddapc_ewald%coeff_qm,&
-                               1.0_dp,&
-                               cell,&
-                               param_section,&
-                               particle_set,&
-                               cp_ddapc_env%Md,&
-                               radii, error)
-          IF ( cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.cp_ddapc_ewald%do_decoupling) THEN
-             ALLOCATE(cp_ddapc_env%Mt(SIZE(cp_ddapc_env%Md,1),SIZE(cp_ddapc_env%Md,2)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             IF ( cp_ddapc_ewald%do_decoupling) THEN
-                ! Just decoupling
-                cp_ddapc_env%Mt = cp_ddapc_env%Md
-             ELSE
-                ! QMMM periodic calculation
-                !NB parallelized ewald_ddapc_pot() needs cp_para_env
-                CALL ewald_ddapc_pot(cp_para_env, cp_ddapc_ewald%coeff_mm,-1.0_dp, super_cell, param_section,&
-                     particle_set, cp_ddapc_env%Mr, radii, error)
-                cp_ddapc_env%Mt = cp_ddapc_env%Md + cp_ddapc_env%Mr
-             END IF
+    cp_ddapc_env%ref_count=1
+    last_cp_ddapc_id=last_cp_ddapc_id+1
+    cp_ddapc_env%id_nr=last_cp_ddapc_id
+    NULLIFY(cp_ddapc_env%AmI,&
+            cp_ddapc_env%Md,&
+            cp_ddapc_env%Mt,&
+            cp_ddapc_env%Mr,&
+            cp_ddapc_env%Ms,&
+            cp_ddapc_env%gfunc,&
+            cp_ddapc_env%w)
+    ! Evaluates gfunc and AmI
+    CALL ddapc_eval_gfunc(cp_ddapc_env%gfunc, cp_ddapc_env%w, gcut, rho_tot_g, radii, error)
+    CALL ddapc_eval_AmI(cp_ddapc_env%AmI,&
+                        cp_ddapc_env%c0,&
+                        cp_ddapc_env%gfunc,&
+                        cp_ddapc_env%w,&
+                        particle_set, &
+                        gcut,&
+                        rho_tot_g,&
+                        radii,&
+                        iw2,&
+                        Vol, error)
+    IF ( cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.&
+         cp_ddapc_ewald%do_decoupling) THEN
+       !
+       ! Evaluate the matrix for the Classical contribution to the coupling/decoupling scheme
+       !
+       param_section => cp_ddapc_ewald%ewald_section
+       !NB parallelized ewald_ddapc_pot() needs cp_para_env
+       CALL ewald_ddapc_pot(cp_para_env, cp_ddapc_ewald%coeff_qm,&
+                            1.0_dp,&
+                            cell,&
+                            param_section,&
+                            particle_set,&
+                            cp_ddapc_env%Md,&
+                            radii, error)
+       IF ( cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.cp_ddapc_ewald%do_decoupling) THEN
+          ALLOCATE(cp_ddapc_env%Mt(SIZE(cp_ddapc_env%Md,1),SIZE(cp_ddapc_env%Md,2)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF ( cp_ddapc_ewald%do_decoupling) THEN
+             ! Just decoupling
+             cp_ddapc_env%Mt = cp_ddapc_env%Md
+          ELSE
+             ! QMMM periodic calculation
+             !NB parallelized ewald_ddapc_pot() needs cp_para_env
+             CALL ewald_ddapc_pot(cp_para_env, cp_ddapc_ewald%coeff_mm,-1.0_dp, super_cell, param_section,&
+                  particle_set, cp_ddapc_env%Mr, radii, error)
+             cp_ddapc_env%Mt = cp_ddapc_env%Md + cp_ddapc_env%Mr
           END IF
        END IF
-       IF ( cp_ddapc_ewald%do_solvation) THEN
-          ! Spherical Solvation model
-          solvation_section => section_vals_get_subs_vals(force_env_section,"DFT%SCRF",&
-               error=error)
-          CALL solvation_ddapc_pot(solvation_section,&
-               particle_set, cp_ddapc_env%Ms,  radii, error)
-       END IF
+    END IF
+    IF ( cp_ddapc_ewald%do_solvation) THEN
+       ! Spherical Solvation model
+       solvation_section => section_vals_get_subs_vals(force_env_section,"DFT%SCRF",&
+            error=error)
+       CALL solvation_ddapc_pot(solvation_section,&
+            particle_set, cp_ddapc_env%Ms,  radii, error)
     END IF
     CALL timestop(handle)
   END SUBROUTINE cp_ddapc_create
@@ -204,10 +202,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(cp_ddapc_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPreconditionNoFail(cp_ddapc_env%ref_count>0,cp_failure_level,routineP,error)
-       cp_ddapc_env%ref_count=cp_ddapc_env%ref_count+1
-    END IF
+    CPPreconditionNoFail(cp_ddapc_env%ref_count>0,cp_failure_level,routineP,error)
+    cp_ddapc_env%ref_count=cp_ddapc_env%ref_count+1
   END SUBROUTINE cp_ddapc_retain
 
 ! *****************************************************************************

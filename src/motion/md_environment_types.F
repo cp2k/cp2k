@@ -179,10 +179,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(md_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(md_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       md_env%ref_count=md_env%ref_count+1
-    END IF
+    CPPrecondition(md_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    md_env%ref_count=md_env%ref_count+1
   END SUBROUTINE md_env_retain
 
 ! *****************************************************************************

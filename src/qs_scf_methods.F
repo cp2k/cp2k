@@ -124,31 +124,29 @@ CONTAINS
     END IF
 
     iter_delta = 0.0_dp
-    IF (.NOT.failure) THEN
-       CPPrecondition(ASSOCIATED(p_mix_new),cp_failure_level,routineP,error,failure)
-       DO ic=1,SIZE(p_mix_new,2)
-          DO ispin=1,SIZE(p_mix_new,1)
-             IF (my_invert) THEN
-                CPPrecondition(my_p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
-                IF (my_p_mix/=1.0_dp) THEN
-                   CALL cp_dbcsr_add(matrix_a=p_mix_new(ispin,ic)%matrix,&
-                        alpha_scalar=1.0_dp/my_p_mix,&
-                        matrix_b=rho_ao(ispin,ic)%matrix,&
-                        beta_scalar=(my_p_mix-1.0_dp)/my_p_mix,&
-                        error=error)
-                END IF
-             ELSE
-                CALL cp_sm_mix(m1=p_mix_new(ispin,ic)%matrix,&
-                     m2=rho_ao(ispin,ic)%matrix,&
-                     p_mix=my_p_mix,&
-                     delta=tmp,&
-                     para_env=para_env,&
+    CPPrecondition(ASSOCIATED(p_mix_new),cp_failure_level,routineP,error,failure)
+    DO ic=1,SIZE(p_mix_new,2)
+       DO ispin=1,SIZE(p_mix_new,1)
+          IF (my_invert) THEN
+             CPPrecondition(my_p_mix/=0.0_dp,cp_failure_level,routineP,error,failure)
+             IF (my_p_mix/=1.0_dp) THEN
+                CALL cp_dbcsr_add(matrix_a=p_mix_new(ispin,ic)%matrix,&
+                     alpha_scalar=1.0_dp/my_p_mix,&
+                     matrix_b=rho_ao(ispin,ic)%matrix,&
+                     beta_scalar=(my_p_mix-1.0_dp)/my_p_mix,&
                      error=error)
-                iter_delta=MAX(iter_delta,tmp)
              END IF
-          END DO
+          ELSE
+             CALL cp_sm_mix(m1=p_mix_new(ispin,ic)%matrix,&
+                  m2=rho_ao(ispin,ic)%matrix,&
+                  p_mix=my_p_mix,&
+                  delta=tmp,&
+                  para_env=para_env,&
+                  error=error)
+             iter_delta=MAX(iter_delta,tmp)
+          END IF
        END DO
-    END IF
+    END DO
 
     CALL timestop(handle)
 

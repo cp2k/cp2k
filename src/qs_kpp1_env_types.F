@@ -181,10 +181,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       kpp1_env%ref_count=kpp1_env%ref_count+1
-    END IF
+    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    kpp1_env%ref_count=kpp1_env%ref_count+1
   END SUBROUTINE kpp1_retain
 
 ! *****************************************************************************

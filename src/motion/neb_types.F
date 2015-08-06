@@ -89,38 +89,36 @@ CONTAINS
     LOGICAL                                  :: allocate_all, failure
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(neb_var),cp_failure_level,routineP,error,failure)
-       allocate_all = .FALSE.
-       IF (PRESENT(full_allocation)) allocate_all = full_allocation
-       neb_nr_replica = neb_env%number_of_replica
-       ALLOCATE(neb_var, stat=stat)
+    CPPostcondition(.NOT.ASSOCIATED(neb_var),cp_failure_level,routineP,error,failure)
+    allocate_all = .FALSE.
+    IF (PRESENT(full_allocation)) allocate_all = full_allocation
+    neb_nr_replica = neb_env%number_of_replica
+    ALLOCATE(neb_var, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(neb_var%xyz, neb_var%int, neb_var%wrk, neb_var%Mmatrix)
+    IF (allocate_all) THEN
+       ALLOCATE(neb_var%xyz(neb_env%nsize_xyz, neb_nr_replica),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(neb_var%xyz, neb_var%int, neb_var%wrk, neb_var%Mmatrix)
-       IF (allocate_all) THEN
+       neb_var%xyz = 0.0_dp
+    END IF
+    IF (neb_env%use_colvar) THEN
+       neb_var%in_use = do_band_collective
+       CPPostcondition(neb_env%nsize_int>0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(neb_var%int(neb_env%nsize_int, neb_nr_replica),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       neb_var%int = 0.0_dp
+       neb_var%wrk => neb_var%int
+    ELSE
+       neb_var%in_use = do_band_cartesian
+       IF (.NOT.allocate_all) THEN
           ALLOCATE(neb_var%xyz(neb_env%nsize_xyz, neb_nr_replica),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           neb_var%xyz = 0.0_dp
        END IF
-       IF (neb_env%use_colvar) THEN
-          neb_var%in_use = do_band_collective
-          CPPostcondition(neb_env%nsize_int>0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(neb_var%int(neb_env%nsize_int, neb_nr_replica),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          neb_var%int = 0.0_dp
-          neb_var%wrk => neb_var%int
-       ELSE
-          neb_var%in_use = do_band_cartesian
-          IF (.NOT.allocate_all) THEN
-             ALLOCATE(neb_var%xyz(neb_env%nsize_xyz, neb_nr_replica),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             neb_var%xyz = 0.0_dp
-          END IF
-          neb_var%wrk => neb_var%xyz
-       END IF
-       neb_var%size_wrk(1) = SIZE(neb_var%wrk,1)
-       neb_var%size_wrk(2) = SIZE(neb_var%wrk,2)
+       neb_var%wrk => neb_var%xyz
     END IF
+    neb_var%size_wrk(1) = SIZE(neb_var%wrk,1)
+    neb_var%size_wrk(2) = SIZE(neb_var%wrk,2)
 
   END SUBROUTINE neb_var_create
 
@@ -142,20 +140,18 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       CPPostcondition(ASSOCIATED(neb_var),cp_failure_level,routineP,error,failure)
-       IF (ASSOCIATED(neb_var%xyz)) THEN
-          DEALLOCATE(neb_var%xyz,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-       IF (neb_var%in_use==do_band_collective) THEN
-          DEALLOCATE(neb_var%int,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-       NULLIFY(neb_var%wrk)
-       DEALLOCATE(neb_var, stat=stat)
+    CPPostcondition(ASSOCIATED(neb_var),cp_failure_level,routineP,error,failure)
+    IF (ASSOCIATED(neb_var%xyz)) THEN
+       DEALLOCATE(neb_var%xyz,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    IF (neb_var%in_use==do_band_collective) THEN
+       DEALLOCATE(neb_var%int,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    NULLIFY(neb_var%wrk)
+    DEALLOCATE(neb_var, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE neb_var_release
 

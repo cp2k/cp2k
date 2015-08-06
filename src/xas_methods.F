@@ -1404,50 +1404,48 @@ CONTAINS
     CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
 
     NULLIFY(eigenvalues, occupation_numbers)
-    IF(.NOT. failure) THEN
-      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation_numbers,&
-           nao=nao, nmo=nmo, homo =homo, lfomo=lfomo)
-      DO i=1,SIZE(fm_set,2)
-        DO j = 1,SIZE(fm_set,1)
-           CPPrecondition(ASSOCIATED(fm_set(j,i)%matrix),cp_failure_level,routineP,error,failure)
-           CALL cp_fm_set_all(fm_set(j,i)%matrix, 0.0_dp, error=error)
-           CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
-           CALL cp_dbcsr_sm_fm_multiply(op_sm(j,i)%matrix,all_vectors,fm_work,ncol=nstate,error=error)
-           CALL cp_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
-                  fm_work,0.0_dp, fm_set(j,i)%matrix,b_first_col=1,error=error)
-        END DO
+    CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation_numbers,&
+         nao=nao, nmo=nmo, homo =homo, lfomo=lfomo)
+    DO i=1,SIZE(fm_set,2)
+      DO j = 1,SIZE(fm_set,1)
+         CPPrecondition(ASSOCIATED(fm_set(j,i)%matrix),cp_failure_level,routineP,error,failure)
+         CALL cp_fm_set_all(fm_set(j,i)%matrix, 0.0_dp, error=error)
+         CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
+         CALL cp_dbcsr_sm_fm_multiply(op_sm(j,i)%matrix,all_vectors,fm_work,ncol=nstate,error=error)
+         CALL cp_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
+                fm_work,0.0_dp, fm_set(j,i)%matrix,b_first_col=1,error=error)
       END DO
+    END DO
 
-      sp_em = 0.0_dp
-      sp_ab = 0.0_dp
-      ene_i = eigenvalues(estate)
-      DO istate = 1,nstate
-         ene_f = all_evals(istate)
-         DO i = 1,3
-           CALL cp_fm_get_element(fm_set(1,i)%matrix,1,istate,realpart)
-           CALL cp_fm_get_element(fm_set(2,i)%matrix,1,istate,imagpart)
-           z = CMPLX(realpart,imagpart,dp)
-           ra(i) = ( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
-         END DO
-         IF(istate<=homo) THEN
-           sp_em(1,istate) = ene_f - ene_i
-           sp_em(2,istate) = ra(1)*ra(1)
-           sp_em(3,istate) = ra(2)*ra(2)
-           sp_em(4,istate) = ra(3)*ra(3)
-           sp_em(5,istate) = ra(1)*ra(1)+ra(2)*ra(2)+ra(3)*ra(3)
-           sp_em(6,istate) = occupation_numbers(istate)
-         END IF
-         IF(istate>=lfomo ) THEN
-           i_abs = istate - lfomo  + 1
-           sp_ab(1,i_abs) = ene_f - ene_i
-           sp_ab(2,i_abs) = ra(1)*ra(1)
-           sp_ab(3,i_abs) = ra(2)*ra(2)
-           sp_ab(4,i_abs) = ra(3)*ra(3)
-           sp_ab(5,i_abs) = ra(1)*ra(1)+ra(2)*ra(2)+ra(3)*ra(3)
-           IF(istate<=nmo) sp_ab(6,i_abs) = occupation_numbers(istate)
-         END IF
-      END DO
-    END IF
+    sp_em = 0.0_dp
+    sp_ab = 0.0_dp
+    ene_i = eigenvalues(estate)
+    DO istate = 1,nstate
+       ene_f = all_evals(istate)
+       DO i = 1,3
+         CALL cp_fm_get_element(fm_set(1,i)%matrix,1,istate,realpart)
+         CALL cp_fm_get_element(fm_set(2,i)%matrix,1,istate,imagpart)
+         z = CMPLX(realpart,imagpart,dp)
+         ra(i) = ( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
+       END DO
+       IF(istate<=homo) THEN
+         sp_em(1,istate) = ene_f - ene_i
+         sp_em(2,istate) = ra(1)*ra(1)
+         sp_em(3,istate) = ra(2)*ra(2)
+         sp_em(4,istate) = ra(3)*ra(3)
+         sp_em(5,istate) = ra(1)*ra(1)+ra(2)*ra(2)+ra(3)*ra(3)
+         sp_em(6,istate) = occupation_numbers(istate)
+       END IF
+       IF(istate>=lfomo ) THEN
+         i_abs = istate - lfomo  + 1
+         sp_ab(1,i_abs) = ene_f - ene_i
+         sp_ab(2,i_abs) = ra(1)*ra(1)
+         sp_ab(3,i_abs) = ra(2)*ra(2)
+         sp_ab(4,i_abs) = ra(3)*ra(3)
+         sp_ab(5,i_abs) = ra(1)*ra(1)+ra(2)*ra(2)+ra(3)*ra(3)
+         IF(istate<=nmo) sp_ab(6,i_abs) = occupation_numbers(istate)
+       END IF
+    END DO
 
   END SUBROUTINE spectrum_dip_len
 
@@ -1508,49 +1506,47 @@ CONTAINS
     CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
     NULLIFY(eigenvalues, occupation_numbers)
 
-    IF(.NOT. failure) THEN
-      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,occupation_numbers=occupation_numbers,&
-           nao=nao, nmo=nmo, homo =homo, lfomo=lfomo)
+    CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,occupation_numbers=occupation_numbers,&
+         nao=nao, nmo=nmo, homo =homo, lfomo=lfomo)
 
-      DO i=1,SIZE(fm_set,2)
-         CPPrecondition(ASSOCIATED(fm_set(1,i)%matrix),cp_failure_level,routineP,error,failure)
-         CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp, error=error)
-         CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
-         CALL cp_dbcsr_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nstate,error=error)
-         CALL cp_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
-              fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=1,error=error)
-      END DO
+    DO i=1,SIZE(fm_set,2)
+       CPPrecondition(ASSOCIATED(fm_set(1,i)%matrix),cp_failure_level,routineP,error,failure)
+       CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp, error=error)
+       CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
+       CALL cp_dbcsr_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nstate,error=error)
+       CALL cp_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
+            fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=1,error=error)
+    END DO
 
-      sp_em = 0.0_dp
-      sp_ab = 0.0_dp
-      ene_i = eigenvalues(estate)
+    sp_em = 0.0_dp
+    sp_ab = 0.0_dp
+    ene_i = eigenvalues(estate)
 
-      DO istate = 1,nstate
-         ene_f = all_evals(istate)
+    DO istate = 1,nstate
+       ene_f = all_evals(istate)
 
-         DO i = 1,3
-           CALL cp_fm_get_element(fm_set(1,i)%matrix,1,istate,dip(i))
-         END DO
-         IF(istate<=homo) THEN
-           sp_em(1,istate) = ene_f - ene_i
-           sp_em(2,istate) = dip(1)
-           sp_em(3,istate) = dip(2)
-           sp_em(4,istate) = dip(3)
-           sp_em(5,istate) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
-           sp_em(6,istate) = occupation_numbers(istate)
-         END IF
-         IF(istate>=lfomo ) THEN
-           i_abs = istate - lfomo + 1
-           sp_ab(1,i_abs) = ene_f - ene_i
-           sp_ab(2,i_abs) = dip(1)
-           sp_ab(3,i_abs) = dip(2)
-           sp_ab(4,i_abs) = dip(3)
-           sp_ab(5,i_abs) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
-           IF(istate<=nmo) sp_ab(6,i_abs) = occupation_numbers(istate)
-         END IF
+       DO i = 1,3
+         CALL cp_fm_get_element(fm_set(1,i)%matrix,1,istate,dip(i))
+       END DO
+       IF(istate<=homo) THEN
+         sp_em(1,istate) = ene_f - ene_i
+         sp_em(2,istate) = dip(1)
+         sp_em(3,istate) = dip(2)
+         sp_em(4,istate) = dip(3)
+         sp_em(5,istate) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
+         sp_em(6,istate) = occupation_numbers(istate)
+       END IF
+       IF(istate>=lfomo ) THEN
+         i_abs = istate - lfomo + 1
+         sp_ab(1,i_abs) = ene_f - ene_i
+         sp_ab(2,i_abs) = dip(1)
+         sp_ab(3,i_abs) = dip(2)
+         sp_ab(4,i_abs) = dip(3)
+         sp_ab(5,i_abs) = dip(1)*dip(1)+dip(2)*dip(2)+dip(3)*dip(3)
+         IF(istate<=nmo) sp_ab(6,i_abs) = occupation_numbers(istate)
+       END IF
 
-      END DO
-    END IF
+    END DO
 
   END SUBROUTINE spectrum_dip_vel
 

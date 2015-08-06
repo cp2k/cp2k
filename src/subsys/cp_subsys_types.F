@@ -146,10 +146,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP,error)
-       subsys%ref_count=subsys%ref_count+1
-    END IF
+    CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP,error)
+    subsys%ref_count=subsys%ref_count+1
   END SUBROUTINE cp_subsys_retain
 
 ! *****************************************************************************
@@ -258,82 +256,80 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
     CPPrecondition(subsys%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(multipoles)) THEN
-          CALL retain_multipole_type(multipoles, error)
-          CALL release_multipole_type(subsys%multipoles, error)
-          subsys%multipoles => multipoles
+    IF (PRESENT(multipoles)) THEN
+       CALL retain_multipole_type(multipoles, error)
+       CALL release_multipole_type(subsys%multipoles, error)
+       subsys%multipoles => multipoles
+    END IF
+    IF (PRESENT(atomic_kinds)) THEN
+       CALL atomic_kind_list_retain(atomic_kinds,error=error)
+       CALL atomic_kind_list_release(subsys%atomic_kinds, error=error)
+       subsys%atomic_kinds => atomic_kinds
+    END IF
+    IF (PRESENT(particles)) THEN
+       CALL particle_list_retain(particles, error=error)
+       CALL particle_list_release(subsys%particles, error=error)
+       subsys%particles => particles
+    END IF
+    IF (PRESENT(local_particles)) THEN
+       CALL distribution_1d_retain(local_particles,error=error)
+       CALL distribution_1d_release(subsys%local_particles,error=error)
+       subsys%local_particles => local_particles
+    END IF
+    IF (PRESENT(local_molecules_new)) THEN
+       CALL distribution_1d_retain(local_molecules_new,error=error)
+       CALL distribution_1d_release(subsys%local_molecules_new,error=error)
+       subsys%local_molecules_new => local_molecules_new
+    END IF
+    IF (PRESENT(molecule_kinds_new)) THEN
+       CALL mol_kind_new_list_retain(molecule_kinds_new, error=error)
+       CALL mol_kind_new_list_release(subsys%molecule_kinds_new, error=error)
+       subsys%molecule_kinds_new => molecule_kinds_new
+    END IF
+    IF (PRESENT(molecules_new)) THEN
+       CALL mol_new_list_retain(molecules_new, error=error)
+       CALL mol_new_list_release(subsys%molecules_new, error=error)
+       subsys%molecules_new => molecules_new
+    END IF
+    IF (PRESENT(para_env)) THEN
+       CALL cp_para_env_retain(para_env, error=error)
+       CALL cp_para_env_release(subsys%para_env, error=error)
+       subsys%para_env => para_env
+    END IF
+    IF (PRESENT(colvar_p)) THEN
+       CPPrecondition(.NOT.ASSOCIATED(subsys%colvar_p),cp_failure_level,routineP,error,failure)
+       subsys%colvar_p=>colvar_p
+    ENDIF
+    IF (PRESENT(shell_particles)) THEN
+       IF(ASSOCIATED(shell_particles)) THEN
+          CALL particle_list_retain(shell_particles, error=error)
+          CALL particle_list_release(subsys%shell_particles, error=error)
+          subsys%shell_particles => shell_particles
        END IF
-       IF (PRESENT(atomic_kinds)) THEN
-          CALL atomic_kind_list_retain(atomic_kinds,error=error)
-          CALL atomic_kind_list_release(subsys%atomic_kinds, error=error)
-          subsys%atomic_kinds => atomic_kinds
+    END IF
+    IF (PRESENT(core_particles)) THEN
+       IF(ASSOCIATED(core_particles)) THEN
+          CALL particle_list_retain(core_particles, error=error)
+          CALL particle_list_release(subsys%core_particles, error=error)
+          subsys%core_particles => core_particles
        END IF
-       IF (PRESENT(particles)) THEN
-          CALL particle_list_retain(particles, error=error)
-          CALL particle_list_release(subsys%particles, error=error)
-          subsys%particles => particles
+    END IF
+    IF (PRESENT(gci)) THEN
+       CPPrecondition(.NOT.ASSOCIATED(subsys%gci),cp_failure_level,routineP,error,failure)
+       subsys%gci => gci
+    ENDIF
+    IF (PRESENT(results)) THEN
+       IF(ASSOCIATED(results)) THEN
+          CALL cp_result_retain(results, error=error)
+          CALL cp_result_release(subsys%results, error=error)
+          subsys%results => results
        END IF
-       IF (PRESENT(local_particles)) THEN
-          CALL distribution_1d_retain(local_particles,error=error)
-          CALL distribution_1d_release(subsys%local_particles,error=error)
-          subsys%local_particles => local_particles
-       END IF
-       IF (PRESENT(local_molecules_new)) THEN
-          CALL distribution_1d_retain(local_molecules_new,error=error)
-          CALL distribution_1d_release(subsys%local_molecules_new,error=error)
-          subsys%local_molecules_new => local_molecules_new
-       END IF
-       IF (PRESENT(molecule_kinds_new)) THEN
-          CALL mol_kind_new_list_retain(molecule_kinds_new, error=error)
-          CALL mol_kind_new_list_release(subsys%molecule_kinds_new, error=error)
-          subsys%molecule_kinds_new => molecule_kinds_new
-       END IF
-       IF (PRESENT(molecules_new)) THEN
-          CALL mol_new_list_retain(molecules_new, error=error)
-          CALL mol_new_list_release(subsys%molecules_new, error=error)
-          subsys%molecules_new => molecules_new
-       END IF
-       IF (PRESENT(para_env)) THEN
-          CALL cp_para_env_retain(para_env, error=error)
-          CALL cp_para_env_release(subsys%para_env, error=error)
-          subsys%para_env => para_env
-       END IF
-       IF (PRESENT(colvar_p)) THEN
-          CPPrecondition(.NOT.ASSOCIATED(subsys%colvar_p),cp_failure_level,routineP,error,failure)
-          subsys%colvar_p=>colvar_p
-       ENDIF
-       IF (PRESENT(shell_particles)) THEN
-          IF(ASSOCIATED(shell_particles)) THEN
-             CALL particle_list_retain(shell_particles, error=error)
-             CALL particle_list_release(subsys%shell_particles, error=error)
-             subsys%shell_particles => shell_particles
-          END IF
-       END IF
-       IF (PRESENT(core_particles)) THEN
-          IF(ASSOCIATED(core_particles)) THEN
-             CALL particle_list_retain(core_particles, error=error)
-             CALL particle_list_release(subsys%core_particles, error=error)
-             subsys%core_particles => core_particles
-          END IF
-       END IF
-       IF (PRESENT(gci)) THEN
-          CPPrecondition(.NOT.ASSOCIATED(subsys%gci),cp_failure_level,routineP,error,failure)
-          subsys%gci => gci
-       ENDIF
-       IF (PRESENT(results)) THEN
-          IF(ASSOCIATED(results)) THEN
-             CALL cp_result_retain(results, error=error)
-             CALL cp_result_release(subsys%results, error=error)
-             subsys%results => results
-          END IF
-       END IF
-       IF (PRESENT(cell)) THEN
-          IF(ASSOCIATED(cell)) THEN
-             CALL cell_retain(cell, error=error)
-             CALL cell_release(subsys%cell, error=error)
-             subsys%cell => cell
-          END IF
+    END IF
+    IF (PRESENT(cell)) THEN
+       IF(ASSOCIATED(cell)) THEN
+          CALL cell_retain(cell, error=error)
+          CALL cell_release(subsys%cell, error=error)
+          subsys%cell => cell
        END IF
     END IF
   END SUBROUTINE cp_subsys_set
@@ -437,53 +433,51 @@ CONTAINS
     CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
     CPPrecondition(subsys%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-       IF (PRESENT(ref_count)) ref_count = subsys%ref_count
-       IF (PRESENT(atomic_kinds)) atomic_kinds => subsys%atomic_kinds
-       IF (PRESENT(atomic_kind_set)) atomic_kind_set => subsys%atomic_kinds%els
-       IF (PRESENT(particles)) particles => subsys%particles
-       IF (PRESENT(particle_set)) particle_set => subsys%particles%els
-       IF (PRESENT(local_particles)) local_particles => subsys%local_particles
-       IF (PRESENT(molecules_new)) molecules_new => subsys%molecules_new
-       IF (PRESENT(molecule_set)) molecule_set => subsys%molecules_new%els
-       IF (PRESENT(molecule_kinds_new)) molecule_kinds_new => subsys%molecule_kinds_new
-       IF (PRESENT(molecule_kind_set)) molecule_kind_set => subsys%molecule_kinds_new%els
-       IF (PRESENT(local_molecules_new)) local_molecules_new => subsys%local_molecules_new
-       IF (PRESENT(para_env)) para_env => subsys%para_env
-       IF (PRESENT(colvar_p)) colvar_p => subsys%colvar_p
-       IF (PRESENT(shell_particles)) shell_particles => subsys%shell_particles
-       IF (PRESENT(core_particles)) core_particles => subsys%core_particles
-       IF (PRESENT(gci)) gci => subsys%gci
-       IF (PRESENT(multipoles)) multipoles => subsys%multipoles
-       IF (PRESENT(virial)) virial => subsys%virial
-       IF (PRESENT(atprop)) atprop => subsys%atprop
-       IF (PRESENT(results)) results => subsys%results
-       IF (PRESENT(cell)) cell => subsys%cell
-       IF (PRESENT(nkind)) nkind=SIZE(subsys%atomic_kinds%els)
+    IF (PRESENT(ref_count)) ref_count = subsys%ref_count
+    IF (PRESENT(atomic_kinds)) atomic_kinds => subsys%atomic_kinds
+    IF (PRESENT(atomic_kind_set)) atomic_kind_set => subsys%atomic_kinds%els
+    IF (PRESENT(particles)) particles => subsys%particles
+    IF (PRESENT(particle_set)) particle_set => subsys%particles%els
+    IF (PRESENT(local_particles)) local_particles => subsys%local_particles
+    IF (PRESENT(molecules_new)) molecules_new => subsys%molecules_new
+    IF (PRESENT(molecule_set)) molecule_set => subsys%molecules_new%els
+    IF (PRESENT(molecule_kinds_new)) molecule_kinds_new => subsys%molecule_kinds_new
+    IF (PRESENT(molecule_kind_set)) molecule_kind_set => subsys%molecule_kinds_new%els
+    IF (PRESENT(local_molecules_new)) local_molecules_new => subsys%local_molecules_new
+    IF (PRESENT(para_env)) para_env => subsys%para_env
+    IF (PRESENT(colvar_p)) colvar_p => subsys%colvar_p
+    IF (PRESENT(shell_particles)) shell_particles => subsys%shell_particles
+    IF (PRESENT(core_particles)) core_particles => subsys%core_particles
+    IF (PRESENT(gci)) gci => subsys%gci
+    IF (PRESENT(multipoles)) multipoles => subsys%multipoles
+    IF (PRESENT(virial)) virial => subsys%virial
+    IF (PRESENT(atprop)) atprop => subsys%atprop
+    IF (PRESENT(results)) results => subsys%results
+    IF (PRESENT(cell)) cell => subsys%cell
+    IF (PRESENT(nkind)) nkind=SIZE(subsys%atomic_kinds%els)
 
-       IF (PRESENT(natom).OR.PRESENT(nparticle).OR.PRESENT(nshell)) THEN
-          ! An atomic particle set should be present in each subsystem at the moment
-          CPPrecondition(ASSOCIATED(subsys%particles),cp_failure_level,routineP,error,failure)
-          n_atom = subsys%particles%n_els
-          ! Check if we have other kinds of particles in this subsystem
-          IF (ASSOCIATED(subsys%shell_particles)) THEN
-             n_shell = subsys%shell_particles%n_els
-             CPPrecondition(ASSOCIATED(subsys%core_particles),cp_failure_level,routineP,error,failure)
-             n_core = subsys%core_particles%n_els
-             ! The same number of shell and core particles is assumed
-             CPPrecondition((n_core == n_shell),cp_failure_level,routineP,error,failure)
-          ELSE IF (ASSOCIATED(subsys%core_particles)) THEN
-             ! This case should not occur at the moment
-             CPPrecondition(ASSOCIATED(subsys%shell_particles),cp_failure_level,routineP,error,failure)
-          ELSE
-             n_core = 0
-             n_shell = 0
-          END IF
-          IF (PRESENT(natom)) natom = n_atom
-          IF (PRESENT(nparticle)) nparticle = n_atom + n_shell
-          IF (PRESENT(ncore)) ncore = n_core
-          IF (PRESENT(nshell)) nshell = n_shell
+    IF (PRESENT(natom).OR.PRESENT(nparticle).OR.PRESENT(nshell)) THEN
+       ! An atomic particle set should be present in each subsystem at the moment
+       CPPrecondition(ASSOCIATED(subsys%particles),cp_failure_level,routineP,error,failure)
+       n_atom = subsys%particles%n_els
+       ! Check if we have other kinds of particles in this subsystem
+       IF (ASSOCIATED(subsys%shell_particles)) THEN
+          n_shell = subsys%shell_particles%n_els
+          CPPrecondition(ASSOCIATED(subsys%core_particles),cp_failure_level,routineP,error,failure)
+          n_core = subsys%core_particles%n_els
+          ! The same number of shell and core particles is assumed
+          CPPrecondition((n_core == n_shell),cp_failure_level,routineP,error,failure)
+       ELSE IF (ASSOCIATED(subsys%core_particles)) THEN
+          ! This case should not occur at the moment
+          CPPrecondition(ASSOCIATED(subsys%shell_particles),cp_failure_level,routineP,error,failure)
+       ELSE
+          n_core = 0
+          n_shell = 0
        END IF
+       IF (PRESENT(natom)) natom = n_atom
+       IF (PRESENT(nparticle)) nparticle = n_atom + n_shell
+       IF (PRESENT(ncore)) ncore = n_core
+       IF (PRESENT(nshell)) nshell = n_shell
     END IF
 
   END SUBROUTINE cp_subsys_get

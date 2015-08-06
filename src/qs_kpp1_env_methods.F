@@ -123,17 +123,15 @@ CONTAINS
 
     ALLOCATE(kpp1_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       NULLIFY(kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r,&
-            kpp1_env%rho_set, &
-            kpp1_env%deriv_set, kpp1_env%spin_pot, kpp1_env%grad_pot,&
-            kpp1_env%ndiag_term)
-       kpp1_env%ref_count=1
-       last_kpp1_id_nr=last_kpp1_id_nr+1
-       kpp1_env%id_nr=last_kpp1_id_nr
-       kpp1_env%iter=0
-       kpp1_env%print_count=0
-    END IF
+    NULLIFY(kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r,&
+         kpp1_env%rho_set, &
+         kpp1_env%deriv_set, kpp1_env%spin_pot, kpp1_env%grad_pot,&
+         kpp1_env%ndiag_term)
+    kpp1_env%ref_count=1
+    last_kpp1_id_nr=last_kpp1_id_nr+1
+    kpp1_env%id_nr=last_kpp1_id_nr
+    kpp1_env%iter=0
+    kpp1_env%print_count=0
   END SUBROUTINE kpp1_create
 
 ! *****************************************************************************
@@ -208,321 +206,311 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho1),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-       CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       CALL kpp1_check_i_alloc(kpp1_env,qs_env=qs_env,error=error)
-       CALL get_qs_env(qs_env=qs_env,&
-            pw_env=pw_env,&
-            input=input,&
-            error=error)
+    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CALL kpp1_check_i_alloc(kpp1_env,qs_env=qs_env,error=error)
+    CALL get_qs_env(qs_env=qs_env,&
+         pw_env=pw_env,&
+         input=input,&
+         error=error)
 
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
-       CALL qs_rho_get(rho1, rho_g=rho1_g, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho1, rho_g=rho1_g, error=error)
 
-       gapw=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw)
-       gapw_xc=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw_xc)
-       IF(gapw_xc) THEN
-          CPPrecondition(ASSOCIATED(rho1_xc),cp_failure_level,routineP,error,failure)
-       END IF
-
-       nspins = SIZE(k_p_p1)
-       lsd = (nspins==2)
-
-       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-       scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
-       CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
-            i_val=excitations,error=error)
-       IF (excitations==tddfpt_excitations) THEN
-          xc_section => section_vals_get_subs_vals(input,"DFT%TDDFPT%XC",error=error)
-          !FM this check should already had happened and section made explicit, give an error?
-          CALL section_vals_get(xc_section,explicit=explicit,error=error)
-          IF (.NOT.explicit) THEN
-             xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-          END IF
-       END IF
-
-       CALL section_vals_val_get(input,"DFT%TDDFPT%LSD_SINGLETS",&
-            l_val=lsd_singlets,error=error)
-       CALL section_vals_val_get(input,"DFT%TDDFPT%RES_ETYPE",&
-            i_val=res_etype,error=error)
+    gapw=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw)
+    gapw_xc=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw_xc)
+    IF(gapw_xc) THEN
+       CPPrecondition(ASSOCIATED(rho1_xc),cp_failure_level,routineP,error,failure)
     END IF
 
-    IF (.NOT.failure) THEN
-       kpp1_env%iter=kpp1_env%iter+1
+    nspins = SIZE(k_p_p1)
+    lsd = (nspins==2)
+
+    xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+    scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
+    CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
+         i_val=excitations,error=error)
+    IF (excitations==tddfpt_excitations) THEN
+       xc_section => section_vals_get_subs_vals(input,"DFT%TDDFPT%XC",error=error)
+       !FM this check should already had happened and section made explicit, give an error?
+       CALL section_vals_get(xc_section,explicit=explicit,error=error)
+       IF (.NOT.explicit) THEN
+          xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+       END IF
     END IF
+
+    CALL section_vals_val_get(input,"DFT%TDDFPT%LSD_SINGLETS",&
+         l_val=lsd_singlets,error=error)
+    CALL section_vals_val_get(input,"DFT%TDDFPT%RES_ETYPE",&
+         i_val=res_etype,error=error)
+
+    kpp1_env%iter=kpp1_env%iter+1
 
 ! gets the tmp grids
-    IF (.NOT. failure) THEN
-       CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-            pw_pools=pw_pools, poisson_env=poisson_env,error=error)
-       ALLOCATE(v_rspace_new(nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-       CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
-            use_data = COMPLEXDATA1D,&
-            in_space = RECIPROCALSPACE, error=error)
-       CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_rspace%pw,&
-            use_data = REALDATA3D,&
-            in_space = REALSPACE, error=error)
-    END IF
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+         pw_pools=pw_pools, poisson_env=poisson_env,error=error)
+    ALLOCATE(v_rspace_new(nspins), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
+         use_data = COMPLEXDATA1D,&
+         in_space = RECIPROCALSPACE, error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_rspace%pw,&
+         use_data = REALDATA3D,&
+         in_space = REALSPACE, error=error)
 
     IF (gapw .OR. gapw_xc) &
        CALL prepare_gapw_den(qs_env,p_env%local_rho_set, do_rho0=(.NOT.gapw_xc), error=error)
 
 ! *** calculate the hartree potential on the total density ***
-    IF (.NOT. failure) THEN
 
-       CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
-            use_data = COMPLEXDATA1D,&
-            in_space = RECIPROCALSPACE, error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
+         use_data = COMPLEXDATA1D,&
+         in_space = RECIPROCALSPACE, error=error)
 
-       CALL pw_copy(rho1_g(1)%pw,rho1_tot_gspace%pw,error=error)
-       DO ispin=2,nspins
-          CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace%pw, error=error)
-       END DO
-       IF (gapw) &
-            CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw,&
-            error=error)
+    CALL pw_copy(rho1_g(1)%pw,rho1_tot_gspace%pw,error=error)
+    DO ispin=2,nspins
+       CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace%pw, error=error)
+    END DO
+    IF (gapw) &
+         CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw,&
+         error=error)
 
-       IF (cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",&
-            error=error)/=0) THEN
-          output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
-               extension=".scfLog",error=error)
-          CALL print_densities(rho1, rho1_tot_gspace, output_unit, error=error)
-          CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-               "PRINT%TOTAL_DENSITIES", error=error)
-       END IF
+    IF (cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",&
+         error=error)/=0) THEN
+       output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
+            extension=".scfLog",error=error)
+       CALL print_densities(rho1, rho1_tot_gspace, output_unit, error=error)
+       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+            "PRINT%TOTAL_DENSITIES", error=error)
+    END IF
 
-       IF (.NOT.(nspins==1 .AND. excitations==tddfpt_excitations .AND. &
-                 res_etype /= tddfpt_singlet )) THEN
-          CALL pw_poisson_solve(poisson_env,rho1_tot_gspace%pw, &
-                                 energy_hartree, &
-                                 v_hartree_gspace%pw,error=error)
-          CALL pw_transfer(v_hartree_gspace%pw,v_hartree_rspace%pw,error=error)
-       END IF
+    IF (.NOT.(nspins==1 .AND. excitations==tddfpt_excitations .AND. &
+              res_etype /= tddfpt_singlet )) THEN
+       CALL pw_poisson_solve(poisson_env,rho1_tot_gspace%pw, &
+                              energy_hartree, &
+                              v_hartree_gspace%pw,error=error)
+       CALL pw_transfer(v_hartree_gspace%pw,v_hartree_rspace%pw,error=error)
+    END IF
 
-       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
-            error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
+         error=error)
 
 ! *** calculate the xc potential ***
-       IF(gapw_xc) THEN
-         CALL qs_rho_get(rho1_xc, rho_r=rho1_r, error=error)
-       ELSE
-         CALL qs_rho_get(rho1, rho_r=rho1_r, error=error)
-       END IF
+    IF(gapw_xc) THEN
+      CALL qs_rho_get(rho1_xc, rho_r=rho1_r, error=error)
+    ELSE
+      CALL qs_rho_get(rho1, rho_r=rho1_r, error=error)
+    END IF
 
-       IF (nspins == 1 .AND. excitations==tddfpt_excitations .AND. &
-           (lsd_singlets .OR. res_etype == tddfpt_triplet)) THEN
+    IF (nspins == 1 .AND. excitations==tddfpt_excitations .AND. &
+        (lsd_singlets .OR. res_etype == tddfpt_triplet)) THEN
 
-          lsd = .TRUE.
-          ALLOCATE(rho1_r_pw(2))
-          DO ispin=1, 2
-             NULLIFY(rho1_r_pw(ispin)%pw)
-             CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
-                  rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space,error=error)
-             CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw,error=error)
-          END DO
+       lsd = .TRUE.
+       ALLOCATE(rho1_r_pw(2))
+       DO ispin=1, 2
+          NULLIFY(rho1_r_pw(ispin)%pw)
+          CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
+               rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space,error=error)
+          CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw,error=error)
+       END DO
 
-       ELSE
+    ELSE
 
-          ALLOCATE(rho1_r_pw(nspins))
-          DO ispin=1, nspins
-             rho1_r_pw(ispin)%pw => rho1_r(ispin)%pw
-             CALL pw_retain(rho1_r_pw(ispin)%pw,error=error)
-          END DO
-
-       END IF
-
-       NULLIFY(tau_pw)
-
-       !------!
-       ! rho1 !
-       !------!
-       bo = rho1_r(1)%pw%pw_grid%bounds_local
-       ! create the place where to store the argument for the functionals
-       CALL xc_rho_set_create(rho1_set, bo, &
-                              rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF",error=error), &
-                              drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF",error=error), &
-                              tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF",error=error), &
-                              error=error)
-
-       xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
-            error=error)
-       needs=xc_functionals_get_needs(xc_fun_section,lsd,.TRUE.,error)
-
-       ! calculate the arguments needed by the functionals
-       CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,&
-                             section_get_ival(xc_section,"XC_GRID%XC_DERIV",error=error),&
-                             section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error=error),&
-                             auxbas_pw_pool,  error)
-
-       ALLOCATE(v_xc(nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(rho1_r_pw(nspins))
        DO ispin=1, nspins
-          NULLIFY(v_xc(ispin)%pw)
-          CALL pw_pool_create_pw(auxbas_pw_pool,v_xc(ispin)%pw,&
-                                 use_data = REALDATA3D,&
-                                 in_space = REALSPACE, error=error)
-          CALL pw_zero(v_xc(ispin)%pw,error=error)
+          rho1_r_pw(ispin)%pw => rho1_r(ispin)%pw
+          CALL pw_retain(rho1_r_pw(ispin)%pw,error=error)
        END DO
 
-       fac=0._dp
-       IF (nspins==1.AND.excitations==tddfpt_excitations) THEN
-          IF (lsd_singlets) fac=1.0_dp
-          IF (res_etype == tddfpt_triplet) fac=-1.0_dp
-       END IF
+    END IF
 
-       CALL  xc_calc_2nd_deriv(v_xc, kpp1_env%deriv_set, kpp1_env%rho_set, &
-            rho1_set, auxbas_pw_pool,xc_section=xc_section,&
-            tddfpt_fac=fac, error=error)
+    NULLIFY(tau_pw)
 
-       DO ispin=1,nspins
-          v_rspace_new(ispin)%pw => v_xc(ispin)%pw
-       END DO
-       DEALLOCATE(v_xc,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    !------!
+    ! rho1 !
+    !------!
+    bo = rho1_r(1)%pw%pw_grid%bounds_local
+    ! create the place where to store the argument for the functionals
+    CALL xc_rho_set_create(rho1_set, bo, &
+                           rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF",error=error), &
+                           drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF",error=error), &
+                           tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF",error=error), &
+                           error=error)
 
-       IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env, qs_env, xc_section, error=error)
+    xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
+         error=error)
+    needs=xc_functionals_get_needs(xc_fun_section,lsd,.TRUE.,error)
 
-       CALL xc_rho_set_release(rho1_set,error=error)
+    ! calculate the arguments needed by the functionals
+    CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,&
+                          section_get_ival(xc_section,"XC_GRID%XC_DERIV",error=error),&
+                          section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO",error=error),&
+                          auxbas_pw_pool,  error)
 
-       DO ispin=1,SIZE(rho1_r_pw)
-          CALL pw_release(rho1_r_pw(ispin)%pw,error=error)
-       END DO
-       DEALLOCATE(rho1_r_pw, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(v_xc(nspins),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ispin=1, nspins
+       NULLIFY(v_xc(ispin)%pw)
+       CALL pw_pool_create_pw(auxbas_pw_pool,v_xc(ispin)%pw,&
+                              use_data = REALDATA3D,&
+                              in_space = REALSPACE, error=error)
+       CALL pw_zero(v_xc(ispin)%pw,error=error)
+    END DO
 
-       !-------------------------------!
-       ! Add both hartree and xc terms !
-       !-------------------------------!
-       DO ispin=1,nspins
+    fac=0._dp
+    IF (nspins==1.AND.excitations==tddfpt_excitations) THEN
+       IF (lsd_singlets) fac=1.0_dp
+       IF (res_etype == tddfpt_triplet) fac=-1.0_dp
+    END IF
 
-          IF(gapw_xc) THEN
-          ! XC and Hartree are integrated separatedly
-          ! XC uses the sofft basis set only
-            v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
-                                        v_rspace_new(ispin)%pw%pw_grid%dvol
+    CALL  xc_calc_2nd_deriv(v_xc, kpp1_env%deriv_set, kpp1_env%rho_set, &
+         rho1_set, auxbas_pw_pool,xc_section=xc_section,&
+         tddfpt_fac=fac, error=error)
 
-            IF (excitations==tddfpt_excitations .AND. nspins==1) THEN
+    DO ispin=1,nspins
+       v_rspace_new(ispin)%pw => v_xc(ispin)%pw
+    END DO
+    DEALLOCATE(v_xc,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-                IF (.NOT.(lsd_singlets .OR. &
-                       res_etype == tddfpt_triplet)) THEN
+    IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env, qs_env, xc_section, error=error)
 
-                   v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
+    CALL xc_rho_set_release(rho1_set,error=error)
 
-                END IF
-                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-                CALL cp_dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
-                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                     pmat=rho_ao(ispin),&
-                     hmat=kpp1_env%v_ao(ispin),&
-                     qs_env=qs_env,&
-                     calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
+    DO ispin=1,SIZE(rho1_r_pw)
+       CALL pw_release(rho1_r_pw(ispin)%pw,error=error)
+    END DO
+    DEALLOCATE(rho1_r_pw, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-               ! add hartree only for SINGLETS
-                IF (res_etype == tddfpt_singlet) THEN
-                    v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
-                                               v_hartree_rspace%pw%pw_grid%dvol
-                    v_rspace_new(1)%pw%cr3d  = 2.0_dp * v_hartree_rspace%pw%cr3d
+    !-------------------------------!
+    ! Add both hartree and xc terms !
+    !-------------------------------!
+    DO ispin=1,nspins
 
-                    CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         pmat=rho_ao(ispin),&
-                         hmat=kpp1_env%v_ao(ispin),&
-                         qs_env=qs_env,&
-                         calculate_forces=.FALSE.,gapw=gapw,error=error)
-                END IF
-             ELSE
-               ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-               CALL cp_dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                    pmat=rho_ao(ispin),&
-                    hmat=kpp1_env%v_ao(ispin),&
-                    qs_env=qs_env,&
-                    calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
+       IF(gapw_xc) THEN
+       ! XC and Hartree are integrated separatedly
+       ! XC uses the sofft basis set only
+         v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
+                                     v_rspace_new(ispin)%pw%pw_grid%dvol
 
-               IF (ispin == 1) THEN
-                  v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
-                                             v_hartree_rspace%pw%pw_grid%dvol
-               END IF
-               v_rspace_new(ispin)%pw%cr3d  = v_hartree_rspace%pw%cr3d
-               CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                    pmat=rho_ao(ispin),&
-                    hmat=kpp1_env%v_ao(ispin),&
-                    qs_env=qs_env,&
-                    calculate_forces=.FALSE.,gapw=gapw,error=error)
+         IF (excitations==tddfpt_excitations .AND. nspins==1) THEN
+
+             IF (.NOT.(lsd_singlets .OR. &
+                    res_etype == tddfpt_triplet)) THEN
+
+                v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
+
              END IF
+             ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
+             CALL cp_dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
+             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                  pmat=rho_ao(ispin),&
+                  hmat=kpp1_env%v_ao(ispin),&
+                  qs_env=qs_env,&
+                  calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
 
+            ! add hartree only for SINGLETS
+             IF (res_etype == tddfpt_singlet) THEN
+                 v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                            v_hartree_rspace%pw%pw_grid%dvol
+                 v_rspace_new(1)%pw%cr3d  = 2.0_dp * v_hartree_rspace%pw%cr3d
+
+                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                      pmat=rho_ao(ispin),&
+                      hmat=kpp1_env%v_ao(ispin),&
+                      qs_env=qs_env,&
+                      calculate_forces=.FALSE.,gapw=gapw,error=error)
+             END IF
           ELSE
-            v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
-                                          v_rspace_new(ispin)%pw%pw_grid%dvol
-
-            IF (excitations==tddfpt_excitations .AND. nspins==1) THEN
-
-               IF (.NOT.(lsd_singlets .OR. &
-                         res_etype == tddfpt_triplet)) THEN
-
-                  v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
-
-               END IF
-
-               ! add hartree only for SINGLETS
-               IF (res_etype == tddfpt_singlet) THEN
-                  v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
-                                             v_hartree_rspace%pw%pw_grid%dvol
-                  v_rspace_new(1)%pw%cr3d  = v_rspace_new(1)%pw%cr3d + &
-                                             2.0_dp * v_hartree_rspace%pw%cr3d
-               END IF
-            ELSE
-               IF (ispin == 1) THEN
-                  v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
-                                             v_hartree_rspace%pw%pw_grid%dvol
-               END IF
-               v_rspace_new(ispin)%pw%cr3d  = v_rspace_new(ispin)%pw%cr3d + &
-                                              v_hartree_rspace%pw%cr3d
-            END IF
-
             ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
             CALL cp_dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                  pmat=rho_ao(ispin),&
                  hmat=kpp1_env%v_ao(ispin),&
                  qs_env=qs_env,&
+                 calculate_forces=.FALSE.,gapw=gapw_xc,error=error)
+
+            IF (ispin == 1) THEN
+               v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                          v_hartree_rspace%pw%pw_grid%dvol
+            END IF
+            v_rspace_new(ispin)%pw%cr3d  = v_hartree_rspace%pw%cr3d
+            CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                 pmat=rho_ao(ispin),&
+                 hmat=kpp1_env%v_ao(ispin),&
+                 qs_env=qs_env,&
                  calculate_forces=.FALSE.,gapw=gapw,error=error)
-
           END IF
 
-          CALL cp_dbcsr_copy(k_p_p1(ispin)%matrix,kpp1_env%v_ao(ispin)%matrix,error=error)
-       END DO
+       ELSE
+         v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
+                                       v_rspace_new(ispin)%pw%pw_grid%dvol
 
-       IF (gapw) THEN
-          IF (.NOT. (excitations==tddfpt_excitations .AND. (nspins == 1 .AND. &
-               res_etype == tddfpt_triplet))) THEN
-             CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env=p_env,error=error)
-             CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
-                                        .FALSE., .TRUE., p_env=p_env, error=error)
-          END IF
-!         ***  Add single atom contributions to the KS matrix ***
-          ! remap pointer 
-          ns = SIZE(p_env%kpp1)
-          ksmat(1:ns,1:1) => k_p_p1(1:ns)
-          ns = SIZE(rho_ao)
-          psmat(1:ns,1:1) => rho_ao(1:ns)
-          CALL update_ks_atom(qs_env,ksmat,psmat,.FALSE.,.TRUE.,p_env,error)
+         IF (excitations==tddfpt_excitations .AND. nspins==1) THEN
+
+            IF (.NOT.(lsd_singlets .OR. &
+                      res_etype == tddfpt_triplet)) THEN
+
+               v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
+
+            END IF
+
+            ! add hartree only for SINGLETS
+            IF (res_etype == tddfpt_singlet) THEN
+               v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                          v_hartree_rspace%pw%pw_grid%dvol
+               v_rspace_new(1)%pw%cr3d  = v_rspace_new(1)%pw%cr3d + &
+                                          2.0_dp * v_hartree_rspace%pw%cr3d
+            END IF
+         ELSE
+            IF (ispin == 1) THEN
+               v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                          v_hartree_rspace%pw%pw_grid%dvol
+            END IF
+            v_rspace_new(ispin)%pw%cr3d  = v_rspace_new(ispin)%pw%cr3d + &
+                                           v_hartree_rspace%pw%cr3d
+         END IF
+
+         ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
+         CALL cp_dbcsr_set(kpp1_env%v_ao(ispin)%matrix,0.0_dp,error=error)
+         CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+              pmat=rho_ao(ispin),&
+              hmat=kpp1_env%v_ao(ispin),&
+              qs_env=qs_env,&
+              calculate_forces=.FALSE.,gapw=gapw,error=error)
+
        END IF
 
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
-            error=error)
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_rspace%pw,&
-            error=error)
-       DO ispin=1,nspins
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
-               error=error)
-       END DO
-       DEALLOCATE(v_rspace_new, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CALL cp_dbcsr_copy(k_p_p1(ispin)%matrix,kpp1_env%v_ao(ispin)%matrix,error=error)
+    END DO
+
+    IF (gapw) THEN
+       IF (.NOT. (excitations==tddfpt_excitations .AND. (nspins == 1 .AND. &
+            res_etype == tddfpt_triplet))) THEN
+          CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env=p_env,error=error)
+          CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
+                                     .FALSE., .TRUE., p_env=p_env, error=error)
+       END IF
+!         ***  Add single atom contributions to the KS matrix ***
+       ! remap pointer 
+       ns = SIZE(p_env%kpp1)
+       ksmat(1:ns,1:1) => k_p_p1(1:ns)
+       ns = SIZE(rho_ao)
+       psmat(1:ns,1:1) => rho_ao(1:ns)
+       CALL update_ks_atom(qs_env,ksmat,psmat,.FALSE.,.TRUE.,p_env,error)
     END IF
+
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
+         error=error)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_rspace%pw,&
+         error=error)
+    DO ispin=1,nspins
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw,&
+            error=error)
+    END DO
+    DEALLOCATE(v_rspace_new, stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
     CALL timestop(handle)
   END SUBROUTINE kpp1_calc_k_p_p1
@@ -673,87 +661,83 @@ CONTAINS
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
 
-       CALL get_qs_env(qs_env, pw_env=pw_env,&
-                       matrix_s=matrix_s, input=input, error=error, rho=rho)
+    CALL get_qs_env(qs_env, pw_env=pw_env,&
+                    matrix_s=matrix_s, input=input, error=error, rho=rho)
 
-       CALL qs_rho_get(rho, rho_r=rho_r, error=error)
-       nspins=SIZE(rho_r)
+    CALL qs_rho_get(rho, rho_r=rho_r, error=error)
+    nspins=SIZE(rho_r)
 
-       CALL pw_env_get(pw_env, auxbas_pw_pool = auxbas_pw_pool, error=error)
+    CALL pw_env_get(pw_env, auxbas_pw_pool = auxbas_pw_pool, error=error)
 
-       IF (.NOT.ASSOCIATED(kpp1_env%v_rspace)) THEN
-          ALLOCATE(kpp1_env%v_rspace(nspins),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF (.NOT.failure) THEN
-             DO ispin=1,nspins
-                CALL pw_pool_create_pw(auxbas_pw_pool, &
-                     kpp1_env%v_rspace(ispin)%pw,&
-                     use_data=REALDATA3D, in_space=REALSPACE,error=error)
-             END DO
-          END IF
-       END IF
+    IF (.NOT.ASSOCIATED(kpp1_env%v_rspace)) THEN
+       ALLOCATE(kpp1_env%v_rspace(nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO ispin=1,nspins
+          CALL pw_pool_create_pw(auxbas_pw_pool, &
+               kpp1_env%v_rspace(ispin)%pw,&
+               use_data=REALDATA3D, in_space=REALSPACE,error=error)
+       END DO
+    END IF
 
-       IF (.NOT.ASSOCIATED(kpp1_env%v_ao)) THEN
-          CALL cp_dbcsr_allocate_matrix_set(kpp1_env%v_ao,nspins,error=error)
-             DO ispin=1,nspins
-                ALLOCATE(kpp1_env%v_ao(ispin)%matrix)
-                CALL cp_dbcsr_init(kpp1_env%v_ao(ispin)%matrix,error=error)
-                CALL cp_dbcsr_copy(kpp1_env%v_ao(ispin)%matrix,matrix_s(1)%matrix,&
-                     name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)),error=error)
-             END DO
-       END IF
-
-       IF (.not.ASSOCIATED(kpp1_env%deriv_set)) THEN
-
-          CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
-               i_val=excitations,error=error)
-          CALL section_vals_val_get(input,"DFT%TDDFPT%LSD_SINGLETS",&
-               l_val=lsd_singlets,error=error)
-          CALL section_vals_val_get(input,"DFT%TDDFPT%RES_ETYPE",&
-               i_val=res_etype,error=error)
-          IF (nspins==1.AND.(excitations==tddfpt_excitations.and.&
-               (lsd_singlets .OR. res_etype == tddfpt_triplet))) THEN
-             ALLOCATE(my_rho_r(2),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DO ispin=1,2
-                CALL pw_pool_create_pw(auxbas_pw_pool,my_rho_r(ispin)%pw, &
-                     use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space,&
-                     error=error)
-                my_rho_r(ispin)%pw%cr3d = 0.5_dp * rho_r(1)%pw%cr3d
-             END DO
-          ELSE
-             ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DO ispin=1,SIZE(rho_r)
-                my_rho_r(ispin)%pw => rho_r(ispin)%pw
-                CALL pw_retain(my_rho_r(ispin)%pw,error=error)
-             END DO
-          END IF
-
-          xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-          CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
-               i_val=excitations,error=error)
-          IF (excitations==tddfpt_excitations) THEN
-             xc_section => section_vals_get_subs_vals(input,"DFT%TDDFPT%XC",error=error)
-!FM this check should already had happened and section made explicit, give an error?
-             CALL section_vals_get(xc_section,explicit=explicit,error=error)
-             IF (.NOT.explicit) THEN
-                xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-             END IF
-          END IF
-
-          CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
-               my_rho_r, auxbas_pw_pool, &
-               xc_section=xc_section, error=error)
-
-          DO ispin=1,SIZE(my_rho_r)
-             CALL pw_release(my_rho_r(ispin)%pw,error=error)
+    IF (.NOT.ASSOCIATED(kpp1_env%v_ao)) THEN
+       CALL cp_dbcsr_allocate_matrix_set(kpp1_env%v_ao,nspins,error=error)
+          DO ispin=1,nspins
+             ALLOCATE(kpp1_env%v_ao(ispin)%matrix)
+             CALL cp_dbcsr_init(kpp1_env%v_ao(ispin)%matrix,error=error)
+             CALL cp_dbcsr_copy(kpp1_env%v_ao(ispin)%matrix,matrix_s(1)%matrix,&
+                  name="kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)),error=error)
           END DO
-          DEALLOCATE(my_rho_r,stat=stat)
+    END IF
+
+    IF (.not.ASSOCIATED(kpp1_env%deriv_set)) THEN
+
+       CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
+            i_val=excitations,error=error)
+       CALL section_vals_val_get(input,"DFT%TDDFPT%LSD_SINGLETS",&
+            l_val=lsd_singlets,error=error)
+       CALL section_vals_val_get(input,"DFT%TDDFPT%RES_ETYPE",&
+            i_val=res_etype,error=error)
+       IF (nspins==1.AND.(excitations==tddfpt_excitations.and.&
+            (lsd_singlets .OR. res_etype == tddfpt_triplet))) THEN
+          ALLOCATE(my_rho_r(2),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO ispin=1,2
+             CALL pw_pool_create_pw(auxbas_pw_pool,my_rho_r(ispin)%pw, &
+                  use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space,&
+                  error=error)
+             my_rho_r(ispin)%pw%cr3d = 0.5_dp * rho_r(1)%pw%cr3d
+          END DO
+       ELSE
+          ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO ispin=1,SIZE(rho_r)
+             my_rho_r(ispin)%pw => rho_r(ispin)%pw
+             CALL pw_retain(my_rho_r(ispin)%pw,error=error)
+          END DO
        END IF
+
+       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+       CALL section_vals_val_get(input,"DFT%EXCITATIONS",&
+            i_val=excitations,error=error)
+       IF (excitations==tddfpt_excitations) THEN
+          xc_section => section_vals_get_subs_vals(input,"DFT%TDDFPT%XC",error=error)
+!FM this check should already had happened and section made explicit, give an error?
+          CALL section_vals_get(xc_section,explicit=explicit,error=error)
+          IF (.NOT.explicit) THEN
+             xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+          END IF
+       END IF
+
+       CALL xc_prep_2nd_deriv(kpp1_env%deriv_set, kpp1_env%rho_set, &
+            my_rho_r, auxbas_pw_pool, &
+            xc_section=xc_section, error=error)
+
+       DO ispin=1,SIZE(my_rho_r)
+          CALL pw_release(my_rho_r(ispin)%pw,error=error)
+       END DO
+       DEALLOCATE(my_rho_r,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE kpp1_check_i_alloc
@@ -793,47 +777,43 @@ CONTAINS
     IF (PRESENT(psi0_changed)) my_psi0_changed=psi0_changed
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (my_s_struct_changed) THEN
+       IF (ASSOCIATED(kpp1_env%v_ao)) THEN
+          CALL cp_dbcsr_deallocate_matrix_set(kpp1_env%v_ao,error=error)
+       END IF
     END IF
-    IF (.not.failure) THEN
-       IF (my_s_struct_changed) THEN
-          IF (ASSOCIATED(kpp1_env%v_ao)) THEN
-             CALL cp_dbcsr_deallocate_matrix_set(kpp1_env%v_ao,error=error)
-          END IF
+    IF (my_s_struct_changed.or.my_psi0_changed) THEN
+       IF (ASSOCIATED(kpp1_env%drho_r)) THEN
+          DEALLOCATE(kpp1_env%drho_r, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
-       IF (my_s_struct_changed.or.my_psi0_changed) THEN
-          IF (ASSOCIATED(kpp1_env%drho_r)) THEN
-             DEALLOCATE(kpp1_env%drho_r, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
-          IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
-             CALL xc_dset_release(kpp1_env%deriv_set, error=error)
-             NULLIFY(kpp1_env%deriv_set)
-          END IF
-          IF (ASSOCIATED(kpp1_env%spin_pot)) THEN
-             DEALLOCATE(kpp1_env%spin_pot, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
-          IF (ASSOCIATED(kpp1_env%grad_pot)) THEN
-             DEALLOCATE(kpp1_env%grad_pot, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
-          IF (ASSOCIATED(kpp1_env%ndiag_term)) THEN
-             DEALLOCATE(kpp1_env%ndiag_term, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-          END IF
-          CALL xc_rho_set_release(kpp1_env%rho_set,error=error) ! it would be better to pass a pw pool
+       IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
+          CALL xc_dset_release(kpp1_env%deriv_set, error=error)
+          NULLIFY(kpp1_env%deriv_set)
        END IF
-       IF (PRESENT(grid_changed)) THEN
-          IF (grid_changed) THEN
-             IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
-                DO i=1,SIZE(kpp1_env%v_rspace)
-                   CALL pw_release(kpp1_env%v_rspace(i)%pw,error=error)
-                END DO
-                DEALLOCATE(kpp1_env%v_rspace,stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-             END IF
+       IF (ASSOCIATED(kpp1_env%spin_pot)) THEN
+          DEALLOCATE(kpp1_env%spin_pot, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+       IF (ASSOCIATED(kpp1_env%grad_pot)) THEN
+          DEALLOCATE(kpp1_env%grad_pot, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+       IF (ASSOCIATED(kpp1_env%ndiag_term)) THEN
+          DEALLOCATE(kpp1_env%ndiag_term, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+       CALL xc_rho_set_release(kpp1_env%rho_set,error=error) ! it would be better to pass a pw pool
+    END IF
+    IF (PRESENT(grid_changed)) THEN
+       IF (grid_changed) THEN
+          IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
+             DO i=1,SIZE(kpp1_env%v_rspace)
+                CALL pw_release(kpp1_env%v_rspace(i)%pw,error=error)
+             END DO
+             DEALLOCATE(kpp1_env%v_rspace,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
        END IF
     END IF

@@ -89,64 +89,62 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(root_section),cp_failure_level,routineP,error,failure)
-    IF (.NOT.  failure) THEN
-       CALL section_create(root_section,name="__ROOT__",&
-            description="input file of cp2k",n_keywords=0, n_subsections=10,&
-            repeats=.FALSE., error=error)
-       NULLIFY(section)
+    CALL section_create(root_section,name="__ROOT__",&
+         description="input file of cp2k",n_keywords=0, n_subsections=10,&
+         repeats=.FALSE., error=error)
+    NULLIFY(section)
 
-       CALL create_global_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
+    CALL create_global_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
 
-       CALL create_test_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
+    CALL create_test_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
 
-       CALL create_debug_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
+    CALL create_debug_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
 
-       CALL create_motion_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
+    CALL create_motion_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
 
-       CALL create_multi_force_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
+    CALL create_multi_force_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
 
-       CALL create_force_eval_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
+    CALL create_force_eval_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
 
-       CALL create_farming_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
+    CALL create_farming_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
 
-       CALL create_optimize_input_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
+    CALL create_optimize_input_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
 
-       CALL create_optimize_basis_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
+    CALL create_optimize_basis_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
 
-       CALL create_swarm_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
+    CALL create_swarm_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
 
-       CALL create_ext_restart_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
+    CALL create_ext_restart_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
 
-       CALL create_vib_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
+    CALL create_vib_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
 
-       CALL create_atom_section(section,error=error)
-       CALL section_add_subsection(root_section,section,error=error)
-       CALL section_release(section,error=error)
-    END IF
+    CALL create_atom_section(section,error=error)
+    CALL section_add_subsection(root_section,section,error=error)
+    CALL section_release(section,error=error)
     CALL timestop(handle)
 
   END SUBROUTINE create_cp2k_root_section
@@ -414,219 +412,217 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="EXT_RESTART",&
-            description="Section for external restart, specifies an external "//&
-            "input file where to take positions,...",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
-       NULLIFY(keyword)
+    CALL section_create(section,name="EXT_RESTART",&
+         description="Section for external restart, specifies an external "//&
+         "input file where to take positions,...",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., error=error)
+    NULLIFY(keyword)
 
-       CALL keyword_create(keyword, name="RESTART_FILE_NAME",variants=(/"EXTERNAL_FILE"/),&
-            description="Specifies the name of restart file (or any other input file)"//&
-                        " to be read. Only fields relevant to a restart will be used"//&
-                        " (unless switched off with the keywords in this section)",&
-            default_lc_val=" ", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_FILE_NAME",variants=(/"EXTERNAL_FILE"/),&
+         description="Specifies the name of restart file (or any other input file)"//&
+                     " to be read. Only fields relevant to a restart will be used"//&
+                     " (unless switched off with the keywords in this section)",&
+         default_lc_val=" ", error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="BINARY_RESTART_FILE_NAME",&
-                           variants=(/"BINARY_RESTART_FILE"/),&
-                           description="Specifies the name of an additional restart file "//&
-                           "from which selected input sections are read in binary format "//&
-                           "(see SPLIT_RESTART_FILE).",&
-                           default_lc_val="",error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="BINARY_RESTART_FILE_NAME",&
+                        variants=(/"BINARY_RESTART_FILE"/),&
+                        description="Specifies the name of an additional restart file "//&
+                        "from which selected input sections are read in binary format "//&
+                        "(see SPLIT_RESTART_FILE).",&
+                        default_lc_val="",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RESTART_DEFAULT",&
-            description="This keyword controls the default value for all possible "//&
-            " restartable keywords, unless explicitly defined. For example setting"//&
-            " this keyword to .FALSE. does not restart any quantity. If, at the "//&
-            " same time, one keyword is set to .TRUE. only that quantity will be"//&
-            " restarted.", default_l_val=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_COUNTERS",&
-            description="Restarts the counters in MD schemes",&
-            type_of_var=logical_t, lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_POS",&
-            description="Takes the positions from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_VEL",&
-            description="Takes the velocities from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_RANDOMG",&
-            description="Restarts the random number generator from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_DEFAULT",&
+         description="This keyword controls the default value for all possible "//&
+         " restartable keywords, unless explicitly defined. For example setting"//&
+         " this keyword to .FALSE. does not restart any quantity. If, at the "//&
+         " same time, one keyword is set to .TRUE. only that quantity will be"//&
+         " restarted.", default_l_val=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_COUNTERS",&
+         description="Restarts the counters in MD schemes",&
+         type_of_var=logical_t, lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_POS",&
+         description="Takes the positions from the external file",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_VEL",&
+         description="Takes the velocities from the external file",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_RANDOMG",&
+         description="Restarts the random number generator from the external file",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RESTART_SHELL_POS",&
-            description="Takes the positions of the shells from the external file (only if shell-model)",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_CORE_POS",&
-            description="Takes the positions of the cores from the external file (only if shell-model)",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_OPTIMIZE_INPUT_VARIABLES",&
-            description="Restart with the optimize input variables",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_SHELL_POS",&
+         description="Takes the positions of the shells from the external file (only if shell-model)",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_CORE_POS",&
+         description="Takes the positions of the cores from the external file (only if shell-model)",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_OPTIMIZE_INPUT_VARIABLES",&
+         description="Restart with the optimize input variables",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RESTART_SHELL_VELOCITY",&
-            description="Takes the velocities of the shells from the external file (only if shell-model)",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_CORE_VELOCITY",&
-            description="Takes the velocities of the shells from the external file (only if shell-model)",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_BAROSTAT",&
-            description="Restarts the barostat from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_BAROSTAT_THERMOSTAT",&
-            description="Restarts the barostat thermostat from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_SHELL_THERMOSTAT",&
-            description="Restarts the shell thermostat from the external file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_THERMOSTAT",&
-            description="Restarts the nose thermostats of the particles "//&
-            "from the EXTERNAL file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_CELL",&
-            description="Restarts the cell (and cell_ref) "//&
-            "from the EXTERNAL file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_METADYNAMICS",&
-            description="Restarts hills from a previous metadynamics run "//&
-            "from the EXTERNAL file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_WALKERS",&
-            description="Restarts walkers informations from a previous metadynamics run "//&
-            "from the EXTERNAL file",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_BAND",&
-            description="Restarts positions and velocities of the Band.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_QMMM",&
-            description="Restarts the following specific QMMM info: translation vectors.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_CONSTRAINT",&
-            description="Restarts constraint section. It's necessary when doing restraint"//&
-            " calculation to have a perfect energy conservation. For constraints only it's"//&
-            " use is optional.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_BSSE",&
-            description="Restarts information for BSSE calculations.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_DIMER",&
-            description="Restarts information for DIMER geometry optimizations.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_AVERAGES",&
-            description="Restarts information for AVERAGES.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_RTP",&
-            description="Restarts information for REAL TIME PROPAGATION and EHRENFEST DYNAMICS.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="CUSTOM_PATH",&
-            description="Restarts the given path from the EXTERNAL file. Allows a major flexibility for restarts.",&
-            type_of_var=char_t,repeats=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_SHELL_VELOCITY",&
+         description="Takes the velocities of the shells from the external file (only if shell-model)",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_CORE_VELOCITY",&
+         description="Takes the velocities of the shells from the external file (only if shell-model)",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_BAROSTAT",&
+         description="Restarts the barostat from the external file",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_BAROSTAT_THERMOSTAT",&
+         description="Restarts the barostat thermostat from the external file",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_SHELL_THERMOSTAT",&
+         description="Restarts the shell thermostat from the external file",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_THERMOSTAT",&
+         description="Restarts the nose thermostats of the particles "//&
+         "from the EXTERNAL file",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_CELL",&
+         description="Restarts the cell (and cell_ref) "//&
+         "from the EXTERNAL file",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_METADYNAMICS",&
+         description="Restarts hills from a previous metadynamics run "//&
+         "from the EXTERNAL file",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_WALKERS",&
+         description="Restarts walkers informations from a previous metadynamics run "//&
+         "from the EXTERNAL file",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_BAND",&
+         description="Restarts positions and velocities of the Band.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_QMMM",&
+         description="Restarts the following specific QMMM info: translation vectors.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_CONSTRAINT",&
+         description="Restarts constraint section. It's necessary when doing restraint"//&
+         " calculation to have a perfect energy conservation. For constraints only it's"//&
+         " use is optional.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_BSSE",&
+         description="Restarts information for BSSE calculations.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_DIMER",&
+         description="Restarts information for DIMER geometry optimizations.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_AVERAGES",&
+         description="Restarts information for AVERAGES.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_RTP",&
+         description="Restarts information for REAL TIME PROPAGATION and EHRENFEST DYNAMICS.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="CUSTOM_PATH",&
+         description="Restarts the given path from the EXTERNAL file. Allows a major flexibility for restarts.",&
+         type_of_var=char_t,repeats=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-       ! PIMD
-       CALL keyword_create(keyword, name="RESTART_PINT_POS",&
-            description="Restart bead positions from PINT%BEADS%COORD.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_PINT_VEL",&
-            description="Restart bead velocities from PINT%BEADS%VELOCITY.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_PINT_NOSE",&
-            description="Restart Nose thermostat for beads from PINT%NOSE.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_PINT_GLE",&
-            description="Restart GLE thermostat for beads from PINT%GLE.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    ! PIMD
+    CALL keyword_create(keyword, name="RESTART_PINT_POS",&
+         description="Restart bead positions from PINT%BEADS%COORD.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_PINT_VEL",&
+         description="Restart bead velocities from PINT%BEADS%VELOCITY.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_PINT_NOSE",&
+         description="Restart Nose thermostat for beads from PINT%NOSE.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_PINT_GLE",&
+         description="Restart GLE thermostat for beads from PINT%GLE.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
 
-       ! PIMC
-       CALL keyword_create(keyword, name="RESTART_HELIUM_POS",&
-            description="Restart helium positions from PINT%HELIUM%COORD.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_HELIUM_PERMUTATION",&
-            description="Restart helium permutation state from PINT%HELIUM%PERM.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_HELIUM_FORCE",&
-            description="Restart helium forces exerted on the solute from PINT%HELIUM%FORCE.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_HELIUM_RNG",&
-            description="Restarts helium random number generators from PINT%HELIUM%RNG_STATE.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RESTART_HELIUM_DENSITIES",&
-            description="Restarts helium density distributions from PINT%HELIUM%RHO.",&
-            type_of_var=logical_t,lone_keyword_l_val=.TRUE.,&
-            default_l_val=.FALSE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    ! PIMC
+    CALL keyword_create(keyword, name="RESTART_HELIUM_POS",&
+         description="Restart helium positions from PINT%HELIUM%COORD.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_HELIUM_PERMUTATION",&
+         description="Restart helium permutation state from PINT%HELIUM%PERM.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_HELIUM_FORCE",&
+         description="Restart helium forces exerted on the solute from PINT%HELIUM%FORCE.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_HELIUM_RNG",&
+         description="Restarts helium random number generators from PINT%HELIUM%RNG_STATE.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="RESTART_HELIUM_DENSITIES",&
+         description="Restarts helium density distributions from PINT%HELIUM%RHO.",&
+         type_of_var=logical_t,lone_keyword_l_val=.TRUE.,&
+         default_l_val=.FALSE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-    END IF
 
   END SUBROUTINE create_ext_restart_section
 

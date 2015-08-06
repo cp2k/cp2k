@@ -208,166 +208,164 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    IF (.NOT.failure) THEN
-       ndig  = CEILING(LOG10(REAL(neb_env%number_of_replica+1,KIND=dp)))
-       CALL force_env_get(neb_env%force_env, cell=cell, error=error)
-       DO irep = 1, neb_env%number_of_replica
-          ndigl = CEILING(LOG10(REAL(irep+1,KIND=dp)))
-          WRITE(line,'(A,'//cp_to_string(ndig)//'("0"),T'//cp_to_string(11+ndig+1-ndigl)//',I0)')"Replica_nr_",irep
-          crd = cp_print_key_unit_nr(logger,neb_env%motion_print_section,"TRAJECTORY",&
-               extension=".xyz",file_form="FORMATTED", middle_name="pos-"//TRIM(line), error=error)
-          IF (PRESENT(vels)) THEN
-             vel = cp_print_key_unit_nr(logger,neb_env%motion_print_section,"VELOCITIES",&
-                  extension=".xyz",file_form="FORMATTED", middle_name="vel-"//TRIM(line), error=error)
-          END IF
-          IF (PRESENT(forces)) THEN
-             frc = cp_print_key_unit_nr(logger,neb_env%motion_print_section,"FORCES",&
-                  extension=".xyz",file_form="FORMATTED", middle_name="force-"//TRIM(line), error=error)
-          END IF
-          ! Dump Trajectory
-          IF (crd>0) THEN
-             ! Gather units of measure for output
-             CALL section_vals_val_get(neb_env%motion_print_section,"TRAJECTORY%UNIT",&
-                  c_val=unit_str,error=error)
-             unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-             ! This information can be digested by Molden
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
-             CALL write_particle_coordinates(particle_set,crd,dump_xmol,"POS",title,&
-                  cell=cell,array=coords%xyz(:,irep),unit_conv=unit_conv,error=error)
-             CALL m_flush(crd)
-          END IF
-          ! Dump Velocities
-          IF (vel>0.AND.PRESENT(vels)) THEN
-             ! Gather units of measure for output
-             CALL section_vals_val_get(neb_env%motion_print_section,"VELOCITIES%UNIT",&
-                  c_val=unit_str,error=error)
-             unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
-             CALL write_particle_coordinates(particle_set,vel,dump_xmol,"VEL",title,&
-                  cell=cell,array=vels%xyz(:,irep),unit_conv=unit_conv,error=error)
-             CALL m_flush(vel)
-          END IF
-          ! Dump Forces
-          IF (frc>0.AND.PRESENT(forces)) THEN
-             ! Gather units of measure for output
-             CALL section_vals_val_get(neb_env%motion_print_section,"FORCES%UNIT",&
-                  c_val=unit_str,error=error)
-             unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
-             CALL write_particle_coordinates(particle_set,frc,dump_xmol,"FRC",title,&
-                  cell=cell,array=forces%xyz(:,irep),unit_conv=unit_conv,error=error)
-             CALL m_flush(frc)
-          END IF
-          CALL cp_print_key_finished_output(crd,logger,neb_env%motion_print_section,&
-               "TRAJECTORY", error=error)
-          IF (PRESENT(vels)) THEN
-             CALL cp_print_key_finished_output(vel,logger,neb_env%motion_print_section,&
-                  "VELOCITIES", error=error)
-          END IF
-          IF (PRESENT(forces)) THEN
-             CALL cp_print_key_finished_output(frc,logger,neb_env%motion_print_section,&
-                  "FORCES", error=error)
-          END IF
-       END DO
-       ! NEB summary info on screen
-       IF (output_unit>0) THEN
-          tc_section => section_vals_get_subs_vals(neb_env%neb_section,"OPTIMIZE_BAND%MD%TEMP_CONTROL",error=error)
-          vc_section => section_vals_get_subs_vals(neb_env%neb_section,"OPTIMIZE_BAND%MD%VEL_CONTROL",error=error)
-          ALLOCATE(temperatures(neb_env%number_of_replica),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(ekin(neb_env%number_of_replica),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL get_temperatures(vels,particle_set,temperatures,ekin=ekin,error=error)
-          WRITE(output_unit,'(/)',ADVANCE="NO")
-          WRITE(output_unit,FMT='(A,A)')' **************************************', &
-               '*****************************************'
-          NULLIFY(section,keyword,enum)
-          CALL create_band_section(section,error=error)
-          keyword => section_get_keyword(section,"BAND_TYPE",error=error)
-          CALL keyword_get(keyword,enum=enum,error=error)
-          mytype=TRIM(enum_i2c(enum,neb_env%id_type,error=error))
-          WRITE(output_unit,FMT='(A,T61,A)')&
-               ' BAND TYPE                     =',ADJUSTR(mytype)
-          CALL section_release(section,error=error)
-          WRITE(output_unit,FMT='(A,T61,A)')&
-               ' BAND TYPE OPTIMIZATION        =',ADJUSTR ( neb_env%opt_type_label(1:20))
-          WRITE ( output_unit, '( A,T71,I10 )' )&
-               ' STEP NUMBER                   =', istep
-          IF (neb_env%rotate_frames) WRITE ( output_unit, '( A,T71,L10 )' )&
-               ' RMSD DISTANCE DEFINITION      =',neb_env%rotate_frames
-          ! velocity control parameters output
-          CALL section_vals_get(vc_section,explicit=explicit,error=error)
-          IF (explicit) THEN
-             CALL section_vals_val_get(vc_section,"PROJ_VELOCITY_VERLET",l_val=lval, error=error)
-             IF (lval) WRITE ( output_unit, '( A,T71,L10 )' )&
-               ' PROJECTED VELOCITY VERLET     =',lval
-             CALL section_vals_val_get(vc_section,"SD_LIKE", l_val=lval, error=error)
-             IF (lval) WRITE ( output_unit, '( A,T71,L10)' )&
-               ' STEEPEST DESCENT LIKE         =',lval
-             CALL section_vals_val_get(vc_section,"ANNEALING", r_val=f_ann, error=error)
-             IF (f_ann/=1.0_dp) THEN
-                WRITE ( output_unit, '( A,T71,F10.5)' )&
-               ' ANNEALING FACTOR              = ',f_ann
-             END IF
-          END IF
-          ! temperature control parameters output
-          CALL section_vals_get(tc_section,explicit=explicit,error=error)
-          IF (explicit) THEN
-             CALL section_vals_val_get(tc_section,"TEMP_TOL_STEPS",i_val=ttst, error=error)
-             IF (istep<=ttst) THEN
-                CALL section_vals_val_get(tc_section,"TEMPERATURE",r_val=f_ann, error=error)
-                tmp_r1 = cp_unit_from_cp2k(f_ann,"K",error=error)
-                WRITE ( output_unit, '( A,T71,F10.5)' )&
-               ' TEMPERATURE TARGET            =',tmp_r1
-             END IF
-          END IF
-          WRITE ( output_unit, '( A,T71,I10 )' )&
-               ' NUMBER OF NEB REPLICA         =', neb_env%number_of_replica
-          WRITE ( output_unit, '( A,T17,4F16.6)' )&
-               ' DISTANCES REP =',distances(1:MIN(4,SIZE(distances)))
-          IF (SIZE(distances)>4) THEN
-             WRITE ( output_unit, '( T17,4F16.6)' )distances(5:SIZE(distances))
-          END IF
-          WRITE ( output_unit, '( A,T17,4F16.6)' )&
-               ' ENERGIES [au] =',energies(1:MIN(4,SIZE(energies)))
-          IF (SIZE(energies)>4) THEN
-             WRITE ( output_unit, '( T17,4F16.6)' )energies(5:SIZE(energies))
-          END IF
-          IF (neb_env%opt_type==band_md_opt) THEN
-             WRITE ( output_unit, '( A,T33,4(1X,F11.5))' )&
-               ' REPLICA TEMPERATURES (K)      =',temperatures(1:MIN(4,SIZE(temperatures)))
-             DO i = 5, SIZE(temperatures), 4
-                WRITE ( output_unit, '( T33,4(1X,F11.5))' )&
-                     temperatures(i:MIN(i+3,SIZE(temperatures)))
-             END DO
-          END IF
-          WRITE ( output_unit, '( A,T56,F25.14)' )&
-               ' BAND TOTAL ENERGY [au]        =',SUM(energies(:)+ekin(:))+&
-                                                  neb_env%spring_energy
-          WRITE(output_unit,FMT='(A,A)')' **************************************', &
-               '*****************************************'
-          DEALLOCATE(ekin,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(temperatures,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ndig  = CEILING(LOG10(REAL(neb_env%number_of_replica+1,KIND=dp)))
+    CALL force_env_get(neb_env%force_env, cell=cell, error=error)
+    DO irep = 1, neb_env%number_of_replica
+       ndigl = CEILING(LOG10(REAL(irep+1,KIND=dp)))
+       WRITE(line,'(A,'//cp_to_string(ndig)//'("0"),T'//cp_to_string(11+ndig+1-ndigl)//',I0)')"Replica_nr_",irep
+       crd = cp_print_key_unit_nr(logger,neb_env%motion_print_section,"TRAJECTORY",&
+            extension=".xyz",file_form="FORMATTED", middle_name="pos-"//TRIM(line), error=error)
+       IF (PRESENT(vels)) THEN
+          vel = cp_print_key_unit_nr(logger,neb_env%motion_print_section,"VELOCITIES",&
+               extension=".xyz",file_form="FORMATTED", middle_name="vel-"//TRIM(line), error=error)
        END IF
-       ! Ener file
-       ener = cp_print_key_unit_nr(logger,neb_env%neb_section,"ENERGY",&
-            extension=".ener",file_form="FORMATTED", error=error)
-       IF (ener>0) THEN
-          WRITE(line,'(I0)')2*neb_env%number_of_replica-1
-          WRITE(ener,'(I10,'//TRIM(line)//'(1X,F20.9))')istep,&
-               energies, distances
+       IF (PRESENT(forces)) THEN
+          frc = cp_print_key_unit_nr(logger,neb_env%motion_print_section,"FORCES",&
+               extension=".xyz",file_form="FORMATTED", middle_name="force-"//TRIM(line), error=error)
        END IF
-       CALL cp_print_key_finished_output(ener,logger,neb_env%neb_section,&
-                  "ENERGY", error=error)
-       ! Dump Restarts
-       CALL write_restart(force_env=neb_env%force_env,&
-                          root_section=neb_env%root_section,&
-                          coords=coords,&
-                          vels=vels,&
-                          error=error)
+       ! Dump Trajectory
+       IF (crd>0) THEN
+          ! Gather units of measure for output
+          CALL section_vals_val_get(neb_env%motion_print_section,"TRAJECTORY%UNIT",&
+               c_val=unit_str,error=error)
+          unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+          ! This information can be digested by Molden
+          WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
+          CALL write_particle_coordinates(particle_set,crd,dump_xmol,"POS",title,&
+               cell=cell,array=coords%xyz(:,irep),unit_conv=unit_conv,error=error)
+          CALL m_flush(crd)
+       END IF
+       ! Dump Velocities
+       IF (vel>0.AND.PRESENT(vels)) THEN
+          ! Gather units of measure for output
+          CALL section_vals_val_get(neb_env%motion_print_section,"VELOCITIES%UNIT",&
+               c_val=unit_str,error=error)
+          unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+          WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
+          CALL write_particle_coordinates(particle_set,vel,dump_xmol,"VEL",title,&
+               cell=cell,array=vels%xyz(:,irep),unit_conv=unit_conv,error=error)
+          CALL m_flush(vel)
+       END IF
+       ! Dump Forces
+       IF (frc>0.AND.PRESENT(forces)) THEN
+          ! Gather units of measure for output
+          CALL section_vals_val_get(neb_env%motion_print_section,"FORCES%UNIT",&
+               c_val=unit_str,error=error)
+          unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str),error=error)
+          WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")" i =",istep,", E =",energies(irep)
+          CALL write_particle_coordinates(particle_set,frc,dump_xmol,"FRC",title,&
+               cell=cell,array=forces%xyz(:,irep),unit_conv=unit_conv,error=error)
+          CALL m_flush(frc)
+       END IF
+       CALL cp_print_key_finished_output(crd,logger,neb_env%motion_print_section,&
+            "TRAJECTORY", error=error)
+       IF (PRESENT(vels)) THEN
+          CALL cp_print_key_finished_output(vel,logger,neb_env%motion_print_section,&
+               "VELOCITIES", error=error)
+       END IF
+       IF (PRESENT(forces)) THEN
+          CALL cp_print_key_finished_output(frc,logger,neb_env%motion_print_section,&
+               "FORCES", error=error)
+       END IF
+    END DO
+    ! NEB summary info on screen
+    IF (output_unit>0) THEN
+       tc_section => section_vals_get_subs_vals(neb_env%neb_section,"OPTIMIZE_BAND%MD%TEMP_CONTROL",error=error)
+       vc_section => section_vals_get_subs_vals(neb_env%neb_section,"OPTIMIZE_BAND%MD%VEL_CONTROL",error=error)
+       ALLOCATE(temperatures(neb_env%number_of_replica),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(ekin(neb_env%number_of_replica),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL get_temperatures(vels,particle_set,temperatures,ekin=ekin,error=error)
+       WRITE(output_unit,'(/)',ADVANCE="NO")
+       WRITE(output_unit,FMT='(A,A)')' **************************************', &
+            '*****************************************'
+       NULLIFY(section,keyword,enum)
+       CALL create_band_section(section,error=error)
+       keyword => section_get_keyword(section,"BAND_TYPE",error=error)
+       CALL keyword_get(keyword,enum=enum,error=error)
+       mytype=TRIM(enum_i2c(enum,neb_env%id_type,error=error))
+       WRITE(output_unit,FMT='(A,T61,A)')&
+            ' BAND TYPE                     =',ADJUSTR(mytype)
+       CALL section_release(section,error=error)
+       WRITE(output_unit,FMT='(A,T61,A)')&
+            ' BAND TYPE OPTIMIZATION        =',ADJUSTR ( neb_env%opt_type_label(1:20))
+       WRITE ( output_unit, '( A,T71,I10 )' )&
+            ' STEP NUMBER                   =', istep
+       IF (neb_env%rotate_frames) WRITE ( output_unit, '( A,T71,L10 )' )&
+            ' RMSD DISTANCE DEFINITION      =',neb_env%rotate_frames
+       ! velocity control parameters output
+       CALL section_vals_get(vc_section,explicit=explicit,error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(vc_section,"PROJ_VELOCITY_VERLET",l_val=lval, error=error)
+          IF (lval) WRITE ( output_unit, '( A,T71,L10 )' )&
+            ' PROJECTED VELOCITY VERLET     =',lval
+          CALL section_vals_val_get(vc_section,"SD_LIKE", l_val=lval, error=error)
+          IF (lval) WRITE ( output_unit, '( A,T71,L10)' )&
+            ' STEEPEST DESCENT LIKE         =',lval
+          CALL section_vals_val_get(vc_section,"ANNEALING", r_val=f_ann, error=error)
+          IF (f_ann/=1.0_dp) THEN
+             WRITE ( output_unit, '( A,T71,F10.5)' )&
+            ' ANNEALING FACTOR              = ',f_ann
+          END IF
+       END IF
+       ! temperature control parameters output
+       CALL section_vals_get(tc_section,explicit=explicit,error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(tc_section,"TEMP_TOL_STEPS",i_val=ttst, error=error)
+          IF (istep<=ttst) THEN
+             CALL section_vals_val_get(tc_section,"TEMPERATURE",r_val=f_ann, error=error)
+             tmp_r1 = cp_unit_from_cp2k(f_ann,"K",error=error)
+             WRITE ( output_unit, '( A,T71,F10.5)' )&
+            ' TEMPERATURE TARGET            =',tmp_r1
+          END IF
+       END IF
+       WRITE ( output_unit, '( A,T71,I10 )' )&
+            ' NUMBER OF NEB REPLICA         =', neb_env%number_of_replica
+       WRITE ( output_unit, '( A,T17,4F16.6)' )&
+            ' DISTANCES REP =',distances(1:MIN(4,SIZE(distances)))
+       IF (SIZE(distances)>4) THEN
+          WRITE ( output_unit, '( T17,4F16.6)' )distances(5:SIZE(distances))
+       END IF
+       WRITE ( output_unit, '( A,T17,4F16.6)' )&
+            ' ENERGIES [au] =',energies(1:MIN(4,SIZE(energies)))
+       IF (SIZE(energies)>4) THEN
+          WRITE ( output_unit, '( T17,4F16.6)' )energies(5:SIZE(energies))
+       END IF
+       IF (neb_env%opt_type==band_md_opt) THEN
+          WRITE ( output_unit, '( A,T33,4(1X,F11.5))' )&
+            ' REPLICA TEMPERATURES (K)      =',temperatures(1:MIN(4,SIZE(temperatures)))
+          DO i = 5, SIZE(temperatures), 4
+             WRITE ( output_unit, '( T33,4(1X,F11.5))' )&
+                  temperatures(i:MIN(i+3,SIZE(temperatures)))
+          END DO
+       END IF
+       WRITE ( output_unit, '( A,T56,F25.14)' )&
+            ' BAND TOTAL ENERGY [au]        =',SUM(energies(:)+ekin(:))+&
+                                               neb_env%spring_energy
+       WRITE(output_unit,FMT='(A,A)')' **************************************', &
+            '*****************************************'
+       DEALLOCATE(ekin,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(temperatures,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    ! Ener file
+    ener = cp_print_key_unit_nr(logger,neb_env%neb_section,"ENERGY",&
+         extension=".ener",file_form="FORMATTED", error=error)
+    IF (ener>0) THEN
+       WRITE(line,'(I0)')2*neb_env%number_of_replica-1
+       WRITE(ener,'(I10,'//TRIM(line)//'(1X,F20.9))')istep,&
+            energies, distances
+    END IF
+    CALL cp_print_key_finished_output(ener,logger,neb_env%neb_section,&
+               "ENERGY", error=error)
+    ! Dump Restarts
+    CALL write_restart(force_env=neb_env%force_env,&
+                       root_section=neb_env%root_section,&
+                       coords=coords,&
+                       vels=vels,&
+                       error=error)
 
     CALL timestop(handle)
 
@@ -443,68 +441,66 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&
-            new_error=new_error, failure=failure, handle=handle2)
-       logger => cp_error_get_logger(new_error)
-       CALL force_env_get(f_env%force_env,root_section=root_section,error=new_error)
-       j    = irep + (rep_env%local_rep_indices(1)-1)
-       ! Get replica_project_name
-       replica_proj_name = get_replica_project_name(rep_env, n_rep, j)
-       lp=LEN_TRIM(replica_proj_name)
-       CALL section_vals_val_set(root_section,"GLOBAL%PROJECT_NAME",&
-            c_val=TRIM(replica_proj_name),error=error)
-       logger%iter_info%project_name=replica_proj_name
+    CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&
+         new_error=new_error, failure=failure, handle=handle2)
+    logger => cp_error_get_logger(new_error)
+    CALL force_env_get(f_env%force_env,root_section=root_section,error=new_error)
+    j    = irep + (rep_env%local_rep_indices(1)-1)
+    ! Get replica_project_name
+    replica_proj_name = get_replica_project_name(rep_env, n_rep, j)
+    lp=LEN_TRIM(replica_proj_name)
+    CALL section_vals_val_set(root_section,"GLOBAL%PROJECT_NAME",&
+         c_val=TRIM(replica_proj_name),error=error)
+    logger%iter_info%project_name=replica_proj_name
 
-       ! We change the file on which is pointing the global logger and error
-       output_file_path=replica_proj_name(1:lp)//".out"
-       CALL section_vals_val_set(root_section,"GLOBAL%OUTPUT_FILE_NAME",&
-            c_val=TRIM(output_file_path),error=error)
-       IF (logger%default_global_unit_nr>0) THEN
-          CALL close_file(logger%default_global_unit_nr)
-          CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
-               file_action="WRITE", file_position="APPEND",&
-               unit_number=logger%default_global_unit_nr,&
-               skip_get_unit_number=.TRUE.)
-          WRITE (UNIT=logger%default_global_unit_nr,FMT="(/,(T2,A79))")&
-               "*******************************************************************************",&
-               "**                 BAND EVALUATION OF ENERGIES AND FORCES                    **",&
-               "*******************************************************************************"
-          WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A,T79,A)")"**","**"
-          WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A,T79,A)")"**","**"
-          WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A,I5,T41,A,I5,T79,A)")&
-               "** Replica Env Nr. :",rep_env%local_rep_indices(1)-1,"Replica Band Nr. :",j,"**"
-          WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A,I5,T79,A)")&
-               "** Band  Step  Nr. :",istep,"**"
-          WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A79)")&
-               "*******************************************************************************"
-       END IF
-
-       ! Handle specific case for mixed_env
-       SELECT CASE (f_env%force_env%in_use)
-       CASE (use_mixed_force)
-          DO i = 1, f_env%force_env%mixed_env%ngroups
-             IF (MODULO(i-1,f_env%force_env%mixed_env%ngroups)==&
-                 f_env%force_env%mixed_env%group_distribution(f_env%force_env%mixed_env%para_env%mepos)) THEN
-                sub_logger => cp_error_get_logger(f_env%force_env%mixed_env%sub_error(i))
-                sub_logger%iter_info%project_name=replica_proj_name(1:lp)//"-r-"//TRIM(ADJUSTL(cp_to_string(i)))
-
-                unit_nr = sub_logger%default_global_unit_nr
-                IF (unit_nr>0) THEN
-                   CALL close_file(unit_nr)
-
-                   output_file_path=replica_proj_name(1:lp)//"-r-"//TRIM(ADJUSTL(cp_to_string(i)))//".out"
-                   CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
-                        file_action="WRITE", file_position="APPEND",&
-                        unit_number=unit_nr,skip_get_unit_number=.TRUE.)
-                END IF
-             END IF
-          END DO
-       END SELECT
-
-       CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
-       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+    ! We change the file on which is pointing the global logger and error
+    output_file_path=replica_proj_name(1:lp)//".out"
+    CALL section_vals_val_set(root_section,"GLOBAL%OUTPUT_FILE_NAME",&
+         c_val=TRIM(output_file_path),error=error)
+    IF (logger%default_global_unit_nr>0) THEN
+       CALL close_file(logger%default_global_unit_nr)
+       CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
+            file_action="WRITE", file_position="APPEND",&
+            unit_number=logger%default_global_unit_nr,&
+            skip_get_unit_number=.TRUE.)
+       WRITE (UNIT=logger%default_global_unit_nr,FMT="(/,(T2,A79))")&
+            "*******************************************************************************",&
+            "**                 BAND EVALUATION OF ENERGIES AND FORCES                    **",&
+            "*******************************************************************************"
+       WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A,T79,A)")"**","**"
+       WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A,T79,A)")"**","**"
+       WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A,I5,T41,A,I5,T79,A)")&
+            "** Replica Env Nr. :",rep_env%local_rep_indices(1)-1,"Replica Band Nr. :",j,"**"
+       WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A,I5,T79,A)")&
+            "** Band  Step  Nr. :",istep,"**"
+       WRITE (UNIT=logger%default_global_unit_nr,FMT="(T2,A79)")&
+            "*******************************************************************************"
     END IF
+
+    ! Handle specific case for mixed_env
+    SELECT CASE (f_env%force_env%in_use)
+    CASE (use_mixed_force)
+       DO i = 1, f_env%force_env%mixed_env%ngroups
+          IF (MODULO(i-1,f_env%force_env%mixed_env%ngroups)==&
+              f_env%force_env%mixed_env%group_distribution(f_env%force_env%mixed_env%para_env%mepos)) THEN
+             sub_logger => cp_error_get_logger(f_env%force_env%mixed_env%sub_error(i))
+             sub_logger%iter_info%project_name=replica_proj_name(1:lp)//"-r-"//TRIM(ADJUSTL(cp_to_string(i)))
+
+             unit_nr = sub_logger%default_global_unit_nr
+             IF (unit_nr>0) THEN
+                CALL close_file(unit_nr)
+
+                output_file_path=replica_proj_name(1:lp)//"-r-"//TRIM(ADJUSTL(cp_to_string(i)))//".out"
+                CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
+                     file_action="WRITE", file_position="APPEND",&
+                     unit_number=unit_nr,skip_get_unit_number=.TRUE.)
+             END IF
+          END IF
+       END DO
+    END SELECT
+
+    CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
+    CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
 
   END SUBROUTINE handle_band_file_names
@@ -570,45 +566,43 @@ CONTAINS
     TYPE(f_env_type), POINTER                :: f_env
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       n_rep_neb = neb_env%number_of_replica
-       n_rep     = rep_env%nrep
-       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&
-            new_error=new_error, failure=failure, handle=handle2)
-       logger => cp_error_get_logger(new_error)
-       output_unit = logger%default_global_unit_nr
-       IF (output_unit > 0) THEN
-          WRITE (UNIT=output_unit,FMT='(/,(T2,A79))')&
-               "*******************************************************************************",&
-               "**                  MAPPING OF BAND REPLICA TO REPLICA ENV                   **",&
-               "*******************************************************************************"
-          WRITE (UNIT=output_unit,FMT='(T2,A,I6,T32,A,T79,A)')&
-               "** Replica Env Nr.: ",rep_env%local_rep_indices(1)-1,&
-               "working on the following BAND replicas","**"
-          WRITE (UNIT=output_unit,FMT='(T2,A79)')&
-               "**                                                                           **"
-       END IF
-       DO irep = 1, n_rep_neb, n_rep
-          replica_proj_name = get_replica_project_name(rep_env, n_rep_neb, irep+rep_env%local_rep_indices(1)-1)
-          IF (output_unit > 0) THEN
-             WRITE (UNIT=output_unit,FMT='(T2,A,I6,T32,A,T79,A)')&
-                  "** Band Replica   Nr.: ",irep+rep_env%local_rep_indices(1)-1,&
-                  "Output available on file: "//TRIM(replica_proj_name)//".out","**"
-          END IF
-       END DO
-       IF (output_unit>0) THEN
-          WRITE (UNIT=output_unit,FMT='(T2,A79)')&
-               "**                                                                           **",&
-               "*******************************************************************************"
-          WRITE (UNIT=output_unit,FMT='(/)')
-       END IF
-       ! update runtime info before printing the footer
-       CALL get_runtime_info()
-       ! print footer
-       CALL cp2k_footer(output_unit)
-       CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
-       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+    n_rep_neb = neb_env%number_of_replica
+    n_rep     = rep_env%nrep
+    CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&
+         new_error=new_error, failure=failure, handle=handle2)
+    logger => cp_error_get_logger(new_error)
+    output_unit = logger%default_global_unit_nr
+    IF (output_unit > 0) THEN
+       WRITE (UNIT=output_unit,FMT='(/,(T2,A79))')&
+            "*******************************************************************************",&
+            "**                  MAPPING OF BAND REPLICA TO REPLICA ENV                   **",&
+            "*******************************************************************************"
+       WRITE (UNIT=output_unit,FMT='(T2,A,I6,T32,A,T79,A)')&
+            "** Replica Env Nr.: ",rep_env%local_rep_indices(1)-1,&
+            "working on the following BAND replicas","**"
+       WRITE (UNIT=output_unit,FMT='(T2,A79)')&
+            "**                                                                           **"
     END IF
+    DO irep = 1, n_rep_neb, n_rep
+       replica_proj_name = get_replica_project_name(rep_env, n_rep_neb, irep+rep_env%local_rep_indices(1)-1)
+       IF (output_unit > 0) THEN
+          WRITE (UNIT=output_unit,FMT='(T2,A,I6,T32,A,T79,A)')&
+               "** Band Replica   Nr.: ",irep+rep_env%local_rep_indices(1)-1,&
+               "Output available on file: "//TRIM(replica_proj_name)//".out","**"
+       END IF
+    END DO
+    IF (output_unit>0) THEN
+       WRITE (UNIT=output_unit,FMT='(T2,A79)')&
+            "**                                                                           **",&
+            "*******************************************************************************"
+       WRITE (UNIT=output_unit,FMT='(/)')
+    END IF
+    ! update runtime info before printing the footer
+    CALL get_runtime_info()
+    ! print footer
+    CALL cp2k_footer(output_unit)
+    CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
+    CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE neb_rep_env_map_info
 
 END MODULE neb_io

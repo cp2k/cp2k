@@ -312,157 +312,155 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    IF (.NOT. failure) THEN
-       NULLIFY(ms_vib%eig_bfgs,ms_vib%f_range,ms_vib%hes_bfgs,ms_vib%inv_range)
-       ms_vib_section => section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS%MODE_SELECTIVE", error=error)
-       CALL section_vals_val_get(ms_vib_section,"INITIAL_GUESS",i_val=guess,error=error)
-       CALL section_vals_val_get(ms_vib_section,"EPS_MAX_VAL",r_val=ms_vib%eps(1), error=error)
-       CALL section_vals_val_get(ms_vib_section,"EPS_NORM",r_val=ms_vib%eps(2), error=error)
-       CALL section_vals_val_get(ms_vib_section,"RANGE",n_rep_val=n_rep_val,error=error)
-       ms_vib%select_id=0
-       IF(n_rep_val.NE.0)THEN
-          CALL section_vals_val_get(ms_vib_section,"RANGE",r_vals=ms_vib%f_range,error=error)
-          IF(ms_vib%f_range(1).GT.ms_vib%f_range(2))THEN
-             my_val=ms_vib%f_range(2)
-             ms_vib%f_range(2)=ms_vib%f_range(1)
-             ms_vib%f_range(1)=my_val
-          END IF
-          ms_vib%select_id=2
+    NULLIFY(ms_vib%eig_bfgs,ms_vib%f_range,ms_vib%hes_bfgs,ms_vib%inv_range)
+    ms_vib_section => section_vals_get_subs_vals(input,"VIBRATIONAL_ANALYSIS%MODE_SELECTIVE", error=error)
+    CALL section_vals_val_get(ms_vib_section,"INITIAL_GUESS",i_val=guess,error=error)
+    CALL section_vals_val_get(ms_vib_section,"EPS_MAX_VAL",r_val=ms_vib%eps(1), error=error)
+    CALL section_vals_val_get(ms_vib_section,"EPS_NORM",r_val=ms_vib%eps(2), error=error)
+    CALL section_vals_val_get(ms_vib_section,"RANGE",n_rep_val=n_rep_val,error=error)
+    ms_vib%select_id=0
+    IF(n_rep_val.NE.0)THEN
+       CALL section_vals_val_get(ms_vib_section,"RANGE",r_vals=ms_vib%f_range,error=error)
+       IF(ms_vib%f_range(1).GT.ms_vib%f_range(2))THEN
+          my_val=ms_vib%f_range(2)
+          ms_vib%f_range(2)=ms_vib%f_range(1)
+          ms_vib%f_range(1)=my_val
        END IF
-       CALL section_vals_val_get(ms_vib_section,"FREQUENCY",r_val=ms_vib%sel_freq, error=error)
-       IF(ms_vib%sel_freq.gt.0._dp)ms_vib%select_id=1
-       involved_at_section=>section_vals_get_subs_vals(ms_vib_section,"INVOLVED_ATOMS",&
-            error=error)
-       CALL section_vals_get(involved_at_section,explicit=do_involved_atoms, error=error)
-       IF(do_involved_atoms)THEN
-          CALL section_vals_val_get(involved_at_section,"INVOLVED_ATOMS",n_rep_val=n_rep_val,error=error)
-          jj = 0
-          DO k = 1,n_rep_val
-             CALL section_vals_val_get(involved_at_section,"INVOLVED_ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-             DO  j = 1,SIZE(tmplist)
-                jj = jj+1
-             END DO
-          END DO
-          IF (jj.GE.1)THEN
-             natoms=jj
-             ALLOCATE(ms_vib%inv_atoms(natoms),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             jj = 0
-             DO m=1,n_rep_val
-                CALL section_vals_val_get(involved_at_section,"INVOLVED_ATOMS",i_rep_val=m,i_vals=tmplist, error=error)
-                DO  j = 1,SIZE(tmplist)
-                   ms_vib%inv_atoms (j) = tmplist(j)
-                END DO
-             END DO
-             ms_vib%select_id=3
-          END IF
-          CALL section_vals_val_get(involved_at_section,"RANGE",n_rep_val=n_rep_val,error=error)
-          IF(n_rep_val.NE.0)THEN
-             CALL section_vals_val_get(involved_at_section,"RANGE",r_vals=ms_vib%inv_range,error=error)
-             IF(ms_vib%inv_range(1).GT.ms_vib%inv_range(2))THEN
-                ms_vib%inv_range(2)=my_val
-                ms_vib%inv_range(2)=ms_vib%inv_range(1)
-                ms_vib%inv_range(1)=my_val
-             END IF
-          END IF
-       END IF
-       IF(ms_vib%select_id==0)&
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"no frequency, range or involved atoms specified ",&
-            error=error,failure=failure)
-       ionode=para_env%mepos==para_env%source
-       SELECT CASE(guess)
-       CASE(ms_guess_atomic)
-          ms_vib%initial_guess=1
-          CALL section_vals_val_get(ms_vib_section,"ATOMS",n_rep_val=n_rep_val,error=error)
-          jj = 0
-          DO k = 1,n_rep_val
-             CALL section_vals_val_get(ms_vib_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
-             DO  j = 1,SIZE(tmplist)
-                jj = jj+1
-             END DO
-          END DO
-          IF (jj<1)THEN
-             natoms=SIZE(particles)
-             ALLOCATE(map_atoms(natoms),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DO j=1,natoms
-                map_atoms(j)=j
-             END DO
-          ELSE
-             natoms=jj
-             ALLOCATE(map_atoms(natoms),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             jj = 0
-             DO m=1,n_rep_val
-                CALL section_vals_val_get(ms_vib_section,"ATOMS",i_rep_val=m,i_vals=tmplist, error=error)
-                DO  j = 1,SIZE(tmplist)
-                   map_atoms (j) = tmplist(j)
-                END DO
-             END DO
-          END IF
-
-          ! apply random displacement along the mass weighted nuclear cartesian coordinates
-          ms_vib%b_vec=0._dp
-          ms_vib%delta_vec=0._dp
-          jj=0
-
-          DO i=1,nrep
-             DO j=1,natoms
-                DO k=1,3
-                   jj=(map_atoms(j)-1)*3+k
-                   ms_vib%b_vec(jj,i)=ABS(next_random_number(globenv%gaussian_rng_stream,error=error))
-                END DO
-             END DO
-             norm=SQRT(DOT_PRODUCT(ms_vib%b_vec(:,i),ms_vib%b_vec(:,i)))
-             ms_vib%b_vec(:,i)=ms_vib%b_vec(:,i)/norm
-          END DO
-
-          IF(nrep.GT.1)THEN
-             DO k=1,10
-                DO j=1,nrep
-                   DO i=1,nrep
-                      IF(i.NE.j)THEN
-                         ms_vib%b_vec(:,j)=ms_vib%b_vec(:,j)-DOT_PRODUCT(ms_vib%b_vec(:,j),ms_vib%b_vec(:,i))* ms_vib%b_vec(:,i)
-                         ms_vib%b_vec(:,j)=ms_vib%b_vec(:,j)/SQRT(DOT_PRODUCT(ms_vib%b_vec(:,j),ms_vib%b_vec(:,j)))
-                      END IF
-                   END DO
-                END DO
-             END DO
-          END IF
-
-          ms_vib%mat_size=0
-          DO i=1,SIZE(ms_vib%b_vec,1)
-             ms_vib%delta_vec(i,:)=ms_vib%b_vec(i,:)/mass(i)
-          END DO
-       CASE(ms_guess_bfgs)
-
-          ms_vib%initial_guess=2
-          CALL bfgs_guess(ms_vib_section,ms_vib,particles,mass,para_env,nrep,error)
-          ms_vib%mat_size=0
-
-       CASE(ms_guess_restart_vec)
-
-          ms_vib%initial_guess=3
-          ncoord=3*SIZE(particles)
-          CALL rest_guess(ms_vib_section,para_env,ms_vib,mass,ionode,particles,nrep,calc_intens,error)
-
-
-          ms_vib%mat_size=0
-       CASE(ms_guess_restart)
-          ms_vib%initial_guess=4
-          ncoord=3*SIZE(particles)
-          CALL rest_guess(ms_vib_section,para_env,ms_vib,mass,ionode,particles,nrep,calc_intens,error)
-
-       CASE(ms_guess_molden)
-          ms_vib%initial_guess=5
-          ncoord=3*SIZE(particles)
-          CALL molden_guess(ms_vib_section,input,para_env,ms_vib,mass,ncoord,nrep,error)
-          ms_vib%mat_size=0
-       END SELECT
-       CALL mp_bcast(ms_vib%b_vec,para_env%source,para_env%group)
-       CALL mp_bcast(ms_vib%delta_vec,para_env%source,para_env%group)
+       ms_vib%select_id=2
     END IF
+    CALL section_vals_val_get(ms_vib_section,"FREQUENCY",r_val=ms_vib%sel_freq, error=error)
+    IF(ms_vib%sel_freq.gt.0._dp)ms_vib%select_id=1
+    involved_at_section=>section_vals_get_subs_vals(ms_vib_section,"INVOLVED_ATOMS",&
+         error=error)
+    CALL section_vals_get(involved_at_section,explicit=do_involved_atoms, error=error)
+    IF(do_involved_atoms)THEN
+       CALL section_vals_val_get(involved_at_section,"INVOLVED_ATOMS",n_rep_val=n_rep_val,error=error)
+       jj = 0
+       DO k = 1,n_rep_val
+          CALL section_vals_val_get(involved_at_section,"INVOLVED_ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+          DO  j = 1,SIZE(tmplist)
+             jj = jj+1
+          END DO
+       END DO
+       IF (jj.GE.1)THEN
+          natoms=jj
+          ALLOCATE(ms_vib%inv_atoms(natoms),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          jj = 0
+          DO m=1,n_rep_val
+             CALL section_vals_val_get(involved_at_section,"INVOLVED_ATOMS",i_rep_val=m,i_vals=tmplist, error=error)
+             DO  j = 1,SIZE(tmplist)
+                ms_vib%inv_atoms (j) = tmplist(j)
+             END DO
+          END DO
+          ms_vib%select_id=3
+       END IF
+       CALL section_vals_val_get(involved_at_section,"RANGE",n_rep_val=n_rep_val,error=error)
+       IF(n_rep_val.NE.0)THEN
+          CALL section_vals_val_get(involved_at_section,"RANGE",r_vals=ms_vib%inv_range,error=error)
+          IF(ms_vib%inv_range(1).GT.ms_vib%inv_range(2))THEN
+             ms_vib%inv_range(2)=my_val
+             ms_vib%inv_range(2)=ms_vib%inv_range(1)
+             ms_vib%inv_range(1)=my_val
+          END IF
+       END IF
+    END IF
+    IF(ms_vib%select_id==0)&
+         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+         routineP,"no frequency, range or involved atoms specified ",&
+         error=error,failure=failure)
+    ionode=para_env%mepos==para_env%source
+    SELECT CASE(guess)
+    CASE(ms_guess_atomic)
+       ms_vib%initial_guess=1
+       CALL section_vals_val_get(ms_vib_section,"ATOMS",n_rep_val=n_rep_val,error=error)
+       jj = 0
+       DO k = 1,n_rep_val
+          CALL section_vals_val_get(ms_vib_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+          DO  j = 1,SIZE(tmplist)
+             jj = jj+1
+          END DO
+       END DO
+       IF (jj<1)THEN
+          natoms=SIZE(particles)
+          ALLOCATE(map_atoms(natoms),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO j=1,natoms
+             map_atoms(j)=j
+          END DO
+       ELSE
+          natoms=jj
+          ALLOCATE(map_atoms(natoms),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          jj = 0
+          DO m=1,n_rep_val
+             CALL section_vals_val_get(ms_vib_section,"ATOMS",i_rep_val=m,i_vals=tmplist, error=error)
+             DO  j = 1,SIZE(tmplist)
+                map_atoms (j) = tmplist(j)
+             END DO
+          END DO
+       END IF
+
+       ! apply random displacement along the mass weighted nuclear cartesian coordinates
+       ms_vib%b_vec=0._dp
+       ms_vib%delta_vec=0._dp
+       jj=0
+
+       DO i=1,nrep
+          DO j=1,natoms
+             DO k=1,3
+                jj=(map_atoms(j)-1)*3+k
+                ms_vib%b_vec(jj,i)=ABS(next_random_number(globenv%gaussian_rng_stream,error=error))
+             END DO
+          END DO
+          norm=SQRT(DOT_PRODUCT(ms_vib%b_vec(:,i),ms_vib%b_vec(:,i)))
+          ms_vib%b_vec(:,i)=ms_vib%b_vec(:,i)/norm
+       END DO
+
+       IF(nrep.GT.1)THEN
+          DO k=1,10
+             DO j=1,nrep
+                DO i=1,nrep
+                   IF(i.NE.j)THEN
+                      ms_vib%b_vec(:,j)=ms_vib%b_vec(:,j)-DOT_PRODUCT(ms_vib%b_vec(:,j),ms_vib%b_vec(:,i))* ms_vib%b_vec(:,i)
+                      ms_vib%b_vec(:,j)=ms_vib%b_vec(:,j)/SQRT(DOT_PRODUCT(ms_vib%b_vec(:,j),ms_vib%b_vec(:,j)))
+                   END IF
+                END DO
+             END DO
+          END DO
+       END IF
+
+       ms_vib%mat_size=0
+       DO i=1,SIZE(ms_vib%b_vec,1)
+          ms_vib%delta_vec(i,:)=ms_vib%b_vec(i,:)/mass(i)
+       END DO
+    CASE(ms_guess_bfgs)
+
+       ms_vib%initial_guess=2
+       CALL bfgs_guess(ms_vib_section,ms_vib,particles,mass,para_env,nrep,error)
+       ms_vib%mat_size=0
+
+    CASE(ms_guess_restart_vec)
+
+       ms_vib%initial_guess=3
+       ncoord=3*SIZE(particles)
+       CALL rest_guess(ms_vib_section,para_env,ms_vib,mass,ionode,particles,nrep,calc_intens,error)
+
+
+       ms_vib%mat_size=0
+    CASE(ms_guess_restart)
+       ms_vib%initial_guess=4
+       ncoord=3*SIZE(particles)
+       CALL rest_guess(ms_vib_section,para_env,ms_vib,mass,ionode,particles,nrep,calc_intens,error)
+
+    CASE(ms_guess_molden)
+       ms_vib%initial_guess=5
+       ncoord=3*SIZE(particles)
+       CALL molden_guess(ms_vib_section,input,para_env,ms_vib,mass,ncoord,nrep,error)
+       ms_vib%mat_size=0
+    END SELECT
+    CALL mp_bcast(ms_vib%b_vec,para_env%source,para_env%group)
+    CALL mp_bcast(ms_vib%delta_vec,para_env%source,para_env%group)
     DO i=1,nrep
        ms_vib%step_r(i)=dx/SQRT(DOT_PRODUCT( ms_vib%delta_vec(:,i), ms_vib%delta_vec(:,i)))
        ms_vib%step_b(i)=SQRT(DOT_PRODUCT(ms_vib%step_r(i)*ms_vib%b_vec(:,i),ms_vib%step_r(i)*ms_vib%b_vec(:,i)))

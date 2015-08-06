@@ -134,24 +134,22 @@ MODULE qs_efield_local
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-       CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,error=error)
-       NULLIFY (matrix_s)
-       CALL get_qs_env(qs_env=qs_env,efield=efield,matrix_s=matrix_s,error=error)
-       CALL init_efield_matrices(efield,error)
-       ALLOCATE(dipmat(3),stat=stat)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,error=error)
+    NULLIFY (matrix_s)
+    CALL get_qs_env(qs_env=qs_env,efield=efield,matrix_s=matrix_s,error=error)
+    CALL init_efield_matrices(efield,error)
+    ALLOCATE(dipmat(3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i=1,3
+       ALLOCATE(dipmat(i)%matrix,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i=1,3
-          ALLOCATE(dipmat(i)%matrix,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL cp_dbcsr_init(dipmat(i)%matrix,error=error)
-          CALL cp_dbcsr_copy(dipmat(i)%matrix,matrix_s(1)%matrix,'DIP MAT',error=error)
-          CALL cp_dbcsr_set(dipmat(i)%matrix,0.0_dp,error=error)
-       END DO
-       CALL build_local_moment_matrix(qs_env,dipmat,1,rpoint,error=error)
-       CALL set_efield_matrices(efield=efield,dipmat=dipmat)
-       CALL set_qs_env(qs_env=qs_env,efield=efield,error=error)
-    END IF
+       CALL cp_dbcsr_init(dipmat(i)%matrix,error=error)
+       CALL cp_dbcsr_copy(dipmat(i)%matrix,matrix_s(1)%matrix,'DIP MAT',error=error)
+       CALL cp_dbcsr_set(dipmat(i)%matrix,0.0_dp,error=error)
+    END DO
+    CALL build_local_moment_matrix(qs_env,dipmat,1,rpoint,error=error)
+    CALL set_efield_matrices(efield=efield,dipmat=dipmat)
+    CALL set_qs_env(qs_env=qs_env,efield=efield,error=error)
     CALL timestop(handle)
 
   END SUBROUTINE qs_efield_integrals

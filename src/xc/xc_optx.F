@@ -142,32 +142,30 @@ CONTAINS
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL xc_rho_set_get(rho_set,rho=rho,&
-            norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-            drho_cutoff=epsilon_drho,error=error)
-       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL xc_rho_set_get(rho_set,rho=rho,&
+         norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
+         drho_cutoff=epsilon_drho,error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-       deriv => xc_dset_get_derivative(deriv_set,"",&
-            allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
-       deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
-       deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
-       IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="derivatives bigger than 1 not implemented", &
-               error=error, error_level=cp_failure_level)
-       END IF
-
-       CALL optx_lda_calc(rho=rho, norm_drho=norm_drho,&
-               e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
-               npoints=npoints,epsilon_rho=epsilon_rho,&
-               epsilon_drho=epsilon_drho,sx=sx,error=error)
+    deriv => xc_dset_get_derivative(deriv_set,"",&
+         allocate_deriv=.TRUE., error=error)
+    CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+    deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
+         allocate_deriv=.TRUE.,error=error)
+    CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+    deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
+         allocate_deriv=.TRUE.,error=error)
+    CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+    IF (grad_deriv>1.OR.grad_deriv<-1) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="derivatives bigger than 1 not implemented", &
+            error=error, error_level=cp_failure_level)
     END IF
+
+    CALL optx_lda_calc(rho=rho, norm_drho=norm_drho,&
+            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
+            npoints=npoints,epsilon_rho=epsilon_rho,&
+            epsilon_drho=epsilon_drho,sx=sx,error=error)
   END SUBROUTINE optx_lda_eval
 
 ! *****************************************************************************
@@ -219,42 +217,40 @@ CONTAINS
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL xc_rho_set_get(rho_set,rhoa=rho(1)%array,rhob=rho(2)%array,&
-                           norm_drhoa=ndrho(1)%array, &
-                           norm_drhob=ndrho(2)%array,rho_cutoff=epsilon_rho,&
-                           drho_cutoff=epsilon_drho, local_bounds=bo, error=error)
-       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL xc_rho_set_get(rho_set,rhoa=rho(1)%array,rhob=rho(2)%array,&
+                        norm_drhoa=ndrho(1)%array, &
+                        norm_drhob=ndrho(2)%array,rho_cutoff=epsilon_rho,&
+                        drho_cutoff=epsilon_drho, local_bounds=bo, error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-       deriv => xc_dset_get_derivative(deriv_set,"",&
-            allocate_deriv=.TRUE., error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
-       deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho(1)%array,error=error)
-       deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_rho(2)%array,error=error)
+    deriv => xc_dset_get_derivative(deriv_set,"",&
+         allocate_deriv=.TRUE., error=error)
+    CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+    deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
+         allocate_deriv=.TRUE.,error=error)
+    CALL xc_derivative_get(deriv,deriv_data=e_rho(1)%array,error=error)
+    deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
+         allocate_deriv=.TRUE.,error=error)
+    CALL xc_derivative_get(deriv,deriv_data=e_rho(2)%array,error=error)
 
-       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array,error=error)
-       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-            allocate_deriv=.TRUE.,error=error)
-       CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array,error=error)
+    deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
+         allocate_deriv=.TRUE.,error=error)
+    CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array,error=error)
+    deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
+         allocate_deriv=.TRUE.,error=error)
+    CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array,error=error)
 
-       IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="derivatives bigger than 1 not implemented", &
-               error=error, error_level=cp_failure_level)
-       END IF
-       DO ispin=1,2
-          CALL optx_lsd_calc(rho=rho(ispin)%array, norm_drho=ndrho(ispin)%array,&
-                      e_0=e_0,e_rho=e_rho(ispin)%array,e_ndrho=e_ndrho(ispin)%array,&
-                      npoints=npoints,epsilon_rho=epsilon_rho,&
-                      epsilon_drho=epsilon_drho,sx=sx,error=error)
-       ENDDO
+    IF (grad_deriv>1.OR.grad_deriv<-1) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="derivatives bigger than 1 not implemented", &
+            error=error, error_level=cp_failure_level)
     END IF
+    DO ispin=1,2
+       CALL optx_lsd_calc(rho=rho(ispin)%array, norm_drho=ndrho(ispin)%array,&
+                   e_0=e_0,e_rho=e_rho(ispin)%array,e_ndrho=e_ndrho(ispin)%array,&
+                   npoints=npoints,epsilon_rho=epsilon_rho,&
+                   epsilon_drho=epsilon_drho,sx=sx,error=error)
+    ENDDO
   END SUBROUTINE optx_lsd_eval
 
 ! *****************************************************************************

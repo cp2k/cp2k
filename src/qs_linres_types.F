@@ -253,24 +253,22 @@ CONTAINS
      failure =.FALSE.
 
      CPPrecondition(.NOT.ASSOCIATED(linres_control),cp_failure_level,routineP,error,failure)
-     IF (.NOT. failure) THEN
-       ALLOCATE (linres_control,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       linres_control%ref_count=1
-       NULLIFY(linres_control%qs_loc_env)
-       linres_control%property            = HUGE(0)!is that used?
-       linres_control%preconditioner_type = HUGE(0)
-       linres_control%restart_every       = HUGE(0)
-       linres_control%energy_gap          = HUGE(0.0_dp)
-       linres_control%max_iter            = HUGE(0)
-       linres_control%localized_psi0      = .FALSE.
-       linres_control%converged           = .FALSE.
-       linres_control%linres_restart      = .FALSE.
-       linres_control%eps                 = HUGE(0.0_dp)
-       linres_control%flag                = ""
-       linres_control%do_kernel           = .FALSE.
-       linres_control%lr_triplet          = .FALSE.
-     END IF
+     ALLOCATE (linres_control,STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     linres_control%ref_count=1
+     NULLIFY(linres_control%qs_loc_env)
+     linres_control%property            = HUGE(0)!is that used?
+     linres_control%preconditioner_type = HUGE(0)
+     linres_control%restart_every       = HUGE(0)
+     linres_control%energy_gap          = HUGE(0.0_dp)
+     linres_control%max_iter            = HUGE(0)
+     linres_control%localized_psi0      = .FALSE.
+     linres_control%converged           = .FALSE.
+     linres_control%linres_restart      = .FALSE.
+     linres_control%eps                 = HUGE(0.0_dp)
+     linres_control%flag                = ""
+     linres_control%do_kernel           = .FALSE.
+     linres_control%lr_triplet          = .FALSE.
 
   END SUBROUTINE linres_control_create
 
@@ -324,10 +322,8 @@ CONTAINS
      failure =.FALSE.
 
      CPPrecondition(ASSOCIATED(linres_control),cp_failure_level,routineP,error,failure)
-     IF (.NOT. failure) THEN
-       CPPostcondition(linres_control%ref_count>0,cp_failure_level,routineP,error,failure)
-       linres_control%ref_count=linres_control%ref_count+1
-     END IF
+     CPPostcondition(linres_control%ref_count>0,cp_failure_level,routineP,error,failure)
+     linres_control%ref_count=linres_control%ref_count+1
 
   END SUBROUTINE linres_control_retain
 
@@ -349,35 +345,33 @@ CONTAINS
     failure =.FALSE.
 
     CPPrecondition(current_env%ref_count==0, cp_failure_level,routineP,error,failure)
-    IF(.NOT. failure) THEN
-       current_env%ref_count = 1
-       current_env%nao           = HUGE(1)
-       current_env%gauge         = HUGE(1)
-       current_env%orb_center    = HUGE(1)
-       current_env%nstates(:)    = HUGE(1)
-       current_env%nbr_center(:) = HUGE(1)
-       current_env%use_old_gauge_atom = .TRUE.
-       current_env%chi_pbc = .FALSE.
-       current_env%do_selected_states = .FALSE.
-       current_env%gauge_init = .FALSE.
-       NULLIFY(current_env%full_done)
-       NULLIFY(current_env%list_cubes)
-       NULLIFY(current_env%statetrueindex)
-       NULLIFY(current_env%basisfun_center)
-       NULLIFY(current_env%center_list)
-       NULLIFY(current_env%centers_set)
-       NULLIFY(current_env%psi1_p)
-       NULLIFY(current_env%psi1_rxp)
-       NULLIFY(current_env%psi1_D)
-       NULLIFY(current_env%p_psi0)
-       NULLIFY(current_env%rxp_psi0)
-       NULLIFY(current_env%jrho1_atom_set)
-       NULLIFY(current_env%jrho1_set)
-       NULLIFY(current_env%rs_gauge)
-       NULLIFY(current_env%rs_buf)
-       NULLIFY(current_env%selected_states_on_atom_list)
-       NULLIFY(current_env%psi0_order)
-    END IF
+    current_env%ref_count = 1
+    current_env%nao           = HUGE(1)
+    current_env%gauge         = HUGE(1)
+    current_env%orb_center    = HUGE(1)
+    current_env%nstates(:)    = HUGE(1)
+    current_env%nbr_center(:) = HUGE(1)
+    current_env%use_old_gauge_atom = .TRUE.
+    current_env%chi_pbc = .FALSE.
+    current_env%do_selected_states = .FALSE.
+    current_env%gauge_init = .FALSE.
+    NULLIFY(current_env%full_done)
+    NULLIFY(current_env%list_cubes)
+    NULLIFY(current_env%statetrueindex)
+    NULLIFY(current_env%basisfun_center)
+    NULLIFY(current_env%center_list)
+    NULLIFY(current_env%centers_set)
+    NULLIFY(current_env%psi1_p)
+    NULLIFY(current_env%psi1_rxp)
+    NULLIFY(current_env%psi1_D)
+    NULLIFY(current_env%p_psi0)
+    NULLIFY(current_env%rxp_psi0)
+    NULLIFY(current_env%jrho1_atom_set)
+    NULLIFY(current_env%jrho1_set)
+    NULLIFY(current_env%rs_gauge)
+    NULLIFY(current_env%rs_buf)
+    NULLIFY(current_env%selected_states_on_atom_list)
+    NULLIFY(current_env%psi0_order)
 
   END SUBROUTINE current_env_create
 ! *****************************************************************************
@@ -398,16 +392,14 @@ CONTAINS
      failure =.FALSE.
 
      CPPrecondition(nmr_env%ref_count==0, cp_failure_level,routineP,error,failure)
-     IF(.NOT. failure) THEN
-       nmr_env%ref_count = 1
-       NULLIFY(nmr_env%chemical_shift)
-       NULLIFY(nmr_env%chemical_shift_loc)
-       NULLIFY(nmr_env%chemical_shift_nics_loc)
-       NULLIFY(nmr_env%chemical_shift_nics)
-       NULLIFY(nmr_env%r_nics)
-       NULLIFY(nmr_env%cs_atom_list)
-       NULLIFY(nmr_env%do_calc_cs_atom)
-     END IF
+     nmr_env%ref_count = 1
+     NULLIFY(nmr_env%chemical_shift)
+     NULLIFY(nmr_env%chemical_shift_loc)
+     NULLIFY(nmr_env%chemical_shift_nics_loc)
+     NULLIFY(nmr_env%chemical_shift_nics)
+     NULLIFY(nmr_env%r_nics)
+     NULLIFY(nmr_env%cs_atom_list)
+     NULLIFY(nmr_env%do_calc_cs_atom)
 
   END SUBROUTINE nmr_env_create
 
@@ -429,23 +421,21 @@ CONTAINS
      failure =.FALSE.
 
      CPPrecondition(issc_env%ref_count==0, cp_failure_level,routineP,error,failure)
-     IF(.NOT. failure) THEN
-        issc_env%ref_count = 1
-        NULLIFY(issc_env%issc)
-        NULLIFY(issc_env%issc_loc)
-        NULLIFY(issc_env%psi1_efg)
-        NULLIFY(issc_env%psi1_fc)
-        NULLIFY(issc_env%psi1_pso)
-        NULLIFY(issc_env%psi1_dso)
-        NULLIFY(issc_env%efg_psi0)
-        NULLIFY(issc_env%pso_psi0)
-        NULLIFY(issc_env%dso_psi0)
-        NULLIFY(issc_env%fc_psi0)
-        NULLIFY(issc_env%matrix_efg)
-        NULLIFY(issc_env%matrix_pso)
-        NULLIFY(issc_env%matrix_dso)
-        NULLIFY(issc_env%matrix_fc)
-     ENDIF
+     issc_env%ref_count = 1
+     NULLIFY(issc_env%issc)
+     NULLIFY(issc_env%issc_loc)
+     NULLIFY(issc_env%psi1_efg)
+     NULLIFY(issc_env%psi1_fc)
+     NULLIFY(issc_env%psi1_pso)
+     NULLIFY(issc_env%psi1_dso)
+     NULLIFY(issc_env%efg_psi0)
+     NULLIFY(issc_env%pso_psi0)
+     NULLIFY(issc_env%dso_psi0)
+     NULLIFY(issc_env%fc_psi0)
+     NULLIFY(issc_env%matrix_efg)
+     NULLIFY(issc_env%matrix_pso)
+     NULLIFY(issc_env%matrix_dso)
+     NULLIFY(issc_env%matrix_fc)
 
    END SUBROUTINE issc_env_create
 
@@ -468,17 +458,15 @@ CONTAINS
     failure =.FALSE.
 
     CPPrecondition(epr_env%ref_count==0, cp_failure_level,routineP,error,failure)
-    IF(.NOT. failure) THEN
-       epr_env%ref_count = 1
-       NULLIFY(epr_env%nablavks_set)
-       NULLIFY(epr_env%nablavks_atom_set)
-       NULLIFY(epr_env%bind_set)
-       NULLIFY(epr_env%bind_atom_set)
-       NULLIFY(epr_env%g_total)
-       NULLIFY(epr_env%g_so)
-       NULLIFY(epr_env%g_soo)
-       NULLIFY(epr_env%vks_atom_set)
-     END IF
+    epr_env%ref_count = 1
+    NULLIFY(epr_env%nablavks_set)
+    NULLIFY(epr_env%nablavks_atom_set)
+    NULLIFY(epr_env%bind_set)
+    NULLIFY(epr_env%bind_atom_set)
+    NULLIFY(epr_env%g_total)
+    NULLIFY(epr_env%g_so)
+    NULLIFY(epr_env%g_soo)
+    NULLIFY(epr_env%vks_atom_set)
 
   END SUBROUTINE epr_env_create
 
@@ -569,36 +557,34 @@ CONTAINS
 
     CPPrecondition(current_env%ref_count>0, cp_failure_level,routineP,error,failure)
 
-    IF(.NOT. failure) THEN
-       IF(PRESENT(simple_done     )) simple_done(1:6)      = current_env%simple_done(1:6)
-       IF(PRESENT(simple_converged)) simple_converged(1:6) = current_env%simple_converged(1:6)
-       IF(PRESENT(full_done       )) full_done             => current_env%full_done
-       IF(PRESENT(ref_count       )) ref_count             =  current_env%ref_count
-       IF(PRESENT(nao             )) nao                   =  current_env%nao
-       IF(PRESENT(nstates         )) nstates(1:2)          =  current_env%nstates(1:2)
-       IF(PRESENT(gauge           )) gauge                 =  current_env%gauge
-       IF(PRESENT(list_cubes      )) list_cubes            => current_env%list_cubes
-       IF(PRESENT(statetrueindex  )) statetrueindex        => current_env%statetrueindex
-       IF(PRESENT(gauge_name      )) gauge_name            =  current_env%gauge_name
-       IF(PRESENT(basisfun_center )) basisfun_center       => current_env%basisfun_center
-       IF(PRESENT(nbr_center      )) nbr_center(1:2)       =  current_env%nbr_center(1:2)
-       IF(PRESENT(center_list     )) center_list           => current_env%center_list
-       IF(PRESENT(centers_set     )) centers_set           => current_env%centers_set
-       IF(PRESENT(chi_tensor      )) chi_tensor(:,:,:)     =  current_env%chi_tensor(:,:,:)
-       IF(PRESENT(chi_tensor_loc  )) chi_tensor_loc(:,:,:) =  current_env%chi_tensor_loc(:,:,:)
-       IF(PRESENT(psi1_p          )) psi1_p                => current_env%psi1_p
-       IF(PRESENT(psi1_rxp        )) psi1_rxp              => current_env%psi1_rxp
-       IF(PRESENT(psi1_D          )) psi1_D                => current_env%psi1_D
-       IF(PRESENT(p_psi0          )) p_psi0                => current_env%p_psi0
-       IF(PRESENT(rxp_psi0        )) rxp_psi0              => current_env%rxp_psi0
-       IF(PRESENT(jrho1_atom_set  )) jrho1_atom_set        => current_env%jrho1_atom_set
-       IF(PRESENT(jrho1_set       )) jrho1_set             => current_env%jrho1_set
-       IF(PRESENT(rs_gauge        )) rs_gauge              => current_env%rs_gauge
-       IF(PRESENT(psi0_order      )) psi0_order            => current_env%psi0_order
-       IF(PRESENT(chi_pbc         )) chi_pbc               =  current_env%chi_pbc
-       IF(PRESENT(gauge_atom_radius )) gauge_atom_radius   =  current_env%gauge_atom_radius
-       IF(PRESENT(use_old_gauge_atom)) use_old_gauge_atom  =  current_env%use_old_gauge_atom
-    ENDIF
+    IF(PRESENT(simple_done     )) simple_done(1:6)      = current_env%simple_done(1:6)
+    IF(PRESENT(simple_converged)) simple_converged(1:6) = current_env%simple_converged(1:6)
+    IF(PRESENT(full_done       )) full_done             => current_env%full_done
+    IF(PRESENT(ref_count       )) ref_count             =  current_env%ref_count
+    IF(PRESENT(nao             )) nao                   =  current_env%nao
+    IF(PRESENT(nstates         )) nstates(1:2)          =  current_env%nstates(1:2)
+    IF(PRESENT(gauge           )) gauge                 =  current_env%gauge
+    IF(PRESENT(list_cubes      )) list_cubes            => current_env%list_cubes
+    IF(PRESENT(statetrueindex  )) statetrueindex        => current_env%statetrueindex
+    IF(PRESENT(gauge_name      )) gauge_name            =  current_env%gauge_name
+    IF(PRESENT(basisfun_center )) basisfun_center       => current_env%basisfun_center
+    IF(PRESENT(nbr_center      )) nbr_center(1:2)       =  current_env%nbr_center(1:2)
+    IF(PRESENT(center_list     )) center_list           => current_env%center_list
+    IF(PRESENT(centers_set     )) centers_set           => current_env%centers_set
+    IF(PRESENT(chi_tensor      )) chi_tensor(:,:,:)     =  current_env%chi_tensor(:,:,:)
+    IF(PRESENT(chi_tensor_loc  )) chi_tensor_loc(:,:,:) =  current_env%chi_tensor_loc(:,:,:)
+    IF(PRESENT(psi1_p          )) psi1_p                => current_env%psi1_p
+    IF(PRESENT(psi1_rxp        )) psi1_rxp              => current_env%psi1_rxp
+    IF(PRESENT(psi1_D          )) psi1_D                => current_env%psi1_D
+    IF(PRESENT(p_psi0          )) p_psi0                => current_env%p_psi0
+    IF(PRESENT(rxp_psi0        )) rxp_psi0              => current_env%rxp_psi0
+    IF(PRESENT(jrho1_atom_set  )) jrho1_atom_set        => current_env%jrho1_atom_set
+    IF(PRESENT(jrho1_set       )) jrho1_set             => current_env%jrho1_set
+    IF(PRESENT(rs_gauge        )) rs_gauge              => current_env%rs_gauge
+    IF(PRESENT(psi0_order      )) psi0_order            => current_env%psi0_order
+    IF(PRESENT(chi_pbc         )) chi_pbc               =  current_env%chi_pbc
+    IF(PRESENT(gauge_atom_radius )) gauge_atom_radius   =  current_env%gauge_atom_radius
+    IF(PRESENT(use_old_gauge_atom)) use_old_gauge_atom  =  current_env%use_old_gauge_atom
 
   END SUBROUTINE get_current_env
 
@@ -772,23 +758,21 @@ CONTAINS
 
     CPPrecondition(current_env%ref_count>0, cp_failure_level,routineP,error,failure)
 
-    IF(.NOT. failure) THEN
 
-       IF(PRESENT(jrho1_atom_set)) THEN
-          IF(ASSOCIATED(current_env%jrho1_atom_set)) THEN
-             CALL deallocate_jrho_atom_set(current_env%jrho1_atom_set,error=error)
-          ENDIF
-          current_env%jrho1_atom_set => jrho1_atom_set
-       END IF
+    IF(PRESENT(jrho1_atom_set)) THEN
+       IF(ASSOCIATED(current_env%jrho1_atom_set)) THEN
+          CALL deallocate_jrho_atom_set(current_env%jrho1_atom_set,error=error)
+       ENDIF
+       current_env%jrho1_atom_set => jrho1_atom_set
+    END IF
 
-       IF(PRESENT(jrho1_set)) THEN
-          IF(ASSOCIATED(current_env%jrho1_set)) THEN
-             DO idir = 1,3
-                CALL qs_rho_release(current_env%jrho1_set(idir)%rho,error=error)
-             END DO
-          END IF
-          current_env%jrho1_set => jrho1_set
+    IF(PRESENT(jrho1_set)) THEN
+       IF(ASSOCIATED(current_env%jrho1_set)) THEN
+          DO idir = 1,3
+             CALL qs_rho_release(current_env%jrho1_set(idir)%rho,error=error)
+          END DO
        END IF
+       current_env%jrho1_set => jrho1_set
     END IF
 
   END SUBROUTINE set_current_env
@@ -1234,49 +1218,47 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
 
-    IF(.NOT.failure) THEN
 
-       DO idir = 1,3
-          ALLOCATE(jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef(nr,na),&
-                   jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef(nr,na),&
-                   STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef = 0.0_dp
-          jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef = 0.0_dp
-       ENDDO
-
-       ALLOCATE(jrho1_atom%jrho_h(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_s(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_a_h(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_a_s(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_b_h(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_b_s(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_a_h_ii(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_a_s_ii(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_b_h_ii(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_b_s_ii(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_a_h_iii(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_a_s_iii(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_b_h_iii(ispin)%r_coef(nr,max_iso_not0),&
-                jrho1_atom%jrho_b_s_iii(ispin)%r_coef(nr,max_iso_not0),&
+    DO idir = 1,3
+       ALLOCATE(jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef(nr,na),&
+                jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef(nr,na),&
                 STAT=istat)
        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-       !
-       jrho1_atom%jrho_h(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_s(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_a_h(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_a_s(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_b_h(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_b_s(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_a_h_ii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_a_s_ii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_b_h_ii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_b_s_ii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_a_h_iii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_a_s_iii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_b_h_iii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_b_s_iii(ispin)%r_coef = 0.0_dp
-    END IF
+       jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef = 0.0_dp
+       jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef = 0.0_dp
+    ENDDO
+
+    ALLOCATE(jrho1_atom%jrho_h(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_s(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_a_h(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_a_s(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_b_h(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_b_s(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_a_h_ii(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_a_s_ii(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_b_h_ii(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_b_s_ii(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_a_h_iii(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_a_s_iii(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_b_h_iii(ispin)%r_coef(nr,max_iso_not0),&
+             jrho1_atom%jrho_b_s_iii(ispin)%r_coef(nr,max_iso_not0),&
+             STAT=istat)
+    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    !
+    jrho1_atom%jrho_h(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_s(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_a_h(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_a_s(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_h(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_s(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_a_h_ii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_a_s_ii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_h_ii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_s_ii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_a_h_iii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_a_s_iii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_h_iii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_s_iii(ispin)%r_coef = 0.0_dp
     CALL timestop(handle)
 
   END SUBROUTINE allocate_jrho_atom_rad
@@ -1302,26 +1284,24 @@ CONTAINS
     !
     CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
     !
-    IF(.NOT.failure) THEN
-       jrho1_atom%jrho_h(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_s(ispin)%r_coef = 0.0_dp
-       !
-       jrho1_atom%jrho_a_h(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_a_s(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_b_h(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_b_s(ispin)%r_coef = 0.0_dp
-       !
-       jrho1_atom%jrho_a_h_ii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_a_s_ii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_b_h_ii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_b_s_ii(ispin)%r_coef = 0.0_dp
-       !
-       jrho1_atom%jrho_a_h_iii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_a_s_iii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_b_h_iii(ispin)%r_coef = 0.0_dp
-       jrho1_atom%jrho_b_s_iii(ispin)%r_coef = 0.0_dp
-       !
-    ENDIF
+    jrho1_atom%jrho_h(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_s(ispin)%r_coef = 0.0_dp
+    !
+    jrho1_atom%jrho_a_h(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_a_s(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_h(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_s(ispin)%r_coef = 0.0_dp
+    !
+    jrho1_atom%jrho_a_h_ii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_a_s_ii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_h_ii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_s_ii(ispin)%r_coef = 0.0_dp
+    !
+    jrho1_atom%jrho_a_h_iii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_a_s_iii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_h_iii(ispin)%r_coef = 0.0_dp
+    jrho1_atom%jrho_b_s_iii(ispin)%r_coef = 0.0_dp
+    !
   END SUBROUTINE set2zero_jrho_atom_rad
 
 ! *****************************************************************************
@@ -1349,28 +1329,26 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,error,failure)
-    IF(.NOT.failure) THEN
-       DO i = 1,SIZE(jrho1_atom_set(iatom)%cjc0_h,1)
-          ALLOCATE(jrho1_atom_set(iatom)%cjc0_h(i)%r_coef(nsotot,nsotot),&
-                   jrho1_atom_set(iatom)%cjc0_s(i)%r_coef(nsotot,nsotot),&
-                   jrho1_atom_set(iatom)%cjc_h(i)%r_coef(nsotot,nsotot),&
-                   jrho1_atom_set(iatom)%cjc_s(i)%r_coef(nsotot,nsotot),&
-                   jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef(nsotot,nsotot),&
-                   jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef(nsotot,nsotot),&
-                   jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef(nsotot,nsotot),&
-                   jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef(nsotot,nsotot),&
-                   STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-          jrho1_atom_set(iatom)%cjc0_h(i)%r_coef = 0.0_dp
-          jrho1_atom_set(iatom)%cjc0_s(i)%r_coef = 0.0_dp
-          jrho1_atom_set(iatom)%cjc_h(i)%r_coef = 0.0_dp
-          jrho1_atom_set(iatom)%cjc_s(i)%r_coef = 0.0_dp
-          jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef = 0.0_dp
-          jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef = 0.0_dp
-          jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef = 0.0_dp
-          jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef = 0.0_dp
-       ENDDO
-    ENDIF
+    DO i = 1,SIZE(jrho1_atom_set(iatom)%cjc0_h,1)
+       ALLOCATE(jrho1_atom_set(iatom)%cjc0_h(i)%r_coef(nsotot,nsotot),&
+                jrho1_atom_set(iatom)%cjc0_s(i)%r_coef(nsotot,nsotot),&
+                jrho1_atom_set(iatom)%cjc_h(i)%r_coef(nsotot,nsotot),&
+                jrho1_atom_set(iatom)%cjc_s(i)%r_coef(nsotot,nsotot),&
+                jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef(nsotot,nsotot),&
+                jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef(nsotot,nsotot),&
+                jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef(nsotot,nsotot),&
+                jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef(nsotot,nsotot),&
+                STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+       jrho1_atom_set(iatom)%cjc0_h(i)%r_coef = 0.0_dp
+       jrho1_atom_set(iatom)%cjc0_s(i)%r_coef = 0.0_dp
+       jrho1_atom_set(iatom)%cjc_h(i)%r_coef = 0.0_dp
+       jrho1_atom_set(iatom)%cjc_s(i)%r_coef = 0.0_dp
+       jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef = 0.0_dp
+       jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef = 0.0_dp
+       jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef = 0.0_dp
+       jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef = 0.0_dp
+    ENDDO
     CALL timestop(handle)
   END SUBROUTINE allocate_jrho_coeff
 
@@ -1398,20 +1376,18 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,error,failure)
-    IF(.NOT.failure) THEN
-       DO i = 1,SIZE(jrho1_atom_set(iatom)%cjc0_h,1)
-          DEALLOCATE(jrho1_atom_set(iatom)%cjc0_h(i)%r_coef,&
-                     jrho1_atom_set(iatom)%cjc0_s(i)%r_coef,&
-                     jrho1_atom_set(iatom)%cjc_h(i)%r_coef,&
-                     jrho1_atom_set(iatom)%cjc_s(i)%r_coef,&
-                     jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef,&
-                     jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef,&
-                     jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef,&
-                     jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef,&
-                     STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
-       ENDDO
-    ENDIF
+    DO i = 1,SIZE(jrho1_atom_set(iatom)%cjc0_h,1)
+       DEALLOCATE(jrho1_atom_set(iatom)%cjc0_h(i)%r_coef,&
+                  jrho1_atom_set(iatom)%cjc0_s(i)%r_coef,&
+                  jrho1_atom_set(iatom)%cjc_h(i)%r_coef,&
+                  jrho1_atom_set(iatom)%cjc_s(i)%r_coef,&
+                  jrho1_atom_set(iatom)%cjc_ii_h(i)%r_coef,&
+                  jrho1_atom_set(iatom)%cjc_ii_s(i)%r_coef,&
+                  jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef,&
+                  jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef,&
+                  STAT=istat)
+       CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
     CALL timestop(handle)
   END SUBROUTINE deallocate_jrho_coeff
 
@@ -1453,16 +1429,14 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,error,failure)
 
-    IF(.NOT.failure) THEN
-       IF(PRESENT(cjc_h         )) cjc_h          => jrho1_atom_set(iatom)%cjc_h
-       IF(PRESENT(cjc_s         )) cjc_s          => jrho1_atom_set(iatom)%cjc_s
-       IF(PRESENT(cjc_ii_h      )) cjc_ii_h       => jrho1_atom_set(iatom)%cjc_ii_h
-       IF(PRESENT(cjc_ii_s      )) cjc_ii_s       => jrho1_atom_set(iatom)%cjc_ii_s
-       IF(PRESENT(cjc_iii_h     )) cjc_iii_h      => jrho1_atom_set(iatom)%cjc_iii_h
-       IF(PRESENT(cjc_iii_s     )) cjc_iii_s      => jrho1_atom_set(iatom)%cjc_iii_s
-       IF(PRESENT(jrho_vec_rad_h)) jrho_vec_rad_h => jrho1_atom_set(iatom)%jrho_vec_rad_h
-       IF(PRESENT(jrho_vec_rad_s)) jrho_vec_rad_s => jrho1_atom_set(iatom)%jrho_vec_rad_s
-    ENDIF
+    IF(PRESENT(cjc_h         )) cjc_h          => jrho1_atom_set(iatom)%cjc_h
+    IF(PRESENT(cjc_s         )) cjc_s          => jrho1_atom_set(iatom)%cjc_s
+    IF(PRESENT(cjc_ii_h      )) cjc_ii_h       => jrho1_atom_set(iatom)%cjc_ii_h
+    IF(PRESENT(cjc_ii_s      )) cjc_ii_s       => jrho1_atom_set(iatom)%cjc_ii_s
+    IF(PRESENT(cjc_iii_h     )) cjc_iii_h      => jrho1_atom_set(iatom)%cjc_iii_h
+    IF(PRESENT(cjc_iii_s     )) cjc_iii_s      => jrho1_atom_set(iatom)%cjc_iii_s
+    IF(PRESENT(jrho_vec_rad_h)) jrho_vec_rad_h => jrho1_atom_set(iatom)%jrho_vec_rad_h
+    IF(PRESENT(jrho_vec_rad_s)) jrho_vec_rad_s => jrho1_atom_set(iatom)%jrho_vec_rad_s
 
   END SUBROUTINE get_jrho_atom
 
@@ -1683,14 +1657,12 @@ CONTAINS
      failure =.FALSE.
 
      CPPrecondition(polar_env%ref_count==0, cp_failure_level,routineP,error,failure)
-     IF(.NOT. failure) THEN
-        polar_env%ref_count = 1
+     polar_env%ref_count = 1
 !        polar_env%do_raman=.FALSE.
-        NULLIFY(polar_env%polar)
-        NULLIFY(polar_env%psi1_dBerry)
-        NULLIFY(polar_env%dBerry_psi0)
-        NULLIFY(polar_env%mo_derivs)
-     ENDIF
+     NULLIFY(polar_env%polar)
+     NULLIFY(polar_env%psi1_dBerry)
+     NULLIFY(polar_env%dBerry_psi0)
+     NULLIFY(polar_env%mo_derivs)
 
    END SUBROUTINE polar_env_create
 

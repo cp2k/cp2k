@@ -190,9 +190,7 @@ SUBROUTINE wfi_retain(wf_history,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     wf_history%ref_count=wf_history%ref_count+1
-  END IF
+  wf_history%ref_count=wf_history%ref_count+1
 
 END SUBROUTINE wfi_retain
 
@@ -263,17 +261,13 @@ FUNCTION wfi_get_snapshot(wf_history, index, error) RESULT(res)
   NULLIFY(res)
 
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(ASSOCIATED(wf_history%past_states),cp_failure_level,routineP,error,failure)
-     IF (index>wf_history%memory_depth.OR.index>wf_history%snapshot_count) THEN
-        CPPrecondition(.FALSE.,cp_warning_level,routineP,error,failure)
-     END IF
+  CPPrecondition(ASSOCIATED(wf_history%past_states),cp_failure_level,routineP,error,failure)
+  IF (index>wf_history%memory_depth.OR.index>wf_history%snapshot_count) THEN
+     CPPrecondition(.FALSE.,cp_warning_level,routineP,error,failure)
   END IF
-  IF (.not.failure) THEN
-     res => wf_history%past_states(&
-          MODULO(wf_history%snapshot_count+1-index,&
-          wf_history%memory_depth)+1)%snapshot
-  END IF
+  res => wf_history%past_states(&
+       MODULO(wf_history%snapshot_count+1-index,&
+       wf_history%memory_depth)+1)%snapshot
 END FUNCTION wfi_get_snapshot
 
 END MODULE qs_wf_history_types

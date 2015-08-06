@@ -820,25 +820,21 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE (dft_control,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-       dft_control%ref_count=1
-       last_dft_control_id=last_dft_control_id+1
-       dft_control%id_nr=last_dft_control_id
-       NULLIFY (dft_control%xas_control)
-       NULLIFY (dft_control%qs_control)
-       NULLIFY (dft_control%tddfpt_control)
-       NULLIFY (dft_control%efield_fields)
-       NULLIFY (dft_control%period_efield)
-       NULLIFY (dft_control%admm_control)
-       NULLIFY (dft_control%rtp_control)
-       NULLIFY (dft_control%sccs_control)
-       dft_control%do_sccs = .FALSE.
-       CALL qs_control_create(dft_control%qs_control,error=error)
-    END IF
+    ALLOCATE (dft_control,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    dft_control%ref_count=1
+    last_dft_control_id=last_dft_control_id+1
+    dft_control%id_nr=last_dft_control_id
+    NULLIFY (dft_control%xas_control)
+    NULLIFY (dft_control%qs_control)
+    NULLIFY (dft_control%tddfpt_control)
+    NULLIFY (dft_control%efield_fields)
+    NULLIFY (dft_control%period_efield)
+    NULLIFY (dft_control%admm_control)
+    NULLIFY (dft_control%rtp_control)
+    NULLIFY (dft_control%sccs_control)
+    dft_control%do_sccs = .FALSE.
+    CALL qs_control_create(dft_control%qs_control,error=error)
   END SUBROUTINE dft_control_create
 
 ! *****************************************************************************
@@ -860,10 +856,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(dft_control%ref_count>0,cp_failure_level,routineP,error)
-       dft_control%ref_count=dft_control%ref_count+1
-    END IF
+    CPPreconditionNoFail(dft_control%ref_count>0,cp_failure_level,routineP,error)
+    dft_control%ref_count=dft_control%ref_count+1
   END SUBROUTINE dft_control_retain
 
 ! *****************************************************************************
@@ -930,10 +924,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(gapw_control),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE (gapw_control,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+    ALLOCATE (gapw_control,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE gapw_control_create
 
 ! *****************************************************************************
@@ -953,29 +945,27 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(qs_control),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE (qs_control,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (qs_control,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       NULLIFY(qs_control%e_cutoff)
-       NULLIFY(qs_control%gapw_control)
-       NULLIFY(qs_control%mulliken_restraint_control)
-       NULLIFY(qs_control%ddapc_restraint_control)
-       NULLIFY(qs_control%s2_restraint_control)
-       NULLIFY(qs_control%se_control)
-       NULLIFY(qs_control%dftb_control)
-       NULLIFY(qs_control%scptb_control)
-       NULLIFY(qs_control%becke_control)
-       NULLIFY(qs_control%ddapc_restraint_control)
+    NULLIFY(qs_control%e_cutoff)
+    NULLIFY(qs_control%gapw_control)
+    NULLIFY(qs_control%mulliken_restraint_control)
+    NULLIFY(qs_control%ddapc_restraint_control)
+    NULLIFY(qs_control%s2_restraint_control)
+    NULLIFY(qs_control%se_control)
+    NULLIFY(qs_control%dftb_control)
+    NULLIFY(qs_control%scptb_control)
+    NULLIFY(qs_control%becke_control)
+    NULLIFY(qs_control%ddapc_restraint_control)
 
-       CALL mulliken_control_create(qs_control%mulliken_restraint_control,error=error)
-       CALL becke_control_create(qs_control%becke_control,error=error)
-       CALL s2_control_create(qs_control%s2_restraint_control,error=error)
-       CALL gapw_control_create(qs_control%gapw_control, error=error)
-       CALL se_control_create(qs_control%se_control,error=error)
-       CALL dftb_control_create(qs_control%dftb_control,error=error)
-       CALL scptb_control_create(qs_control%scptb_control,error=error)
-    END IF
+    CALL mulliken_control_create(qs_control%mulliken_restraint_control,error=error)
+    CALL becke_control_create(qs_control%becke_control,error=error)
+    CALL s2_control_create(qs_control%s2_restraint_control,error=error)
+    CALL gapw_control_create(qs_control%gapw_control, error=error)
+    CALL se_control_create(qs_control%se_control,error=error)
+    CALL dftb_control_create(qs_control%dftb_control,error=error)
+    CALL scptb_control_create(qs_control%scptb_control,error=error)
   END SUBROUTINE qs_control_create
 
 ! *****************************************************************************
@@ -1039,12 +1029,10 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(tddfpt_control),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE (tddfpt_control,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(tddfpt_control%lumos)
-       NULLIFY(tddfpt_control%lumos_eigenvalues)
-    END IF
+    ALLOCATE (tddfpt_control,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(tddfpt_control%lumos)
+    NULLIFY(tddfpt_control%lumos_eigenvalues)
 
   END SUBROUTINE tddfpt_control_create
 

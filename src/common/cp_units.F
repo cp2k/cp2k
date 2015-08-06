@@ -586,10 +586,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(unit),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(unit%ref_count>0,cp_failure_level,routineP,error)
-       unit%ref_count=unit%ref_count+1
-    END IF
+    CPPreconditionNoFail(unit%ref_count>0,cp_failure_level,routineP,error)
+    unit%ref_count=unit%ref_count+1
   END SUBROUTINE cp_unit_retain
 
 ! *****************************************************************************
@@ -651,104 +649,102 @@ CONTAINS
     my_error_level=cp_failure_level
     IF (PRESENT(error_level)) my_error_level=error_level
 
-    IF (.NOT. failure) THEN
-       SELECT CASE(basic_kind)
-       CASE(cp_ukind_undef)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_none)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown undef unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_energy)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_hartree, cp_units_wavenum, cp_units_joule, cp_units_kcalmol,&
-               cp_units_kjmol, cp_units_Ry, cp_units_eV, cp_units_keV, cp_units_au, cp_units_k,&
-               cp_units_jmol, cp_units_none)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown energy unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_length)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_bohr, cp_units_angstrom, cp_units_au, cp_units_none, cp_units_m,&
-               cp_units_pm, cp_units_nm)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown length unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_temperature)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_k,cp_units_au,cp_units_none)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown temperature unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_pressure)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_bar,cp_units_atm,cp_units_kbar,cp_units_Pa,cp_units_MPa,cp_units_GPa,cp_units_au,cp_units_none)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown pressure unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_angle)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_rad, cp_units_deg,cp_units_none)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown angle unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_time)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_s, cp_units_fs, cp_units_ps, cp_units_au, cp_units_wn, cp_units_none)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown time unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_mass)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_kg, cp_units_amu, cp_units_m_e, cp_units_au, cp_units_none)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown mass unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_potential)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_volt, cp_units_au, cp_units_none)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_force)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_Newton, cp_units_mNewton, cp_units_au, cp_units_none)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown force unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_none)
-          IF(basic_unit/=cp_units_none)&
-               CALL cp_assert(.FALSE.,my_error_level,&
-               cp_assertion_failed, routineP,&
-               "if the kind of the unit is none also unit must be undefined,not:"&
-               //TRIM(cp_to_string(basic_unit)),&
-               error,failure)
+    SELECT CASE(basic_kind)
+    CASE(cp_ukind_undef)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_none)
        CASE default
           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-               routineP,"unknown kind of unit:"//TRIM(cp_to_string(basic_kind)),&
+               routineP,"unknown undef unit:"//TRIM(cp_to_string(basic_unit)),&
                error,failure)
        END SELECT
-    END IF
+    CASE(cp_ukind_energy)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_hartree, cp_units_wavenum, cp_units_joule, cp_units_kcalmol,&
+            cp_units_kjmol, cp_units_Ry, cp_units_eV, cp_units_keV, cp_units_au, cp_units_k,&
+            cp_units_jmol, cp_units_none)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown energy unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_length)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_bohr, cp_units_angstrom, cp_units_au, cp_units_none, cp_units_m,&
+            cp_units_pm, cp_units_nm)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown length unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_temperature)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_k,cp_units_au,cp_units_none)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown temperature unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_pressure)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_bar,cp_units_atm,cp_units_kbar,cp_units_Pa,cp_units_MPa,cp_units_GPa,cp_units_au,cp_units_none)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown pressure unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_angle)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_rad, cp_units_deg,cp_units_none)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown angle unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_time)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_s, cp_units_fs, cp_units_ps, cp_units_au, cp_units_wn, cp_units_none)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown time unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_mass)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_kg, cp_units_amu, cp_units_m_e, cp_units_au, cp_units_none)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown mass unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_potential)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_volt, cp_units_au, cp_units_none)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_force)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_Newton, cp_units_mNewton, cp_units_au, cp_units_none)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown force unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_none)
+       IF(basic_unit/=cp_units_none)&
+            CALL cp_assert(.FALSE.,my_error_level,&
+            cp_assertion_failed, routineP,&
+            "if the kind of the unit is none also unit must be undefined,not:"&
+            //TRIM(cp_to_string(basic_unit)),&
+            error,failure)
+    CASE default
+       CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+            routineP,"unknown kind of unit:"//TRIM(cp_to_string(basic_kind)),&
+            error,failure)
+    END SELECT
     res=.not.failure
   END FUNCTION cp_basic_unit_check
 
@@ -786,170 +782,168 @@ CONTAINS
             "unit not yet fully specified, unit of kind "//&
             TRIM(cp_to_string(basic_unit)),error,failure)
     END IF
-    IF (.NOT.failure) THEN
-       SELECT CASE(basic_kind)
-       CASE(cp_ukind_undef)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_none)
-             res = value
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown energy unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_energy)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_hartree,cp_units_au)
-             res=value
-          CASE(cp_units_wavenum)
-             res=wavenumbers**(-my_power)*value
-          CASE(cp_units_joule)
-             res=joule**(-my_power)*value
-          CASE(cp_units_kcalmol)
-             res=kcalmol**(-my_power)*value
-          CASE(cp_units_kjmol)
-             res=kjmol**(-my_power)*value
-          CASE(cp_units_jmol)
-             res=(kjmol*1.0E+3_dp)**(-my_power)*value
-          CASE(cp_units_Ry)
-             res=0.5_dp**my_power*value
-          CASE(cp_units_eV)
-             res=evolt**(-my_power)*value
-          CASE(cp_units_keV)
-             res=(1.0E-3_dp*evolt)**(-my_power)*value
-          CASE(cp_units_k)
-             res=kelvin**(-my_power)*value
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown energy unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_length)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_bohr,cp_units_au)
-             res=value
-          CASE(cp_units_m)
-             res=value*(1.0E10_dp*bohr)**my_power
-          CASE(cp_units_pm)
-             res=value*(0.01_dp*bohr)**my_power
-          CASE(cp_units_nm)
-             res=value*(10.0_dp*bohr)**my_power
-          CASE(cp_units_angstrom)
-             res=value*bohr**my_power
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown length unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_temperature)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_k)
-             res=kelvin**(-my_power)*value
-          CASE(cp_units_au)
-             res=value
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown temperature unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_pressure)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_bar)
-             res = bar**(-my_power)*value
-          CASE(cp_units_atm)
-             res = atm**(-my_power)*value
-          CASE(cp_units_kbar)
-             res = (1.0E-3_dp*bar)**(-my_power)*value
-          CASE(cp_units_Pa)
-             res = pascal**(-my_power)*value
-          CASE(cp_units_MPa)
-             res = (1.0E-6_dp*pascal)**(-my_power)*value
-          CASE(cp_units_GPa)
-             res = (1.0E-9_dp*pascal)**(-my_power)*value
-          CASE(cp_units_au)
-             res = value
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown pressure unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_angle)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_rad)
-             res=value
-          CASE(cp_units_deg)
-             res=value*(radians)**my_power
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown angle unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_time)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_s)
-             res=value*seconds**(-my_power)
-          CASE(cp_units_fs)
-             res=value*femtoseconds**(-my_power)
-          CASE(cp_units_ps)
-             res=value*picoseconds**(-my_power)
-          CASE(cp_units_au)
-             res=value
-          CASE(cp_units_wn)
-             res=(twopi*wavenumbers)**(my_power)/value
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown time unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_mass)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_kg)
-             res=e_mass**my_power*value
-          CASE(cp_units_amu)
-             res=massunit**my_power*value
-          CASE(cp_units_m_e,cp_units_au)
-             res=value
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown mass unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_potential)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_volt)
-             res=evolt**(-my_power)*value
-          CASE(cp_units_au)
-             res=value
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_force)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_Newton)
-             res=value*newton**(-my_power)
-          CASE(cp_units_mNewton)
-             res=value*(1.0E+3*newton)**(-my_power)
-          CASE(cp_units_au)
-             res=value
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown force unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_none)
-          CALL cp_assert(.FALSE.,my_error_level,&
-               cp_assertion_failed, routineP,&
-               "if the kind of the unit is none also unit must be undefined,not:"&
-               //TRIM(cp_to_string(basic_unit)),&
-               error,failure)
+    SELECT CASE(basic_kind)
+    CASE(cp_ukind_undef)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_none)
+          res = value
        CASE default
           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-               routineP,"unknown kind of unit:"//TRIM(cp_to_string(basic_kind)),&
+               routineP,"unknown energy unit:"//TRIM(cp_to_string(basic_unit)),&
                error,failure)
        END SELECT
-    END IF
+    CASE(cp_ukind_energy)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_hartree,cp_units_au)
+          res=value
+       CASE(cp_units_wavenum)
+          res=wavenumbers**(-my_power)*value
+       CASE(cp_units_joule)
+          res=joule**(-my_power)*value
+       CASE(cp_units_kcalmol)
+          res=kcalmol**(-my_power)*value
+       CASE(cp_units_kjmol)
+          res=kjmol**(-my_power)*value
+       CASE(cp_units_jmol)
+          res=(kjmol*1.0E+3_dp)**(-my_power)*value
+       CASE(cp_units_Ry)
+          res=0.5_dp**my_power*value
+       CASE(cp_units_eV)
+          res=evolt**(-my_power)*value
+       CASE(cp_units_keV)
+          res=(1.0E-3_dp*evolt)**(-my_power)*value
+       CASE(cp_units_k)
+          res=kelvin**(-my_power)*value
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown energy unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_length)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_bohr,cp_units_au)
+          res=value
+       CASE(cp_units_m)
+          res=value*(1.0E10_dp*bohr)**my_power
+       CASE(cp_units_pm)
+          res=value*(0.01_dp*bohr)**my_power
+       CASE(cp_units_nm)
+          res=value*(10.0_dp*bohr)**my_power
+       CASE(cp_units_angstrom)
+          res=value*bohr**my_power
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown length unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_temperature)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_k)
+          res=kelvin**(-my_power)*value
+       CASE(cp_units_au)
+          res=value
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown temperature unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_pressure)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_bar)
+          res = bar**(-my_power)*value
+       CASE(cp_units_atm)
+          res = atm**(-my_power)*value
+       CASE(cp_units_kbar)
+          res = (1.0E-3_dp*bar)**(-my_power)*value
+       CASE(cp_units_Pa)
+          res = pascal**(-my_power)*value
+       CASE(cp_units_MPa)
+          res = (1.0E-6_dp*pascal)**(-my_power)*value
+       CASE(cp_units_GPa)
+          res = (1.0E-9_dp*pascal)**(-my_power)*value
+       CASE(cp_units_au)
+          res = value
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown pressure unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_angle)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_rad)
+          res=value
+       CASE(cp_units_deg)
+          res=value*(radians)**my_power
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown angle unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_time)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_s)
+          res=value*seconds**(-my_power)
+       CASE(cp_units_fs)
+          res=value*femtoseconds**(-my_power)
+       CASE(cp_units_ps)
+          res=value*picoseconds**(-my_power)
+       CASE(cp_units_au)
+          res=value
+       CASE(cp_units_wn)
+          res=(twopi*wavenumbers)**(my_power)/value
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown time unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_mass)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_kg)
+          res=e_mass**my_power*value
+       CASE(cp_units_amu)
+          res=massunit**my_power*value
+       CASE(cp_units_m_e,cp_units_au)
+          res=value
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown mass unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_potential)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_volt)
+          res=evolt**(-my_power)*value
+       CASE(cp_units_au)
+          res=value
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_force)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_Newton)
+          res=value*newton**(-my_power)
+       CASE(cp_units_mNewton)
+          res=value*(1.0E+3*newton)**(-my_power)
+       CASE(cp_units_au)
+          res=value
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown force unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_none)
+       CALL cp_assert(.FALSE.,my_error_level,&
+            cp_assertion_failed, routineP,&
+            "if the kind of the unit is none also unit must be undefined,not:"&
+            //TRIM(cp_to_string(basic_unit)),&
+            error,failure)
+    CASE default
+       CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+            routineP,"unknown kind of unit:"//TRIM(cp_to_string(basic_kind)),&
+            error,failure)
+    END SELECT
   END FUNCTION cp_basic_unit_to_cp2k
 
 ! *****************************************************************************
@@ -990,225 +984,223 @@ CONTAINS
             "unit not yet fully specified, unit of kind "//&
             TRIM(cp_to_string(basic_kind)),error,failure)
     END IF
-    IF (.NOT.failure) THEN
-       SELECT CASE(basic_kind)
-       CASE(cp_ukind_undef)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_none)
-             res="internal_cp2k"
-          CASE DEFAULT
-             CALL cp_assert(.FALSE.,my_error_level,&
-                  cp_assertion_failed,routineP,&
-                  "unit not yet fully specified, unit of kind "//&
-                  TRIM(res),error,failure)
-          END SELECT
-       CASE(cp_ukind_energy)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_hartree,cp_units_au)
-             res="hartree"
-          CASE(cp_units_wavenum)
-             res="wavenumber_e"
-          CASE(cp_units_joule)
-             res="joule"
-          CASE(cp_units_kcalmol)
-             res="kcalmol"
-          CASE(cp_units_kjmol)
-             res="kjmol"
-          CASE(cp_units_jmol)
-             res="jmol"
-          CASE(cp_units_Ry)
-             res="Ry"
-          CASE(cp_units_eV)
-             res="eV"
-          CASE(cp_units_keV)
-             res="keV"
-          CASE(cp_units_k)
-             res="K_e"
-          CASE(cp_units_none)
-             res="energy"
-             CALL cp_assert(my_accept_undefined,my_error_level,&
-                  cp_assertion_failed,routineP,&
-                  "unit not yet fully specified, unit of kind "//&
-                  TRIM(res),error,failure)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown energy unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_length)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_bohr,cp_units_au)
-             res="bohr"
-          CASE(cp_units_m)
-             res="m"
-          CASE(cp_units_pm)
-             res="pm"
-          CASE(cp_units_nm)
-             res="nm"
-          CASE(cp_units_angstrom)
-             res="angstrom"
-          CASE default
-             res="length"
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown length unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_temperature)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_k)
-             res="K"
-          CASE(cp_units_au)
-             res="au_temp"
-          CASE(cp_units_none)
-             res="temperature"
-             CALL cp_assert(my_accept_undefined,my_error_level,&
-                  cp_assertion_failed,routineP,&
-                  "unit not yet fully specified, unit of kind "//&
-                  TRIM(res),error,failure)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown temperature unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_pressure)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_bar)
-             res="bar"
-          CASE(cp_units_atm)
-             res="atm"
-          CASE(cp_units_kbar)
-             res="kbar"
-          CASE(cp_units_Pa)
-             res="Pa"
-          CASE(cp_units_MPa)
-             res="MPa"
-          CASE(cp_units_GPa)
-             res="GPa"
-          CASE(cp_units_au)
-             res="au_p"
-          CASE(cp_units_none)
-             res="pressure"
-             CALL cp_assert(my_accept_undefined,my_error_level,&
-                  cp_assertion_failed,routineP,&
-                  "unit not yet fully specified, unit of kind "//&
-                  TRIM(res),error,failure)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown pressure unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_angle)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_rad)
-             res="rad"
-          CASE(cp_units_deg)
-             res="deg"
-          CASE(cp_units_none)
-             res="angle"
-             CALL cp_assert(my_accept_undefined,my_error_level,&
-                  cp_assertion_failed,routineP,&
-                  "unit not yet fully specified, unit of kind "//&
-                  TRIM(res),error,failure)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown angle unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_time)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_s)
-             res="s"
-          CASE(cp_units_fs)
-             res="fs"
-          CASE(cp_units_ps)
-             res="ps"
-          CASE(cp_units_au)
-             res="au_t"
-          CASE(cp_units_wn)
-             res="wavenumber_t"
-          CASE(cp_units_none)
-             res="time"
-             CALL cp_assert(my_accept_undefined,my_error_level,&
-                  cp_assertion_failed,routineP,&
-                  "unit not yet fully specified, unit of kind "//&
-                  TRIM(res),error,failure)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown time unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_mass)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_kg)
-             res="kg"
-          CASE(cp_units_amu)
-             res="amu"
-          CASE(cp_units_m_e,cp_units_au)
-             res="m_e"
-          CASE(cp_units_none)
-             res="mass"
-             CALL cp_assert(my_accept_undefined,my_error_level,&
-                  cp_assertion_failed,routineP,&
-                  "unit not yet fully specified, unit of kind "//&
-                  TRIM(res),error,failure)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown mass unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_potential)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_volt)
-             res="volt"
-          CASE(cp_units_au)
-             res="au_pot"
-          CASE(cp_units_none)
-             res="potential"
-             CALL cp_assert(my_accept_undefined,my_error_level,&
-                  cp_assertion_failed,routineP,&
-                  "unit not yet fully specified, unit of kind "//&
-                  TRIM(res),error,failure)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_force)
-          SELECT CASE (basic_unit)
-          CASE(cp_units_Newton)
-             res="N"
-          CASE(cp_units_mNewton)
-             res="mN"
-          CASE(cp_units_au)
-             res="au_f"
-          CASE(cp_units_none)
-             res="force"
-             CALL cp_assert(my_accept_undefined,my_error_level,&
-                  cp_assertion_failed,routineP,&
-                  "unit not yet fully specified, unit of kind "//&
-                  TRIM(res),error,failure)
-          CASE default
-             CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-                  routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
-                  error,failure)
-          END SELECT
-       CASE(cp_ukind_none)
+    SELECT CASE(basic_kind)
+    CASE(cp_ukind_undef)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_none)
+          res="internal_cp2k"
+       CASE DEFAULT
           CALL cp_assert(.FALSE.,my_error_level,&
-               cp_assertion_failed, routineP,&
-               "if the kind of the unit is none also unit must be undefined,not:"&
-               //TRIM(cp_to_string(basic_unit)),&
-               error,failure)
+               cp_assertion_failed,routineP,&
+               "unit not yet fully specified, unit of kind "//&
+               TRIM(res),error,failure)
+       END SELECT
+    CASE(cp_ukind_energy)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_hartree,cp_units_au)
+          res="hartree"
+       CASE(cp_units_wavenum)
+          res="wavenumber_e"
+       CASE(cp_units_joule)
+          res="joule"
+       CASE(cp_units_kcalmol)
+          res="kcalmol"
+       CASE(cp_units_kjmol)
+          res="kjmol"
+       CASE(cp_units_jmol)
+          res="jmol"
+       CASE(cp_units_Ry)
+          res="Ry"
+       CASE(cp_units_eV)
+          res="eV"
+       CASE(cp_units_keV)
+          res="keV"
+       CASE(cp_units_k)
+          res="K_e"
+       CASE(cp_units_none)
+          res="energy"
+          CALL cp_assert(my_accept_undefined,my_error_level,&
+               cp_assertion_failed,routineP,&
+               "unit not yet fully specified, unit of kind "//&
+               TRIM(res),error,failure)
        CASE default
           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
-               routineP,"unknown kind of unit:"//TRIM(cp_to_string(basic_kind)),&
+               routineP,"unknown energy unit:"//TRIM(cp_to_string(basic_unit)),&
                error,failure)
        END SELECT
-       IF (my_power/=1) THEN
-          a=LEN_TRIM(res)
-          CPPrecondition(LEN(res)-a>=3,cp_failure_level,routineP,error,failure)
-          WRITE (res(a+1:),"('^',i3)") my_power
-          CALL compress(res,.TRUE.)
-       END IF
+    CASE(cp_ukind_length)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_bohr,cp_units_au)
+          res="bohr"
+       CASE(cp_units_m)
+          res="m"
+       CASE(cp_units_pm)
+          res="pm"
+       CASE(cp_units_nm)
+          res="nm"
+       CASE(cp_units_angstrom)
+          res="angstrom"
+       CASE default
+          res="length"
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown length unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_temperature)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_k)
+          res="K"
+       CASE(cp_units_au)
+          res="au_temp"
+       CASE(cp_units_none)
+          res="temperature"
+          CALL cp_assert(my_accept_undefined,my_error_level,&
+               cp_assertion_failed,routineP,&
+               "unit not yet fully specified, unit of kind "//&
+               TRIM(res),error,failure)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown temperature unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_pressure)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_bar)
+          res="bar"
+       CASE(cp_units_atm)
+          res="atm"
+       CASE(cp_units_kbar)
+          res="kbar"
+       CASE(cp_units_Pa)
+          res="Pa"
+       CASE(cp_units_MPa)
+          res="MPa"
+       CASE(cp_units_GPa)
+          res="GPa"
+       CASE(cp_units_au)
+          res="au_p"
+       CASE(cp_units_none)
+          res="pressure"
+          CALL cp_assert(my_accept_undefined,my_error_level,&
+               cp_assertion_failed,routineP,&
+               "unit not yet fully specified, unit of kind "//&
+               TRIM(res),error,failure)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown pressure unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_angle)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_rad)
+          res="rad"
+       CASE(cp_units_deg)
+          res="deg"
+       CASE(cp_units_none)
+          res="angle"
+          CALL cp_assert(my_accept_undefined,my_error_level,&
+               cp_assertion_failed,routineP,&
+               "unit not yet fully specified, unit of kind "//&
+               TRIM(res),error,failure)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown angle unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_time)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_s)
+          res="s"
+       CASE(cp_units_fs)
+          res="fs"
+       CASE(cp_units_ps)
+          res="ps"
+       CASE(cp_units_au)
+          res="au_t"
+       CASE(cp_units_wn)
+          res="wavenumber_t"
+       CASE(cp_units_none)
+          res="time"
+          CALL cp_assert(my_accept_undefined,my_error_level,&
+               cp_assertion_failed,routineP,&
+               "unit not yet fully specified, unit of kind "//&
+               TRIM(res),error,failure)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown time unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_mass)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_kg)
+          res="kg"
+       CASE(cp_units_amu)
+          res="amu"
+       CASE(cp_units_m_e,cp_units_au)
+          res="m_e"
+       CASE(cp_units_none)
+          res="mass"
+          CALL cp_assert(my_accept_undefined,my_error_level,&
+               cp_assertion_failed,routineP,&
+               "unit not yet fully specified, unit of kind "//&
+               TRIM(res),error,failure)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown mass unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_potential)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_volt)
+          res="volt"
+       CASE(cp_units_au)
+          res="au_pot"
+       CASE(cp_units_none)
+          res="potential"
+          CALL cp_assert(my_accept_undefined,my_error_level,&
+               cp_assertion_failed,routineP,&
+               "unit not yet fully specified, unit of kind "//&
+               TRIM(res),error,failure)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_force)
+       SELECT CASE (basic_unit)
+       CASE(cp_units_Newton)
+          res="N"
+       CASE(cp_units_mNewton)
+          res="mN"
+       CASE(cp_units_au)
+          res="au_f"
+       CASE(cp_units_none)
+          res="force"
+          CALL cp_assert(my_accept_undefined,my_error_level,&
+               cp_assertion_failed,routineP,&
+               "unit not yet fully specified, unit of kind "//&
+               TRIM(res),error,failure)
+       CASE default
+          CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+               routineP,"unknown potential unit:"//TRIM(cp_to_string(basic_unit)),&
+               error,failure)
+       END SELECT
+    CASE(cp_ukind_none)
+       CALL cp_assert(.FALSE.,my_error_level,&
+            cp_assertion_failed, routineP,&
+            "if the kind of the unit is none also unit must be undefined,not:"&
+            //TRIM(cp_to_string(basic_unit)),&
+            error,failure)
+    CASE default
+       CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+            routineP,"unknown kind of unit:"//TRIM(cp_to_string(basic_kind)),&
+            error,failure)
+    END SELECT
+    IF (my_power/=1) THEN
+       a=LEN_TRIM(res)
+       CPPrecondition(LEN(res)-a>=3,cp_failure_level,routineP,error,failure)
+       WRITE (res(a+1:),"('^',i3)") my_power
+       CALL compress(res,.TRUE.)
     END IF
   END FUNCTION cp_basic_unit_desc
 
@@ -1242,36 +1234,34 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(unit),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       res=""
-       pos=1
-       my_accept_undefined=.FALSE.
-       IF (PRESENT(accept_undefined)) my_accept_undefined=accept_undefined
-       DO i=1,unit%n_kinds
-          CPPrecondition(unit%kind_id(i)/=0,cp_failure_level,routineP,error,failure)
-          CPPrecondition(pos<LEN(res),cp_failure_level,routineP,error,failure)
-          IF (failure) EXIT
-          my_unit=unit%unit_id(i)
-          has_defaults=.FALSE.
-          IF (PRESENT(defaults)) has_defaults=ASSOCIATED(defaults)
-          IF (my_unit==0) THEN
-             IF (has_defaults) THEN
-                my_unit=defaults%units(unit%kind_id(i))%unit%unit_id(1)
-             ELSE
-                check = my_accept_undefined.OR.unit%kind_id(i)/=0
-                CPPrecondition(check,cp_failure_level,routineP,error,failure)
-             END IF
+    res=""
+    pos=1
+    my_accept_undefined=.FALSE.
+    IF (PRESENT(accept_undefined)) my_accept_undefined=accept_undefined
+    DO i=1,unit%n_kinds
+       CPPrecondition(unit%kind_id(i)/=0,cp_failure_level,routineP,error,failure)
+       CPPrecondition(pos<LEN(res),cp_failure_level,routineP,error,failure)
+       IF (failure) EXIT
+       my_unit=unit%unit_id(i)
+       has_defaults=.FALSE.
+       IF (PRESENT(defaults)) has_defaults=ASSOCIATED(defaults)
+       IF (my_unit==0) THEN
+          IF (has_defaults) THEN
+             my_unit=defaults%units(unit%kind_id(i))%unit%unit_id(1)
+          ELSE
+             check = my_accept_undefined.OR.unit%kind_id(i)/=0
+             CPPrecondition(check,cp_failure_level,routineP,error,failure)
           END IF
-          IF (i > 1) THEN
-             res(pos:pos) = "*"
-             pos = pos + 1
-          END IF
-          res(pos:)=TRIM(cp_basic_unit_desc(basic_kind=unit%kind_id(i),&
-               basic_unit=my_unit,accept_undefined=my_accept_undefined,&
-               power=unit%power(i),error=error))
-          pos=LEN_TRIM(res)+1
-       END DO
-    END IF
+       END IF
+       IF (i > 1) THEN
+          res(pos:pos) = "*"
+          pos = pos + 1
+       END IF
+       res(pos:)=TRIM(cp_basic_unit_desc(basic_kind=unit%kind_id(i),&
+            basic_unit=my_unit,accept_undefined=my_accept_undefined,&
+            power=unit%power(i),error=error))
+       pos=LEN_TRIM(res)+1
+    END DO
 
   END FUNCTION cp_unit_desc
 
@@ -1308,27 +1298,25 @@ CONTAINS
     IF (PRESENT(power)) my_power=power
     res=value
     CPPrecondition(ASSOCIATED(unit),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       DO i_unit=1,unit%n_kinds
-          CPPrecondition(unit%kind_id(i_unit)>0,cp_failure_level,routineP,error,failure)
-          my_basic_unit=unit%unit_id(i_unit)
-          IF (my_basic_unit==0.AND.unit%kind_id(i_unit)/=cp_ukind_undef) THEN
-             CPPrecondition(PRESENT(defaults),cp_failure_level,routineP,error,failure)
-             IF (failure) EXIT
-             CPPrecondition(ASSOCIATED(defaults),cp_failure_level,routineP,error,failure)
-             IF (failure) EXIT
-             CALL cp_assert(ASSOCIATED(defaults%units(unit%kind_id(i_unit))%unit),&
-                  cp_failure_level,cp_assertion_failed,routineP,&
-                  CPSourceFileRef,&
-                  error,failure)
-             IF (failure) EXIT
-             my_basic_unit=defaults%units(unit%kind_id(i_unit))%unit%unit_id(1)
-          END IF
-          res=cp_basic_unit_to_cp2k(value=res,basic_unit=my_basic_unit,&
-               basic_kind=unit%kind_id(i_unit),&
-               power=my_power*unit%power(i_unit),error=error)
-       END DO
-    END IF
+    DO i_unit=1,unit%n_kinds
+       CPPrecondition(unit%kind_id(i_unit)>0,cp_failure_level,routineP,error,failure)
+       my_basic_unit=unit%unit_id(i_unit)
+       IF (my_basic_unit==0.AND.unit%kind_id(i_unit)/=cp_ukind_undef) THEN
+          CPPrecondition(PRESENT(defaults),cp_failure_level,routineP,error,failure)
+          IF (failure) EXIT
+          CPPrecondition(ASSOCIATED(defaults),cp_failure_level,routineP,error,failure)
+          IF (failure) EXIT
+          CALL cp_assert(ASSOCIATED(defaults%units(unit%kind_id(i_unit))%unit),&
+               cp_failure_level,cp_assertion_failed,routineP,&
+               CPSourceFileRef,&
+               error,failure)
+          IF (failure) EXIT
+          my_basic_unit=defaults%units(unit%kind_id(i_unit))%unit%unit_id(1)
+       END IF
+       res=cp_basic_unit_to_cp2k(value=res,basic_unit=my_basic_unit,&
+            basic_kind=unit%kind_id(i_unit),&
+            power=my_power*unit%power(i_unit),error=error)
+    END DO
   END FUNCTION cp_unit_to_cp2k1
 
 ! *****************************************************************************
@@ -1502,65 +1490,63 @@ CONTAINS
     unit_set%id_nr=last_unit_set_id
     my_name=name
     CALL uppercase(my_name)
-    IF (.NOT.failure) THEN
 
-       DO i=1,cp_ukind_max
-          NULLIFY(unit_set%units(i)%unit)
-       END DO
-       DO i=1,cp_ukind_max
-          SELECT CASE(name)
-          CASE('ATOM','ATOMIC','INTERNAL','CP2K')
-             IF (i==cp_ukind_angle) THEN
-                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/),&
-                     unit_id=(/cp_units_rad/), power=(/1/), error=error)
-             ELSE
-                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/),&
-                     unit_id=(/cp_units_au/), power=(/1/), error=error)
-             END IF
-          CASE('OUTPUT')
-             SELECT CASE(i)
-             CASE(cp_ukind_undef)
-                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_none/),&
-                     power=(/1/), error=error)
-             CASE(cp_ukind_energy)
-                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_hartree/),&
-                     power=(/1/), error=error)
-             CASE (cp_ukind_length)
-                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_angstrom/),&
-                     power=(/1/), error=error)
-             CASE (cp_ukind_temperature)
-                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_k/),&
-                     power=(/1/), error=error)
-             CASE (cp_ukind_angle)
-                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_deg/),&
-                     power=(/1/), error=error)
-             CASE (cp_ukind_pressure)
-                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_bar/),&
-                     power=(/1/), error=error)
-             CASE (cp_ukind_time)
-                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_fs/),&
-                     power=(/1/), error=error)
-             CASE (cp_ukind_mass)
-                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_amu/),&
-                     power=(/1/), error=error)
-             CASE (cp_ukind_potential)
-                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_volt/),&
-                     power=(/1/), error=error)
-             CASE (cp_ukind_force)
-                CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_newton/),&
-                     power=(/1/), error=error)
-             CASE default
-                CALL cp_assert(.FALSE.,cp_assertion_failed,cp_failure_level,routineP,&
-                     "unhandled unit type "//TRIM(cp_to_string(i)),error,failure)
-                EXIT
-             END SELECT
+    DO i=1,cp_ukind_max
+       NULLIFY(unit_set%units(i)%unit)
+    END DO
+    DO i=1,cp_ukind_max
+       SELECT CASE(name)
+       CASE('ATOM','ATOMIC','INTERNAL','CP2K')
+          IF (i==cp_ukind_angle) THEN
+             CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/),&
+                  unit_id=(/cp_units_rad/), power=(/1/), error=error)
+          ELSE
+             CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/),&
+                  unit_id=(/cp_units_au/), power=(/1/), error=error)
+          END IF
+       CASE('OUTPUT')
+          SELECT CASE(i)
+          CASE(cp_ukind_undef)
+             CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_none/),&
+                  power=(/1/), error=error)
+          CASE(cp_ukind_energy)
+             CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_hartree/),&
+                  power=(/1/), error=error)
+          CASE (cp_ukind_length)
+             CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_angstrom/),&
+                  power=(/1/), error=error)
+          CASE (cp_ukind_temperature)
+             CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_k/),&
+                  power=(/1/), error=error)
+          CASE (cp_ukind_angle)
+             CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_deg/),&
+                  power=(/1/), error=error)
+          CASE (cp_ukind_pressure)
+             CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_bar/),&
+                  power=(/1/), error=error)
+          CASE (cp_ukind_time)
+             CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_fs/),&
+                  power=(/1/), error=error)
+          CASE (cp_ukind_mass)
+             CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_amu/),&
+                  power=(/1/), error=error)
+          CASE (cp_ukind_potential)
+             CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_volt/),&
+                  power=(/1/), error=error)
+          CASE (cp_ukind_force)
+             CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_newton/),&
+                  power=(/1/), error=error)
           CASE default
-             CALL cp_assert(.FALSE.,cp_assertion_failed,cp_failure_level,&
-                  routineP,'unknown parameter set name '//TRIM(name),&
-                  error,failure)
+             CALL cp_assert(.FALSE.,cp_assertion_failed,cp_failure_level,routineP,&
+                  "unhandled unit type "//TRIM(cp_to_string(i)),error,failure)
+             EXIT
           END SELECT
-       END DO
-    END IF
+       CASE default
+          CALL cp_assert(.FALSE.,cp_assertion_failed,cp_failure_level,&
+               routineP,'unknown parameter set name '//TRIM(name),&
+               error,failure)
+       END SELECT
+    END DO
   END SUBROUTINE cp_unit_set_create
 
 ! *****************************************************************************
@@ -1582,10 +1568,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(unit_set),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(unit_set%ref_count>0,cp_failure_level,routineP,error,failure)
-       unit_set%ref_count=unit_set%ref_count+1
-    END IF
+    CPPrecondition(unit_set%ref_count>0,cp_failure_level,routineP,error,failure)
+    unit_set%ref_count=unit_set%ref_count+1
   END SUBROUTINE cp_unit_set_retain
 
 ! *****************************************************************************

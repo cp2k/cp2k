@@ -145,12 +145,8 @@ SUBROUTINE p_proj_retain(p_proj, error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,error,failure)
-  IF (.not.failure) THEN
-     CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF (.not.failure) THEN
-     p_proj%ref_count=p_proj%ref_count+1
-  END IF
+  CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
+  p_proj%ref_count=p_proj%ref_count+1
 END SUBROUTINE p_proj_retain
 
 ! *****************************************************************************
@@ -231,55 +227,49 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,error,failure)
-  IF (.not.failure) THEN
-     CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF (.not.failure) THEN
-     CALL cp_fm_get_info(min_m, nrow_global=nrow_min, ncol_global=ncol_min,&
+  CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
+  CALL cp_fm_get_info(min_m, nrow_global=nrow_min, ncol_global=ncol_min,&
+       error=error)
+  CALL cp_fm_get_info(full_m, nrow_global=nrow_full, ncol_global=ncol_full,&
+       error=error)
+
+  my_start_col_full=1
+  IF (PRESENT(start_col_full)) my_start_col_full=start_col_full
+  my_start_col_min=1
+  IF (PRESENT(start_col_min)) my_start_col_min=start_col_min
+  my_ncol=ncol_min-my_start_col_min
+  IF (PRESENT(ncol)) my_ncol=ncol
+  blocksize=MIN(my_ncol,max_blocksize)
+
+  CPPrecondition(my_ncol>=0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(my_start_col_min+my_ncol<ncol_min+2,cp_failure_level,routineP,error,failure)
+  CPPrecondition(my_start_col_full+my_ncol<ncol_full+2,cp_failure_level,routineP,error,failure)
+  CPPrecondition(nrow_min>=SIZE(p_proj%proj_indexes),cp_failure_level,routineP,error,failure)
+
+  ALLOCATE(tmp_min(blocksize,nrow_min), tmp_full(blocksize,nrow_full),&
+       stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  DO icol=0,my_ncol-1,blocksize
+     IF (icol+blocksize>my_ncol) blocksize=my_ncol-icol
+     CALL cp_fm_get_submatrix(min_m, target_m=tmp_min, &
+          start_col=icol+my_start_col_min, n_cols=blocksize, &
+          transpose=.TRUE.,&
           error=error)
-     CALL cp_fm_get_info(full_m, nrow_global=nrow_full, ncol_global=ncol_full,&
-          error=error)
 
-     my_start_col_full=1
-     IF (PRESENT(start_col_full)) my_start_col_full=start_col_full
-     my_start_col_min=1
-     IF (PRESENT(start_col_min)) my_start_col_min=start_col_min
-     my_ncol=ncol_min-my_start_col_min
-     IF (PRESENT(ncol)) my_ncol=ncol
-     blocksize=MIN(my_ncol,max_blocksize)
-
-     CPPrecondition(my_ncol>=0,cp_failure_level,routineP,error,failure)
-     CPPrecondition(my_start_col_min+my_ncol<ncol_min+2,cp_failure_level,routineP,error,failure)
-     CPPrecondition(my_start_col_full+my_ncol<ncol_full+2,cp_failure_level,routineP,error,failure)
-     CPPrecondition(nrow_min>=SIZE(p_proj%proj_indexes),cp_failure_level,routineP,error,failure)
-
-     ALLOCATE(tmp_min(blocksize,nrow_min), tmp_full(blocksize,nrow_full),&
-          stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF (.NOT. failure) THEN
-
-     DO icol=0,my_ncol-1,blocksize
-        IF (icol+blocksize>my_ncol) blocksize=my_ncol-icol
-        CALL cp_fm_get_submatrix(min_m, target_m=tmp_min, &
-             start_col=icol+my_start_col_min, n_cols=blocksize, &
-             transpose=.TRUE.,&
-             error=error)
-
-        CALL dcopy(SIZE(tmp_full,1)*SIZE(tmp_full,2),0.0_dp,0,tmp_full(1,1),1)
-        DO i=1,SIZE(p_proj%proj_indexes)
-           tmp_full(1:blocksize,p_proj%proj_indexes(i))=tmp_min(1:blocksize,i)
-        END DO
-
-        CALL cp_fm_set_submatrix(full_m, new_values=tmp_full, &
-             start_col=icol+my_start_col_full, n_cols=blocksize, &
-             transpose=.TRUE.,&
-             error=error)
+     CALL dcopy(SIZE(tmp_full,1)*SIZE(tmp_full,2),0.0_dp,0,tmp_full(1,1),1)
+     DO i=1,SIZE(p_proj%proj_indexes)
+        tmp_full(1:blocksize,p_proj%proj_indexes(i))=tmp_min(1:blocksize,i)
      END DO
 
-     DEALLOCATE(tmp_min, tmp_full, stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  END IF
+     CALL cp_fm_set_submatrix(full_m, new_values=tmp_full, &
+          start_col=icol+my_start_col_full, n_cols=blocksize, &
+          transpose=.TRUE.,&
+          error=error)
+  END DO
+
+  DEALLOCATE(tmp_min, tmp_full, stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
   CALL timestop(handle)
 END SUBROUTINE p_proj_transfer_blacs_to_f
@@ -326,40 +316,38 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol, error)
   CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(full_m),cp_failure_level,routineP,error,failure)
   CPPrecondition(full_m%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     min_index=MINVAL(p_proj%proj_indexes)
-     max_index=MAXVAL(p_proj%proj_indexes)
-     ALLOCATE(keep_row(min_index:max_index),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  min_index=MINVAL(p_proj%proj_indexes)
+  max_index=MAXVAL(p_proj%proj_indexes)
+  ALLOCATE(keep_row(min_index:max_index),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-     my_start_col=1
-     IF (PRESENT(start_col)) my_start_col=start_col
-     CALL cp_fm_get_info(full_m,ncol_global=my_end_col, &
-          row_indices=row_indices, col_indices=col_indices,error=error)
-     IF (PRESENT(ncol)) my_end_col=start_col+ncol
+  my_start_col=1
+  IF (PRESENT(start_col)) my_start_col=start_col
+  CALL cp_fm_get_info(full_m,ncol_global=my_end_col, &
+       row_indices=row_indices, col_indices=col_indices,error=error)
+  IF (PRESENT(ncol)) my_end_col=start_col+ncol
 
-     keep_row=.FALSE.
-     DO irow=1,SIZE(p_proj%proj_indexes)
-        keep_row(p_proj%proj_indexes(irow))=.TRUE.
-     END DO
+  keep_row=.FALSE.
+  DO irow=1,SIZE(p_proj%proj_indexes)
+     keep_row(p_proj%proj_indexes(irow))=.TRUE.
+  END DO
 
-     DO icol=1,SIZE(full_m%local_data,2)
-        IF (col_indices(icol)>start_col .AND.&
-             col_indices(icol)<my_end_col) THEN
-           DO irow=1,SIZE(full_m%local_data,1)
-              row_index=row_indices(irow)
-              IF (row_index<min_index.OR.row_index>max_index) THEN
-                 full_m%local_data(irow,icol)=0.0_dp
-              ELSE IF (.NOT.keep_row(row_index)) THEN
-                 full_m%local_data(irow,irow)=0.0_dp
-              END IF
-           END DO
-        END IF
-     END DO
+  DO icol=1,SIZE(full_m%local_data,2)
+     IF (col_indices(icol)>start_col .AND.&
+          col_indices(icol)<my_end_col) THEN
+        DO irow=1,SIZE(full_m%local_data,1)
+           row_index=row_indices(irow)
+           IF (row_index<min_index.OR.row_index>max_index) THEN
+              full_m%local_data(irow,icol)=0.0_dp
+           ELSE IF (.NOT.keep_row(row_index)) THEN
+              full_m%local_data(irow,irow)=0.0_dp
+           END IF
+        END DO
+     END IF
+  END DO
 
-     DEALLOCATE(keep_row,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  END IF
+  DEALLOCATE(keep_row,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
   CALL timestop(handle)
 END SUBROUTINE p_proj_restrain_f

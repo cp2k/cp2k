@@ -446,50 +446,48 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    IF (.NOT.failure) THEN
 
-       ! Initialize the parallel random number generator
+    ! Initialize the parallel random number generator
 
-       CALL init_rng()
-       iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/RNG_MATRICES",&
-            extension=".Log",error=error)
-       IF (iw > 0) THEN
-          CALL write_rng_matrices(iw)
-       END IF
-       CALL cp_print_key_finished_output(iw,logger,root_section,&
-            "GLOBAL%PRINT/RNG_MATRICES",&
-            error=error)
-
-       ! Initialize a global normally Gaussian distributed (pseudo)random number stream
-
-       CALL section_vals_val_get(root_section,"GLOBAL%SEED",i_val=input_seed,error=error)
-       initial_seed(:,:) = REAL(input_seed,KIND=dp)
-       CALL create_rng_stream(rng_stream=globenv%gaussian_rng_stream,&
-            name="Global Gaussian random numbers",&
-            distribution_type=GAUSSIAN,&
-            seed=initial_seed,&
-            extended_precision=.TRUE.,&
-            error=error)
-
-       iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/RNG_CHECK",&
-            extension=".Log",error=error)
-       IF (iw > 0) THEN
-          CALL check_rng(iw,para_env%ionode,error)
-       END IF
-       CALL cp_print_key_finished_output(iw,logger,root_section,&
-            "GLOBAL%PRINT/RNG_CHECK",&
-            error=error)
-
-       iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG",&
-            extension=".Log",error=error)
-       IF (iw > 0) THEN
-          CALL write_rng_stream(globenv%gaussian_rng_stream,iw,write_all=.TRUE.,error=error)
-       END IF
-       CALL cp_print_key_finished_output(iw,logger,root_section,&
-            "GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG",&
-            error=error)
-
+    CALL init_rng()
+    iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/RNG_MATRICES",&
+         extension=".Log",error=error)
+    IF (iw > 0) THEN
+       CALL write_rng_matrices(iw)
     END IF
+    CALL cp_print_key_finished_output(iw,logger,root_section,&
+         "GLOBAL%PRINT/RNG_MATRICES",&
+         error=error)
+
+    ! Initialize a global normally Gaussian distributed (pseudo)random number stream
+
+    CALL section_vals_val_get(root_section,"GLOBAL%SEED",i_val=input_seed,error=error)
+    initial_seed(:,:) = REAL(input_seed,KIND=dp)
+    CALL create_rng_stream(rng_stream=globenv%gaussian_rng_stream,&
+         name="Global Gaussian random numbers",&
+         distribution_type=GAUSSIAN,&
+         seed=initial_seed,&
+         extended_precision=.TRUE.,&
+         error=error)
+
+    iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/RNG_CHECK",&
+         extension=".Log",error=error)
+    IF (iw > 0) THEN
+       CALL check_rng(iw,para_env%ionode,error)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,root_section,&
+         "GLOBAL%PRINT/RNG_CHECK",&
+         error=error)
+
+    iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG",&
+         extension=".Log",error=error)
+    IF (iw > 0) THEN
+       CALL write_rng_stream(globenv%gaussian_rng_stream,iw,write_all=.TRUE.,error=error)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,root_section,&
+         "GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG",&
+         error=error)
+
 
   END SUBROUTINE cp2k_setup
 
@@ -1186,67 +1184,61 @@ CONTAINS
 
     ! Write message passing performance info
 
-    IF (.NOT. failure) THEN
-       iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
-            extension=".log",error=error)
-       CALL describe_mp_perf_env ( iw )
-       CALL cp_print_key_finished_output(iw,logger,root_section,&
-            "GLOBAL%PROGRAM_RUN_INFO", error=error)
+    iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
+         extension=".log",error=error)
+    CALL describe_mp_perf_env ( iw )
+    CALL cp_print_key_finished_output(iw,logger,root_section,&
+         "GLOBAL%PROGRAM_RUN_INFO", error=error)
+
+    CALL collect_citations_from_ranks(para_env)
+    iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%REFERENCES",&
+         extension=".Log",error=error)
+    IF (iw>0) THEN
+       WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
+       WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+       WRITE (UNIT=iw,FMT="(T2,A,T30,A,T80,A)") "-","R E F E R E N C E S","-"
+       WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+       WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
+
+       WRITE (UNIT=iw,FMT="(T2,A)") ""
+       WRITE (UNIT=iw,FMT="(T2,A)") TRIM(cp2k_version)//TRIM(dev_flag)//", the CP2K developers group ("//TRIM(cp2k_year)//")."
+       WRITE (UNIT=iw,FMT="(T2,A)") "CP2K is freely available from "//TRIM(cp2k_home)//" ."
+
+       CALL print_all_references(sorted=.TRUE.,cited_only=.TRUE., &
+            FORMAT=print_format_journal,unit=iw)
     ENDIF
-
-    IF (.NOT. failure) THEN
-       CALL collect_citations_from_ranks(para_env)
-       iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%REFERENCES",&
-            extension=".Log",error=error)
-       IF (iw>0) THEN
-          WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
-          WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-          WRITE (UNIT=iw,FMT="(T2,A,T30,A,T80,A)") "-","R E F E R E N C E S","-"
-          WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-          WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
-
-          WRITE (UNIT=iw,FMT="(T2,A)") ""
-          WRITE (UNIT=iw,FMT="(T2,A)") TRIM(cp2k_version)//TRIM(dev_flag)//", the CP2K developers group ("//TRIM(cp2k_year)//")."
-          WRITE (UNIT=iw,FMT="(T2,A)") "CP2K is freely available from "//TRIM(cp2k_home)//" ."
-
-          CALL print_all_references(sorted=.TRUE.,cited_only=.TRUE., &
-               FORMAT=print_format_journal,unit=iw)
-       ENDIF
-       CALL cp_print_key_finished_output(iw,logger,root_section,&
-            "GLOBAL%REFERENCES",error=error)
-    ENDIF
+    CALL cp_print_key_finished_output(iw,logger,root_section,&
+         "GLOBAL%REFERENCES",error=error)
 
     CALL timestop(globenv%handle) ! corresponding the "CP2K" in cp2k_init
     
-    IF (.NOT.failure) THEN
-       iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%TIMINGS",&
-            extension=".Log",error=error)
-       r_timings = section_get_rval(root_section,"GLOBAL%TIMINGS%THRESHOLD",error)
-       sort_by_self_time = section_get_lval(root_section,"GLOBAL%TIMINGS%SORT_BY_SELF_TIME",error)
-       IF (m_energy().NE.0.0_dp) THEN
-          CALL timings_report_print(iw,r_timings,sort_by_self_time,cost_type_energy,para_env)
+    iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%TIMINGS",&
+         extension=".Log",error=error)
+    r_timings = section_get_rval(root_section,"GLOBAL%TIMINGS%THRESHOLD",error)
+    sort_by_self_time = section_get_lval(root_section,"GLOBAL%TIMINGS%SORT_BY_SELF_TIME",error)
+    IF (m_energy().NE.0.0_dp) THEN
+       CALL timings_report_print(iw,r_timings,sort_by_self_time,cost_type_energy,para_env)
+    ENDIF
+    CALL timings_report_print(iw,r_timings,sort_by_self_time,cost_type_time,para_env)
+ 
+    !Write the callgraph, if desired by user
+    CALL section_vals_val_get(root_section,"GLOBAL%CALLGRAPH",i_val=cg_mode,error=error)
+    IF(cg_mode /= CALLGRAPH_NONE) THEN
+       CALL section_vals_val_get(root_section,"GLOBAL%CALLGRAPH_FILE_NAME",c_val=cg_filename,error=error)
+       IF(LEN_TRIM(cg_filename) == 0) cg_filename=TRIM(logger%iter_info%project_name)
+       IF(cg_mode==CALLGRAPH_ALL)& !incorporate mpi-rank into filename 
+          cg_filename = TRIM(cg_filename)//"_"//TRIM(ADJUSTL(cp_to_string(para_env%mepos)))
+       IF(iw>0) THEN
+          WRITE (UNIT=iw,FMT="(T2,3X,A)") "Writing callgraph to: "//TRIM(cg_filename)//".callgraph"
+          WRITE (UNIT=iw,FMT="()") 
+          WRITE (UNIT=iw,FMT="(T2,A)") "-------------------------------------------------------------------------------"
        ENDIF
-       CALL timings_report_print(iw,r_timings,sort_by_self_time,cost_type_time,para_env)
-    
-       !Write the callgraph, if desired by user
-       CALL section_vals_val_get(root_section,"GLOBAL%CALLGRAPH",i_val=cg_mode,error=error)
-       IF(cg_mode /= CALLGRAPH_NONE) THEN
-          CALL section_vals_val_get(root_section,"GLOBAL%CALLGRAPH_FILE_NAME",c_val=cg_filename,error=error)
-          IF(LEN_TRIM(cg_filename) == 0) cg_filename=TRIM(logger%iter_info%project_name)
-          IF(cg_mode==CALLGRAPH_ALL)& !incorporate mpi-rank into filename 
-             cg_filename = TRIM(cg_filename)//"_"//TRIM(ADJUSTL(cp_to_string(para_env%mepos)))
-          IF(iw>0) THEN
-             WRITE (UNIT=iw,FMT="(T2,3X,A)") "Writing callgraph to: "//TRIM(cg_filename)//".callgraph"
-             WRITE (UNIT=iw,FMT="()") 
-             WRITE (UNIT=iw,FMT="(T2,A)") "-------------------------------------------------------------------------------"
-          ENDIF
-          IF(cg_mode==CALLGRAPH_ALL .OR. para_env%mepos==para_env%source)&
-             CALL timings_report_callgraph(TRIM(cg_filename)//".callgraph")
-       END IF
-       
-       CALL cp_print_key_finished_output(iw,logger,root_section,&
-            "GLOBAL%TIMINGS",error=error)
+       IF(cg_mode==CALLGRAPH_ALL .OR. para_env%mepos==para_env%source)&
+          CALL timings_report_callgraph(TRIM(cg_filename)//".callgraph")
     END IF
+    
+    CALL cp_print_key_finished_output(iw,logger,root_section,&
+         "GLOBAL%TIMINGS",error=error)
 
     
     CALL rm_mp_perf_env()
@@ -1275,10 +1267,8 @@ CONTAINS
        CALL get_runtime_info()
 
        ! Just a choice, do not print the CP2K footer if there is a failure
-       IF (.NOT.failure) THEN
-          CALL cp2k_footer(iw,wdir)
-          IF (iw>0) CALL m_flush_internal(iw)
-       END IF
+       CALL cp2k_footer(iw,wdir)
+       IF (iw>0) CALL m_flush_internal(iw)
 
        CALL cp_print_key_finished_output(iw,logger,root_section,&
             "GLOBAL%PROGRAM_RUN_INFO", error=error)

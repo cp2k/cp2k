@@ -57,19 +57,17 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-     my_x => pint_env%x
-     my_ux => pint_env%ux
-     IF (PRESENT(x)) my_x => x
-     IF (PRESENT(ux)) my_ux => ux
-     CPPrecondition(ASSOCIATED(my_ux),cp_failure_level,routineP,error,failure)
-     CPPrecondition(ASSOCIATED(my_x),cp_failure_level,routineP,error,failure)
+    my_x => pint_env%x
+    my_ux => pint_env%ux
+    IF (PRESENT(x)) my_x => x
+    IF (PRESENT(ux)) my_ux => ux
+    CPPrecondition(ASSOCIATED(my_ux),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(my_x),cp_failure_level,routineP,error,failure)
 
-     IF (pint_env%transform == transformation_stage) THEN
-       CALL staging_x2u(pint_env%staging_env,ux=my_ux,x=my_x,error=error)
-     ELSE
-       CALL normalmode_x2u(pint_env%normalmode_env,ux=my_ux,x=my_x,error=error)
-     END IF
+    IF (pint_env%transform == transformation_stage) THEN
+      CALL staging_x2u(pint_env%staging_env,ux=my_ux,x=my_x,error=error)
+    ELSE
+      CALL normalmode_x2u(pint_env%normalmode_env,ux=my_ux,x=my_x,error=error)
     END IF
     RETURN
   END SUBROUTINE pint_x2u
@@ -103,19 +101,17 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-     my_x => pint_env%x
-     my_ux => pint_env%ux
-     IF (PRESENT(x)) my_x => x
-     IF (PRESENT(ux)) my_ux => ux
-     CPPrecondition(ASSOCIATED(my_ux),cp_failure_level,routineP,error,failure)
-     CPPrecondition(ASSOCIATED(my_x),cp_failure_level,routineP,error,failure)
+    my_x => pint_env%x
+    my_ux => pint_env%ux
+    IF (PRESENT(x)) my_x => x
+    IF (PRESENT(ux)) my_ux => ux
+    CPPrecondition(ASSOCIATED(my_ux),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(my_x),cp_failure_level,routineP,error,failure)
 
-     IF (pint_env%transform == transformation_stage) THEN
-       CALL staging_u2x(pint_env%staging_env,ux=my_ux,x=my_x,error=error)
-     ELSE
-       CALL normalmode_u2x(pint_env%normalmode_env,ux=my_ux,x=my_x,error=error)
-     END IF
+    IF (pint_env%transform == transformation_stage) THEN
+      CALL staging_u2x(pint_env%staging_env,ux=my_ux,x=my_x,error=error)
+    ELSE
+      CALL normalmode_u2x(pint_env%normalmode_env,ux=my_ux,x=my_x,error=error)
     END IF
     RETURN
   END SUBROUTINE pint_u2x
@@ -152,21 +148,19 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-     my_f => pint_env%f
-     my_uf => pint_env%uf
-     IF (PRESENT(f)) my_f => f
-     IF (PRESENT(uf)) my_uf => uf
-     CPPrecondition(ASSOCIATED(my_uf),cp_failure_level,routineP,error,failure)
-     CPPrecondition(ASSOCIATED(my_f),cp_failure_level,routineP,error,failure)
+    my_f => pint_env%f
+    my_uf => pint_env%uf
+    IF (PRESENT(f)) my_f => f
+    IF (PRESENT(uf)) my_uf => uf
+    CPPrecondition(ASSOCIATED(my_uf),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(my_f),cp_failure_level,routineP,error,failure)
 
-     IF (pint_env%transform == transformation_stage) THEN
-       CALL staging_f2uf(pint_env%staging_env,uf=my_uf,f=my_f,error=error)
-     ELSE
-       CALL normalmode_f2uf(pint_env%normalmode_env,uf=my_uf,f=my_f,error=error)
-     END IF
-     my_uf=my_uf/pint_env%mass_fict/REAL(pint_env%p,dp)
+    IF (pint_env%transform == transformation_stage) THEN
+      CALL staging_f2uf(pint_env%staging_env,uf=my_uf,f=my_f,error=error)
+    ELSE
+      CALL normalmode_f2uf(pint_env%normalmode_env,uf=my_uf,f=my_f,error=error)
     END IF
+    my_uf=my_uf/pint_env%mass_fict/REAL(pint_env%p,dp)
     RETURN
   END SUBROUTINE pint_f2uf
 

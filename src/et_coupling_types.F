@@ -66,13 +66,11 @@ MODULE et_coupling_types
       ALLOCATE(et_coupling, stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-      IF (.NOT. failure) THEN
-         NULLIFY(et_coupling%et_mo_coeff)
-         NULLIFY(et_coupling%rest_mat)
-         et_coupling%first_run=.TRUE.
-         et_coupling%keep_matrix=.FALSE.
-         ALLOCATE(et_coupling%rest_mat(2))
-      END IF
+      NULLIFY(et_coupling%et_mo_coeff)
+      NULLIFY(et_coupling%rest_mat)
+      et_coupling%first_run=.TRUE.
+      et_coupling%keep_matrix=.FALSE.
+      ALLOCATE(et_coupling%rest_mat(2))
 
     END SUBROUTINE et_coupling_create
 

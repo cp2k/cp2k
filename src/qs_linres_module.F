@@ -301,102 +301,100 @@ CONTAINS
     NULLIFY(dft_control, linres_control, loc_section, rho, mos, matrix_ks, rho_ao)
 
     CPPrecondition(.NOT.ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
 
-       CALL linres_control_create(linres_control,error=error)
-       CALL set_qs_env(qs_env=qs_env, linres_control=linres_control,error=error)
-       CALL linres_control_release(linres_control,error=error)
-       CALL get_qs_env(qs_env=qs_env, linres_control=linres_control,&
-                       dft_control=dft_control,matrix_ks=matrix_ks,mos=mos,rho=rho,error=error)
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL linres_control_create(linres_control,error=error)
+    CALL set_qs_env(qs_env=qs_env, linres_control=linres_control,error=error)
+    CALL linres_control_release(linres_control,error=error)
+    CALL get_qs_env(qs_env=qs_env, linres_control=linres_control,&
+                    dft_control=dft_control,matrix_ks=matrix_ks,mos=mos,rho=rho,error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
-       ! Localized Psi0 are required when the position operator has to be defined (nmr)
-       loc_section =>section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
-       CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",&
-               l_val=linres_control%localized_psi0,error=error)
-       IF(linres_control%localized_psi0) THEN
-         IF(output_unit>0) THEN
-           WRITE (UNIT=output_unit,FMT="(/,T3,A,A)")&
-                  "Localization of the ground state orbitals",&
-                  " before starting the linear response calculation"
-         END IF
+    ! Localized Psi0 are required when the position operator has to be defined (nmr)
+    loc_section =>section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
+    CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",&
+            l_val=linres_control%localized_psi0,error=error)
+    IF(linres_control%localized_psi0) THEN
+      IF(output_unit>0) THEN
+        WRITE (UNIT=output_unit,FMT="(/,T3,A,A)")&
+               "Localization of the ground state orbitals",&
+               " before starting the linear response calculation"
+      END IF
 
-         CALL linres_localize(qs_env, linres_control,dft_control%nspins,error=error)
+      CALL linres_localize(qs_env, linres_control,dft_control%nspins,error=error)
 
-         DO ispin=1,dft_control%nspins
-            CALL calculate_density_matrix(mos(ispin)%mo_set,rho_ao(ispin)%matrix,error=error)
-         ENDDO
+      DO ispin=1,dft_control%nspins
+         CALL calculate_density_matrix(mos(ispin)%mo_set,rho_ao(ispin)%matrix,error=error)
+      ENDDO
 ! ** update qs_env%rho
-         CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-       END IF
-
-       CALL section_vals_val_get(lr_section,"RESTART",l_val=linres_control%linres_restart,error=error)
-       CALL section_vals_val_get(lr_section,"MAX_ITER",i_val=linres_control%max_iter,error=error)
-       CALL section_vals_val_get(lr_section,"EPS",r_val=linres_control%eps,error=error)
-       CALL section_vals_val_get(lr_section,"RESTART_EVERY",i_val=linres_control%restart_every,error=error)
-       CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=linres_control%preconditioner_type,error=error)
-       CALL section_vals_val_get(lr_section,"ENERGY_GAP",r_val=linres_control%energy_gap,error=error)
-
-       IF(output_unit>0) THEN
-         WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
-            REPEAT("=",77),&
-            "START LINRES CALCULATION",&
-            REPEAT("=",77)
-
-         WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
-            "Properties to be Calulated:"
-         CALL section_vals_val_get(lr_section,"NMR%_SECTION_PARAMETERS_",&
-            l_val=do_it,error=error)
-         IF(do_it) WRITE (UNIT=output_unit,FMT="(T45,A)") &
-             "NMR Chemical Shift"
-
-         IF(linres_control%localized_psi0) WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
-            "LINRES|"," LOCALIZED PSI0"
-
-         WRITE(UNIT=output_unit,FMT="(T2,A,T60,A)")&
-              "LINRES| Optimization algorithm"," Conjugate Gradients"
-
-         SELECT CASE(linres_control%preconditioner_type)
-         CASE(ot_precond_none)
-            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES| Preconditioner","                NONE"
-         CASE(ot_precond_full_single)
-            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES| Preconditioner","         FULL_SINGLE"
-         CASE(ot_precond_full_kinetic)
-            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES| Preconditioner","        FULL_KINETIC"
-         CASE(ot_precond_s_inverse)
-            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES| Preconditioner","      FULL_S_INVERSE"
-         CASE(ot_precond_full_single_inverse)
-            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES| Preconditioner"," FULL_SINGLE_INVERSE"
-         CASE(ot_precond_full_all)
-            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
-                 "LINRES| Preconditioner","            FULL_ALL"
-         CASE DEFAULT
-            CALL stop_program(routineN,moduleN,__LINE__,"Preconditioner NYI")
-         END SELECT
-
-         WRITE (UNIT=output_unit,FMT="(T2,A,T72,ES8.1)")&
-              "LINRES| EPS",linres_control%eps
-         WRITE (UNIT=output_unit,FMT="(T2,A,T72,I8)")&
-              "LINRES| MAX_ITER",linres_control%max_iter
-       END IF
-
-      !------------------!
-      ! create the p_env !
-      !------------------!
-       CALL p_env_create(p_env, qs_env, orthogonal_orbitals=.TRUE.,linres_control=linres_control,error=error)
-
-       ! update the m_epsilon matrix
-       CALL p_env_psi0_changed(p_env,qs_env,error=error)
-
-       ! calculate eigenvectros and eigenvalues of K
-       p_env%os_valid = .FALSE.
-       p_env%new_preconditioner = .TRUE.
+      CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
     END IF
+
+    CALL section_vals_val_get(lr_section,"RESTART",l_val=linres_control%linres_restart,error=error)
+    CALL section_vals_val_get(lr_section,"MAX_ITER",i_val=linres_control%max_iter,error=error)
+    CALL section_vals_val_get(lr_section,"EPS",r_val=linres_control%eps,error=error)
+    CALL section_vals_val_get(lr_section,"RESTART_EVERY",i_val=linres_control%restart_every,error=error)
+    CALL section_vals_val_get(lr_section,"PRECONDITIONER",i_val=linres_control%preconditioner_type,error=error)
+    CALL section_vals_val_get(lr_section,"ENERGY_GAP",r_val=linres_control%energy_gap,error=error)
+
+    IF(output_unit>0) THEN
+      WRITE (UNIT=output_unit,FMT="(/,T3,A,/,T25,A,/,T3,A,/)")&
+         REPEAT("=",77),&
+         "START LINRES CALCULATION",&
+         REPEAT("=",77)
+
+      WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+         "Properties to be Calulated:"
+      CALL section_vals_val_get(lr_section,"NMR%_SECTION_PARAMETERS_",&
+         l_val=do_it,error=error)
+      IF(do_it) WRITE (UNIT=output_unit,FMT="(T45,A)") &
+          "NMR Chemical Shift"
+
+      IF(linres_control%localized_psi0) WRITE (UNIT=output_unit,FMT="(T2,A,T65,A)")&
+         "LINRES|"," LOCALIZED PSI0"
+
+      WRITE(UNIT=output_unit,FMT="(T2,A,T60,A)")&
+           "LINRES| Optimization algorithm"," Conjugate Gradients"
+
+      SELECT CASE(linres_control%preconditioner_type)
+      CASE(ot_precond_none)
+         WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+              "LINRES| Preconditioner","                NONE"
+      CASE(ot_precond_full_single)
+         WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+              "LINRES| Preconditioner","         FULL_SINGLE"
+      CASE(ot_precond_full_kinetic)
+         WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+              "LINRES| Preconditioner","        FULL_KINETIC"
+      CASE(ot_precond_s_inverse)
+         WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+              "LINRES| Preconditioner","      FULL_S_INVERSE"
+      CASE(ot_precond_full_single_inverse)
+         WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+              "LINRES| Preconditioner"," FULL_SINGLE_INVERSE"
+      CASE(ot_precond_full_all)
+         WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+              "LINRES| Preconditioner","            FULL_ALL"
+      CASE DEFAULT
+         CALL stop_program(routineN,moduleN,__LINE__,"Preconditioner NYI")
+      END SELECT
+
+      WRITE (UNIT=output_unit,FMT="(T2,A,T72,ES8.1)")&
+           "LINRES| EPS",linres_control%eps
+      WRITE (UNIT=output_unit,FMT="(T2,A,T72,I8)")&
+           "LINRES| MAX_ITER",linres_control%max_iter
+    END IF
+
+   !------------------!
+   ! create the p_env !
+   !------------------!
+    CALL p_env_create(p_env, qs_env, orthogonal_orbitals=.TRUE.,linres_control=linres_control,error=error)
+
+    ! update the m_epsilon matrix
+    CALL p_env_psi0_changed(p_env,qs_env,error=error)
+
+    ! calculate eigenvectros and eigenvalues of K
+    p_env%os_valid = .FALSE.
+    p_env%new_preconditioner = .TRUE.
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
 

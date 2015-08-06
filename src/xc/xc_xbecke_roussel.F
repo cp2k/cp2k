@@ -216,76 +216,74 @@ CONTAINS
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-      CALL xc_rho_set_get(rho_set, rho=rho, norm_drho=norm_drho, &
-           tau=tau,laplace_rho=laplace_rho,local_bounds=bo,&
-           rho_cutoff=epsilon_rho,error=error)
-      npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL xc_rho_set_get(rho_set, rho=rho, norm_drho=norm_drho, &
+         tau=tau,laplace_rho=laplace_rho,local_bounds=bo,&
+         rho_cutoff=epsilon_rho,error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-      ! meaningful default for the arrays we don't need: let us make compiler
-      ! and debugger happy...
-      IF (cp_debug) THEN
-        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ELSE
-        dummy=> rho
-      END IF
+    ! meaningful default for the arrays we don't need: let us make compiler
+    ! and debugger happy...
+    IF (cp_debug) THEN
+      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+      dummy=> rho
+    END IF
 
-      e_0 => dummy
-      e_rho => dummy
-      e_ndrho => dummy
-      e_tau => dummy
-      e_laplace_rho => dummy
+    e_0 => dummy
+    e_rho => dummy
+    e_ndrho => dummy
+    e_tau => dummy
+    e_laplace_rho => dummy
 
-      IF (grad_deriv>=0) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"",&
-             allocate_deriv=.TRUE., error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
-      END IF
-      IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(tau)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_tau,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(laplace_rho)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_laplace_rho,error=error)
-      END IF
-      IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="derivatives bigger than 1 not implemented", &
-             error=error, error_level=cp_failure_level)
-      END IF
+    IF (grad_deriv>=0) THEN
+      deriv => xc_dset_get_derivative(deriv_set,"",&
+           allocate_deriv=.TRUE., error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+    END IF
+    IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
+      deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(tau)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_tau,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(laplace_rho)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_laplace_rho,error=error)
+    END IF
+    IF (grad_deriv>1.OR.grad_deriv<-1) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+           message="derivatives bigger than 1 not implemented", &
+           error=error, error_level=cp_failure_level)
+    END IF
 
-      CALL section_vals_val_get(br_params,"scale_x",r_val=sx,error=error)
-      CALL section_vals_val_get(br_params,"CUTOFF_RADIUS",r_val=R,error=error)
-      CALL section_vals_val_get(br_params,"GAMMA",r_val=gamma,error=error)
+    CALL section_vals_val_get(br_params,"scale_x",r_val=sx,error=error)
+    CALL section_vals_val_get(br_params,"CUTOFF_RADIUS",r_val=R,error=error)
+    CALL section_vals_val_get(br_params,"GAMMA",r_val=gamma,error=error)
 
-      !$omp parallel default(none) &
-      !$omp          shared(rho, norm_drho, laplace_rho, tau, e_0, e_rho) &
-      !$omp          shared(e_ndrho, e_tau, e_laplace_rho, grad_deriv) &
-      !$omp          shared(npoints, epsilon_rho) &
-      !$omp          shared(sx, r, gamma, error)
+    !$omp parallel default(none) &
+    !$omp          shared(rho, norm_drho, laplace_rho, tau, e_0, e_rho) &
+    !$omp          shared(e_ndrho, e_tau, e_laplace_rho, grad_deriv) &
+    !$omp          shared(npoints, epsilon_rho) &
+    !$omp          shared(sx, r, gamma, error)
 
-      CALL xbecke_roussel_lda_calc(rho=rho, norm_drho=norm_drho,&
-          laplace_rho=laplace_rho,tau=tau,e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
-          e_tau=e_tau,e_laplace_rho=e_laplace_rho,grad_deriv=grad_deriv, &
-          npoints=npoints,epsilon_rho=epsilon_rho,&
-          sx=sx,R=R,gamma=gamma,error=error)
+    CALL xbecke_roussel_lda_calc(rho=rho, norm_drho=norm_drho,&
+        laplace_rho=laplace_rho,tau=tau,e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
+        e_tau=e_tau,e_laplace_rho=e_laplace_rho,grad_deriv=grad_deriv, &
+        npoints=npoints,epsilon_rho=epsilon_rho,&
+        sx=sx,R=R,gamma=gamma,error=error)
 
-      !$omp end parallel
+    !$omp end parallel
 
-      IF (cp_debug) THEN
-         DEALLOCATE(dummy,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      ELSE
-         NULLIFY(dummy)
-      END IF
+    IF (cp_debug) THEN
+       DEALLOCATE(dummy,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    ELSE
+       NULLIFY(dummy)
     END IF
     CALL timestop(handle)
   END SUBROUTINE xbecke_roussel_lda_eval
@@ -453,104 +451,102 @@ CONTAINS
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-      CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
-           norm_drhob=norm_drhob, tau_a=tau_a, tau_b=tau_b, laplace_rhoa=laplace_rhoa,&
-           laplace_rhob=laplace_rhob,local_bounds=bo,&
-           rho_cutoff=epsilon_rho,error=error)
-      npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL xc_rho_set_get(rho_set, rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
+         norm_drhob=norm_drhob, tau_a=tau_a, tau_b=tau_b, laplace_rhoa=laplace_rhoa,&
+         laplace_rhob=laplace_rhob,local_bounds=bo,&
+         rho_cutoff=epsilon_rho,error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-      ! meaningful default for the arrays we don't need: let us make compiler
-      ! and debugger happy...
-      IF (cp_debug) THEN
-        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ELSE
-        dummy=> rhoa
-      END IF
+    ! meaningful default for the arrays we don't need: let us make compiler
+    ! and debugger happy...
+    IF (cp_debug) THEN
+      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+      dummy=> rhoa
+    END IF
 
-      e_0 => dummy
-      e_rhoa => dummy
-      e_rhob => dummy
-      e_ndrhoa => dummy
-      e_ndrhob => dummy
-      e_tau_a => dummy
-      e_tau_b => dummy
-      e_laplace_rhoa => dummy
-      e_laplace_rhob => dummy
+    e_0 => dummy
+    e_rhoa => dummy
+    e_rhob => dummy
+    e_ndrhoa => dummy
+    e_ndrhob => dummy
+    e_tau_a => dummy
+    e_tau_b => dummy
+    e_laplace_rhoa => dummy
+    e_laplace_rhob => dummy
 
-      IF (grad_deriv>=0) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"",&
-             allocate_deriv=.TRUE., error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
-      END IF
-      IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_rhoa,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_rhob,error=error)
+    IF (grad_deriv>=0) THEN
+      deriv => xc_dset_get_derivative(deriv_set,"",&
+           allocate_deriv=.TRUE., error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+    END IF
+    IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
+      deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_rhoa,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_rhob,error=error)
 
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrhob,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrhob,error=error)
 
-        deriv => xc_dset_get_derivative(deriv_set,"(tau_a)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_tau_a,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(tau_b)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_tau_b,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(tau_a)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_tau_a,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(tau_b)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_tau_b,error=error)
 
-        deriv => xc_dset_get_derivative(deriv_set,"(laplace_rhoa)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhoa,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(laplace_rhob)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhob,error=error)
-      END IF
-      IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="derivatives bigger than 1 not implemented", &
-             error=error, error_level=cp_failure_level)
-      END IF
+      deriv => xc_dset_get_derivative(deriv_set,"(laplace_rhoa)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhoa,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(laplace_rhob)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhob,error=error)
+    END IF
+    IF (grad_deriv>1.OR.grad_deriv<-1) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+           message="derivatives bigger than 1 not implemented", &
+           error=error, error_level=cp_failure_level)
+    END IF
 
-      CALL section_vals_val_get(br_params,"scale_x",r_val=sx,error=error)
-      CALL section_vals_val_get(br_params,"CUTOFF_RADIUS",r_val=R,error=error)
-      CALL section_vals_val_get(br_params,"GAMMA",r_val=gamma,error=error)
+    CALL section_vals_val_get(br_params,"scale_x",r_val=sx,error=error)
+    CALL section_vals_val_get(br_params,"CUTOFF_RADIUS",r_val=R,error=error)
+    CALL section_vals_val_get(br_params,"GAMMA",r_val=gamma,error=error)
 
-      !$omp parallel default (none) &
-      !$omp          shared(rhoa, norm_drhoa, laplace_rhoa, tau_a, e_0) &
-      !$omp          shared(e_rhoa, e_ndrhoa, e_tau_a, e_laplace_rhoa) &
-      !$omp          shared(grad_deriv, npoints, epsilon_rho) &
-      !$omp          shared(sx, r, gamma, error) &
-      !$omp          shared(rhob, norm_drhob, laplace_rhob, tau_b, e_rhob) &
-      !$omp          shared(e_ndrhob, e_tau_b, e_laplace_rhob)
+    !$omp parallel default (none) &
+    !$omp          shared(rhoa, norm_drhoa, laplace_rhoa, tau_a, e_0) &
+    !$omp          shared(e_rhoa, e_ndrhoa, e_tau_a, e_laplace_rhoa) &
+    !$omp          shared(grad_deriv, npoints, epsilon_rho) &
+    !$omp          shared(sx, r, gamma, error) &
+    !$omp          shared(rhob, norm_drhob, laplace_rhob, tau_b, e_rhob) &
+    !$omp          shared(e_ndrhob, e_tau_b, e_laplace_rhob)
 
-      CALL xbecke_roussel_lsd_calc(rho=rhoa, norm_drho=norm_drhoa,&
-          laplace_rho=laplace_rhoa,tau=tau_a,e_0=e_0,e_rho=e_rhoa,e_ndrho=e_ndrhoa,&
-          e_tau=e_tau_a,e_laplace_rho=e_laplace_rhoa,grad_deriv=grad_deriv, &
-          npoints=npoints,epsilon_rho=epsilon_rho,&
-          sx=sx,R=R,gamma=gamma,error=error)
+    CALL xbecke_roussel_lsd_calc(rho=rhoa, norm_drho=norm_drhoa,&
+        laplace_rho=laplace_rhoa,tau=tau_a,e_0=e_0,e_rho=e_rhoa,e_ndrho=e_ndrhoa,&
+        e_tau=e_tau_a,e_laplace_rho=e_laplace_rhoa,grad_deriv=grad_deriv, &
+        npoints=npoints,epsilon_rho=epsilon_rho,&
+        sx=sx,R=R,gamma=gamma,error=error)
 
-      CALL xbecke_roussel_lsd_calc(rho=rhob, norm_drho=norm_drhob,&
-          laplace_rho=laplace_rhob,tau=tau_b,e_0=e_0,e_rho=e_rhob,e_ndrho=e_ndrhob,&
-          e_tau=e_tau_b,e_laplace_rho=e_laplace_rhob,grad_deriv=grad_deriv, &
-          npoints=npoints,epsilon_rho=epsilon_rho,&
-          sx=sx,R=R,gamma=gamma,error=error)
+    CALL xbecke_roussel_lsd_calc(rho=rhob, norm_drho=norm_drhob,&
+        laplace_rho=laplace_rhob,tau=tau_b,e_0=e_0,e_rho=e_rhob,e_ndrho=e_ndrhob,&
+        e_tau=e_tau_b,e_laplace_rho=e_laplace_rhob,grad_deriv=grad_deriv, &
+        npoints=npoints,epsilon_rho=epsilon_rho,&
+        sx=sx,R=R,gamma=gamma,error=error)
 
-      !$omp end parallel
+    !$omp end parallel
 
-      IF (cp_debug) THEN
-         DEALLOCATE(dummy,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      ELSE
-         NULLIFY(dummy)
-      END IF
+    IF (cp_debug) THEN
+       DEALLOCATE(dummy,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    ELSE
+       NULLIFY(dummy)
     END IF
     CALL timestop(handle)
   END SUBROUTINE xbecke_roussel_lsd_eval

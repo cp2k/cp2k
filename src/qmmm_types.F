@@ -249,23 +249,21 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
     ALLOCATE(qmmm_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       qmmm_env%ref_count=1
-       last_qmmm_env_id_nr=last_qmmm_env_id_nr+1
-       qmmm_env%id_nr=last_qmmm_env_id_nr
-       NULLIFY(qmmm_env%qm_atom_index,&
-               qmmm_env%qm_molecule_index,&
-               qmmm_env%mm_link_atoms,&
-               qmmm_env%mm_link_scale_factor,&
-               qmmm_env%fist_scale_charge_link,&
-               qmmm_env%inp_info)
-       qmmm_env%qmmm_coupl_type=do_qmmm_none
-       qmmm_env%qmmm_link          = .FALSE.
-       qmmm_env%use_qmmm_ff        = .FALSE.
-       ALLOCATE(qmmm_env%inp_info, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL init_inp_info(qmmm_env%inp_info)
-    END IF
+    qmmm_env%ref_count=1
+    last_qmmm_env_id_nr=last_qmmm_env_id_nr+1
+    qmmm_env%id_nr=last_qmmm_env_id_nr
+    NULLIFY(qmmm_env%qm_atom_index,&
+            qmmm_env%qm_molecule_index,&
+            qmmm_env%mm_link_atoms,&
+            qmmm_env%mm_link_scale_factor,&
+            qmmm_env%fist_scale_charge_link,&
+            qmmm_env%inp_info)
+    qmmm_env%qmmm_coupl_type=do_qmmm_none
+    qmmm_env%qmmm_link          = .FALSE.
+    qmmm_env%use_qmmm_ff        = .FALSE.
+    ALLOCATE(qmmm_env%inp_info, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL init_inp_info(qmmm_env%inp_info)
   END SUBROUTINE qmmm_env_mm_create
 
 ! *****************************************************************************
@@ -287,10 +285,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP,error)
-       qmmm_env%ref_count=qmmm_env%ref_count+1
-    END IF
+    CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP,error)
+    qmmm_env%ref_count=qmmm_env%ref_count+1
   END SUBROUTINE qmmm_env_mm_retain
 
 ! *****************************************************************************
@@ -370,38 +366,36 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
   CPPrecondition(.NOT.ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
   ALLOCATE(qmmm_env, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     qmmm_env%ref_count=1
-     last_qmmm_env_id_nr=last_qmmm_env_id_nr+1
-     qmmm_env%id_nr=last_qmmm_env_id_nr
-     NULLIFY(qmmm_env%qm_atom_index, qmmm_env%mm_link_atoms,&
-             qmmm_env%mm_atom_index,qmmm_env%mm_atom_chrg,&
-             qmmm_env%pgfs, qmmm_env%maxradius,&
-             qmmm_env%aug_pools, qmmm_env%potentials,&
-             qmmm_env%qmmm_links, qmmm_env%added_charges,&
-             qmmm_env%per_potentials,qmmm_env%image_charge_pot)
-     NULLIFY(qmmm_env%ewald_env, qmmm_env%ewald_pw)
-     qmmm_env%do_translate     = .TRUE.
-     qmmm_env%center_qm_subsys = .TRUE.
-     qmmm_env%center_qm_subsys0= .TRUE.
-     qmmm_env%center_qm_subsys_pbc_aware = .FALSE.
-     qmmm_env%do_force_mixing   = .FALSE.
-     qmmm_env%compatibility    = .TRUE.
-     qmmm_env%qmmm_link        = .FALSE.
-     qmmm_env%add_mm_charges   = .FALSE.
-     qmmm_env%move_mm_charges  = .FALSE.
-     qmmm_env%periodic         = .FALSE.
-     qmmm_env%multipole        = .FALSE.
-     qmmm_env%image_charge     = .FALSE.
-     qmmm_env%qmmm_coupl_type=do_qmmm_none
-     qmmm_env%num_qm_atoms=0
-     qmmm_env%num_mm_atoms=0
-     qmmm_env%num_image_mm_atoms=0
-     qmmm_env%gridlevel_info%auxbas_grid  = 0
-     qmmm_env%gridlevel_info%coarser_grid = 0
-     CALL create_add_set_type(qmmm_env%added_charges, ndim=0, error=error)
-     CALL create_image_charge_type(qmmm_env%image_charge_pot,error=error)
-  END IF
+  qmmm_env%ref_count=1
+  last_qmmm_env_id_nr=last_qmmm_env_id_nr+1
+  qmmm_env%id_nr=last_qmmm_env_id_nr
+  NULLIFY(qmmm_env%qm_atom_index, qmmm_env%mm_link_atoms,&
+          qmmm_env%mm_atom_index,qmmm_env%mm_atom_chrg,&
+          qmmm_env%pgfs, qmmm_env%maxradius,&
+          qmmm_env%aug_pools, qmmm_env%potentials,&
+          qmmm_env%qmmm_links, qmmm_env%added_charges,&
+          qmmm_env%per_potentials,qmmm_env%image_charge_pot)
+  NULLIFY(qmmm_env%ewald_env, qmmm_env%ewald_pw)
+  qmmm_env%do_translate     = .TRUE.
+  qmmm_env%center_qm_subsys = .TRUE.
+  qmmm_env%center_qm_subsys0= .TRUE.
+  qmmm_env%center_qm_subsys_pbc_aware = .FALSE.
+  qmmm_env%do_force_mixing   = .FALSE.
+  qmmm_env%compatibility    = .TRUE.
+  qmmm_env%qmmm_link        = .FALSE.
+  qmmm_env%add_mm_charges   = .FALSE.
+  qmmm_env%move_mm_charges  = .FALSE.
+  qmmm_env%periodic         = .FALSE.
+  qmmm_env%multipole        = .FALSE.
+  qmmm_env%image_charge     = .FALSE.
+  qmmm_env%qmmm_coupl_type=do_qmmm_none
+  qmmm_env%num_qm_atoms=0
+  qmmm_env%num_mm_atoms=0
+  qmmm_env%num_image_mm_atoms=0
+  qmmm_env%gridlevel_info%auxbas_grid  = 0
+  qmmm_env%gridlevel_info%coarser_grid = 0
+  CALL create_add_set_type(qmmm_env%added_charges, ndim=0, error=error)
+  CALL create_image_charge_type(qmmm_env%image_charge_pot,error=error)
 END SUBROUTINE qmmm_env_qm_create
 
 ! *****************************************************************************
@@ -423,10 +417,8 @@ SUBROUTINE qmmm_env_qm_retain(qmmm_env,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP,error)
-     qmmm_env%ref_count=qmmm_env%ref_count+1
-  END IF
+  CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP,error)
+  qmmm_env%ref_count=qmmm_env%ref_count+1
 END SUBROUTINE qmmm_env_qm_retain
 
 ! *****************************************************************************
@@ -539,26 +531,24 @@ SUBROUTINE pgfs_release(pgfs, error)
     LOGICAL                                  :: failure
 
   failure = .FALSE.
-  IF (.NOT.failure) THEN
-     DO I=1,SIZE(pgfs)
-        IF (ASSOCIATED(pgfs(I)%pgf)) THEN
-           IF (ASSOCIATED(pgfs(I)%pgf%Ak)) THEN
-              DEALLOCATE(pgfs(I)%pgf%Ak,stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-           END IF
-           IF (ASSOCIATED(pgfs(I)%pgf%Gk)) THEN
-              DEALLOCATE(pgfs(I)%pgf%Gk,stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-           END IF
-           IF (ASSOCIATED(pgfs(I)%pgf%grid_level)) THEN
-              DEALLOCATE(pgfs(I)%pgf%grid_level,stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-           END IF
-           DEALLOCATE(pgfs(I)%pgf,stat=stat)
+  DO I=1,SIZE(pgfs)
+     IF (ASSOCIATED(pgfs(I)%pgf)) THEN
+        IF (ASSOCIATED(pgfs(I)%pgf%Ak)) THEN
+           DEALLOCATE(pgfs(I)%pgf%Ak,stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
         END IF
-     END DO
-  END IF
+        IF (ASSOCIATED(pgfs(I)%pgf%Gk)) THEN
+           DEALLOCATE(pgfs(I)%pgf%Gk,stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+        END IF
+        IF (ASSOCIATED(pgfs(I)%pgf%grid_level)) THEN
+           DEALLOCATE(pgfs(I)%pgf%grid_level,stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+        END IF
+        DEALLOCATE(pgfs(I)%pgf,stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+     END IF
+  END DO
 END SUBROUTINE pgfs_release
 
 ! *****************************************************************************
@@ -807,34 +797,32 @@ SUBROUTINE create_add_set_type(added_charges, ndim, error)
   ALLOCATE(added_charges, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
 
-  IF (.NOT. failure) THEN
-     NULLIFY(added_charges%add_env,&
-             added_charges%mm_atom_index,&
-             added_charges%added_particles,&
-             added_charges%mm_atom_chrg,&
-             added_charges%mm_el_pot_radius,&
-             added_charges%mm_el_pot_radius_corr,&
-             added_charges%potentials,&
-             added_charges%per_potentials,&
-             added_charges%pgfs)
+  NULLIFY(added_charges%add_env,&
+          added_charges%mm_atom_index,&
+          added_charges%added_particles,&
+          added_charges%mm_atom_chrg,&
+          added_charges%mm_el_pot_radius,&
+          added_charges%mm_el_pot_radius_corr,&
+          added_charges%potentials,&
+          added_charges%per_potentials,&
+          added_charges%pgfs)
 
-     added_charges%num_mm_atoms = ndim
-     IF (ndim == 0) RETURN
-     !
-     ! Allocate leave out just potential and pgfs...
-     !
-     ALLOCATE(added_charges%add_env(ndim),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-     CALL allocate_particle_set(added_charges%added_particles,ndim,error)
-     ALLOCATE(added_charges%mm_atom_index(ndim), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-     ALLOCATE(added_charges%mm_atom_chrg(ndim), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-     ALLOCATE(added_charges%mm_el_pot_radius(ndim), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-     ALLOCATE(added_charges%mm_el_pot_radius_corr(ndim), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-  END IF
+  added_charges%num_mm_atoms = ndim
+  IF (ndim == 0) RETURN
+  !
+  ! Allocate leave out just potential and pgfs...
+  !
+  ALLOCATE(added_charges%add_env(ndim),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+  CALL allocate_particle_set(added_charges%added_particles,ndim,error)
+  ALLOCATE(added_charges%mm_atom_index(ndim), stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+  ALLOCATE(added_charges%mm_atom_chrg(ndim), stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+  ALLOCATE(added_charges%mm_el_pot_radius(ndim), stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+  ALLOCATE(added_charges%mm_el_pot_radius_corr(ndim), stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
 
 END SUBROUTINE create_add_set_type
 
@@ -860,12 +848,10 @@ SUBROUTINE create_image_charge_type(image_charge_pot,error)
   ALLOCATE(image_charge_pot, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
 
-  IF (.NOT. failure) THEN
-     NULLIFY(image_charge_pot%image_mm_list,&
-             image_charge_pot%particles_all,&
-             image_charge_pot%image_forcesMM)
+  NULLIFY(image_charge_pot%image_mm_list,&
+          image_charge_pot%particles_all,&
+          image_charge_pot%image_forcesMM)
 
-  END IF
 
   image_charge_pot%all_mm=.TRUE.
   image_charge_pot%coeff_iterative=.FALSE.

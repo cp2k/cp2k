@@ -49,39 +49,37 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="ATOMIC",&
-            description="Controls the calculation of atomic properties. "//&
-                        "Printing is controled by FORCE_EVAL / PRINT / PROGRAM_RUN_INFO",&
-            repeats=.FALSE., &
-            citations=(/Kikuchi2009/),&
-            error=error)
+    CALL section_create(section,name="ATOMIC",&
+         description="Controls the calculation of atomic properties. "//&
+                     "Printing is controled by FORCE_EVAL / PRINT / PROGRAM_RUN_INFO",&
+         repeats=.FALSE., &
+         citations=(/Kikuchi2009/),&
+         error=error)
 
-       NULLIFY(keyword)
+    NULLIFY(keyword)
 
-       CALL keyword_create(keyword, name="ENERGY",&
-            description="Calculate atomic energies ",&
-            usage="ENERGY {logical}",&
-            repeats=.FALSE.,&
-            n_var=1,&
-            default_l_val=.FALSE.,&
-            lone_keyword_l_val=.TRUE.,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="ENERGY",&
+         description="Calculate atomic energies ",&
+         usage="ENERGY {logical}",&
+         repeats=.FALSE.,&
+         n_var=1,&
+         default_l_val=.FALSE.,&
+         lone_keyword_l_val=.TRUE.,&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="PRESSURE",&
-            description="Calculate atomic pressure tensors ",&
-            usage="PRESSURE {logical}",&
-            repeats=.FALSE.,&
-            n_var=1,&
-            default_l_val=.FALSE.,&
-            lone_keyword_l_val=.TRUE.,&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="PRESSURE",&
+         description="Calculate atomic pressure tensors ",&
+         usage="PRESSURE {logical}",&
+         repeats=.FALSE.,&
+         n_var=1,&
+         default_l_val=.FALSE.,&
+         lone_keyword_l_val=.TRUE.,&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-    END IF
   END SUBROUTINE create_atprop_section
 
 END MODULE input_cp2k_atprop

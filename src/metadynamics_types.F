@@ -164,90 +164,88 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(meta_env),cp_failure_level,routinep,error,failure)
     ALLOCATE(meta_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-    IF (.NOT. failure) THEN
-       NULLIFY(meta_env%multiple_walkers,&
-               meta_env%metadyn_section,&
-               meta_env%time,&
-               meta_env%rng,&
-               meta_env%hills_env)
+    NULLIFY(meta_env%multiple_walkers,&
+            meta_env%metadyn_section,&
+            meta_env%time,&
+            meta_env%rng,&
+            meta_env%hills_env)
 
-       meta_env%use_plumed = .FALSE.        
-       meta_env%plumed_input_file = ""
-       meta_env%metadyn_section => metadyn_section
-       meta_env%ref_count = 1
-       meta_env%restart   = .TRUE.
-       last_meta_env_id   =  last_meta_env_id+1
-       meta_env%id_nr     =  last_meta_env_id
-       meta_env%n_colvar  =  n_colvar
-       meta_env%para_env  => para_env
-       CALL cp_para_env_retain(para_env,error=error)
+    meta_env%use_plumed = .FALSE.        
+    meta_env%plumed_input_file = ""
+    meta_env%metadyn_section => metadyn_section
+    meta_env%ref_count = 1
+    meta_env%restart   = .TRUE.
+    last_meta_env_id   =  last_meta_env_id+1
+    meta_env%id_nr     =  last_meta_env_id
+    meta_env%n_colvar  =  n_colvar
+    meta_env%para_env  => para_env
+    CALL cp_para_env_retain(para_env,error=error)
 
-       meta_env%ekin_s      = 0.0_dp
-       meta_env%epot_s      = 0.0_dp
-       meta_env%epot_walls  = 0.0_dp
-       meta_env%n_steps     = 0
-       meta_env%dt          = dt
-       meta_env%tempcontrol = .FALSE.
+    meta_env%ekin_s      = 0.0_dp
+    meta_env%epot_s      = 0.0_dp
+    meta_env%epot_walls  = 0.0_dp
+    meta_env%n_steps     = 0
+    meta_env%dt          = dt
+    meta_env%tempcontrol = .FALSE.
 
-       ! Hills_env
-       ALLOCATE(meta_env%hills_env, stat=stat)
+    ! Hills_env
+    ALLOCATE(meta_env%hills_env, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(meta_env%hills_env%ss_history(n_colvar,0), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(meta_env%hills_env%delta_s_history(n_colvar,0), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(meta_env%hills_env%ww_history(0), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    ALLOCATE(meta_env%hills_env%invdt_history(0), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    meta_env%hills_env%n_hills = 0
+    meta_env%hills_env%energy = 0.0_dp
+    meta_env%hills_env%restart = .TRUE.
+
+    ! Colvar
+    ALLOCATE(meta_env%metavar(n_colvar), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+    DO i = 1, n_colvar
+       NULLIFY(meta_env%metavar(i)%walls)
+       meta_env%metavar(i)%mass       = -HUGE(0.0_dp)
+       meta_env%metavar(i)%lambda     = -HUGE(0.0_dp)
+       meta_env%metavar(i)%gamma      = 0.0_dp
+       meta_env%metavar(i)%ss         = 0.0_dp
+       meta_env%metavar(i)%ss0        = 0.0_dp
+       meta_env%metavar(i)%ff_s       = 0.0_dp
+       meta_env%metavar(i)%vvp        = 0.0_dp
+       meta_env%metavar(i)%epot_s     = 0.0_dp
+       meta_env%metavar(i)%epot_walls = 0.0_dp
+       meta_env%metavar(i)%delta_s    = 0.0_dp
+       meta_env%metavar(i)%ff_hills   = 0.0_dp
+       meta_env%metavar(i)%ff_walls   = 0.0_dp
+       meta_env%metavar(i)%do_wall    = .FALSE.
+       meta_env%metavar(i)%periodic   = .FALSE.
+       meta_env%metavar(i)%icolvar    = 0
+    END DO
+
+    ! Multiple Walkers
+    CALL section_vals_val_get(metadyn_section,"MULTIPLE_WALKERS%_SECTION_PARAMETERS_",&
+         l_val=meta_env%do_multiple_walkers,error=error)
+    IF (meta_env%do_multiple_walkers) THEN
+       ALLOCATE(meta_env%multiple_walkers,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       ALLOCATE(meta_env%hills_env%ss_history(n_colvar,0), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       ALLOCATE(meta_env%hills_env%delta_s_history(n_colvar,0), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       ALLOCATE(meta_env%hills_env%ww_history(0), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       ALLOCATE(meta_env%hills_env%invdt_history(0), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       meta_env%hills_env%n_hills = 0
-       meta_env%hills_env%energy = 0.0_dp
-       meta_env%hills_env%restart = .TRUE.
 
-       ! Colvar
-       ALLOCATE(meta_env%metavar(n_colvar), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       DO i = 1, n_colvar
-          NULLIFY(meta_env%metavar(i)%walls)
-          meta_env%metavar(i)%mass       = -HUGE(0.0_dp)
-          meta_env%metavar(i)%lambda     = -HUGE(0.0_dp)
-          meta_env%metavar(i)%gamma      = 0.0_dp
-          meta_env%metavar(i)%ss         = 0.0_dp
-          meta_env%metavar(i)%ss0        = 0.0_dp
-          meta_env%metavar(i)%ff_s       = 0.0_dp
-          meta_env%metavar(i)%vvp        = 0.0_dp
-          meta_env%metavar(i)%epot_s     = 0.0_dp
-          meta_env%metavar(i)%epot_walls = 0.0_dp
-          meta_env%metavar(i)%delta_s    = 0.0_dp
-          meta_env%metavar(i)%ff_hills   = 0.0_dp
-          meta_env%metavar(i)%ff_walls   = 0.0_dp
-          meta_env%metavar(i)%do_wall    = .FALSE.
-          meta_env%metavar(i)%periodic   = .FALSE.
-          meta_env%metavar(i)%icolvar    = 0
-       END DO
-
-       ! Multiple Walkers
-       CALL section_vals_val_get(metadyn_section,"MULTIPLE_WALKERS%_SECTION_PARAMETERS_",&
-            l_val=meta_env%do_multiple_walkers,error=error)
-       IF (meta_env%do_multiple_walkers) THEN
-          ALLOCATE(meta_env%multiple_walkers,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-
-          ! Walkers status and Walkers file name
-          NULLIFY(meta_env%multiple_walkers%walkers_status,&
-                  meta_env%multiple_walkers%walkers_file_name)
-          meta_env%multiple_walkers%n_hills_local = 0
-       END IF
-
-       CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=do_langevin,error=error)
-       IF (do_langevin) THEN
-          ALLOCATE (meta_env%rng(meta_env%n_colvar),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO i=1,meta_env%n_colvar
-             NULLIFY(meta_env%rng(meta_env%n_colvar)%stream)
-          END DO
-       ENDIF
+       ! Walkers status and Walkers file name
+       NULLIFY(meta_env%multiple_walkers%walkers_status,&
+               meta_env%multiple_walkers%walkers_file_name)
+       meta_env%multiple_walkers%n_hills_local = 0
     END IF
+
+    CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=do_langevin,error=error)
+    IF (do_langevin) THEN
+       ALLOCATE (meta_env%rng(meta_env%n_colvar),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO i=1,meta_env%n_colvar
+          NULLIFY(meta_env%rng(meta_env%n_colvar)%stream)
+       END DO
+    ENDIF
   END SUBROUTINE metadyn_create
 
 ! *****************************************************************************

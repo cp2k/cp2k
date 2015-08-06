@@ -96,10 +96,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pw),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(pw%ref_count>0,cp_failure_level,routineP,error)
-       pw%ref_count=pw%ref_count+1
-    END IF
+    CPPreconditionNoFail(pw%ref_count>0,cp_failure_level,routineP,error)
+    pw%ref_count=pw%ref_count+1
   END SUBROUTINE pw_retain
 
 ! *****************************************************************************
@@ -199,7 +197,6 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr, error)
   CPPrecondition(.NOT.ASSOCIATED(pw),cp_failure_level,routineP,error,failure)
   ALLOCATE(pw,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
   logger => cp_error_get_logger(error)
   IF (debug_this_module) THEN
      WRITE (cp_logger_get_default_unit_nr(logger),"('*** allocated pw ***')")
@@ -270,7 +267,6 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr, error)
           "unknown data type",error,failure)
   END SELECT
   IF (PRESENT(in_space)) pw%in_space=in_space
-  END IF
   CALL timestop(handle)
 END SUBROUTINE pw_create
 

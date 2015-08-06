@@ -81,42 +81,38 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict,error)
 
   CPPrecondition(.NOT.ASSOCIATED(enum),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(c_vals)==SIZE(i_vals),cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     ALLOCATE(enum,stat=stat)
-     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-  END IF
-  IF (.NOT. failure) THEN
-     last_enumeration_id=last_enumeration_id+1
-     enum%id_nr=last_enumeration_id
-     enum%ref_count=1
-     ALLOCATE(enum%c_vals(SIZE(c_vals)),stat=stat)
-     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-     DO i=1,SIZE(enum%c_vals)
-        enum%c_vals(i)=c_vals(i)
-        CALL uppercase(enum%c_vals(i))
-     END DO
-     ALLOCATE(enum%i_vals(SIZE(i_vals)),stat=stat)
-     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-     enum%i_vals=i_vals
-     enum%strict=.TRUE.
-     IF (PRESENT(strict)) enum%strict=strict
-     ALLOCATE(enum%desc(SIZE(c_vals)),stat=stat)
-     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-     IF (PRESENT(desc)) THEN
-        CPPrecondition(SIZE(enum%desc)==SIZE(desc),cp_failure_level,routineP,error,failure)
-        DO i=1,SIZE(enum%desc)
-           n = LEN_TRIM(desc(i))
-           ALLOCATE(enum%desc(i)%chars(n))
-           DO j=1, n
-             enum%desc(i)%chars(j) = desc(i)(j:j)
-           END DO
-       END DO
-     ELSE
-        DO i=1,SIZE(enum%desc)
-           ALLOCATE(enum%desc(i)%chars(1))
-           enum%desc(i)%chars(1:1) = ' '
+  ALLOCATE(enum,stat=stat)
+  CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+  last_enumeration_id=last_enumeration_id+1
+  enum%id_nr=last_enumeration_id
+  enum%ref_count=1
+  ALLOCATE(enum%c_vals(SIZE(c_vals)),stat=stat)
+  CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+  DO i=1,SIZE(enum%c_vals)
+     enum%c_vals(i)=c_vals(i)
+     CALL uppercase(enum%c_vals(i))
+  END DO
+  ALLOCATE(enum%i_vals(SIZE(i_vals)),stat=stat)
+  CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+  enum%i_vals=i_vals
+  enum%strict=.TRUE.
+  IF (PRESENT(strict)) enum%strict=strict
+  ALLOCATE(enum%desc(SIZE(c_vals)),stat=stat)
+  CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+  IF (PRESENT(desc)) THEN
+     CPPrecondition(SIZE(enum%desc)==SIZE(desc),cp_failure_level,routineP,error,failure)
+     DO i=1,SIZE(enum%desc)
+        n = LEN_TRIM(desc(i))
+        ALLOCATE(enum%desc(i)%chars(n))
+        DO j=1, n
+          enum%desc(i)%chars(j) = desc(i)(j:j)
         END DO
-     END IF
+    END DO
+  ELSE
+     DO i=1,SIZE(enum%desc)
+        ALLOCATE(enum%desc(i)%chars(1))
+        enum%desc(i)%chars(1:1) = ' '
+     END DO
   END IF
 END SUBROUTINE enum_create
 
@@ -138,10 +134,8 @@ SUBROUTINE enum_retain(enum,error)
 
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(enum),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-       CPPreconditionNoFail(enum%ref_count>0,cp_failure_level,routineP,error)
-       enum%ref_count=enum%ref_count+1
-    END IF
+  CPPreconditionNoFail(enum%ref_count>0,cp_failure_level,routineP,error)
+  enum%ref_count=enum%ref_count+1
   END SUBROUTINE enum_retain
 
 ! *****************************************************************************
@@ -208,28 +202,26 @@ FUNCTION enum_i2c(enum,i,error) RESULT(res)
   CPPrecondition(ASSOCIATED(enum),cp_failure_level,routineP,error,failure)
   CPPrecondition(enum%ref_count>0,cp_failure_level,routineP,error,failure)
   res=" "
-  IF (.NOT. failure) THEN
-     found=.FALSE.
-     DO j=1,SIZE(enum%i_vals)
-        IF (enum%i_vals(j)==i) THEN
-           res=enum%c_vals(j)
-           found=.TRUE.
-           EXIT
-        END IF
-     END DO
-     IF (.NOT.found) THEN
-        IF (enum%strict) THEN
-         DO j=1,SIZE(enum%desc)
-          PRINT *, TRIM(a2s(enum%desc(j)%chars))
-          PRINT *, TRIM(enum%c_vals(j))
-         ENDDO
-          PRINT *, enum%i_vals
-        END IF
-        CALL cp_assert(.NOT.enum%strict,cp_failure_level,cp_assertion_failed,&
-             routineP,"invalid value for enumeration:"//cp_to_string(i),&
-             error,failure)
-        res=ADJUSTL(cp_to_string(i))
+  found=.FALSE.
+  DO j=1,SIZE(enum%i_vals)
+     IF (enum%i_vals(j)==i) THEN
+        res=enum%c_vals(j)
+        found=.TRUE.
+        EXIT
      END IF
+  END DO
+  IF (.NOT.found) THEN
+     IF (enum%strict) THEN
+      DO j=1,SIZE(enum%desc)
+       PRINT *, TRIM(a2s(enum%desc(j)%chars))
+       PRINT *, TRIM(enum%c_vals(j))
+      ENDDO
+       PRINT *, enum%i_vals
+     END IF
+     CALL cp_assert(.NOT.enum%strict,cp_failure_level,cp_assertion_failed,&
+          routineP,"invalid value for enumeration:"//cp_to_string(i),&
+          error,failure)
+     res=ADJUSTL(cp_to_string(i))
   END IF
 END FUNCTION enum_i2c
 
@@ -261,25 +253,23 @@ FUNCTION enum_c2i(enum,c,error) RESULT(res)
   CPPrecondition(enum%ref_count>0,cp_failure_level,routineP,error,failure)
   upc=c
   CALL uppercase(upc)
-  IF (.NOT. failure) THEN
-     found=.FALSE.
-     DO j=1,SIZE(enum%c_vals)
-        IF (enum%c_vals(j)==upc) THEN
-           res=enum%i_vals(j)
-           found=.TRUE.
-           EXIT
-        END IF
-     END DO
-
-     IF (.NOT.found) THEN
-        CALL cp_assert(.NOT.enum%strict,cp_failure_level,cp_assertion_failed,&
-             routineP,"invalid value for enumeration:"//TRIM(c),&
-             error=error,failure=failure)
-        READ(c,"(i10)",iostat=iostat) res
-        CALL cp_assert(iostat==0,cp_failure_level,cp_assertion_failed,&
-             routineP,"invalid value for enumeration2:"//TRIM(c),&
-             error=error,failure=failure)
+  found=.FALSE.
+  DO j=1,SIZE(enum%c_vals)
+     IF (enum%c_vals(j)==upc) THEN
+        res=enum%i_vals(j)
+        found=.TRUE.
+        EXIT
      END IF
+  END DO
+
+  IF (.NOT.found) THEN
+     CALL cp_assert(.NOT.enum%strict,cp_failure_level,cp_assertion_failed,&
+          routineP,"invalid value for enumeration:"//TRIM(c),&
+          error=error,failure=failure)
+     READ(c,"(i10)",iostat=iostat) res
+     CALL cp_assert(iostat==0,cp_failure_level,cp_assertion_failed,&
+          routineP,"invalid value for enumeration2:"//TRIM(c),&
+          error=error,failure=failure)
   END IF
 END FUNCTION enum_c2i
 

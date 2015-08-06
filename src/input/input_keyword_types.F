@@ -206,221 +206,215 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
     ALLOCATE(keyword,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       keyword%ref_count=1
-       last_keyword_id=last_keyword_id+1
-       keyword%id_nr=last_keyword_id
-       NULLIFY(keyword%unit)
+    keyword%ref_count=1
+    last_keyword_id=last_keyword_id+1
+    keyword%id_nr=last_keyword_id
+    NULLIFY(keyword%unit)
 
-       IF (PRESENT(variants)) THEN
-          ALLOCATE(keyword%names(SIZE(variants)+1),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF (.NOT.failure) THEN
-             keyword%names(1)=name
-             DO i=1,SIZE(variants)
-                keyword%names(i+1)=variants(i)
-             END DO
-          END IF
-       ELSE
-          ALLOCATE(keyword%names(1),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF (.not.failure) keyword%names(1)=name
-       END IF
-       DO i=1,SIZE(keyword%names)
-          CALL uppercase(keyword%names(i))
+    IF (PRESENT(variants)) THEN
+       ALLOCATE(keyword%names(SIZE(variants)+1),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       keyword%names(1)=name
+       DO i=1,SIZE(variants)
+          keyword%names(i+1)=variants(i)
        END DO
+    ELSE
+       ALLOCATE(keyword%names(1),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF (.not.failure) keyword%names(1)=name
+    END IF
+    DO i=1,SIZE(keyword%names)
+       CALL uppercase(keyword%names(i))
+    END DO
 
-       IF (PRESENT(usage)) THEN
-          CPPrecondition(LEN_TRIM(usage)<=LEN(keyword%usage),cp_failure_level,routineP,error,failure)
-          keyword%usage=usage
-       ELSE
-          keyword%usage=""
-       END IF
-
-       n = LEN_TRIM(description)
-       ALLOCATE(keyword%description(n))
-       DO i=1, n
-          keyword%description(i) = description(i:i)
-       END DO
-
-       IF (PRESENT(citations)) THEN
-          ALLOCATE(keyword%citations(SIZE(citations,1)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          keyword%citations=citations
-       ELSE
-          NULLIFY(keyword%citations)
-       ENDIF
-
-       keyword%repeats=.FALSE.
-       IF (PRESENT(repeats)) keyword%repeats=repeats
-
-       NULLIFY(keyword%enum)
-       IF (PRESENT(enum)) THEN
-          keyword%enum => enum
-          IF (ASSOCIATED(enum)) CALL enum_retain(enum,error=error)
-       END IF
-       IF (PRESENT(enum_i_vals)) THEN
-          CPPrecondition(PRESENT(enum_c_vals),cp_failure_level,routineP,error,failure)
-          CPPrecondition(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,error,failure)
-          CALL enum_create(keyword%enum,c_vals=enum_c_vals,i_vals=enum_i_vals,&
-               desc=enum_desc,strict=enum_strict,error=error)
-       ELSE
-          CPPrecondition(.NOT.PRESENT(enum_c_vals),cp_failure_level,routineP,error,failure)
-       END IF
-
-       NULLIFY(keyword%default_value, keyword%lone_keyword_value)
-       IF (PRESENT(default_val)) THEN
-          CALL cp_assert(.NOT.(PRESENT(default_l_val).OR.PRESENT(default_l_vals).OR.&
-               PRESENT(default_i_val).OR.PRESENT(default_i_vals).OR.&
-               PRESENT(default_r_val).or.PRESENT(default_r_vals).OR.&
-               PRESENT(default_c_val).OR.PRESENT(default_c_vals)),cp_failure_level,&
-               cp_assertion_failed,routineP,&
-               "you should pass either default_val or a default value, not both",&
-               error,failure)
-          keyword%default_value => default_val
-          IF (ASSOCIATED(default_val%enum)) THEN
-             IF (ASSOCIATED(keyword%enum)) THEN
-                CPAssert(keyword%enum%id_nr==default_val%enum%id_nr,cp_failure_level,routineP,error,failure)
-             ELSE
-                keyword%enum => default_val%enum
-                CALL enum_retain(keyword%enum,error=error)
-             END IF
-          ELSE
-             CPAssert(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,error,failure)
-          END IF
-          CALL val_retain(default_val,error=error)
-       END IF
-       IF (.not.ASSOCIATED(keyword%default_value)) THEN
-          CALL val_create(keyword%default_value,l_val=default_l_val,&
-               l_vals=default_l_vals,i_val=default_i_val,i_vals=default_i_vals,&
-               r_val=default_r_val,r_vals=default_r_vals,c_val=default_c_val,&
-               c_vals=default_c_vals,lc_val=default_lc_val,enum=keyword%enum,error=error)
-       END IF
-
-       keyword%type_of_var=keyword%default_value%type_of_var
-       IF (keyword%default_value%type_of_var==no_t) THEN
-          CALL val_release(keyword%default_value,error=error)
-       END IF
-
-       IF (keyword%type_of_var==no_t) THEN
-          IF (PRESENT(type_of_var)) THEN
-             keyword%type_of_var=type_of_var
-          ELSE
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                  "keyword "//TRIM(keyword%names(1))//&
-                  " assumed undefined type by default",error,failure)
-          END IF
-       ELSE IF (PRESENT(type_of_var)) THEN
-          CALL cp_assert(keyword%type_of_var==type_of_var,cp_failure_level,&
-               cp_assertion_failed,routineP, &
-               "keyword "//TRIM(keyword%names(1))//&
-               " has a type different from the type of the default_value",&
-               error,failure)
-          keyword%type_of_var=type_of_var
-       END IF
-
-       IF (keyword%type_of_var==no_t) THEN
-          CALL val_create(keyword%default_value,error=error)
-       END IF
+    IF (PRESENT(usage)) THEN
+       CPPrecondition(LEN_TRIM(usage)<=LEN(keyword%usage),cp_failure_level,routineP,error,failure)
+       keyword%usage=usage
+    ELSE
+       keyword%usage=""
     END IF
 
-    IF (.NOT.failure) THEN
-       IF (PRESENT(lone_keyword_val)) THEN
-          CALL cp_assert(.NOT.(PRESENT(lone_keyword_l_val).OR.PRESENT(lone_keyword_l_vals).OR.&
-               PRESENT(lone_keyword_i_val).OR.PRESENT(lone_keyword_i_vals).OR.&
-               PRESENT(lone_keyword_r_val).OR.PRESENT(lone_keyword_r_vals).OR.&
-               PRESENT(lone_keyword_c_val).OR.PRESENT(lone_keyword_c_vals)),&
-               cp_failure_level, cp_assertion_failed,routineP,&
-               "you should pass either lone_keyword_val or a lone_keyword value, not both",&
-               error,failure)
-          keyword%lone_keyword_value => lone_keyword_val
-          CALL val_retain(lone_keyword_val,error=error)
-          IF (ASSOCIATED(lone_keyword_val%enum)) THEN
-             IF (ASSOCIATED(keyword%enum)) THEN
-                CALL cp_assert(keyword%enum%id_nr==lone_keyword_val%enum%id_nr, &
-                     cp_failure_level,cp_assertion_failed,routineP, &
-                     "keyword%enum%id_nr==lone_keyword_val%enum%id_nr", &
-                     error,failure)
-             ELSE
-                IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
-                   CALL cp_assert(.FALSE., cp_failure_level, cp_precondition_failed, &
-                        routineP, ".NOT. ASSOCIATED(keyword%lone_keyword_value)", &
-                        error, failure)
-                END IF
-                keyword%enum => lone_keyword_val%enum
-                CALL enum_retain(keyword%enum,error=error)
-             END IF
-          ELSE
-             CPAssert(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,error,failure)
-          END IF
-       END IF
-       IF (.NOT.ASSOCIATED(keyword%lone_keyword_value)) THEN
-          CALL val_create(keyword%lone_keyword_value,l_val=lone_keyword_l_val,&
-               l_vals=lone_keyword_l_vals,i_val=lone_keyword_i_val,i_vals=lone_keyword_i_vals,&
-               r_val=lone_keyword_r_val,r_vals=lone_keyword_r_vals,c_val=lone_keyword_c_val,&
-               c_vals=lone_keyword_c_vals,enum=keyword%enum,error=error)
-       END IF
-       IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
-          IF (keyword%lone_keyword_value%type_of_var==no_t) THEN
-             CALL val_release(keyword%lone_keyword_value,error=error)
-          ELSE
-             CALL cp_assert(keyword%lone_keyword_value%type_of_var==keyword%type_of_var,&
-                  cp_failure_level,cp_assertion_failed,routineP,&
-                  "lone_keyword_value type incompatible with "//&
-                  "keyword type",error,failure)
-             ! lc_val cannot have lone_keyword_value!
-             IF (keyword%type_of_var==enum_t) THEN
-                IF (keyword%enum%strict) THEN
-                   check = .FALSE.
-                   DO i=1, SIZE(keyword%enum%i_vals)
-                      check = check .OR. (keyword%default_value%i_val(1)==keyword%enum%i_vals(i))
-                   END DO
-                   CALL cp_assert(check,cp_failure_level,&
-                        cp_assertion_failed,routineP,"default value not in enumeration : "//keyword%names(1), &
-                        error,failure)
-                ENDIF
-             ENDIF
-          END IF
-       END IF
+    n = LEN_TRIM(description)
+    ALLOCATE(keyword%description(n))
+    DO i=1, n
+       keyword%description(i) = description(i:i)
+    END DO
 
-       keyword%n_var=1
-       IF (ASSOCIATED(keyword%default_value)) THEN
-          SELECT CASE(keyword%default_value%type_of_var)
-          CASE(logical_t)
-             keyword%n_var=SIZE(keyword%default_value%l_val)
-          CASE(integer_t)
-             keyword%n_var=SIZE(keyword%default_value%i_val)
-          CASE(enum_t)
+    IF (PRESENT(citations)) THEN
+       ALLOCATE(keyword%citations(SIZE(citations,1)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       keyword%citations=citations
+    ELSE
+       NULLIFY(keyword%citations)
+    ENDIF
+
+    keyword%repeats=.FALSE.
+    IF (PRESENT(repeats)) keyword%repeats=repeats
+
+    NULLIFY(keyword%enum)
+    IF (PRESENT(enum)) THEN
+       keyword%enum => enum
+       IF (ASSOCIATED(enum)) CALL enum_retain(enum,error=error)
+    END IF
+    IF (PRESENT(enum_i_vals)) THEN
+       CPPrecondition(PRESENT(enum_c_vals),cp_failure_level,routineP,error,failure)
+       CPPrecondition(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,error,failure)
+       CALL enum_create(keyword%enum,c_vals=enum_c_vals,i_vals=enum_i_vals,&
+            desc=enum_desc,strict=enum_strict,error=error)
+    ELSE
+       CPPrecondition(.NOT.PRESENT(enum_c_vals),cp_failure_level,routineP,error,failure)
+    END IF
+
+    NULLIFY(keyword%default_value, keyword%lone_keyword_value)
+    IF (PRESENT(default_val)) THEN
+       CALL cp_assert(.NOT.(PRESENT(default_l_val).OR.PRESENT(default_l_vals).OR.&
+            PRESENT(default_i_val).OR.PRESENT(default_i_vals).OR.&
+            PRESENT(default_r_val).or.PRESENT(default_r_vals).OR.&
+            PRESENT(default_c_val).OR.PRESENT(default_c_vals)),cp_failure_level,&
+            cp_assertion_failed,routineP,&
+            "you should pass either default_val or a default value, not both",&
+            error,failure)
+       keyword%default_value => default_val
+       IF (ASSOCIATED(default_val%enum)) THEN
+          IF (ASSOCIATED(keyword%enum)) THEN
+             CPAssert(keyword%enum%id_nr==default_val%enum%id_nr,cp_failure_level,routineP,error,failure)
+          ELSE
+             keyword%enum => default_val%enum
+             CALL enum_retain(keyword%enum,error=error)
+          END IF
+       ELSE
+          CPAssert(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,error,failure)
+       END IF
+       CALL val_retain(default_val,error=error)
+    END IF
+    IF (.not.ASSOCIATED(keyword%default_value)) THEN
+       CALL val_create(keyword%default_value,l_val=default_l_val,&
+            l_vals=default_l_vals,i_val=default_i_val,i_vals=default_i_vals,&
+            r_val=default_r_val,r_vals=default_r_vals,c_val=default_c_val,&
+            c_vals=default_c_vals,lc_val=default_lc_val,enum=keyword%enum,error=error)
+    END IF
+
+    keyword%type_of_var=keyword%default_value%type_of_var
+    IF (keyword%default_value%type_of_var==no_t) THEN
+       CALL val_release(keyword%default_value,error=error)
+    END IF
+
+    IF (keyword%type_of_var==no_t) THEN
+       IF (PRESENT(type_of_var)) THEN
+          keyword%type_of_var=type_of_var
+       ELSE
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+               "keyword "//TRIM(keyword%names(1))//&
+               " assumed undefined type by default",error,failure)
+       END IF
+    ELSE IF (PRESENT(type_of_var)) THEN
+       CALL cp_assert(keyword%type_of_var==type_of_var,cp_failure_level,&
+            cp_assertion_failed,routineP, &
+            "keyword "//TRIM(keyword%names(1))//&
+            " has a type different from the type of the default_value",&
+            error,failure)
+       keyword%type_of_var=type_of_var
+    END IF
+
+    IF (keyword%type_of_var==no_t) THEN
+       CALL val_create(keyword%default_value,error=error)
+    END IF
+
+    IF (PRESENT(lone_keyword_val)) THEN
+       CALL cp_assert(.NOT.(PRESENT(lone_keyword_l_val).OR.PRESENT(lone_keyword_l_vals).OR.&
+            PRESENT(lone_keyword_i_val).OR.PRESENT(lone_keyword_i_vals).OR.&
+            PRESENT(lone_keyword_r_val).OR.PRESENT(lone_keyword_r_vals).OR.&
+            PRESENT(lone_keyword_c_val).OR.PRESENT(lone_keyword_c_vals)),&
+            cp_failure_level, cp_assertion_failed,routineP,&
+            "you should pass either lone_keyword_val or a lone_keyword value, not both",&
+            error,failure)
+       keyword%lone_keyword_value => lone_keyword_val
+       CALL val_retain(lone_keyword_val,error=error)
+       IF (ASSOCIATED(lone_keyword_val%enum)) THEN
+          IF (ASSOCIATED(keyword%enum)) THEN
+             CALL cp_assert(keyword%enum%id_nr==lone_keyword_val%enum%id_nr, &
+                  cp_failure_level,cp_assertion_failed,routineP, &
+                  "keyword%enum%id_nr==lone_keyword_val%enum%id_nr", &
+                  error,failure)
+          ELSE
+             IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
+                CALL cp_assert(.FALSE., cp_failure_level, cp_precondition_failed, &
+                     routineP, ".NOT. ASSOCIATED(keyword%lone_keyword_value)", &
+                     error, failure)
+             END IF
+             keyword%enum => lone_keyword_val%enum
+             CALL enum_retain(keyword%enum,error=error)
+          END IF
+       ELSE
+          CPAssert(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,error,failure)
+       END IF
+    END IF
+    IF (.NOT.ASSOCIATED(keyword%lone_keyword_value)) THEN
+       CALL val_create(keyword%lone_keyword_value,l_val=lone_keyword_l_val,&
+            l_vals=lone_keyword_l_vals,i_val=lone_keyword_i_val,i_vals=lone_keyword_i_vals,&
+            r_val=lone_keyword_r_val,r_vals=lone_keyword_r_vals,c_val=lone_keyword_c_val,&
+            c_vals=lone_keyword_c_vals,enum=keyword%enum,error=error)
+    END IF
+    IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
+       IF (keyword%lone_keyword_value%type_of_var==no_t) THEN
+          CALL val_release(keyword%lone_keyword_value,error=error)
+       ELSE
+          CALL cp_assert(keyword%lone_keyword_value%type_of_var==keyword%type_of_var,&
+               cp_failure_level,cp_assertion_failed,routineP,&
+               "lone_keyword_value type incompatible with "//&
+               "keyword type",error,failure)
+          ! lc_val cannot have lone_keyword_value!
+          IF (keyword%type_of_var==enum_t) THEN
              IF (keyword%enum%strict) THEN
                 check = .FALSE.
                 DO i=1, SIZE(keyword%enum%i_vals)
                    check = check .OR. (keyword%default_value%i_val(1)==keyword%enum%i_vals(i))
                 END DO
                 CALL cp_assert(check,cp_failure_level,&
-                     cp_assertion_failed,routineP,"default value not in enumeration : "//&
-                     keyword%names(1), error,failure)
+                     cp_assertion_failed,routineP,"default value not in enumeration : "//keyword%names(1), &
+                     error,failure)
              ENDIF
-             keyword%n_var=SIZE(keyword%default_value%i_val)
-          CASE(real_t)
-             keyword%n_var=SIZE(keyword%default_value%r_val)
-          CASE(char_t)
-             keyword%n_var=SIZE(keyword%default_value%c_val)
-          CASE(lchar_t)
-             keyword%n_var=1
-          CASE(no_t)
-             keyword%n_var=0
-          CASE default
-             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-          END SELECT
+          ENDIF
        END IF
-       IF (PRESENT(n_var)) keyword%n_var=n_var
-       CALL cp_assert(keyword%type_of_var/=lchar_t.or.keyword%n_var==1,cp_failure_level,&
-            cp_assertion_failed,routineP,"arrays of lchar_t not supported : "&
-            //keyword%names(1), error,failure)
+    END IF
 
-       IF (PRESENT(unit_str)) THEN
-          CALL cp_unit_create(keyword%unit,unit_str,error=error)
-       END IF
+    keyword%n_var=1
+    IF (ASSOCIATED(keyword%default_value)) THEN
+       SELECT CASE(keyword%default_value%type_of_var)
+       CASE(logical_t)
+          keyword%n_var=SIZE(keyword%default_value%l_val)
+       CASE(integer_t)
+          keyword%n_var=SIZE(keyword%default_value%i_val)
+       CASE(enum_t)
+          IF (keyword%enum%strict) THEN
+             check = .FALSE.
+             DO i=1, SIZE(keyword%enum%i_vals)
+                check = check .OR. (keyword%default_value%i_val(1)==keyword%enum%i_vals(i))
+             END DO
+             CALL cp_assert(check,cp_failure_level,&
+                  cp_assertion_failed,routineP,"default value not in enumeration : "//&
+                  keyword%names(1), error,failure)
+          ENDIF
+          keyword%n_var=SIZE(keyword%default_value%i_val)
+       CASE(real_t)
+          keyword%n_var=SIZE(keyword%default_value%r_val)
+       CASE(char_t)
+          keyword%n_var=SIZE(keyword%default_value%c_val)
+       CASE(lchar_t)
+          keyword%n_var=1
+       CASE(no_t)
+          keyword%n_var=0
+       CASE default
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+    END IF
+    IF (PRESENT(n_var)) keyword%n_var=n_var
+    CALL cp_assert(keyword%type_of_var/=lchar_t.or.keyword%n_var==1,cp_failure_level,&
+         cp_assertion_failed,routineP,"arrays of lchar_t not supported : "&
+         //keyword%names(1), error,failure)
+
+    IF (PRESENT(unit_str)) THEN
+       CALL cp_unit_create(keyword%unit,unit_str,error=error)
     END IF
   END SUBROUTINE keyword_create
 
@@ -442,10 +436,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(keyword%ref_count>0,cp_failure_level,routineP,error)
-       keyword%ref_count=keyword%ref_count+1
-    END IF
+    CPPreconditionNoFail(keyword%ref_count>0,cp_failure_level,routineP,error)
+    keyword%ref_count=keyword%ref_count+1
   END SUBROUTINE keyword_retain
 
 ! *****************************************************************************
@@ -529,18 +521,16 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
     CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(names)) names => keyword%names
-       IF (PRESENT(usage)) usage=keyword%usage
-       IF (PRESENT(description)) description=a2s(keyword%description)
-       IF (PRESENT(type_of_var)) type_of_var=keyword%type_of_var
-       IF (PRESENT(n_var)) n_var=keyword%n_var
-       IF (PRESENT(repeats)) repeats=keyword%repeats
-       IF (PRESENT(default_value)) default_value => keyword%default_value
-       IF (PRESENT(lone_keyword_value)) lone_keyword_value => keyword%lone_keyword_value
-       IF (PRESENT(enum)) enum => keyword%enum
-       IF (PRESENT(citations)) citations => keyword%citations
-    END IF
+    IF (PRESENT(names)) names => keyword%names
+    IF (PRESENT(usage)) usage=keyword%usage
+    IF (PRESENT(description)) description=a2s(keyword%description)
+    IF (PRESENT(type_of_var)) type_of_var=keyword%type_of_var
+    IF (PRESENT(n_var)) n_var=keyword%n_var
+    IF (PRESENT(repeats)) repeats=keyword%repeats
+    IF (PRESENT(default_value)) default_value => keyword%default_value
+    IF (PRESENT(lone_keyword_value)) lone_keyword_value => keyword%lone_keyword_value
+    IF (PRESENT(enum)) enum => keyword%enum
+    IF (PRESENT(citations)) citations => keyword%citations
   END SUBROUTINE keyword_get
 
 ! *****************************************************************************
@@ -713,122 +703,120 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
     CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       WRITE(unit_nr,'(a)') '<TR><TD WITDH="20%">'// &
-            '<A NAME="'//TRIM(keyword%names(1))//'"><u>'//TRIM(keyword%names(1))//'</u></A>'// &
-            '<TD WIDTH="80%">'
-       WRITE(unit_nr,'(a)') '<TR><TD WIDTH="20%"><TD WIDTH="80%">'//TRIM(keyword%usage)
-       WRITE(unit_nr,'(a)') '<TR><TD WIDTH="20%"><TD WIDTH="80%"><i>'//TRIM(a2s(keyword%description))//'</i>'
-       WRITE(unit_nr,"(a)",advance="NO") '<TR><TD WIDTH="10%"><TD> This keyword '
-       SELECT CASE(keyword%type_of_var)
-       CASE (logical_t)
-          IF (keyword%n_var==-1) THEN
-             WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a list of logicals'
-          ELSE IF (keyword%n_var==1) THEN
-             WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a logical'
-          ELSE
-             WRITE(unit_nr,'(a,i6,a)',ADVANCE="NO") 'expects precisely',keyword%n_var,' logicals'
-          END IF
-          ! (provide a link to this info) WRITE(unit_nr,"('  (T,TRUE,YES,ON) and (F,FALSE,NO,OFF) are synonyms')")
-       CASE (integer_t)
-          IF (keyword%n_var==-1) THEN
-             WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a list of integers'
-          ELSE IF (keyword%n_var==1) THEN
-             WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects an integer'
-          ELSE
-             WRITE(unit_nr,'(a,i6,a)',ADVANCE="NO") 'expects precisely',keyword%n_var,' integers'
-          END IF
-       CASE (real_t)
-          IF (keyword%n_var==-1) THEN
-             WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a list of reals'
-          ELSE IF (keyword%n_var==1) THEN
-             WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a real'
-          ELSE
-             WRITE(unit_nr,'(a,i6,a)',ADVANCE="NO") 'expects precisely',keyword%n_var,' reals'
-          END IF
-       CASE (char_t)
-          IF (keyword%n_var==-1) THEN
-             WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a list of words'
-          ELSE IF (keyword%n_var==1) THEN
-             WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a word'
-          ELSE
-             WRITE(unit_nr,'(a,i6,a)',ADVANCE="NO") 'expects precisely',keyword%n_var,' words'
-          END IF
-       CASE (lchar_t)
-          WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a string'
-       CASE (enum_t)
-          IF (keyword%n_var==-1) THEN
-             WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a list of keywords'
-          ELSE IF (keyword%n_var==1) THEN
-             WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a keyword'
-          ELSE
-             WRITE(unit_nr,'(a,i6,a)',ADVANCE="NO") 'expects precisely',keyword%n_var,' keywords'
-          END IF
-       CASE (no_t)
-          WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a non-standard input type'
-       CASE DEFAULT
-          CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
-       END SELECT
-       IF (keyword%repeats) THEN
-          WRITE(unit_nr,"(', and may repeat')",ADVANCE="NO")
-       END IF
-       IF (ASSOCIATED(keyword%lone_keyword_value).AND.keyword%type_of_var/=no_t) THEN
-          WRITE(unit_nr,'(a)',advance="NO") '<TR><TD WIDTH="10%"><TD>This keyword behaves as a switch'
-          CALL val_write(keyword%lone_keyword_value,unit_nr=unit_nr,error=error)
-       END IF
-       IF (ASSOCIATED(keyword%default_value).AND.keyword%type_of_var/=no_t) THEN
-          IF (ASSOCIATED(keyword%unit)) THEN
-             my_unit=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
-             WRITE(unit_nr,'(a)',advance="NO") '. Default unit: ' // '[' // TRIM(my_unit)// '], default value: '
-          ELSE
-             WRITE(unit_nr,'(a)',advance="NO") '. Default value: '
-          ENDIF
-          CALL val_write(keyword%default_value,unit=keyword%unit,unit_nr=unit_nr,error=error)
-          IF (ASSOCIATED(keyword%unit)) THEN
-             WRITE(unit_nr,'(a)',advance="NO") TRIM(my_unit)
-          END IF
+    WRITE(unit_nr,'(a)') '<TR><TD WITDH="20%">'// &
+         '<A NAME="'//TRIM(keyword%names(1))//'"><u>'//TRIM(keyword%names(1))//'</u></A>'// &
+         '<TD WIDTH="80%">'
+    WRITE(unit_nr,'(a)') '<TR><TD WIDTH="20%"><TD WIDTH="80%">'//TRIM(keyword%usage)
+    WRITE(unit_nr,'(a)') '<TR><TD WIDTH="20%"><TD WIDTH="80%"><i>'//TRIM(a2s(keyword%description))//'</i>'
+    WRITE(unit_nr,"(a)",advance="NO") '<TR><TD WIDTH="10%"><TD> This keyword '
+    SELECT CASE(keyword%type_of_var)
+    CASE (logical_t)
+       IF (keyword%n_var==-1) THEN
+          WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a list of logicals'
+       ELSE IF (keyword%n_var==1) THEN
+          WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a logical'
        ELSE
-          IF (ASSOCIATED(keyword%unit)) THEN
-             my_unit=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
-             WRITE(unit_nr,'(a)',advance="NO") '. Default unit: ' // '[' // TRIM(my_unit)// '].'
-          END IF
-       ENDIF
-
-       IF (keyword%type_of_var==enum_t) THEN
-          any_description = .FALSE.
-          DO i=1,SIZE(keyword%enum%c_vals)
-             any_description = any_description .OR. SIZE(keyword%enum%desc(i)%chars)>1
-          ENDDO
-          IF (any_description) THEN
-             WRITE(unit_nr,'(a)',advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords:<ul> '
-             DO i=1,SIZE(keyword%enum%c_vals)
-                c_string=keyword%enum%c_vals(i)
-                WRITE (unit_nr,'(a,a,a,a,a)') "<li><code>",&
-                     TRIM(c_string), "</code>: ",TRIM(a2s(keyword%enum%desc(i)%chars)),"</li>"
-             END DO
-             WRITE (unit_nr,'(a)',advance='NO') '</ul>'
-          ELSE
-             WRITE(unit_nr,'(a)',advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords: '
-             IF (SIZE(keyword%enum%c_vals)>0) &
-                  WRITE (unit_nr,'(a)',advance='NO') TRIM(keyword%enum%c_vals(1))
-             DO i=2,SIZE(keyword%enum%c_vals)
-                c_string=keyword%enum%c_vals(i)
-                WRITE (unit_nr,'(a)',advance='NO') ", "//TRIM(c_string)
-             END DO
-          ENDIF
-          IF (.NOT.keyword%enum%strict) THEN
-             WRITE (unit_nr,"('     other integer values are also accepted.')")
-          END IF
+          WRITE(unit_nr,'(a,i6,a)',ADVANCE="NO") 'expects precisely',keyword%n_var,' logicals'
        END IF
-       IF (SIZE(keyword%names)>1) THEN
-          WRITE(unit_nr,"(a)",advance="NO") '<TR><TD WIDTH="10%"><TD>variants: '
-          DO i=2,SIZE(keyword%names)
-             WRITE(unit_nr,"(a)",advance="NO") TRIM(keyword%names(i))
-             IF (i .NE. SIZE(keyword%names)) THEN
-                WRITE (unit_nr,'(a)',advance='NO') ', '
-             ENDIF
+       ! (provide a link to this info) WRITE(unit_nr,"('  (T,TRUE,YES,ON) and (F,FALSE,NO,OFF) are synonyms')")
+    CASE (integer_t)
+       IF (keyword%n_var==-1) THEN
+          WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a list of integers'
+       ELSE IF (keyword%n_var==1) THEN
+          WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects an integer'
+       ELSE
+          WRITE(unit_nr,'(a,i6,a)',ADVANCE="NO") 'expects precisely',keyword%n_var,' integers'
+       END IF
+    CASE (real_t)
+       IF (keyword%n_var==-1) THEN
+          WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a list of reals'
+       ELSE IF (keyword%n_var==1) THEN
+          WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a real'
+       ELSE
+          WRITE(unit_nr,'(a,i6,a)',ADVANCE="NO") 'expects precisely',keyword%n_var,' reals'
+       END IF
+    CASE (char_t)
+       IF (keyword%n_var==-1) THEN
+          WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a list of words'
+       ELSE IF (keyword%n_var==1) THEN
+          WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a word'
+       ELSE
+          WRITE(unit_nr,'(a,i6,a)',ADVANCE="NO") 'expects precisely',keyword%n_var,' words'
+       END IF
+    CASE (lchar_t)
+       WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a string'
+    CASE (enum_t)
+       IF (keyword%n_var==-1) THEN
+          WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a list of keywords'
+       ELSE IF (keyword%n_var==1) THEN
+          WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a keyword'
+       ELSE
+          WRITE(unit_nr,'(a,i6,a)',ADVANCE="NO") 'expects precisely',keyword%n_var,' keywords'
+       END IF
+    CASE (no_t)
+       WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a non-standard input type'
+    CASE DEFAULT
+       CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
+    END SELECT
+    IF (keyword%repeats) THEN
+       WRITE(unit_nr,"(', and may repeat')",ADVANCE="NO")
+    END IF
+    IF (ASSOCIATED(keyword%lone_keyword_value).AND.keyword%type_of_var/=no_t) THEN
+       WRITE(unit_nr,'(a)',advance="NO") '<TR><TD WIDTH="10%"><TD>This keyword behaves as a switch'
+       CALL val_write(keyword%lone_keyword_value,unit_nr=unit_nr,error=error)
+    END IF
+    IF (ASSOCIATED(keyword%default_value).AND.keyword%type_of_var/=no_t) THEN
+       IF (ASSOCIATED(keyword%unit)) THEN
+          my_unit=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
+          WRITE(unit_nr,'(a)',advance="NO") '. Default unit: ' // '[' // TRIM(my_unit)// '], default value: '
+       ELSE
+          WRITE(unit_nr,'(a)',advance="NO") '. Default value: '
+       ENDIF
+       CALL val_write(keyword%default_value,unit=keyword%unit,unit_nr=unit_nr,error=error)
+       IF (ASSOCIATED(keyword%unit)) THEN
+          WRITE(unit_nr,'(a)',advance="NO") TRIM(my_unit)
+       END IF
+    ELSE
+       IF (ASSOCIATED(keyword%unit)) THEN
+          my_unit=cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
+          WRITE(unit_nr,'(a)',advance="NO") '. Default unit: ' // '[' // TRIM(my_unit)// '].'
+       END IF
+    ENDIF
+
+    IF (keyword%type_of_var==enum_t) THEN
+       any_description = .FALSE.
+       DO i=1,SIZE(keyword%enum%c_vals)
+          any_description = any_description .OR. SIZE(keyword%enum%desc(i)%chars)>1
+       ENDDO
+       IF (any_description) THEN
+          WRITE(unit_nr,'(a)',advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords:<ul> '
+          DO i=1,SIZE(keyword%enum%c_vals)
+             c_string=keyword%enum%c_vals(i)
+             WRITE (unit_nr,'(a,a,a,a,a)') "<li><code>",&
+                  TRIM(c_string), "</code>: ",TRIM(a2s(keyword%enum%desc(i)%chars)),"</li>"
+          END DO
+          WRITE (unit_nr,'(a)',advance='NO') '</ul>'
+       ELSE
+          WRITE(unit_nr,'(a)',advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords: '
+          IF (SIZE(keyword%enum%c_vals)>0) &
+               WRITE (unit_nr,'(a)',advance='NO') TRIM(keyword%enum%c_vals(1))
+          DO i=2,SIZE(keyword%enum%c_vals)
+             c_string=keyword%enum%c_vals(i)
+             WRITE (unit_nr,'(a)',advance='NO') ", "//TRIM(c_string)
           END DO
        ENDIF
+       IF (.NOT.keyword%enum%strict) THEN
+          WRITE (unit_nr,"('     other integer values are also accepted.')")
+       END IF
+    END IF
+    IF (SIZE(keyword%names)>1) THEN
+       WRITE(unit_nr,"(a)",advance="NO") '<TR><TD WIDTH="10%"><TD>variants: '
+       DO i=2,SIZE(keyword%names)
+          WRITE(unit_nr,"(a)",advance="NO") TRIM(keyword%names(i))
+          IF (i .NE. SIZE(keyword%names)) THEN
+             WRITE (unit_nr,'(a)',advance='NO') ', '
+          ENDIF
+       END DO
     ENDIF
     IF (ASSOCIATED(keyword%citations)) THEN
        IF (SIZE(keyword%citations,1)>1) THEN
@@ -875,163 +863,161 @@ CONTAINS
     CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
     CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
 
-       ! Indentation for current level, next level, etc.
+    ! Indentation for current level, next level, etc.
 
-       l0 = level
-       l1 = level + 1
-       l2 = level + 2
-       l3 = level + 3
-       l4 = level + 4
+    l0 = level
+    l1 = level + 1
+    l2 = level + 2
+    l3 = level + 3
+    l4 = level + 4
 
-       IF (keyword%repeats) THEN
-          repeats = "yes"
-       ELSE
-          repeats = "no "
-       END IF
+    IF (keyword%repeats) THEN
+       repeats = "yes"
+    ELSE
+       repeats = "no "
+    END IF
 
-       ! Write (special) keyword element
+    ! Write (special) keyword element
 
-       IF (keyword%names(1) == "_SECTION_PARAMETERS_") THEN
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l0)//"<SECTION_PARAMETERS repeats="""//TRIM(repeats)//""">",&
-               REPEAT(" ",l1)//"<NAME type=""default"">SECTION_PARAMETERS</NAME>"
-       ELSE IF (keyword%names(1) == "_DEFAULT_KEYWORD_") THEN
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l0)//"<DEFAULT_KEYWORD repeats="""//TRIM(repeats)//""">",&
-               REPEAT(" ",l1)//"<NAME type=""default"">DEFAULT_KEYWORD</NAME>"
-       ELSE
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l0)//"<KEYWORD repeats="""//TRIM(repeats)//""">",&
-               REPEAT(" ",l1)//"<NAME type=""default"">"//&
-               TRIM(keyword%names(1))//"</NAME>"
-       END IF
-
-       DO i=2,SIZE(keyword%names)
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<NAME type=""alias"">"//&
-               TRIM(keyword%names(i))//"</NAME>"
-       END DO
-
-       SELECT CASE(keyword%type_of_var)
-       CASE (logical_t)
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""logical"">"
-       CASE (integer_t)
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""integer"">"
-       CASE (real_t)
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""real"">"
-       CASE (char_t)
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""word"">"
-       CASE (lchar_t)
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""string"">"
-       CASE (enum_t)
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""keyword"">"
-          IF (keyword%enum%strict) THEN
-             WRITE (UNIT=unit_number,FMT="(A)")&
-                  REPEAT(" ",l2)//"<ENUMERATION strict=""yes"">"
-          ELSE
-             WRITE (UNIT=unit_number,FMT="(A)")&
-                  REPEAT(" ",l2)//"<ENUMERATION strict=""no"">"
-          END IF
-          DO i=1,SIZE(keyword%enum%c_vals)
-             WRITE (UNIT=unit_number,FMT="(A)")&
-                  REPEAT(" ",l3)//"<ITEM>",&
-                  REPEAT(" ",l4)//"<NAME>"//&
-                  TRIM(ADJUSTL(keyword%enum%c_vals(i)))//"</NAME>",&
-                  REPEAT(" ",l4)//"<DESCRIPTION>"//&
-                  TRIM(ADJUSTL(substitute_special_xml_tokens(a2s(keyword%enum%desc(i)%chars))))&
-                  //"</DESCRIPTION>",REPEAT(" ",l3)//"</ITEM>"
-          END DO
-          WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"</ENUMERATION>"
-       CASE (no_t)
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DATA_TYPE kind=""non-standard type"">"
-       CASE DEFAULT
-          CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
-       END SELECT
-
-       short_string = ""
-       WRITE (UNIT=short_string,FMT="(I8)") keyword%n_var
+    IF (keyword%names(1) == "_SECTION_PARAMETERS_") THEN
        WRITE (UNIT=unit_number,FMT="(A)")&
-            REPEAT(" ",l2)//"<N_VAR>"//TRIM(ADJUSTL(short_string))//"</N_VAR>",&
-            REPEAT(" ",l1)//"</DATA_TYPE>"
+            REPEAT(" ",l0)//"<SECTION_PARAMETERS repeats="""//TRIM(repeats)//""">",&
+            REPEAT(" ",l1)//"<NAME type=""default"">SECTION_PARAMETERS</NAME>"
+    ELSE IF (keyword%names(1) == "_DEFAULT_KEYWORD_") THEN
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l0)//"<DEFAULT_KEYWORD repeats="""//TRIM(repeats)//""">",&
+            REPEAT(" ",l1)//"<NAME type=""default"">DEFAULT_KEYWORD</NAME>"
+    ELSE
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l0)//"<KEYWORD repeats="""//TRIM(repeats)//""">",&
+            REPEAT(" ",l1)//"<NAME type=""default"">"//&
+            TRIM(keyword%names(1))//"</NAME>"
+    END IF
 
-       WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<USAGE>"//&
-            TRIM(substitute_special_xml_tokens(keyword%usage))&
-            //"</USAGE>"
+    DO i=2,SIZE(keyword%names)
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l1)//"<NAME type=""alias"">"//&
+            TRIM(keyword%names(i))//"</NAME>"
+    END DO
 
-       WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<DESCRIPTION>"//&
-            TRIM(substitute_special_xml_tokens(a2s(keyword%description)))&
-            //"</DESCRIPTION>"
-
-       IF (ASSOCIATED(keyword%default_value).AND.&
-            (keyword%type_of_var /= no_t)) THEN
-          IF (ASSOCIATED(keyword%unit)) THEN
-             CALL val_write_internal(val=keyword%default_value,&
-                  string=string,&
-                  unit=keyword%unit,&
-                  error=error)
-          ELSE
-             CALL val_write_internal(val=keyword%default_value,&
-                  string=string,&
-                  error=error)
-          END IF
-          CALL compress(string)
+    SELECT CASE(keyword%type_of_var)
+    CASE (logical_t)
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l1)//"<DATA_TYPE kind=""logical"">"
+    CASE (integer_t)
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l1)//"<DATA_TYPE kind=""integer"">"
+    CASE (real_t)
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l1)//"<DATA_TYPE kind=""real"">"
+    CASE (char_t)
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l1)//"<DATA_TYPE kind=""word"">"
+    CASE (lchar_t)
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l1)//"<DATA_TYPE kind=""string"">"
+    CASE (enum_t)
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l1)//"<DATA_TYPE kind=""keyword"">"
+       IF (keyword%enum%strict) THEN
           WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DEFAULT_VALUE>"//&
-               TRIM(ADJUSTL(string))//"</DEFAULT_VALUE>"
+               REPEAT(" ",l2)//"<ENUMERATION strict=""yes"">"
+       ELSE
+          WRITE (UNIT=unit_number,FMT="(A)")&
+               REPEAT(" ",l2)//"<ENUMERATION strict=""no"">"
        END IF
+       DO i=1,SIZE(keyword%enum%c_vals)
+          WRITE (UNIT=unit_number,FMT="(A)")&
+               REPEAT(" ",l3)//"<ITEM>",&
+               REPEAT(" ",l4)//"<NAME>"//&
+               TRIM(ADJUSTL(keyword%enum%c_vals(i)))//"</NAME>",&
+               REPEAT(" ",l4)//"<DESCRIPTION>"//&
+               TRIM(ADJUSTL(substitute_special_xml_tokens(a2s(keyword%enum%desc(i)%chars))))&
+               //"</DESCRIPTION>",REPEAT(" ",l3)//"</ITEM>"
+       END DO
+       WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l2)//"</ENUMERATION>"
+    CASE (no_t)
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l1)//"<DATA_TYPE kind=""non-standard type"">"
+    CASE DEFAULT
+       CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
+    END SELECT
 
+    short_string = ""
+    WRITE (UNIT=short_string,FMT="(I8)") keyword%n_var
+    WRITE (UNIT=unit_number,FMT="(A)")&
+         REPEAT(" ",l2)//"<N_VAR>"//TRIM(ADJUSTL(short_string))//"</N_VAR>",&
+         REPEAT(" ",l1)//"</DATA_TYPE>"
+
+    WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<USAGE>"//&
+         TRIM(substitute_special_xml_tokens(keyword%usage))&
+         //"</USAGE>"
+
+    WRITE (UNIT=unit_number,FMT="(A)") REPEAT(" ",l1)//"<DESCRIPTION>"//&
+         TRIM(substitute_special_xml_tokens(a2s(keyword%description)))&
+         //"</DESCRIPTION>"
+
+    IF (ASSOCIATED(keyword%default_value).AND.&
+         (keyword%type_of_var /= no_t)) THEN
        IF (ASSOCIATED(keyword%unit)) THEN
-          string = cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<DEFAULT_UNIT>"//&
-               TRIM(ADJUSTL(string))//"</DEFAULT_UNIT>"
-       END IF
-
-       IF (ASSOCIATED(keyword%lone_keyword_value).AND.&
-            (keyword%type_of_var /= no_t)) THEN
-          CALL val_write_internal(val=keyword%lone_keyword_value,&
+          CALL val_write_internal(val=keyword%default_value,&
+               string=string,&
+               unit=keyword%unit,&
+               error=error)
+       ELSE
+          CALL val_write_internal(val=keyword%default_value,&
                string=string,&
                error=error)
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l1)//"<LONE_KEYWORD_VALUE>"//&
-               TRIM(ADJUSTL(string))//"</LONE_KEYWORD_VALUE>"
        END IF
-
-       IF (ASSOCIATED(keyword%citations)) THEN
-          DO i=1,SIZE(keyword%citations,1)
-             short_string = ""
-             WRITE (UNIT=short_string,FMT="(I8)") keyword%citations(i)
-             WRITE (UNIT=unit_number,FMT="(A)")&
-                  REPEAT(" ",l1)//"<REFERENCE>",&
-                  REPEAT(" ",l2)//"<NAME>"//TRIM(get_citation_key(keyword%citations(i)))//"</NAME>",&
-                  REPEAT(" ",l2)//"<NUMBER>"//TRIM(ADJUSTL(short_string))//"</NUMBER>",&
-                  REPEAT(" ",l1)//"</REFERENCE>"
-          END DO
-       END IF
-
-       ! Close (special) keyword section
-
-       IF (keyword%names(1) == "_SECTION_PARAMETERS_") THEN
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l0)//"</SECTION_PARAMETERS>"
-       ELSE IF (keyword%names(1) == "_DEFAULT_KEYWORD_") THEN
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l0)//"</DEFAULT_KEYWORD>"
-       ELSE
-          WRITE (UNIT=unit_number,FMT="(A)")&
-               REPEAT(" ",l0)//"</KEYWORD>"
-       END IF
-
+       CALL compress(string)
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l1)//"<DEFAULT_VALUE>"//&
+            TRIM(ADJUSTL(string))//"</DEFAULT_VALUE>"
     END IF
+
+    IF (ASSOCIATED(keyword%unit)) THEN
+       string = cp_unit_desc(keyword%unit,accept_undefined=.TRUE.,error=error)
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l1)//"<DEFAULT_UNIT>"//&
+            TRIM(ADJUSTL(string))//"</DEFAULT_UNIT>"
+    END IF
+
+    IF (ASSOCIATED(keyword%lone_keyword_value).AND.&
+         (keyword%type_of_var /= no_t)) THEN
+       CALL val_write_internal(val=keyword%lone_keyword_value,&
+            string=string,&
+            error=error)
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l1)//"<LONE_KEYWORD_VALUE>"//&
+            TRIM(ADJUSTL(string))//"</LONE_KEYWORD_VALUE>"
+    END IF
+
+    IF (ASSOCIATED(keyword%citations)) THEN
+       DO i=1,SIZE(keyword%citations,1)
+          short_string = ""
+          WRITE (UNIT=short_string,FMT="(I8)") keyword%citations(i)
+          WRITE (UNIT=unit_number,FMT="(A)")&
+               REPEAT(" ",l1)//"<REFERENCE>",&
+               REPEAT(" ",l2)//"<NAME>"//TRIM(get_citation_key(keyword%citations(i)))//"</NAME>",&
+               REPEAT(" ",l2)//"<NUMBER>"//TRIM(ADJUSTL(short_string))//"</NUMBER>",&
+               REPEAT(" ",l1)//"</REFERENCE>"
+       END DO
+    END IF
+
+    ! Close (special) keyword section
+
+    IF (keyword%names(1) == "_SECTION_PARAMETERS_") THEN
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l0)//"</SECTION_PARAMETERS>"
+    ELSE IF (keyword%names(1) == "_DEFAULT_KEYWORD_") THEN
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l0)//"</DEFAULT_KEYWORD>"
+    ELSE
+       WRITE (UNIT=unit_number,FMT="(A)")&
+            REPEAT(" ",l0)//"</KEYWORD>"
+    END IF
+
 
   END SUBROUTINE write_keyword_xml
 
@@ -1065,48 +1051,46 @@ CONTAINS
     CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
     CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
 
-       DO i=1,SIZE(keyword%names)
-          imatch=typo_match(TRIM(keyword%names(i)),TRIM(unknown_string))
-          IF (imatch>0) THEN
-             WRITE(line,'(T2,A)') " keyword "//TRIM(keyword%names(i))//" in section "//TRIM(location_string)
-             imax=SIZE(matching_rank,1)
-             irank=imax+1
-             DO k=imax,1,-1
-                IF (imatch>matching_rank(k)) irank=k
-             ENDDO
-             IF (irank<=imax) THEN
-                matching_rank(irank+1:imax)=matching_rank(irank:imax-1)
-                matching_string(irank+1:imax)=matching_string(irank:imax-1)
-                matching_rank(irank)=imatch
-                matching_string(irank)=line
-             ENDIF
-          END IF
+    DO i=1,SIZE(keyword%names)
+       imatch=typo_match(TRIM(keyword%names(i)),TRIM(unknown_string))
+       IF (imatch>0) THEN
+          WRITE(line,'(T2,A)') " keyword "//TRIM(keyword%names(i))//" in section "//TRIM(location_string)
+          imax=SIZE(matching_rank,1)
+          irank=imax+1
+          DO k=imax,1,-1
+             IF (imatch>matching_rank(k)) irank=k
+          ENDDO
+          IF (irank<=imax) THEN
+             matching_rank(irank+1:imax)=matching_rank(irank:imax-1)
+             matching_string(irank+1:imax)=matching_string(irank:imax-1)
+             matching_rank(irank)=imatch
+             matching_string(irank)=line
+          ENDIF
+       END IF
 
-          IF (keyword%type_of_var==enum_t) THEN
-             DO j=1,SIZE(keyword%enum%c_vals)
-                imatch=typo_match(TRIM(keyword%enum%c_vals(j)),TRIM(unknown_string))
-                IF (imatch>0) THEN
-                   WRITE(line,'(T2,A)')        " enum "//TRIM(keyword%enum%c_vals(j))//&
-                        " in section "//TRIM(location_string)// &
-                        " for keyword "//TRIM(keyword%names(i))
-                   imax=SIZE(matching_rank,1)
-                   irank=imax+1
-                   DO k=imax,1,-1
-                      IF (imatch>matching_rank(k)) irank=k
-                   ENDDO
-                   IF (irank<=imax) THEN
-                      matching_rank(irank+1:imax)=matching_rank(irank:imax-1)
-                      matching_string(irank+1:imax)=matching_string(irank:imax-1)
-                      matching_rank(irank)=imatch
-                      matching_string(irank)=line
-                   ENDIF
-                END IF
-             END DO
-          END IF
-       ENDDO
-    END IF
+       IF (keyword%type_of_var==enum_t) THEN
+          DO j=1,SIZE(keyword%enum%c_vals)
+             imatch=typo_match(TRIM(keyword%enum%c_vals(j)),TRIM(unknown_string))
+             IF (imatch>0) THEN
+                WRITE(line,'(T2,A)')        " enum "//TRIM(keyword%enum%c_vals(j))//&
+                     " in section "//TRIM(location_string)// &
+                     " for keyword "//TRIM(keyword%names(i))
+                imax=SIZE(matching_rank,1)
+                irank=imax+1
+                DO k=imax,1,-1
+                   IF (imatch>matching_rank(k)) irank=k
+                ENDDO
+                IF (irank<=imax) THEN
+                   matching_rank(irank+1:imax)=matching_rank(irank:imax-1)
+                   matching_string(irank+1:imax)=matching_string(irank:imax-1)
+                   matching_rank(irank)=imatch
+                   matching_string(irank)=line
+                ENDIF
+             END IF
+          END DO
+       END IF
+    ENDDO
 
   END SUBROUTINE keyword_typo_match
 

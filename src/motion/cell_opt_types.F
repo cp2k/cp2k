@@ -87,35 +87,33 @@ CONTAINS
     CPPostcondition(.NOT.ASSOCIATED(cell_env),cp_failure_level,routineP,error,failure)
     ALLOCATE(cell_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       NULLIFY(cell_env%ref_cell,cell,subsys,particles)
-       cell_env%ref_count=1
-       last_cell_opt_env_id=last_cell_opt_env_id+1
-       cell_env%id_nr=last_cell_opt_env_id
-       CALL force_env_get(force_env, cell=cell, subsys=subsys, error=error)
-       CALL cell_create(cell_env%ref_cell,error=error)
-       CALL cell_clone(cell, cell_env%ref_cell, error)
-       CALL section_vals_val_get(geo_section,"KEEP_ANGLES",l_val=cell_env%keep_angles,error=error)
-       CALL section_vals_val_get(geo_section,"KEEP_SYMMETRY",l_val=cell_env%keep_symmetry,error=error)
-       CALL section_vals_val_get(geo_section,"PRESSURE_TOLERANCE",r_val=cell_env%pres_tol,error=error)
+    NULLIFY(cell_env%ref_cell,cell,subsys,particles)
+    cell_env%ref_count=1
+    last_cell_opt_env_id=last_cell_opt_env_id+1
+    cell_env%id_nr=last_cell_opt_env_id
+    CALL force_env_get(force_env, cell=cell, subsys=subsys, error=error)
+    CALL cell_create(cell_env%ref_cell,error=error)
+    CALL cell_clone(cell, cell_env%ref_cell, error)
+    CALL section_vals_val_get(geo_section,"KEEP_ANGLES",l_val=cell_env%keep_angles,error=error)
+    CALL section_vals_val_get(geo_section,"KEEP_SYMMETRY",l_val=cell_env%keep_symmetry,error=error)
+    CALL section_vals_val_get(geo_section,"PRESSURE_TOLERANCE",r_val=cell_env%pres_tol,error=error)
 
-       ! First let's rotate the cell vectors in order to have an upper triangular matrix.
-       CALL get_ut_cell_matrix(cell, error)
+    ! First let's rotate the cell vectors in order to have an upper triangular matrix.
+    CALL get_ut_cell_matrix(cell, error)
 
-       ! Compute the rotation matrix that give the cell vectors in the "canonical" orientation
-       cell_env%rot_matrix = MATMUL(cell_env%ref_cell%hmat,cell%h_inv)
+    ! Compute the rotation matrix that give the cell vectors in the "canonical" orientation
+    cell_env%rot_matrix = MATMUL(cell_env%ref_cell%hmat,cell%h_inv)
 
-       ! Get the external pressure
-       CALL read_external_press_tensor(geo_section,cell,cell_env%pres_ext,cell_env%mtrx,&
-            cell_env%rot_matrix, error)
+    ! Get the external pressure
+    CALL read_external_press_tensor(geo_section,cell,cell_env%pres_ext,cell_env%mtrx,&
+         cell_env%rot_matrix, error)
 
-       ! Rotate particles accordingly
-       CALL cp_subsys_get(subsys, particles=particles, error=error)
-       DO ip=1,particles%n_els
-          r = MATMUL(TRANSPOSE(cell_env%rot_matrix),particles%els(ip)%r)
-          particles%els(ip)%r = r
-       END DO
-    END IF
+    ! Rotate particles accordingly
+    CALL cp_subsys_get(subsys, particles=particles, error=error)
+    DO ip=1,particles%n_els
+       r = MATMUL(TRANSPOSE(cell_env%rot_matrix),particles%els(ip)%r)
+       particles%els(ip)%r = r
+    END DO
   END SUBROUTINE cell_opt_env_create
 
 ! *****************************************************************************
@@ -137,10 +135,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(cell_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPreconditionNoFail(cell_env%ref_count>0,cp_failure_level,routineP,error)
-       cell_env%ref_count=cell_env%ref_count+1
-    END IF
+    CPPreconditionNoFail(cell_env%ref_count>0,cp_failure_level,routineP,error)
+    cell_env%ref_count=cell_env%ref_count+1
   END SUBROUTINE cell_opt_env_retain
 
 ! *****************************************************************************

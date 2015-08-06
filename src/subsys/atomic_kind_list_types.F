@@ -118,30 +118,26 @@ SUBROUTINE atomic_kind_list_create(list, els_ptr, &
 
   CPPrecondition(PRESENT(els_ptr).OR.PRESENT(n_els),cp_failure_level,routineP,error,failure)
 
-  IF (.NOT. failure) THEN
-     ALLOCATE(list, stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  ALLOCATE(list, stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  last_atomic_kind_list_id=last_atomic_kind_list_id+1
+  list%id_nr=last_atomic_kind_list_id
+  list%ref_count=1
+  list%owns_els=.TRUE.
+  list%n_els=0
+  IF (PRESENT(owns_els)) list%owns_els=owns_els
+  NULLIFY(list%els)
+  IF (PRESENT(els_ptr)) THEN
+     list%els => els_ptr
+     IF (ASSOCIATED(els_ptr)) THEN
+        list%n_els=SIZE(els_ptr)
+     END IF
   END IF
-  IF (.NOT. failure) THEN
-     last_atomic_kind_list_id=last_atomic_kind_list_id+1
-     list%id_nr=last_atomic_kind_list_id
-     list%ref_count=1
-     list%owns_els=.TRUE.
-     list%n_els=0
-     IF (PRESENT(owns_els)) list%owns_els=owns_els
-     NULLIFY(list%els)
-     IF (PRESENT(els_ptr)) THEN
-        list%els => els_ptr
-        IF (ASSOCIATED(els_ptr)) THEN
-           list%n_els=SIZE(els_ptr)
-        END IF
-     END IF
-     IF (PRESENT(n_els)) list%n_els=n_els
-     IF (.NOT.ASSOCIATED(list%els)) THEN
-        ALLOCATE(list%els(list%n_els),stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        CPPreconditionNoFail(list%owns_els,cp_warning_level,routineP,error)
-     END IF
+  IF (PRESENT(n_els)) list%n_els=n_els
+  IF (.NOT.ASSOCIATED(list%els)) THEN
+     ALLOCATE(list%els(list%n_els),stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     CPPreconditionNoFail(list%owns_els,cp_warning_level,routineP,error)
   END IF
 END SUBROUTINE atomic_kind_list_create
 
@@ -166,10 +162,8 @@ SUBROUTINE atomic_kind_list_retain(list, error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(list),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(list%ref_count>0,cp_failure_level,routineP,error,failure)
-     list%ref_count=list%ref_count+1
-  END IF
+  CPPrecondition(list%ref_count>0,cp_failure_level,routineP,error,failure)
+  list%ref_count=list%ref_count+1
 END SUBROUTINE atomic_kind_list_retain
 
 ! *****************************************************************************

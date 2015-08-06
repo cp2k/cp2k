@@ -63,21 +63,19 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
     ALLOCATE(para_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-      para_env%group=group
-      para_env%source=0
-      para_env%ref_count=1
-      para_env%owns_group=.TRUE.
-      IF (PRESENT(source)) para_env%source=source
-      IF (PRESENT(owns_group)) para_env%owns_group=owns_group
-      IF (.NOT.(PRESENT(mepos).AND.PRESENT(num_pe))) THEN
-         CALL cp_para_env_update(para_env,error=error)
-      ELSE
-         para_env%mepos=mepos
-         para_env%num_pe=num_pe
-      END IF
-      para_env%ionode=para_env%mepos==para_env%source
+    para_env%group=group
+    para_env%source=0
+    para_env%ref_count=1
+    para_env%owns_group=.TRUE.
+    IF (PRESENT(source)) para_env%source=source
+    IF (PRESENT(owns_group)) para_env%owns_group=owns_group
+    IF (.NOT.(PRESENT(mepos).AND.PRESENT(num_pe))) THEN
+       CALL cp_para_env_update(para_env,error=error)
+    ELSE
+       para_env%mepos=mepos
+       para_env%num_pe=num_pe
     END IF
+    para_env%ionode=para_env%mepos==para_env%source
   END SUBROUTINE cp_para_env_create
 
 ! *****************************************************************************
@@ -102,10 +100,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-      CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
-      para_env%ref_count=para_env%ref_count+1
-    END IF
+    CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    para_env%ref_count=para_env%ref_count+1
   END SUBROUTINE cp_para_env_retain
 
 ! *****************************************************************************
@@ -168,14 +164,10 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-      CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-      CALL mp_environ(taskid=para_env%mepos,numtask=para_env%num_pe,&
-           groupid=para_env%group)
-      para_env%ionode=para_env%mepos==para_env%source
-    END IF
+    CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CALL mp_environ(taskid=para_env%mepos,numtask=para_env%num_pe,&
+         groupid=para_env%group)
+    para_env%ionode=para_env%mepos==para_env%source
   END SUBROUTINE cp_para_env_update
 
 ! *****************************************************************************
@@ -253,23 +245,21 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group, error)
     CPPrecondition(.NOT.ASSOCIATED(cart),cp_failure_level,routineP,error,failure)
     ALLOCATE(cart,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       cart%owns_group=.TRUE.
-       IF (PRESENT(owns_group)) cart%owns_group=owns_group
-       cart%ndims=ndims
-       cart%group=group
+    cart%owns_group=.TRUE.
+    IF (PRESENT(owns_group)) cart%owns_group=owns_group
+    cart%ndims=ndims
+    cart%group=group
 
-       ALLOCATE(cart%source(ndims),cart%periodic(ndims),cart%mepos(ndims),&
-            cart%num_pe(ndims),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    ALLOCATE(cart%source(ndims),cart%periodic(ndims),cart%mepos(ndims),&
+         cart%num_pe(ndims),stat=stat)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
 
-       cart%source=0
-       cart%mepos=0
-       cart%periodic=.FALSE.
-       cart%ref_count=1
-       cart%ntask=1
-       CALL cp_cart_update(cart,error=error)
-    END IF
+    cart%source=0
+    cart%mepos=0
+    cart%periodic=.FALSE.
+    cart%ref_count=1
+    cart%ntask=1
+    CALL cp_cart_update(cart,error=error)
   END SUBROUTINE cp_cart_create
 
 ! *****************************************************************************
@@ -292,11 +282,9 @@ SUBROUTINE cp_cart_update(cart,error)
 
   CPPrecondition(ASSOCIATED(cart),cp_failure_level,routineP,error,failure)
   CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CALL mp_environ( cart%group, cart%ndims, cart%num_pe, task_coor=cart%mepos, &
-          periods=cart%periodic)
-     CALL mp_environ( numtask=cart%ntask, taskid=cart%rank, groupid=cart%group)
-  END IF
+  CALL mp_environ( cart%group, cart%ndims, cart%num_pe, task_coor=cart%mepos, &
+       periods=cart%periodic)
+  CALL mp_environ( numtask=cart%ntask, taskid=cart%rank, groupid=cart%group)
 END SUBROUTINE cp_cart_update
 
 ! *****************************************************************************
@@ -353,10 +341,8 @@ SUBROUTINE cp_cart_retain(cart,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(cart),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,error,failure)
-     cart%ref_count=cart%ref_count+1
-  END IF
+  CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,error,failure)
+  cart%ref_count=cart%ref_count+1
 END SUBROUTINE cp_cart_retain
 
 ! *****************************************************************************

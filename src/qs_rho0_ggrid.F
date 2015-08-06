@@ -340,11 +340,9 @@ MODULE qs_rho0_ggrid
   END IF
   ALLOCATE(rho_rs,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     CALL pw_pool_create_pw(auxbas_pw_pool, rho_rs%pw,&
-              use_data=REALDATA3D,in_space=REALSPACE,error=error)
-     rho0_mpole%rho0_s_rs => rho_rs
-  END IF
+  CALL pw_pool_create_pw(auxbas_pw_pool, rho_rs%pw,&
+           use_data=REALDATA3D,in_space=REALSPACE,error=error)
+  rho0_mpole%rho0_s_rs => rho_rs
 
   ! rho0 density in reciprocal space
   IF (ASSOCIATED(rho_gs)) THEN
@@ -354,12 +352,10 @@ MODULE qs_rho0_ggrid
   END IF
   ALLOCATE(rho_gs,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     CALL pw_pool_create_pw(auxbas_pw_pool, rho_gs%pw, &
-          use_data=COMPLEXDATA1D, error=error)
-     rho_gs%pw%in_space=RECIPROCALSPACE
-     rho0_mpole%rho0_s_gs => rho_gs
-  END IF
+  CALL pw_pool_create_pw(auxbas_pw_pool, rho_gs%pw, &
+       use_data=COMPLEXDATA1D, error=error)
+  rho_gs%pw%in_space=RECIPROCALSPACE
+  rho0_mpole%rho0_s_gs => rho_gs
 
   IF(my_tddft) THEN
     rho0_mpole%igrid_zet0_s = qs_env%local_rho_set%rho0_mpole%igrid_zet0_s

@@ -241,12 +241,10 @@ CONTAINS
     CALL section_vals_get(colvar_section,n_repetition=ncol,error=error)
     ALLOCATE(subsys%colvar_p(ncol),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       DO ig= 1, ncol
-          NULLIFY(subsys%colvar_p(ig)%colvar)
-          CALL colvar_read(subsys%colvar_p(ig)%colvar,ig,colvar_section, subsys%para_env, error=error)
-       ENDDO
-    ENDIF
+    DO ig= 1, ncol
+       NULLIFY(subsys%colvar_p(ig)%colvar)
+       CALL colvar_read(subsys%colvar_p(ig)%colvar,ig,colvar_section, subsys%para_env, error=error)
+    ENDDO
   END SUBROUTINE cp_subsys_read_colvar
 
 ! *****************************************************************************
@@ -317,110 +315,108 @@ CONTAINS
          cp_failure_level, cp_assertion_failed, routineP, &
          "big_subsys%para_env%group==small_para_env%group",error,failure)
 
-    IF (.NOT. failure) THEN
-       !-----------------------------------------------------------------------------
-       !-----------------------------------------------------------------------------
-       ! 1. Initialize the topology structure type
-       !-----------------------------------------------------------------------------
-       CALL init_topology(topology,error)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 1. Initialize the topology structure type
+    !-----------------------------------------------------------------------------
+    CALL init_topology(topology,error)
 
-       !-----------------------------------------------------------------------------
-       !-----------------------------------------------------------------------------
-       ! 2. Get the cell info
-       !-----------------------------------------------------------------------------
-       topology%cell=> small_cell
-       CALL cell_retain(small_cell,error=error)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 2. Get the cell info
+    !-----------------------------------------------------------------------------
+    topology%cell=> small_cell
+    CALL cell_retain(small_cell,error=error)
 
-       !-----------------------------------------------------------------------------
-       !-----------------------------------------------------------------------------
-       ! 3. Initialize atom coords from the bigger system
-       !-----------------------------------------------------------------------------
-       nat=SIZE(sub_atom_index)
-       topology%natoms=nat
-       CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%r),cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_atmname),cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_molname),cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_resname),cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_mass),cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_charge),cp_failure_level,routineP,error,failure)
-       ALLOCATE(topology%atom_info%r(3,nat),topology%atom_info%id_atmname(nat),&
-            topology%atom_info%id_molname(nat),topology%atom_info%id_resname(nat),&
-            topology%atom_info%id_element(nat), topology%atom_info%atm_mass(nat),&
-            topology%atom_info%atm_charge(nat),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 3. Initialize atom coords from the bigger system
+    !-----------------------------------------------------------------------------
+    nat=SIZE(sub_atom_index)
+    topology%natoms=nat
+    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%r),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_atmname),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_molname),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_resname),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_mass),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_charge),cp_failure_level,routineP,error,failure)
+    ALLOCATE(topology%atom_info%r(3,nat),topology%atom_info%id_atmname(nat),&
+         topology%atom_info%id_molname(nat),topology%atom_info%id_resname(nat),&
+         topology%atom_info%id_element(nat), topology%atom_info%atm_mass(nat),&
+         topology%atom_info%atm_charge(nat),stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       CALL cp_subsys_get(big_subsys, particles=particles, error=error)
-       DO iat=1,nat
-          topology%atom_info%r(:,iat)=particles%els(sub_atom_index(iat))%r
-          topology%atom_info%id_atmname(iat)=str2id(s2s(sub_atom_kind_name(iat)))
-          topology%atom_info%id_molname(iat)=topology%atom_info%id_atmname(iat)
-          topology%atom_info%id_resname(iat)=topology%atom_info%id_atmname(iat)
-          !
-          ! Defining element
-          !
-          id_ = INDEX(id2str(topology%atom_info%id_atmname(iat)),"_")-1
-          IF ( id_ == -1 ) id_ = LEN_TRIM(id2str(topology%atom_info%id_atmname(iat)))
-          strtmp1=id2str(topology%atom_info%id_atmname(iat))
-          strtmp1=strtmp1(1:id_)
-          CALL check_subsys_element(strtmp1,strtmp1, my_element,&
-               subsys_section,use_mm_map_first=.FALSE.,error=error)
-          topology%atom_info%id_element(iat)=str2id(s2s(my_element))
-          topology%atom_info%atm_mass(iat)=0._dp
-          topology%atom_info%atm_charge(iat)=0._dp
-       END DO
-       topology%conn_type=do_conn_off
+    CALL cp_subsys_get(big_subsys, particles=particles, error=error)
+    DO iat=1,nat
+       topology%atom_info%r(:,iat)=particles%els(sub_atom_index(iat))%r
+       topology%atom_info%id_atmname(iat)=str2id(s2s(sub_atom_kind_name(iat)))
+       topology%atom_info%id_molname(iat)=topology%atom_info%id_atmname(iat)
+       topology%atom_info%id_resname(iat)=topology%atom_info%id_atmname(iat)
+       !
+       ! Defining element
+       !
+       id_ = INDEX(id2str(topology%atom_info%id_atmname(iat)),"_")-1
+       IF ( id_ == -1 ) id_ = LEN_TRIM(id2str(topology%atom_info%id_atmname(iat)))
+       strtmp1=id2str(topology%atom_info%id_atmname(iat))
+       strtmp1=strtmp1(1:id_)
+       CALL check_subsys_element(strtmp1,strtmp1, my_element,&
+            subsys_section,use_mm_map_first=.FALSE.,error=error)
+       topology%atom_info%id_element(iat)=str2id(s2s(my_element))
+       topology%atom_info%atm_mass(iat)=0._dp
+       topology%atom_info%atm_charge(iat)=0._dp
+    END DO
+    topology%conn_type=do_conn_off
 
-       !-----------------------------------------------------------------------------
-       !-----------------------------------------------------------------------------
-       ! 4. Read in or generate the molecular connectivity
-       !-----------------------------------------------------------------------------
-       CALL connectivity_control(topology,para_env,subsys_section=subsys_section,&
-            force_env_section=force_env_section,error=error)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 4. Read in or generate the molecular connectivity
+    !-----------------------------------------------------------------------------
+    CALL connectivity_control(topology,para_env,subsys_section=subsys_section,&
+         force_env_section=force_env_section,error=error)
 
-       !-----------------------------------------------------------------------------
-       !-----------------------------------------------------------------------------
-       ! 5. Pack everything into the molecular types
-       !-----------------------------------------------------------------------------
-       CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
-            topology,subsys_section=subsys_section,error=error)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 5. Pack everything into the molecular types
+    !-----------------------------------------------------------------------------
+    CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
+         topology,subsys_section=subsys_section,error=error)
 
-       !-----------------------------------------------------------------------------
-       !-----------------------------------------------------------------------------
-       ! 6. Pack everything into the atomic types
-       !-----------------------------------------------------------------------------
-       CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
-            molecule_kind_set,molecule_set,topology,subsys_section=subsys_section,&
-            force_env_section=force_env_section,ignore_outside_box=ignore_outside_box,&
-            error=error)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 6. Pack everything into the atomic types
+    !-----------------------------------------------------------------------------
+    CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
+         molecule_kind_set,molecule_set,topology,subsys_section=subsys_section,&
+         force_env_section=force_env_section,ignore_outside_box=ignore_outside_box,&
+         error=error)
 
-       !-----------------------------------------------------------------------------
-       !-----------------------------------------------------------------------------
-       ! 7. Cleanup the topology structure type
-       !-----------------------------------------------------------------------------
-       CALL deallocate_topology(topology,error=error)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 7. Cleanup the topology structure type
+    !-----------------------------------------------------------------------------
+    CALL deallocate_topology(topology,error=error)
 
-       !-----------------------------------------------------------------------------
-       !-----------------------------------------------------------------------------
-       ! 8. Allocate new subsys
-       !-----------------------------------------------------------------------------
-       ALLOCATE(small_subsys)
-       CALL cp_para_env_retain(para_env,error=error)
-       small_subsys%para_env => para_env
-       CALL particle_list_create(particles,els_ptr=particle_set,error=error)
-       CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
-       CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
-       CALL mol_kind_new_list_create(mol_kinds,els_ptr=molecule_kind_set,error=error)
-       CALL cp_subsys_set(small_subsys,particles=particles,atomic_kinds=atomic_kinds,&
-            molecules_new=mols,molecule_kinds_new=mol_kinds,error=error)
-       CALL particle_list_release(particles,error=error)
-       CALL atomic_kind_list_release(atomic_kinds,error=error)
-       CALL mol_new_list_release(mols,error=error)
-       CALL mol_kind_new_list_release(mol_kinds,error=error)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 8. Allocate new subsys
+    !-----------------------------------------------------------------------------
+    ALLOCATE(small_subsys)
+    CALL cp_para_env_retain(para_env,error=error)
+    small_subsys%para_env => para_env
+    CALL particle_list_create(particles,els_ptr=particle_set,error=error)
+    CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
+    CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
+    CALL mol_kind_new_list_create(mol_kinds,els_ptr=molecule_kind_set,error=error)
+    CALL cp_subsys_set(small_subsys,particles=particles,atomic_kinds=atomic_kinds,&
+         molecules_new=mols,molecule_kinds_new=mol_kinds,error=error)
+    CALL particle_list_release(particles,error=error)
+    CALL atomic_kind_list_release(atomic_kinds,error=error)
+    CALL mol_new_list_release(mols,error=error)
+    CALL mol_kind_new_list_release(mol_kinds,error=error)
 
-       CALL virial_create(small_subsys%virial, error=error)
-       CALL atprop_create(small_subsys%atprop,error)
-       CALL cp_result_create(small_subsys%results,error=error)
-    END IF
+    CALL virial_create(small_subsys%virial, error=error)
+    CALL atprop_create(small_subsys%atprop,error)
+    CALL cp_result_create(small_subsys%results,error=error)
   END SUBROUTINE create_small_subsys
 
 END MODULE cp_subsys_methods

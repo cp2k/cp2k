@@ -524,11 +524,9 @@ SUBROUTINE cp_c_ext_method_set_ptr(f_env_id,func,ierr) BIND(C,name="cp_c_ext_met
   failure = .FALSE.
   NULLIFY (f_env)
   CALL f_env_add_defaults(f_env_id,f_env,error,failure)
-  IF (.NOT. failure) THEN
-     CALL force_env_get(f_env%force_env,in_use=in_use,error=error)
-     IF (in_use .EQ. use_qs_force) THEN
-         f_env%force_env%qs_env%transport_env%ext_c_method_ptr = func
-     END IF
+  CALL force_env_get(f_env%force_env,in_use=in_use,error=error)
+  IF (in_use .EQ. use_qs_force) THEN
+      f_env%force_env%qs_env%transport_env%ext_c_method_ptr = func
   END IF
   CALL f_env_rm_defaults(f_env,error,ierr) 
 END SUBROUTINE cp_c_ext_method_set_ptr

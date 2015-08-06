@@ -98,38 +98,36 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pw
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       !
-       ! Setting Up Fit Procedure
-       !
-       CPPrecondition(.NOT.ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
-       CPPrecondition(.NOT.ASSOCIATED(coeff),cp_failure_level,routineP,error,failure)
-       NULLIFY(cell, pw)
+    !
+    ! Setting Up Fit Procedure
+    !
+    CPPrecondition(.NOT.ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(coeff),cp_failure_level,routineP,error,failure)
+    NULLIFY(cell, pw)
 
-       CALL cell_create(cell, hmat=hmat, periodic=(/1,1,1/), error=error)
-       CALL pw_grid_create( pw_grid, para_env%group, local=.TRUE., error=error )
-       logger => cp_error_get_logger(error)
-       iounit = cp_print_key_unit_nr(logger,print_section,"",&
-            extension=".Log",error=error)
-       bo ( 1, 1:3 ) = 0
-       bo ( 2, 1:3 ) = npts(1:3) - 1
-       CALL pw_grid_setup (cell%hmat, pw_grid, grid_span=HALFSPACE, bounds=bo, iounit=iounit, error=error)
+    CALL cell_create(cell, hmat=hmat, periodic=(/1,1,1/), error=error)
+    CALL pw_grid_create( pw_grid, para_env%group, local=.TRUE., error=error )
+    logger => cp_error_get_logger(error)
+    iounit = cp_print_key_unit_nr(logger,print_section,"",&
+         extension=".Log",error=error)
+    bo ( 1, 1:3 ) = 0
+    bo ( 2, 1:3 ) = npts(1:3) - 1
+    CALL pw_grid_setup (cell%hmat, pw_grid, grid_span=HALFSPACE, bounds=bo, iounit=iounit, error=error)
 
-       CALL cp_print_key_finished_output(iounit,logger,print_section,&
-           "",error=error)
-       ! pw_pool initialized
-       CALL pw_pool_create(pw_pool, pw_grid=pw_grid, error=error)
-       CALL pw_pool_create_pw ( pw_pool, pw, use_data = REALDATA3D, in_space = REALSPACE,&
-            error=error)
-       CALL pw_pool_create_pw ( pw_pool, coeff, use_data = REALDATA3D, in_space = REALSPACE,&
-            error=error)
-       ! Evaluate function on grid
-       CALL eval_pw_TabLR ( pw, pw_pool, coeff, Lg, gx, gy, gz, hmat_mm=hmat,&
-            param_section=param_section, tag=tag, error=error)
-       CALL pw_pool_give_back_pw ( pw_pool, pw, error=error)
-       CALL cell_release(cell , error)
-    END IF
+    CALL cp_print_key_finished_output(iounit,logger,print_section,&
+        "",error=error)
+    ! pw_pool initialized
+    CALL pw_pool_create(pw_pool, pw_grid=pw_grid, error=error)
+    CALL pw_pool_create_pw ( pw_pool, pw, use_data = REALDATA3D, in_space = REALSPACE,&
+         error=error)
+    CALL pw_pool_create_pw ( pw_pool, coeff, use_data = REALDATA3D, in_space = REALSPACE,&
+         error=error)
+    ! Evaluate function on grid
+    CALL eval_pw_TabLR ( pw, pw_pool, coeff, Lg, gx, gy, gz, hmat_mm=hmat,&
+         param_section=param_section, tag=tag, error=error)
+    CALL pw_pool_give_back_pw ( pw_pool, pw, error=error)
+    CALL cell_release(cell , error)
 
   END SUBROUTINE Setup_Ewald_Spline
 

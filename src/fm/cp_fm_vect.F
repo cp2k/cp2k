@@ -88,12 +88,10 @@ SUBROUTINE cp_fm_vect_copy(matrixes, copy, error)
 
   ALLOCATE(copy(SIZE(matrixes)),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     DO i=1,SIZE(matrixes)
-        copy(i)%matrix => matrixes(i)%matrix
-        CALL cp_fm_retain(matrixes(i)%matrix,error=error)
-     END DO
-  END IF
+  DO i=1,SIZE(matrixes)
+     copy(i)%matrix => matrixes(i)%matrix
+     CALL cp_fm_retain(matrixes(i)%matrix,error=error)
+  END DO
 END SUBROUTINE cp_fm_vect_copy
 
 ! *****************************************************************************
@@ -181,12 +179,10 @@ SUBROUTINE cp_fm_vect_set_all(matrixes,value,error)
   IF (PRESENT(value)) my_value=value
 
   CPPrecondition(ASSOCIATED(matrixes),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     DO i=1,SIZE(matrixes)
-        CPPrecondition(ASSOCIATED(matrixes(i)%matrix),cp_failure_level,routineP,error,failure)
-        CALL cp_fm_set_all(matrixes(i)%matrix,my_value,error=error)
-     END DO
-  END IF
+  DO i=1,SIZE(matrixes)
+     CPPrecondition(ASSOCIATED(matrixes(i)%matrix),cp_failure_level,routineP,error,failure)
+     CALL cp_fm_set_all(matrixes(i)%matrix,my_value,error=error)
+  END DO
 END SUBROUTINE cp_fm_vect_set_all
 
 END MODULE cp_fm_vect

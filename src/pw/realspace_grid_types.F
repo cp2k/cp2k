@@ -2179,10 +2179,8 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(rs_grid),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP,error)
-       rs_grid%ref_count=rs_grid%ref_count+1
-    END IF
+    CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP,error)
+    rs_grid%ref_count=rs_grid%ref_count+1
   END SUBROUTINE rs_grid_retain
 
 ! *****************************************************************************
@@ -2206,10 +2204,8 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(rs_desc),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(rs_desc%ref_count>0,cp_failure_level,routineP,error)
-       rs_desc%ref_count=rs_desc%ref_count+1
-    END IF
+    CPPreconditionNoFail(rs_desc%ref_count>0,cp_failure_level,routineP,error)
+    rs_desc%ref_count=rs_desc%ref_count+1
   END SUBROUTINE rs_grid_retain_descriptor
 
 ! *****************************************************************************

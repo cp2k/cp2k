@@ -182,22 +182,20 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(qs_loc_env),cp_failure_level,routineP,error,failure)
 
-    IF(.NOT. failure) THEN
-       ALLOCATE(qs_loc_env,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(qs_loc_env,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-       qs_loc_env%ref_count = 1
-       qs_loc_env%tag_mo=""
-       NULLIFY(qs_loc_env%para_env)
-       NULLIFY(qs_loc_env%cell)
-       NULLIFY(qs_loc_env%op_sm_set)
-       NULLIFY(qs_loc_env%op_fm_set)
-       NULLIFY(qs_loc_env%local_molecules)
-       NULLIFY(qs_loc_env%moloc_coeff)
-       NULLIFY(qs_loc_env%particle_set)
-       NULLIFY(qs_loc_env%localized_wfn_control)
-       qs_loc_env%weights = 0.0_dp
-    END IF
+    qs_loc_env%ref_count = 1
+    qs_loc_env%tag_mo=""
+    NULLIFY(qs_loc_env%para_env)
+    NULLIFY(qs_loc_env%cell)
+    NULLIFY(qs_loc_env%op_sm_set)
+    NULLIFY(qs_loc_env%op_fm_set)
+    NULLIFY(qs_loc_env%local_molecules)
+    NULLIFY(qs_loc_env%moloc_coeff)
+    NULLIFY(qs_loc_env%particle_set)
+    NULLIFY(qs_loc_env%localized_wfn_control)
+    qs_loc_env%weights = 0.0_dp
 
   END SUBROUTINE qs_loc_env_create
 
@@ -225,48 +223,46 @@ CONTAINS
     failure =.FALSE.
     CPPrecondition(ASSOCIATED(qs_loc_env),cp_warning_level,routineP,error,failure)
 
-    IF(.NOT. failure) THEN
-       IF(ASSOCIATED(qs_loc_env%cell)) CALL cell_release(qs_loc_env%cell,error=error)
-       IF(ASSOCIATED(qs_loc_env%local_molecules)) &
-            CALL distribution_1d_release(qs_loc_env%local_molecules,error=error)
-       IF (ASSOCIATED(qs_loc_env%localized_wfn_control)) THEN
-          CALL localized_wfn_control_release(qs_loc_env%localized_wfn_control,&
-               error=error)
-       END IF
-       IF(ASSOCIATED(qs_loc_env%para_env)) CALL cp_para_env_release(qs_loc_env%para_env,error)
-       IF(ASSOCIATED(qs_loc_env%particle_set))  NULLIFY(qs_loc_env%particle_set)
+    IF(ASSOCIATED(qs_loc_env%cell)) CALL cell_release(qs_loc_env%cell,error=error)
+    IF(ASSOCIATED(qs_loc_env%local_molecules)) &
+         CALL distribution_1d_release(qs_loc_env%local_molecules,error=error)
+    IF (ASSOCIATED(qs_loc_env%localized_wfn_control)) THEN
+       CALL localized_wfn_control_release(qs_loc_env%localized_wfn_control,&
+            error=error)
+    END IF
+    IF(ASSOCIATED(qs_loc_env%para_env)) CALL cp_para_env_release(qs_loc_env%para_env,error)
+    IF(ASSOCIATED(qs_loc_env%particle_set))  NULLIFY(qs_loc_env%particle_set)
 
-       IF(ASSOCIATED(qs_loc_env%moloc_coeff)) THEN
-          DO i=1,SIZE ( qs_loc_env % moloc_coeff,1)
-             CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix,error=error)
-          END DO
-          DEALLOCATE(qs_loc_env%moloc_coeff,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       END IF
-
-       IF(ASSOCIATED(qs_loc_env%op_fm_set)) THEN
-          DO i=1,SIZE ( qs_loc_env % op_fm_set,2)
-             DO j=1,SIZE ( qs_loc_env % op_fm_set,1)
-                CALL cp_fm_release(qs_loc_env%op_fm_set(j,i)%matrix,error=error)
-             END DO
-          END DO
-          DEALLOCATE(qs_loc_env%op_fm_set,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       END IF
-
-       IF(ASSOCIATED(qs_loc_env%op_sm_set)) THEN
-          DO i=1,SIZE ( qs_loc_env % op_sm_set, 2 )
-             DO j=1,SIZE ( qs_loc_env % op_sm_set, 1 )
-                CALL cp_dbcsr_deallocate_matrix(qs_loc_env%op_sm_set(j,i)%matrix,error=error)
-             ENDDO
-          END DO
-          DEALLOCATE(qs_loc_env%op_sm_set,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       END IF
-
-       DEALLOCATE(qs_loc_env,STAT=istat)
+    IF(ASSOCIATED(qs_loc_env%moloc_coeff)) THEN
+       DO i=1,SIZE ( qs_loc_env % moloc_coeff,1)
+          CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix,error=error)
+       END DO
+       DEALLOCATE(qs_loc_env%moloc_coeff,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
+
+    IF(ASSOCIATED(qs_loc_env%op_fm_set)) THEN
+       DO i=1,SIZE ( qs_loc_env % op_fm_set,2)
+          DO j=1,SIZE ( qs_loc_env % op_fm_set,1)
+             CALL cp_fm_release(qs_loc_env%op_fm_set(j,i)%matrix,error=error)
+          END DO
+       END DO
+       DEALLOCATE(qs_loc_env%op_fm_set,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    IF(ASSOCIATED(qs_loc_env%op_sm_set)) THEN
+       DO i=1,SIZE ( qs_loc_env % op_sm_set, 2 )
+          DO j=1,SIZE ( qs_loc_env % op_sm_set, 1 )
+             CALL cp_dbcsr_deallocate_matrix(qs_loc_env%op_sm_set(j,i)%matrix,error=error)
+          ENDDO
+       END DO
+       DEALLOCATE(qs_loc_env%op_sm_set,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    DEALLOCATE(qs_loc_env,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE qs_loc_env_destroy
 
@@ -324,10 +320,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(qs_loc_env),cp_failure_level,routineP,error,failure)
-    IF(.NOT. failure) THEN
-       CPPreconditionNoFail(qs_loc_env%ref_count>0,cp_failure_level,routineP,error)
-       qs_loc_env%ref_count = qs_loc_env%ref_count +1
-    END IF
+    CPPreconditionNoFail(qs_loc_env%ref_count>0,cp_failure_level,routineP,error)
+    qs_loc_env%ref_count = qs_loc_env%ref_count +1
   END SUBROUTINE qs_loc_env_retain
 
 
@@ -490,19 +484,17 @@ CONTAINS
     failure =.FALSE.
     CPPrecondition(ASSOCIATED(qs_loc_env),cp_failure_level,routineP,error,failure)
 
-    IF(.NOT.failure) THEN
-       IF (PRESENT(cell)) cell =>  qs_loc_env%cell
-       IF (PRESENT(moloc_coeff)) moloc_coeff => qs_loc_env%moloc_coeff
-       IF (PRESENT(local_molecules)) local_molecules => qs_loc_env%local_molecules
-       IF (PRESENT(localized_wfn_control)) &
-            localized_wfn_control => qs_loc_env%localized_wfn_control
-       IF (PRESENT(op_sm_set)) op_sm_set =>  qs_loc_env%op_sm_set
-       IF (PRESENT(op_fm_set)) op_fm_set =>  qs_loc_env%op_fm_set
-       IF (PRESENT(para_env)) para_env =>  qs_loc_env%para_env
-       IF (PRESENT(particle_set)) particle_set =>  qs_loc_env%particle_set
-       IF (PRESENT(weights)) weights(1:6)=  qs_loc_env%weights(1:6)
-       IF (PRESENT(dim_op)) dim_op =  qs_loc_env%dim_op
-    END IF
+    IF (PRESENT(cell)) cell =>  qs_loc_env%cell
+    IF (PRESENT(moloc_coeff)) moloc_coeff => qs_loc_env%moloc_coeff
+    IF (PRESENT(local_molecules)) local_molecules => qs_loc_env%local_molecules
+    IF (PRESENT(localized_wfn_control)) &
+         localized_wfn_control => qs_loc_env%localized_wfn_control
+    IF (PRESENT(op_sm_set)) op_sm_set =>  qs_loc_env%op_sm_set
+    IF (PRESENT(op_fm_set)) op_fm_set =>  qs_loc_env%op_fm_set
+    IF (PRESENT(para_env)) para_env =>  qs_loc_env%para_env
+    IF (PRESENT(particle_set)) particle_set =>  qs_loc_env%particle_set
+    IF (PRESENT(weights)) weights(1:6)=  qs_loc_env%weights(1:6)
+    IF (PRESENT(dim_op)) dim_op =  qs_loc_env%dim_op
 
   END SUBROUTINE get_qs_loc_env
 
@@ -557,54 +549,52 @@ CONTAINS
 
     failure =.FALSE.
     CPPrecondition(ASSOCIATED(qs_loc_env),cp_failure_level,routineP,error,failure)
-    IF(.NOT.failure) THEN
-       IF (PRESENT(cell)) THEN
-          CALL cell_retain(cell, error=error)
-          CALL cell_release(qs_loc_env%cell,error=error)
-          qs_loc_env%cell => cell
-       END IF
+    IF (PRESENT(cell)) THEN
+       CALL cell_retain(cell, error=error)
+       CALL cell_release(qs_loc_env%cell,error=error)
+       qs_loc_env%cell => cell
+    END IF
 
-       IF (PRESENT(local_molecules)) THEN
-          CALL distribution_1d_retain(local_molecules,error=error)
-          IF(ASSOCIATED(qs_loc_env%local_molecules)) &
-               CALL distribution_1d_release(qs_loc_env%local_molecules,error=error)
-          qs_loc_env%local_molecules => local_molecules
-       END IF
+    IF (PRESENT(local_molecules)) THEN
+       CALL distribution_1d_retain(local_molecules,error=error)
+       IF(ASSOCIATED(qs_loc_env%local_molecules)) &
+            CALL distribution_1d_release(qs_loc_env%local_molecules,error=error)
+       qs_loc_env%local_molecules => local_molecules
+    END IF
 
-       IF(PRESENT(localized_wfn_control)) THEN
-          CALL localized_wfn_control_retain(localized_wfn_control,error=error)
-          CALL localized_wfn_control_release(qs_loc_env%localized_wfn_control,error=error)
-          qs_loc_env % localized_wfn_control => localized_wfn_control
+    IF(PRESENT(localized_wfn_control)) THEN
+       CALL localized_wfn_control_retain(localized_wfn_control,error=error)
+       CALL localized_wfn_control_release(qs_loc_env%localized_wfn_control,error=error)
+       qs_loc_env % localized_wfn_control => localized_wfn_control
+    END IF
+    IF(PRESENT(para_env)) THEN
+       CALL cp_para_env_retain(para_env,error=error)
+       CALL cp_para_env_release(qs_loc_env%para_env,error=error)
+       qs_loc_env%para_env => para_env
+    END IF
+    IF (PRESENT(particle_set)) qs_loc_env%particle_set => particle_set
+    IF(PRESENT(moloc_coeff)) THEN
+       IF(ASSOCIATED(qs_loc_env%moloc_coeff )) THEN
+         DO i=1,SIZE ( qs_loc_env % moloc_coeff,1)
+            CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix,error=error)
+         END DO
+         DEALLOCATE(qs_loc_env%moloc_coeff,STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         NULLIFY(qs_loc_env%moloc_coeff)
        END IF
-       IF(PRESENT(para_env)) THEN
-          CALL cp_para_env_retain(para_env,error=error)
-          CALL cp_para_env_release(qs_loc_env%para_env,error=error)
-          qs_loc_env%para_env => para_env
-       END IF
-       IF (PRESENT(particle_set)) qs_loc_env%particle_set => particle_set
-       IF(PRESENT(moloc_coeff)) THEN
-          IF(ASSOCIATED(qs_loc_env%moloc_coeff )) THEN
-            DO i=1,SIZE ( qs_loc_env % moloc_coeff,1)
-               CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix,error=error)
-            END DO
-            DEALLOCATE(qs_loc_env%moloc_coeff,STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-            NULLIFY(qs_loc_env%moloc_coeff)
-          END IF
-          qs_loc_env%moloc_coeff => moloc_coeff
-       END IF
-       IF(PRESENT(op_sm_set)) THEN
-          qs_loc_env%op_sm_set => op_sm_set
-       END IF
-       IF(PRESENT(op_fm_set)) THEN
-          qs_loc_env%op_fm_set => op_fm_set
-       END IF
-       IF(PRESENT(weights)) THEN
-          qs_loc_env%weights = weights
-       END IF
-       IF(PRESENT(dim_op)) THEN
-          qs_loc_env%dim_op = dim_op
-       END IF
+       qs_loc_env%moloc_coeff => moloc_coeff
+    END IF
+    IF(PRESENT(op_sm_set)) THEN
+       qs_loc_env%op_sm_set => op_sm_set
+    END IF
+    IF(PRESENT(op_fm_set)) THEN
+       qs_loc_env%op_fm_set => op_fm_set
+    END IF
+    IF(PRESENT(weights)) THEN
+       qs_loc_env%weights = weights
+    END IF
+    IF(PRESENT(dim_op)) THEN
+       qs_loc_env%dim_op = dim_op
     END IF
 
   END SUBROUTINE set_qs_loc_env

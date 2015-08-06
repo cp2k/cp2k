@@ -106,324 +106,322 @@ CONTAINS
     NULLIFY(tmp_section, tmp_section2)
     inp_info => ff_type%inp_info
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       CALL section_vals_val_get(ff_section,"PARMTYPE",i_val=ff_type%ff_type,error=error)
-       CALL section_vals_val_get(ff_section,"EI_SCALE14",r_val=ff_type%ei_scale14,error=error)
-       CALL section_vals_val_get(ff_section,"VDW_SCALE14",r_val=ff_type%vdw_scale14,error=error)
-       CALL section_vals_val_get(ff_section,"SPLINE%RCUT_NB",r_val=ff_type%rcut_nb,error=error)
-       CALL section_vals_val_get(ff_section,"SPLINE%R0_NB",r_val=ff_type%rlow_nb,error=error)
-       CALL section_vals_val_get(ff_section,"SPLINE%EPS_SPLINE",r_val=ff_type%eps_spline,error=error)
-       CALL section_vals_val_get(ff_section,"SPLINE%EMAX_SPLINE",r_val=ff_type%emax_spline,error=error)
-       CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy,error=error)
-       CALL section_vals_val_get(ff_section,"SPLINE%NPOINTS",i_val=ff_type%npoints,error=error)
-       CALL section_vals_val_get(ff_section,"IGNORE_MISSING_CRITICAL_PARAMS",l_val=ff_type%ignore_missing_critical,error=error)
-       CPPostcondition(ff_type%max_energy<=ff_type%emax_spline,cp_failure_level,routineP,error,failure)
-       ! Read the parameter file name only if the force field type requires it..
-       SELECT CASE(ff_type%ff_type)
-       CASE(do_ff_charmm,do_ff_amber,do_ff_g96,do_ff_g87)
-          CALL section_vals_val_get(ff_section,"PARM_FILE_NAME",c_val=ff_type%ff_file_name,error=error)
-          CALL cp_assert(TRIM(ff_type%ff_file_name)/="",cp_failure_level,cp_assertion_failed,routineP,&
-               "Force Field Parameter's filename is empty! Please check your input file. "//&
+    CALL section_vals_val_get(ff_section,"PARMTYPE",i_val=ff_type%ff_type,error=error)
+    CALL section_vals_val_get(ff_section,"EI_SCALE14",r_val=ff_type%ei_scale14,error=error)
+    CALL section_vals_val_get(ff_section,"VDW_SCALE14",r_val=ff_type%vdw_scale14,error=error)
+    CALL section_vals_val_get(ff_section,"SPLINE%RCUT_NB",r_val=ff_type%rcut_nb,error=error)
+    CALL section_vals_val_get(ff_section,"SPLINE%R0_NB",r_val=ff_type%rlow_nb,error=error)
+    CALL section_vals_val_get(ff_section,"SPLINE%EPS_SPLINE",r_val=ff_type%eps_spline,error=error)
+    CALL section_vals_val_get(ff_section,"SPLINE%EMAX_SPLINE",r_val=ff_type%emax_spline,error=error)
+    CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy,error=error)
+    CALL section_vals_val_get(ff_section,"SPLINE%NPOINTS",i_val=ff_type%npoints,error=error)
+    CALL section_vals_val_get(ff_section,"IGNORE_MISSING_CRITICAL_PARAMS",l_val=ff_type%ignore_missing_critical,error=error)
+    CPPostcondition(ff_type%max_energy<=ff_type%emax_spline,cp_failure_level,routineP,error,failure)
+    ! Read the parameter file name only if the force field type requires it..
+    SELECT CASE(ff_type%ff_type)
+    CASE(do_ff_charmm,do_ff_amber,do_ff_g96,do_ff_g87)
+       CALL section_vals_val_get(ff_section,"PARM_FILE_NAME",c_val=ff_type%ff_file_name,error=error)
+       CALL cp_assert(TRIM(ff_type%ff_file_name)/="",cp_failure_level,cp_assertion_failed,routineP,&
+            "Force Field Parameter's filename is empty! Please check your input file. "//&
 CPSourceFileRef,&
-               only_ionode=.TRUE.)
-       CASE(do_ff_undef)
-          ! Do Nothing
-       CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Force field type not implemented",para_env)
-       END SELECT
-       ! Numerical Accuracy:
-       ! the factors here should depend on the energy and on the shape of each potential mapped
-       ! with splines. this would make everything un-necessarily complicated. Let's just be safe
-       ! and assume that we cannot achieve an accuracy on the spline 2 orders of magnitude more
-       ! than the smallest representable number (taking into account also the max_energy for the
-       ! spline generation
-       min_eps_spline_allowed = 20.0_dp*MAX(ff_type%max_energy,10.0_dp)*EPSILON(0.0_dp)
-       IF (ff_type%eps_spline < min_eps_spline_allowed) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-               "Requested spline accuracy ("//TRIM(cp_to_string(ff_type%eps_spline))//" ) "//&
-               "is smaller than the minimum value allowed ("//TRIM(cp_to_string(min_eps_spline_allowed))//&
-               " ) with the present machine precision ("//TRIM(cp_to_string(EPSILON(0.0_dp)))//" ). "//&
-               "New EPS_SPLINE value ("//TRIM(cp_to_string(min_eps_spline_allowed))//" ). "//&
+            only_ionode=.TRUE.)
+    CASE(do_ff_undef)
+       ! Do Nothing
+    CASE DEFAULT
+       CALL stop_program(routineN,moduleN,__LINE__,&
+                         "Force field type not implemented",para_env)
+    END SELECT
+    ! Numerical Accuracy:
+    ! the factors here should depend on the energy and on the shape of each potential mapped
+    ! with splines. this would make everything un-necessarily complicated. Let's just be safe
+    ! and assume that we cannot achieve an accuracy on the spline 2 orders of magnitude more
+    ! than the smallest representable number (taking into account also the max_energy for the
+    ! spline generation
+    min_eps_spline_allowed = 20.0_dp*MAX(ff_type%max_energy,10.0_dp)*EPSILON(0.0_dp)
+    IF (ff_type%eps_spline < min_eps_spline_allowed) THEN
+       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+            "Requested spline accuracy ("//TRIM(cp_to_string(ff_type%eps_spline))//" ) "//&
+            "is smaller than the minimum value allowed ("//TRIM(cp_to_string(min_eps_spline_allowed))//&
+            " ) with the present machine precision ("//TRIM(cp_to_string(EPSILON(0.0_dp)))//" ). "//&
+            "New EPS_SPLINE value ("//TRIM(cp_to_string(min_eps_spline_allowed))//" ). "//&
 CPSourceFileRef,&
-               only_ionode=.TRUE.)
-          ff_type%eps_spline = min_eps_spline_allowed
-       END IF
-       CALL section_vals_val_get(ff_section,"SHIFT_CUTOFF",l_val=ff_type%shift_cutoff,error=error)
-       CALL section_vals_val_get(ff_section,"SPLINE%UNIQUE_SPLINE",l_val=unique_spline,error=error)
-       ! Single spline
-       potential_single_allocation = no_potential_single_allocation
-       IF (unique_spline) potential_single_allocation = do_potential_single_allocation
+            only_ionode=.TRUE.)
+       ff_type%eps_spline = min_eps_spline_allowed
+    END IF
+    CALL section_vals_val_get(ff_section,"SHIFT_CUTOFF",l_val=ff_type%shift_cutoff,error=error)
+    CALL section_vals_val_get(ff_section,"SPLINE%UNIQUE_SPLINE",l_val=unique_spline,error=error)
+    ! Single spline
+    potential_single_allocation = no_potential_single_allocation
+    IF (unique_spline) potential_single_allocation = do_potential_single_allocation
 
-       CALL section_vals_val_get(ff_section,"MULTIPLE_POTENTIAL",l_val=ff_type%multiple_potential,error=error)
-       CALL section_vals_val_get(ff_section,"DO_NONBONDED",l_val=ff_type%do_nonbonded,error=error)
-       tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,error=error)
-       IF (explicit.AND.ff_type%do_nonbonded) THEN
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"LENNARD-JONES",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
-          ntot = 0
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nlj,lj_charmm=.TRUE.,error=error)
-             CALL read_lj_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"WILLIAMS",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nwl,error=error)
-          ntot=nlj
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nwl,williams=.TRUE.,error=error)
-             CALL read_wl_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"EAM",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=neam,error=error)
-          ntot=nlj+nwl
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+neam,eam=.TRUE.,error=error)
-             CALL read_eam_section(inp_info%nonbonded,tmp_section2,ntot,para_env,mm_section,error)
-          END IF
-
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
-          ntot=nlj+nwl+neam
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ngd,goodwin=.TRUE.,error=error)
-             CALL read_gd_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"IPBV",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nipbv,error=error)
-          ntot=nlj+nwl+neam+ngd
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nipbv,ipbv=.TRUE.,error=error)
-             CALL read_ipbv_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"BMHFT",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbmhft,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbmhft,bmhft=.TRUE.,error=error)
-             CALL read_bmhft_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"BMHFTD",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbmhftd,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbmhftd,bmhftd=.TRUE.,error=error)
-             CALL read_bmhftd_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"BUCK4RANGES",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nb4,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nb4,buck4r=.TRUE.,error=error)
-             CALL read_b4_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"BUCKMORSE",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbm,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbm,buckmo=.TRUE.,error=error)
-             CALL read_bm_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"GENPOT",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngp,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ngp,gp=.TRUE.,error=error)
-             CALL read_gp_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"TERSOFF",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ntersoff,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm+ngp
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ntersoff,tersoff=.TRUE.,error=error)
-             CALL read_tersoff_section(inp_info%nonbonded,tmp_section2,ntot,tmp_section2,error)
-          END IF
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"SIEPMANN",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nsiepmann,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm+ngp+ntersoff
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nsiepmann,siepmann=.TRUE.,error=error)
-             CALL read_siepmann_section(inp_info%nonbonded,tmp_section2,ntot,tmp_section2,error)
-          END IF
-
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"quip",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nquip,error=error)
-          ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm+ngp+ntersoff+nsiepmann
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nquip,quip=.TRUE.,error=error)
-             CALL read_quip_section(inp_info%nonbonded,tmp_section2,ntot,error)
-          END IF
-       END IF
-
-       tmp_section => section_vals_get_subs_vals(ff_section,"NONBONDED14",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,error=error)
-       IF (explicit.AND.ff_type%do_nonbonded) THEN
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"LENNARD-JONES",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
-          ntot = 0
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+nlj,lj_charmm=.TRUE.,error=error)
-             CALL read_lj_section(inp_info%nonbonded14,tmp_section2,ntot,error)
-          END IF
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"WILLIAMS",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nwl,error=error)
-          ntot=nlj
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+nwl, williams=.TRUE.,error=error)
-             CALL read_wl_section(inp_info%nonbonded14,tmp_section2,ntot,error)
-          END IF
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
-          ntot=nlj+nwl
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+ngd, goodwin=.TRUE.,error=error)
-             CALL read_gd_section(inp_info%nonbonded14,tmp_section2,ntot,error)
-          END IF
-          tmp_section2 => section_vals_get_subs_vals(tmp_section,"GENPOT",error=error)
-          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngp,error=error)
-          ntot=nlj+nwl+ngd
-          IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+ngp,gp=.TRUE.,error=error)
-             CALL read_gp_section(inp_info%nonbonded14,tmp_section2,ntot,error)
-          END IF
-       END IF
-
-       tmp_section => section_vals_get_subs_vals(ff_section,"CHARGE",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
+    CALL section_vals_val_get(ff_section,"MULTIPLE_POTENTIAL",l_val=ff_type%multiple_potential,error=error)
+    CALL section_vals_val_get(ff_section,"DO_NONBONDED",l_val=ff_type%do_nonbonded,error=error)
+    tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,error=error)
+    IF (explicit.AND.ff_type%do_nonbonded) THEN
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"LENNARD-JONES",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
+       ntot = 0
        IF (explicit) THEN
-          ntot=0
-          CALL reallocate(inp_info%charge_atm,1,nchg)
-          CALL reallocate(inp_info%charge,1,nchg)
-          CALL read_chrg_section(inp_info%charge_atm,inp_info%charge,tmp_section,ntot,error)
-       END IF
-       tmp_section => section_vals_get_subs_vals(ff_section,"DIPOLE",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
-       IF (explicit) THEN
-          ntot=0
-          CALL reallocate(inp_info%apol_atm,1,nchg)
-          CALL reallocate(inp_info%apol,1,nchg)
-          CALL read_apol_section(inp_info%apol_atm,inp_info%apol,inp_info%damping_list,&
-                                 tmp_section,ntot,error)
-       END IF
-       tmp_section => section_vals_get_subs_vals(ff_section,"QUADRUPOLE",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
-       IF (explicit) THEN
-          ntot=0
-          CALL reallocate(inp_info%cpol_atm,1,nchg)
-          CALL reallocate(inp_info%cpol,1,nchg)
-          CALL read_cpol_section(inp_info%cpol_atm,inp_info%cpol,tmp_section,ntot,error)
-       END IF
-       tmp_section => section_vals_get_subs_vals(ff_section,"SHELL",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nshell,error=error)
-       IF (explicit) THEN
-          ntot=0
-          CALL shell_p_create(inp_info%shell_list,nshell,error)
-          CALL read_shell_section(inp_info%shell_list,tmp_section,ntot,para_env,error)
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nlj,lj_charmm=.TRUE.,error=error)
+          CALL read_lj_section(inp_info%nonbonded,tmp_section2,ntot,error)
        END IF
 
-       tmp_section => section_vals_get_subs_vals(ff_section,"BOND",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nbonds,error=error)
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"WILLIAMS",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nwl,error=error)
+       ntot=nlj
        IF (explicit) THEN
-          ntot=0
-          CALL reallocate(inp_info%bond_kind,1,nbonds)
-          CALL reallocate(inp_info%bond_a,1,nbonds)
-          CALL reallocate(inp_info%bond_b,1,nbonds)
-          CALL reallocate(inp_info%bond_k,1,3,1,nbonds)
-          CALL reallocate(inp_info%bond_r0,1,nbonds)
-          CALL reallocate(inp_info%bond_cs,1,nbonds)
-          CALL read_bonds_section(inp_info%bond_kind, inp_info%bond_a, inp_info%bond_b, inp_info%bond_k,&
-               inp_info%bond_r0, inp_info%bond_cs, tmp_section, ntot, error)
-       END IF
-       tmp_section => section_vals_get_subs_vals(ff_section,"BEND",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nbends,error=error)
-       IF (explicit) THEN
-          ntot=0
-          CALL reallocate(inp_info%bend_kind,1,nbends)
-          CALL reallocate(inp_info%bend_a,1,nbends)
-          CALL reallocate(inp_info%bend_b,1,nbends)
-          CALL reallocate(inp_info%bend_c,1,nbends)
-          CALL reallocate(inp_info%bend_k,1,nbends)
-          CALL reallocate(inp_info%bend_theta0,1,nbends)
-          CALL reallocate(inp_info%bend_cb,1,nbends)
-          CALL reallocate(inp_info%bend_r012,1,nbends)
-          CALL reallocate(inp_info%bend_r032,1,nbends)
-          CALL reallocate(inp_info%bend_kbs12,1,nbends)
-          CALL reallocate(inp_info%bend_kbs32,1,nbends)
-          CALL reallocate(inp_info%bend_kss,1,nbends)
-          CALL read_bends_section(inp_info%bend_kind,inp_info%bend_a, inp_info%bend_b, inp_info%bend_c,&
-               inp_info%bend_k, inp_info%bend_theta0, inp_info%bend_cb,&
-               inp_info%bend_r012,inp_info%bend_r032,inp_info%bend_kbs12,inp_info%bend_kbs32,inp_info%bend_kss,&
-               tmp_section, ntot, error)
-       END IF
-       tmp_section => section_vals_get_subs_vals(ff_section,"BEND",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nubs,error=error)
-       IF (explicit) THEN
-          ntot=0
-          CALL reallocate(inp_info%ub_kind,1,nubs)
-          CALL reallocate(inp_info%ub_a,1,nubs)
-          CALL reallocate(inp_info%ub_b,1,nubs)
-          CALL reallocate(inp_info%ub_c,1,nubs)
-          CALL reallocate(inp_info%ub_k,1,3,1,nubs)
-          CALL reallocate(inp_info%ub_r0,1,nubs)
-          CALL read_ubs_section(inp_info%ub_kind,inp_info%ub_a, inp_info%ub_b, inp_info%ub_c,&
-               inp_info%ub_k, inp_info%ub_r0, tmp_section, ntot, error)
-       END IF
-       tmp_section => section_vals_get_subs_vals(ff_section,"TORSION",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=ntors,error=error)
-       IF (explicit) THEN
-          ntot=0
-          CALL reallocate(inp_info%torsion_kind,1,ntors)
-          CALL reallocate(inp_info%torsion_a,1,ntors)
-          CALL reallocate(inp_info%torsion_b,1,ntors)
-          CALL reallocate(inp_info%torsion_c,1,ntors)
-          CALL reallocate(inp_info%torsion_d,1,ntors)
-          CALL reallocate(inp_info%torsion_k,1,ntors)
-          CALL reallocate(inp_info%torsion_m,1,ntors)
-          CALL reallocate(inp_info%torsion_phi0,1,ntors)
-          CALL read_torsions_section(inp_info%torsion_kind,inp_info%torsion_a, inp_info%torsion_b,&
-               inp_info%torsion_c,inp_info%torsion_d,inp_info%torsion_k,inp_info%torsion_phi0,&
-               inp_info%torsion_m,tmp_section, ntot, error )
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nwl,williams=.TRUE.,error=error)
+          CALL read_wl_section(inp_info%nonbonded,tmp_section2,ntot,error)
        END IF
 
-       tmp_section => section_vals_get_subs_vals(ff_section,"IMPROPER",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nimpr,error=error)
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"EAM",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=neam,error=error)
+       ntot=nlj+nwl
        IF (explicit) THEN
-          ntot=0
-          CALL reallocate(inp_info%impr_kind,1,nimpr)
-          CALL reallocate(inp_info%impr_a,1,nimpr)
-          CALL reallocate(inp_info%impr_b,1,nimpr)
-          CALL reallocate(inp_info%impr_c,1,nimpr)
-          CALL reallocate(inp_info%impr_d,1,nimpr)
-          CALL reallocate(inp_info%impr_k,1,nimpr)
-          CALL reallocate(inp_info%impr_phi0,1,nimpr)
-          CALL read_improper_section(inp_info%impr_kind,inp_info%impr_a, inp_info%impr_b,&
-               inp_info%impr_c,inp_info%impr_d,inp_info%impr_k,inp_info%impr_phi0,&
-               tmp_section, ntot, error )
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+neam,eam=.TRUE.,error=error)
+          CALL read_eam_section(inp_info%nonbonded,tmp_section2,ntot,para_env,mm_section,error)
        END IF
 
-       tmp_section => section_vals_get_subs_vals(ff_section,"OPBEND",error=error)
-       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nopbend,error=error)
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
+       ntot=nlj+nwl+neam
        IF (explicit) THEN
-          ntot=0
-          CALL reallocate(inp_info%opbend_kind,1,nopbend)
-          CALL reallocate(inp_info%opbend_a,1,nopbend)
-          CALL reallocate(inp_info%opbend_b,1,nopbend)
-          CALL reallocate(inp_info%opbend_c,1,nopbend)
-          CALL reallocate(inp_info%opbend_d,1,nopbend)
-          CALL reallocate(inp_info%opbend_k,1,nopbend)
-          CALL reallocate(inp_info%opbend_phi0,1,nopbend)
-          CALL read_opbend_section(inp_info%opbend_kind,inp_info%opbend_a, inp_info%opbend_b,&
-               inp_info%opbend_c,inp_info%opbend_d,inp_info%opbend_k,inp_info%opbend_phi0,&
-               tmp_section, ntot, error )
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ngd,goodwin=.TRUE.,error=error)
+          CALL read_gd_section(inp_info%nonbonded,tmp_section2,ntot,error)
        END IF
+
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"IPBV",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nipbv,error=error)
+       ntot=nlj+nwl+neam+ngd
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nipbv,ipbv=.TRUE.,error=error)
+          CALL read_ipbv_section(inp_info%nonbonded,tmp_section2,ntot,error)
+       END IF
+
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"BMHFT",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbmhft,error=error)
+       ntot=nlj+nwl+neam+ngd+nipbv
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbmhft,bmhft=.TRUE.,error=error)
+          CALL read_bmhft_section(inp_info%nonbonded,tmp_section2,ntot,error)
+       END IF
+
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"BMHFTD",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbmhftd,error=error)
+       ntot=nlj+nwl+neam+ngd+nipbv+nbmhft
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbmhftd,bmhftd=.TRUE.,error=error)
+          CALL read_bmhftd_section(inp_info%nonbonded,tmp_section2,ntot,error)
+       END IF
+
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"BUCK4RANGES",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nb4,error=error)
+       ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nb4,buck4r=.TRUE.,error=error)
+          CALL read_b4_section(inp_info%nonbonded,tmp_section2,ntot,error)
+       END IF
+
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"BUCKMORSE",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbm,error=error)
+       ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbm,buckmo=.TRUE.,error=error)
+          CALL read_bm_section(inp_info%nonbonded,tmp_section2,ntot,error)
+       END IF
+
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"GENPOT",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngp,error=error)
+       ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ngp,gp=.TRUE.,error=error)
+          CALL read_gp_section(inp_info%nonbonded,tmp_section2,ntot,error)
+       END IF
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"TERSOFF",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ntersoff,error=error)
+       ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm+ngp
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ntersoff,tersoff=.TRUE.,error=error)
+          CALL read_tersoff_section(inp_info%nonbonded,tmp_section2,ntot,tmp_section2,error)
+       END IF
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"SIEPMANN",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nsiepmann,error=error)
+       ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm+ngp+ntersoff
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nsiepmann,siepmann=.TRUE.,error=error)
+          CALL read_siepmann_section(inp_info%nonbonded,tmp_section2,ntot,tmp_section2,error)
+       END IF
+
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"quip",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nquip,error=error)
+       ntot=nlj+nwl+neam+ngd+nipbv+nbmhft+nbmhftd+nb4+nbm+ngp+ntersoff+nsiepmann
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nquip,quip=.TRUE.,error=error)
+          CALL read_quip_section(inp_info%nonbonded,tmp_section2,ntot,error)
+       END IF
+    END IF
+
+    tmp_section => section_vals_get_subs_vals(ff_section,"NONBONDED14",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,error=error)
+    IF (explicit.AND.ff_type%do_nonbonded) THEN
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"LENNARD-JONES",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
+       ntot = 0
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+nlj,lj_charmm=.TRUE.,error=error)
+          CALL read_lj_section(inp_info%nonbonded14,tmp_section2,ntot,error)
+       END IF
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"WILLIAMS",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nwl,error=error)
+       ntot=nlj
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+nwl, williams=.TRUE.,error=error)
+          CALL read_wl_section(inp_info%nonbonded14,tmp_section2,ntot,error)
+       END IF
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
+       ntot=nlj+nwl
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+ngd, goodwin=.TRUE.,error=error)
+          CALL read_gd_section(inp_info%nonbonded14,tmp_section2,ntot,error)
+       END IF
+       tmp_section2 => section_vals_get_subs_vals(tmp_section,"GENPOT",error=error)
+       CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngp,error=error)
+       ntot=nlj+nwl+ngd
+       IF (explicit) THEN
+          CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+ngp,gp=.TRUE.,error=error)
+          CALL read_gp_section(inp_info%nonbonded14,tmp_section2,ntot,error)
+       END IF
+    END IF
+
+    tmp_section => section_vals_get_subs_vals(ff_section,"CHARGE",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
+    IF (explicit) THEN
+       ntot=0
+       CALL reallocate(inp_info%charge_atm,1,nchg)
+       CALL reallocate(inp_info%charge,1,nchg)
+       CALL read_chrg_section(inp_info%charge_atm,inp_info%charge,tmp_section,ntot,error)
+    END IF
+    tmp_section => section_vals_get_subs_vals(ff_section,"DIPOLE",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
+    IF (explicit) THEN
+       ntot=0
+       CALL reallocate(inp_info%apol_atm,1,nchg)
+       CALL reallocate(inp_info%apol,1,nchg)
+       CALL read_apol_section(inp_info%apol_atm,inp_info%apol,inp_info%damping_list,&
+                              tmp_section,ntot,error)
+    END IF
+    tmp_section => section_vals_get_subs_vals(ff_section,"QUADRUPOLE",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
+    IF (explicit) THEN
+       ntot=0
+       CALL reallocate(inp_info%cpol_atm,1,nchg)
+       CALL reallocate(inp_info%cpol,1,nchg)
+       CALL read_cpol_section(inp_info%cpol_atm,inp_info%cpol,tmp_section,ntot,error)
+    END IF
+    tmp_section => section_vals_get_subs_vals(ff_section,"SHELL",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nshell,error=error)
+    IF (explicit) THEN
+       ntot=0
+       CALL shell_p_create(inp_info%shell_list,nshell,error)
+       CALL read_shell_section(inp_info%shell_list,tmp_section,ntot,para_env,error)
+    END IF
+
+    tmp_section => section_vals_get_subs_vals(ff_section,"BOND",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nbonds,error=error)
+    IF (explicit) THEN
+       ntot=0
+       CALL reallocate(inp_info%bond_kind,1,nbonds)
+       CALL reallocate(inp_info%bond_a,1,nbonds)
+       CALL reallocate(inp_info%bond_b,1,nbonds)
+       CALL reallocate(inp_info%bond_k,1,3,1,nbonds)
+       CALL reallocate(inp_info%bond_r0,1,nbonds)
+       CALL reallocate(inp_info%bond_cs,1,nbonds)
+       CALL read_bonds_section(inp_info%bond_kind, inp_info%bond_a, inp_info%bond_b, inp_info%bond_k,&
+            inp_info%bond_r0, inp_info%bond_cs, tmp_section, ntot, error)
+    END IF
+    tmp_section => section_vals_get_subs_vals(ff_section,"BEND",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nbends,error=error)
+    IF (explicit) THEN
+       ntot=0
+       CALL reallocate(inp_info%bend_kind,1,nbends)
+       CALL reallocate(inp_info%bend_a,1,nbends)
+       CALL reallocate(inp_info%bend_b,1,nbends)
+       CALL reallocate(inp_info%bend_c,1,nbends)
+       CALL reallocate(inp_info%bend_k,1,nbends)
+       CALL reallocate(inp_info%bend_theta0,1,nbends)
+       CALL reallocate(inp_info%bend_cb,1,nbends)
+       CALL reallocate(inp_info%bend_r012,1,nbends)
+       CALL reallocate(inp_info%bend_r032,1,nbends)
+       CALL reallocate(inp_info%bend_kbs12,1,nbends)
+       CALL reallocate(inp_info%bend_kbs32,1,nbends)
+       CALL reallocate(inp_info%bend_kss,1,nbends)
+       CALL read_bends_section(inp_info%bend_kind,inp_info%bend_a, inp_info%bend_b, inp_info%bend_c,&
+            inp_info%bend_k, inp_info%bend_theta0, inp_info%bend_cb,&
+            inp_info%bend_r012,inp_info%bend_r032,inp_info%bend_kbs12,inp_info%bend_kbs32,inp_info%bend_kss,&
+            tmp_section, ntot, error)
+    END IF
+    tmp_section => section_vals_get_subs_vals(ff_section,"BEND",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nubs,error=error)
+    IF (explicit) THEN
+       ntot=0
+       CALL reallocate(inp_info%ub_kind,1,nubs)
+       CALL reallocate(inp_info%ub_a,1,nubs)
+       CALL reallocate(inp_info%ub_b,1,nubs)
+       CALL reallocate(inp_info%ub_c,1,nubs)
+       CALL reallocate(inp_info%ub_k,1,3,1,nubs)
+       CALL reallocate(inp_info%ub_r0,1,nubs)
+       CALL read_ubs_section(inp_info%ub_kind,inp_info%ub_a, inp_info%ub_b, inp_info%ub_c,&
+            inp_info%ub_k, inp_info%ub_r0, tmp_section, ntot, error)
+    END IF
+    tmp_section => section_vals_get_subs_vals(ff_section,"TORSION",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=ntors,error=error)
+    IF (explicit) THEN
+       ntot=0
+       CALL reallocate(inp_info%torsion_kind,1,ntors)
+       CALL reallocate(inp_info%torsion_a,1,ntors)
+       CALL reallocate(inp_info%torsion_b,1,ntors)
+       CALL reallocate(inp_info%torsion_c,1,ntors)
+       CALL reallocate(inp_info%torsion_d,1,ntors)
+       CALL reallocate(inp_info%torsion_k,1,ntors)
+       CALL reallocate(inp_info%torsion_m,1,ntors)
+       CALL reallocate(inp_info%torsion_phi0,1,ntors)
+       CALL read_torsions_section(inp_info%torsion_kind,inp_info%torsion_a, inp_info%torsion_b,&
+            inp_info%torsion_c,inp_info%torsion_d,inp_info%torsion_k,inp_info%torsion_phi0,&
+            inp_info%torsion_m,tmp_section, ntot, error )
+    END IF
+
+    tmp_section => section_vals_get_subs_vals(ff_section,"IMPROPER",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nimpr,error=error)
+    IF (explicit) THEN
+       ntot=0
+       CALL reallocate(inp_info%impr_kind,1,nimpr)
+       CALL reallocate(inp_info%impr_a,1,nimpr)
+       CALL reallocate(inp_info%impr_b,1,nimpr)
+       CALL reallocate(inp_info%impr_c,1,nimpr)
+       CALL reallocate(inp_info%impr_d,1,nimpr)
+       CALL reallocate(inp_info%impr_k,1,nimpr)
+       CALL reallocate(inp_info%impr_phi0,1,nimpr)
+       CALL read_improper_section(inp_info%impr_kind,inp_info%impr_a, inp_info%impr_b,&
+            inp_info%impr_c,inp_info%impr_d,inp_info%impr_k,inp_info%impr_phi0,&
+            tmp_section, ntot, error )
+    END IF
+
+    tmp_section => section_vals_get_subs_vals(ff_section,"OPBEND",error=error)
+    CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nopbend,error=error)
+    IF (explicit) THEN
+       ntot=0
+       CALL reallocate(inp_info%opbend_kind,1,nopbend)
+       CALL reallocate(inp_info%opbend_a,1,nopbend)
+       CALL reallocate(inp_info%opbend_b,1,nopbend)
+       CALL reallocate(inp_info%opbend_c,1,nopbend)
+       CALL reallocate(inp_info%opbend_d,1,nopbend)
+       CALL reallocate(inp_info%opbend_k,1,nopbend)
+       CALL reallocate(inp_info%opbend_phi0,1,nopbend)
+       CALL read_opbend_section(inp_info%opbend_kind,inp_info%opbend_a, inp_info%opbend_b,&
+            inp_info%opbend_c,inp_info%opbend_d,inp_info%opbend_k,inp_info%opbend_phi0,&
+            tmp_section, ntot, error )
     END IF
 
   END SUBROUTINE read_force_field_section1
@@ -2019,52 +2017,50 @@ CPSourceFileRef,&
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
-    IF (.NOT.failure) THEN
-       IF (iw>0) WRITE ( iw, * ) "Reading EAM data from: ",TRIM(eam%eam_file_name)
-       CALL parser_create(parser,TRIM(eam%eam_file_name),para_env=para_env,error=error)
+    IF (iw>0) WRITE ( iw, * ) "Reading EAM data from: ",TRIM(eam%eam_file_name)
+    CALL parser_create(parser,TRIM(eam%eam_file_name),para_env=para_env,error=error)
 
+    CALL parser_get_next_line(parser,1,error=error)
+    IF (iw>0)  WRITE(iw,*) "Title: ",parser%input_line
+
+    CALL parser_get_next_line(parser,2,error=error)
+    READ(parser%input_line,*) eam%drar, eam%drhoar, eam%acutal, eam%npoints
+    eam%drar = cp_unit_to_cp2k(eam%drar,"angstrom",error=error)
+    eam%acutal = cp_unit_to_cp2k(eam%acutal,"angstrom",error=error)
+    ! Relocating arrays with the right size
+    CALL reallocate(eam%rho, 1, eam%npoints)
+    CALL reallocate(eam%rhop, 1, eam%npoints)
+    CALL reallocate(eam%rval, 1, eam%npoints)
+    CALL reallocate(eam%rhoval, 1, eam%npoints)
+    CALL reallocate(eam%phi, 1, eam%npoints)
+    CALL reallocate(eam%phip, 1, eam%npoints)
+    CALL reallocate(eam%frho, 1, eam%npoints)
+    CALL reallocate(eam%frhop, 1, eam%npoints)
+    ! Reading density and derivative of density (with respect to r)
+    DO i = 1,eam%npoints
        CALL parser_get_next_line(parser,1,error=error)
-       IF (iw>0)  WRITE(iw,*) "Title: ",parser%input_line
+       READ (parser%input_line,*) eam%rho(i), eam%rhop(i)
+       eam%rhop(i) = cp_unit_to_cp2k(eam%rhop(i),"angstrom^-1",error=error)
+       eam%rval(i)   = REAL(i-1,KIND=dp)*eam%drar
+       eam%rhoval(i) = REAL(i-1,KIND=dp)*eam%drhoar
+    END DO
+    ! Reading pair potential PHI and its derivative (with respect to r)
+    DO i = 1,eam%npoints
+       CALL parser_get_next_line(parser,1,error=error)
+       READ (parser%input_line,*) eam%phi(i), eam%phip(i)
+       eam%phi(i)  = cp_unit_to_cp2k(eam%phi(i),"eV",error=error)
+       eam%phip(i) = cp_unit_to_cp2k(eam%phip(i),"eV*angstrom^-1",error=error)
+    END DO
+    ! Reading embedded function and its derivative (with respect to density)
+    DO i = 1,eam%npoints
+       CALL parser_get_next_line(parser,1,error=error)
+       READ (parser%input_line,*) eam%frho(i), eam%frhop(i)
+       eam%frho(i) = cp_unit_to_cp2k(eam%frho(i),"eV",error=error)
+       eam%frhop(i) = cp_unit_to_cp2k(eam%frhop(i),"eV",error=error)
+    END DO
 
-       CALL parser_get_next_line(parser,2,error=error)
-       READ(parser%input_line,*) eam%drar, eam%drhoar, eam%acutal, eam%npoints
-       eam%drar = cp_unit_to_cp2k(eam%drar,"angstrom",error=error)
-       eam%acutal = cp_unit_to_cp2k(eam%acutal,"angstrom",error=error)
-       ! Relocating arrays with the right size
-       CALL reallocate(eam%rho, 1, eam%npoints)
-       CALL reallocate(eam%rhop, 1, eam%npoints)
-       CALL reallocate(eam%rval, 1, eam%npoints)
-       CALL reallocate(eam%rhoval, 1, eam%npoints)
-       CALL reallocate(eam%phi, 1, eam%npoints)
-       CALL reallocate(eam%phip, 1, eam%npoints)
-       CALL reallocate(eam%frho, 1, eam%npoints)
-       CALL reallocate(eam%frhop, 1, eam%npoints)
-       ! Reading density and derivative of density (with respect to r)
-       DO i = 1,eam%npoints
-          CALL parser_get_next_line(parser,1,error=error)
-          READ (parser%input_line,*) eam%rho(i), eam%rhop(i)
-          eam%rhop(i) = cp_unit_to_cp2k(eam%rhop(i),"angstrom^-1",error=error)
-          eam%rval(i)   = REAL(i-1,KIND=dp)*eam%drar
-          eam%rhoval(i) = REAL(i-1,KIND=dp)*eam%drhoar
-       END DO
-       ! Reading pair potential PHI and its derivative (with respect to r)
-       DO i = 1,eam%npoints
-          CALL parser_get_next_line(parser,1,error=error)
-          READ (parser%input_line,*) eam%phi(i), eam%phip(i)
-          eam%phi(i)  = cp_unit_to_cp2k(eam%phi(i),"eV",error=error)
-          eam%phip(i) = cp_unit_to_cp2k(eam%phip(i),"eV*angstrom^-1",error=error)
-       END DO
-       ! Reading embedded function and its derivative (with respect to density)
-       DO i = 1,eam%npoints
-          CALL parser_get_next_line(parser,1,error=error)
-          READ (parser%input_line,*) eam%frho(i), eam%frhop(i)
-          eam%frho(i) = cp_unit_to_cp2k(eam%frho(i),"eV",error=error)
-          eam%frhop(i) = cp_unit_to_cp2k(eam%frhop(i),"eV",error=error)
-       END DO
-
-       IF (iw>0) WRITE(iw,*)"Finished EAM data"
-       CALL parser_release(parser,error=error)
-     END IF
+    IF (iw>0) WRITE(iw,*)"Finished EAM data"
+    CALL parser_release(parser,error=error)
     CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%FF_INFO",error=error)
     CALL timestop(handle)
 

@@ -141,57 +141,55 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)
     CALL timeset(routineN,handle)
-    IF (.NOT.failure) THEN
-       qm_mol_num    = 0
-       qm_atom_index => qmmm_env%qm_atom_index
-       DO imolecule=1,SIZE(molecule_set)
-          IF (iw>0) WRITE(iw,*)"Entering molecule number ::",imolecule
-          molecule => molecule_set(imolecule)
-          CALL get_molecule(molecule,molecule_kind=molecule_kind,&
-               first_atom=first_atom,last_atom=last_atom)
-          IF (ANY(qm_atom_index >= first_atom .AND. qm_atom_index <= last_atom))&
-               qm_mol_num =qm_mol_num+1
-       END DO
-       !
-       ALLOCATE(qm_molecule_index(qm_mol_num), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       qm_mol_num    = 0
-       DO imolecule=1,SIZE(molecule_set)
-          IF (iw>0) WRITE(iw,*)"Entering molecule number ::",imolecule
-          molecule => molecule_set(imolecule)
-          CALL get_molecule(molecule,molecule_kind=molecule_kind,&
-               first_atom=first_atom,last_atom=last_atom)
-          natom = last_atom - first_atom + 1
-          IF (ANY(qm_atom_index >= first_atom .AND. qm_atom_index <= last_atom)) THEN
-             qm_mol_num  = qm_mol_num    + 1
-             !
-             ! Check if all atoms of the molecule are QM or if a QM/MM link scheme
-             ! need to be used...
-             !
-             detected_link = .FALSE.
-             DO i = first_atom, last_atom
-                IF (.NOT.ANY(qm_atom_index == i)) detected_link = .TRUE.
-             END DO
-             IF (detected_link) THEN
-                IF (iw>0) WRITE(iw,fmt='(A)',ADVANCE="NO") " QM/MM link detected..."
-                IF (.NOT.qmmm_env%qmmm_link) THEN
-                   IF (iw>0) WRITE(iw,fmt='(A)')" Missing LINK section in input file!!"
-                   WRITE(output_unit,'(T2,"QMMM_CONNECTIVITY|",A)')&
-                        " ERROR in the QM/MM connectivity. A QM/MM LINK was detected but",&
-                        " no LINK section was provided in the Input file!",&
-                        " This very probably can be identified as an error in the specified QM",&
-                        " indexes or in a missing LINK section. Check your structure!"
-                   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-                END IF
+    qm_mol_num    = 0
+    qm_atom_index => qmmm_env%qm_atom_index
+    DO imolecule=1,SIZE(molecule_set)
+       IF (iw>0) WRITE(iw,*)"Entering molecule number ::",imolecule
+       molecule => molecule_set(imolecule)
+       CALL get_molecule(molecule,molecule_kind=molecule_kind,&
+            first_atom=first_atom,last_atom=last_atom)
+       IF (ANY(qm_atom_index >= first_atom .AND. qm_atom_index <= last_atom))&
+            qm_mol_num =qm_mol_num+1
+    END DO
+    !
+    ALLOCATE(qm_molecule_index(qm_mol_num), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    qm_mol_num    = 0
+    DO imolecule=1,SIZE(molecule_set)
+       IF (iw>0) WRITE(iw,*)"Entering molecule number ::",imolecule
+       molecule => molecule_set(imolecule)
+       CALL get_molecule(molecule,molecule_kind=molecule_kind,&
+            first_atom=first_atom,last_atom=last_atom)
+       natom = last_atom - first_atom + 1
+       IF (ANY(qm_atom_index >= first_atom .AND. qm_atom_index <= last_atom)) THEN
+          qm_mol_num  = qm_mol_num    + 1
+          !
+          ! Check if all atoms of the molecule are QM or if a QM/MM link scheme
+          ! need to be used...
+          !
+          detected_link = .FALSE.
+          DO i = first_atom, last_atom
+             IF (.NOT.ANY(qm_atom_index == i)) detected_link = .TRUE.
+          END DO
+          IF (detected_link) THEN
+             IF (iw>0) WRITE(iw,fmt='(A)',ADVANCE="NO") " QM/MM link detected..."
+             IF (.NOT.qmmm_env%qmmm_link) THEN
+                IF (iw>0) WRITE(iw,fmt='(A)')" Missing LINK section in input file!!"
+                WRITE(output_unit,'(T2,"QMMM_CONNECTIVITY|",A)')&
+                     " ERROR in the QM/MM connectivity. A QM/MM LINK was detected but",&
+                     " no LINK section was provided in the Input file!",&
+                     " This very probably can be identified as an error in the specified QM",&
+                     " indexes or in a missing LINK section. Check your structure!"
+                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
              END IF
-             qm_molecule_index(qm_mol_num) = imolecule
           END IF
-       END DO
-       IF (ASSOCIATED(qmmm_env%qm_molecule_index)) DEALLOCATE(qmmm_env%qm_molecule_index)
-       NULLIFY(qmmm_env%qm_molecule_index)
-       qmmm_env%qm_molecule_index => qm_molecule_index
-       IF(iw>0) WRITE(iw,*) "    QM molecule index ::",qm_molecule_index
-    END IF
+          qm_molecule_index(qm_mol_num) = imolecule
+       END IF
+    END DO
+    IF (ASSOCIATED(qmmm_env%qm_molecule_index)) DEALLOCATE(qmmm_env%qm_molecule_index)
+    NULLIFY(qmmm_env%qm_molecule_index)
+    qmmm_env%qm_molecule_index => qm_molecule_index
+    IF(iw>0) WRITE(iw,*) "    QM molecule index ::",qm_molecule_index
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
                                      "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     CALL timestop(handle)

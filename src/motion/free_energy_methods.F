@@ -322,19 +322,17 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       ALLOCATE(fe_env%cg_data(ng_points),stat=stat)
+    ALLOCATE(fe_env%cg_data(ng_points),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, ng_points
+       ALLOCATE(fe_env%cg_data(i)%avg(ncolvar),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i = 1, ng_points
-          ALLOCATE(fe_env%cg_data(i)%avg(ncolvar),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(fe_env%cg_data(i)%var(ncolvar,ncolvar),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END DO
-       IF (PRESENT(wrk)) THEN
-          ALLOCATE(wrk(ng_points),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
+       ALLOCATE(fe_env%cg_data(i)%var(ncolvar,ncolvar),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    IF (PRESENT(wrk)) THEN
+       ALLOCATE(wrk(ng_points),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE create_tmp_data
 
@@ -361,19 +359,17 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       DO i = 1, ng_points
-          DEALLOCATE(fe_env%cg_data(i)%avg,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(fe_env%cg_data(i)%var,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END DO
-       DEALLOCATE(fe_env%cg_data,stat=stat)
+    DO i = 1, ng_points
+       DEALLOCATE(fe_env%cg_data(i)%avg,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (PRESENT(wrk)) THEN
-          DEALLOCATE(wrk,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
+       DEALLOCATE(fe_env%cg_data(i)%var,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    DEALLOCATE(fe_env%cg_data,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(wrk)) THEN
+       DEALLOCATE(wrk,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE destroy_tmp_data
 

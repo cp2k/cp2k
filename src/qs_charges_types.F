@@ -78,25 +78,23 @@ SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
 
   ALLOCATE(qs_charges, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     qs_charges%total_rho_core_rspace=0.0_dp
-     IF (PRESENT(total_rho_core_rspace)) &
-          qs_charges%total_rho_core_rspace=total_rho_core_rspace
-     qs_charges%total_rho_gspace=0.0_dp
-     IF (PRESENT(total_rho_gspace)) &
-          qs_charges%total_rho_gspace=total_rho_gspace
-     qs_charges%total_rho_soft_gspace = 0.0_dp
-     qs_charges%total_rho0_hard_lebedev = 0.0_dp
-     qs_charges%total_rho_soft_gspace = 0.0_dp
-     qs_charges%background = 0.0_dp
-     ALLOCATE(qs_charges%total_rho1_hard(nspins),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     qs_charges%total_rho1_hard(:) = 0.0_dp
-     ALLOCATE(qs_charges%total_rho1_soft(nspins),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     qs_charges%total_rho1_soft(:) = 0.0_dp
-     qs_charges%ref_count=1
-  END IF
+  qs_charges%total_rho_core_rspace=0.0_dp
+  IF (PRESENT(total_rho_core_rspace)) &
+       qs_charges%total_rho_core_rspace=total_rho_core_rspace
+  qs_charges%total_rho_gspace=0.0_dp
+  IF (PRESENT(total_rho_gspace)) &
+       qs_charges%total_rho_gspace=total_rho_gspace
+  qs_charges%total_rho_soft_gspace = 0.0_dp
+  qs_charges%total_rho0_hard_lebedev = 0.0_dp
+  qs_charges%total_rho_soft_gspace = 0.0_dp
+  qs_charges%background = 0.0_dp
+  ALLOCATE(qs_charges%total_rho1_hard(nspins),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  qs_charges%total_rho1_hard(:) = 0.0_dp
+  ALLOCATE(qs_charges%total_rho1_soft(nspins),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  qs_charges%total_rho1_soft(:) = 0.0_dp
+  qs_charges%ref_count=1
 END SUBROUTINE qs_charges_create
 
 ! *****************************************************************************
@@ -120,10 +118,8 @@ SUBROUTINE qs_charges_retain(qs_charges, error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(qs_charges),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(qs_charges%ref_count>0,cp_failure_level,routineP,error,failure)
-     qs_charges%ref_count=qs_charges%ref_count+1
-  END IF
+  CPPrecondition(qs_charges%ref_count>0,cp_failure_level,routineP,error,failure)
+  qs_charges%ref_count=qs_charges%ref_count+1
 END SUBROUTINE qs_charges_retain
 
 ! *****************************************************************************

@@ -84,53 +84,49 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(input_file%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT. failure) THEN
-       ! ext_restart
-       IF(PRESENT(output_unit)) &
-          CALL handle_ext_restart(input_declaration, input_file,para_env,output_unit,error)
+    CPPrecondition(input_file%ref_count>0,cp_failure_level,routineP,error,failure)
+    ! ext_restart
+    IF(PRESENT(output_unit)) &
+       CALL handle_ext_restart(input_declaration, input_file,para_env,output_unit,error)
 
-       ! checks on force_eval section
-       sections => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
-       CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
+    ! checks on force_eval section
+    sections => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
+    CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
 
-       ! multiple force_eval only if present RESPA or MIXED calculation is performed
-       section2 => section_vals_get_subs_vals(input_file,"MOTION%MD%RESPA",error=error)
-       CALL section_vals_get(section2,explicit=explicit,error=error)
-       DO iforce_eval=1,nforce_eval
-          section3 =>section_vals_get_subs_vals(sections,"MIXED",&
-               i_rep_section=iforce_eval,error=error)
-          CALL section_vals_get(section3,explicit=explicit_mix,error=error)
-          IF(explicit_mix)EXIT
-       END DO
+    ! multiple force_eval only if present RESPA or MIXED calculation is performed
+    section2 => section_vals_get_subs_vals(input_file,"MOTION%MD%RESPA",error=error)
+    CALL section_vals_get(section2,explicit=explicit,error=error)
+    DO iforce_eval=1,nforce_eval
+       section3 =>section_vals_get_subs_vals(sections,"MIXED",&
+            i_rep_section=iforce_eval,error=error)
+       CALL section_vals_get(section3,explicit=explicit_mix,error=error)
+       IF(explicit_mix)EXIT
+    END DO
 
-       IF ((explicit.AND.(nforce_eval==1)).OR.(.NOT.explicit.AND.(nforce_eval>1)))THEN
-          IF((explicit_mix.AND.(nforce_eval==1)).OR.(.NOT.explicit_mix.AND.(nforce_eval>1)))THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"Error multiple force_env without RESPA or MIXED, or RESPA with one single "//&
-                  " or MIXED with only two force_env section.",error,failure)
-          END IF
+    IF ((explicit.AND.(nforce_eval==1)).OR.(.NOT.explicit.AND.(nforce_eval>1)))THEN
+       IF((explicit_mix.AND.(nforce_eval==1)).OR.(.NOT.explicit_mix.AND.(nforce_eval>1)))THEN
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"Error multiple force_env without RESPA or MIXED, or RESPA with one single "//&
+               " or MIXED with only two force_env section.",error,failure)
        END IF
-       DO iforce_eval = 1,nforce_eval
-          section => section_vals_get_subs_vals3(sections,"DFT",i_rep_section=iforce_eval,error=error)
-          ! xc: expand and fix default for tddfpt
-          section1 => section_vals_get_subs_vals(section,"XC",error=error)
-          section2 => section_vals_get_subs_vals(section,"XC%XC_FUNCTIONAL",error=error)
-          CALL xc_functionals_expand(section2,section1,error=error)
-          section1 => section_vals_get_subs_vals(section,"TDDFPT%XC",error=error)
-          section2 => section_vals_get_subs_vals(section,"TDDFPT%XC%XC_FUNCTIONAL",error=error)
-          CALL section_vals_get(section2,explicit=explicit,error=error)
-          IF (explicit) THEN
-             CALL xc_functionals_expand(section2,section1,error=error)
-          ELSE
-             section2 => section_vals_get_subs_vals(section,"XC%XC_FUNCTIONAL",error=error)
-             CALL section_vals_set_subs_vals(section,"TDDFPT%XC%XC_FUNCTIONAL",section2,error=error)
-          END IF
-       END DO
-
     END IF
+    DO iforce_eval = 1,nforce_eval
+       section => section_vals_get_subs_vals3(sections,"DFT",i_rep_section=iforce_eval,error=error)
+       ! xc: expand and fix default for tddfpt
+       section1 => section_vals_get_subs_vals(section,"XC",error=error)
+       section2 => section_vals_get_subs_vals(section,"XC%XC_FUNCTIONAL",error=error)
+       CALL xc_functionals_expand(section2,section1,error=error)
+       section1 => section_vals_get_subs_vals(section,"TDDFPT%XC",error=error)
+       section2 => section_vals_get_subs_vals(section,"TDDFPT%XC%XC_FUNCTIONAL",error=error)
+       CALL section_vals_get(section2,explicit=explicit,error=error)
+       IF (explicit) THEN
+          CALL xc_functionals_expand(section2,section1,error=error)
+       ELSE
+          section2 => section_vals_get_subs_vals(section,"XC%XC_FUNCTIONAL",error=error)
+          CALL section_vals_set_subs_vals(section,"TDDFPT%XC%XC_FUNCTIONAL",section2,error=error)
+       END IF
+    END DO
+
     CALL timestop(handle)
   END SUBROUTINE check_cp2k_input
 
@@ -154,131 +150,129 @@ CONTAINS
 
     failure=.FALSE.
 
-    IF (.NOT. failure) THEN
-       CALL section_vals_val_get(functionals,"_SECTION_PARAMETERS_",&
-            i_val=shortcut,error=error)
-       SELECT CASE(shortcut)
-       CASE(xc_funct_no_shortcut, xc_none)
-          ! nothing to expand
-       CASE(xc_funct_pbe0)
-          CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"PBE%SCALE_X",&
-               r_val=0.75_dp,error=error)
-          CALL section_vals_val_set(functionals,"PBE%SCALE_C",&
-               r_val=1.0_dp,error=error)
-          ! Hartree Fock Exact Exchange
-          CALL section_vals_val_set(xc_section,"HF%FRACTION",&
-               r_val=0.25_dp,error=error)
-          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-               i_val=xc_funct_no_shortcut,error=error)
-       CASE(xc_funct_beefvdw)       
-          CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",& !40% PBEc
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"PBE%SCALE_C",&
-               r_val=0.3998335231_dp,error=error)
-          CALL section_vals_val_set(functionals,"PBE%SCALE_X",&  !no PBEx
-               r_val=0.0000000000_dp,error=error)
+    CALL section_vals_val_get(functionals,"_SECTION_PARAMETERS_",&
+         i_val=shortcut,error=error)
+    SELECT CASE(shortcut)
+    CASE(xc_funct_no_shortcut, xc_none)
+       ! nothing to expand
+    CASE(xc_funct_pbe0)
+       CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"PBE%SCALE_X",&
+            r_val=0.75_dp,error=error)
+       CALL section_vals_val_set(functionals,"PBE%SCALE_C",&
+            r_val=1.0_dp,error=error)
+       ! Hartree Fock Exact Exchange
+       CALL section_vals_val_set(xc_section,"HF%FRACTION",&
+            r_val=0.25_dp,error=error)
+       CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+            i_val=xc_funct_no_shortcut,error=error)
+    CASE(xc_funct_beefvdw)       
+       CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",& !40% PBEc
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"PBE%SCALE_C",&
+            r_val=0.3998335231_dp,error=error)
+       CALL section_vals_val_set(functionals,"PBE%SCALE_X",&  !no PBEx
+            r_val=0.0000000000_dp,error=error)
 
-               !PW92 correlation functional from libxc is required.
-               !The cp2k-native PW92 gives disagreeing results (in the 0.01E_H
-               !decimal) and yields inconsistent forces in a DEBUG run.
-               !(rk, 6.3.2014)
-          CALL section_vals_val_set(functionals,"LIBXC%_SECTION_PARAMETERS_",& !60%LDA
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"LIBXC%FUNCTIONAL",&
-               c_val="XC_LDA_C_PW",error=error)
-          CALL section_vals_val_set(functionals,"LIBXC%SCALE",&
-               r_val=0.6001664769_dp,error=error)
+            !PW92 correlation functional from libxc is required.
+            !The cp2k-native PW92 gives disagreeing results (in the 0.01E_H
+            !decimal) and yields inconsistent forces in a DEBUG run.
+            !(rk, 6.3.2014)
+       CALL section_vals_val_set(functionals,"LIBXC%_SECTION_PARAMETERS_",& !60%LDA
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"LIBXC%FUNCTIONAL",&
+            c_val="XC_LDA_C_PW",error=error)
+       CALL section_vals_val_set(functionals,"LIBXC%SCALE",&
+            r_val=0.6001664769_dp,error=error)
 
-          CALL section_vals_val_set(functionals,"BEEF%_SECTION_PARAMETERS_",& !BEEF exchange
-               l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"BEEF%_SECTION_PARAMETERS_",& !BEEF exchange
+            l_val=.TRUE.,error=error)
 
-               !NONLOCAL, LMKLL.
-          CALL section_vals_val_set(xc_section,"VDW_POTENTIAL%DISPERSION_FUNCTIONAL",&
-               i_val=xc_vdw_fun_nonloc,error=error)
-          CALL section_vals_val_set(xc_section,"VDW_POTENTIAL%NON_LOCAL%TYPE",&
-               i_val=vdw_nl_LMKLL,error=error)
-          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-               i_val=xc_funct_no_shortcut,error=error)
-       CASE(xc_funct_b3lyp)
-          CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"BECKE88%SCALE_X",&
-               r_val=0.72_dp,error=error)
-          CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"LYP%SCALE_C",&
-               r_val=0.81_dp,error=error)
-          CALL section_vals_val_set(functionals,"VWN%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"VWN%FUNCTIONAL_TYPE",&
-               i_val=do_vwn5,error=error)
-          CALL section_vals_val_set(functionals,"VWN%SCALE_C",&
-               r_val=0.19_dp,error=error)
-          CALL section_vals_val_set(functionals,"XALPHA%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"XALPHA%SCALE_X",&
-               r_val=0.08_dp,error=error)
-          ! Hartree Fock Exact Exchange
-          CALL section_vals_val_set(xc_section,"HF%FRACTION",&
-               r_val=0.20_dp,error=error)
-          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-               i_val=xc_funct_no_shortcut,error=error)
-       CASE(xc_funct_blyp)
-          CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-               i_val=xc_funct_no_shortcut,error=error)
-       CASE(xc_funct_bp)
-          CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"P86C%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-               i_val=xc_funct_no_shortcut,error=error)
-       CASE(xc_funct_pade)
-          CALL section_vals_val_set(functionals,"PADE%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-               i_val=xc_funct_no_shortcut,error=error)
-       CASE(xc_funct_pbe)
-          CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-               i_val=xc_funct_no_shortcut,error=error)
-       CASE(xc_funct_xwpbe)
-          CALL section_vals_val_set(functionals,"XWPBE%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-               i_val=xc_funct_no_shortcut,error=error)
-       CASE(xc_funct_tpss)
-          CALL section_vals_val_set(functionals,"TPSS%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-               i_val=xc_funct_no_shortcut,error=error)
-       CASE(xc_funct_olyp)
-          CALL section_vals_val_set(functionals,"OPTX%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-               i_val=xc_funct_no_shortcut,error=error)
-       CASE(xc_funct_hcth120)
-          CALL section_vals_val_set(functionals,"HCTH%_SECTION_PARAMETERS_",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(functionals,"HCTH%PARAMETER_SET",&
-               i_val=120,error=error)
-          CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
-               i_val=xc_funct_no_shortcut,error=error)
-       CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown shortcut "//TRIM(ADJUSTL(cp_to_string(shortcut))),&
-               error,failure)
-       END SELECT
-    END IF
+            !NONLOCAL, LMKLL.
+       CALL section_vals_val_set(xc_section,"VDW_POTENTIAL%DISPERSION_FUNCTIONAL",&
+            i_val=xc_vdw_fun_nonloc,error=error)
+       CALL section_vals_val_set(xc_section,"VDW_POTENTIAL%NON_LOCAL%TYPE",&
+            i_val=vdw_nl_LMKLL,error=error)
+       CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+            i_val=xc_funct_no_shortcut,error=error)
+    CASE(xc_funct_b3lyp)
+       CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"BECKE88%SCALE_X",&
+            r_val=0.72_dp,error=error)
+       CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"LYP%SCALE_C",&
+            r_val=0.81_dp,error=error)
+       CALL section_vals_val_set(functionals,"VWN%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"VWN%FUNCTIONAL_TYPE",&
+            i_val=do_vwn5,error=error)
+       CALL section_vals_val_set(functionals,"VWN%SCALE_C",&
+            r_val=0.19_dp,error=error)
+       CALL section_vals_val_set(functionals,"XALPHA%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"XALPHA%SCALE_X",&
+            r_val=0.08_dp,error=error)
+       ! Hartree Fock Exact Exchange
+       CALL section_vals_val_set(xc_section,"HF%FRACTION",&
+            r_val=0.20_dp,error=error)
+       CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+            i_val=xc_funct_no_shortcut,error=error)
+    CASE(xc_funct_blyp)
+       CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+            i_val=xc_funct_no_shortcut,error=error)
+    CASE(xc_funct_bp)
+       CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"P86C%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+            i_val=xc_funct_no_shortcut,error=error)
+    CASE(xc_funct_pade)
+       CALL section_vals_val_set(functionals,"PADE%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+            i_val=xc_funct_no_shortcut,error=error)
+    CASE(xc_funct_pbe)
+       CALL section_vals_val_set(functionals,"PBE%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+            i_val=xc_funct_no_shortcut,error=error)
+    CASE(xc_funct_xwpbe)
+       CALL section_vals_val_set(functionals,"XWPBE%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+            i_val=xc_funct_no_shortcut,error=error)
+    CASE(xc_funct_tpss)
+       CALL section_vals_val_set(functionals,"TPSS%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+            i_val=xc_funct_no_shortcut,error=error)
+    CASE(xc_funct_olyp)
+       CALL section_vals_val_set(functionals,"OPTX%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+            i_val=xc_funct_no_shortcut,error=error)
+    CASE(xc_funct_hcth120)
+       CALL section_vals_val_set(functionals,"HCTH%_SECTION_PARAMETERS_",&
+            l_val=.TRUE.,error=error)
+       CALL section_vals_val_set(functionals,"HCTH%PARAMETER_SET",&
+            i_val=120,error=error)
+       CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+            i_val=xc_funct_no_shortcut,error=error)
+    CASE default
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+            routineP,"unknown shortcut "//TRIM(ADJUSTL(cp_to_string(shortcut))),&
+            error,failure)
+    END SELECT
   END SUBROUTINE xc_functionals_expand
 
 ! *****************************************************************************
@@ -1017,14 +1011,12 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(work_section)
-    IF (.NOT. failure) THEN
-       work_section => section_vals_get_subs_vals(input_file,TRIM(tag_section),error=error)
-       CALL section_vals_get(work_section,explicit=explicit1,error=error)
-       work_section => section_vals_get_subs_vals(restart_file,TRIM(tag_section),error=error)
-       CALL section_vals_get(work_section,explicit=explicit2,error=error)
+    work_section => section_vals_get_subs_vals(input_file,TRIM(tag_section),error=error)
+    CALL section_vals_get(work_section,explicit=explicit1,error=error)
+    work_section => section_vals_get_subs_vals(restart_file,TRIM(tag_section),error=error)
+    CALL section_vals_get(work_section,explicit=explicit2,error=error)
 
-       do_restart = explicit1.AND.explicit2
-    END IF
+    do_restart = explicit1.AND.explicit2
     CALL timestop(handle)
   END FUNCTION check_restart
 
@@ -1054,89 +1046,87 @@ CPSourceFileRef,&
 
     failure=.FALSE.
     NULLIFY(work_section)
-    IF (.NOT. failure) THEN
-       section_to_delete => section_vals_get_subs_vals(input_file,"EXT_RESTART",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       sections1  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
-       CALL section_vals_get(sections1, n_repetition=nforce_eval1, error=error)
+    section_to_delete => section_vals_get_subs_vals(input_file,"EXT_RESTART",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    sections1  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
+    CALL section_vals_get(sections1, n_repetition=nforce_eval1, error=error)
 
-       DO iforce_eval = 1, nforce_eval1
-          section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",i_rep_section=iforce_eval,error=error)
-          section_to_delete => section_vals_get_subs_vals(section1,"COORD",error=error)
-          CALL section_vals_remove_values(section_to_delete,error)
-          section_to_delete => section_vals_get_subs_vals(section1,"VELOCITY",error=error)
-          CALL section_vals_remove_values(section_to_delete,error)
-       END DO
+    DO iforce_eval = 1, nforce_eval1
+       section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",i_rep_section=iforce_eval,error=error)
+       section_to_delete => section_vals_get_subs_vals(section1,"COORD",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+       section_to_delete => section_vals_get_subs_vals(section1,"VELOCITY",error=error)
+       CALL section_vals_remove_values(section_to_delete,error)
+    END DO
 
-       motion_section => section_vals_get_subs_vals(input_file,"MOTION",error=error)
-       md_section => section_vals_get_subs_vals(motion_section,"MD",error=error)
-       CALL section_vals_get(md_section,explicit=explicit1,error=error)
-       IF (explicit1) THEN
-          CALL section_vals_val_unset(md_section,"STEP_START_VAL",error=error)
-          CALL section_vals_val_unset(md_section,"TIME_START_VAL",error=error)
-          CALL section_vals_val_unset(md_section,"ECONS_START_VAL",error=error)
-       END IF
-       work_section => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN",error=error)
-       CALL section_vals_get(work_section,explicit=explicit1,error=error)
-       IF (explicit1) THEN
-          CALL section_vals_val_unset(motion_section,"FREE_ENERGY%METADYN%STEP_START_VAL",error=error)
-          CALL section_vals_val_unset(motion_section,"FREE_ENERGY%METADYN%NHILLS_START_VAL",error=error)
-       END IF
-       section_to_delete => section_vals_get_subs_vals(motion_section,"BAND%REPLICA",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"AVERAGES%RESTART_AVERAGES",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"THERMOSTAT%NOSE%COORD",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"THERMOSTAT%NOSE%VELOCITY",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"THERMOSTAT%NOSE%MASS",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"THERMOSTAT%NOSE%FORCE",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%MASS",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%VELOCITY",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%COORD",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%VELOCITY",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%MASS",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%FORCE",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       ! Constrained/Restrained section
-       section_to_delete => section_vals_get_subs_vals(motion_section,"CONSTRAINT%FIX_ATOM_RESTART",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(motion_section,"CONSTRAINT%COLVAR_RESTART",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       ! Free energies restarts
-       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_SCALE",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_INVDT",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_SS",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
-       section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_FS",error=error)
-       CALL section_vals_remove_values(section_to_delete,error)
+    motion_section => section_vals_get_subs_vals(input_file,"MOTION",error=error)
+    md_section => section_vals_get_subs_vals(motion_section,"MD",error=error)
+    CALL section_vals_get(md_section,explicit=explicit1,error=error)
+    IF (explicit1) THEN
+       CALL section_vals_val_unset(md_section,"STEP_START_VAL",error=error)
+       CALL section_vals_val_unset(md_section,"TIME_START_VAL",error=error)
+       CALL section_vals_val_unset(md_section,"ECONS_START_VAL",error=error)
     END IF
+    work_section => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN",error=error)
+    CALL section_vals_get(work_section,explicit=explicit1,error=error)
+    IF (explicit1) THEN
+       CALL section_vals_val_unset(motion_section,"FREE_ENERGY%METADYN%STEP_START_VAL",error=error)
+       CALL section_vals_val_unset(motion_section,"FREE_ENERGY%METADYN%NHILLS_START_VAL",error=error)
+    END IF
+    section_to_delete => section_vals_get_subs_vals(motion_section,"BAND%REPLICA",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"AVERAGES%RESTART_AVERAGES",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"THERMOSTAT%NOSE%COORD",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"THERMOSTAT%NOSE%VELOCITY",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"THERMOSTAT%NOSE%MASS",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"THERMOSTAT%NOSE%FORCE",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%MASS",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%VELOCITY",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%COORD",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%VELOCITY",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%MASS",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"BAROSTAT%THERMOSTAT%NOSE%FORCE",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%COORD",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%VELOCITY",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%MASS",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(md_section,"SHELL%THERMOSTAT%NOSE%FORCE",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    ! Constrained/Restrained section
+    section_to_delete => section_vals_get_subs_vals(motion_section,"CONSTRAINT%FIX_ATOM_RESTART",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(motion_section,"CONSTRAINT%COLVAR_RESTART",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    ! Free energies restarts
+    section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_POS",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_SCALE",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_HEIGHT",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%SPAWNED_HILLS_INVDT",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_SS0",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_VVP",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_SS",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
+    section_to_delete => section_vals_get_subs_vals(motion_section,"FREE_ENERGY%METADYN%EXT_LAGRANGE_FS",error=error)
+    CALL section_vals_remove_values(section_to_delete,error)
     CALL timestop(handle)
   END SUBROUTINE remove_restart_info
 
@@ -1161,24 +1151,22 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    IF (.NOT. failure) THEN
-       NULLIFY(keyword, section)
-       CALL section_vals_get(r_section, section=section, error=error)
-       CALL section_vals_val_get(r_section,"RESTART_DEFAULT",l_val=restart_default,error=error)
-       DO ik=-1,section%n_keywords
-          keyword => section%keywords(ik)%keyword
-          IF (ASSOCIATED(keyword)) THEN
-             IF (keyword%type_of_var==logical_t.AND.keyword%names(1)(1:8)=="RESTART_") THEN
-                IF (TRIM(keyword%names(1))=="RESTART_DEFAULT") CYCLE
-                CALL section_vals_val_get(r_section,keyword%names(1),n_rep_val=nval,error=error)
-                IF (nval==0) THEN
-                   ! User didn't specify any value, use the value of the RESTART_DEFAULT keyword..
-                   CALL section_vals_val_set(r_section,keyword%names(1),l_val=restart_default,error=error)
-                END IF
+    NULLIFY(keyword, section)
+    CALL section_vals_get(r_section, section=section, error=error)
+    CALL section_vals_val_get(r_section,"RESTART_DEFAULT",l_val=restart_default,error=error)
+    DO ik=-1,section%n_keywords
+       keyword => section%keywords(ik)%keyword
+       IF (ASSOCIATED(keyword)) THEN
+          IF (keyword%type_of_var==logical_t.AND.keyword%names(1)(1:8)=="RESTART_") THEN
+             IF (TRIM(keyword%names(1))=="RESTART_DEFAULT") CYCLE
+             CALL section_vals_val_get(r_section,keyword%names(1),n_rep_val=nval,error=error)
+             IF (nval==0) THEN
+                ! User didn't specify any value, use the value of the RESTART_DEFAULT keyword..
+                CALL section_vals_val_set(r_section,keyword%names(1),l_val=restart_default,error=error)
              END IF
           END IF
-       END DO
-    END IF
+       END IF
+    END DO
    CALL timestop(handle)
 
   END SUBROUTINE handle_defaults_restart

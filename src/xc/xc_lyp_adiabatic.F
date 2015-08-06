@@ -162,63 +162,61 @@ CONTAINS
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-      CALL xc_rho_set_get(rho_set,rho_1_3=rho_1_3,rho=rho,&
-           norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-           drho_cutoff=epsilon_norm_drho,error=error)
-      npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL xc_rho_set_get(rho_set,rho_1_3=rho_1_3,rho=rho,&
+         norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
+         drho_cutoff=epsilon_norm_drho,error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-      ! meaningful default for the arrays we don't need: let us make compiler
-      ! and debugger happy...
-      IF (cp_debug) THEN
-        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ELSE
-        dummy=> rho
-      END IF
+    ! meaningful default for the arrays we don't need: let us make compiler
+    ! and debugger happy...
+    IF (cp_debug) THEN
+      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+      dummy=> rho
+    END IF
 
-      e_0 => dummy
-      e_rho => dummy
-      e_ndrho => dummy
+    e_0 => dummy
+    e_rho => dummy
+    e_ndrho => dummy
 
-      IF (grad_deriv>=0) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"",&
-                 allocate_deriv=.TRUE., error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
-      END IF
-      IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-                 allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-             allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
-      END IF
-      IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="derivatives bigger than 1 not implemented", &
-             error=error, error_level=cp_failure_level)
-      END IF
+    IF (grad_deriv>=0) THEN
+      deriv => xc_dset_get_derivative(deriv_set,"",&
+               allocate_deriv=.TRUE., error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+    END IF
+    IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
+      deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
+               allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
+           allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+    END IF
+    IF (grad_deriv>1.OR.grad_deriv<-1) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+           message="derivatives bigger than 1 not implemented", &
+           error=error, error_level=cp_failure_level)
+    END IF
 
-      !$omp parallel default(none) &
-      !$omp          shared(rho, norm_drho, e_0, e_rho, e_ndrho) &
-      !$omp          shared(grad_deriv, npoints) &
-      !$omp          shared(epsilon_rho, lambda, error)
+    !$omp parallel default(none) &
+    !$omp          shared(rho, norm_drho, e_0, e_rho, e_ndrho) &
+    !$omp          shared(grad_deriv, npoints) &
+    !$omp          shared(epsilon_rho, lambda, error)
 
-      CALL lyp_adiabatic_lda_calc(rho=rho, norm_drho=norm_drho,&
-           e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
-           grad_deriv=grad_deriv,&
-           npoints=npoints,epsilon_rho=epsilon_rho,lambda=lambda,&
-           error=error)
+    CALL lyp_adiabatic_lda_calc(rho=rho, norm_drho=norm_drho,&
+         e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
+         grad_deriv=grad_deriv,&
+         npoints=npoints,epsilon_rho=epsilon_rho,lambda=lambda,&
+         error=error)
 
-      !$omp end parallel
+    !$omp end parallel
 
-      IF (cp_debug) THEN
-        DEALLOCATE(dummy,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      ELSE
-        NULLIFY(dummy)
-      END IF
+    IF (cp_debug) THEN
+      DEALLOCATE(dummy,stat=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    ELSE
+      NULLIFY(dummy)
     END IF
     CALL timestop(handle)
   END SUBROUTINE lyp_adiabatic_lda_eval
@@ -399,91 +397,89 @@ CONTAINS
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-      CALL xc_rho_set_get(rho_set,&
-           rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
-           norm_drhob=norm_drhob, norm_drho=norm_drho, &
-           rho_cutoff=epsilon_rho,&
-           local_bounds=bo, error=error)
-      npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL xc_rho_set_get(rho_set,&
+         rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
+         norm_drhob=norm_drhob, norm_drho=norm_drho, &
+         rho_cutoff=epsilon_rho,&
+         local_bounds=bo, error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-      ! meaningful default for the arrays we don't need: let us make compiler
-      ! and debugger happy...
-      IF (cp_debug) THEN
-        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ELSE
-        dummy=> rhoa
-      END IF
-      e_0 => dummy
-      e_ra => dummy
-      e_rb => dummy
-      e_ndra_ra => dummy
-      e_ndra_rb => dummy
-      e_ndrb_ra => dummy
-      e_ndrb_rb => dummy
-      e_ndr_ndr => dummy
-      e_ndra_ndra => dummy
-      e_ndrb_ndrb => dummy
-      e_ndr => dummy
-      e_ndra => dummy
-      e_ndrb => dummy
-      e_ra_ra => dummy
-      e_ra_rb => dummy
-      e_rb_rb => dummy
-      e_ndr_ra => dummy
-      e_ndr_rb => dummy
+    ! meaningful default for the arrays we don't need: let us make compiler
+    ! and debugger happy...
+    IF (cp_debug) THEN
+      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+      dummy=> rhoa
+    END IF
+    e_0 => dummy
+    e_ra => dummy
+    e_rb => dummy
+    e_ndra_ra => dummy
+    e_ndra_rb => dummy
+    e_ndrb_ra => dummy
+    e_ndrb_rb => dummy
+    e_ndr_ndr => dummy
+    e_ndra_ndra => dummy
+    e_ndrb_ndrb => dummy
+    e_ndr => dummy
+    e_ndra => dummy
+    e_ndrb => dummy
+    e_ra_ra => dummy
+    e_ra_rb => dummy
+    e_rb_rb => dummy
+    e_ndr_ra => dummy
+    e_ndr_rb => dummy
 
-      IF (grad_deriv>=0) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"",&
-              allocate_deriv=.TRUE., error=error)
-        CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
-      END IF
-      IF (grad_deriv==1.OR.grad_deriv==-1) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ra,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_rb,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndr,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndra,error=error)
-        deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrb,error=error)
-      END IF
-      IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="derivatives bigger than 1 not implemented", &
-             error=error, error_level=cp_failure_level)
-      END IF
+    IF (grad_deriv>=0) THEN
+      deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+      CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
+    END IF
+    IF (grad_deriv==1.OR.grad_deriv==-1) THEN
+      deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_ra,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_rb,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndr,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndra,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_ndrb,error=error)
+    END IF
+    IF (grad_deriv>1.OR.grad_deriv<-1) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+           message="derivatives bigger than 1 not implemented", &
+           error=error, error_level=cp_failure_level)
+    END IF
 
-      !$omp parallel default(none) &
-      !$omp          shared(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob) &
-      !$omp          shared(e_0, e_ra, e_rb, e_ndr, e_ndra, e_ndrb) &
-      !$omp          shared(grad_deriv, npoints) &
-      !$omp          shared(epsilon_rho, lambda, error)
+    !$omp parallel default(none) &
+    !$omp          shared(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob) &
+    !$omp          shared(e_0, e_ra, e_rb, e_ndr, e_ndra, e_ndrb) &
+    !$omp          shared(grad_deriv, npoints) &
+    !$omp          shared(epsilon_rho, lambda, error)
 
-      CALL lyp_adiabatic_lsd_calc(&
-           rhoa=rhoa, rhob=rhob, norm_drho=norm_drho, norm_drhoa=norm_drhoa,&
-           norm_drhob=norm_drhob, e_0=e_0, e_ra=e_ra, e_rb=e_rb,&
-           e_ndr=e_ndr,&
-           e_ndra=e_ndra, e_ndrb=e_ndrb,&
-           grad_deriv=grad_deriv, npoints=npoints, &
-           epsilon_rho=epsilon_rho,lambda=lambda,error=error)
+    CALL lyp_adiabatic_lsd_calc(&
+         rhoa=rhoa, rhob=rhob, norm_drho=norm_drho, norm_drhoa=norm_drhoa,&
+         norm_drhob=norm_drhob, e_0=e_0, e_ra=e_ra, e_rb=e_rb,&
+         e_ndr=e_ndr,&
+         e_ndra=e_ndra, e_ndrb=e_ndrb,&
+         grad_deriv=grad_deriv, npoints=npoints, &
+         epsilon_rho=epsilon_rho,lambda=lambda,error=error)
 
-      !$omp end parallel
+    !$omp end parallel
 
-      IF (cp_debug) THEN
-        DEALLOCATE(dummy,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      ELSE
-        NULLIFY(dummy)
-      END IF
+    IF (cp_debug) THEN
+      DEALLOCATE(dummy,stat=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    ELSE
+      NULLIFY(dummy)
     END IF
     CALL timestop(handle)
   END SUBROUTINE lyp_adiabatic_lsd_eval

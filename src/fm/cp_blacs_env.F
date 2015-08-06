@@ -172,96 +172,94 @@ CPSourceFileRef,&
 
   ALLOCATE(blacs_env,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     blacs_env%group=0
-     blacs_env%ref_count=1
-     blacs_env%mepos(:)=0
-     blacs_env%num_pe(:)=1
-     blacs_env%my_pid=0
-     blacs_env%n_pid=1
-     CALL cp_para_env_retain(para_env,error=error)
-     blacs_env%para_env => para_env
+  blacs_env%group=0
+  blacs_env%ref_count=1
+  blacs_env%mepos(:)=0
+  blacs_env%num_pe(:)=1
+  blacs_env%my_pid=0
+  blacs_env%n_pid=1
+  CALL cp_para_env_retain(para_env,error=error)
+  blacs_env%para_env => para_env
 
 #ifdef __SCALAPACK
-     ! get the number of cpus for this blacs grid
-     blacs_env%my_pid = para_env%mepos
-     blacs_env%n_pid  = para_env%num_pe
-     nprow=1
-     npcol=1
-     npe  =blacs_env%n_pid
-     ! get the layout of this grid
+  ! get the number of cpus for this blacs grid
+  blacs_env%my_pid = para_env%mepos
+  blacs_env%n_pid  = para_env%num_pe
+  nprow=1
+  npcol=1
+  npe  =blacs_env%n_pid
+  ! get the layout of this grid
 
-     IF (PRESENT(grid_2d)) THEN
-        nprow=grid_2d(1)
-        npcol=grid_2d(2)
-     ENDIF
+  IF (PRESENT(grid_2d)) THEN
+     nprow=grid_2d(1)
+     npcol=grid_2d(2)
+  ENDIF
 
-     IF (nprow*npcol.NE.npe) THEN
-       ! hard code for the time being the grid layout
-       my_blacs_grid_layout=BLACS_GRID_SQUARE
-       IF(PRESENT(blacs_grid_layout)) my_blacs_grid_layout=blacs_grid_layout
-       ! XXXXXX
-       SELECT CASE (my_blacs_grid_layout)
-       CASE (BLACS_GRID_SQUARE)
-          ! make the grid as 'square' as possible, where square is defined as nprow and npcol
-          ! having the largest possible gcd
-          gcd_max=-1
-          DO ipe=1,CEILING(SQRT(REAL(npe,dp)))
-             jpe=npe/ipe
-             IF(ipe*jpe.NE.npe) CYCLE
-             IF (gcd(ipe,jpe)>=gcd_max) THEN
-                nprow=ipe
-                npcol=jpe
-                gcd_max=gcd(ipe,jpe)
-             ENDIF
-          ENDDO
-       CASE (BLACS_GRID_ROW)
-          nprow = 1
-          npcol = npe
-       CASE (BLACS_GRID_COL)
-          nprow = npe
-          npcol = 1
-       END SELECT
-     ENDIF
+  IF (nprow*npcol.NE.npe) THEN
+    ! hard code for the time being the grid layout
+    my_blacs_grid_layout=BLACS_GRID_SQUARE
+    IF(PRESENT(blacs_grid_layout)) my_blacs_grid_layout=blacs_grid_layout
+    ! XXXXXX
+    SELECT CASE (my_blacs_grid_layout)
+    CASE (BLACS_GRID_SQUARE)
+       ! make the grid as 'square' as possible, where square is defined as nprow and npcol
+       ! having the largest possible gcd
+       gcd_max=-1
+       DO ipe=1,CEILING(SQRT(REAL(npe,dp)))
+          jpe=npe/ipe
+          IF(ipe*jpe.NE.npe) CYCLE
+          IF (gcd(ipe,jpe)>=gcd_max) THEN
+             nprow=ipe
+             npcol=jpe
+             gcd_max=gcd(ipe,jpe)
+          ENDIF
+       ENDDO
+    CASE (BLACS_GRID_ROW)
+       nprow = 1
+       npcol = npe
+    CASE (BLACS_GRID_COL)
+       nprow = npe
+       npcol = 1
+    END SELECT
+  ENDIF
 
 
-     ! blacs_env%group will be set to the blacs context for this blacs env, this is not the same as the MPI context
-     blacs_env%group=para_env%group
-     my_row_major=.TRUE.
-     IF (PRESENT(row_major)) my_row_major=row_major
-     IF (my_row_major) THEN
-        CALL cp_blacs_gridinit(blacs_env%group,"Row-major",nprow,npcol)
-     ELSE
-        CALL cp_blacs_gridinit(blacs_env%group,"Col-major",nprow,npcol)
-     ENDIF
+  ! blacs_env%group will be set to the blacs context for this blacs env, this is not the same as the MPI context
+  blacs_env%group=para_env%group
+  my_row_major=.TRUE.
+  IF (PRESENT(row_major)) my_row_major=row_major
+  IF (my_row_major) THEN
+     CALL cp_blacs_gridinit(blacs_env%group,"Row-major",nprow,npcol)
+  ELSE
+     CALL cp_blacs_gridinit(blacs_env%group,"Col-major",nprow,npcol)
+  ENDIF
 
-     my_blacs_repeatable = .FALSE.
-     IF(PRESENT(blacs_repeatable)) my_blacs_repeatable=blacs_repeatable
-     blacs_env%repeatable = my_blacs_repeatable
-     IF (blacs_env%repeatable) CALL cp_blacs_set(blacs_env%group, 15, 1)
+  my_blacs_repeatable = .FALSE.
+  IF(PRESENT(blacs_repeatable)) my_blacs_repeatable=blacs_repeatable
+  blacs_env%repeatable = my_blacs_repeatable
+  IF (blacs_env%repeatable) CALL cp_blacs_set(blacs_env%group, 15, 1)
 
-     ! fill in the info one needs
-     CALL cp_blacs_gridinfo(blacs_env%group,blacs_env%num_pe(1),&
-          blacs_env%num_pe(2),blacs_env%mepos(1),blacs_env%mepos(2))
+  ! fill in the info one needs
+  CALL cp_blacs_gridinfo(blacs_env%group,blacs_env%num_pe(1),&
+       blacs_env%num_pe(2),blacs_env%mepos(1),blacs_env%mepos(2))
 #endif
 
-     ! generate the mappings blacs2mpi and mpi2blacs
-     ALLOCATE(blacs_env%blacs2mpi(0:blacs_env%num_pe(1)-1,0:blacs_env%num_pe(2)-1),&
-          stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     blacs_env%blacs2mpi=0
-     blacs_env%blacs2mpi(blacs_env%mepos(1),blacs_env%mepos(2))=para_env%mepos
-     CALL mp_sum(blacs_env%blacs2mpi,para_env%group)
-     ALLOCATE(blacs_env%mpi2blacs(2,0:para_env%num_pe-1),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     blacs_env%mpi2blacs=-1
-     DO ipcol=0,blacs_env%num_pe(2)-1
-        DO iprow=0,blacs_env%num_pe(1)-1
-           blacs_env%mpi2blacs(1,blacs_env%blacs2mpi(iprow,ipcol))=iprow
-           blacs_env%mpi2blacs(2,blacs_env%blacs2mpi(iprow,ipcol))=ipcol
-        END DO
+  ! generate the mappings blacs2mpi and mpi2blacs
+  ALLOCATE(blacs_env%blacs2mpi(0:blacs_env%num_pe(1)-1,0:blacs_env%num_pe(2)-1),&
+       stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  blacs_env%blacs2mpi=0
+  blacs_env%blacs2mpi(blacs_env%mepos(1),blacs_env%mepos(2))=para_env%mepos
+  CALL mp_sum(blacs_env%blacs2mpi,para_env%group)
+  ALLOCATE(blacs_env%mpi2blacs(2,0:para_env%num_pe-1),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  blacs_env%mpi2blacs=-1
+  DO ipcol=0,blacs_env%num_pe(2)-1
+     DO iprow=0,blacs_env%num_pe(1)-1
+        blacs_env%mpi2blacs(1,blacs_env%blacs2mpi(iprow,ipcol))=iprow
+        blacs_env%mpi2blacs(2,blacs_env%blacs2mpi(iprow,ipcol))=ipcol
      END DO
-  END IF
+  END DO
 END SUBROUTINE cp_blacs_env_create
 
 ! *****************************************************************************
@@ -284,10 +282,8 @@ SUBROUTINE cp_blacs_env_retain(blacs_env,error)
 
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(blacs_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(blacs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     blacs_env%ref_count=blacs_env%ref_count+1
-  END IF
+  CPPrecondition(blacs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  blacs_env%ref_count=blacs_env%ref_count+1
 END SUBROUTINE cp_blacs_env_retain
 
 ! *****************************************************************************

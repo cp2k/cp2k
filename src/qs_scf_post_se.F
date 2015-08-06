@@ -122,97 +122,95 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     ! Here we start with data that needs a postprocessing...
-    IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env,&
-                       dft_control=dft_control,&
-                       mos=mos,&
-                       rho=rho,&
-                       input=input,&
-                       subsys=subsys,&
-                       para_env=para_env,&
-                       error=error)
-       CALL qs_subsys_get(subsys,particles=particles,error=error)
+    CALL get_qs_env(qs_env,&
+                    dft_control=dft_control,&
+                    mos=mos,&
+                    rho=rho,&
+                    input=input,&
+                    subsys=subsys,&
+                    para_env=para_env,&
+                    error=error)
+    CALL qs_subsys_get(subsys,particles=particles,error=error)
 
-       ! Compute Atomic Charges
-       CALL qs_scf_post_charges(input, logger, qs_env, rho, para_env, error)
+    ! Compute Atomic Charges
+    CALL qs_scf_post_charges(input, logger, qs_env, rho, para_env, error)
 
-       ! Moments of charge distribution
-       CALL qs_scf_post_moments(input, logger, qs_env, error)
+    ! Moments of charge distribution
+    CALL qs_scf_post_moments(input, logger, qs_env, error)
 
-       ! MO_CUBES
-       print_key => section_vals_get_subs_vals(section_vals=input,&
-                      subsection_name="DFT%PRINT%MO_CUBES",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Printing of MO cube files not implemented for Semi-Empirical method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! STM
-       print_key => section_vals_get_subs_vals(section_vals=input,&
-                      subsection_name="DFT%PRINT%STM",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="STM not implemented for Semi-Empirical method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! DFT+U
-       print_key => section_vals_get_subs_vals(section_vals=input,&
-                      subsection_name="DFT%PRINT%PLUS_U",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="DFT+U not available for Semi-Empirical method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! Kinetic Energy
-       print_key => section_vals_get_subs_vals(section_vals=input,&
-                      subsection_name="DFT%PRINT%KINETIC_ENERGY",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Kinetic energy not available for Semi-Empirical method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! Wavefunction mixing
-       wfn_mix_section => section_vals_get_subs_vals(input,"DFT%PRINT%WFN_MIX",error=error)
-       CALL section_vals_get(wfn_mix_section,explicit=explicit,error=error)
-       IF(explicit.AND..NOT.qs_env%run_rtp) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Wavefunction mixing not implemented for Semi-Empirical  method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! Print coherent X-ray diffraction spectrum
-       print_key => section_vals_get_subs_vals(section_vals=input,&
-                    subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="XRAY_DIFFRACTION_SPECTRUM  not implemented for Semi-Empirical calculations!!", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! Calculation of Electric Field Gradients
-       print_key => section_vals_get_subs_vals(section_vals=input,&
-                    subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="ELECTRIC_FIELD_GRADIENT not implemented for Semi-Empirical calculations!!", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! Calculation of EPR Hyperfine Coupling Tensors
-       print_key => section_vals_get_subs_vals(section_vals=input,&
-                    subsection_name="DFT%PRINT%HYPERFINE_COUPLING_TENSOR",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
-              cp_p_file)) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="HYPERFINE_COUPLING_TENSOR  not implemented for Semi-Empirical calculations!!", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
+    ! MO_CUBES
+    print_key => section_vals_get_subs_vals(section_vals=input,&
+                   subsection_name="DFT%PRINT%MO_CUBES",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Printing of MO cube files not implemented for Semi-Empirical method.", &
+         error=error, error_level=cp_warning_level)
     END IF
+
+    ! STM
+    print_key => section_vals_get_subs_vals(section_vals=input,&
+                   subsection_name="DFT%PRINT%STM",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="STM not implemented for Semi-Empirical method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! DFT+U
+    print_key => section_vals_get_subs_vals(section_vals=input,&
+                   subsection_name="DFT%PRINT%PLUS_U",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="DFT+U not available for Semi-Empirical method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! Kinetic Energy
+    print_key => section_vals_get_subs_vals(section_vals=input,&
+                   subsection_name="DFT%PRINT%KINETIC_ENERGY",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Kinetic energy not available for Semi-Empirical method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! Wavefunction mixing
+    wfn_mix_section => section_vals_get_subs_vals(input,"DFT%PRINT%WFN_MIX",error=error)
+    CALL section_vals_get(wfn_mix_section,explicit=explicit,error=error)
+    IF(explicit.AND..NOT.qs_env%run_rtp) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Wavefunction mixing not implemented for Semi-Empirical  method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! Print coherent X-ray diffraction spectrum
+    print_key => section_vals_get_subs_vals(section_vals=input,&
+                 subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="XRAY_DIFFRACTION_SPECTRUM  not implemented for Semi-Empirical calculations!!", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! Calculation of Electric Field Gradients
+    print_key => section_vals_get_subs_vals(section_vals=input,&
+                 subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="ELECTRIC_FIELD_GRADIENT not implemented for Semi-Empirical calculations!!", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! Calculation of EPR Hyperfine Coupling Tensors
+    print_key => section_vals_get_subs_vals(section_vals=input,&
+                 subsection_name="DFT%PRINT%HYPERFINE_COUPLING_TENSOR",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
+           cp_p_file)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="HYPERFINE_COUPLING_TENSOR  not implemented for Semi-Empirical calculations!!", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
 
     CALL timestop(handle)
 

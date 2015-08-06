@@ -174,194 +174,192 @@ CONTAINS
     NULLIFY (parser)
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       CPPostcondition(ASSOCIATED(coords),cp_failure_level,routineP,error,failure)
-       CPPostcondition(ASSOCIATED(vels),cp_failure_level,routineP,error,failure)
-       neb_nr_replica = neb_env%number_of_replica
-       replica_section => section_vals_get_subs_vals(neb_section,"REPLICA",error=error)
-       CALL section_vals_get(replica_section,n_repetition=input_nr_replica,error=error)
-       ! Calculation is aborted if input replicas are more then the requested ones for the BAND..
-       CPPostcondition((input_nr_replica<=neb_nr_replica),cp_failure_level,routineP,error,failure)
-       ! Read in replicas coordinates
-       skip_vel_section = (input_nr_replica /= neb_nr_replica)
-       IF ((iw > 0).AND.skip_vel_section) THEN
-          WRITE(iw,'(T2,A)')'NEB| The number of replica in the input is different from the number',&
-                            'NEB| of replica requested for NEB. More Replica will be interpolated.',&
-                            'NEB| Therefore the possibly provided velocities will not be read.'
+    CPPostcondition(ASSOCIATED(coords),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(vels),cp_failure_level,routineP,error,failure)
+    neb_nr_replica = neb_env%number_of_replica
+    replica_section => section_vals_get_subs_vals(neb_section,"REPLICA",error=error)
+    CALL section_vals_get(replica_section,n_repetition=input_nr_replica,error=error)
+    ! Calculation is aborted if input replicas are more then the requested ones for the BAND..
+    CPPostcondition((input_nr_replica<=neb_nr_replica),cp_failure_level,routineP,error,failure)
+    ! Read in replicas coordinates
+    skip_vel_section = (input_nr_replica /= neb_nr_replica)
+    IF ((iw > 0).AND.skip_vel_section) THEN
+       WRITE(iw,'(T2,A)')'NEB| The number of replica in the input is different from the number',&
+                         'NEB| of replica requested for NEB. More Replica will be interpolated.',&
+                         'NEB| Therefore the possibly provided velocities will not be read.'
+    END IF
+    ! Further check on velocity section...
+    DO i_rep=1,input_nr_replica
+       vel_section => section_vals_get_subs_vals(replica_section,"VELOCITY",&
+                                                 i_rep_section=i_rep,error=error)
+       CALL section_vals_get(vel_section,explicit=explicit,error=error)
+       skip_vel_section = skip_vel_section.OR.(.NOT.explicit)
+    END DO
+    ! Setup cartesian coordinates and COLVAR (if requested)
+    coords%xyz(:,:) = 0.0_dp
+    DO i_rep=1,input_nr_replica
+       coord_section => section_vals_get_subs_vals(replica_section,"COORD",&
+                                                   i_rep_section=i_rep,error=error)
+       CALL section_vals_get(coord_section,explicit=explicit,error=error)
+       ! Cartesian Coordinates
+       IF (explicit) THEN
+          CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+                                    n_rep_val=natom,error=error)
+          CPPostcondition((natom == SIZE(particle_set)),cp_failure_level,routineP,error,failure)
+          DO iatom=1,natom
+             CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+                                       i_rep_val=iatom,r_vals=rptr,error=error)
+             ic = 3*(iatom - 1)
+             coords%xyz(ic+1:ic+3,i_rep) = rptr(1:3)*bohr
+             ! Initially core and shell positions are set to the atomic positions
+             shell_index = particle_set(iatom)%shell_index
+             IF (shell_index /= 0) THEN
+                is = 3*(natom + shell_index - 1)
+                coords%xyz(is+1:is+3,i_rep) = coords%xyz(ic+1:ic+3,i_rep)
+             END IF
+          END DO
+       ELSE
+          CALL section_vals_val_get(replica_section,"COORD_FILE_NAME",&
+                                    i_rep_section=i_rep,c_val=filename,error=error)
+          CPPostcondition(TRIM(filename)/="",cp_failure_level,routineP,error,failure)
+          CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.,&
+                             error=error)
+          CALL parser_get_next_line(parser,1,error=error)
+          ! Start parser
+          CALL parser_get_object(parser,natom,error=error)
+          CPPostcondition((natom == SIZE(particle_set)),cp_failure_level,routineP,error,failure)
+          CALL parser_get_next_line(parser,1,error=error)
+          DO iatom=1,natom
+             ! Atom coordinates
+             CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
+             CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
+                  "Number of lines in XYZ format not equal to the number of atoms."//&
+                  " Error in XYZ format for REPLICA coordinates. Very probably the"//&
+                  " line with title is missing or is empty. Please check the XYZ file and rerun your job!"//&
+CPSourceFileRef,&
+             only_ionode=.TRUE.)
+             READ (parser%input_line,*) dummy_char,r(1:3)
+             ic = 3*(iatom - 1)
+             coords%xyz(ic+1:ic+3,i_rep) = r(1:3)*bohr
+             ! Initially core and shell positions are set to the atomic positions
+             shell_index = particle_set(iatom)%shell_index
+             IF (shell_index /= 0) THEN
+                is = 3*(natom + shell_index - 1)
+                coords%xyz(is+1:is+3,i_rep) = coords%xyz(ic+1:ic+3,i_rep)
+             END IF
+          END DO
+          CALL parser_release(parser,error=error)
        END IF
-       ! Further check on velocity section...
-       DO i_rep=1,input_nr_replica
+       ! Collective Variables
+       IF (neb_env%use_colvar) THEN
+          CALL  section_vals_val_get(replica_section,"COLLECTIVE",&
+                                     i_rep_section=i_rep,n_rep_val=n_rep,error=error)
+          IF (n_rep /= 0) THEN
+             ! Read the values of the collective variables
+             NULLIFY (initial_colvars)
+             CALL  section_vals_val_get(replica_section,"COLLECTIVE",&
+                                        i_rep_section=i_rep,r_vals=initial_colvars,error=error)
+             check = (neb_env%nsize_int == SIZE(initial_colvars))
+             CPPostcondition(check,cp_failure_level,routineP,error,failure)
+             coords%int(:,i_rep) = initial_colvars
+          ELSE
+             ! Compute the values of the collective variables
+             CALL eval_colvar(neb_env%force_env,coords%xyz(:,i_rep),coords%int(:,i_rep),error=error)
+          END IF
+       END IF
+       ! Dump cartesian and colvar info..
+       CALL dump_replica_coordinates(particle_set,coords,i_rep,i_rep,iw,neb_env%use_colvar)
+       ! Setup Velocities
+       IF (skip_vel_section) THEN
+          CALL neb_initialize_velocity(vels%wrk,neb_section,particle_set,&
+                                       i_rep,iw,globenv,neb_env,error)
+       ELSE
           vel_section => section_vals_get_subs_vals(replica_section,"VELOCITY",&
                                                     i_rep_section=i_rep,error=error)
-          CALL section_vals_get(vel_section,explicit=explicit,error=error)
-          skip_vel_section = skip_vel_section.OR.(.NOT.explicit)
-       END DO
-       ! Setup cartesian coordinates and COLVAR (if requested)
-       coords%xyz(:,:) = 0.0_dp
-       DO i_rep=1,input_nr_replica
-          coord_section => section_vals_get_subs_vals(replica_section,"COORD",&
-                                                      i_rep_section=i_rep,error=error)
-          CALL section_vals_get(coord_section,explicit=explicit,error=error)
-          ! Cartesian Coordinates
-          IF (explicit) THEN
-             CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
-                                       n_rep_val=natom,error=error)
-             CPPostcondition((natom == SIZE(particle_set)),cp_failure_level,routineP,error,failure)
+          CALL section_vals_val_get(vel_section,"_DEFAULT_KEYWORD_",&
+                                    n_rep_val=nval,error=error)
+          ! Setup Velocities for collective or cartesian coordinates
+          IF (neb_env%use_colvar) THEN
+             nvar = SIZE(vels%wrk,1)
+             CPPostcondition((nval == nvar),cp_failure_level,routineP,error,failure)
+             DO ivar=1,nvar
+                CALL section_vals_val_get(vel_section,"_DEFAULT_KEYWORD_",&
+                                          i_rep_val=ivar,r_vals=rptr,error=error)
+                vels%wrk(ivar,i_rep) = rptr(1)
+             END DO
+          ELSE
+             natom = SIZE(particle_set)
+             CPPostcondition((nval == natom),cp_failure_level,routineP,error,failure)
              DO iatom=1,natom
-                CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
+                CALL section_vals_val_get(vel_section,"_DEFAULT_KEYWORD_",&
                                           i_rep_val=iatom,r_vals=rptr,error=error)
                 ic = 3*(iatom - 1)
-                coords%xyz(ic+1:ic+3,i_rep) = rptr(1:3)*bohr
-                ! Initially core and shell positions are set to the atomic positions
+                vels%wrk(ic+1:ic+3,i_rep) = rptr(1:3)
+                ! Initially set shell velocities to core velocity
                 shell_index = particle_set(iatom)%shell_index
                 IF (shell_index /= 0) THEN
                    is = 3*(natom + shell_index - 1)
-                   coords%xyz(is+1:is+3,i_rep) = coords%xyz(ic+1:ic+3,i_rep)
+                   vels%wrk(is+1:is+3,i_rep) = vels%wrk(ic+1:ic+3,i_rep)
                 END IF
              END DO
-          ELSE
-             CALL section_vals_val_get(replica_section,"COORD_FILE_NAME",&
-                                       i_rep_section=i_rep,c_val=filename,error=error)
-             CPPostcondition(TRIM(filename)/="",cp_failure_level,routineP,error,failure)
-             CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.,&
-                                error=error)
-             CALL parser_get_next_line(parser,1,error=error)
-             ! Start parser
-             CALL parser_get_object(parser,natom,error=error)
-             CPPostcondition((natom == SIZE(particle_set)),cp_failure_level,routineP,error,failure)
-             CALL parser_get_next_line(parser,1,error=error)
-             DO iatom=1,natom
-                ! Atom coordinates
-                CALL parser_get_next_line(parser,1,at_end=my_end,error=error)
-                CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
-                     "Number of lines in XYZ format not equal to the number of atoms."//&
-                     " Error in XYZ format for REPLICA coordinates. Very probably the"//&
-                     " line with title is missing or is empty. Please check the XYZ file and rerun your job!"//&
-CPSourceFileRef,&
-                only_ionode=.TRUE.)
-                READ (parser%input_line,*) dummy_char,r(1:3)
-                ic = 3*(iatom - 1)
-                coords%xyz(ic+1:ic+3,i_rep) = r(1:3)*bohr
-                ! Initially core and shell positions are set to the atomic positions
-                shell_index = particle_set(iatom)%shell_index
-                IF (shell_index /= 0) THEN
-                   is = 3*(natom + shell_index - 1)
-                   coords%xyz(is+1:is+3,i_rep) = coords%xyz(ic+1:ic+3,i_rep)
-                END IF
-             END DO
-             CALL parser_release(parser,error=error)
           END IF
-          ! Collective Variables
-          IF (neb_env%use_colvar) THEN
-             CALL  section_vals_val_get(replica_section,"COLLECTIVE",&
-                                        i_rep_section=i_rep,n_rep_val=n_rep,error=error)
-             IF (n_rep /= 0) THEN
-                ! Read the values of the collective variables
-                NULLIFY (initial_colvars)
-                CALL  section_vals_val_get(replica_section,"COLLECTIVE",&
-                                           i_rep_section=i_rep,r_vals=initial_colvars,error=error)
-                check = (neb_env%nsize_int == SIZE(initial_colvars))
-                CPPostcondition(check,cp_failure_level,routineP,error,failure)
-                coords%int(:,i_rep) = initial_colvars
-             ELSE
-                ! Compute the values of the collective variables
-                CALL eval_colvar(neb_env%force_env,coords%xyz(:,i_rep),coords%int(:,i_rep),error=error)
-             END IF
-          END IF
-          ! Dump cartesian and colvar info..
-          CALL dump_replica_coordinates(particle_set,coords,i_rep,i_rep,iw,neb_env%use_colvar)
-          ! Setup Velocities
-          IF (skip_vel_section) THEN
-             CALL neb_initialize_velocity(vels%wrk,neb_section,particle_set,&
-                                          i_rep,iw,globenv,neb_env,error)
-          ELSE
-             vel_section => section_vals_get_subs_vals(replica_section,"VELOCITY",&
-                                                       i_rep_section=i_rep,error=error)
-             CALL section_vals_val_get(vel_section,"_DEFAULT_KEYWORD_",&
-                                       n_rep_val=nval,error=error)
-             ! Setup Velocities for collective or cartesian coordinates
-             IF (neb_env%use_colvar) THEN
-                nvar = SIZE(vels%wrk,1)
-                CPPostcondition((nval == nvar),cp_failure_level,routineP,error,failure)
-                DO ivar=1,nvar
-                   CALL section_vals_val_get(vel_section,"_DEFAULT_KEYWORD_",&
-                                             i_rep_val=ivar,r_vals=rptr,error=error)
-                   vels%wrk(ivar,i_rep) = rptr(1)
-                END DO
-             ELSE
-                natom = SIZE(particle_set)
-                CPPostcondition((nval == natom),cp_failure_level,routineP,error,failure)
-                DO iatom=1,natom
-                   CALL section_vals_val_get(vel_section,"_DEFAULT_KEYWORD_",&
-                                             i_rep_val=iatom,r_vals=rptr,error=error)
-                   ic = 3*(iatom - 1)
-                   vels%wrk(ic+1:ic+3,i_rep) = rptr(1:3)
-                   ! Initially set shell velocities to core velocity
-                   shell_index = particle_set(iatom)%shell_index
-                   IF (shell_index /= 0) THEN
-                      is = 3*(natom + shell_index - 1)
-                      vels%wrk(is+1:is+3,i_rep) = vels%wrk(ic+1:ic+3,i_rep)
-                   END IF
-                END DO
-             END IF
-          END IF
-       END DO ! i_rep
-       ALLOCATE (distance(neb_nr_replica-1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (input_nr_replica < neb_nr_replica) THEN
-          ! Interpolate missing replicas
-          nr_replica_to_interpolate = neb_nr_replica - input_nr_replica
-          distance = 0.0_dp
-          IF (iw > 0) THEN
-             WRITE(iw,'(T2,A,I0,A)')'NEB| Interpolating ',nr_replica_to_interpolate,' missing Replica.'
-          END IF
-          DO WHILE (nr_replica_to_interpolate > 0)
-             ! Compute distances between known images to find the interval
-             ! where to add a new image
-             DO j=1,input_nr_replica-1
-                CALL neb_replica_distance(particle_set,coords,j,j+1,distance(j),iw,&
-                                          rotate=neb_env%align_frames,error=error)
-             END DO
-             jtarg = MAXLOC(distance(1:input_nr_replica),1)
-             IF (iw > 0) THEN
-                WRITE (iw,'(T2,3(A,I0),A)')'NEB| Interpolating Nr. ',&
-                  nr_replica_to_interpolate,' missing Replica between Replica Nr. ',&
-                  jtarg,' and ',jtarg+1,'.'
-             END IF
-             input_nr_replica = input_nr_replica + 1
-             nr_replica_to_interpolate = nr_replica_to_interpolate - 1
-             ! Interpolation is a simple bisection in XYZ
-             coords%xyz(:,jtarg+2:input_nr_replica) = coords%xyz(:,jtarg+1:input_nr_replica-1)
-             coords%xyz(:,jtarg+1) = (coords%xyz(:,jtarg) + coords%xyz(:,jtarg+2))/2.0_dp
-             IF (neb_env%use_colvar) THEN
-                ! Interpolation is a simple bisection also in internal coordinates
-                ! in this case the XYZ coordinates need only as a starting point for computing
-                ! the potential energy function. The reference are the internal coordinates
-                ! interpolated here after..
-                coords%int(:,jtarg+2:input_nr_replica) = coords%int(:,jtarg+1:input_nr_replica-1)
-                coords%int(:,jtarg+1) = (coords%int(:,jtarg)+coords%int(:,jtarg+2))/2.0_dp
-             END IF
-             vels%wrk(:,jtarg+2:input_nr_replica) = vels%wrk(:,jtarg+1:input_nr_replica-1)
-             vels%wrk(:,jtarg+1) = 0.0_dp
-             CALL dump_replica_coordinates(particle_set, coords, jtarg+1,&
-                                           input_nr_replica, iw, neb_env%use_colvar)
-             CALL neb_initialize_velocity(vels%wrk, neb_section, particle_set,&
-                                          jtarg+1, iw, globenv, neb_env, error)
-          END DO
        END IF
-       vels%wrk(:,1)              = 0.0_dp
-       vels%wrk(:,neb_nr_replica) = 0.0_dp
-       ! If we perform a DIIS optimization we don't need velocities
-       IF (neb_env%opt_type == band_diis_opt) vels%wrk = 0.0_dp
-       ! Compute distances between replicas and in case of Cartesian Coordinates
-       ! Rotate the frames in order to minimize the RMSD
-       DO j=1,input_nr_replica-1
-          CALL neb_replica_distance(particle_set,coords,j,j+1,distance(j),iw,&
-                                    rotate=neb_env%align_frames,error=error)
+    END DO ! i_rep
+    ALLOCATE (distance(neb_nr_replica-1),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (input_nr_replica < neb_nr_replica) THEN
+       ! Interpolate missing replicas
+       nr_replica_to_interpolate = neb_nr_replica - input_nr_replica
+       distance = 0.0_dp
+       IF (iw > 0) THEN
+          WRITE(iw,'(T2,A,I0,A)')'NEB| Interpolating ',nr_replica_to_interpolate,' missing Replica.'
+       END IF
+       DO WHILE (nr_replica_to_interpolate > 0)
+          ! Compute distances between known images to find the interval
+          ! where to add a new image
+          DO j=1,input_nr_replica-1
+             CALL neb_replica_distance(particle_set,coords,j,j+1,distance(j),iw,&
+                                       rotate=neb_env%align_frames,error=error)
+          END DO
+          jtarg = MAXLOC(distance(1:input_nr_replica),1)
+          IF (iw > 0) THEN
+             WRITE (iw,'(T2,3(A,I0),A)')'NEB| Interpolating Nr. ',&
+               nr_replica_to_interpolate,' missing Replica between Replica Nr. ',&
+               jtarg,' and ',jtarg+1,'.'
+          END IF
+          input_nr_replica = input_nr_replica + 1
+          nr_replica_to_interpolate = nr_replica_to_interpolate - 1
+          ! Interpolation is a simple bisection in XYZ
+          coords%xyz(:,jtarg+2:input_nr_replica) = coords%xyz(:,jtarg+1:input_nr_replica-1)
+          coords%xyz(:,jtarg+1) = (coords%xyz(:,jtarg) + coords%xyz(:,jtarg+2))/2.0_dp
+          IF (neb_env%use_colvar) THEN
+             ! Interpolation is a simple bisection also in internal coordinates
+             ! in this case the XYZ coordinates need only as a starting point for computing
+             ! the potential energy function. The reference are the internal coordinates
+             ! interpolated here after..
+             coords%int(:,jtarg+2:input_nr_replica) = coords%int(:,jtarg+1:input_nr_replica-1)
+             coords%int(:,jtarg+1) = (coords%int(:,jtarg)+coords%int(:,jtarg+2))/2.0_dp
+          END IF
+          vels%wrk(:,jtarg+2:input_nr_replica) = vels%wrk(:,jtarg+1:input_nr_replica-1)
+          vels%wrk(:,jtarg+1) = 0.0_dp
+          CALL dump_replica_coordinates(particle_set, coords, jtarg+1,&
+                                        input_nr_replica, iw, neb_env%use_colvar)
+          CALL neb_initialize_velocity(vels%wrk, neb_section, particle_set,&
+                                       jtarg+1, iw, globenv, neb_env, error)
        END DO
-       DEALLOCATE (distance,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    vels%wrk(:,1)              = 0.0_dp
+    vels%wrk(:,neb_nr_replica) = 0.0_dp
+    ! If we perform a DIIS optimization we don't need velocities
+    IF (neb_env%opt_type == band_diis_opt) vels%wrk = 0.0_dp
+    ! Compute distances between replicas and in case of Cartesian Coordinates
+    ! Rotate the frames in order to minimize the RMSD
+    DO j=1,input_nr_replica-1
+       CALL neb_replica_distance(particle_set,coords,j,j+1,distance(j),iw,&
+                                 rotate=neb_env%align_frames,error=error)
+    END DO
+    DEALLOCATE (distance,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 
@@ -407,130 +405,128 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       n_int     = neb_env%nsize_int
-       n_rep_neb = neb_env%number_of_replica
-       n_rep     = rep_env%nrep
-       nsize_wrk = coords%size_wrk(1)
-       energies  = 0.0_dp
-       ALLOCATE(cvalues(n_int,n_rep),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(Mmatrix_tmp(n_int*n_int,n_rep),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(Mmatrix(n_int*n_int,n_rep_neb),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (output_unit>0) WRITE(output_unit,'(/,T2,A)')"NEB| Computing Energies and Forces"
-       DO irep = 1, n_rep_neb, n_rep
-          DO j = 0, n_rep-1
-             IF (irep+j <= n_rep_neb) THEN
-                ! If the number of replica in replica_env and the number of replica
-                ! used in the NEB does not match, the other replica in replica_env
-                ! just compute energies and forces keeping the fixed coordinates and
-                ! forces
-                rep_env%r(:,j+1) = coords%xyz(:,irep+j)
-             END IF
-          END DO
-          ! Fix file name for BAND replicas.. Each BAND replica has its own file
-          ! independently from the number of replicas in replica_env..
-          CALL handle_band_file_names(rep_env, irep, n_rep_neb, neb_env%istep, error)
-          ! Let's select the potential we want to use for the band calculation
-          SELECT CASE(neb_env%pot_type)
-          CASE(pot_neb_full)
-             ! Full potential Energy
-             CALL rep_env_calc_e_f(rep_env, calc_f=.TRUE., error=error)
-          CASE(pot_neb_fe)
-             ! Free Energy Case
-             CALL perform_replica_md (rep_env, coords, irep, n_rep_neb, cvalues, Mmatrix_tmp, error)
-          CASE(pot_neb_me)
-             ! Minimum Potential Energy Case
-             CALL perform_replica_geo(rep_env, coords, irep, n_rep_neb, cvalues, Mmatrix_tmp, error)
-          END SELECT
-
-          DO j = 0, n_rep-1
-             IF (irep+j <= n_rep_neb) THEN
-                ! Copy back Forces and Energies
-                forces%wrk(:,irep+j) = rep_env%f(1:nsize_wrk,j+1)
-                energies(irep+j)     = rep_env%f(rep_env%ndim+1,j+1)
-                SELECT CASE (neb_env%pot_type)
-                CASE(pot_neb_full)
-                   ! Dump Info
-                   IF (output_unit > 0) THEN
-                      WRITE(output_unit,'(T2,A,I5,A,I5,A)')&
-                           "NEB| REPLICA Nr.",irep+j,"- Energy and Forces"
-                      WRITE(output_unit,'(T2,A,T42,A,9X,F15.9)')&
-                           "NEB|"," Total Energy: ",rep_env%f(rep_env%ndim+1,j+1)
-                      WRITE(output_unit,'(T2,"NEB|",T10,"ATOM",T33,3(9X,A,7X))')lab(1),lab(2),lab(3)
-                      DO i = 1, SIZE(particle_set)
-                         WRITE(output_unit,'(T2,"NEB|",T12,A,T30,3(2X,F15.9))')&
-                              particle_set(i)%atomic_kind%name,&
-                              rep_env%f((i-1)*3+1:(i-1)*3+3,j+1)
-                      END DO
-                   END IF
-                CASE(pot_neb_fe, pot_neb_me)
-                   ! Let's update the cartesian coordinates. This will make
-                   ! easier the next evaluation of energies and forces...
-                   coords%xyz(:,irep+j) = rep_env%r(1:rep_env%ndim,j+1)
-                   Mmatrix(:,irep+j)    = Mmatrix_tmp(:,j+1)
-                   IF (output_unit>0) THEN
-                      WRITE(output_unit,'(/,T2,A,I5,A,I5,A)')&
-                           "NEB| REPLICA Nr.",irep+j,"- Energy, Collective Variables,  Forces"
-                      WRITE(output_unit,'(T2,A,T42,A,9X,F15.9)')&
-                           "NEB|"," Total Energy: ",rep_env%f(rep_env%ndim+1,j+1)
-                      WRITE(output_unit,&
-                           '(T2,"NEB|",T10,"CV Nr.",12X,"Expected COLVAR",5X,"Present COLVAR",10X,"Forces")')
-                      DO i = 1, n_int
-                         WRITE(output_unit,'(T2,"NEB|",T12,I2,7X,3(5X,F15.9))')&
-                              i,coords%int(i,irep+j),cvalues(i,j+1),rep_env%f(i,j+1)
-                      END DO
-                   END IF
-                END SELECT
-             END IF
-          END DO
+    n_int     = neb_env%nsize_int
+    n_rep_neb = neb_env%number_of_replica
+    n_rep     = rep_env%nrep
+    nsize_wrk = coords%size_wrk(1)
+    energies  = 0.0_dp
+    ALLOCATE(cvalues(n_int,n_rep),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(Mmatrix_tmp(n_int*n_int,n_rep),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(Mmatrix(n_int*n_int,n_rep_neb),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (output_unit>0) WRITE(output_unit,'(/,T2,A)')"NEB| Computing Energies and Forces"
+    DO irep = 1, n_rep_neb, n_rep
+       DO j = 0, n_rep-1
+          IF (irep+j <= n_rep_neb) THEN
+             ! If the number of replica in replica_env and the number of replica
+             ! used in the NEB does not match, the other replica in replica_env
+             ! just compute energies and forces keeping the fixed coordinates and
+             ! forces
+             rep_env%r(:,j+1) = coords%xyz(:,irep+j)
+          END IF
        END DO
-       DEALLOCATE(cvalues,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(Mmatrix_tmp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (PRESENT(neb_env)) THEN
-          ! First identify the image of the chain with the higher potential energy
-          ! First and last point of the band are never considered
-          neb_env%nr_HE_image = MAXLOC(energies(2:n_rep_neb-1),1)+1
-          ALLOCATE(tangent(nsize_wrk),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ! Then modify image forces accordingly to the scheme chosen for the
-          ! calculation.
-          neb_env%spring_energy = 0.0_dp
-          IF (neb_env%optimize_end_points) THEN
-             ALLOCATE(tmp_a(SIZE(forces%wrk,1)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE(tmp_b(SIZE(forces%wrk,1)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             tmp_a(:) = forces%wrk(:,1)
-             tmp_b(:) = forces%wrk(:,SIZE(forces%wrk,2))
+       ! Fix file name for BAND replicas.. Each BAND replica has its own file
+       ! independently from the number of replicas in replica_env..
+       CALL handle_band_file_names(rep_env, irep, n_rep_neb, neb_env%istep, error)
+       ! Let's select the potential we want to use for the band calculation
+       SELECT CASE(neb_env%pot_type)
+       CASE(pot_neb_full)
+          ! Full potential Energy
+          CALL rep_env_calc_e_f(rep_env, calc_f=.TRUE., error=error)
+       CASE(pot_neb_fe)
+          ! Free Energy Case
+          CALL perform_replica_md (rep_env, coords, irep, n_rep_neb, cvalues, Mmatrix_tmp, error)
+       CASE(pot_neb_me)
+          ! Minimum Potential Energy Case
+          CALL perform_replica_geo(rep_env, coords, irep, n_rep_neb, cvalues, Mmatrix_tmp, error)
+       END SELECT
+
+       DO j = 0, n_rep-1
+          IF (irep+j <= n_rep_neb) THEN
+             ! Copy back Forces and Energies
+             forces%wrk(:,irep+j) = rep_env%f(1:nsize_wrk,j+1)
+             energies(irep+j)     = rep_env%f(rep_env%ndim+1,j+1)
+             SELECT CASE (neb_env%pot_type)
+             CASE(pot_neb_full)
+                ! Dump Info
+                IF (output_unit > 0) THEN
+                   WRITE(output_unit,'(T2,A,I5,A,I5,A)')&
+                        "NEB| REPLICA Nr.",irep+j,"- Energy and Forces"
+                   WRITE(output_unit,'(T2,A,T42,A,9X,F15.9)')&
+                        "NEB|"," Total Energy: ",rep_env%f(rep_env%ndim+1,j+1)
+                   WRITE(output_unit,'(T2,"NEB|",T10,"ATOM",T33,3(9X,A,7X))')lab(1),lab(2),lab(3)
+                   DO i = 1, SIZE(particle_set)
+                      WRITE(output_unit,'(T2,"NEB|",T12,A,T30,3(2X,F15.9))')&
+                           particle_set(i)%atomic_kind%name,&
+                           rep_env%f((i-1)*3+1:(i-1)*3+3,j+1)
+                   END DO
+                END IF
+             CASE(pot_neb_fe, pot_neb_me)
+                ! Let's update the cartesian coordinates. This will make
+                ! easier the next evaluation of energies and forces...
+                coords%xyz(:,irep+j) = rep_env%r(1:rep_env%ndim,j+1)
+                Mmatrix(:,irep+j)    = Mmatrix_tmp(:,j+1)
+                IF (output_unit>0) THEN
+                   WRITE(output_unit,'(/,T2,A,I5,A,I5,A)')&
+                        "NEB| REPLICA Nr.",irep+j,"- Energy, Collective Variables,  Forces"
+                   WRITE(output_unit,'(T2,A,T42,A,9X,F15.9)')&
+                        "NEB|"," Total Energy: ",rep_env%f(rep_env%ndim+1,j+1)
+                   WRITE(output_unit,&
+                        '(T2,"NEB|",T10,"CV Nr.",12X,"Expected COLVAR",5X,"Present COLVAR",10X,"Forces")')
+                   DO i = 1, n_int
+                      WRITE(output_unit,'(T2,"NEB|",T12,I2,7X,3(5X,F15.9))')&
+                           i,coords%int(i,irep+j),cvalues(i,j+1),rep_env%f(i,j+1)
+                   END DO
+                END IF
+             END SELECT
           END IF
-          DO i = 2, neb_env%number_of_replica
-             CALL get_tangent(neb_env,coords,i,tangent,energies,output_unit,error)
-             CALL get_neb_force(neb_env,tangent,coords,i,forces,Mmatrix=Mmatrix,&
-                  iw=output_unit,error=error)
-          END DO
-          IF (neb_env%optimize_end_points) THEN
-             forces%wrk(:,1)                  = tmp_a ! Image A
-             forces%wrk(:,SIZE(forces%wrk,2)) = tmp_b ! Image B
-             DEALLOCATE(tmp_a,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DEALLOCATE(tmp_b,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ELSE
-             ! Nullify forces on the two end points images
-             forces%wrk(:,1)                  = 0.0_dp ! Image A
-             forces%wrk(:,SIZE(forces%wrk,2)) = 0.0_dp ! Image B
-          END IF
-          DEALLOCATE(tangent,stat=stat)
+       END DO
+    END DO
+    DEALLOCATE(cvalues,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(Mmatrix_tmp,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(neb_env)) THEN
+       ! First identify the image of the chain with the higher potential energy
+       ! First and last point of the band are never considered
+       neb_env%nr_HE_image = MAXLOC(energies(2:n_rep_neb-1),1)+1
+       ALLOCATE(tangent(nsize_wrk),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Then modify image forces accordingly to the scheme chosen for the
+       ! calculation.
+       neb_env%spring_energy = 0.0_dp
+       IF (neb_env%optimize_end_points) THEN
+          ALLOCATE(tmp_a(SIZE(forces%wrk,1)),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(tmp_b(SIZE(forces%wrk,1)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          tmp_a(:) = forces%wrk(:,1)
+          tmp_b(:) = forces%wrk(:,SIZE(forces%wrk,2))
        END IF
-       DEALLOCATE(Mmatrix,stat=stat)
+       DO i = 2, neb_env%number_of_replica
+          CALL get_tangent(neb_env,coords,i,tangent,energies,output_unit,error)
+          CALL get_neb_force(neb_env,tangent,coords,i,forces,Mmatrix=Mmatrix,&
+               iw=output_unit,error=error)
+       END DO
+       IF (neb_env%optimize_end_points) THEN
+          forces%wrk(:,1)                  = tmp_a ! Image A
+          forces%wrk(:,SIZE(forces%wrk,2)) = tmp_b ! Image B
+          DEALLOCATE(tmp_a,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(tmp_b,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ELSE
+          ! Nullify forces on the two end points images
+          forces%wrk(:,1)                  = 0.0_dp ! Image A
+          forces%wrk(:,SIZE(forces%wrk,2)) = 0.0_dp ! Image B
+       END IF
+       DEALLOCATE(tangent,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    DEALLOCATE(Mmatrix,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE neb_calc_energy_forces
 
@@ -567,54 +563,50 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-            new_error=new_error, failure=failure, handle=handle2)
-       logger => cp_error_get_logger(new_error)
-       CALL force_env_get(f_env%force_env,globenv=globenv,&
-            root_section=root_section,error=new_error)
-       j    = rep_env%local_rep_indices(1)-1
-       n_el = 3*rep_env%nparticle
-       Mmatrix = 0.0_dp
-       ! Syncronize position on the replica procs
-       CALL set_pos(rep_env%f_env_id,rep_env%r(:,j+1),n_el,ierr)
+    CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
+         new_error=new_error, failure=failure, handle=handle2)
+    logger => cp_error_get_logger(new_error)
+    CALL force_env_get(f_env%force_env,globenv=globenv,&
+         root_section=root_section,error=new_error)
+    j    = rep_env%local_rep_indices(1)-1
+    n_el = 3*rep_env%nparticle
+    Mmatrix = 0.0_dp
+    ! Syncronize position on the replica procs
+    CALL set_pos(rep_env%f_env_id,rep_env%r(:,j+1),n_el,ierr)
+    CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+    !
+    IF (irep+j <= n_rep_neb) THEN
+       logger%iter_info%iteration(2)=irep+j
+       CALL remove_restart_info(root_section,error=new_error)
+       md_section => section_vals_get_subs_vals(root_section,"MOTION%MD",error=error)
+       CALL section_vals_get(md_section,explicit=explicit,error=error)
+       CPAssert(explicit,cp_failure_level,routineP,error,failure)
+       ! Let's syncronize the target of Collective Variables for this run
+       CALL set_colvars_target(coords%int(:,irep+j), f_env%force_env, error=error)
+       ! Do a molecular dynamics and get back the derivative
+       ! of the free energy w.r.t. the colvar and the metric tensor
+       CALL qs_mol_dyn(f_env%force_env,globenv=globenv,error=new_error)
+       ! Collect the equilibrated coordinates
+       CALL get_pos(rep_env%f_env_id, rep_env%r(1:n_el,j+1), n_el, ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-       !
-       IF (irep+j <= n_rep_neb) THEN
-          logger%iter_info%iteration(2)=irep+j
-          CALL remove_restart_info(root_section,error=new_error)
-          md_section => section_vals_get_subs_vals(root_section,"MOTION%MD",error=error)
-          CALL section_vals_get(md_section,explicit=explicit,error=error)
-          CPAssert(explicit,cp_failure_level,routineP,error,failure)
-          ! Let's syncronize the target of Collective Variables for this run
-          CALL set_colvars_target(coords%int(:,irep+j), f_env%force_env, error=error)
-          ! Do a molecular dynamics and get back the derivative
-          ! of the free energy w.r.t. the colvar and the metric tensor
-          CALL qs_mol_dyn(f_env%force_env,globenv=globenv,error=new_error)
-          ! Collect the equilibrated coordinates
-          CALL get_pos(rep_env%f_env_id, rep_env%r(1:n_el,j+1), n_el, ierr)
-          CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-          ! Write he gradients in the colvar coordinates into the replica_env array
-          ! and copy back also the metric tensor..
-          ! work in progress..
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-          rep_env%f(:,j+1) = 0.0_dp
-          Mmatrix          = 0.0_dp
-       ELSE
-          rep_env%r(:,j+1) = 0.0_dp
-          rep_env%f(:,j+1) = 0.0_dp
-          cvalues(:,j+1)   = 0.0_dp
-          Mmatrix(:,j+1)   = 0.0_dp
-       END IF
-       IF (.NOT.failure) THEN
-          CALL rep_env_sync(rep_env,rep_env%f,error=error)
-          CALL rep_env_sync(rep_env,rep_env%r,error=error)
-          CALL rep_env_sync(rep_env,cvalues, error=error)
-          CALL rep_env_sync(rep_env,Mmatrix, error=error)
-       END IF
-       CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
-       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+       ! Write he gradients in the colvar coordinates into the replica_env array
+       ! and copy back also the metric tensor..
+       ! work in progress..
+       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       rep_env%f(:,j+1) = 0.0_dp
+       Mmatrix          = 0.0_dp
+    ELSE
+       rep_env%r(:,j+1) = 0.0_dp
+       rep_env%f(:,j+1) = 0.0_dp
+       cvalues(:,j+1)   = 0.0_dp
+       Mmatrix(:,j+1)   = 0.0_dp
     END IF
+    CALL rep_env_sync(rep_env,rep_env%f,error=error)
+    CALL rep_env_sync(rep_env,rep_env%r,error=error)
+    CALL rep_env_sync(rep_env,cvalues, error=error)
+    CALL rep_env_sync(rep_env,Mmatrix, error=error)
+    CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
+    CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE perform_replica_md
 
@@ -652,60 +644,56 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-            new_error=new_error, failure=failure, handle=handle2)
-       logger => cp_error_get_logger(new_error)
-       CALL force_env_get(f_env%force_env,globenv=globenv,&
-            root_section=root_section,error=new_error)
-       j    = rep_env%local_rep_indices(1)-1
-       n_el = 3*rep_env%nparticle
-       Mmatrix = 0.0_dp
-       ! Syncronize position on the replica procs
-       CALL set_pos(rep_env%f_env_id,rep_env%r(:,j+1),n_el,ierr)
+    CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
+         new_error=new_error, failure=failure, handle=handle2)
+    logger => cp_error_get_logger(new_error)
+    CALL force_env_get(f_env%force_env,globenv=globenv,&
+         root_section=root_section,error=new_error)
+    j    = rep_env%local_rep_indices(1)-1
+    n_el = 3*rep_env%nparticle
+    Mmatrix = 0.0_dp
+    ! Syncronize position on the replica procs
+    CALL set_pos(rep_env%f_env_id,rep_env%r(:,j+1),n_el,ierr)
+    CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+    IF (irep+j <= n_rep_neb) THEN
+       logger%iter_info%iteration(2)=irep+j
+       CALL remove_restart_info(root_section,error=new_error)
+       geoopt_section => section_vals_get_subs_vals(root_section,"MOTION%GEO_OPT",error=error)
+       CALL section_vals_get(geoopt_section,explicit=explicit,error=error)
+       CPAssert(explicit,cp_failure_level,routineP,error,failure)
+       ! Let's syncronize the target of Collective Variables for this run
+       CALL set_colvars_target(coords%int(:,irep+j), f_env%force_env, error=error)
+       ! Do a geometry optimization..
+       CALL cp_geo_opt(f_env%force_env,globenv=globenv,error=new_error)
+       ! Once the geometry optimization is ended let's do a single run
+       ! without any constraints/restraints
+       CALL force_env_calc_energy_force ( f_env%force_env, &
+            calc_force=.TRUE., skip_external_control=.TRUE., error=error)
+       ! Collect the optimized coordinates
+       CALL get_pos(rep_env%f_env_id, rep_env%r(1:n_el,j+1), n_el, ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-       IF (irep+j <= n_rep_neb) THEN
-          logger%iter_info%iteration(2)=irep+j
-          CALL remove_restart_info(root_section,error=new_error)
-          geoopt_section => section_vals_get_subs_vals(root_section,"MOTION%GEO_OPT",error=error)
-          CALL section_vals_get(geoopt_section,explicit=explicit,error=error)
-          CPAssert(explicit,cp_failure_level,routineP,error,failure)
-          ! Let's syncronize the target of Collective Variables for this run
-          CALL set_colvars_target(coords%int(:,irep+j), f_env%force_env, error=error)
-          ! Do a geometry optimization..
-          CALL cp_geo_opt(f_env%force_env,globenv=globenv,error=new_error)
-          ! Once the geometry optimization is ended let's do a single run
-          ! without any constraints/restraints
-          CALL force_env_calc_energy_force ( f_env%force_env, &
-               calc_force=.TRUE., skip_external_control=.TRUE., error=error)
-          ! Collect the optimized coordinates
-          CALL get_pos(rep_env%f_env_id, rep_env%r(1:n_el,j+1), n_el, ierr)
-          CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-          ! Collect the gradients in cartesian coordinates
-          CALL get_force(rep_env%f_env_id, rep_env%f(1:n_el,j+1), n_el, ierr)
-          CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-          ! Copy the energy
-          CALL get_energy(rep_env%f_env_id, rep_env%f(n_el+1,j+1), ierr)
-          CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-          ! The gradients in the colvar coordinates
-          CALL get_clv_force(f_env%force_env, rep_env%f(1:n_el,j+1), rep_env%r(1:n_el,j+1),&
-               SIZE(coords%xyz,1), SIZE(coords%wrk,1), cvalues(:,j+1), Mmatrix(:,j+1),&
-               error)
-       ELSE
-          rep_env%r(:,j+1) = 0.0_dp
-          rep_env%f(:,j+1) = 0.0_dp
-          cvalues(:,j+1)   = 0.0_dp
-          Mmatrix(:,j+1)   = 0.0_dp
-       END IF
-       IF (.NOT.failure) THEN
-          CALL rep_env_sync(rep_env,rep_env%f,error=error)
-          CALL rep_env_sync(rep_env,rep_env%r,error=error)
-          CALL rep_env_sync(rep_env,cvalues, error=error)
-          CALL rep_env_sync(rep_env,Mmatrix, error=error)
-       END IF
-       CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
+       ! Collect the gradients in cartesian coordinates
+       CALL get_force(rep_env%f_env_id, rep_env%f(1:n_el,j+1), n_el, ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+       ! Copy the energy
+       CALL get_energy(rep_env%f_env_id, rep_env%f(n_el+1,j+1), ierr)
+       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+       ! The gradients in the colvar coordinates
+       CALL get_clv_force(f_env%force_env, rep_env%f(1:n_el,j+1), rep_env%r(1:n_el,j+1),&
+            SIZE(coords%xyz,1), SIZE(coords%wrk,1), cvalues(:,j+1), Mmatrix(:,j+1),&
+            error)
+    ELSE
+       rep_env%r(:,j+1) = 0.0_dp
+       rep_env%f(:,j+1) = 0.0_dp
+       cvalues(:,j+1)   = 0.0_dp
+       Mmatrix(:,j+1)   = 0.0_dp
     END IF
+    CALL rep_env_sync(rep_env,rep_env%f,error=error)
+    CALL rep_env_sync(rep_env,rep_env%r,error=error)
+    CALL rep_env_sync(rep_env,cvalues, error=error)
+    CALL rep_env_sync(rep_env,Mmatrix, error=error)
+    CALL f_env_rm_defaults(f_env=f_env,error=new_error,ierr=ierr,handle=handle2)
+    CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE perform_replica_geo
 
@@ -983,33 +971,31 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(3, 3)           :: rot
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       rot      = 0.0_dp
-       rot(1,1) = 1.0_dp
-       rot(2,2) = 1.0_dp
-       rot(3,3) = 1.0_dp
-       DO i = 2, number_of_replica
-          ! The rotation of the replica is enabled exclusively when working in
-          ! cartesian coordinates
-          IF (rotate_frames.AND.(coords%in_use==do_band_cartesian)) THEN
-             CALL rmsd3(particle_set, coords%xyz(:,i), coords%xyz(:,i-1), iw,&
-                  rotate=.TRUE., rot=rot, error=error)
-             ! Rotate velocities
-             DO k = 1, SIZE(vels%xyz,1)/3
-                kind = (k-1)*3
-                tmp  = vels%xyz(kind+1:kind+3,i)
-                CALL matvec_3x3(vels%xyz(kind+1:kind+3,i),TRANSPOSE(rot),tmp)
-             END DO
-           END IF
-          IF (PRESENT(distances)) THEN
-             check = SIZE(distances)==(number_of_replica-1)
-             CPPostcondition(check,cp_failure_level,routineP,error,failure)
-             xtmp=DOT_PRODUCT(coords%wrk(:,i)-coords%wrk(:,i-1),&
-                              coords%wrk(:,i)-coords%wrk(:,i-1))
-             distances(i-1)=SQRT(xtmp)
-          END IF
-       END DO
-    END IF
+    rot      = 0.0_dp
+    rot(1,1) = 1.0_dp
+    rot(2,2) = 1.0_dp
+    rot(3,3) = 1.0_dp
+    DO i = 2, number_of_replica
+       ! The rotation of the replica is enabled exclusively when working in
+       ! cartesian coordinates
+       IF (rotate_frames.AND.(coords%in_use==do_band_cartesian)) THEN
+          CALL rmsd3(particle_set, coords%xyz(:,i), coords%xyz(:,i-1), iw,&
+               rotate=.TRUE., rot=rot, error=error)
+          ! Rotate velocities
+          DO k = 1, SIZE(vels%xyz,1)/3
+             kind = (k-1)*3
+             tmp  = vels%xyz(kind+1:kind+3,i)
+             CALL matvec_3x3(vels%xyz(kind+1:kind+3,i),TRANSPOSE(rot),tmp)
+          END DO
+        END IF
+       IF (PRESENT(distances)) THEN
+          check = SIZE(distances)==(number_of_replica-1)
+          CPPostcondition(check,cp_failure_level,routineP,error,failure)
+          xtmp=DOT_PRODUCT(coords%wrk(:,i)-coords%wrk(:,i-1),&
+                           coords%wrk(:,i)-coords%wrk(:,i-1))
+          distances(i-1)=SQRT(xtmp)
+       END IF
+    END DO
   END SUBROUTINE reorient_images
 
 ! *****************************************************************************

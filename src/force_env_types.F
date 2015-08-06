@@ -172,10 +172,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(force_env%ref_count>0,cp_failure_level,routineP,error)
-       force_env%ref_count=force_env%ref_count+1
-    END IF
+    CPPreconditionNoFail(force_env%ref_count>0,cp_failure_level,routineP,error)
+    force_env%ref_count=force_env%ref_count+1
   END SUBROUTINE force_env_retain
 
 ! *****************************************************************************
@@ -340,145 +338,143 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
 
-       SELECT CASE(force_env%in_use)
-       CASE (use_qs_force)
-          CPPrecondition(ASSOCIATED(force_env%qs_env),cp_failure_level,routineP,error,failure)
-          CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
-          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
-          CALL get_qs_env(force_env%qs_env,&
-                          energy=qs_energy,&
-                          input=input,&
-                          cp_subsys=subsys,&
-                          error=error)
-          IF (PRESENT(potential_energy)) potential_energy = qs_energy%total
-          CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
-       CASE (use_fist_force)
-          CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
+    SELECT CASE(force_env%in_use)
+    CASE (use_qs_force)
+       CPPrecondition(ASSOCIATED(force_env%qs_env),cp_failure_level,routineP,error,failure)
+       CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
+       CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
+       CALL get_qs_env(force_env%qs_env,&
+                       energy=qs_energy,&
+                       input=input,&
+                       cp_subsys=subsys,&
+                       error=error)
+       IF (PRESENT(potential_energy)) potential_energy = qs_energy%total
+       CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
+    CASE (use_fist_force)
+       CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
 !          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
 !          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
-          CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
-          CALL fist_env_get(force_env%fist_env,&
-                            thermo=thermo,&
-                            subsys=subsys,&
-                            error=error)
-          IF (PRESENT(potential_energy)) potential_energy = thermo%pot
-          IF (PRESENT(kinetic_energy)) kinetic_energy = thermo%kin
-          IF (PRESENT(kinetic_shell)) kinetic_shell = thermo%kin_shell
-          IF (PRESENT(harmonic_shell)) harmonic_shell = thermo%harm_shell
-       CASE (use_eip_force)
-          CPPrecondition(ASSOCIATED(force_env%eip_env), cp_failure_level, routineP, error, failure)
-          CPPreconditionNoFail(.NOT. PRESENT(qs_env), cp_warning_level, routineP, error)
-          CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP, error)
-          CALL eip_env_get(force_env%eip_env,&
-                           eip_potential_energy=eip_potential_energy,&
-                           eip_kinetic_energy=eip_kinetic_energy,&
-                           subsys=subsys,&
-                           error=error)
-          IF (PRESENT(potential_energy)) THEN
-            potential_energy = eip_potential_energy
-          END IF
-          IF (PRESENT(kinetic_energy)) kinetic_energy = eip_kinetic_energy
-          CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
-       CASE (use_qmmm)
-            IF (PRESENT(kinetic_energy)) THEN
-               CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
-                                  kinetic_energy=kinetic_energy,&
-                                  error=error)
-            END IF
-            IF (PRESENT(subsys)) THEN
-               CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
-                                  subsys=subsys, error=error)
-            ENDIF
-            IF (PRESENT(potential_energy)) THEN
-                 ! get the underlying energies from primary subsys.  This is the only subsys
-                 ! for conventional QM/MM, and force-mixing knows to put relevant energy there.
-                 IF (SIZE(force_env%sub_force_env) == 1) THEN
-                   cur_subsys = primary_subsys
-                 ELSE IF (force_env%qmmm_env%do_force_mixing .AND. SIZE(force_env%sub_force_env) == 2) THEN ! force mixing
-                   cur_subsys = force_mixing_extended_subsys
-                 ELSE
-                    CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                         routineP,"bad number of sub_force_envs (or do_force_mixing setting) getting qmmm potential energy "//&
-                         CPSourceFileRef,&
-                         error,failure)
-                 ENDIF
-                 CALL force_env_get(force_env%sub_force_env(cur_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
-                                    potential_energy=penergy_mm,&
-                                    error=error)
-                 CALL force_env_get(force_env%sub_force_env(cur_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
-                                    potential_energy=penergy_qm,&
-                                    error=error)
-                 potential_energy = penergy_qm+penergy_mm
-            ENDIF
-       CASE (use_mixed_force)
-          CPPrecondition(ASSOCIATED(force_env%mixed_env),cp_failure_level,routineP,error,failure)
-!          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
-!          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
-          CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
-          CALL get_mixed_env(force_env%mixed_env,&
-                            mixed_energy=mixed_energy,&
-                            subsys=subsys,&
-                            error=error)
-          IF (PRESENT(potential_energy)) potential_energy = mixed_energy%pot
-          IF (PRESENT(kinetic_energy)) kinetic_energy = mixed_energy%kin
-       CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"unknown in_use flag value "//&
-               CPSourceFileRef,&
-               error,failure)
-       END SELECT
-
-       IF (PRESENT(force_env_section)) force_env_section => force_env%force_env_section
-       IF (PRESENT(in_use)) in_use=force_env%in_use
-       IF (PRESENT(method_name_id))method_name_id=force_env%method_name_id
-       IF (PRESENT(fist_env)) THEN
-          fist_env => force_env%fist_env
-       END IF
-       IF (PRESENT(qs_env)) THEN
-          qs_env => force_env%qs_env
-       END IF
-       IF (PRESENT(eip_env)) THEN
-          eip_env => force_env%eip_env
-       END IF
-       IF (PRESENT(para_env)) para_env => force_env%para_env
-       ! adjust the total energy for the metadynamics
-       IF (ASSOCIATED(force_env%meta_env)) THEN
-         IF (PRESENT(potential_energy)) THEN
-           potential_energy=potential_energy + &
-                            force_env%meta_env%epot_s + &
-                            force_env%meta_env%epot_walls + &
-                            force_env%meta_env%hills_env%energy
-         END IF
-         IF (PRESENT(kinetic_energy)) THEN
-           kinetic_energy=kinetic_energy+force_env%meta_env%ekin_s
-         END IF
-       END IF
-       ! adjust the total energy for the flexible partitioning
-       IF (ASSOCIATED(force_env%fp_env) .AND. PRESENT(potential_energy)) THEN
-          IF (force_env%fp_env%use_fp) THEN
-               potential_energy=potential_energy+force_env%fp_env%energy
-          ENDIF
-       ENDIF
+       CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
+       CALL fist_env_get(force_env%fist_env,&
+                         thermo=thermo,&
+                         subsys=subsys,&
+                         error=error)
+       IF (PRESENT(potential_energy)) potential_energy = thermo%pot
+       IF (PRESENT(kinetic_energy)) kinetic_energy = thermo%kin
+       IF (PRESENT(kinetic_shell)) kinetic_shell = thermo%kin_shell
+       IF (PRESENT(harmonic_shell)) harmonic_shell = thermo%harm_shell
+    CASE (use_eip_force)
+       CPPrecondition(ASSOCIATED(force_env%eip_env), cp_failure_level, routineP, error, failure)
+       CPPreconditionNoFail(.NOT. PRESENT(qs_env), cp_warning_level, routineP, error)
+       CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP, error)
+       CALL eip_env_get(force_env%eip_env,&
+                        eip_potential_energy=eip_potential_energy,&
+                        eip_kinetic_energy=eip_kinetic_energy,&
+                        subsys=subsys,&
+                        error=error)
        IF (PRESENT(potential_energy)) THEN
-          potential_energy = potential_energy + force_env%additional_potential
+         potential_energy = eip_potential_energy
        END IF
-       IF (PRESENT(additional_potential)) THEN
-          additional_potential = force_env%additional_potential
-       END IF
-       IF (PRESENT(cell)) THEN
-          CALL force_env_get(force_env, subsys=subsys_tmp, error=error)
-          CALL cp_subsys_get(subsys_tmp, cell=cell, error=error)
-       END IF
-       IF (PRESENT(fp_env)) fp_env => force_env%fp_env
-       IF (PRESENT(meta_env)) meta_env => force_env%meta_env
-       IF (PRESENT(sub_force_env)) sub_force_env => force_env%sub_force_env
-       IF (PRESENT(qmmm_env))      qmmm_env      => force_env%qmmm_env
-       IF (PRESENT(mixed_env))     mixed_env     => force_env%mixed_env
-       IF (PRESENT(globenv))       globenv       => force_env%globenv
-       IF (PRESENT(root_section))  root_section  => force_env%root_section
+       IF (PRESENT(kinetic_energy)) kinetic_energy = eip_kinetic_energy
+       CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
+    CASE (use_qmmm)
+         IF (PRESENT(kinetic_energy)) THEN
+            CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
+                               kinetic_energy=kinetic_energy,&
+                               error=error)
+         END IF
+         IF (PRESENT(subsys)) THEN
+            CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
+                               subsys=subsys, error=error)
+         ENDIF
+         IF (PRESENT(potential_energy)) THEN
+              ! get the underlying energies from primary subsys.  This is the only subsys
+              ! for conventional QM/MM, and force-mixing knows to put relevant energy there.
+              IF (SIZE(force_env%sub_force_env) == 1) THEN
+                cur_subsys = primary_subsys
+              ELSE IF (force_env%qmmm_env%do_force_mixing .AND. SIZE(force_env%sub_force_env) == 2) THEN ! force mixing
+                cur_subsys = force_mixing_extended_subsys
+              ELSE
+                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                      routineP,"bad number of sub_force_envs (or do_force_mixing setting) getting qmmm potential energy "//&
+                      CPSourceFileRef,&
+                      error,failure)
+              ENDIF
+              CALL force_env_get(force_env%sub_force_env(cur_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
+                                 potential_energy=penergy_mm,&
+                                 error=error)
+              CALL force_env_get(force_env%sub_force_env(cur_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
+                                 potential_energy=penergy_qm,&
+                                 error=error)
+              potential_energy = penergy_qm+penergy_mm
+         ENDIF
+    CASE (use_mixed_force)
+       CPPrecondition(ASSOCIATED(force_env%mixed_env),cp_failure_level,routineP,error,failure)
+!          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
+!          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
+       CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,error,failure)
+       CALL get_mixed_env(force_env%mixed_env,&
+                         mixed_energy=mixed_energy,&
+                         subsys=subsys,&
+                         error=error)
+       IF (PRESENT(potential_energy)) potential_energy = mixed_energy%pot
+       IF (PRESENT(kinetic_energy)) kinetic_energy = mixed_energy%kin
+    CASE DEFAULT
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+            routineP,"unknown in_use flag value "//&
+            CPSourceFileRef,&
+            error,failure)
+    END SELECT
+
+    IF (PRESENT(force_env_section)) force_env_section => force_env%force_env_section
+    IF (PRESENT(in_use)) in_use=force_env%in_use
+    IF (PRESENT(method_name_id))method_name_id=force_env%method_name_id
+    IF (PRESENT(fist_env)) THEN
+       fist_env => force_env%fist_env
     END IF
+    IF (PRESENT(qs_env)) THEN
+       qs_env => force_env%qs_env
+    END IF
+    IF (PRESENT(eip_env)) THEN
+       eip_env => force_env%eip_env
+    END IF
+    IF (PRESENT(para_env)) para_env => force_env%para_env
+    ! adjust the total energy for the metadynamics
+    IF (ASSOCIATED(force_env%meta_env)) THEN
+      IF (PRESENT(potential_energy)) THEN
+        potential_energy=potential_energy + &
+                         force_env%meta_env%epot_s + &
+                         force_env%meta_env%epot_walls + &
+                         force_env%meta_env%hills_env%energy
+      END IF
+      IF (PRESENT(kinetic_energy)) THEN
+        kinetic_energy=kinetic_energy+force_env%meta_env%ekin_s
+      END IF
+    END IF
+    ! adjust the total energy for the flexible partitioning
+    IF (ASSOCIATED(force_env%fp_env) .AND. PRESENT(potential_energy)) THEN
+       IF (force_env%fp_env%use_fp) THEN
+            potential_energy=potential_energy+force_env%fp_env%energy
+       ENDIF
+    ENDIF
+    IF (PRESENT(potential_energy)) THEN
+       potential_energy = potential_energy + force_env%additional_potential
+    END IF
+    IF (PRESENT(additional_potential)) THEN
+       additional_potential = force_env%additional_potential
+    END IF
+    IF (PRESENT(cell)) THEN
+       CALL force_env_get(force_env, subsys=subsys_tmp, error=error)
+       CALL cp_subsys_get(subsys_tmp, cell=cell, error=error)
+    END IF
+    IF (PRESENT(fp_env)) fp_env => force_env%fp_env
+    IF (PRESENT(meta_env)) meta_env => force_env%meta_env
+    IF (PRESENT(sub_force_env)) sub_force_env => force_env%sub_force_env
+    IF (PRESENT(qmmm_env))      qmmm_env      => force_env%qmmm_env
+    IF (PRESENT(mixed_env))     mixed_env     => force_env%mixed_env
+    IF (PRESENT(globenv))       globenv       => force_env%globenv
+    IF (PRESENT(root_section))  root_section  => force_env%root_section
 
   END SUBROUTINE force_env_get
 
@@ -675,35 +671,31 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (PRESENT(meta_env)) THEN
+       IF (ASSOCIATED(meta_env)) THEN
+          CALL meta_env_retain(meta_env,error=error)
+       END IF
+       CALL meta_env_release(force_env%meta_env,error=error)
+       force_env%meta_env => meta_env
     END IF
-    IF (.NOT.failure) THEN
-       IF (PRESENT(meta_env)) THEN
-          IF (ASSOCIATED(meta_env)) THEN
-             CALL meta_env_retain(meta_env,error=error)
-          END IF
-          CALL meta_env_release(force_env%meta_env,error=error)
-          force_env%meta_env => meta_env
+    IF (PRESENT(fp_env)) THEN
+       CALL fp_env_retain(fp_env,error=error)
+       CALL fp_env_release(force_env%fp_env,error=error)
+       force_env%fp_env => fp_env
+    END IF
+    IF (PRESENT(force_env_section)) THEN
+       IF (ASSOCIATED(force_env_section)) THEN
+          CALL section_vals_retain(force_env_section,error=error)
+          CALL section_vals_release(force_env%force_env_section,error=error)
+          force_env%force_env_section => force_env_section
        END IF
-       IF (PRESENT(fp_env)) THEN
-          CALL fp_env_retain(fp_env,error=error)
-          CALL fp_env_release(force_env%fp_env,error=error)
-          force_env%fp_env => fp_env
-       END IF
-       IF (PRESENT(force_env_section)) THEN
-          IF (ASSOCIATED(force_env_section)) THEN
-             CALL section_vals_retain(force_env_section,error=error)
-             CALL section_vals_release(force_env%force_env_section,error=error)
-             force_env%force_env_section => force_env_section
-          END IF
-       END IF
-       IF (PRESENT(additional_potential)) THEN
-          force_env%additional_potential = additional_potential
-       END IF
-       IF (PRESENT(method_name_id)) THEN
-          force_env%method_name_id=method_name_id
-       END IF
+    END IF
+    IF (PRESENT(additional_potential)) THEN
+       force_env%additional_potential = additional_potential
+    END IF
+    IF (PRESENT(method_name_id)) THEN
+       force_env%method_name_id=method_name_id
     END IF
 
   END SUBROUTINE force_env_set

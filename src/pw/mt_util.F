@@ -231,16 +231,14 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    IF (.NOT.failure) THEN
-       grid => screen_function%pw_grid
-       box = REAL(grid%npts,kind=dp)*grid%dr
-       box2 = box/2.0_dp
-       omega = PRODUCT(box)
-       dx=grid%dr(1)
-       dy=grid%dr(2)
-       dz=grid%dr(3)
+    grid => screen_function%pw_grid
+    box = REAL(grid%npts,kind=dp)*grid%dr
+    box2 = box/2.0_dp
+    omega = PRODUCT(box)
+    dx=grid%dr(1)
+    dy=grid%dr(2)
+    dz=grid%dr(3)
 
-    END IF
     CALL timestop(handle)
   END SUBROUTINE mt1din
 

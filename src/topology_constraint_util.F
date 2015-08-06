@@ -1445,58 +1445,56 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    IF (.NOT.failure) THEN
-       NULLIFY(molecule_kind)
-       ALLOCATE(constr_x_mol(SIZE(molecule_kind_set)),stat=stat)
+    NULLIFY(molecule_kind)
+    ALLOCATE(constr_x_mol(SIZE(molecule_kind_set)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, SIZE(constr_x_mol)
+       NULLIFY(constr_x_mol(i)%constr)
+       ALLOCATE(constr_x_mol(i)%constr(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i = 1, SIZE(constr_x_mol)
-          NULLIFY(constr_x_mol(i)%constr)
-          ALLOCATE(constr_x_mol(i)%constr(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END DO
-       CPPostcondition(SIZE(const_mol)==SIZE(const_molname),cp_failure_level,routineP,error,failure)
-       iglob = 0
-       DO i = 1, SIZE(const_mol)
-          IF (const_intermolecular(i)) THEN
-             ! Intermolecular constraint
-             iglob = iglob + 1
-             CALL reallocate(constr_x_glob, 1, iglob)
-             constr_x_glob(iglob) = i
-          ELSE
-             ! Intramolecular constraint
-             IF (const_mol(i)/=0) THEN
-                k = const_mol(i)
-                CALL cp_assert(k<=SIZE(molecule_kind_set),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "A constraint has been specified providing the molecule index. But the "//&
-                     " molecule index ("//cp_to_string(k)//") is out of range of the possible"//&
-                     " molecule kinds ("//cp_to_string(SIZE(molecule_kind_set))//")."//&
+    END DO
+    CPPostcondition(SIZE(const_mol)==SIZE(const_molname),cp_failure_level,routineP,error,failure)
+    iglob = 0
+    DO i = 1, SIZE(const_mol)
+       IF (const_intermolecular(i)) THEN
+          ! Intermolecular constraint
+          iglob = iglob + 1
+          CALL reallocate(constr_x_glob, 1, iglob)
+          constr_x_glob(iglob) = i
+       ELSE
+          ! Intramolecular constraint
+          IF (const_mol(i)/=0) THEN
+             k = const_mol(i)
+             CALL cp_assert(k<=SIZE(molecule_kind_set),&
+                  cp_failure_level,cp_assertion_failed,routineP,&
+                  "A constraint has been specified providing the molecule index. But the "//&
+                  " molecule index ("//cp_to_string(k)//") is out of range of the possible"//&
+                  " molecule kinds ("//cp_to_string(SIZE(molecule_kind_set))//")."//&
 CPSourceFileRef,&
-                     error=error,failure=failure)
-                isize = SIZE(constr_x_mol(k)%constr)
-                CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
-                constr_x_mol(k)%constr(isize+1) = i
-             ELSE
-                myname = const_molname(i)
-                found_molname = .FALSE.
-                DO k = 1, SIZE(molecule_kind_set)
-                   molecule_kind => molecule_kind_set(k)
-                   name = molecule_kind%name
-                   is_qm = qmmm_ff_precond_only_qm(id1=name)
-                   IF (is_qm.AND.exclude_qm(i))      CYCLE
-                   IF (.NOT.is_qm.AND.exclude_mm(i)) CYCLE
-                   IF (name==myname) THEN
-                      isize = SIZE(constr_x_mol(k)%constr)
-                      CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
-                      constr_x_mol(k)%constr(isize+1) = i
-                      found_molname = .TRUE.
-                   END IF
-                END DO
-                CALL print_warning_molname(found_molname, myname, error)
-             END IF
+                  error=error,failure=failure)
+             isize = SIZE(constr_x_mol(k)%constr)
+             CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
+             constr_x_mol(k)%constr(isize+1) = i
+          ELSE
+             myname = const_molname(i)
+             found_molname = .FALSE.
+             DO k = 1, SIZE(molecule_kind_set)
+                molecule_kind => molecule_kind_set(k)
+                name = molecule_kind%name
+                is_qm = qmmm_ff_precond_only_qm(id1=name)
+                IF (is_qm.AND.exclude_qm(i))      CYCLE
+                IF (.NOT.is_qm.AND.exclude_mm(i)) CYCLE
+                IF (name==myname) THEN
+                   isize = SIZE(constr_x_mol(k)%constr)
+                   CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
+                   constr_x_mol(k)%constr(isize+1) = i
+                   found_molname = .TRUE.
+                END IF
+             END DO
+             CALL print_warning_molname(found_molname, myname, error)
           END IF
-       END DO
-    END IF
+       END IF
+    END DO
     CALL timestop(handle)
   END SUBROUTINE give_constraint_array
 

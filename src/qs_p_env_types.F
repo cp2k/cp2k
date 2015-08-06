@@ -125,10 +125,8 @@ SUBROUTINE p_env_retain(p_env,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     p_env%ref_count=p_env%ref_count+1
-  END IF
+  CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  p_env%ref_count=p_env%ref_count+1
 END SUBROUTINE p_env_retain
 
 ! *****************************************************************************

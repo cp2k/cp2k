@@ -186,65 +186,63 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="EXTERNAL_POTENTIAL",&
-            description="Section controlling the presence of an external potential dependent "//&
-            " on the atomic positions (X,Y,Z)",&
-            n_keywords=7, n_subsections=0, repeats=.TRUE., &
-            error=error)
-       NULLIFY(keyword)
+    CALL section_create(section,name="EXTERNAL_POTENTIAL",&
+         description="Section controlling the presence of an external potential dependent "//&
+         " on the atomic positions (X,Y,Z)",&
+         n_keywords=7, n_subsections=0, repeats=.TRUE., &
+         error=error)
+    NULLIFY(keyword)
 
-       CALL keyword_create(keyword, name="ATOMS_LIST",&
-            description="Specifies the atoms on which the external potential will act",&
-            usage="ATOMS_LIST {INT} {INT} ..",repeats=.TRUE.,&
-            n_var=-1, type_of_var=integer_t, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="ATOMS_LIST",&
+         description="Specifies the atoms on which the external potential will act",&
+         usage="ATOMS_LIST {INT} {INT} ..",repeats=.TRUE.,&
+         n_var=-1, type_of_var=integer_t, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="FUNCTION",&
-            description="Specifies the functional form in mathematical notation. Variables must be the atomic "//&
-            "coordinates (X,Y,Z).",usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", &
-            type_of_var=lchar_t, n_var=1, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="FUNCTION",&
+         description="Specifies the functional form in mathematical notation. Variables must be the atomic "//&
+         "coordinates (X,Y,Z).",usage="FUNCTION  X^2+Y^2+Z^2+LOG(ABS(X+Y))", &
+         type_of_var=lchar_t, n_var=1, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="PARAMETERS",&
-            description="Defines the parameters of the functional form",&
-            usage="PARAMETERS a b D",  type_of_var=char_t,&
-            n_var=-1, repeats=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="PARAMETERS",&
+         description="Defines the parameters of the functional form",&
+         usage="PARAMETERS a b D",  type_of_var=char_t,&
+         n_var=-1, repeats=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="VALUES",&
-            description="Defines the values of  parameter of the functional form",&
-            usage="VALUES ",  type_of_var=real_t,&
-            n_var=-1, repeats=.TRUE., unit_str="internal_cp2k", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="VALUES",&
+         description="Defines the values of  parameter of the functional form",&
+         usage="VALUES ",  type_of_var=real_t,&
+         n_var=-1, repeats=.TRUE., unit_str="internal_cp2k", error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="UNITS",&
-            description="Optionally, allows to define valid CP2K unit strings for each parameter value. "//&
-                        "It is assumed that the corresponding parameter value is specified in this unit.",&
-            usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K",  type_of_var=char_t,&
-            n_var=-1, repeats=.TRUE., error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="UNITS",&
+         description="Optionally, allows to define valid CP2K unit strings for each parameter value. "//&
+                     "It is assumed that the corresponding parameter value is specified in this unit.",&
+         usage="UNITS angstrom eV*angstrom^-1 angstrom^1 K",  type_of_var=char_t,&
+         n_var=-1, repeats=.TRUE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="DX",&
-            description="Parameter used for computing the derivative with the Ridders' method.",&
-            usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr", error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="DX",&
+         description="Parameter used for computing the derivative with the Ridders' method.",&
+         usage="DX <REAL>", default_r_val=0.1_dp, unit_str="bohr", error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="ERROR_LIMIT",&
-            description="Checks that the error in computing the derivative is not larger than "//&
-            "the value set; in case error is larger a warning message is printed.",&
-            usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="ERROR_LIMIT",&
+         description="Checks that the error in computing the derivative is not larger than "//&
+         "the value set; in case error is larger a warning message is printed.",&
+         usage="ERROR_LIMIT <REAL>", default_r_val=1.0E-12_dp, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
 
-    END IF
   END SUBROUTINE create_ext_pot_section
 
 ! *****************************************************************************
@@ -267,27 +265,25 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="RESCALE_FORCES",&
-            description="Section controlling the rescaling of forces. Useful when"//&
-            " starting from quite bad geometries with unphysically large forces.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., &
-            error=error)
-       NULLIFY(keyword)
+    CALL section_create(section,name="RESCALE_FORCES",&
+         description="Section controlling the rescaling of forces. Useful when"//&
+         " starting from quite bad geometries with unphysically large forces.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., &
+         error=error)
+    NULLIFY(keyword)
 
-       CALL keyword_create(keyword, name="MAX_FORCE",&
-            description="Specify the Maximum Values of the force. If the force"//&
-            " of one atom exceed this value it's rescaled to the MAX_FORCE"//&
-            " value.",&
-            default_r_val=cp_unit_to_cp2k(value=50.0_dp,&
-                                          unit_str="kcalmol*angstrom^-1",&
-                                          error=error),&
-             unit_str="hartree*bohr^-1",&
-             error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="MAX_FORCE",&
+         description="Specify the Maximum Values of the force. If the force"//&
+         " of one atom exceed this value it's rescaled to the MAX_FORCE"//&
+         " value.",&
+         default_r_val=cp_unit_to_cp2k(value=50.0_dp,&
+                                       unit_str="kcalmol*angstrom^-1",&
+                                       error=error),&
+          unit_str="hartree*bohr^-1",&
+          error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-    END IF
   END SUBROUTINE create_rescale_force_section
 
 ! *****************************************************************************
@@ -315,83 +311,81 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="PRINT",&
-            description="Properties that you want to output and that are common to all methods",&
-            n_keywords=0, n_subsections=5, repeats=.FALSE., &
-            error=error)
+    CALL section_create(section,name="PRINT",&
+         description="Properties that you want to output and that are common to all methods",&
+         n_keywords=0, n_subsections=5, repeats=.FALSE., &
+         error=error)
 
-       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
-            description="Controls the printing of basic information generated by force_eval", &
-            print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
+    CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+         description="Controls the printing of basic information generated by force_eval", &
+         print_level=low_print_level,add_last=add_last_numeric,filename="__STD_OUT__",&
+         error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"FORCES",&
-            description="Controls the printing of the forces after each force evaluation",&
-            print_level=high_print_level, filename="__STD_OUT__",error=error)
-       CALL keyword_create(keyword=keyword,&
-                           name="NDIGITS",&
-                           description="Specifies the number of digits used "//&
-                                       "for the printing of the forces",&
-                           usage="NDIGITS 6",&
-                           default_i_val=8,&
-                           repeats=.FALSE.,&
-                           error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
+    CALL cp_print_key_section_create(print_key,"FORCES",&
+         description="Controls the printing of the forces after each force evaluation",&
+         print_level=high_print_level, filename="__STD_OUT__",error=error)
+    CALL keyword_create(keyword=keyword,&
+                        name="NDIGITS",&
+                        description="Specifies the number of digits used "//&
+                                    "for the printing of the forces",&
+                        usage="NDIGITS 6",&
+                        default_i_val=8,&
+                        repeats=.FALSE.,&
+                        error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"GRID_INFORMATION",&
-            description="Controls the printing of information regarding the PW and RS grid structures.",&
-            print_level=medium_print_level,filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
+    CALL cp_print_key_section_create(print_key,"GRID_INFORMATION",&
+         description="Controls the printing of information regarding the PW and RS grid structures.",&
+         print_level=medium_print_level,filename="__STD_OUT__",&
+         error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"TOTAL_NUMBERS",&
-            description="Controls the printing of the total number of atoms, kinds,...",&
-            print_level=medium_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
+    CALL cp_print_key_section_create(print_key,"TOTAL_NUMBERS",&
+         description="Controls the printing of the total number of atoms, kinds,...",&
+         print_level=medium_print_level, filename="__STD_OUT__",error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"DISTRIBUTION",&
-            description="Controls the printing of the distribution of molecules, atoms, ...",&
-            print_level=medium_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
+    CALL cp_print_key_section_create(print_key,"DISTRIBUTION",&
+         description="Controls the printing of the distribution of molecules, atoms, ...",&
+         print_level=medium_print_level, filename="__STD_OUT__",error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"DISTRIBUTION2D",&
-            description="Controls the printing of the distribution of matrix blocks,...",&
-            print_level=high_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
+    CALL cp_print_key_section_create(print_key,"DISTRIBUTION2D",&
+         description="Controls the printing of the distribution of matrix blocks,...",&
+         print_level=high_print_level, filename="__STD_OUT__",error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"DISTRIBUTION1D",&
-            description="Each node prints out its distribution info ...",&
-            print_level=high_print_level, filename="__STD_OUT__",error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
+    CALL cp_print_key_section_create(print_key,"DISTRIBUTION1D",&
+         description="Each node prints out its distribution info ...",&
+         print_level=high_print_level, filename="__STD_OUT__",error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"STRESS_TENSOR",&
-            description="Controls the printing of the stress tensor",&
-            print_level=high_print_level, filename="__STD_OUT__",error=error)
-       CALL keyword_create(keyword=keyword,&
-                           name="NDIGITS",&
-                           description="Specifies the number of digits used "//&
-                                       "for the printing of the stress tensor",&
-                           usage="NDIGITS 6",&
-                           default_i_val=8,&
-                           repeats=.FALSE.,&
-                           error=error)
-       CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
+    CALL cp_print_key_section_create(print_key,"STRESS_TENSOR",&
+         description="Controls the printing of the stress tensor",&
+         print_level=high_print_level, filename="__STD_OUT__",error=error)
+    CALL keyword_create(keyword=keyword,&
+                        name="NDIGITS",&
+                        description="Specifies the number of digits used "//&
+                                    "for the printing of the stress tensor",&
+                        usage="NDIGITS 6",&
+                        default_i_val=8,&
+                        repeats=.FALSE.,&
+                        error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
 
-    END IF
 
   END SUBROUTINE create_f_env_print_section
 

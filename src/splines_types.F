@@ -210,10 +210,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(spline_data),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
-       spline_data%ref_count=spline_data%ref_count+1
-    END IF
+    CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
+    spline_data%ref_count=spline_data%ref_count+1
   END SUBROUTINE spline_data_retain
 
 ! *****************************************************************************
@@ -235,11 +233,9 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(spl_p),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       DO i = 1, SIZE(spl_p)
-          CALL spline_data_retain(spl_p(i)%spline_data, error)
-       END DO
-    END IF
+    DO i = 1, SIZE(spl_p)
+       CALL spline_data_retain(spl_p(i)%spline_data, error)
+    END DO
   END SUBROUTINE spline_data_p_retain
 
 ! *****************************************************************************
@@ -261,10 +257,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(spline_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       spline_env%ref_count=spline_env%ref_count+1
-    END IF
+    CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    spline_env%ref_count=spline_env%ref_count+1
   END SUBROUTINE spline_env_retain
 
 ! *****************************************************************************
@@ -297,34 +291,32 @@ CONTAINS
 
     ALLOCATE(spline_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       NULLIFY ( spline_env % spl_pp )
-       NULLIFY ( spline_env % spltab )
-       spline_env%ref_count=1
-       last_spline_env_id_nr=last_spline_env_id_nr+1
-       spline_env%id_nr=last_spline_env_id_nr
-       ! Allocate the number of spline data tables (upper triangular)
-       IF (PRESENT(ntab_in)) THEN
-          ntab = ntab_in
-       ELSE
-          ntab = ( ntype * ntype + ntype ) / 2
-       END IF
-       ALLOCATE ( spline_env % spl_pp( ntab ),  stat=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       ALLOCATE ( spline_env % spltab ( ntype, ntype ), stat=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       DO i = 1, ntab
-          NULLIFY (spline_env%spl_pp( i )%spl_p)
-          isize = 1
-          ALLOCATE(spline_env%spl_pp(i)%spl_p(isize), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO j = 1, SIZE(spline_env%spl_pp(i)%spl_p)
-             CALL spline_data_create (spline_env%spl_pp(i)%spl_p(j)%spline_data,error=error)
-          END DO
-       END DO
+    NULLIFY ( spline_env % spl_pp )
+    NULLIFY ( spline_env % spltab )
+    spline_env%ref_count=1
+    last_spline_env_id_nr=last_spline_env_id_nr+1
+    spline_env%id_nr=last_spline_env_id_nr
+    ! Allocate the number of spline data tables (upper triangular)
+    IF (PRESENT(ntab_in)) THEN
+       ntab = ntab_in
+    ELSE
+       ntab = ( ntype * ntype + ntype ) / 2
     END IF
+    ALLOCATE ( spline_env % spl_pp( ntab ),  stat=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE ( spline_env % spltab ( ntype, ntype ), stat=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DO i = 1, ntab
+       NULLIFY (spline_env%spl_pp( i )%spl_p)
+       isize = 1
+       ALLOCATE(spline_env%spl_pp(i)%spl_p(isize), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO j = 1, SIZE(spline_env%spl_pp(i)%spl_p)
+          CALL spline_data_create (spline_env%spl_pp(i)%spl_p(j)%spline_data,error=error)
+       END DO
+    END DO
 
     CALL timestop(handle)
 
@@ -350,25 +342,23 @@ CONTAINS
 
     failure=.FALSE.
     CPPostcondition(ASSOCIATED(spl_p_source),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       nsizes = SIZE(spl_p_source)
-       IF (.NOT.ASSOCIATED(spl_p_dest)) THEN
-          ALLOCATE(spl_p_dest(nsizes), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO i = 1, nsizes
-             NULLIFY(spl_p_dest(i)%spline_data)
-          END DO
-       ELSE
-          nsized = SIZE(spl_p_dest)
-          CPPostcondition(nsizes==nsized,cp_failure_level,routineP,error,failure)
-          DO i = 1, nsizes
-             CALL spline_data_release(spl_p_dest(i)%spline_data, error=error)
-          END DO
-       END IF
+    nsizes = SIZE(spl_p_source)
+    IF (.NOT.ASSOCIATED(spl_p_dest)) THEN
+       ALLOCATE(spl_p_dest(nsizes), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO i = 1, nsizes
-          CALL spline_data_copy (spl_p_source(i)%spline_data, spl_p_dest(i)%spline_data, error )
+          NULLIFY(spl_p_dest(i)%spline_data)
+       END DO
+    ELSE
+       nsized = SIZE(spl_p_dest)
+       CPPostcondition(nsizes==nsized,cp_failure_level,routineP,error,failure)
+       DO i = 1, nsizes
+          CALL spline_data_release(spl_p_dest(i)%spline_data, error=error)
        END DO
     END IF
+    DO i = 1, nsizes
+       CALL spline_data_copy (spl_p_source(i)%spline_data, spl_p_dest(i)%spline_data, error )
+    END DO
   END SUBROUTINE spline_data_p_copy
 
 ! *****************************************************************************
@@ -391,27 +381,25 @@ CONTAINS
 
     failure=.FALSE.
     CPPostcondition(ASSOCIATED(spline_data_source),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       IF (.NOT.ASSOCIATED(spline_data_dest)) CALL spline_data_create(spline_data_dest,error)
+    IF (.NOT.ASSOCIATED(spline_data_dest)) CALL spline_data_create(spline_data_dest,error)
 
-       spline_data_dest%ref_count = spline_data_source%ref_count
-       spline_data_dest%id_nr     = spline_data_source%id_nr
-       spline_data_dest%n         = spline_data_source%n
-       spline_data_dest%h         = spline_data_source%h
-       spline_data_dest%invh      = spline_data_source%invh
-       spline_data_dest%h26       = spline_data_source%h26
-       spline_data_dest%x1        = spline_data_source%x1
-       spline_data_dest%xn        = spline_data_source%xn
-       IF (ASSOCIATED(spline_data_source%y)) THEN
-          ALLOCATE(spline_data_dest%y(SIZE(spline_data_source%y)), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          spline_data_dest%y = spline_data_source%y
-       END IF
-       IF (ASSOCIATED(spline_data_source%y2)) THEN
-          ALLOCATE(spline_data_dest%y2(SIZE(spline_data_source%y2)), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          spline_data_dest%y2 = spline_data_source%y2
-       END IF
+    spline_data_dest%ref_count = spline_data_source%ref_count
+    spline_data_dest%id_nr     = spline_data_source%id_nr
+    spline_data_dest%n         = spline_data_source%n
+    spline_data_dest%h         = spline_data_source%h
+    spline_data_dest%invh      = spline_data_source%invh
+    spline_data_dest%h26       = spline_data_source%h26
+    spline_data_dest%x1        = spline_data_source%x1
+    spline_data_dest%xn        = spline_data_source%xn
+    IF (ASSOCIATED(spline_data_source%y)) THEN
+       ALLOCATE(spline_data_dest%y(SIZE(spline_data_source%y)), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       spline_data_dest%y = spline_data_source%y
+    END IF
+    IF (ASSOCIATED(spline_data_source%y2)) THEN
+       ALLOCATE(spline_data_dest%y2(SIZE(spline_data_source%y2)), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       spline_data_dest%y2 = spline_data_source%y2
     END IF
   END SUBROUTINE spline_data_copy
 
@@ -435,13 +423,11 @@ CONTAINS
 
     ALLOCATE(spline_data, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       spline_data%ref_count=1
-       last_spline_data_id_nr=last_spline_data_id_nr+1
-       spline_data%id_nr = last_spline_data_id_nr
-       NULLIFY ( spline_data % y )
-       NULLIFY ( spline_data % y2 )
-    END IF
+    spline_data%ref_count=1
+    last_spline_data_id_nr=last_spline_data_id_nr+1
+    spline_data%id_nr = last_spline_data_id_nr
+    NULLIFY ( spline_data % y )
+    NULLIFY ( spline_data % y2 )
   END SUBROUTINE spline_data_create
 
 ! *****************************************************************************

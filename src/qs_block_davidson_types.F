@@ -71,40 +71,36 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(bdav_env),cp_failure_level,routineP,error,failure)
-    IF(.NOT. failure) THEN
-      ALLOCATE(bdav_env(nspins), stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      IF (.NOT.failure) THEN
-        DO ispin = 1,nspins
-          NULLIFY(bdav_env(ispin)%H_block_mat)
-          NULLIFY(bdav_env(ispin)%H_block_vec)
-          NULLIFY(bdav_env(ispin)%S_block_mat)
-          NULLIFY(bdav_env(ispin)%W_block_mat)
-          NULLIFY(bdav_env(ispin)%matrix_z)
-          NULLIFY(bdav_env(ispin)%matrix_pz)
+    ALLOCATE(bdav_env(nspins), stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    DO ispin = 1,nspins
+      NULLIFY(bdav_env(ispin)%H_block_mat)
+      NULLIFY(bdav_env(ispin)%H_block_vec)
+      NULLIFY(bdav_env(ispin)%S_block_mat)
+      NULLIFY(bdav_env(ispin)%W_block_mat)
+      NULLIFY(bdav_env(ispin)%matrix_z)
+      NULLIFY(bdav_env(ispin)%matrix_pz)
 
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%PRECONDITIONER",&
-             i_val=bdav_env(ispin)%prec_type,error=error)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%PRECOND_SOLVER",&
-             i_val=bdav_env(ispin)%solver_type,error=error)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%ENERGY_GAP",&
-             r_val=bdav_env(ispin)%energy_gap,error=error)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%NEW_PREC_EACH",&
-             i_val=bdav_env(ispin)%niter_new_prec,error=error)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%MAX_ITER",&
-             i_val=bdav_env(ispin)%max_iter,error=error)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_ITER",&
-             r_val=bdav_env(ispin)%eps_iter,error=error)
-         CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%FIRST_PREC",&
-             i_val=bdav_env(ispin)%first_prec,error=error)
-         CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%CONV_MOS_PERCENT",&
-             r_val=bdav_env(ispin)%conv_percent,error=error)
-         CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%SPARSE_MOS",&
-             l_val=bdav_env(ispin)%use_sparse_mos,error=error)
+      CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%PRECONDITIONER",&
+         i_val=bdav_env(ispin)%prec_type,error=error)
+      CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%PRECOND_SOLVER",&
+         i_val=bdav_env(ispin)%solver_type,error=error)
+      CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%ENERGY_GAP",&
+         r_val=bdav_env(ispin)%energy_gap,error=error)
+      CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%NEW_PREC_EACH",&
+         i_val=bdav_env(ispin)%niter_new_prec,error=error)
+      CALL section_vals_val_get(scf_section,"DIAGONALIZATION%MAX_ITER",&
+         i_val=bdav_env(ispin)%max_iter,error=error)
+      CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_ITER",&
+         r_val=bdav_env(ispin)%eps_iter,error=error)
+     CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%FIRST_PREC",&
+         i_val=bdav_env(ispin)%first_prec,error=error)
+     CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%CONV_MOS_PERCENT",&
+         r_val=bdav_env(ispin)%conv_percent,error=error)
+     CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DAVIDSON%SPARSE_MOS",&
+         l_val=bdav_env(ispin)%use_sparse_mos,error=error)
 
-        END DO
-      END IF
-    END IF
+    END DO
 
   END SUBROUTINE block_davidson_env_create
 

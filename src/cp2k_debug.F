@@ -108,241 +108,239 @@ CONTAINS
     
     root_section => force_env%root_section
 
-    IF (.NOT.failure) THEN
 
-       CALL force_env_get(force_env,para_env=para_env,subsys=subsys,cell=cell,error=error)
-       subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
-                                                    "SUBSYS",error=error)
+    CALL force_env_get(force_env,para_env=para_env,subsys=subsys,cell=cell,error=error)
+    subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
+                                                 "SUBSYS",error=error)
 
-       CALL section_vals_val_get(root_section,"DEBUG%DEBUG_STRESS_TENSOR",&
-                                 l_val=debug_stress_tensor,error=error)
-       CALL section_vals_val_get(root_section,"DEBUG%DEBUG_FORCES",&
-                                 l_val=debug_forces,error=error)
-       CALL section_vals_val_get(root_section,"DEBUG%DX",&
-                                 r_val=dx,error=error)
-       dx = ABS(dx)
-       CALL section_vals_val_get(root_section,"DEBUG%EPS_NO_ERROR_CHECK",&
-                                 r_val=eps_no_error_check,error=error)
-       eps_no_error_check = MAX(eps_no_error_check,EPSILON(0.0_dp))
-       CALL section_vals_val_get(root_section,"DEBUG%STOP_ON_MISMATCH",&
-                                 l_val=stop_on_mismatch,error=error)
+    CALL section_vals_val_get(root_section,"DEBUG%DEBUG_STRESS_TENSOR",&
+                              l_val=debug_stress_tensor,error=error)
+    CALL section_vals_val_get(root_section,"DEBUG%DEBUG_FORCES",&
+                              l_val=debug_forces,error=error)
+    CALL section_vals_val_get(root_section,"DEBUG%DX",&
+                              r_val=dx,error=error)
+    dx = ABS(dx)
+    CALL section_vals_val_get(root_section,"DEBUG%EPS_NO_ERROR_CHECK",&
+                              r_val=eps_no_error_check,error=error)
+    eps_no_error_check = MAX(eps_no_error_check,EPSILON(0.0_dp))
+    CALL section_vals_val_get(root_section,"DEBUG%STOP_ON_MISMATCH",&
+                              l_val=stop_on_mismatch,error=error)
 
-       logger => cp_error_get_logger(error)
-       iw = cp_print_key_unit_nr(logger,root_section,"DEBUG%PROGRAM_RUN_INFO",&
-                                 extension=".log",error=error)
-       IF (debug_stress_tensor) THEN
-          ! To debug stress tensor the stress tensor calculation must be
-          ! first enabled..
-          CALL section_vals_val_get(force_env%force_env_section,"STRESS_TENSOR",&
-                                    i_val=stress_tensor,error=error)
-          skip = .FALSE.
-          SELECT CASE (stress_tensor)
-          CASE (do_stress_analytical, do_stress_diagonal_anal)
-             ! OK
-          CASE (do_stress_numerical, do_stress_diagonal_numer)
-             ! Nothing to check
-             message = "Numerical stress tensor was requested in the FORCE_EVAL section. "//&
-                       "Nothing to debug!"
-             CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
-             skip = .TRUE.
-          CASE DEFAULT
-             message = "Stress tensor calculation was not enabled in the FORCE_EVAL section. "//&
-                       "Nothing to debug!"
-             CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
-             skip = .TRUE.
-          END SELECT
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,root_section,"DEBUG%PROGRAM_RUN_INFO",&
+                              extension=".log",error=error)
+    IF (debug_stress_tensor) THEN
+       ! To debug stress tensor the stress tensor calculation must be
+       ! first enabled..
+       CALL section_vals_val_get(force_env%force_env_section,"STRESS_TENSOR",&
+                                 i_val=stress_tensor,error=error)
+       skip = .FALSE.
+       SELECT CASE (stress_tensor)
+       CASE (do_stress_analytical, do_stress_diagonal_anal)
+          ! OK
+       CASE (do_stress_numerical, do_stress_diagonal_numer)
+          ! Nothing to check
+          message = "Numerical stress tensor was requested in the FORCE_EVAL section. "//&
+                    "Nothing to debug!"
+          CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
+          skip = .TRUE.
+       CASE DEFAULT
+          message = "Stress tensor calculation was not enabled in the FORCE_EVAL section. "//&
+                    "Nothing to debug!"
+          CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
+          skip = .TRUE.
+       END SELECT
 
-          IF (.NOT.skip) THEN
+       IF (.NOT.skip) THEN
 
-             ! Compute the analytical stress tensor
-             CALL cp_subsys_get(subsys,virial=virial,error=error)
-             CALL virial_set(virial,pv_numer=.FALSE.)
-             CALL force_env_calc_energy_force(force_env,&
-                                              calc_force=.TRUE.,&
-                                              calc_stress_tensor=.TRUE.,&
-                                              error=error)
+          ! Compute the analytical stress tensor
+          CALL cp_subsys_get(subsys,virial=virial,error=error)
+          CALL virial_set(virial,pv_numer=.FALSE.)
+          CALL force_env_calc_energy_force(force_env,&
+                                           calc_force=.TRUE.,&
+                                           calc_stress_tensor=.TRUE.,&
+                                           error=error)
 
-             ! Retrieve the analytical virial
-             CALL virial_create(virial_analytical,error=error)
-             CALL zero_virial(virial_analytical)
-             CALL cp_virial(virial,virial_analytical)
+          ! Retrieve the analytical virial
+          CALL virial_create(virial_analytical,error=error)
+          CALL zero_virial(virial_analytical)
+          CALL cp_virial(virial,virial_analytical)
 
-             ! Debug stress tensor (numerical vs analytical)
-             CALL virial_set(virial,pv_numer=.TRUE.)
-             CALL force_env_calc_num_pressure(force_env,dx=dx,error=error)
+          ! Debug stress tensor (numerical vs analytical)
+          CALL virial_set(virial,pv_numer=.TRUE.)
+          CALL force_env_calc_num_pressure(force_env,dx=dx,error=error)
 
-             ! Retrieve the numerical virial
-             CALL cp_subsys_get(subsys,virial=virial,error=error)
-             CALL virial_create(virial_numerical,error=error)
-             CALL zero_virial(virial_numerical)
-             CALL cp_virial(virial,virial_numerical)
+          ! Retrieve the numerical virial
+          CALL cp_subsys_get(subsys,virial=virial,error=error)
+          CALL virial_create(virial_numerical,error=error)
+          CALL zero_virial(virial_numerical)
+          CALL cp_virial(virial,virial_numerical)
 
-             ! Print results
-             IF (iw > 0) THEN
-                WRITE (UNIT=iw,FMT="((T2,A))")&
-                 "DEBUG| Numerical pv_virial"
-                WRITE (UNIT=iw,FMT="((T2,A,3F16.10))")&
-                 ("DEBUG|",virial_numerical%pv_virial(i,1:3),i=1,3)
-                WRITE (UNIT=iw,FMT="(/,(T2,A))")&
-                 "DEBUG| Analytical pv_virial"
-                WRITE (UNIT=iw,FMT="((T2,A,3F16.10))")&
-                 ("DEBUG|",virial_analytical%pv_virial(i,1:3),i=1,3)
-                WRITE (UNIT=iw,FMT="(/,(T2,A))")&
-                 "DEBUG| Difference pv_virial"
-                WRITE (UNIT=iw,FMT="((T2,A,3F16.10))")&
-                 ("DEBUG|",virial_numerical%pv_virial(i,1:3) - virial_analytical%pv_virial(i,1:3),i=1,3)
-                WRITE (UNIT=iw,FMT="(T2,A,T40,F16.10,/)")&
-                 "DEBUG| Sum of differences:",&
-                 SUM(ABS(virial_numerical%pv_virial(:,:) - virial_analytical%pv_virial(:,:)))
-             END IF
+          ! Print results
+          IF (iw > 0) THEN
+             WRITE (UNIT=iw,FMT="((T2,A))")&
+              "DEBUG| Numerical pv_virial"
+             WRITE (UNIT=iw,FMT="((T2,A,3F16.10))")&
+              ("DEBUG|",virial_numerical%pv_virial(i,1:3),i=1,3)
+             WRITE (UNIT=iw,FMT="(/,(T2,A))")&
+              "DEBUG| Analytical pv_virial"
+             WRITE (UNIT=iw,FMT="((T2,A,3F16.10))")&
+              ("DEBUG|",virial_analytical%pv_virial(i,1:3),i=1,3)
+             WRITE (UNIT=iw,FMT="(/,(T2,A))")&
+              "DEBUG| Difference pv_virial"
+             WRITE (UNIT=iw,FMT="((T2,A,3F16.10))")&
+              ("DEBUG|",virial_numerical%pv_virial(i,1:3) - virial_analytical%pv_virial(i,1:3),i=1,3)
+             WRITE (UNIT=iw,FMT="(T2,A,T40,F16.10,/)")&
+              "DEBUG| Sum of differences:",&
+              SUM(ABS(virial_numerical%pv_virial(:,:) - virial_analytical%pv_virial(:,:)))
+          END IF
 
-             ! Check and abort on failure
-             check_failed = .FALSE.
-             DO i=1,3
-                err(:) = 0.0_dp
-                DO k=1,3
-                   IF (ABS(virial_analytical%pv_virial(i,k)) >= eps_no_error_check) THEN
-                      err(k) = 100.0_dp*(virial_numerical%pv_virial(i,k) - virial_analytical%pv_virial(i,k))/&
-                               virial_analytical%pv_virial(i,k)
-                   END IF
-                END DO
-                IF (ANY(ABS(err(1:3)) > maxerr)) check_failed = .TRUE.
-             END DO
-             CALL virial_release(virial_analytical,error=error)
-             CALL virial_release(virial_numerical,error=error)
-             IF (check_failed) THEN
-                message = "A mismatch between the analytical and the numerical "//&
-                          "stress tensor has been detected. Check the implementation "//&
-                          "of the stress tensor"
-                IF (stop_on_mismatch) THEN
-                   CALL stop_program(routineN,moduleN,__LINE__,TRIM(message),para_env)
-                ELSE
-                   CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
+          ! Check and abort on failure
+          check_failed = .FALSE.
+          DO i=1,3
+             err(:) = 0.0_dp
+             DO k=1,3
+                IF (ABS(virial_analytical%pv_virial(i,k)) >= eps_no_error_check) THEN
+                   err(k) = 100.0_dp*(virial_numerical%pv_virial(i,k) - virial_analytical%pv_virial(i,k))/&
+                            virial_analytical%pv_virial(i,k)
                 END IF
+             END DO
+             IF (ANY(ABS(err(1:3)) > maxerr)) check_failed = .TRUE.
+          END DO
+          CALL virial_release(virial_analytical,error=error)
+          CALL virial_release(virial_numerical,error=error)
+          IF (check_failed) THEN
+             message = "A mismatch between the analytical and the numerical "//&
+                       "stress tensor has been detected. Check the implementation "//&
+                       "of the stress tensor"
+             IF (stop_on_mismatch) THEN
+                CALL stop_program(routineN,moduleN,__LINE__,TRIM(message),para_env)
+             ELSE
+                CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
              END IF
           END IF
        END IF
+    END IF
 
-       IF (debug_forces) THEN
-          ! Debug forces (numerical vs analytical)
-          particles => subsys%particles%els
-          SELECT CASE (force_env%in_use)
-          CASE (use_qs_force)
-             CALL get_qs_env(force_env%qs_env,qs_kind_set=qs_kind_set,error=error)
-             CALL write_qs_particle_coordinates(particles,qs_kind_set,subsys_section,"DEBUG",error)
-          CASE DEFAULT
-             CALL write_fist_particle_coordinates(particles,subsys_section,charges=Null(),error=error)
-          END SELECT
-          ! First evaluate energy and forces
-          CALL force_env_calc_energy_force(force_env,&
-                                           calc_force=.TRUE.,&
-                                           calc_stress_tensor=.FALSE.,&
-                                           error=error)
-          ! Copy forces in array and start the numerical calculation
-          IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
-          np = subsys%particles%n_els
-          ALLOCATE (analyt_forces(np,3),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO ip=1,np
-             analyt_forces(ip,1:3) = particles(ip)%f(1:3)
+    IF (debug_forces) THEN
+       ! Debug forces (numerical vs analytical)
+       particles => subsys%particles%els
+       SELECT CASE (force_env%in_use)
+       CASE (use_qs_force)
+          CALL get_qs_env(force_env%qs_env,qs_kind_set=qs_kind_set,error=error)
+          CALL write_qs_particle_coordinates(particles,qs_kind_set,subsys_section,"DEBUG",error)
+       CASE DEFAULT
+          CALL write_fist_particle_coordinates(particles,subsys_section,charges=Null(),error=error)
+       END SELECT
+       ! First evaluate energy and forces
+       CALL force_env_calc_energy_force(force_env,&
+                                        calc_force=.TRUE.,&
+                                        calc_stress_tensor=.FALSE.,&
+                                        error=error)
+       ! Copy forces in array and start the numerical calculation
+       IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
+       np = subsys%particles%n_els
+       ALLOCATE (analyt_forces(np,3),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO ip=1,np
+          analyt_forces(ip,1:3) = particles(ip)%f(1:3)
+       END DO
+       ! Loop on atoms and coordinates
+       IF (ASSOCIATED(numer_forces)) DEALLOCATE (numer_forces)
+       ALLOCATE (numer_forces(subsys%particles%n_els,3),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       Atom: DO ip=1,np
+          Coord: DO k=1,3
+             numer_energy = 0.0_dp
+             std_value = particles(ip)%r(k)
+             DO j=1,2
+                particles(ip)%r(k) = std_value - (-1.0_dp)**j*dx
+                SELECT CASE (force_env%in_use)
+                CASE (use_qs_force)
+                   CALL get_qs_env(force_env%qs_env,qs_kind_set=qs_kind_set,error=error)
+                   CALL write_qs_particle_coordinates(particles,qs_kind_set,subsys_section,"DEBUG",error)
+                CASE DEFAULT
+                   CALL write_fist_particle_coordinates(particles,subsys_section,charges=Null(),error=error)
+                END SELECT
+                ! Compute energy
+                CALL force_env_calc_energy_force(force_env,&
+                                                 calc_force=.FALSE.,&
+                                                 calc_stress_tensor=.FALSE.,&
+                                                 consistent_energies=.TRUE.,&
+                                                 error=error)
+                CALL force_env_get(force_env,potential_energy=numer_energy(j),error=error)
+             END DO
+             particles(ip)%r(k) = std_value
+             numer_forces(ip,k) = -0.5_dp*(numer_energy(1) - numer_energy(2))/dx
+             IF (iw > 0) THEN
+                WRITE (UNIT=iw,FMT="(T2,A,T17,A,F7.4,A,T34,A,F7.4,A,T52,A,T68,A)")&
+                 "DEBUG| Atom","E("//ACHAR(119+k)//" +",dx,")",&
+                               "E("//ACHAR(119+k)//" -",dx,")",&
+                               "f(numerical)","f(analytical)"
+                WRITE (UNIT=iw,FMT="(T2,A,I5,4(1X,F16.8))")&
+                 "DEBUG|",ip,numer_energy(1:2),numer_forces(ip,k),analyt_forces(ip,k)
+             END IF
+          END DO Coord
+          ! Check analytical forces using the numerical forces as reference
+          my_maxerr = maxerr
+          err(1:3) = 0.0_dp
+          DO k=1,3
+             ! Calculate percentage error, but ignore very small force values
+             IF (ABS(analyt_forces(ip,k)) >= eps_no_error_check) THEN
+                err(k) = 100.0_dp*(numer_forces(ip,k) - analyt_forces(ip,k))/analyt_forces(ip,k)
+             END IF
+             ! Increase error tolerance for small force values
+             IF (ABS(analyt_forces(ip,k)) <= 0.0001_dp) my_maxerr(k) = 5.0_dp*my_maxerr(k)
           END DO
-          ! Loop on atoms and coordinates
-          IF (ASSOCIATED(numer_forces)) DEALLOCATE (numer_forces)
-          ALLOCATE (numer_forces(subsys%particles%n_els,3),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          Atom: DO ip=1,np
-             Coord: DO k=1,3
-                numer_energy = 0.0_dp
-                std_value = particles(ip)%r(k)
-                DO j=1,2
-                   particles(ip)%r(k) = std_value - (-1.0_dp)**j*dx
-                   SELECT CASE (force_env%in_use)
-                   CASE (use_qs_force)
-                      CALL get_qs_env(force_env%qs_env,qs_kind_set=qs_kind_set,error=error)
-                      CALL write_qs_particle_coordinates(particles,qs_kind_set,subsys_section,"DEBUG",error)
-                   CASE DEFAULT
-                      CALL write_fist_particle_coordinates(particles,subsys_section,charges=Null(),error=error)
-                   END SELECT
-                   ! Compute energy
-                   CALL force_env_calc_energy_force(force_env,&
-                                                    calc_force=.FALSE.,&
-                                                    calc_stress_tensor=.FALSE.,&
-                                                    consistent_energies=.TRUE.,&
-                                                    error=error)
-                   CALL force_env_get(force_env,potential_energy=numer_energy(j),error=error)
-                END DO
-                particles(ip)%r(k) = std_value
-                numer_forces(ip,k) = -0.5_dp*(numer_energy(1) - numer_energy(2))/dx
-                IF (iw > 0) THEN
-                   WRITE (UNIT=iw,FMT="(T2,A,T17,A,F7.4,A,T34,A,F7.4,A,T52,A,T68,A)")&
-                    "DEBUG| Atom","E("//ACHAR(119+k)//" +",dx,")",&
-                                  "E("//ACHAR(119+k)//" -",dx,")",&
-                                  "f(numerical)","f(analytical)"
-                   WRITE (UNIT=iw,FMT="(T2,A,I5,4(1X,F16.8))")&
-                    "DEBUG|",ip,numer_energy(1:2),numer_forces(ip,k),analyt_forces(ip,k)
-                END IF
-             END DO Coord
-             ! Check analytical forces using the numerical forces as reference
-             my_maxerr = maxerr
+          IF (iw > 0) THEN
+             WRITE (UNIT=iw,FMT="(/,T2,A)")&
+              "DEBUG| Atom  Coordinate   f(numerical)   f(analytical)   Difference   Error [%]"
+             DO k=1,3
+                WRITE (UNIT=iw,FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)")&
+                 "DEBUG|",ip,ACHAR(119+k),numer_forces(ip,k),analyt_forces(ip,k),&
+                 analyt_forces(ip,k) - numer_forces(ip,k),err(k)
+             END DO
+          END IF
+          IF (ANY(ABS(err(1:3)) > my_maxerr(1:3))) THEN
+             message = "A mismatch between analytical and numerical forces "//&
+                       "has been detected. Check the implementation of the "//&
+                       "analytical force calculation"
+             IF (stop_on_mismatch) THEN
+                CALL stop_program(routineN,moduleN,__LINE__,TRIM(message),para_env)
+             ELSE
+                CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
+             END IF
+          END IF
+       END DO Atom
+       ! Print summary
+       IF (iw > 0) THEN
+          WRITE (UNIT=iw,FMT="(/,(T2,A))")&
+           "DEBUG|======================== BEGIN OF SUMMARY ===============================",&
+           "DEBUG| Atom  Coordinate   f(numerical)   f(analytical)   Difference   Error [%]"
+          DO ip=1,np
              err(1:3) = 0.0_dp
              DO k=1,3
-                ! Calculate percentage error, but ignore very small force values
                 IF (ABS(analyt_forces(ip,k)) >= eps_no_error_check) THEN
-                   err(k) = 100.0_dp*(numer_forces(ip,k) - analyt_forces(ip,k))/analyt_forces(ip,k)
-                END IF
-                ! Increase error tolerance for small force values
-                IF (ABS(analyt_forces(ip,k)) <= 0.0001_dp) my_maxerr(k) = 5.0_dp*my_maxerr(k)
-             END DO
-             IF (iw > 0) THEN
-                WRITE (UNIT=iw,FMT="(/,T2,A)")&
-                 "DEBUG| Atom  Coordinate   f(numerical)   f(analytical)   Difference   Error [%]"
-                DO k=1,3
+                   err(k) = 100_dp*(numer_forces(ip,k) - analyt_forces(ip,k))/analyt_forces(ip,k)
                    WRITE (UNIT=iw,FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)")&
                     "DEBUG|",ip,ACHAR(119+k),numer_forces(ip,k),analyt_forces(ip,k),&
                     analyt_forces(ip,k) - numer_forces(ip,k),err(k)
-                END DO
-             END IF
-             IF (ANY(ABS(err(1:3)) > my_maxerr(1:3))) THEN
-                message = "A mismatch between analytical and numerical forces "//&
-                          "has been detected. Check the implementation of the "//&
-                          "analytical force calculation"
-                IF (stop_on_mismatch) THEN
-                   CALL stop_program(routineN,moduleN,__LINE__,TRIM(message),para_env)
                 ELSE
-                   CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
+                   WRITE (UNIT=iw,FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8)")&
+                    "DEBUG|",ip,ACHAR(119+k),numer_forces(ip,k),analyt_forces(ip,k),&
+                    analyt_forces(ip,k) - numer_forces(ip,k)
                 END IF
-             END IF
-          END DO Atom
-          ! Print summary
-          IF (iw > 0) THEN
-             WRITE (UNIT=iw,FMT="(/,(T2,A))")&
-              "DEBUG|======================== BEGIN OF SUMMARY ===============================",&
-              "DEBUG| Atom  Coordinate   f(numerical)   f(analytical)   Difference   Error [%]"
-             DO ip=1,np
-                err(1:3) = 0.0_dp
-                DO k=1,3
-                   IF (ABS(analyt_forces(ip,k)) >= eps_no_error_check) THEN
-                      err(k) = 100_dp*(numer_forces(ip,k) - analyt_forces(ip,k))/analyt_forces(ip,k)
-                      WRITE (UNIT=iw,FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8,T71,F10.2)")&
-                       "DEBUG|",ip,ACHAR(119+k),numer_forces(ip,k),analyt_forces(ip,k),&
-                       analyt_forces(ip,k) - numer_forces(ip,k),err(k)
-                   ELSE
-                      WRITE (UNIT=iw,FMT="(T2,A,I5,T19,A1,T26,F14.8,T42,F14.8,T57,F12.8)")&
-                       "DEBUG|",ip,ACHAR(119+k),numer_forces(ip,k),analyt_forces(ip,k),&
-                       analyt_forces(ip,k) - numer_forces(ip,k)
-                   END IF
-                END DO
              END DO
-             WRITE (UNIT=iw,FMT="(T2,A)")&
-              "DEBUG|======================== END OF SUMMARY ================================="
-          END IF
-          ! Release work storage
-          IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
-          IF (ASSOCIATED(numer_forces)) DEALLOCATE(numer_forces)
+          END DO
+          WRITE (UNIT=iw,FMT="(T2,A)")&
+           "DEBUG|======================== END OF SUMMARY ================================="
        END IF
-       CALL cp_print_key_finished_output(iw,logger,root_section,&
-                                         "DEBUG%PROGRAM_RUN_INFO",error=error)
+       ! Release work storage
+       IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
+       IF (ASSOCIATED(numer_forces)) DEALLOCATE(numer_forces)
     END IF
+    CALL cp_print_key_finished_output(iw,logger,root_section,&
+                                      "DEBUG%PROGRAM_RUN_INFO",error=error)
 
   END SUBROUTINE cp2k_debug_energy_and_forces
 

@@ -104,16 +104,14 @@ CONTAINS
     ALLOCATE(diis_buffer,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
-      NULLIFY (diis_buffer%b_matrix)
-      NULLIFY (diis_buffer%error)
-      NULLIFY (diis_buffer%parameter)
-      diis_buffer%nbuffer = nbuffer
-      diis_buffer%ncall = 0
-      last_diis_b_id = last_diis_b_id + 1
-      diis_buffer%id_nr = last_diis_b_id
-      diis_buffer%ref_count = 1
-    END IF
+    NULLIFY (diis_buffer%b_matrix)
+    NULLIFY (diis_buffer%error)
+    NULLIFY (diis_buffer%parameter)
+    diis_buffer%nbuffer = nbuffer
+    diis_buffer%ncall = 0
+    last_diis_b_id = last_diis_b_id + 1
+    diis_buffer%id_nr = last_diis_b_id
+    diis_buffer%ref_count = 1
 
     CALL timestop(handle)
 
@@ -582,9 +580,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(diis_buffer),cp_failure_level,routineP,error,failure)
     CPPrecondition(diis_buffer%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
-      diis_buffer%ncall = 0
-    END IF
+    diis_buffer%ncall = 0
 
     CALL timestop(handle)
 
@@ -972,9 +968,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(diis_buffer),cp_failure_level,routineP,error,failure)
     CPPrecondition(diis_buffer%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
-      diis_buffer%ncall = 0
-    END IF
+    diis_buffer%ncall = 0
 
     CALL timestop(handle)
 
@@ -1012,16 +1006,14 @@ CONTAINS
     ALLOCATE(diis_buffer,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
-      NULLIFY (diis_buffer%b_matrix)
-      NULLIFY (diis_buffer%error)
-      NULLIFY (diis_buffer%parameter)
-      diis_buffer%nbuffer = nbuffer
-      diis_buffer%ncall = 0
-      last_diis_b_id = last_diis_b_id + 1
-      diis_buffer%id_nr = last_diis_b_id
-      diis_buffer%ref_count = 1
-    END IF
+    NULLIFY (diis_buffer%b_matrix)
+    NULLIFY (diis_buffer%error)
+    NULLIFY (diis_buffer%parameter)
+    diis_buffer%nbuffer = nbuffer
+    diis_buffer%ncall = 0
+    last_diis_b_id = last_diis_b_id + 1
+    diis_buffer%id_nr = last_diis_b_id
+    diis_buffer%ref_count = 1
 
     CALL timestop(handle)
 

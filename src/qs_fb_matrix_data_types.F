@@ -178,23 +178,21 @@ CONTAINS
     failure = .FALSE.
     check_ok = .NOT. fb_matrix_data_has_data(matrix_data)
     CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE(matrix_data%obj, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       CALL fb_hash_table_nullify(matrix_data%obj%ind)
-       NULLIFY(matrix_data%obj%blks)
-       matrix_data%obj%nmax = 0
-       matrix_data%obj%nblks = 0
-       matrix_data%obj%nencode = nencode
-       CALL fb_matrix_data_init(matrix_data=matrix_data, &
-                                nmax=nmax, &
-                                nencode=nencode, &
-                                error=error)
-       ! book keeping stuff
-       matrix_data%obj%ref_count = 1
-       matrix_data%obj%id_nr = last_fb_matrix_data_id + 1
-       last_fb_matrix_data_id = matrix_data%obj%id_nr
-    END IF
+    ALLOCATE(matrix_data%obj, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    CALL fb_hash_table_nullify(matrix_data%obj%ind)
+    NULLIFY(matrix_data%obj%blks)
+    matrix_data%obj%nmax = 0
+    matrix_data%obj%nblks = 0
+    matrix_data%obj%nencode = nencode
+    CALL fb_matrix_data_init(matrix_data=matrix_data, &
+                             nmax=nmax, &
+                             nencode=nencode, &
+                             error=error)
+    ! book keeping stuff
+    matrix_data%obj%ref_count = 1
+    matrix_data%obj%id_nr = last_fb_matrix_data_id + 1
+    last_fb_matrix_data_id = matrix_data%obj%id_nr
   END SUBROUTINE fb_matrix_data_create
 
 ! *****************************************************************************
@@ -374,11 +372,9 @@ CONTAINS
     failure = .FALSE.
     check_ok = ASSOCIATED(matrix_data%obj)
     CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       check_ok = matrix_data%obj%ref_count > 0
-       CPPreconditionNoFail(check_ok, cp_failure_level, routineP, error)
-       matrix_data%obj%ref_count = matrix_data%obj%ref_count + 1
-    END IF
+    check_ok = matrix_data%obj%ref_count > 0
+    CPPreconditionNoFail(check_ok, cp_failure_level, routineP, error)
+    matrix_data%obj%ref_count = matrix_data%obj%ref_count + 1
   END SUBROUTINE fb_matrix_data_retain
 
 ! *****************************************************************************

@@ -134,23 +134,21 @@ CONTAINS
 
     ALLOCATE(pool, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       pool%pw_grid => pw_grid
-       CALL pw_grid_retain(pw_grid,error=error)
-       last_pw_pool_id_nr=last_pw_pool_id_nr+1
-       pool%id_nr=last_pw_pool_id_nr
-       pool%ref_count=1
-       pool%max_cache=default_max_cache
-       IF (PRESENT(max_cache)) pool%max_cache=max_cache
-       pool%max_cache=MIN(max_max_cache,pool%max_cache)
-       IF (debug_this_module) THEN
-          WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-               fmt="(' *** pw_pool ',i4,' has been created')") pool%id_nr
-          CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
-       END IF
-       NULLIFY(pool%real1d_pw, pool%real3d_pw, &
-            pool%complex1d_pw, pool%complex3d_pw, pool%real3d_array)
+    pool%pw_grid => pw_grid
+    CALL pw_grid_retain(pw_grid,error=error)
+    last_pw_pool_id_nr=last_pw_pool_id_nr+1
+    pool%id_nr=last_pw_pool_id_nr
+    pool%ref_count=1
+    pool%max_cache=default_max_cache
+    IF (PRESENT(max_cache)) pool%max_cache=max_cache
+    pool%max_cache=MIN(max_max_cache,pool%max_cache)
+    IF (debug_this_module) THEN
+       WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+            fmt="(' *** pw_pool ',i4,' has been created')") pool%id_nr
+       CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
     END IF
+    NULLIFY(pool%real1d_pw, pool%real3d_pw, &
+         pool%complex1d_pw, pool%complex3d_pw, pool%real3d_array)
   END SUBROUTINE pw_pool_create
 
 ! *****************************************************************************
@@ -176,16 +174,14 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
 
-       pool%ref_count=pool%ref_count+1
-       IF (debug_this_module) THEN
-          WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-               fmt="(' *** pw_pool ',i4,' has been retained, ref_count=',i4)")&
-               pool%id_nr, pool%ref_count
-          CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
-       END IF
+    pool%ref_count=pool%ref_count+1
+    IF (debug_this_module) THEN
+       WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+            fmt="(' *** pw_pool ',i4,' has been retained, ref_count=',i4)")&
+            pool%id_nr, pool%ref_count
+       CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
     END IF
   END SUBROUTINE pw_pool_retain
 
@@ -220,59 +216,57 @@ CONTAINS
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
     NULLIFY(iterator,array_iterator,pw_el,array_att)
     logger => cp_error_get_logger(error)
-    IF (.NOT.failure) THEN
-       IF (debug_this_module) THEN
-          WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-               fmt="(' *** pw_pool ',i4,' is flushing the cache')") pool%id_nr
-          CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
-       END IF
-
-       iterator => pool%real1d_pw
-       DO
-          IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
-          CPPrecondition(pw_el%ref_count==0,cp_failure_level,routineP,error,failure)
-          pw_el%ref_count=1
-          CALL pw_release(pw_el,error=error)
-       END DO
-       CALL cp_sll_pw_dealloc(pool%real1d_pw,error=error)
-
-       iterator => pool%real3d_pw
-       DO
-          IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
-          CPPrecondition(pw_el%ref_count==0,cp_failure_level,routineP,error,failure)
-          pw_el%ref_count=1
-          CALL pw_release(pw_el, error=error)
-       END DO
-       CALL cp_sll_pw_dealloc(pool%real3d_pw,error=error)
-
-       iterator => pool%complex1d_pw
-       DO
-          IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
-          CPPrecondition(pw_el%ref_count==0,cp_failure_level,routineP,error,failure)
-          pw_el%ref_count=1
-          CALL pw_release(pw_el, error=error)
-       END DO
-       CALL cp_sll_pw_dealloc(pool%complex1d_pw,error=error)
-
-       iterator => pool%complex3d_pw
-       DO
-          IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
-          CPPrecondition(pw_el%ref_count==0,cp_failure_level,routineP,error,failure)
-          pw_el%ref_count=1
-          CALL pw_release(pw_el, error=error)
-       END DO
-       CALL cp_sll_pw_dealloc(pool%complex3d_pw,error=error)
-
-       array_iterator => pool%real3d_array
-       DO
-          IF (.NOT.cp_sll_3d_r_next(array_iterator,el_att=array_att,&
-               error=error)) EXIT
-          DEALLOCATE(array_att,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       END DO
-       CALL cp_sll_3d_r_dealloc(pool%real3d_array,error=error)
-
+    IF (debug_this_module) THEN
+       WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+            fmt="(' *** pw_pool ',i4,' is flushing the cache')") pool%id_nr
+       CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
     END IF
+
+    iterator => pool%real1d_pw
+    DO
+       IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
+       CPPrecondition(pw_el%ref_count==0,cp_failure_level,routineP,error,failure)
+       pw_el%ref_count=1
+       CALL pw_release(pw_el,error=error)
+    END DO
+    CALL cp_sll_pw_dealloc(pool%real1d_pw,error=error)
+
+    iterator => pool%real3d_pw
+    DO
+       IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
+       CPPrecondition(pw_el%ref_count==0,cp_failure_level,routineP,error,failure)
+       pw_el%ref_count=1
+       CALL pw_release(pw_el, error=error)
+    END DO
+    CALL cp_sll_pw_dealloc(pool%real3d_pw,error=error)
+
+    iterator => pool%complex1d_pw
+    DO
+       IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
+       CPPrecondition(pw_el%ref_count==0,cp_failure_level,routineP,error,failure)
+       pw_el%ref_count=1
+       CALL pw_release(pw_el, error=error)
+    END DO
+    CALL cp_sll_pw_dealloc(pool%complex1d_pw,error=error)
+
+    iterator => pool%complex3d_pw
+    DO
+       IF (.NOT.cp_sll_pw_next(iterator,el_att=pw_el,error=error)) EXIT
+       CPPrecondition(pw_el%ref_count==0,cp_failure_level,routineP,error,failure)
+       pw_el%ref_count=1
+       CALL pw_release(pw_el, error=error)
+    END DO
+    CALL cp_sll_pw_dealloc(pool%complex3d_pw,error=error)
+
+    array_iterator => pool%real3d_array
+    DO
+       IF (.NOT.cp_sll_3d_r_next(array_iterator,el_att=array_att,&
+            error=error)) EXIT
+       DEALLOCATE(array_att,stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+    END DO
+    CALL cp_sll_3d_r_dealloc(pool%real3d_array,error=error)
+
   END SUBROUTINE pw_pool_flush_cache
 
 ! *****************************************************************************
@@ -312,9 +306,7 @@ CONTAINS
           CALL pw_pool_flush_cache(pool,error=error)
           pool%ref_count=0
           CPPrecondition(ASSOCIATED(pool%pw_grid),cp_warning_level,routineP,error,failure)
-          IF (.NOT.failure) THEN
-             CALL pw_grid_release(pool%pw_grid,error=error)
-          END IF
+          CALL pw_grid_release(pool%pw_grid,error=error)
 
           DEALLOCATE(pool,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -636,36 +628,34 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
   CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_pool%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(cr3d),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (ASSOCIATED(pw_pool%real3d_array)) THEN
-        cr3d => cp_sll_3d_r_get_first_el(pw_pool%real3d_array,error=error)
-        CALL cp_sll_3d_r_rm_first_el(pw_pool%real3d_array,error=error)
-     ELSE
-        pw => try_pop(pw_pool%real3d_pw,error=error)
-        IF (ASSOCIATED(pw)) THEN
-           CPPrecondition(pw%ref_count==0,cp_failure_level,routineP,error,failure)
-           pw%ref_count=1
-           cr3d => pw%cr3d
-           NULLIFY(pw%cr3d)
-           CALL pw_release(pw, error=error)
-        END IF
+  IF (ASSOCIATED(pw_pool%real3d_array)) THEN
+     cr3d => cp_sll_3d_r_get_first_el(pw_pool%real3d_array,error=error)
+     CALL cp_sll_3d_r_rm_first_el(pw_pool%real3d_array,error=error)
+  ELSE
+     pw => try_pop(pw_pool%real3d_pw,error=error)
+     IF (ASSOCIATED(pw)) THEN
+        CPPrecondition(pw%ref_count==0,cp_failure_level,routineP,error,failure)
+        pw%ref_count=1
+        cr3d => pw%cr3d
+        NULLIFY(pw%cr3d)
+        CALL pw_release(pw, error=error)
      END IF
-     IF (.NOT.ASSOCIATED(cr3d)) THEN
-        ALLOCATE(cr3d(pw_pool%pw_grid%bounds_local(1,1):pw_pool%pw_grid%bounds_local(2,1),&
-             pw_pool%pw_grid%bounds_local(1,2):pw_pool%pw_grid%bounds_local(2,2),&
-             pw_pool%pw_grid%bounds_local(1,3):pw_pool%pw_grid%bounds_local(2,3)),&
-             stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        IF (debug_this_module) THEN
-           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                fmt="(' *** pw_pool ',i4,' created cr3d')") pw_pool%id_nr
-           CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
-        END IF
-     ELSEIF (debug_this_module) THEN
-           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                fmt="(' *** pw_pool ',i4,' created cr3d')") pw_pool%id_nr
-          CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+  END IF
+  IF (.NOT.ASSOCIATED(cr3d)) THEN
+     ALLOCATE(cr3d(pw_pool%pw_grid%bounds_local(1,1):pw_pool%pw_grid%bounds_local(2,1),&
+          pw_pool%pw_grid%bounds_local(1,2):pw_pool%pw_grid%bounds_local(2,2),&
+          pw_pool%pw_grid%bounds_local(1,3):pw_pool%pw_grid%bounds_local(2,3)),&
+          stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     IF (debug_this_module) THEN
+        WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+             fmt="(' *** pw_pool ',i4,' created cr3d')") pw_pool%id_nr
+        CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
      END IF
+  ELSEIF (debug_this_module) THEN
+        WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+             fmt="(' *** pw_pool ',i4,' created cr3d')") pw_pool%id_nr
+       CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
   END IF
 END SUBROUTINE pw_pool_create_cr3d
 
@@ -704,48 +694,46 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
 
   CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_pool%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (ASSOCIATED(cr3d)) THEN
-        IF (debug_this_module) THEN
-           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                fmt="(' *** pw_pool ',i4,' received back a cr3d')") pw_pool%id_nr
-           CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
-        END IF
-        compatible=ALL( MERGE( pw_pool%pw_grid%bounds_local(1,:)==LBOUND(cr3d).AND. &
-                               pw_pool%pw_grid%bounds_local(2,:)==UBOUND(cr3d), &
-                        pw_pool%pw_grid%bounds_local(2,:)<pw_pool%pw_grid%bounds_local(1,:), &
-                        UBOUND(cr3d)>=LBOUND(cr3d) ) )
-        CPPrecondition(compatible.OR.my_accept_non_compatible,cp_failure_level,routineP,error,failure)
-        IF (compatible) THEN
-           IF (cp_sll_3d_r_get_length(pw_pool%real3d_array,error=error)<pw_pool%max_cache) THEN
-              CALL cp_sll_3d_r_insert_el(pw_pool%real3d_array, el=cr3d, error=error)
-           ELSE
-              CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
-                   routineP,"hit max_cache"//&
-CPSourceFileRef,&
-                   error)
-              DEALLOCATE(cr3d, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           END IF
+  IF (ASSOCIATED(cr3d)) THEN
+     IF (debug_this_module) THEN
+        WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+             fmt="(' *** pw_pool ',i4,' received back a cr3d')") pw_pool%id_nr
+        CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+     END IF
+     compatible=ALL( MERGE( pw_pool%pw_grid%bounds_local(1,:)==LBOUND(cr3d).AND. &
+                            pw_pool%pw_grid%bounds_local(2,:)==UBOUND(cr3d), &
+                     pw_pool%pw_grid%bounds_local(2,:)<pw_pool%pw_grid%bounds_local(1,:), &
+                     UBOUND(cr3d)>=LBOUND(cr3d) ) )
+     CPPrecondition(compatible.OR.my_accept_non_compatible,cp_failure_level,routineP,error,failure)
+     IF (compatible) THEN
+        IF (cp_sll_3d_r_get_length(pw_pool%real3d_array,error=error)<pw_pool%max_cache) THEN
+           CALL cp_sll_3d_r_insert_el(pw_pool%real3d_array, el=cr3d, error=error)
         ELSE
-           IF (debug_this_module) THEN
-              WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                   fmt="(' *** pw_pool ',i4,' cr3d not accepted, deallocating')")&
-                pw_pool%id_nr
-              CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
-           END IF
+           CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
+                routineP,"hit max_cache"//&
+CPSourceFileRef,&
+                error)
            DEALLOCATE(cr3d, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
      ELSE
         IF (debug_this_module) THEN
            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                fmt="(' *** pw_pool ',i4,' received back a null cr3d')")&
-                pw_pool%id_nr
+                fmt="(' *** pw_pool ',i4,' cr3d not accepted, deallocating')")&
+             pw_pool%id_nr
            CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
         END IF
-        CPPrecondition(my_accept_non_compatible,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(cr3d, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
+  ELSE
+     IF (debug_this_module) THEN
+        WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+             fmt="(' *** pw_pool ',i4,' received back a null cr3d')")&
+             pw_pool%id_nr
+        CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+     END IF
+     CPPrecondition(my_accept_non_compatible,cp_failure_level,routineP,error,failure)
   END IF
   NULLIFY(cr3d)
 END SUBROUTINE pw_pool_give_back_cr3d
@@ -782,13 +770,11 @@ SUBROUTINE pw_pools_create_pws(pools, pws, use_data, in_space, error)
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   ALLOCATE(pws(SIZE(pools)),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     DO i=1,SIZE(pools)
-        NULLIFY(pws(i)%pw)
-        CALL pw_pool_create_pw(pools(i)%pool,pws(i)%pw,use_data,&
-             in_space=in_space,error=error)
-     END DO
-  END IF
+  DO i=1,SIZE(pools)
+     NULLIFY(pws(i)%pw)
+     CALL pw_pool_create_pw(pools(i)%pool,pws(i)%pw,use_data,&
+          in_space=in_space,error=error)
+  END DO
 END SUBROUTINE pw_pools_create_pws
 
 ! *****************************************************************************
@@ -818,13 +804,11 @@ SUBROUTINE pw_pools_give_back_pws(pools, pws, error)
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(pws),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(pws)==SIZE(pools),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     DO i=1,SIZE(pools)
-        CALL pw_pool_give_back_pw(pools(i)%pool,pws(i)%pw,error=error)
-     END DO
-     DEALLOCATE(pws,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  END IF
+  DO i=1,SIZE(pools)
+     CALL pw_pool_give_back_pw(pools(i)%pool,pws(i)%pw,error=error)
+  END DO
+  DEALLOCATE(pws,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 END SUBROUTINE pw_pools_give_back_pws
 
 ! *****************************************************************************
@@ -851,16 +835,12 @@ SUBROUTINE pw_pools_copy(source_pools, target_pools, error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(source_pools),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     ALLOCATE(target_pools(SIZE(source_pools)), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF (.NOT.failure) THEN
-     DO i=1,SIZE(source_pools)
-        target_pools(i)%pool => source_pools(i)%pool
-        CALL pw_pool_retain(source_pools(i)%pool, error=error)
-     END DO
-  END IF
+  ALLOCATE(target_pools(SIZE(source_pools)), stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  DO i=1,SIZE(source_pools)
+     target_pools(i)%pool => source_pools(i)%pool
+     CALL pw_pool_retain(source_pools(i)%pool, error=error)
+  END DO
 END SUBROUTINE pw_pools_copy
 
 ! *****************************************************************************
@@ -919,11 +899,9 @@ SUBROUTINE pw_pools_flush_cache(pools,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     DO i=1,SIZE(pools)
-        CALL pw_pool_flush_cache(pools(i)%pool,error=error)
-     END DO
-  END IF
+  DO i=1,SIZE(pools)
+     CALL pw_pool_flush_cache(pools(i)%pool,error=error)
+  END DO
 END SUBROUTINE pw_pools_flush_cache
 
 ! *****************************************************************************

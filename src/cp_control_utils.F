@@ -559,11 +559,9 @@ CPSourceFileRef,&
          CALL cp_assert(SIZE(cutofflist,1) == ngrid_level,&
               cp_failure_level,cp_assertion_failed,routineN,&
               "Inconsistent values for number of multi grids",error,failure)
-         IF (.NOT.failure) THEN
-            DO igrid_level = 1,ngrid_level
-               qs_control%e_cutoff(igrid_level) = cutofflist(igrid_level)*0.5_dp
-            ENDDO
-         END IF
+         DO igrid_level = 1,ngrid_level
+            qs_control%e_cutoff(igrid_level) = cutofflist(igrid_level)*0.5_dp
+         ENDDO
       END IF
       ! set cutoff to smallest value in multgrid available with >= cutoff
       DO igrid_level=ngrid_level,1,-1

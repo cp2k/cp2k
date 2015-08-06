@@ -60,14 +60,12 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       IF (ASSOCIATED(wavelet)) THEN
-          IF (ASSOCIATED(wavelet%karray))&
-               DEALLOCATE(wavelet%karray)
-          IF(ASSOCIATED(wavelet%rho_z_sliced))&
-               DEALLOCATE(wavelet%rho_z_sliced)
-          DEALLOCATE(wavelet)
-       END IF
+    IF (ASSOCIATED(wavelet)) THEN
+       IF (ASSOCIATED(wavelet%karray))&
+            DEALLOCATE(wavelet%karray)
+       IF(ASSOCIATED(wavelet%rho_z_sliced))&
+            DEALLOCATE(wavelet%rho_z_sliced)
+       DEALLOCATE(wavelet)
     END IF
   END SUBROUTINE ps_wavelet_release
 

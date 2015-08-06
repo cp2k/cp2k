@@ -159,13 +159,11 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, input=input,&
-            subsys=subsys,particle_set=particle_set, cell=cell, error=error)
-       resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP",&
-                                                  error=error)
-       CALL section_vals_get(resp_section, explicit=has_resp, error=error)
-    END IF
+    CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, input=input,&
+         subsys=subsys,particle_set=particle_set, cell=cell, error=error)
+    resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP",&
+                                               error=error)
+    CALL section_vals_get(resp_section, explicit=has_resp, error=error)
 
     IF (.NOT. failure .AND. has_resp) THEN
        logger => cp_error_get_logger(error)
@@ -269,14 +267,12 @@ CONTAINS
     ALLOCATE(resp_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
 
-    IF (.NOT. failure) THEN
-       NULLIFY(resp_env%matrix,&
-               resp_env%fitpoints,&
-               resp_env%rmin_kind,&
-               resp_env%rmax_kind,&
-               resp_env%rhs)
+    NULLIFY(resp_env%matrix,&
+            resp_env%fitpoints,&
+            resp_env%rmin_kind,&
+            resp_env%rmax_kind,&
+            resp_env%rhs)
 
-    ENDIF
      
     resp_env%equal_charges=.FALSE.
     resp_env%itc=.FALSE.

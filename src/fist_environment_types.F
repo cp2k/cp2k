@@ -468,9 +468,7 @@ CONTAINS
 
     ALLOCATE(fist_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL init_fist_env(fist_env,para_env=para_env, error=error)
-    END IF
+    CALL init_fist_env(fist_env,para_env=para_env, error=error)
   END SUBROUTINE fist_env_create
 
 ! *****************************************************************************
@@ -493,10 +491,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(fist_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       fist_env%ref_count=fist_env%ref_count+1
-    END IF
+    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    fist_env%ref_count=fist_env%ref_count+1
   END SUBROUTINE fist_env_retain
 
 ! *****************************************************************************

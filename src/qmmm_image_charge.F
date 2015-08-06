@@ -738,91 +738,89 @@ CONTAINS
     IF(PRESENT(ipiv)) ipiv=0
    
    
-    IF (.NOT.failure) THEN
-        CALL get_qs_env(qs_env, pw_env=pw_env,para_env=para_env,&
-                        input=input,error=error)
-   
-        !print info
-        output_unit=cp_print_key_unit_nr(logger,input,&
-                    "QMMM%PRINT%PROGRAM_RUN_INFO",&
-                    extension=".qmmmLog",error=error)
-        IF (qmmm_env%image_charge_pot%coeff_iterative) THEN
-           IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T3,A)")&
-                    "Calculating image matrix"
-        ELSE
-           IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                    "Calculating image matrix"
-        ENDIF
-        CALL cp_print_key_finished_output(output_unit,logger,input,&
-                    "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
-   
-   
-        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-                        poisson_env=poisson_env, error=error)
-        CALL pw_pool_create_pw(auxbas_pw_pool,&
-                               rho_gb%pw,&
-                               use_data=COMPLEXDATA1D,&
-                               in_space=RECIPROCALSPACE,&
-                               error=error)
-        CALL pw_pool_create_pw(auxbas_pw_pool,&
-                               vb_gspace%pw,&
-                               use_data=COMPLEXDATA1D,&
-                               in_space=RECIPROCALSPACE,&
-                               error=error)
-        CALL pw_pool_create_pw(auxbas_pw_pool,&
-                               vb_rspace%pw,&
-                               use_data=REALDATA3D,&
-                               in_space=REALSPACE,&
-                               error=error)
-        ! calculate vb only once for one reference atom 
-        iatom_ref = 1 !
-        !collocate gaussian of reference MM atom on grid
-        CALL pw_zero(rho_gb%pw, error=error)
-        CALL calculate_rho_single_gaussian(rho_gb,qs_env,iatom_ref,error)
-        !calculate potential vb like hartree potential
-        CALL pw_zero(vb_gspace%pw, error=error)
-        CALL pw_poisson_solve(poisson_env,rho_gb%pw,vhartree=vb_gspace%pw,&
-                              error=error)
-        CALL pw_zero(vb_rspace%pw, error=error)
-        CALL pw_transfer(vb_gspace%pw,vb_rspace%pw,error=error)
-        CALL pw_scale(vb_rspace%pw,vb_rspace%pw%pw_grid%dvol,error=error)
-        DO iatom=1,natom
-          !calculate integral vb_rspace*ga
-          int_res=0.0_dp
-          CALL integrate_potential_ga_rspace(vb_rspace,qs_env%qmmm_env_qm,&
-                                             qs_env,int_res,atom_num=iatom,&
-                                             atom_num_ref=iatom_ref,error=error)
-          image_matrix(iatom,iatom:natom)=int_res(iatom:natom)
-          image_matrix(iatom+1:natom,iatom)=int_res(iatom+1:natom)
-        END DO
-   
-        IF (qmmm_env%image_charge_pot%coeff_iterative) THEN
-           !inversion --> preconditioner matrix for CG
-           CALL DPOTRF('L',natom,qs_env%image_matrix,natom,stat)
-           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-           CALL DPOTRI('L',natom,qs_env%image_matrix,natom,stat)
-           CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-           DO j=1,natom
-            DO k=j+1,natom
-             qs_env%image_matrix(j,k)=qs_env%image_matrix(k,j)
-            ENDDO
-           ENDDO
-           CALL write_image_matrix(qs_env%image_matrix,qs_env,error)
-        ELSE
-           !pivoting prior to DGETRS (Gaussian elimination)
-           IF(PRESENT(ipiv)) THEN
-              CALL DGETRF(natom,natom,image_matrix,natom,ipiv,stat)
-              CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
-           ENDIF
-        ENDIF
-   
-        CALL pw_release(vb_gspace%pw,error=error)
-        CALL pw_release(vb_rspace%pw,error=error)
-        CALL pw_release(rho_gb%pw,error=error)
-   
-        DEALLOCATE(int_res,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CALL get_qs_env(qs_env, pw_env=pw_env,para_env=para_env,&
+                    input=input,error=error)
+
+    !print info
+    output_unit=cp_print_key_unit_nr(logger,input,&
+                "QMMM%PRINT%PROGRAM_RUN_INFO",&
+                extension=".qmmmLog",error=error)
+    IF (qmmm_env%image_charge_pot%coeff_iterative) THEN
+       IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T3,A)")&
+                "Calculating image matrix"
+    ELSE
+       IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                "Calculating image matrix"
     ENDIF
+    CALL cp_print_key_finished_output(output_unit,logger,input,&
+                "QMMM%PRINT%PROGRAM_RUN_INFO", error=error)
+
+
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+                    poisson_env=poisson_env, error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool,&
+                           rho_gb%pw,&
+                           use_data=COMPLEXDATA1D,&
+                           in_space=RECIPROCALSPACE,&
+                           error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool,&
+                           vb_gspace%pw,&
+                           use_data=COMPLEXDATA1D,&
+                           in_space=RECIPROCALSPACE,&
+                           error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool,&
+                           vb_rspace%pw,&
+                           use_data=REALDATA3D,&
+                           in_space=REALSPACE,&
+                           error=error)
+    ! calculate vb only once for one reference atom 
+    iatom_ref = 1 !
+    !collocate gaussian of reference MM atom on grid
+    CALL pw_zero(rho_gb%pw, error=error)
+    CALL calculate_rho_single_gaussian(rho_gb,qs_env,iatom_ref,error)
+    !calculate potential vb like hartree potential
+    CALL pw_zero(vb_gspace%pw, error=error)
+    CALL pw_poisson_solve(poisson_env,rho_gb%pw,vhartree=vb_gspace%pw,&
+                          error=error)
+    CALL pw_zero(vb_rspace%pw, error=error)
+    CALL pw_transfer(vb_gspace%pw,vb_rspace%pw,error=error)
+    CALL pw_scale(vb_rspace%pw,vb_rspace%pw%pw_grid%dvol,error=error)
+    DO iatom=1,natom
+      !calculate integral vb_rspace*ga
+      int_res=0.0_dp
+      CALL integrate_potential_ga_rspace(vb_rspace,qs_env%qmmm_env_qm,&
+                                         qs_env,int_res,atom_num=iatom,&
+                                         atom_num_ref=iatom_ref,error=error)
+      image_matrix(iatom,iatom:natom)=int_res(iatom:natom)
+      image_matrix(iatom+1:natom,iatom)=int_res(iatom+1:natom)
+    END DO
+
+    IF (qmmm_env%image_charge_pot%coeff_iterative) THEN
+       !inversion --> preconditioner matrix for CG
+       CALL DPOTRF('L',natom,qs_env%image_matrix,natom,stat)
+       CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+       CALL DPOTRI('L',natom,qs_env%image_matrix,natom,stat)
+       CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+       DO j=1,natom
+        DO k=j+1,natom
+         qs_env%image_matrix(j,k)=qs_env%image_matrix(k,j)
+        ENDDO
+       ENDDO
+       CALL write_image_matrix(qs_env%image_matrix,qs_env,error)
+    ELSE
+       !pivoting prior to DGETRS (Gaussian elimination)
+       IF(PRESENT(ipiv)) THEN
+          CALL DGETRF(natom,natom,image_matrix,natom,ipiv,stat)
+          CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+       ENDIF
+    ENDIF
+
+    CALL pw_release(vb_gspace%pw,error=error)
+    CALL pw_release(vb_rspace%pw,error=error)
+    CALL pw_release(rho_gb%pw,error=error)
+
+    DEALLOCATE(int_res,stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
    
     CALL timestop(handle)
 

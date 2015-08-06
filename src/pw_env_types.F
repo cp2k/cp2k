@@ -151,28 +151,26 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
 
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
-     IF (PRESENT(rs_descs)) rs_descs => pw_env%rs_descs
-     IF (PRESENT(rs_grids)) rs_grids => pw_env%rs_grids
-     IF (PRESENT(lgrid)) lgrid => pw_env%lgrid
-     IF (PRESENT(cube_info)) cube_info => pw_env%cube_info
-     IF (PRESENT(gridlevel_info)) gridlevel_info => pw_env%gridlevel_info
-     IF (PRESENT(auxbas_pw_pool)) THEN
-        auxbas_pw_pool => pw_env%pw_pools(pw_env%auxbas_grid)%pool
-     END IF
-     IF (PRESENT(auxbas_rs_desc)) THEN
-        auxbas_rs_desc => pw_env%rs_descs(pw_env%auxbas_grid)%rs_desc
-     END IF
-     IF (PRESENT(auxbas_rs_grid)) THEN
-        auxbas_rs_grid => pw_env%rs_grids(pw_env%auxbas_grid)%rs_grid
-     END IF
-     IF (PRESENT(auxbas_grid)) auxbas_grid = pw_env%auxbas_grid
-     IF (PRESENT(xc_pw_pool)) xc_pw_pool => pw_env%xc_pw_pool
-     IF (PRESENT(vdw_pw_pool)) vdw_pw_pool => pw_env%vdw_pw_pool
-     IF (PRESENT(poisson_env)) poisson_env => pw_env%poisson_env
-     IF (PRESENT(interp_section)) interp_section => pw_env%interp_section
+  IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
+  IF (PRESENT(rs_descs)) rs_descs => pw_env%rs_descs
+  IF (PRESENT(rs_grids)) rs_grids => pw_env%rs_grids
+  IF (PRESENT(lgrid)) lgrid => pw_env%lgrid
+  IF (PRESENT(cube_info)) cube_info => pw_env%cube_info
+  IF (PRESENT(gridlevel_info)) gridlevel_info => pw_env%gridlevel_info
+  IF (PRESENT(auxbas_pw_pool)) THEN
+     auxbas_pw_pool => pw_env%pw_pools(pw_env%auxbas_grid)%pool
   END IF
+  IF (PRESENT(auxbas_rs_desc)) THEN
+     auxbas_rs_desc => pw_env%rs_descs(pw_env%auxbas_grid)%rs_desc
+  END IF
+  IF (PRESENT(auxbas_rs_grid)) THEN
+     auxbas_rs_grid => pw_env%rs_grids(pw_env%auxbas_grid)%rs_grid
+  END IF
+  IF (PRESENT(auxbas_grid)) auxbas_grid = pw_env%auxbas_grid
+  IF (PRESENT(xc_pw_pool)) xc_pw_pool => pw_env%xc_pw_pool
+  IF (PRESENT(vdw_pw_pool)) vdw_pw_pool => pw_env%vdw_pw_pool
+  IF (PRESENT(poisson_env)) poisson_env => pw_env%poisson_env
+  IF (PRESENT(interp_section)) interp_section => pw_env%interp_section
 END SUBROUTINE pw_env_get
 
 ! *****************************************************************************
@@ -196,10 +194,8 @@ SUBROUTINE pw_env_retain(pw_env,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     pw_env%ref_count=pw_env%ref_count+1
-  END IF
+  CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  pw_env%ref_count=pw_env%ref_count+1
 END SUBROUTINE pw_env_retain
 
 ! *****************************************************************************
@@ -299,10 +295,8 @@ SUBROUTINE pw_env_flush_cache(pw_env,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (ASSOCIATED(pw_env%pw_pools)) THEN
-        CALL pw_pools_flush_cache(pw_env%pw_pools,error=error)
-     END IF
+  IF (ASSOCIATED(pw_env%pw_pools)) THEN
+     CALL pw_pools_flush_cache(pw_env%pw_pools,error=error)
   END IF
 END SUBROUTINE pw_env_flush_cache
 

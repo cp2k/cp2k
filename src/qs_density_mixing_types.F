@@ -106,85 +106,81 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(mixing_store),cp_failure_level,routineP,error,failure)
-    IF(.NOT. failure) THEN
-      ALLOCATE(mixing_store, stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      IF (.NOT.failure) THEN
+    ALLOCATE(mixing_store, stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
-        mixing_store%ref_count=1
-        mixing_store%nbuffer=0
-        mixing_store%n_simple_mix=0
-        mixing_store%ncall=0
-        mixing_store%alpha=1.0_dp
-        mixing_store%pulay_beta=1.0_dp
-        mixing_store%beta=1.0_dp
-        mixing_store%iter_method = "NoMix"
-        mixing_store%max_g2 = 2._dp*ecut
+    mixing_store%ref_count=1
+    mixing_store%nbuffer=0
+    mixing_store%n_simple_mix=0
+    mixing_store%ncall=0
+    mixing_store%alpha=1.0_dp
+    mixing_store%pulay_beta=1.0_dp
+    mixing_store%beta=1.0_dp
+    mixing_store%iter_method = "NoMix"
+    mixing_store%max_g2 = 2._dp*ecut
 
-        NULLIFY(mixing_store%p_metric)
-        NULLIFY(mixing_store%kerker_factor)
-        NULLIFY(mixing_store%special_metric)
-        NULLIFY(mixing_store%pulay_matrix)
-        NULLIFY(mixing_store%weight)
-        NULLIFY(mixing_store%fmat)
-        NULLIFY(mixing_store%gmat)
-        NULLIFY(mixing_store%smat)
-        NULLIFY(mixing_store%last_res)
-        NULLIFY(mixing_store%rhoin)
-        NULLIFY(mixing_store%rhoin_old)
-        NULLIFY(mixing_store%delta_res)
-        NULLIFY(mixing_store%u_vec)
-        NULLIFY(mixing_store%z_vec)
-        NULLIFY(mixing_store%drho_buffer)
-        NULLIFY(mixing_store%rhoin_buffer)
-        NULLIFY(mixing_store%res_buffer)
-        NULLIFY(mixing_store%norm_res_buffer)
-        NULLIFY(mixing_store%ig_global_index)
-        NULLIFY(mixing_store%paw)
-        NULLIFY(mixing_store%cpc_h_in)
-        NULLIFY(mixing_store%cpc_s_in)
-        NULLIFY(mixing_store%cpc_h_old)
-        NULLIFY(mixing_store%cpc_s_old)
-        NULLIFY(mixing_store%dcpc_h_in)
-        NULLIFY(mixing_store%dcpc_s_in)
-        NULLIFY(mixing_store%cpc_h_lastres)
-        NULLIFY(mixing_store%cpc_s_lastres)
+    NULLIFY(mixing_store%p_metric)
+    NULLIFY(mixing_store%kerker_factor)
+    NULLIFY(mixing_store%special_metric)
+    NULLIFY(mixing_store%pulay_matrix)
+    NULLIFY(mixing_store%weight)
+    NULLIFY(mixing_store%fmat)
+    NULLIFY(mixing_store%gmat)
+    NULLIFY(mixing_store%smat)
+    NULLIFY(mixing_store%last_res)
+    NULLIFY(mixing_store%rhoin)
+    NULLIFY(mixing_store%rhoin_old)
+    NULLIFY(mixing_store%delta_res)
+    NULLIFY(mixing_store%u_vec)
+    NULLIFY(mixing_store%z_vec)
+    NULLIFY(mixing_store%drho_buffer)
+    NULLIFY(mixing_store%rhoin_buffer)
+    NULLIFY(mixing_store%res_buffer)
+    NULLIFY(mixing_store%norm_res_buffer)
+    NULLIFY(mixing_store%ig_global_index)
+    NULLIFY(mixing_store%paw)
+    NULLIFY(mixing_store%cpc_h_in)
+    NULLIFY(mixing_store%cpc_s_in)
+    NULLIFY(mixing_store%cpc_h_old)
+    NULLIFY(mixing_store%cpc_s_old)
+    NULLIFY(mixing_store%dcpc_h_in)
+    NULLIFY(mixing_store%dcpc_s_in)
+    NULLIFY(mixing_store%cpc_h_lastres)
+    NULLIFY(mixing_store%cpc_s_lastres)
 
-        CALL section_vals_val_get(mixing_section,"ALPHA",r_val=mixing_store%alpha,error=error)
-        CALL section_vals_val_get(mixing_section,"BETA",r_val=mixing_store%beta,error=error)
-        CALL section_vals_val_get(mixing_section,"N_SIMPLE_MIX",i_val=mixing_store%n_simple_mix,error=error)
-        CALL section_vals_val_get(mixing_section,"NBUFFER",i_val=mixing_store%nbuffer,error=error)
-        CALL section_vals_val_get(mixing_section,"NSKIP",i_val=mixing_store%nskip_mixing,error=error)
-        CALL section_vals_val_get(mixing_section,"MAX_GVEC_EXP",r_val=mixing_store%max_gvec_exp,error=error)
+    CALL section_vals_val_get(mixing_section,"ALPHA",r_val=mixing_store%alpha,error=error)
+    CALL section_vals_val_get(mixing_section,"BETA",r_val=mixing_store%beta,error=error)
+    CALL section_vals_val_get(mixing_section,"N_SIMPLE_MIX",i_val=mixing_store%n_simple_mix,error=error)
+    CALL section_vals_val_get(mixing_section,"NBUFFER",i_val=mixing_store%nbuffer,error=error)
+    CALL section_vals_val_get(mixing_section,"NSKIP",i_val=mixing_store%nskip_mixing,error=error)
+    CALL section_vals_val_get(mixing_section,"MAX_GVEC_EXP",r_val=mixing_store%max_gvec_exp,error=error)
 
-        IF(mixing_store%max_gvec_exp > 0._dp) THEN
-          alpha = 0.25_dp/mixing_store%max_gvec_exp
-          eps = 1.e-4_dp
-          gcut = exp_radius(3,alpha,eps,1.0_dp)
-          mixing_store%max_g2 = gcut*gcut
-        END IF
-
-        SELECT CASE(mixing_method)
-        CASE(gspace_mixing_nr)
-           mixing_store%nbuffer = 1
-        CASE(pulay_mixing_nr)
-           CALL section_vals_val_get(mixing_section,"PULAY_ALPHA",r_val=mixing_store%pulay_alpha,error=error)
-           CALL section_vals_val_get(mixing_section,"PULAY_BETA",r_val=mixing_store%pulay_beta,error=error)
-        CASE(broyden_mixing_nr)
-           CALL section_vals_val_get(mixing_section,"BROY_W0",r_val=mixing_store%broy_w0,error=error)
-           mixing_store%bconst = 20.0_dp
-        CASE(broyden_mixing_new_nr)
-           CALL section_vals_val_get(mixing_section,"BROY_WREF",r_val=mixing_store%wc,error=error)
-           CALL section_vals_val_get(mixing_section,"BROY_WMAX",r_val=mixing_store%wmax,error=error)
-           mixing_store%bconst = 20.0_dp
-           mixing_store%p_metric_method=1
-        CASE(multisecant_mixing_nr)
-           CALL section_vals_val_get(mixing_section,"REGULARIZATION",r_val=mixing_store%reg_par,error=error)
-           CALL section_vals_val_get(mixing_section,"MAX_STEP",r_val=mixing_store%sigma_max,error=error)
-           CALL section_vals_val_get(mixing_section,"R_FACTOR",r_val=mixing_store%r_step,error=error)
-        END SELECT
-      END IF
+    IF(mixing_store%max_gvec_exp > 0._dp) THEN
+      alpha = 0.25_dp/mixing_store%max_gvec_exp
+      eps = 1.e-4_dp
+      gcut = exp_radius(3,alpha,eps,1.0_dp)
+      mixing_store%max_g2 = gcut*gcut
     END IF
+
+    SELECT CASE(mixing_method)
+    CASE(gspace_mixing_nr)
+       mixing_store%nbuffer = 1
+    CASE(pulay_mixing_nr)
+       CALL section_vals_val_get(mixing_section,"PULAY_ALPHA",r_val=mixing_store%pulay_alpha,error=error)
+       CALL section_vals_val_get(mixing_section,"PULAY_BETA",r_val=mixing_store%pulay_beta,error=error)
+    CASE(broyden_mixing_nr)
+       CALL section_vals_val_get(mixing_section,"BROY_W0",r_val=mixing_store%broy_w0,error=error)
+       mixing_store%bconst = 20.0_dp
+    CASE(broyden_mixing_new_nr)
+       CALL section_vals_val_get(mixing_section,"BROY_WREF",r_val=mixing_store%wc,error=error)
+       CALL section_vals_val_get(mixing_section,"BROY_WMAX",r_val=mixing_store%wmax,error=error)
+       mixing_store%bconst = 20.0_dp
+       mixing_store%p_metric_method=1
+    CASE(multisecant_mixing_nr)
+       CALL section_vals_val_get(mixing_section,"REGULARIZATION",r_val=mixing_store%reg_par,error=error)
+       CALL section_vals_val_get(mixing_section,"MAX_STEP",r_val=mixing_store%sigma_max,error=error)
+       CALL section_vals_val_get(mixing_section,"R_FACTOR",r_val=mixing_store%r_step,error=error)
+    END SELECT
 
  END SUBROUTINE mixing_storage_create
 
@@ -466,242 +462,240 @@ CONTAINS
       ls = .FALSE.
     ENDIF
 
-    IF (.NOT.failure) THEN
 
-      IF (ls) THEN
-        section_name="RHO_MIXING"
-      ELSE
-        section_name="MIXING"
-      ENDIF
+    IF (ls) THEN
+      section_name="RHO_MIXING"
+    ELSE
+      section_name="MIXING"
+    ENDIF
 
-      CALL section_create(section,&
-                          name=section_name,&
-                          description="Define type and parameters for mixing"//&
-                          "procedures to be applied to the density matrix. Normally, "//&
-                          "only one type of mixing method should be accepted. The mixing "//&
-                          "procedures activated by this section are only active for diagonalization "//&
-                          "methods and linear scaling SCF, i.e. not with minimization methods based "//&
-                          "on OT.",&
-                          n_keywords=16,&
-                          n_subsections=0,&
-                          repeats=.FALSE.,&
-                          error=error)
+    CALL section_create(section,&
+                        name=section_name,&
+                        description="Define type and parameters for mixing"//&
+                        "procedures to be applied to the density matrix. Normally, "//&
+                        "only one type of mixing method should be accepted. The mixing "//&
+                        "procedures activated by this section are only active for diagonalization "//&
+                        "methods and linear scaling SCF, i.e. not with minimization methods based "//&
+                        "on OT.",&
+                        n_keywords=16,&
+                        n_subsections=0,&
+                        repeats=.FALSE.,&
+                        error=error)
 
-      NULLIFY (keyword)
+    NULLIFY (keyword)
 
-      CALL keyword_create(keyword,&
-                          name="_SECTION_PARAMETERS_",&
-                          description="Controls the activation of the mixing procedure",&
-                          usage="&MIXING ON",&
-                          default_l_val=.TRUE.,&
-                          lone_keyword_l_val=.TRUE.,&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,&
+                        name="_SECTION_PARAMETERS_",&
+                        description="Controls the activation of the mixing procedure",&
+                        usage="&MIXING ON",&
+                        default_l_val=.TRUE.,&
+                        lone_keyword_l_val=.TRUE.,&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      IF (.NOT. ls) THEN
-        default_mix = direct_p_mix
-      ELSE
-        default_mix = broy_mix
-      ENDIF
+    IF (.NOT. ls) THEN
+      default_mix = direct_p_mix
+    ELSE
+      default_mix = broy_mix
+    ENDIF
 
-      CALL keyword_create(keyword,&
-                          name="METHOD",&
-                          description="Mixing method to be applied",&
-                          repeats=.FALSE.,&
-                          usage="METHOD KERKER_MIXING",&
-                          default_i_val=default_mix,&
-                          enum_c_vals=s2a("NONE",&
-                                          "DIRECT_P_MIXING",&
-                                          "KERKER_MIXING",&
-                                          "PULAY_MIXING",&
-                                          "BROYDEN_MIXING",&
-                                          "BROYDEN_MIXING_NEW",&
-                                          "MULTISECANT_MIXING"),&
-                          enum_i_vals=(/no_mix,direct_p_mix,kerker_mix,pulay_mix,broy_mix,&
-                          broy_mix_new,multisec_mix/),&
-                          enum_desc=s2a("No mixing is applied",&
-                             "Direct mixing of new and old density matrices",&
-                             "Mixing of the potential in reciprocal space using the Kerker damping",&
-                             "Pulay mixing","Broyden mixing","Broyden mixing second version",&
-                             "Multisecant scheme for mixing" ),&
-                          error=error)
+    CALL keyword_create(keyword,&
+                        name="METHOD",&
+                        description="Mixing method to be applied",&
+                        repeats=.FALSE.,&
+                        usage="METHOD KERKER_MIXING",&
+                        default_i_val=default_mix,&
+                        enum_c_vals=s2a("NONE",&
+                                        "DIRECT_P_MIXING",&
+                                        "KERKER_MIXING",&
+                                        "PULAY_MIXING",&
+                                        "BROYDEN_MIXING",&
+                                        "BROYDEN_MIXING_NEW",&
+                                        "MULTISECANT_MIXING"),&
+                        enum_i_vals=(/no_mix,direct_p_mix,kerker_mix,pulay_mix,broy_mix,&
+                        broy_mix_new,multisec_mix/),&
+                        enum_desc=s2a("No mixing is applied",&
+                           "Direct mixing of new and old density matrices",&
+                           "Mixing of the potential in reciprocal space using the Kerker damping",&
+                           "Pulay mixing","Broyden mixing","Broyden mixing second version",&
+                           "Multisecant scheme for mixing" ),&
+                        error=error)
 
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword,&
-                          name="ALPHA",&
-                          description="Fraction of new density to be included",&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=0.4_dp,&
-                          usage="ALPHA 0.2",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,&
+                        name="ALPHA",&
+                        description="Fraction of new density to be included",&
+                        repeats=.FALSE.,&
+                        n_var=1,&
+                        type_of_var=real_t,&
+                        default_r_val=0.4_dp,&
+                        usage="ALPHA 0.2",&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword,&
-                          name="BETA",&
-                          description="Denominator parameter in Kerker damping "//&
-                             "introduced to suppress charge sloshing: rho_mix(g) ="//&
-                             "rho_in(g) + alpha*g^2/(g^2 + beta^2)*(rho_out(g)-"//&
-                             "rho_in(g))",&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=0.5_dp,&
-                          unit_str="bohr^-1",&
-                          usage="BETA 1.5",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,&
+                        name="BETA",&
+                        description="Denominator parameter in Kerker damping "//&
+                           "introduced to suppress charge sloshing: rho_mix(g) ="//&
+                           "rho_in(g) + alpha*g^2/(g^2 + beta^2)*(rho_out(g)-"//&
+                           "rho_in(g))",&
+                        repeats=.FALSE.,&
+                        n_var=1,&
+                        type_of_var=real_t,&
+                        default_r_val=0.5_dp,&
+                        unit_str="bohr^-1",&
+                        usage="BETA 1.5",&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword,&
-                          name="PULAY_ALPHA",&
-                          description="Fraction of new density to be added to the Pulay expansion",&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=0.0_dp,&
-                          usage="PULAY_ALPHA 0.2",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,&
+                        name="PULAY_ALPHA",&
+                        description="Fraction of new density to be added to the Pulay expansion",&
+                        repeats=.FALSE.,&
+                        n_var=1,&
+                        type_of_var=real_t,&
+                        default_r_val=0.0_dp,&
+                        usage="PULAY_ALPHA 0.2",&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword,&
-                          name="PULAY_BETA",&
-                          description="Fraction of residual contribution to be added to Pulay expansion",&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=1.0_dp,&
-                          usage="PULAY_BETA 0.2",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,&
+                        name="PULAY_BETA",&
+                        description="Fraction of residual contribution to be added to Pulay expansion",&
+                        repeats=.FALSE.,&
+                        n_var=1,&
+                        type_of_var=real_t,&
+                        default_r_val=1.0_dp,&
+                        usage="PULAY_BETA 0.2",&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword, name="NMIXING",&
-            description="Minimal number of density mixing (should be greater than 0),"//&
-            "before starting DIIS",&
-            usage="NMIXING 1", default_i_val=2,error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="NMIXING",&
+          description="Minimal number of density mixing (should be greater than 0),"//&
+          "before starting DIIS",&
+          usage="NMIXING 1", default_i_val=2,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword, name="NBUFFER",&
-                          variants=s2a("NPULAY","NBROYDEN","NMULTISECANT"),&
-                          description="Number of previous steps stored for the actual mixing scheme",&
-                          usage="NBUFFER 2", default_i_val=4,error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="NBUFFER",&
+                        variants=s2a("NPULAY","NBROYDEN","NMULTISECANT"),&
+                        description="Number of previous steps stored for the actual mixing scheme",&
+                        usage="NBUFFER 2", default_i_val=4,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword,&
-                          name="BROY_W0",&
-                          description=" w0 parameter used in Broyden mixing",&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=0.01_dp,&
-                          usage="BROY_W0 0.03",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,&
+                        name="BROY_W0",&
+                        description=" w0 parameter used in Broyden mixing",&
+                        repeats=.FALSE.,&
+                        n_var=1,&
+                        type_of_var=real_t,&
+                        default_r_val=0.01_dp,&
+                        usage="BROY_W0 0.03",&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword,&
-                          name="BROY_WREF",&
-                          description="",&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=100.0_dp,&
-                          usage="BROY_WREF 0.2",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,&
+                        name="BROY_WREF",&
+                        description="",&
+                        repeats=.FALSE.,&
+                        n_var=1,&
+                        type_of_var=real_t,&
+                        default_r_val=100.0_dp,&
+                        usage="BROY_WREF 0.2",&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword,&
-                          name="BROY_WMAX",&
-                          description="",&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=30.0_dp,&
-                          usage="BROY_WMAX 10.0",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,&
+                        name="BROY_WMAX",&
+                        description="",&
+                        repeats=.FALSE.,&
+                        n_var=1,&
+                        type_of_var=real_t,&
+                        default_r_val=30.0_dp,&
+                        usage="BROY_WMAX 10.0",&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword,&
-                          name="REGULARIZATION",&
-                          description="Regularization parameter to stabilize "//&
-                          "the inversion of the residual matrix {Yn^t Yn} in the "//&
-                          "multisecant mixing scheme (noise)",&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=0.00001_dp,&
-                          usage="REGULARIZATION 0.000001",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,&
+                        name="REGULARIZATION",&
+                        description="Regularization parameter to stabilize "//&
+                        "the inversion of the residual matrix {Yn^t Yn} in the "//&
+                        "multisecant mixing scheme (noise)",&
+                        repeats=.FALSE.,&
+                        n_var=1,&
+                        type_of_var=real_t,&
+                        default_r_val=0.00001_dp,&
+                        usage="REGULARIZATION 0.000001",&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword,&
-                          name="MAX_STEP",&
-                          description="Upper bound for the magnitude of the "//&
-                          "unpredicted step size in the update by the "//&
-                          "multisecant mixing scheme",&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=0.1_dp,&
-                          usage="MAX_STEP .2",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,&
+                        name="MAX_STEP",&
+                        description="Upper bound for the magnitude of the "//&
+                        "unpredicted step size in the update by the "//&
+                        "multisecant mixing scheme",&
+                        repeats=.FALSE.,&
+                        n_var=1,&
+                        type_of_var=real_t,&
+                        default_r_val=0.1_dp,&
+                        usage="MAX_STEP .2",&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword,&
-                          name="R_FACTOR",&
-                          description="Control factor for the magnitude of the "//&
-                          "unpredicted step size in the update by the "//&
-                          "multisecant mixing scheme",&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=0.05_dp,&
-                          usage="R_FACTOR .12",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,&
+                        name="R_FACTOR",&
+                        description="Control factor for the magnitude of the "//&
+                        "unpredicted step size in the update by the "//&
+                        "multisecant mixing scheme",&
+                        repeats=.FALSE.,&
+                        n_var=1,&
+                        type_of_var=real_t,&
+                        default_r_val=0.05_dp,&
+                        usage="R_FACTOR .12",&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword, name="NSKIP",&
-                          variants=(/"NSKIP_MIXING"/),&
-            description="Number of initial iteration for which the mixing is skipped",&
-            usage="NSKIP 10", default_i_val=0,error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="NSKIP",&
+                        variants=(/"NSKIP_MIXING"/),&
+          description="Number of initial iteration for which the mixing is skipped",&
+          usage="NSKIP 10", default_i_val=0,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword, name="N_SIMPLE_MIX",&
-                          variants=(/"NSIMPLEMIX"/),&
-            description="Number of kerker damping iterations before starting other mixing procedures",&
-            usage="NSIMPLEMIX", default_i_val=0,error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="N_SIMPLE_MIX",&
+                        variants=(/"NSIMPLEMIX"/),&
+          description="Number of kerker damping iterations before starting other mixing procedures",&
+          usage="NSIMPLEMIX", default_i_val=0,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword, name="MAX_GVEC_EXP",&
-                          description="Restricts the G-space mixing to lower part of G-vector spectrum,"//&
-                          " up to a G0, by assigning the exponent of the Gaussian that can be "//&
-                          "represented by vectors smaller than G0 within a certain accuracy. ",&
-                          repeats=.FALSE.,&
-                          n_var=1,&
-                          type_of_var=real_t,&
-                          default_r_val=-1._dp,&
-                          usage="MAX_GVEC_EXP 3.",&
-                          error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="MAX_GVEC_EXP",&
+                        description="Restricts the G-space mixing to lower part of G-vector spectrum,"//&
+                        " up to a G0, by assigning the exponent of the Gaussian that can be "//&
+                        "represented by vectors smaller than G0 within a certain accuracy. ",&
+                        repeats=.FALSE.,&
+                        n_var=1,&
+                        type_of_var=real_t,&
+                        default_r_val=-1._dp,&
+                        usage="MAX_GVEC_EXP 3.",&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
-    END IF
 
   END SUBROUTINE create_mixing_section
 END MODULE qs_density_mixing_types

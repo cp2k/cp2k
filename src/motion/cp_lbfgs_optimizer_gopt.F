@@ -223,82 +223,80 @@ CONTAINS
 
     ALLOCATE(optimizer,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       NULLIFY(optimizer%kind_of_bound,&
-               optimizer%i_work_array,&
-               optimizer%isave,&
-               optimizer%x,&
-               optimizer%lower_bound,&
-               optimizer%upper_bound,&
-               optimizer%gradient,&
-               optimizer%dsave,&
-               optimizer%work_array,&
-               optimizer%para_env,&
-               optimizer%obj_funct)
-       optimizer%ref_count=0
-       last_lbfgs_optimizer_id=last_lbfgs_optimizer_id+1
-       optimizer%id_nr=last_lbfgs_optimizer_id
-       n=SIZE(x0)
-       optimizer%m=4
-       IF (PRESENT(m)) optimizer%m=m
-       optimizer%master= para_env%source
-       optimizer%para_env => para_env
-       CALL cp_para_env_retain(para_env,error=error)
-       optimizer%obj_funct => obj_funct
-       CALL gopt_f_retain(obj_funct, error=error)
-       optimizer%max_f_per_iter=20
-       IF(PRESENT(max_f_per_iter)) optimizer%max_f_per_iter=max_f_per_iter
-       optimizer%print_every=-1
-       optimizer%n_iter=0
-       optimizer%f=-1.0_dp
-       optimizer%last_f=-1.0_dp
-       optimizer%projected_gradient=-1.0_dp
-       IF(PRESENT(print_every)) optimizer%print_every=print_every
-       IF (PRESENT(master)) optimizer%master=master
-       IF (optimizer%master==optimizer%para_env%mepos) THEN
-          !MK This has to be adapted for a new L-BFGS version possibly
-          lenwa = 2*optimizer%m*n + 5*n + 11*optimizer%m*optimizer%m + 8*optimizer%m
-          ALLOCATE (optimizer%kind_of_bound(n), optimizer%i_work_array(3*n),&
-                    optimizer%isave(44), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE (optimizer%x(n), optimizer%lower_bound(n), &
-                    optimizer%upper_bound(n), optimizer%gradient(n), &
-                    optimizer%dsave(29), optimizer%work_array(lenwa), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          optimizer%x=x0
-          optimizer%task='START'
-          optimizer%wanted_relative_f_delta=wanted_relative_f_delta
-          optimizer%wanted_projected_gradient=wanted_projected_gradient
-          optimizer%kind_of_bound=0
-          IF (PRESENT(kind_of_bound)) optimizer%kind_of_bound=kind_of_bound
-          IF (PRESENT(lower_bound)) optimizer%lower_bound=lower_bound
-          IF (PRESENT(upper_bound)) optimizer%upper_bound=upper_bound
-          IF (PRESENT(trust_radius)) optimizer%trust_radius=trust_radius
+    NULLIFY(optimizer%kind_of_bound,&
+            optimizer%i_work_array,&
+            optimizer%isave,&
+            optimizer%x,&
+            optimizer%lower_bound,&
+            optimizer%upper_bound,&
+            optimizer%gradient,&
+            optimizer%dsave,&
+            optimizer%work_array,&
+            optimizer%para_env,&
+            optimizer%obj_funct)
+    optimizer%ref_count=0
+    last_lbfgs_optimizer_id=last_lbfgs_optimizer_id+1
+    optimizer%id_nr=last_lbfgs_optimizer_id
+    n=SIZE(x0)
+    optimizer%m=4
+    IF (PRESENT(m)) optimizer%m=m
+    optimizer%master= para_env%source
+    optimizer%para_env => para_env
+    CALL cp_para_env_retain(para_env,error=error)
+    optimizer%obj_funct => obj_funct
+    CALL gopt_f_retain(obj_funct, error=error)
+    optimizer%max_f_per_iter=20
+    IF(PRESENT(max_f_per_iter)) optimizer%max_f_per_iter=max_f_per_iter
+    optimizer%print_every=-1
+    optimizer%n_iter=0
+    optimizer%f=-1.0_dp
+    optimizer%last_f=-1.0_dp
+    optimizer%projected_gradient=-1.0_dp
+    IF(PRESENT(print_every)) optimizer%print_every=print_every
+    IF (PRESENT(master)) optimizer%master=master
+    IF (optimizer%master==optimizer%para_env%mepos) THEN
+       !MK This has to be adapted for a new L-BFGS version possibly
+       lenwa = 2*optimizer%m*n + 5*n + 11*optimizer%m*optimizer%m + 8*optimizer%m
+       ALLOCATE (optimizer%kind_of_bound(n), optimizer%i_work_array(3*n),&
+                 optimizer%isave(44), STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE (optimizer%x(n), optimizer%lower_bound(n), &
+                 optimizer%upper_bound(n), optimizer%gradient(n), &
+                 optimizer%dsave(29), optimizer%work_array(lenwa), STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       optimizer%x=x0
+       optimizer%task='START'
+       optimizer%wanted_relative_f_delta=wanted_relative_f_delta
+       optimizer%wanted_projected_gradient=wanted_projected_gradient
+       optimizer%kind_of_bound=0
+       IF (PRESENT(kind_of_bound)) optimizer%kind_of_bound=kind_of_bound
+       IF (PRESENT(lower_bound)) optimizer%lower_bound=lower_bound
+       IF (PRESENT(upper_bound)) optimizer%upper_bound=upper_bound
+       IF (PRESENT(trust_radius)) optimizer%trust_radius=trust_radius
 
-          CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
-               optimizer%lower_bound, optimizer%upper_bound, &
-               optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
-               optimizer%wanted_relative_f_delta, &
-               optimizer%wanted_projected_gradient, optimizer%work_array, &
-               optimizer%i_work_array, optimizer%task, optimizer%print_every,&
-               optimizer%csave, optimizer%lsave, optimizer%isave, &
-               optimizer%dsave, optimizer%trust_radius)
-       ELSE
-          NULLIFY(&
-               optimizer%kind_of_bound, optimizer%i_work_array, optimizer%isave,&
-               optimizer%lower_bound, optimizer%upper_bound, optimizer%gradient,&
-               optimizer%dsave, optimizer%work_array)
-          ALLOCATE (optimizer%x(n),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          optimizer%x(:) = 0.0_dp
-          ALLOCATE (optimizer%gradient(n),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          optimizer%gradient(:) = 0.0_dp
-       END IF
-       CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
-       optimizer%status = 0
-       optimizer%ref_count = 1
+       CALL setulb (SIZE(optimizer%x), optimizer%m, optimizer%x, &
+            optimizer%lower_bound, optimizer%upper_bound, &
+            optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+            optimizer%wanted_relative_f_delta, &
+            optimizer%wanted_projected_gradient, optimizer%work_array, &
+            optimizer%i_work_array, optimizer%task, optimizer%print_every,&
+            optimizer%csave, optimizer%lsave, optimizer%isave, &
+            optimizer%dsave, optimizer%trust_radius)
+    ELSE
+       NULLIFY(&
+            optimizer%kind_of_bound, optimizer%i_work_array, optimizer%isave,&
+            optimizer%lower_bound, optimizer%upper_bound, optimizer%gradient,&
+            optimizer%dsave, optimizer%work_array)
+       ALLOCATE (optimizer%x(n),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       optimizer%x(:) = 0.0_dp
+       ALLOCATE (optimizer%gradient(n),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       optimizer%gradient(:) = 0.0_dp
     END IF
+    CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
+    optimizer%status = 0
+    optimizer%ref_count = 1
 
     CALL timestop(handle)
 
@@ -325,10 +323,8 @@ SUBROUTINE cp_opt_gopt_retain(optimizer,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP,error)
-     optimizer%ref_count=optimizer%ref_count+1
-  END IF
+  CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP,error)
+  optimizer%ref_count=optimizer%ref_count+1
 END SUBROUTINE cp_opt_gopt_retain
 
 ! *****************************************************************************
@@ -872,16 +868,12 @@ CPSourceFileRef,&
     !call timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL cp_opt_gopt_step(optimizer,n_iter=n_iter,f=f,&
-            last_f=last_f, projected_gradient=projected_gradient,&
-            converged=converged,geo_section=geo_section,&
-            force_env=force_env,gopt_param=gopt_param,&
-            error=error)
-       res= (optimizer%status<40) .AND. .NOT. converged
-    ELSE
-       res=.FALSE.
-    END IF
+    CALL cp_opt_gopt_step(optimizer,n_iter=n_iter,f=f,&
+         last_f=last_f, projected_gradient=projected_gradient,&
+         converged=converged,geo_section=geo_section,&
+         force_env=force_env,gopt_param=gopt_param,&
+         error=error)
+    res= (optimizer%status<40) .AND. .NOT. converged
     !call timestop(handle)
   END FUNCTION cp_opt_gopt_next
 

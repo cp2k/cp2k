@@ -3586,124 +3586,122 @@ CPSourceFileRef,&
     IF (fmt>1) &
     my_format = '(T2,"FORCEFIELD| Missing ","'//TRIM(type_name)//&
                 '",T40,"(",A4,'//TRIM(sfmt)//'(",",A4),")")'
-    IF (.NOT.failure) THEN
-       IF (PRESENT(fatal)) fatal = .TRUE.
-       ! Check for previous already stored equal force fields
-       IF (ASSOCIATED(array)) nsize = SIZE(array)
-       found = .FALSE.
-       IF (nsize>=1) THEN
-          DO i = 1, nsize
-             SELECT CASE (type_name)
-             CASE("Bond")
-                IF (INDEX(array(i)(21:39),"Bond")==0)     CYCLE
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2)).OR.&
-         ((atm1==my_atm2).AND.(atm2==my_atm1))) found = .TRUE.
-             CASE("Angle")
-                IF (INDEX(array(i)(21:39),"Angle")==0)    CYCLE
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                my_atm3 = array(i)(51:54)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-                CALL compress(my_atm3,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3)).OR.&
-         ((atm1==my_atm3).AND.(atm2==my_atm2).AND.(atm3==my_atm1)))&
-         found = .TRUE.
-             CASE("Urey-Bradley")
-                IF (INDEX(array(i)(21:39),"Urey-Bradley")==0)    CYCLE
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                my_atm3 = array(i)(51:54)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-                CALL compress(my_atm3,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3)).OR.&
-         ((atm1==my_atm3).AND.(atm2==my_atm2).AND.(atm3==my_atm1)))&
-         found = .TRUE.
-             CASE("Torsion")
-                IF (INDEX(array(i)(21:39),"Torsion")==0)  CYCLE
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                my_atm3 = array(i)(51:54)
-                my_atm4 = array(i)(56:59)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-                CALL compress(my_atm3,.TRUE.)
-                CALL compress(my_atm4,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3).AND.(atm4==my_atm4)).OR.&
-         ((atm1==my_atm4).AND.(atm2==my_atm3).AND.(atm3==my_atm2).AND.(atm4==my_atm1)))&
-         found = .TRUE.
-             CASE("Improper")
-                IF (INDEX(array(i)(21:39),"Improper")==0) CYCLE
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                my_atm3 = array(i)(51:54)
-                my_atm4 = array(i)(56:59)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-                CALL compress(my_atm3,.TRUE.)
-                CALL compress(my_atm4,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3).AND.(atm4==my_atm4)).OR.&
-         ((atm1==my_atm1).AND.(atm2==my_atm3).AND.(atm3==my_atm2).AND.(atm4==my_atm4)).OR.&
-         ((atm1==my_atm1).AND.(atm2==my_atm3).AND.(atm3==my_atm4).AND.(atm4==my_atm3)).OR.&
-         ((atm1==my_atm1).AND.(atm2==my_atm4).AND.(atm3==my_atm3).AND.(atm4==my_atm2)).OR.&
-         ((atm1==my_atm1).AND.(atm2==my_atm4).AND.(atm3==my_atm2).AND.(atm4==my_atm3)).OR.&
-         ((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm4).AND.(atm4==my_atm3)))&
-         found = .TRUE.
+    IF (PRESENT(fatal)) fatal = .TRUE.
+    ! Check for previous already stored equal force fields
+    IF (ASSOCIATED(array)) nsize = SIZE(array)
+    found = .FALSE.
+    IF (nsize>=1) THEN
+       DO i = 1, nsize
+          SELECT CASE (type_name)
+          CASE("Bond")
+             IF (INDEX(array(i)(21:39),"Bond")==0)     CYCLE
+             my_atm1 = array(i)(41:44)
+             my_atm2 = array(i)(46:49)
+             CALL compress(my_atm1,.TRUE.)
+             CALL compress(my_atm2,.TRUE.)
+ IF  (((atm1==my_atm1).AND.(atm2==my_atm2)).OR.&
+      ((atm1==my_atm2).AND.(atm2==my_atm1))) found = .TRUE.
+          CASE("Angle")
+             IF (INDEX(array(i)(21:39),"Angle")==0)    CYCLE
+             my_atm1 = array(i)(41:44)
+             my_atm2 = array(i)(46:49)
+             my_atm3 = array(i)(51:54)
+             CALL compress(my_atm1,.TRUE.)
+             CALL compress(my_atm2,.TRUE.)
+             CALL compress(my_atm3,.TRUE.)
+ IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3)).OR.&
+      ((atm1==my_atm3).AND.(atm2==my_atm2).AND.(atm3==my_atm1)))&
+      found = .TRUE.
+          CASE("Urey-Bradley")
+             IF (INDEX(array(i)(21:39),"Urey-Bradley")==0)    CYCLE
+             my_atm1 = array(i)(41:44)
+             my_atm2 = array(i)(46:49)
+             my_atm3 = array(i)(51:54)
+             CALL compress(my_atm1,.TRUE.)
+             CALL compress(my_atm2,.TRUE.)
+             CALL compress(my_atm3,.TRUE.)
+ IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3)).OR.&
+      ((atm1==my_atm3).AND.(atm2==my_atm2).AND.(atm3==my_atm1)))&
+      found = .TRUE.
+          CASE("Torsion")
+             IF (INDEX(array(i)(21:39),"Torsion")==0)  CYCLE
+             my_atm1 = array(i)(41:44)
+             my_atm2 = array(i)(46:49)
+             my_atm3 = array(i)(51:54)
+             my_atm4 = array(i)(56:59)
+             CALL compress(my_atm1,.TRUE.)
+             CALL compress(my_atm2,.TRUE.)
+             CALL compress(my_atm3,.TRUE.)
+             CALL compress(my_atm4,.TRUE.)
+ IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3).AND.(atm4==my_atm4)).OR.&
+      ((atm1==my_atm4).AND.(atm2==my_atm3).AND.(atm3==my_atm2).AND.(atm4==my_atm1)))&
+      found = .TRUE.
+          CASE("Improper")
+             IF (INDEX(array(i)(21:39),"Improper")==0) CYCLE
+             my_atm1 = array(i)(41:44)
+             my_atm2 = array(i)(46:49)
+             my_atm3 = array(i)(51:54)
+             my_atm4 = array(i)(56:59)
+             CALL compress(my_atm1,.TRUE.)
+             CALL compress(my_atm2,.TRUE.)
+             CALL compress(my_atm3,.TRUE.)
+             CALL compress(my_atm4,.TRUE.)
+ IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3).AND.(atm4==my_atm4)).OR.&
+      ((atm1==my_atm1).AND.(atm2==my_atm3).AND.(atm3==my_atm2).AND.(atm4==my_atm4)).OR.&
+      ((atm1==my_atm1).AND.(atm2==my_atm3).AND.(atm3==my_atm4).AND.(atm4==my_atm3)).OR.&
+      ((atm1==my_atm1).AND.(atm2==my_atm4).AND.(atm3==my_atm3).AND.(atm4==my_atm2)).OR.&
+      ((atm1==my_atm1).AND.(atm2==my_atm4).AND.(atm3==my_atm2).AND.(atm4==my_atm3)).OR.&
+      ((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm4).AND.(atm4==my_atm3)))&
+      found = .TRUE.
 
-            CASE("Out of plane bend")
-                IF (INDEX(array(i)(21:39),"Out of plane bend")==0) CYCLE
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                my_atm3 = array(i)(51:54)
-                my_atm4 = array(i)(56:59)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-                CALL compress(my_atm3,.TRUE.)
-                CALL compress(my_atm4,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3).AND.(atm4==my_atm4)).OR.&
-         ((atm1==my_atm1).AND.(atm2==my_atm3).AND.(atm3==my_atm2).AND.(atm4==my_atm4)))&
-         found = .TRUE.
+         CASE("Out of plane bend")
+             IF (INDEX(array(i)(21:39),"Out of plane bend")==0) CYCLE
+             my_atm1 = array(i)(41:44)
+             my_atm2 = array(i)(46:49)
+             my_atm3 = array(i)(51:54)
+             my_atm4 = array(i)(56:59)
+             CALL compress(my_atm1,.TRUE.)
+             CALL compress(my_atm2,.TRUE.)
+             CALL compress(my_atm3,.TRUE.)
+             CALL compress(my_atm4,.TRUE.)
+ IF  (((atm1==my_atm1).AND.(atm2==my_atm2).AND.(atm3==my_atm3).AND.(atm4==my_atm4)).OR.&
+      ((atm1==my_atm1).AND.(atm2==my_atm3).AND.(atm3==my_atm2).AND.(atm4==my_atm4)))&
+      found = .TRUE.
 
-             CASE("Charge")
-                IF (INDEX(array(i)(21:39),"Charge")==0)   CYCLE
-                my_atm1 = array(i)(41:44)
-                CALL compress(my_atm1,.TRUE.)
-    IF  (atm1==my_atm1) found = .TRUE.
-             CASE("Spline_Bond_Env","Spline_Non_Bond_Env")
-                IF (INDEX(array(i)(21:39),"Spline_")==0)  CYCLE
-                fmt = 0
-                my_atm1 = array(i)(41:44)
-                my_atm2 = array(i)(46:49)
-                CALL compress(my_atm1,.TRUE.)
-                CALL compress(my_atm2,.TRUE.)
-    IF  (((atm1==my_atm1).AND.(atm2==my_atm2)).OR.&
-         ((atm1==my_atm2).AND.(atm2==my_atm1))) found = .TRUE.
-             CASE DEFAULT
-                ! Should never reach this point
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             END SELECT
-             IF (found) EXIT
-          END DO
-       ENDIF
-       IF (.NOT.found) THEN
-          nsize = nsize + 1
-          CALL reallocate(array,1,nsize)
-          SELECT CASE(fmt)
-          CASE(1)
-             WRITE(array(nsize),FMT=TRIM(my_format))atm1
-          CASE(2)
-             WRITE(array(nsize),FMT=TRIM(my_format))atm1,atm2
-          CASE(3)
-             WRITE(array(nsize),FMT=TRIM(my_format))atm1,atm2,atm3
-          CASE(4)
-             WRITE(array(nsize),FMT=TRIM(my_format))atm1,atm2,atm3,atm4
+          CASE("Charge")
+             IF (INDEX(array(i)(21:39),"Charge")==0)   CYCLE
+             my_atm1 = array(i)(41:44)
+             CALL compress(my_atm1,.TRUE.)
+ IF  (atm1==my_atm1) found = .TRUE.
+          CASE("Spline_Bond_Env","Spline_Non_Bond_Env")
+             IF (INDEX(array(i)(21:39),"Spline_")==0)  CYCLE
+             fmt = 0
+             my_atm1 = array(i)(41:44)
+             my_atm2 = array(i)(46:49)
+             CALL compress(my_atm1,.TRUE.)
+             CALL compress(my_atm2,.TRUE.)
+ IF  (((atm1==my_atm1).AND.(atm2==my_atm2)).OR.&
+      ((atm1==my_atm2).AND.(atm2==my_atm1))) found = .TRUE.
+          CASE DEFAULT
+             ! Should never reach this point
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
-       END IF
+          IF (found) EXIT
+       END DO
+    ENDIF
+    IF (.NOT.found) THEN
+       nsize = nsize + 1
+       CALL reallocate(array,1,nsize)
+       SELECT CASE(fmt)
+       CASE(1)
+          WRITE(array(nsize),FMT=TRIM(my_format))atm1
+       CASE(2)
+          WRITE(array(nsize),FMT=TRIM(my_format))atm1,atm2
+       CASE(3)
+          WRITE(array(nsize),FMT=TRIM(my_format))atm1,atm2,atm3
+       CASE(4)
+          WRITE(array(nsize),FMT=TRIM(my_format))atm1,atm2,atm3,atm4
+       END SELECT
     END IF
 
   END SUBROUTINE store_FF_missing_par

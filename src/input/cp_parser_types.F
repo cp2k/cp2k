@@ -116,10 +116,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(parser%ref_count>0,cp_failure_level,routineP,error)
-       parser%ref_count=parser%ref_count+1
-    END IF
+    CPPreconditionNoFail(parser%ref_count>0,cp_failure_level,routineP,error)
+    parser%ref_count=parser%ref_count+1
   END SUBROUTINE parser_retain
 
 ! *****************************************************************************
@@ -207,91 +205,87 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       ALLOCATE(parser,stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-       last_parser_id=last_parser_id+1
-       parser%id_nr=last_parser_id
-       parser%ref_count=1
+    ALLOCATE(parser,stat=stat)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    last_parser_id=last_parser_id+1
+    parser%id_nr=last_parser_id
+    parser%ref_count=1
 
-       parser%input_unit=-1
-       parser%input_file_name=""
-       NULLIFY(parser%initial_variables)
+    parser%input_unit=-1
+    parser%input_file_name=""
+    NULLIFY(parser%initial_variables)
 
-       !   *** Load the default values and overwrite them, if requested ***
-       parser%separators = default_separators
-       IF (PRESENT(separator_chars)) parser%separators = separator_chars
-       parser%comment_character = default_comment_character
-       IF (PRESENT(comment_char)) parser%comment_character = comment_char
-       parser%continuation_character = default_continuation_character
-       IF (PRESENT(continuation_char)) parser%continuation_character = continuation_char
-       parser%section_character = default_section_character
-       IF (PRESENT(section_char)) parser%section_character = section_char
-       parser%end_section = parser%section_character//default_end_section_label
-       IF (PRESENT(end_section_label)) THEN
-          parser%end_section = parser%section_character//TRIM(end_section_label)
-       END IF
-       parser%parse_white_lines = .FALSE.
-       IF (PRESENT(parse_white_lines)) THEN
-          parser%parse_white_lines = parse_white_lines
-       END IF
-       parser%apply_preprocessing = .TRUE.
-       IF (PRESENT(apply_preprocessing)) THEN
-          parser%apply_preprocessing = apply_preprocessing
-       END IF
-
-       CALL compress(parser%end_section) ! needed?
-
-       ! para_env
-       IF (PRESENT(para_env)) THEN
-          parser%para_env => para_env
-          CALL cp_para_env_retain(para_env,error=error)
-       ELSE
-          NULLIFY(parser%para_env)
-          CALL cp_para_env_create(parser%para_env, group=MPI_COMM_SELF, source=0,&
-               mepos=0, num_pe=1, owns_group=.FALSE.,error=error)
-       END IF
-
-       !   *** Get the logical output unit number for error messages ***
-       IF (parser%para_env%mepos==parser%para_env%source) THEN
-          IF (PRESENT(unit_nr)) THEN
-             parser%input_unit=unit_nr
-             IF (PRESENT(file_name)) parser%input_file_name=file_name
-          ELSE
-             CALL cp_assert(PRESENT(file_name),cp_failure_level,cp_assertion_failed,&
-                  routineP,"at least one of filename and unit_nr must be present"//&
-                  CPSourceFileRef,&
-                  error,failure)
-             IF (.NOT.failure) THEN
-                CALL open_file(file_name=TRIM(file_name),&
-                     unit_number=parser%input_unit)
-                parser%input_file_name=file_name
-             END IF
-          END IF
-       END IF
-
-       IF (PRESENT(initial_variables)) THEN
-          IF (SIZE(initial_variables,2)>0) THEN
-             ALLOCATE(parser%initial_variables(2,SIZE(initial_variables,2)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             parser%initial_variables=initial_variables
-          ENDIF
-       ENDIF
-
-       parser%input_line_number = 0
-       parser%icol=0
-       parser%icol1=0
-       parser%icol2=0
-       parser%first_separator=.TRUE.
-       NULLIFY(parser%buffer)
-       NULLIFY(parser%status)
-       NULLIFY(parser%inpp)
-       NULLIFY(parser%ilist)
-       CALL create_inpp_type(parser%inpp, parser%initial_variables, error)
-       CALL create_ilist_type(parser%ilist, error)
-       CALL create_buffer_type(parser%buffer, error)
-       CALL create_status_type(parser%status, error)
+    !   *** Load the default values and overwrite them, if requested ***
+    parser%separators = default_separators
+    IF (PRESENT(separator_chars)) parser%separators = separator_chars
+    parser%comment_character = default_comment_character
+    IF (PRESENT(comment_char)) parser%comment_character = comment_char
+    parser%continuation_character = default_continuation_character
+    IF (PRESENT(continuation_char)) parser%continuation_character = continuation_char
+    parser%section_character = default_section_character
+    IF (PRESENT(section_char)) parser%section_character = section_char
+    parser%end_section = parser%section_character//default_end_section_label
+    IF (PRESENT(end_section_label)) THEN
+       parser%end_section = parser%section_character//TRIM(end_section_label)
     END IF
+    parser%parse_white_lines = .FALSE.
+    IF (PRESENT(parse_white_lines)) THEN
+       parser%parse_white_lines = parse_white_lines
+    END IF
+    parser%apply_preprocessing = .TRUE.
+    IF (PRESENT(apply_preprocessing)) THEN
+       parser%apply_preprocessing = apply_preprocessing
+    END IF
+
+    CALL compress(parser%end_section) ! needed?
+
+    ! para_env
+    IF (PRESENT(para_env)) THEN
+       parser%para_env => para_env
+       CALL cp_para_env_retain(para_env,error=error)
+    ELSE
+       NULLIFY(parser%para_env)
+       CALL cp_para_env_create(parser%para_env, group=MPI_COMM_SELF, source=0,&
+            mepos=0, num_pe=1, owns_group=.FALSE.,error=error)
+    END IF
+
+    !   *** Get the logical output unit number for error messages ***
+    IF (parser%para_env%mepos==parser%para_env%source) THEN
+       IF (PRESENT(unit_nr)) THEN
+          parser%input_unit=unit_nr
+          IF (PRESENT(file_name)) parser%input_file_name=file_name
+       ELSE
+          CALL cp_assert(PRESENT(file_name),cp_failure_level,cp_assertion_failed,&
+               routineP,"at least one of filename and unit_nr must be present"//&
+               CPSourceFileRef,&
+               error,failure)
+          CALL open_file(file_name=TRIM(file_name),&
+               unit_number=parser%input_unit)
+          parser%input_file_name=file_name
+       END IF
+    END IF
+
+    IF (PRESENT(initial_variables)) THEN
+       IF (SIZE(initial_variables,2)>0) THEN
+          ALLOCATE(parser%initial_variables(2,SIZE(initial_variables,2)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          parser%initial_variables=initial_variables
+       ENDIF
+    ENDIF
+
+    parser%input_line_number = 0
+    parser%icol=0
+    parser%icol1=0
+    parser%icol2=0
+    parser%first_separator=.TRUE.
+    NULLIFY(parser%buffer)
+    NULLIFY(parser%status)
+    NULLIFY(parser%inpp)
+    NULLIFY(parser%ilist)
+    CALL create_inpp_type(parser%inpp, parser%initial_variables, error)
+    CALL create_ilist_type(parser%ilist, error)
+    CALL create_buffer_type(parser%buffer, error)
+    CALL create_status_type(parser%status, error)
   END SUBROUTINE parser_create
 
 ! *****************************************************************************
@@ -313,26 +307,24 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       ! Rewind units
-       IF (parser%input_unit>0) REWIND(parser%input_unit)
-       ! Restore initial settings
-       parser%input_line_number = 0
-       parser%icol=0
-       parser%icol1=0
-       parser%icol2=0
-       parser%first_separator=.TRUE.
-       ! Release substructures
-       CALL release_inpp_type(parser%inpp, error)
-       CALL release_ilist_type(parser%ilist, error)
-       CALL release_buffer_type(parser%buffer, error)
-       CALL release_status_type(parser%status, error)
-       ! Reallocate substructures
-       CALL create_inpp_type(parser%inpp, parser%initial_variables, error)
-       CALL create_ilist_type(parser%ilist, error)
-       CALL create_buffer_type(parser%buffer, error)
-       CALL create_status_type(parser%status, error)
-    END IF
+    ! Rewind units
+    IF (parser%input_unit>0) REWIND(parser%input_unit)
+    ! Restore initial settings
+    parser%input_line_number = 0
+    parser%icol=0
+    parser%icol1=0
+    parser%icol2=0
+    parser%first_separator=.TRUE.
+    ! Release substructures
+    CALL release_inpp_type(parser%inpp, error)
+    CALL release_ilist_type(parser%ilist, error)
+    CALL release_buffer_type(parser%buffer, error)
+    CALL release_status_type(parser%status, error)
+    ! Reallocate substructures
+    CALL create_inpp_type(parser%inpp, parser%initial_variables, error)
+    CALL create_ilist_type(parser%ilist, error)
+    CALL create_buffer_type(parser%buffer, error)
+    CALL create_status_type(parser%status, error)
   END SUBROUTINE parser_reset
 
 END MODULE cp_parser_types

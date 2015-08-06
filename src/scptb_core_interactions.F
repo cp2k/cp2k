@@ -117,83 +117,81 @@ CONTAINS
       CALL atprop_array_init(atprop%atecc,natom,error)
     END IF
 
-    IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env=qs_env,sab_core=sab_core, atomic_kind_set=atomic_kind_set,&
-                      qs_kind_set=qs_kind_set,error=error)
+    CALL get_qs_env(qs_env=qs_env,sab_core=sab_core, atomic_kind_set=atomic_kind_set,&
+                   qs_kind_set=qs_kind_set,error=error)
 
-       nkind = SIZE(atomic_kind_set)
-       ! Possibly compute forces
-       IF(calculate_forces) THEN
-          CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,force=force,error=error)
-          natom = SIZE (particle_set)
-          ALLOCATE (atom_of_kind(natom),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
-       END IF
-
-       ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=stat)
+    nkind = SIZE(atomic_kind_set)
+    ! Possibly compute forces
+    IF(calculate_forces) THEN
+       CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,force=force,error=error)
+       natom = SIZE (particle_set)
+       ALLOCATE (atom_of_kind(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO ikind=1,nkind
-          CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind_a, error=error)
-          scptb_kind_param(ikind)%scptb_param => scptb_kind_a
-          CALL get_scptb_parameter(scptb_kind_a,defined=defined)
-          scptb_defined(ikind)=defined
-       END DO
-       CALL neighbor_list_iterator_create(nl_iterator,sab_core)
-       DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-          CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,r=rij)
-          IF (.NOT.scptb_defined(ikind)) CYCLE
-          IF (.NOT.scptb_defined(jkind)) CYCLE
-          scptb_kind_a => scptb_kind_param(ikind)%scptb_param
-          scptb_kind_b => scptb_kind_param(jkind)%scptb_param
-          dr1 = DOT_PRODUCT(rij,rij)
-          enucij = 0._dp
-          IF ( dr1 > 0.00001_dp ) THEN
-             ! Core-Core energy and derivatives
-             IF(calculate_forces) THEN
-                CALL corecore (scptb_kind_a,scptb_kind_b,rij,enuc=enuc,denuc=force_ab,error=error)
-
-                atom_a = atom_of_kind(iatom)
-                atom_b = atom_of_kind(jatom)
-
-                ! Sum up force components
-                force(ikind)%all_potential(1,atom_a) = force(ikind)%all_potential(1,atom_a) - force_ab(1)
-                force(jkind)%all_potential(1,atom_b) = force(jkind)%all_potential(1,atom_b) + force_ab(1)
-
-                force(ikind)%all_potential(2,atom_a) = force(ikind)%all_potential(2,atom_a) - force_ab(2)
-                force(jkind)%all_potential(2,atom_b) = force(jkind)%all_potential(2,atom_b) + force_ab(2)
-
-                force(ikind)%all_potential(3,atom_a) = force(ikind)%all_potential(3,atom_a) - force_ab(3)
-                force(jkind)%all_potential(3,atom_b) = force(jkind)%all_potential(3,atom_b) + force_ab(3)
-
-                IF (use_virial) THEN
-                   CALL virial_pair_force ( virial%pv_virial, -1._dp, force_ab, rij, error)
-                END IF
-
-             ELSE
-                CALL corecore (scptb_kind_a,scptb_kind_b,rij,enuc=enuc,error=error)
-             END IF
-             enucij = enucij + enuc
-          END IF
-          IF (atener) THEN
-            atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*enucij
-            atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*enucij
-          END IF
-          enuclear = enuclear + enucij
-       END DO
-       CALL neighbor_list_iterator_release(nl_iterator)
-
-       DEALLOCATE (scptb_kind_param,scptb_defined,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       IF (calculate_forces) THEN
-          DEALLOCATE(atom_of_kind,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-
-       CALL mp_sum(enuclear,para_env%group)
-       energy%repulsive  = enuclear
+       CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
+
+    ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ikind=1,nkind
+       CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind_a, error=error)
+       scptb_kind_param(ikind)%scptb_param => scptb_kind_a
+       CALL get_scptb_parameter(scptb_kind_a,defined=defined)
+       scptb_defined(ikind)=defined
+    END DO
+    CALL neighbor_list_iterator_create(nl_iterator,sab_core)
+    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
+       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,r=rij)
+       IF (.NOT.scptb_defined(ikind)) CYCLE
+       IF (.NOT.scptb_defined(jkind)) CYCLE
+       scptb_kind_a => scptb_kind_param(ikind)%scptb_param
+       scptb_kind_b => scptb_kind_param(jkind)%scptb_param
+       dr1 = DOT_PRODUCT(rij,rij)
+       enucij = 0._dp
+       IF ( dr1 > 0.00001_dp ) THEN
+          ! Core-Core energy and derivatives
+          IF(calculate_forces) THEN
+             CALL corecore (scptb_kind_a,scptb_kind_b,rij,enuc=enuc,denuc=force_ab,error=error)
+
+             atom_a = atom_of_kind(iatom)
+             atom_b = atom_of_kind(jatom)
+
+             ! Sum up force components
+             force(ikind)%all_potential(1,atom_a) = force(ikind)%all_potential(1,atom_a) - force_ab(1)
+             force(jkind)%all_potential(1,atom_b) = force(jkind)%all_potential(1,atom_b) + force_ab(1)
+
+             force(ikind)%all_potential(2,atom_a) = force(ikind)%all_potential(2,atom_a) - force_ab(2)
+             force(jkind)%all_potential(2,atom_b) = force(jkind)%all_potential(2,atom_b) + force_ab(2)
+
+             force(ikind)%all_potential(3,atom_a) = force(ikind)%all_potential(3,atom_a) - force_ab(3)
+             force(jkind)%all_potential(3,atom_b) = force(jkind)%all_potential(3,atom_b) + force_ab(3)
+
+             IF (use_virial) THEN
+                CALL virial_pair_force ( virial%pv_virial, -1._dp, force_ab, rij, error)
+             END IF
+
+          ELSE
+             CALL corecore (scptb_kind_a,scptb_kind_b,rij,enuc=enuc,error=error)
+          END IF
+          enucij = enucij + enuc
+       END IF
+       IF (atener) THEN
+         atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*enucij
+         atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*enucij
+       END IF
+       enuclear = enuclear + enucij
+    END DO
+    CALL neighbor_list_iterator_release(nl_iterator)
+
+    DEALLOCATE (scptb_kind_param,scptb_defined,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    IF (calculate_forces) THEN
+       DEALLOCATE(atom_of_kind,stat=stat)
+       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    CALL mp_sum(enuclear,para_env%group)
+    energy%repulsive  = enuclear
 
     CALL timestop(handle)
 

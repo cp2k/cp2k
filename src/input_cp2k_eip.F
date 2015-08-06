@@ -62,33 +62,31 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="EIP", &
-            description="This section contains all information to run an "//&
-            "Empirical Interatomic Potential (EIP) calculation.", &
-            n_keywords=1, n_subsections=1, repeats=.FALSE.,  &
-            error=error)
+    CALL section_create(section,name="EIP", &
+         description="This section contains all information to run an "//&
+         "Empirical Interatomic Potential (EIP) calculation.", &
+         n_keywords=1, n_subsections=1, repeats=.FALSE.,  &
+         error=error)
 
-       NULLIFY(subsection, keyword)
+    NULLIFY(subsection, keyword)
 
-       CALL keyword_create(keyword, name="EIP_MODEL", &
-            description="Selects the empirical interaction potential model", &
-            usage="EIP_MODEL BAZANT",  type_of_var=enum_t, &
-            n_var=1, repeats=.FALSE., variants=(/"EIP-MODEL"/), &
-            enum_c_vals=s2a("BAZANT", "EDIP", "LENOSKY"), &
-            enum_i_vals=(/use_bazant_eip, use_bazant_eip, use_lenosky_eip/), &
-            enum_desc=s2a("Bazant potentials",&
-                          "Environment-Dependent Interatomic Potential",&
-                          "Lenosky potentials"),&
-            default_i_val=use_lenosky_eip, error=error)
-       CALL section_add_keyword(section, keyword, error=error)
-       CALL keyword_release(keyword, error=error)
+    CALL keyword_create(keyword, name="EIP_MODEL", &
+         description="Selects the empirical interaction potential model", &
+         usage="EIP_MODEL BAZANT",  type_of_var=enum_t, &
+         n_var=1, repeats=.FALSE., variants=(/"EIP-MODEL"/), &
+         enum_c_vals=s2a("BAZANT", "EDIP", "LENOSKY"), &
+         enum_i_vals=(/use_bazant_eip, use_bazant_eip, use_lenosky_eip/), &
+         enum_desc=s2a("Bazant potentials",&
+                       "Environment-Dependent Interatomic Potential",&
+                       "Lenosky potentials"),&
+         default_i_val=use_lenosky_eip, error=error)
+    CALL section_add_keyword(section, keyword, error=error)
+    CALL keyword_release(keyword, error=error)
 
-       CALL create_eip_print_section(subsection, error=error)
-       CALL section_add_subsection(section, subsection, error)
-       CALL section_release(subsection, error=error)
+    CALL create_eip_print_section(subsection, error=error)
+    CALL section_add_subsection(section, subsection, error)
+    CALL section_release(subsection, error=error)
 
-    END IF
 
   END SUBROUTINE create_eip_section
 
@@ -116,57 +114,55 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section, name="PRINT", &
-            description="Section of possible print options in EIP code.", &
-            n_keywords=0, n_subsections=6, repeats=.FALSE.,  &
-            error=error)
+    CALL section_create(section, name="PRINT", &
+         description="Section of possible print options in EIP code.", &
+         n_keywords=0, n_subsections=6, repeats=.FALSE.,  &
+         error=error)
 
-       NULLIFY(print_key)
+    NULLIFY(print_key)
 
-       CALL cp_print_key_section_create(print_key, "ENERGIES", &
-            description="Controls the printing of the EIP energies.", &
-            print_level=medium_print_level, filename="__STD_OUT__", &
-            error=error)
-       CALL section_add_subsection(section, print_key, error=error)
-       CALL section_release(print_key, error=error)
+    CALL cp_print_key_section_create(print_key, "ENERGIES", &
+         description="Controls the printing of the EIP energies.", &
+         print_level=medium_print_level, filename="__STD_OUT__", &
+         error=error)
+    CALL section_add_subsection(section, print_key, error=error)
+    CALL section_release(print_key, error=error)
 
-       CALL cp_print_key_section_create(print_key, "ENERGIES_VAR", &
-            description="Controls the printing of the variance of the EIP energies.", &
-            print_level=high_print_level, filename="__STD_OUT__", &
-            error=error)
-       CALL section_add_subsection(section, print_key, error=error)
-       CALL section_release(print_key, error=error)
+    CALL cp_print_key_section_create(print_key, "ENERGIES_VAR", &
+         description="Controls the printing of the variance of the EIP energies.", &
+         print_level=high_print_level, filename="__STD_OUT__", &
+         error=error)
+    CALL section_add_subsection(section, print_key, error=error)
+    CALL section_release(print_key, error=error)
 
-       CALL cp_print_key_section_create(print_key, "FORCES", &
-            description="Controls the printing of the EIP forces.", &
-            print_level=medium_print_level, filename="__STD_OUT__", &
-            error=error)
-       CALL section_add_subsection(section, print_key, error=error)
-       CALL section_release(print_key, error=error)
+    CALL cp_print_key_section_create(print_key, "FORCES", &
+         description="Controls the printing of the EIP forces.", &
+         print_level=medium_print_level, filename="__STD_OUT__", &
+         error=error)
+    CALL section_add_subsection(section, print_key, error=error)
+    CALL section_release(print_key, error=error)
 
-       CALL cp_print_key_section_create(print_key, "COORD_AVG", &
-            description="Controls the printing of the average coordination number.", &
-            print_level=high_print_level, filename="__STD_OUT__", &
-            error=error)
-       CALL section_add_subsection(section, print_key, error=error)
-       CALL section_release(print_key, error=error)
+    CALL cp_print_key_section_create(print_key, "COORD_AVG", &
+         description="Controls the printing of the average coordination number.", &
+         print_level=high_print_level, filename="__STD_OUT__", &
+         error=error)
+    CALL section_add_subsection(section, print_key, error=error)
+    CALL section_release(print_key, error=error)
 
-       CALL cp_print_key_section_create(print_key, "COORD_VAR", &
-            description="Controls the printing of the variance of the coordination number.", &
-            print_level=high_print_level, filename="__STD_OUT__", &
-            error=error)
-       CALL section_add_subsection(section, print_key, error=error)
-       CALL section_release(print_key, error=error)
+    CALL cp_print_key_section_create(print_key, "COORD_VAR", &
+         description="Controls the printing of the variance of the coordination number.", &
+         print_level=high_print_level, filename="__STD_OUT__", &
+         error=error)
+    CALL section_add_subsection(section, print_key, error=error)
+    CALL section_release(print_key, error=error)
 
-       CALL cp_print_key_section_create(print_key, "COUNT", &
-            description="Controls the printing of the number of function calls.", &
-            print_level=high_print_level, filename="__STD_OUT__", &
-            error=error)
-       CALL section_add_subsection(section, print_key, error=error)
-       CALL section_release(print_key, error=error)
+    CALL cp_print_key_section_create(print_key, "COUNT", &
+         description="Controls the printing of the number of function calls.", &
+         print_level=high_print_level, filename="__STD_OUT__", &
+         error=error)
+    CALL section_add_subsection(section, print_key, error=error)
+    CALL section_release(print_key, error=error)
 
-    END IF
   END SUBROUTINE create_eip_print_section
 
 END MODULE input_cp2k_eip

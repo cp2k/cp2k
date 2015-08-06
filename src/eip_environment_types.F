@@ -139,10 +139,8 @@ CONTAINS
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-      CPPrecondition(eip_env%ref_count>0, cp_failure_level, routineP, error, failure)
-      eip_env%ref_count = eip_env%ref_count+1
-    END IF
+    CPPrecondition(eip_env%ref_count>0, cp_failure_level, routineP, error, failure)
+    eip_env%ref_count = eip_env%ref_count+1
   END SUBROUTINE eip_env_retain
 
 ! *****************************************************************************
@@ -290,42 +288,40 @@ CONTAINS
     CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(eip_env%ref_count>0, cp_failure_level, routineP, error, failure)
 
-    IF (.NOT. failure) THEN
-      IF (PRESENT(id_nr)) id_nr = eip_env%id_nr
-      IF (PRESENT(eip_model)) eip_model = eip_env%eip_model
-      IF (PRESENT(eip_kinetic_energy)) THEN
-        eip_kinetic_energy = eip_env%eip_kinetic_energy
-      END IF
-      IF (PRESENT(eip_potential_energy)) THEN
-        eip_potential_energy = eip_env%eip_potential_energy
-      END IF
-      IF (PRESENT(eip_energy)) eip_energy = eip_env%eip_energy
-      IF (PRESENT(eip_energy_var)) eip_energy_var = eip_env%eip_energy_var
-      IF (PRESENT(eip_forces)) eip_forces = eip_env%eip_forces
-      IF (PRESENT(coord_avg)) coord_avg = eip_env%coord_avg
-      IF (PRESENT(coord_var)) coord_var = eip_env%coord_var
-      IF (PRESENT(count)) count = eip_env%count
-      IF (PRESENT(subsys)) subsys => eip_env%subsys
-      CALL cp_subsys_get(eip_env%subsys, &
-                         atomic_kinds=atomic_kinds, &
-                         particles=particles, &
-                         molecule_kinds_new=molecule_kinds_new, &
-                         molecules_new=molecules_new, &
-                         local_molecules_new=local_molecules, &
-                         local_particles=local_particles, &
-                         virial=virial, &
-                         cell=cell, &
-                         error=error)
-      IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
-      IF (PRESENT(particle_set)) particle_set => particles%els
-      IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
-      IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
-
-      IF (PRESENT(eip_input)) eip_input => eip_env%eip_input
-      IF (PRESENT(force_env_input)) force_env_input => eip_env%force_env_input
-      IF (PRESENT(cell_ref)) cell_ref => eip_env%cell_ref
-      IF (PRESENT(use_ref_cell)) use_ref_cell = eip_env%use_ref_cell
+    IF (PRESENT(id_nr)) id_nr = eip_env%id_nr
+    IF (PRESENT(eip_model)) eip_model = eip_env%eip_model
+    IF (PRESENT(eip_kinetic_energy)) THEN
+      eip_kinetic_energy = eip_env%eip_kinetic_energy
     END IF
+    IF (PRESENT(eip_potential_energy)) THEN
+      eip_potential_energy = eip_env%eip_potential_energy
+    END IF
+    IF (PRESENT(eip_energy)) eip_energy = eip_env%eip_energy
+    IF (PRESENT(eip_energy_var)) eip_energy_var = eip_env%eip_energy_var
+    IF (PRESENT(eip_forces)) eip_forces = eip_env%eip_forces
+    IF (PRESENT(coord_avg)) coord_avg = eip_env%coord_avg
+    IF (PRESENT(coord_var)) coord_var = eip_env%coord_var
+    IF (PRESENT(count)) count = eip_env%count
+    IF (PRESENT(subsys)) subsys => eip_env%subsys
+    CALL cp_subsys_get(eip_env%subsys, &
+                       atomic_kinds=atomic_kinds, &
+                       particles=particles, &
+                       molecule_kinds_new=molecule_kinds_new, &
+                       molecules_new=molecules_new, &
+                       local_molecules_new=local_molecules, &
+                       local_particles=local_particles, &
+                       virial=virial, &
+                       cell=cell, &
+                       error=error)
+    IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
+    IF (PRESENT(particle_set)) particle_set => particles%els
+    IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
+    IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
+
+    IF (PRESENT(eip_input)) eip_input => eip_env%eip_input
+    IF (PRESENT(force_env_input)) force_env_input => eip_env%force_env_input
+    IF (PRESENT(cell_ref)) cell_ref => eip_env%cell_ref
+    IF (PRESENT(use_ref_cell)) use_ref_cell = eip_env%use_ref_cell
 
   END SUBROUTINE eip_env_get
 
@@ -414,84 +410,82 @@ CONTAINS
     CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(eip_env%ref_count>0, cp_failure_level, routineP, error, failure)
 
-    IF (.NOT. failure) THEN
-      IF (PRESENT(id_nr)) eip_env%id_nr = id_nr
-      IF (PRESENT(eip_model)) eip_env%eip_model = eip_model
-      IF (PRESENT(eip_kinetic_energy)) THEN
-        eip_env%eip_kinetic_energy = eip_kinetic_energy
-      END IF
-      IF (PRESENT(eip_potential_energy)) THEN
-        eip_env%eip_potential_energy = eip_potential_energy
-      END IF
-      IF (PRESENT(eip_energy)) eip_env%eip_energy = eip_energy
-      IF (PRESENT(eip_energy_var)) eip_env%eip_energy_var = eip_energy_var
-      IF (PRESENT(eip_forces)) eip_env%eip_forces = eip_forces
-      IF (PRESENT(coord_avg)) eip_env%coord_avg = coord_avg
-      IF (PRESENT(coord_var)) eip_env%coord_var = coord_var
-      IF (PRESENT(count)) eip_env%count = count
-      IF (PRESENT(subsys)) THEN
-        CALL cp_subsys_retain(subsys, error=error)
-        CALL cp_subsys_release(eip_env%subsys, error=error)
-        eip_env%subsys => subsys
-      END IF
-      IF (PRESENT(atomic_kind_set)) THEN
-        CALL atomic_kind_list_create(atomic_kinds, &
-                                     els_ptr=atomic_kind_set, &
-                                     error=error)
-        CALL cp_subsys_set(eip_env%subsys, &
-                           atomic_kinds=atomic_kinds, &
-                           error=error)
-        CALL atomic_kind_list_release(atomic_kinds, error=error)
-      END IF
-      IF (PRESENT(particle_set)) THEN
-        CALL particle_list_create(particles, &
-                                  els_ptr=particle_set, &
-                                  error=error)
-        CALL cp_subsys_set(eip_env%subsys, &
-                           particles=particles, &
-                           error=error)
-        CALL particle_list_release(particles, error=error)
-      END IF
-      IF (PRESENT(molecule_kind_set)) THEN
-        CALL mol_kind_new_list_create(molecule_kinds_new, &
-                                      els_ptr=molecule_kind_set, &
-                                      error=error)
-        CALL cp_subsys_set(eip_env%subsys, &
-                           molecule_kinds_new=molecule_kinds_new, &
-                           error=error)
-        CALL mol_kind_new_list_release(molecule_kinds_new, error=error)
-      END IF
-      IF (PRESENT(molecule_set)) THEN
-        CALL mol_new_list_create(molecules_new, &
-                                 els_ptr=molecule_set, &
-                                 error=error)
-        CALL cp_subsys_set(eip_env%subsys, &
-                           molecules_new=molecules_new, &
-                           error=error)
-        CALL mol_new_list_release(molecules_new,error=error)
-      END IF
-      IF (PRESENT(local_particles)) THEN
-        CALL cp_subsys_set(eip_env%subsys, &
-                           local_particles=local_particles, &
-                           error=error)
-      END IF
-      IF (PRESENT(local_molecules)) THEN
-        CALL cp_subsys_set(eip_env%subsys, &
-                           local_molecules_new=local_molecules, &
-                           error=error)
-      END IF
-
-      IF (PRESENT(eip_input)) eip_env%eip_input => eip_input
-      IF (PRESENT(force_env_input)) THEN
-        eip_env%force_env_input => force_env_input
-      END IF
-      IF (PRESENT(cell_ref)) THEN
-        CALL cell_retain(cell_ref, error=error)
-        CALL cell_release(eip_env%cell_ref,error=error)
-        eip_env%cell_ref => cell_ref
-      END IF
-      IF (PRESENT(use_ref_cell)) eip_env%use_ref_cell = use_ref_cell
+    IF (PRESENT(id_nr)) eip_env%id_nr = id_nr
+    IF (PRESENT(eip_model)) eip_env%eip_model = eip_model
+    IF (PRESENT(eip_kinetic_energy)) THEN
+      eip_env%eip_kinetic_energy = eip_kinetic_energy
     END IF
+    IF (PRESENT(eip_potential_energy)) THEN
+      eip_env%eip_potential_energy = eip_potential_energy
+    END IF
+    IF (PRESENT(eip_energy)) eip_env%eip_energy = eip_energy
+    IF (PRESENT(eip_energy_var)) eip_env%eip_energy_var = eip_energy_var
+    IF (PRESENT(eip_forces)) eip_env%eip_forces = eip_forces
+    IF (PRESENT(coord_avg)) eip_env%coord_avg = coord_avg
+    IF (PRESENT(coord_var)) eip_env%coord_var = coord_var
+    IF (PRESENT(count)) eip_env%count = count
+    IF (PRESENT(subsys)) THEN
+      CALL cp_subsys_retain(subsys, error=error)
+      CALL cp_subsys_release(eip_env%subsys, error=error)
+      eip_env%subsys => subsys
+    END IF
+    IF (PRESENT(atomic_kind_set)) THEN
+      CALL atomic_kind_list_create(atomic_kinds, &
+                                   els_ptr=atomic_kind_set, &
+                                   error=error)
+      CALL cp_subsys_set(eip_env%subsys, &
+                         atomic_kinds=atomic_kinds, &
+                         error=error)
+      CALL atomic_kind_list_release(atomic_kinds, error=error)
+    END IF
+    IF (PRESENT(particle_set)) THEN
+      CALL particle_list_create(particles, &
+                                els_ptr=particle_set, &
+                                error=error)
+      CALL cp_subsys_set(eip_env%subsys, &
+                         particles=particles, &
+                         error=error)
+      CALL particle_list_release(particles, error=error)
+    END IF
+    IF (PRESENT(molecule_kind_set)) THEN
+      CALL mol_kind_new_list_create(molecule_kinds_new, &
+                                    els_ptr=molecule_kind_set, &
+                                    error=error)
+      CALL cp_subsys_set(eip_env%subsys, &
+                         molecule_kinds_new=molecule_kinds_new, &
+                         error=error)
+      CALL mol_kind_new_list_release(molecule_kinds_new, error=error)
+    END IF
+    IF (PRESENT(molecule_set)) THEN
+      CALL mol_new_list_create(molecules_new, &
+                               els_ptr=molecule_set, &
+                               error=error)
+      CALL cp_subsys_set(eip_env%subsys, &
+                         molecules_new=molecules_new, &
+                         error=error)
+      CALL mol_new_list_release(molecules_new,error=error)
+    END IF
+    IF (PRESENT(local_particles)) THEN
+      CALL cp_subsys_set(eip_env%subsys, &
+                         local_particles=local_particles, &
+                         error=error)
+    END IF
+    IF (PRESENT(local_molecules)) THEN
+      CALL cp_subsys_set(eip_env%subsys, &
+                         local_molecules_new=local_molecules, &
+                         error=error)
+    END IF
+
+    IF (PRESENT(eip_input)) eip_env%eip_input => eip_input
+    IF (PRESENT(force_env_input)) THEN
+      eip_env%force_env_input => force_env_input
+    END IF
+    IF (PRESENT(cell_ref)) THEN
+      CALL cell_retain(cell_ref, error=error)
+      CALL cell_release(eip_env%cell_ref,error=error)
+      eip_env%cell_ref => cell_ref
+    END IF
+    IF (PRESENT(use_ref_cell)) eip_env%use_ref_cell = use_ref_cell
   END SUBROUTINE eip_env_set
 
 ! *****************************************************************************
@@ -522,32 +516,28 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
 
-    IF (.NOT. failure) THEN
-      eip_env%eip_model            = 0
-      eip_env%eip_kinetic_energy   = 0.0_dp
-      eip_env%eip_potential_energy = 0.0_dp
-      eip_env%eip_energy           = 0.0_dp
-      eip_env%eip_energy_var       = 0.0_dp
-      eip_env%coord_avg            = 0.0_dp
-      eip_env%coord_var            = 0.0_dp
-      eip_env%count                = 0.0_dp
-      IF (ASSOCIATED(eip_env%eip_forces)) THEN
-        eip_env%eip_forces(:,:)      = 0.0_dp
-      END IF
-      IF (ASSOCIATED(eip_env%subsys)) THEN
-        CALL cp_subsys_release(eip_env%subsys, error=error)
-      END IF
-      IF (ASSOCIATED(eip_env%eip_input)) THEN
-        CALL section_vals_release(eip_env%eip_input, error=error)
-      END IF
-      IF (ASSOCIATED(eip_env%force_env_input)) THEN
-        CALL section_vals_release(eip_env%force_env_input, error=error)
-      END IF
-      IF (ASSOCIATED(eip_env%cell_ref)) THEN
-        CALL cell_release(eip_env%cell_ref, error=error)
-      END IF
-    ELSE
-      CALL eip_env_create(eip_env, error=error)
+    eip_env%eip_model            = 0
+    eip_env%eip_kinetic_energy   = 0.0_dp
+    eip_env%eip_potential_energy = 0.0_dp
+    eip_env%eip_energy           = 0.0_dp
+    eip_env%eip_energy_var       = 0.0_dp
+    eip_env%coord_avg            = 0.0_dp
+    eip_env%coord_var            = 0.0_dp
+    eip_env%count                = 0.0_dp
+    IF (ASSOCIATED(eip_env%eip_forces)) THEN
+      eip_env%eip_forces(:,:)      = 0.0_dp
+    END IF
+    IF (ASSOCIATED(eip_env%subsys)) THEN
+      CALL cp_subsys_release(eip_env%subsys, error=error)
+    END IF
+    IF (ASSOCIATED(eip_env%eip_input)) THEN
+      CALL section_vals_release(eip_env%eip_input, error=error)
+    END IF
+    IF (ASSOCIATED(eip_env%force_env_input)) THEN
+      CALL section_vals_release(eip_env%force_env_input, error=error)
+    END IF
+    IF (ASSOCIATED(eip_env%cell_ref)) THEN
+      CALL cell_release(eip_env%cell_ref, error=error)
     END IF
   END SUBROUTINE eip_env_clear
 
@@ -585,13 +575,11 @@ CONTAINS
     NULLIFY(eip_env%force_env_input)
     NULLIFY(eip_env%cell_ref)
 
-    IF (.NOT. failure) THEN
-      eip_env%ref_count = 1
-      last_eip_id=last_eip_id+1
-      eip_env%id_nr = last_eip_id
-      eip_env%use_ref_cell = .FALSE.
-      CALL eip_env_clear(eip_env, error=error)
-    END IF
+    eip_env%ref_count = 1
+    last_eip_id=last_eip_id+1
+    eip_env%id_nr = last_eip_id
+    eip_env%use_ref_cell = .FALSE.
+    CALL eip_env_clear(eip_env, error=error)
   END SUBROUTINE eip_env_create
 
 END MODULE eip_environment_types

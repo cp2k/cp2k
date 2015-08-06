@@ -99,10 +99,8 @@ SUBROUTINE mpools_retain(mpools, error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(mpools),cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     CPPreconditionNoFail(mpools%ref_count>0,cp_failure_level,routineP,error)
-     mpools%ref_count=mpools%ref_count+1
-  END IF
+  CPPreconditionNoFail(mpools%ref_count>0,cp_failure_level,routineP,error)
+  mpools%ref_count=mpools%ref_count+1
 END SUBROUTINE mpools_retain
 
 ! *****************************************************************************
@@ -181,44 +179,42 @@ SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
 
   CPPrecondition(ASSOCIATED(mpools),cp_failure_level,routineP,error,failure)
   CPPrecondition(mpools%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-    IF (PRESENT(ao_mo_fm_pools)) THEN
-      IF (ASSOCIATED(ao_mo_fm_pools)) THEN
-        CALL fm_pools_copy(ao_mo_fm_pools,new_fm_pools,error=error)
-      END IF
-      CALL fm_pools_dealloc(mpools%ao_mo_fm_pools,error=error)
-      mpools%ao_mo_fm_pools => new_fm_pools
+  IF (PRESENT(ao_mo_fm_pools)) THEN
+    IF (ASSOCIATED(ao_mo_fm_pools)) THEN
+      CALL fm_pools_copy(ao_mo_fm_pools,new_fm_pools,error=error)
     END IF
-    IF (PRESENT(ao_ao_fm_pools)) THEN
-      IF (ASSOCIATED(ao_ao_fm_pools)) THEN
-        CALL fm_pools_copy(ao_ao_fm_pools,new_fm_pools,error=error)
-      END IF
-      CALL fm_pools_dealloc(mpools%ao_ao_fm_pools,error=error)
-      mpools%ao_ao_fm_pools => new_fm_pools
+    CALL fm_pools_dealloc(mpools%ao_mo_fm_pools,error=error)
+    mpools%ao_mo_fm_pools => new_fm_pools
+  END IF
+  IF (PRESENT(ao_ao_fm_pools)) THEN
+    IF (ASSOCIATED(ao_ao_fm_pools)) THEN
+      CALL fm_pools_copy(ao_ao_fm_pools,new_fm_pools,error=error)
     END IF
-    IF (PRESENT(mo_mo_fm_pools)) THEN
-      IF (ASSOCIATED(mo_mo_fm_pools)) THEN
-        CALL fm_pools_copy(mo_mo_fm_pools,new_fm_pools,error=error)
-      END IF
-      CALL fm_pools_dealloc(mpools%mo_mo_fm_pools,error=error)
-      mpools%mo_mo_fm_pools => new_fm_pools
+    CALL fm_pools_dealloc(mpools%ao_ao_fm_pools,error=error)
+    mpools%ao_ao_fm_pools => new_fm_pools
+  END IF
+  IF (PRESENT(mo_mo_fm_pools)) THEN
+    IF (ASSOCIATED(mo_mo_fm_pools)) THEN
+      CALL fm_pools_copy(mo_mo_fm_pools,new_fm_pools,error=error)
     END IF
-    IF (PRESENT(ao_mosub_fm_pools)) THEN
-      IF (ASSOCIATED(ao_mosub_fm_pools)) THEN
-        CALL fm_pools_copy(ao_mosub_fm_pools,new_fm_pools,error=error)
-      END IF
-      CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools,error=error)
-      mpools%ao_mosub_fm_pools => new_fm_pools
+    CALL fm_pools_dealloc(mpools%mo_mo_fm_pools,error=error)
+    mpools%mo_mo_fm_pools => new_fm_pools
+  END IF
+  IF (PRESENT(ao_mosub_fm_pools)) THEN
+    IF (ASSOCIATED(ao_mosub_fm_pools)) THEN
+      CALL fm_pools_copy(ao_mosub_fm_pools,new_fm_pools,error=error)
     END IF
-    IF (PRESENT(mosub_mosub_fm_pools)) THEN
-      IF (ASSOCIATED(mosub_mosub_fm_pools)) THEN
-        CALL fm_pools_copy(mosub_mosub_fm_pools,new_fm_pools,error=error)
-      END IF
-      CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools,error=error)
-      mpools%mosub_mosub_fm_pools => new_fm_pools
+    CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools,error=error)
+    mpools%ao_mosub_fm_pools => new_fm_pools
+  END IF
+  IF (PRESENT(mosub_mosub_fm_pools)) THEN
+    IF (ASSOCIATED(mosub_mosub_fm_pools)) THEN
+      CALL fm_pools_copy(mosub_mosub_fm_pools,new_fm_pools,error=error)
     END IF
+    CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools,error=error)
+    mpools%mosub_mosub_fm_pools => new_fm_pools
+  END IF
 
- END IF
 END SUBROUTINE mpools_set
 
 ! *****************************************************************************
@@ -260,34 +256,32 @@ SUBROUTINE mpools_get(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
 
   failure=.FALSE.
 
-  IF (.NOT.failure) THEN
-    IF (PRESENT(ao_mo_fm_pools)) ao_mo_fm_pools => mpools%ao_mo_fm_pools
-    IF (PRESENT(maxao_maxmo_fm_pool)) THEN
-       IF (ASSOCIATED(mpools%ao_mo_fm_pools)) THEN
-          maxao_maxmo_fm_pool => mpools%ao_mo_fm_pools(1)%pool
-       ELSE
-          NULLIFY(maxao_maxmo_fm_pool) ! raise an error?
-       END IF
-    END IF
-    IF (PRESENT(ao_ao_fm_pools)) ao_ao_fm_pools => mpools%ao_ao_fm_pools
-    IF (PRESENT(maxao_maxao_fm_pool)) THEN
-       IF (ASSOCIATED(mpools%ao_ao_fm_pools)) THEN
-          maxao_maxao_fm_pool => mpools%ao_ao_fm_pools(1)%pool
-       ELSE
-          NULLIFY(maxao_maxao_fm_pool) ! raise an error?
-       END IF
-    END IF
-    IF (PRESENT(mo_mo_fm_pools)) mo_mo_fm_pools => mpools%mo_mo_fm_pools
-    IF (PRESENT(maxmo_maxmo_fm_pool)) THEN
-       IF (ASSOCIATED(mpools%mo_mo_fm_pools)) THEN
-          maxmo_maxmo_fm_pool => mpools%mo_mo_fm_pools(1)%pool
-       ELSE
-          NULLIFY(maxmo_maxmo_fm_pool) ! raise an error?
-       END IF
-    END IF
-    IF (PRESENT(ao_mosub_fm_pools)) ao_mosub_fm_pools => mpools%ao_mosub_fm_pools
-    IF (PRESENT(mosub_mosub_fm_pools)) mosub_mosub_fm_pools => mpools%mosub_mosub_fm_pools
- END IF
+  IF (PRESENT(ao_mo_fm_pools)) ao_mo_fm_pools => mpools%ao_mo_fm_pools
+  IF (PRESENT(maxao_maxmo_fm_pool)) THEN
+     IF (ASSOCIATED(mpools%ao_mo_fm_pools)) THEN
+        maxao_maxmo_fm_pool => mpools%ao_mo_fm_pools(1)%pool
+     ELSE
+        NULLIFY(maxao_maxmo_fm_pool) ! raise an error?
+     END IF
+  END IF
+  IF (PRESENT(ao_ao_fm_pools)) ao_ao_fm_pools => mpools%ao_ao_fm_pools
+  IF (PRESENT(maxao_maxao_fm_pool)) THEN
+     IF (ASSOCIATED(mpools%ao_ao_fm_pools)) THEN
+        maxao_maxao_fm_pool => mpools%ao_ao_fm_pools(1)%pool
+     ELSE
+        NULLIFY(maxao_maxao_fm_pool) ! raise an error?
+     END IF
+  END IF
+  IF (PRESENT(mo_mo_fm_pools)) mo_mo_fm_pools => mpools%mo_mo_fm_pools
+  IF (PRESENT(maxmo_maxmo_fm_pool)) THEN
+     IF (ASSOCIATED(mpools%mo_mo_fm_pools)) THEN
+        maxmo_maxmo_fm_pool => mpools%mo_mo_fm_pools(1)%pool
+     ELSE
+        NULLIFY(maxmo_maxmo_fm_pool) ! raise an error?
+     END IF
+  END IF
+  IF (PRESENT(ao_mosub_fm_pools)) ao_mosub_fm_pools => mpools%ao_mosub_fm_pools
+  IF (PRESENT(mosub_mosub_fm_pools)) mosub_mosub_fm_pools => mpools%mosub_mosub_fm_pools
 END SUBROUTINE mpools_get
 
 ! *****************************************************************************
@@ -313,14 +307,12 @@ SUBROUTINE mpools_create(mpools,error)
 
   ALLOCATE(mpools, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     NULLIFY(mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &
-          mpools%mo_mo_fm_pools, mpools%ao_mosub_fm_pools, &
-          mpools%mosub_mosub_fm_pools)
-     mpools%ref_count=1
-     last_mpools_id=last_mpools_id+1
-     mpools%id_nr=last_mpools_id
-  END IF
+  NULLIFY(mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &
+       mpools%mo_mo_fm_pools, mpools%ao_mosub_fm_pools, &
+       mpools%mosub_mosub_fm_pools)
+  mpools%ref_count=1
+  last_mpools_id=last_mpools_id+1
+  mpools%id_nr=last_mpools_id
 END SUBROUTINE mpools_create
 
 ! *****************************************************************************
@@ -453,22 +445,20 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
   END IF
 
 
-  IF (.NOT.failure) THEN
-     CALL get_mo_set(mos(1)%mo_set,nao=nao,nmo=min_nmo)
-     max_nmo=min_nmo
-     DO ispin=2,SIZE(mos)
-        CALL get_mo_set(mos(ispin)%mo_set,nmo=nmo)
-        IF (max_nmo<nmo) THEN
-           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                routineP,&
-                "the mo with the most orbitals must be the first "//&
+  CALL get_mo_set(mos(1)%mo_set,nao=nao,nmo=min_nmo)
+  max_nmo=min_nmo
+  DO ispin=2,SIZE(mos)
+     CALL get_mo_set(mos(ispin)%mo_set,nmo=nmo)
+     IF (max_nmo<nmo) THEN
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+             routineP,&
+             "the mo with the most orbitals must be the first "//&
 CPSourceFileRef,&
-                error=error,&
-                failure=failure)
-        END IF
-        min_nmo=MIN(min_nmo,nmo)
-     END DO
-  END IF
+             error=error,&
+             failure=failure)
+     END IF
+     min_nmo=MIN(min_nmo,nmo)
+  END DO
 
   IF (.NOT.failure) THEN
      ! aoao pools

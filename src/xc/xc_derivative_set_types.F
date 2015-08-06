@@ -95,22 +95,20 @@ CONTAINS
     IF (PRESENT(allocate_deriv)) my_allocate_deriv=allocate_deriv
     NULLIFY(res)
     CALL standardize_derivative_desc(description,std_deriv_desc,error=error)
-    IF (.NOT. failure) THEN
-       pos => derivative_set%derivs
-       DO WHILE(cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
-          IF (deriv_att%desc == std_deriv_desc) THEN
-             res => deriv_att
-             EXIT
-          END IF
-       END DO
-       IF (.NOT.ASSOCIATED(res).AND.my_allocate_deriv) THEN
-          CALL pw_pool_create_cr3d(derivative_set%pw_pool,cr3d_ptr,error=error)
-          cr3d_ptr=0.0_dp
-          CALL xc_derivative_create(res, std_deriv_desc, &
-                                    cr3d_ptr=cr3d_ptr, error=error)
-          CALL cp_sll_xc_deriv_insert_ordered(derivative_set%derivs,res,&
-               error=error)
+    pos => derivative_set%derivs
+    DO WHILE(cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
+       IF (deriv_att%desc == std_deriv_desc) THEN
+          res => deriv_att
+          EXIT
        END IF
+    END DO
+    IF (.NOT.ASSOCIATED(res).AND.my_allocate_deriv) THEN
+       CALL pw_pool_create_cr3d(derivative_set%pw_pool,cr3d_ptr,error=error)
+       cr3d_ptr=0.0_dp
+       CALL xc_derivative_create(res, std_deriv_desc, &
+                                 cr3d_ptr=cr3d_ptr, error=error)
+       CALL cp_sll_xc_deriv_insert_ordered(derivative_set%derivs,res,&
+            error=error)
     END IF
   END FUNCTION xc_dset_get_derivative
 
@@ -144,28 +142,26 @@ CONTAINS
     ALLOCATE(derivative_set, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
-       NULLIFY(derivative_set%derivs)
-       derivative_set%ref_count  = 1
-       derivative_set_last_id_nr      = derivative_set_last_id_nr + 1
-       derivative_set%id_nr      = derivative_set_last_id_nr
-       IF (PRESENT(pw_pool)) THEN
-          derivative_set%pw_pool => pw_pool
-          CALL pw_pool_retain(pw_pool, error=error)
-          IF (PRESENT(local_bounds)) THEN
-             CALL cp_assert(ALL(pw_pool%pw_grid%bounds_local==local_bounds),&
-                  cp_failure_level,cp_assertion_failed,routineP,&
-                  "incompatible local_bounds and pw_pool",error,failure)
-          END IF
-       ELSE
-          !FM ugly hack, should be replaced by a pool only for 3d arrays
-          CPPrecondition(PRESENT(local_bounds),cp_failure_level,routineP,error,failure)
-          CALL pw_grid_create(pw_grid,MPI_COMM_SELF,error=error)
-          pw_grid%bounds_local=local_bounds
-          NULLIFY(derivative_set%pw_pool)
-          CALL pw_pool_create(derivative_set%pw_pool, pw_grid, error=error)
-          CALL pw_grid_release(pw_grid,error=error)
+    NULLIFY(derivative_set%derivs)
+    derivative_set%ref_count  = 1
+    derivative_set_last_id_nr      = derivative_set_last_id_nr + 1
+    derivative_set%id_nr      = derivative_set_last_id_nr
+    IF (PRESENT(pw_pool)) THEN
+       derivative_set%pw_pool => pw_pool
+       CALL pw_pool_retain(pw_pool, error=error)
+       IF (PRESENT(local_bounds)) THEN
+          CALL cp_assert(ALL(pw_pool%pw_grid%bounds_local==local_bounds),&
+               cp_failure_level,cp_assertion_failed,routineP,&
+               "incompatible local_bounds and pw_pool",error,failure)
        END IF
+    ELSE
+       !FM ugly hack, should be replaced by a pool only for 3d arrays
+       CPPrecondition(PRESENT(local_bounds),cp_failure_level,routineP,error,failure)
+       CALL pw_grid_create(pw_grid,MPI_COMM_SELF,error=error)
+       pw_grid%bounds_local=local_bounds
+       NULLIFY(derivative_set%pw_pool)
+       CALL pw_pool_create(derivative_set%pw_pool, pw_grid, error=error)
+       CALL pw_grid_release(pw_grid,error=error)
     END IF
 
   END SUBROUTINE xc_dset_create
@@ -195,20 +191,18 @@ CONTAINS
     CPPrecondition(ASSOCIATED(derivative_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(derivative_set%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
-       derivative_set%ref_count = derivative_set%ref_count - 1
-       IF (derivative_set%ref_count == 0) THEN
-          pos => derivative_set%derivs
-          DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
-             CALL xc_derivative_release(deriv_att, pw_pool=derivative_set%pw_pool,&
-                  error=error)
-          END DO
-          CALL cp_sll_xc_deriv_dealloc(derivative_set%derivs,error=error)
-          CALL pw_pool_release(derivative_set%pw_pool,error=error)
+    derivative_set%ref_count = derivative_set%ref_count - 1
+    IF (derivative_set%ref_count == 0) THEN
+       pos => derivative_set%derivs
+       DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
+          CALL xc_derivative_release(deriv_att, pw_pool=derivative_set%pw_pool,&
+               error=error)
+       END DO
+       CALL cp_sll_xc_deriv_dealloc(derivative_set%derivs,error=error)
+       CALL pw_pool_release(derivative_set%pw_pool,error=error)
 
-          DEALLOCATE(derivative_set, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
+       DEALLOCATE(derivative_set, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     NULLIFY(derivative_set)
 
@@ -235,10 +229,8 @@ SUBROUTINE xc_dset_retain(deriv_set,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(deriv_set%ref_count>0,cp_failure_level,routineP,error)
-     deriv_set%ref_count=deriv_set%ref_count+1
-  END IF
+  CPPreconditionNoFail(deriv_set%ref_count>0,cp_failure_level,routineP,error)
+  deriv_set%ref_count=deriv_set%ref_count+1
 END SUBROUTINE xc_dset_retain
 
 ! *****************************************************************************
@@ -262,12 +254,10 @@ SUBROUTINE xc_dset_zero_all(deriv_set, error)
   NULLIFY(pos, deriv_att)
 
   CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     pos => deriv_set%derivs
-     DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att, error=error))
-        deriv_att%deriv_data = 0.0_dp
-     END DO
-  END IF
+  pos => deriv_set%derivs
+  DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att, error=error))
+     deriv_att%deriv_data = 0.0_dp
+  END DO
 
 END SUBROUTINE xc_dset_zero_all
 

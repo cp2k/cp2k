@@ -164,10 +164,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(averages),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(averages%ref_count>0,cp_failure_level,routineP,error,failure)
-       averages%ref_count=averages%ref_count+1
-    END IF
+    CPPrecondition(averages%ref_count>0,cp_failure_level,routineP,error,failure)
+    averages%ref_count=averages%ref_count+1
   END SUBROUTINE retain_averages
 
 ! *****************************************************************************

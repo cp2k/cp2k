@@ -951,56 +951,48 @@ CONTAINS
     rho1_xc => p_env%rho1_xc
     CPPrecondition(ASSOCIATED(rho1),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-       CPPrecondition(p_env%kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(p_env%kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-       CALL get_qs_env(qs_env=qs_env,&
-            pw_env=pw_env,&
-            input=input,&
-            rho=rho,&
-            linres_control=linres_control,&
-            dft_control=dft_control,&
-            error=error)
+    CALL get_qs_env(qs_env=qs_env,&
+         pw_env=pw_env,&
+         input=input,&
+         rho=rho,&
+         linres_control=linres_control,&
+         dft_control=dft_control,&
+         error=error)
 
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
 
-       lr_triplet = linres_control%lr_triplet
-       CALL kpp1_check_i_alloc(p_env%kpp1_env,qs_env,lr_triplet,error=error)
-       !gapw=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw)
-       !gapw_xc=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw_xc)
-       gapw    = dft_control%qs_control%gapw
-       gapw_xc = dft_control%qs_control%gapw_xc
-       IF(gapw_xc) THEN
-          CPPrecondition(ASSOCIATED(rho1_xc),cp_failure_level,routineP,error,failure)
-       END IF
-
-       nspins = SIZE(p_env%kpp1)
-       lsd = (nspins==2)
-
-       xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-       scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
+    lr_triplet = linres_control%lr_triplet
+    CALL kpp1_check_i_alloc(p_env%kpp1_env,qs_env,lr_triplet,error=error)
+    !gapw=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw)
+    !gapw_xc=(section_get_ival(input,"DFT%QS%METHOD",error=error)==do_method_gapw_xc)
+    gapw    = dft_control%qs_control%gapw
+    gapw_xc = dft_control%qs_control%gapw_xc
+    IF(gapw_xc) THEN
+       CPPrecondition(ASSOCIATED(rho1_xc),cp_failure_level,routineP,error,failure)
     END IF
 
-    IF (.NOT.failure) THEN
-       p_env%kpp1_env%iter=p_env%kpp1_env%iter+1
-    END IF
+    nspins = SIZE(p_env%kpp1)
+    lsd = (nspins==2)
+
+    xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
+    scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
+
+    p_env%kpp1_env%iter=p_env%kpp1_env%iter+1
 
 ! gets the tmp grids
-    IF (.NOT. failure) THEN
-       CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-            pw_pools=pw_pools, poisson_env=poisson_env,error=error)
-       ALLOCATE(v_rspace_new(nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-       CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
-            use_data = COMPLEXDATA1D,&
-            in_space = RECIPROCALSPACE, error=error)
-       CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_rspace%pw,&
-            use_data = REALDATA3D,&
-            in_space = REALSPACE, error=error)
-    END IF
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+         pw_pools=pw_pools, poisson_env=poisson_env,error=error)
+    ALLOCATE(v_rspace_new(nspins), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
+         use_data = COMPLEXDATA1D,&
+         in_space = RECIPROCALSPACE, error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_rspace%pw,&
+         use_data = REALDATA3D,&
+         in_space = REALSPACE, error=error)
 
     IF (gapw .OR. gapw_xc) &
        CALL prepare_gapw_den(qs_env,p_env%local_rho_set, do_rho0=(.NOT.gapw_xc), error=error)
@@ -1309,35 +1301,33 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env, dft_control=dft_control,error=error)
-       gapw_xc = dft_control%qs_control%gapw_xc
-       IF (.NOT.ASSOCIATED(p_env%kpp1)) THEN
-          CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
-          nspins=dft_control%nspins
+    CALL get_qs_env(qs_env, dft_control=dft_control,error=error)
+    gapw_xc = dft_control%qs_control%gapw_xc
+    IF (.NOT.ASSOCIATED(p_env%kpp1)) THEN
+       CALL get_qs_env(qs_env, matrix_s=matrix_s, error=error)
+       nspins=dft_control%nspins
 
-          CALL cp_dbcsr_allocate_matrix_set(p_env%kpp1,nspins,error=error)
-             name="p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
-             !CALL compress(name,full=.TRUE.)
-             DO ispin=1,nspins
-                ALLOCATE(p_env%kpp1(ispin)%matrix)
-                CALL cp_dbcsr_init(p_env%kpp1(ispin)%matrix,error=error)
-                CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix,matrix_s(1)%matrix,&
-                     name=TRIM(name)//ADJUSTL(cp_to_string(ispin)),error=error)
-                CALL cp_dbcsr_set(p_env%kpp1(ispin)%matrix,0.0_dp,error=error)
-             END DO
+       CALL cp_dbcsr_allocate_matrix_set(p_env%kpp1,nspins,error=error)
+          name="p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
+          !CALL compress(name,full=.TRUE.)
+          DO ispin=1,nspins
+             ALLOCATE(p_env%kpp1(ispin)%matrix)
+             CALL cp_dbcsr_init(p_env%kpp1(ispin)%matrix,error=error)
+             CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix,matrix_s(1)%matrix,&
+                  name=TRIM(name)//ADJUSTL(cp_to_string(ispin)),error=error)
+             CALL cp_dbcsr_set(p_env%kpp1(ispin)%matrix,0.0_dp,error=error)
+          END DO
 
-          CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
-          IF(gapw_xc) THEN
-             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
-          END IF
+       CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
+       IF(gapw_xc) THEN
+          CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
        END IF
+    END IF
 
-       IF (.NOT.ASSOCIATED(p_env%rho1)) THEN
-          CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
-          IF(gapw_xc) THEN
-             CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
-          END IF
+    IF (.NOT.ASSOCIATED(p_env%rho1)) THEN
+       CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
+       IF(gapw_xc) THEN
+          CALL qs_rho_rebuild(p_env%rho1_xc,qs_env=qs_env,error=error)
        END IF
     END IF
     CALL timestop(handle)
@@ -1390,13 +1380,11 @@ CONTAINS
     IF (.NOT.ASSOCIATED(kpp1_env%v_rspace)) THEN
        ALLOCATE(kpp1_env%v_rspace(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (.NOT.failure) THEN
-          DO ispin=1,nspins
-             CALL pw_pool_create_pw(auxbas_pw_pool, &
-                  kpp1_env%v_rspace(ispin)%pw,&
-                  use_data=REALDATA3D, in_space=REALSPACE,error=error)
-          END DO
-       END IF
+       DO ispin=1,nspins
+          CALL pw_pool_create_pw(auxbas_pw_pool, &
+               kpp1_env%v_rspace(ispin)%pw,&
+               use_data=REALDATA3D, in_space=REALSPACE,error=error)
+       END DO
     END IF
 
     IF (.NOT.ASSOCIATED(kpp1_env%v_ao)) THEN

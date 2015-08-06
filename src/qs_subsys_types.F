@@ -88,10 +88,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP,error)
-       subsys%ref_count=subsys%ref_count+1
-    END IF
+    CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP,error)
+    subsys%ref_count=subsys%ref_count+1
   END SUBROUTINE qs_subsys_retain
 
 ! *****************************************************************************

@@ -197,47 +197,45 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
 
-      u1 = 0.0_dp
-      u2 = 0.0_dp
-      v1 = 0.0_dp
-      v2 = 0.0_dp
-      w1 = 0.0_dp
-      w2 = 0.0_dp
+    u1 = 0.0_dp
+    u2 = 0.0_dp
+    v1 = 0.0_dp
+    v2 = 0.0_dp
+    w1 = 0.0_dp
+    w2 = 0.0_dp
 
-      IF (e > 0) THEN
-        CALL mat_two_pow_mod_m(a1p0,u1,m1,e)
-        CALL mat_two_pow_mod_m(a2p0,u2,m2,e)
-      ELSE IF (e < 0) THEN
-        CALL mat_two_pow_mod_m(inv_a1,u1,m1,-e)
-        CALL mat_two_pow_mod_m(inv_a2,u2,m2,-e)
-      END IF
-
-      IF (c >= 0) THEN
-        CALL mat_pow_mod_m(a1p0,v1,m1,c)
-        CALL mat_pow_mod_m(a2p0,v2,m2,c)
-      ELSE
-        CALL mat_pow_mod_m(inv_a1,v1,m1,-c)
-        CALL mat_pow_mod_m(inv_a2,v2,m2,-c)
-      END IF
-
-      IF (e == 0) THEN
-        w1 = v1
-        w2 = v2
-      ELSE
-        CALL mat_mat_mod_m(u1,v1,w1,m1)
-        CALL mat_mat_mod_m(u2,v2,w2,m2)
-      END IF
-
-      x = 0.0_dp
-
-      CALL mat_vec_mod_m(w1,rng_stream%cg(:,1),x(:,1),m1)
-      CALL mat_vec_mod_m(w2,rng_stream%cg(:,2),x(:,2),m2)
-
-      rng_stream%cg = x
-
+    IF (e > 0) THEN
+      CALL mat_two_pow_mod_m(a1p0,u1,m1,e)
+      CALL mat_two_pow_mod_m(a2p0,u2,m2,e)
+    ELSE IF (e < 0) THEN
+      CALL mat_two_pow_mod_m(inv_a1,u1,m1,-e)
+      CALL mat_two_pow_mod_m(inv_a2,u2,m2,-e)
     END IF
+
+    IF (c >= 0) THEN
+      CALL mat_pow_mod_m(a1p0,v1,m1,c)
+      CALL mat_pow_mod_m(a2p0,v2,m2,c)
+    ELSE
+      CALL mat_pow_mod_m(inv_a1,v1,m1,-c)
+      CALL mat_pow_mod_m(inv_a2,v2,m2,-c)
+    END IF
+
+    IF (e == 0) THEN
+      w1 = v1
+      w2 = v2
+    ELSE
+      CALL mat_mat_mod_m(u1,v1,w1,m1)
+      CALL mat_mat_mod_m(u2,v2,w2,m2)
+    END IF
+
+    x = 0.0_dp
+
+    CALL mat_vec_mod_m(w1,rng_stream%cg(:,1),x(:,1),m1)
+    CALL mat_vec_mod_m(w2,rng_stream%cg(:,2),x(:,2),m2)
+
+    rng_stream%cg = x
+
 
   END SUBROUTINE advance_rng_state
 
@@ -557,61 +555,59 @@ CONTAINS
     ALLOCATE (rng_stream,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
 
-      rng_stream%name = name
+    rng_stream%name = name
 
-      IF (PRESENT(seed)) THEN
-        CALL check_seed(seed,error)
-        rng_stream%ig = seed
-      ELSE IF (PRESENT(last_rng_stream)) THEN
-        rng_stream%ig = next_rng_seed(last_rng_stream%ig,error=error)
-      ELSE
-        rng_stream%ig = next_rng_seed(error=error)
-      END IF
-
-      rng_stream%cg = rng_stream%ig
-      rng_stream%bg = rng_stream%ig
-
-      IF (PRESENT(distribution_type)) THEN
-        SELECT CASE (distribution_type)
-        CASE (GAUSSIAN)
-          rng_stream%distribution_type = GAUSSIAN
-        CASE (UNIFORM)
-          rng_stream%distribution_type = UNIFORM
-        CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                         routineP,"Invalid distribution type specified",&
-                         error,failure)
-        END SELECT
-      ELSE IF (PRESENT(last_rng_stream)) THEN
-        rng_stream%distribution_type = last_rng_stream%distribution_type
-      ELSE
-        rng_stream%distribution_type = UNIFORM
-      END IF
-
-      IF (PRESENT(antithetic)) THEN
-        rng_stream%antithetic = antithetic
-      ELSE IF (PRESENT(last_rng_stream)) THEN
-        rng_stream%antithetic = last_rng_stream%antithetic
-      ELSE
-        rng_stream%antithetic = .FALSE.
-      END IF
-
-      IF (PRESENT(extended_precision)) THEN
-        rng_stream%extended_precision = extended_precision
-      ELSE IF (PRESENT(last_rng_stream)) THEN
-        rng_stream%extended_precision = last_rng_stream%extended_precision
-      ELSE
-        rng_stream%extended_precision = .FALSE.
-      END IF
-
-      ! Initialize buffer for distribution type GAUSSIAN
-
-      rng_stream%buffer = 0.0_dp
-      rng_stream%buffer_filled = .FALSE.
-
+    IF (PRESENT(seed)) THEN
+      CALL check_seed(seed,error)
+      rng_stream%ig = seed
+    ELSE IF (PRESENT(last_rng_stream)) THEN
+      rng_stream%ig = next_rng_seed(last_rng_stream%ig,error=error)
+    ELSE
+      rng_stream%ig = next_rng_seed(error=error)
     END IF
+
+    rng_stream%cg = rng_stream%ig
+    rng_stream%bg = rng_stream%ig
+
+    IF (PRESENT(distribution_type)) THEN
+      SELECT CASE (distribution_type)
+      CASE (GAUSSIAN)
+        rng_stream%distribution_type = GAUSSIAN
+      CASE (UNIFORM)
+        rng_stream%distribution_type = UNIFORM
+      CASE DEFAULT
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                       routineP,"Invalid distribution type specified",&
+                       error,failure)
+      END SELECT
+    ELSE IF (PRESENT(last_rng_stream)) THEN
+      rng_stream%distribution_type = last_rng_stream%distribution_type
+    ELSE
+      rng_stream%distribution_type = UNIFORM
+    END IF
+
+    IF (PRESENT(antithetic)) THEN
+      rng_stream%antithetic = antithetic
+    ELSE IF (PRESENT(last_rng_stream)) THEN
+      rng_stream%antithetic = last_rng_stream%antithetic
+    ELSE
+      rng_stream%antithetic = .FALSE.
+    END IF
+
+    IF (PRESENT(extended_precision)) THEN
+      rng_stream%extended_precision = extended_precision
+    ELSE IF (PRESENT(last_rng_stream)) THEN
+      rng_stream%extended_precision = last_rng_stream%extended_precision
+    ELSE
+      rng_stream%extended_precision = .FALSE.
+    END IF
+
+    ! Initialize buffer for distribution type GAUSSIAN
+
+    rng_stream%buffer = 0.0_dp
+    rng_stream%buffer_filled = .FALSE.
+
 
   END SUBROUTINE create_rng_stream
 
@@ -639,10 +635,8 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      DEALLOCATE (rng_stream,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    END IF
+    DEALLOCATE (rng_stream,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE delete_rng_stream
 
@@ -672,19 +666,17 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      rng_record = " "
-      WRITE (UNIT=rng_record,FMT=rng_record_format)&
-        rng_stream%name,&
-        rng_stream%distribution_type,&
-        rng_stream%antithetic,&
-        rng_stream%extended_precision,&
-        rng_stream%buffer_filled,&
-        rng_stream%buffer,&
-        rng_stream%cg,&
-        rng_stream%bg,&
-        rng_stream%ig
-    END IF
+    rng_record = " "
+    WRITE (UNIT=rng_record,FMT=rng_record_format)&
+      rng_stream%name,&
+      rng_stream%distribution_type,&
+      rng_stream%antithetic,&
+      rng_stream%extended_precision,&
+      rng_stream%buffer_filled,&
+      rng_stream%buffer,&
+      rng_stream%cg,&
+      rng_stream%bg,&
+      rng_stream%ig
 
   END SUBROUTINE dump_rng_stream
 
@@ -735,21 +727,19 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      IF (PRESENT(name)) name = rng_stream%name
-      IF (PRESENT(distribution_type)) THEN
-        distribution_type = rng_stream%distribution_type
-      END IF
-      IF (PRESENT(bg)) bg = rng_stream%bg
-      IF (PRESENT(cg)) cg = rng_stream%cg
-      IF (PRESENT(ig)) ig = rng_stream%ig
-      IF (PRESENT(antithetic)) antithetic = rng_stream%antithetic
-      IF (PRESENT(extended_precision)) THEN
-        extended_precision = rng_stream%extended_precision
-      END IF
-      IF (PRESENT(buffer)) buffer = rng_stream%buffer
-      IF (PRESENT(buffer_filled)) buffer_filled = rng_stream%buffer_filled
+    IF (PRESENT(name)) name = rng_stream%name
+    IF (PRESENT(distribution_type)) THEN
+      distribution_type = rng_stream%distribution_type
     END IF
+    IF (PRESENT(bg)) bg = rng_stream%bg
+    IF (PRESENT(cg)) cg = rng_stream%cg
+    IF (PRESENT(ig)) ig = rng_stream%ig
+    IF (PRESENT(antithetic)) antithetic = rng_stream%antithetic
+    IF (PRESENT(extended_precision)) THEN
+      extended_precision = rng_stream%extended_precision
+    END IF
+    IF (PRESENT(buffer)) buffer = rng_stream%buffer
+    IF (PRESENT(buffer_filled)) buffer_filled = rng_stream%buffer_filled
 
   END SUBROUTINE get_rng_stream
 
@@ -1059,10 +1049,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
     CPPrecondition((rng_stream%distribution_type == UNIFORM),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      r = next_real_random_number(rng_stream,error=error)
-      u = low + INT(r*REAL(high - low + 1,dp))
-    END IF
+    r = next_real_random_number(rng_stream,error=error)
+    u = low + INT(r*REAL(high - low + 1,dp))
 
   END FUNCTION next_integer_random_number
 
@@ -1095,42 +1083,40 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      SELECT CASE (rng_stream%distribution_type)
-      CASE (GAUSSIAN)
-        var = 1.0_dp
-        IF (PRESENT(variance)) var = variance
-        ! take the random number from the buffer, if the buffer is filled
-        IF (rng_stream%buffer_filled) THEN
-          u = SQRT(var)*rng_stream%buffer
-          rng_stream%buffer_filled = .FALSE.
-        ELSE
-          DO
-            IF (rng_stream%extended_precision) THEN
-              u1 = 2.0_dp*rn53(rng_stream) - 1.0_dp
-              u2 = 2.0_dp*rn53(rng_stream) - 1.0_dp
-            ELSE
-              u1 = 2.0_dp*rn32(rng_stream) - 1.0_dp
-              u2 = 2.0_dp*rn32(rng_stream) - 1.0_dp
-            END IF
-            r = u1*u1 + u2*u2
-            IF ((r > 0.0_dp).AND.(r < 1.0_dp)) EXIT
-          END DO
-          ! Box-Muller transformation
-          f = SQRT(-2.0_dp*LOG(r)/r)
-          u = SQRT(var)*f*u1
-          ! save the second random number for the next call
-          rng_stream%buffer = f*u2
-          rng_stream%buffer_filled = .TRUE.
-        END IF
-      CASE (UNIFORM)
-        IF (rng_stream%extended_precision) THEN
-          u = rn53(rng_stream)
-        ELSE
-          u = rn32(rng_stream)
-        END IF
-      END SELECT
-    END IF
+    SELECT CASE (rng_stream%distribution_type)
+    CASE (GAUSSIAN)
+      var = 1.0_dp
+      IF (PRESENT(variance)) var = variance
+      ! take the random number from the buffer, if the buffer is filled
+      IF (rng_stream%buffer_filled) THEN
+        u = SQRT(var)*rng_stream%buffer
+        rng_stream%buffer_filled = .FALSE.
+      ELSE
+        DO
+          IF (rng_stream%extended_precision) THEN
+            u1 = 2.0_dp*rn53(rng_stream) - 1.0_dp
+            u2 = 2.0_dp*rn53(rng_stream) - 1.0_dp
+          ELSE
+            u1 = 2.0_dp*rn32(rng_stream) - 1.0_dp
+            u2 = 2.0_dp*rn32(rng_stream) - 1.0_dp
+          END IF
+          r = u1*u1 + u2*u2
+          IF ((r > 0.0_dp).AND.(r < 1.0_dp)) EXIT
+        END DO
+        ! Box-Muller transformation
+        f = SQRT(-2.0_dp*LOG(r)/r)
+        u = SQRT(var)*f*u1
+        ! save the second random number for the next call
+        rng_stream%buffer = f*u2
+        rng_stream%buffer_filled = .TRUE.
+      END IF
+    CASE (UNIFORM)
+      IF (rng_stream%extended_precision) THEN
+        u = rn53(rng_stream)
+      ELSE
+        u = rn32(rng_stream)
+      END IF
+    END SELECT
 
   END FUNCTION next_real_random_number
 
@@ -1189,11 +1175,9 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      DO i=1,SIZE(array)
-        array(i) = next_random_number(rng_stream,error=error)
-      END DO
-    END IF
+    DO i=1,SIZE(array)
+      array(i) = next_random_number(rng_stream,error=error)
+    END DO
 
   END SUBROUTINE random_numbers_1
 
@@ -1223,13 +1207,11 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      DO j=1,SIZE(array,2)
-        DO i=1,SIZE(array,1)
-          array(i,j) = next_random_number(rng_stream,error=error)
-        END DO
+    DO j=1,SIZE(array,2)
+      DO i=1,SIZE(array,1)
+        array(i,j) = next_random_number(rng_stream,error=error)
       END DO
-    END IF
+    END DO
 
   END SUBROUTINE random_numbers_2
 
@@ -1259,15 +1241,13 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      DO k=1,SIZE(array,3)
-        DO j=1,SIZE(array,2)
-          DO i=1,SIZE(array,1)
-            array(i,j,k) = next_random_number(rng_stream,error=error)
-          END DO
+    DO k=1,SIZE(array,3)
+      DO j=1,SIZE(array,2)
+        DO i=1,SIZE(array,1)
+          array(i,j,k) = next_random_number(rng_stream,error=error)
         END DO
       END DO
-    END IF
+    END DO
 
   END SUBROUTINE random_numbers_3
 
@@ -1301,18 +1281,16 @@ CONTAINS
     ALLOCATE (rng_stream,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      READ (UNIT=rng_record,FMT=rng_record_format)&
-        rng_stream%name,&
-        rng_stream%distribution_type,&
-        rng_stream%antithetic,&
-        rng_stream%extended_precision,&
-        rng_stream%buffer_filled,&
-        rng_stream%buffer,&
-        rng_stream%cg,&
-        rng_stream%bg,&
-        rng_stream%ig
-    END IF
+    READ (UNIT=rng_record,FMT=rng_record_format)&
+      rng_stream%name,&
+      rng_stream%distribution_type,&
+      rng_stream%antithetic,&
+      rng_stream%extended_precision,&
+      rng_stream%buffer_filled,&
+      rng_stream%buffer,&
+      rng_stream%cg,&
+      rng_stream%bg,&
+      rng_stream%ig
 
   END SUBROUTINE read_rng_stream
 
@@ -1339,10 +1317,8 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      rng_stream%cg = rng_stream%ig
-      rng_stream%bg = rng_stream%ig
-    END IF
+    rng_stream%cg = rng_stream%ig
+    rng_stream%bg = rng_stream%ig
 
   END SUBROUTINE reset_rng_stream
 
@@ -1386,17 +1362,15 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
 
-      u = 0.0_dp
+    u = 0.0_dp
 
-      CALL mat_vec_mod_m(a1p76,rng_stream%bg(:,1),u(:,1),m1)
-      CALL mat_vec_mod_m(a2p76,rng_stream%bg(:,2),u(:,2),m2)
+    CALL mat_vec_mod_m(a1p76,rng_stream%bg(:,1),u(:,1),m1)
+    CALL mat_vec_mod_m(a2p76,rng_stream%bg(:,2),u(:,2),m2)
 
-      rng_stream%bg = u
-      rng_stream%cg = u
+    rng_stream%bg = u
+    rng_stream%cg = u
 
-    END IF
 
   END SUBROUTINE reset_to_next_rng_substream
 
@@ -1523,29 +1497,27 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      IF (PRESENT(name)) rng_stream%name = name
-      IF (PRESENT(distribution_type)) THEN
-        rng_stream%distribution_type = distribution_type
-      END IF
-      IF (PRESENT(bg)) rng_stream%bg = bg
-      IF (PRESENT(cg)) rng_stream%cg = cg
-      IF (PRESENT(ig)) rng_stream%ig = ig
-      IF (PRESENT(seed)) THEN
-        ! Sets the initial seed of the stream to seed
-        ! NOTE: The use of this method is discouraged
-        CALL check_seed(seed,error)
-        rng_stream%ig = seed
-        rng_stream%cg = seed
-        rng_stream%bg = seed
-      END IF
-      IF (PRESENT(antithetic)) rng_stream%antithetic = antithetic
-      IF (PRESENT(extended_precision)) THEN
-        rng_stream%extended_precision = extended_precision
-      END IF
-      IF (PRESENT(buffer)) rng_stream%buffer = buffer
-      IF (PRESENT(buffer_filled)) rng_stream%buffer_filled = buffer_filled
+    IF (PRESENT(name)) rng_stream%name = name
+    IF (PRESENT(distribution_type)) THEN
+      rng_stream%distribution_type = distribution_type
     END IF
+    IF (PRESENT(bg)) rng_stream%bg = bg
+    IF (PRESENT(cg)) rng_stream%cg = cg
+    IF (PRESENT(ig)) rng_stream%ig = ig
+    IF (PRESENT(seed)) THEN
+      ! Sets the initial seed of the stream to seed
+      ! NOTE: The use of this method is discouraged
+      CALL check_seed(seed,error)
+      rng_stream%ig = seed
+      rng_stream%cg = seed
+      rng_stream%bg = seed
+    END IF
+    IF (PRESENT(antithetic)) rng_stream%antithetic = antithetic
+    IF (PRESENT(extended_precision)) THEN
+      rng_stream%extended_precision = extended_precision
+    END IF
+    IF (PRESENT(buffer)) rng_stream%buffer = buffer
+    IF (PRESENT(buffer_filled)) rng_stream%buffer_filled = buffer_filled
 
   END SUBROUTINE set_rng_stream
 
@@ -1626,54 +1598,52 @@ CONTAINS
       my_write_all = .FALSE.
     END IF
 
-    IF (.NOT.failure) THEN
 
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,/)")&
-        "Random number stream <"//TRIM(rng_stream%name)//">:"
+    WRITE (UNIT=output_unit,FMT="(/,T2,A,/)")&
+      "Random number stream <"//TRIM(rng_stream%name)//">:"
 
-      SELECT CASE (rng_stream%distribution_type)
-      CASE (GAUSSIAN)
-        WRITE (UNIT=output_unit,FMT="(T4,A)")&
-          "Distribution type: "//&
-          "Normal Gaussian distribution with zero mean"
-      CASE (UNIFORM)
-        WRITE (UNIT=output_unit,FMT="(T4,A)")&
-          "Distribution type: "//&
-          "Uniform distribution [0,1] with 1/2 mean"
-      END SELECT
+    SELECT CASE (rng_stream%distribution_type)
+    CASE (GAUSSIAN)
+      WRITE (UNIT=output_unit,FMT="(T4,A)")&
+        "Distribution type: "//&
+        "Normal Gaussian distribution with zero mean"
+    CASE (UNIFORM)
+      WRITE (UNIT=output_unit,FMT="(T4,A)")&
+        "Distribution type: "//&
+        "Uniform distribution [0,1] with 1/2 mean"
+    END SELECT
 
-      IF (rng_stream%antithetic) THEN
-        WRITE (UNIT=output_unit,FMT="(T4,A)") "Antithetic:        yes"
-      ELSE
-        WRITE (UNIT=output_unit,FMT="(T4,A)") "Antithetic:        no"
-      END IF
+    IF (rng_stream%antithetic) THEN
+      WRITE (UNIT=output_unit,FMT="(T4,A)") "Antithetic:        yes"
+    ELSE
+      WRITE (UNIT=output_unit,FMT="(T4,A)") "Antithetic:        no"
+    END IF
 
-      IF (rng_stream%extended_precision) THEN
-        WRITE (UNIT=output_unit,FMT="(T4,A)") "Precision:         53 Bit"
-      ELSE
-        WRITE (UNIT=output_unit,FMT="(T4,A)") "Precision:         32 Bit"
-      END IF
+    IF (rng_stream%extended_precision) THEN
+      WRITE (UNIT=output_unit,FMT="(T4,A)") "Precision:         53 Bit"
+    ELSE
+      WRITE (UNIT=output_unit,FMT="(T4,A)") "Precision:         32 Bit"
+    END IF
 
-      IF (my_write_all) THEN
-
-        WRITE (UNIT=output_unit,FMT="(/,T4,A,/,/,(T4,A,3F20.1))")&
-          "Initial state of the stream:",&
-          "Component 1:",rng_stream%ig(:,1),&
-          "Component 2:",rng_stream%ig(:,2)
-
-        WRITE (UNIT=output_unit,FMT="(/,T4,A,/,/,(T4,A,3F20.1))")&
-          "Initial state of the current substream:",&
-          "Component 1:",rng_stream%bg(:,1),&
-          "Component 2:",rng_stream%bg(:,2)
-
-      END IF
+    IF (my_write_all) THEN
 
       WRITE (UNIT=output_unit,FMT="(/,T4,A,/,/,(T4,A,3F20.1))")&
-        "Current state of the stream:",&
-        "Component 1:",rng_stream%cg(:,1),&
-        "Component 2:",rng_stream%cg(:,2)
+        "Initial state of the stream:",&
+        "Component 1:",rng_stream%ig(:,1),&
+        "Component 2:",rng_stream%ig(:,2)
+
+      WRITE (UNIT=output_unit,FMT="(/,T4,A,/,/,(T4,A,3F20.1))")&
+        "Initial state of the current substream:",&
+        "Component 1:",rng_stream%bg(:,1),&
+        "Component 2:",rng_stream%bg(:,2)
 
     END IF
+
+    WRITE (UNIT=output_unit,FMT="(/,T4,A,/,/,(T4,A,3F20.1))")&
+      "Current state of the stream:",&
+      "Component 1:",rng_stream%cg(:,1),&
+      "Component 2:",rng_stream%cg(:,2)
+
 
   END SUBROUTINE write_rng_stream
 

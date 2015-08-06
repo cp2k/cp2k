@@ -75,17 +75,15 @@ CONTAINS
     LOGICAL                                  :: failure
 
      failure=.FALSE.
-     IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(damping),cp_failure_level,routineP,error,failure)
-       ALLOCATE ( damping, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE ( damping%damp( nkinds ), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i = 1, nkinds
-          CALL init_damping ( damping%damp(i) )
-       END DO
+     CPPostcondition(.NOT.ASSOCIATED(damping),cp_failure_level,routineP,error,failure)
+     ALLOCATE ( damping, stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE ( damping%damp( nkinds ), stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DO i = 1, nkinds
+        CALL init_damping ( damping%damp(i) )
+     END DO
 
-     END IF
 
   END SUBROUTINE damping_p_create
 ! *****************************************************************************

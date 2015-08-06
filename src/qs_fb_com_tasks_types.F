@@ -175,10 +175,8 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(com_tasks%obj%ref_count>0, cp_failure_level, routineP, error)
-       com_tasks%obj%ref_count = com_tasks%obj%ref_count + 1
-    END IF
+    CPPreconditionNoFail(com_tasks%obj%ref_count>0, cp_failure_level, routineP, error)
+    com_tasks%obj%ref_count = com_tasks%obj%ref_count + 1
   END SUBROUTINE fb_com_tasks_retain
 
 
@@ -200,10 +198,8 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(atom_pairs%obj%ref_count>0, cp_failure_level, routineP, error)
-       atom_pairs%obj%ref_count = atom_pairs%obj%ref_count + 1
-    END IF
+    CPPreconditionNoFail(atom_pairs%obj%ref_count>0, cp_failure_level, routineP, error)
+    atom_pairs%obj%ref_count = atom_pairs%obj%ref_count + 1
   END SUBROUTINE fb_com_atom_pairs_retain
 
 
@@ -410,17 +406,15 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE(com_tasks%obj, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       com_tasks%obj%task_dim = TASK_N_RECORDS
-       com_tasks%obj%ntasks = 0
-       com_tasks%obj%nencode = 0
-       NULLIFY(com_tasks%obj%tasks)
-       com_tasks%obj%ref_count = 1
-       com_tasks%obj%id_nr = last_fb_com_tasks_id + 1
-       last_fb_com_tasks_id = com_tasks%obj%id_nr
-    END IF
+    ALLOCATE(com_tasks%obj, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    com_tasks%obj%task_dim = TASK_N_RECORDS
+    com_tasks%obj%ntasks = 0
+    com_tasks%obj%nencode = 0
+    NULLIFY(com_tasks%obj%tasks)
+    com_tasks%obj%ref_count = 1
+    com_tasks%obj%id_nr = last_fb_com_tasks_id + 1
+    last_fb_com_tasks_id = com_tasks%obj%id_nr
   END SUBROUTINE fb_com_tasks_create
 
 
@@ -444,16 +438,14 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE(atom_pairs%obj, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       atom_pairs%obj%npairs = 0
-       atom_pairs%obj%natoms_encode = 0
-       NULLIFY(atom_pairs%obj%pairs)
-       atom_pairs%obj%ref_count = 1
-       atom_pairs%obj%id_nr = last_fb_com_atom_pairs_id + 1
-       last_fb_com_atom_pairs_id = atom_pairs%obj%id_nr
-    END IF
+    ALLOCATE(atom_pairs%obj, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    atom_pairs%obj%npairs = 0
+    atom_pairs%obj%natoms_encode = 0
+    NULLIFY(atom_pairs%obj%pairs)
+    atom_pairs%obj%ref_count = 1
+    atom_pairs%obj%id_nr = last_fb_com_atom_pairs_id + 1
+    last_fb_com_atom_pairs_id = atom_pairs%obj%id_nr
   END SUBROUTINE fb_com_atom_pairs_create
 
 
@@ -476,16 +468,14 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
-          DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          NULLIFY(com_tasks%obj%tasks)
-       END IF
-       com_tasks%obj%task_dim = TASK_N_RECORDS
-       com_tasks%obj%ntasks = 0
-       com_tasks%obj%nencode = 0
+    IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
+       DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       NULLIFY(com_tasks%obj%tasks)
     END IF
+    com_tasks%obj%task_dim = TASK_N_RECORDS
+    com_tasks%obj%ntasks = 0
+    com_tasks%obj%nencode = 0
   END SUBROUTINE fb_com_tasks_init
 
 
@@ -509,15 +499,13 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
-          DEALLOCATE(atom_pairs%obj%pairs, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          NULLIFY(atom_pairs%obj%pairs)
-       END IF
-       atom_pairs%obj%npairs = 0
-       atom_pairs%obj%natoms_encode = 0
+    IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
+       DEALLOCATE(atom_pairs%obj%pairs, STAT=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       NULLIFY(atom_pairs%obj%pairs)
     END IF
+    atom_pairs%obj%npairs = 0
+    atom_pairs%obj%natoms_encode = 0
   END SUBROUTINE fb_com_atom_pairs_init
 
 
@@ -553,12 +541,10 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(task_dim)) task_dim = com_tasks%obj%task_dim
-       IF (PRESENT(ntasks)) ntasks = com_tasks%obj%ntasks
-       IF (PRESENT(nencode)) nencode = com_tasks%obj%nencode
-       IF (PRESENT(tasks)) tasks => com_tasks%obj%tasks
-    END IF
+    IF (PRESENT(task_dim)) task_dim = com_tasks%obj%task_dim
+    IF (PRESENT(ntasks)) ntasks = com_tasks%obj%ntasks
+    IF (PRESENT(nencode)) nencode = com_tasks%obj%nencode
+    IF (PRESENT(tasks)) tasks => com_tasks%obj%tasks
   END SUBROUTINE fb_com_tasks_get
 
 
@@ -592,11 +578,9 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(npairs)) npairs = atom_pairs%obj%npairs
-       IF (PRESENT(natoms_encode)) natoms_encode = atom_pairs%obj%natoms_encode
-       IF (PRESENT(pairs)) pairs => atom_pairs%obj%pairs
-    END IF
+    IF (PRESENT(npairs)) npairs = atom_pairs%obj%npairs
+    IF (PRESENT(natoms_encode)) natoms_encode = atom_pairs%obj%natoms_encode
+    IF (PRESENT(pairs)) pairs => atom_pairs%obj%pairs
   END SUBROUTINE fb_com_atom_pairs_get
 
 
@@ -633,17 +617,15 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(task_dim)) com_tasks%obj%task_dim = task_dim
-       IF (PRESENT(ntasks)) com_tasks%obj%ntasks = ntasks
-       IF (PRESENT(nencode)) com_tasks%obj%nencode = nencode
-       IF (PRESENT(tasks)) THEN
-          IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
-             DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          END IF
-          com_tasks%obj%tasks => tasks
+    IF (PRESENT(task_dim)) com_tasks%obj%task_dim = task_dim
+    IF (PRESENT(ntasks)) com_tasks%obj%ntasks = ntasks
+    IF (PRESENT(nencode)) com_tasks%obj%nencode = nencode
+    IF (PRESENT(tasks)) THEN
+       IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
+          DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
+       com_tasks%obj%tasks => tasks
     END IF
   END SUBROUTINE fb_com_tasks_set
 
@@ -680,16 +662,14 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(npairs)) atom_pairs%obj%npairs = npairs
-       IF (PRESENT(natoms_encode)) atom_pairs%obj%natoms_encode = natoms_encode
-       IF (PRESENT(pairs)) THEN
-          IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
-             DEALLOCATE(atom_pairs%obj%pairs, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          END IF
-          atom_pairs%obj%pairs => pairs
+    IF (PRESENT(npairs)) atom_pairs%obj%npairs = npairs
+    IF (PRESENT(natoms_encode)) atom_pairs%obj%natoms_encode = natoms_encode
+    IF (PRESENT(pairs)) THEN
+       IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
+          DEALLOCATE(atom_pairs%obj%pairs, STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
+       atom_pairs%obj%pairs => pairs
     END IF
   END SUBROUTINE fb_com_atom_pairs_set
 

@@ -168,10 +168,8 @@ CONTAINS
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(shell),cp_failure_level,routineP,error,failure)
-    IF(.NOT. failure) THEN
-      CPPrecondition(shell%ref_count>0,cp_failure_level,routineP,error,failure)
-      shell%ref_count=shell%ref_count+1
-    END IF
+    CPPrecondition(shell%ref_count>0,cp_failure_level,routineP,error,failure)
+    shell%ref_count=shell%ref_count+1
 
   END SUBROUTINE shell_retain
 

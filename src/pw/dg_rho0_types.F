@@ -172,10 +172,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(dg_rho0),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(dg_rho0%ref_count>0,cp_failure_level,routineP,error)
-       dg_rho0%ref_count=dg_rho0%ref_count+1
-    END IF
+    CPPreconditionNoFail(dg_rho0%ref_count>0,cp_failure_level,routineP,error)
+    dg_rho0%ref_count=dg_rho0%ref_count+1
   END SUBROUTINE dg_rho0_retain
 
 ! *****************************************************************************

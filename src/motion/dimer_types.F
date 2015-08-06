@@ -119,79 +119,77 @@ CONTAINS
     CPPostcondition(.NOT.ASSOCIATED(dimer_env),cp_failure_level,routineP,error,failure)
     ALLOCATE(dimer_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       logger => cp_error_get_logger(error)
-       dimer_env%ref_count=1
-       last_dimer_id=last_dimer_id+1
-       dimer_env%id_nr=last_dimer_id
-       ! Setup NVEC
-       NULLIFY(dimer_env%nvec, dimer_env%rot%g0, dimer_env%rot%g1, dimer_env%rot%g1p,&
-            dimer_env%tsl%tls_vec)
-       ! Allocate the working arrays
-       ALLOCATE(dimer_env%nvec(natom*3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(dimer_env%rot%g0(natom*3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(dimer_env%rot%g1(natom*3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(dimer_env%rot%g1p(natom*3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! Check if the dimer vector is available in the input or not..
-       nvec_section => section_vals_get_subs_vals(dimer_section,"DIMER_VECTOR",error=error)
-       CALL section_vals_get(nvec_section, explicit=explicit, error=error)
-       IF (explicit) THEN
-          CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
-               message="Reading Dimer Vector from file!",local=.FALSE.)
-          NULLIFY(array)
-          CALL section_vals_val_get(nvec_section,"_DEFAULT_KEYWORD_",n_rep_val=n_rep_val,error=error)
-          isize = 0
-          DO i = 1, n_rep_val
-             CALL section_vals_val_get(nvec_section,"_DEFAULT_KEYWORD_",r_vals=array,i_rep_val=i,error=error)
-             DO j = 1, SIZE(array)
-                isize = isize + 1
-                dimer_env%nvec(isize) = array(j)
-             END DO
+    logger => cp_error_get_logger(error)
+    dimer_env%ref_count=1
+    last_dimer_id=last_dimer_id+1
+    dimer_env%id_nr=last_dimer_id
+    ! Setup NVEC
+    NULLIFY(dimer_env%nvec, dimer_env%rot%g0, dimer_env%rot%g1, dimer_env%rot%g1p,&
+         dimer_env%tsl%tls_vec)
+    ! Allocate the working arrays
+    ALLOCATE(dimer_env%nvec(natom*3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(dimer_env%rot%g0(natom*3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(dimer_env%rot%g1(natom*3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(dimer_env%rot%g1p(natom*3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! Check if the dimer vector is available in the input or not..
+    nvec_section => section_vals_get_subs_vals(dimer_section,"DIMER_VECTOR",error=error)
+    CALL section_vals_get(nvec_section, explicit=explicit, error=error)
+    IF (explicit) THEN
+       CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
+            message="Reading Dimer Vector from file!",local=.FALSE.)
+       NULLIFY(array)
+       CALL section_vals_val_get(nvec_section,"_DEFAULT_KEYWORD_",n_rep_val=n_rep_val,error=error)
+       isize = 0
+       DO i = 1, n_rep_val
+          CALL section_vals_val_get(nvec_section,"_DEFAULT_KEYWORD_",r_vals=array,i_rep_val=i,error=error)
+          DO j = 1, SIZE(array)
+             isize = isize + 1
+             dimer_env%nvec(isize) = array(j)
           END DO
-          CPPostcondition(isize==SIZE(dimer_env%nvec),cp_failure_level,routineP,error,failure)
-       ELSE
-          CALL random_numbers(dimer_env%nvec, globenv%gaussian_rng_stream, error)
-       END IF
-       ! Check for translation in the dimer vector and remove them
-       IF (natom>1) THEN
-          xval = 0.0_dp
-          DO j = 1, natom
-             DO k = 1, 3
-                i = (j-1)*3+k
-                xval(k) = xval(k)+dimer_env%nvec(i)
-             END DO
-          END DO
-          ! Subtract net translations
-          xval = xval / REAL(natom*3,KIND=dp)
-          DO j = 1, natom
-             DO k = 1, 3
-                i = (j-1)*3+k
-                dimer_env%nvec(i)=dimer_env%nvec(i)-xval(k)
-             END DO
-          END DO
-       END IF
-       norm = SQRT(SUM(dimer_env%nvec**2))
-       CALL cp_assert(norm>EPSILON(0.0_dp),cp_failure_level,cp_assertion_failed,routineP,&
-            "The norm of the dimer vector is 0! Calculation cannot proceed further. "//&
-CPSourceFileRef,&
-            only_ionode=.TRUE.)
-       dimer_env%nvec = dimer_env%nvec / norm
-       dimer_env%rot%rotation_step= do_first_rotation_step
-       CALL section_vals_val_get(dimer_section,"DR",r_val=dimer_env%dr,error=error)
-       CALL section_vals_val_get(dimer_section,"INTERPOLATE_GRADIENT",&
-            l_val=dimer_env%rot%interpolate_gradient,error=error)
-       CALL section_vals_val_get(dimer_section,"ANGLE_TOLERANCE",&
-            r_val=dimer_env%rot%angle_tol,error=error)
-       dimer_env%cg_rot%norm_h         = 1.0_dp
-       dimer_env%cg_rot%norm_theta     = 0.0_dp
-       dimer_env%cg_rot%norm_theta_old = 0.0_dp
-       ALLOCATE(dimer_env%cg_rot%nvec_old(natom*3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END DO
+       CPPostcondition(isize==SIZE(dimer_env%nvec),cp_failure_level,routineP,error,failure)
+    ELSE
+       CALL random_numbers(dimer_env%nvec, globenv%gaussian_rng_stream, error)
     END IF
+    ! Check for translation in the dimer vector and remove them
+    IF (natom>1) THEN
+       xval = 0.0_dp
+       DO j = 1, natom
+          DO k = 1, 3
+             i = (j-1)*3+k
+             xval(k) = xval(k)+dimer_env%nvec(i)
+          END DO
+       END DO
+       ! Subtract net translations
+       xval = xval / REAL(natom*3,KIND=dp)
+       DO j = 1, natom
+          DO k = 1, 3
+             i = (j-1)*3+k
+             dimer_env%nvec(i)=dimer_env%nvec(i)-xval(k)
+          END DO
+       END DO
+    END IF
+    norm = SQRT(SUM(dimer_env%nvec**2))
+    CALL cp_assert(norm>EPSILON(0.0_dp),cp_failure_level,cp_assertion_failed,routineP,&
+         "The norm of the dimer vector is 0! Calculation cannot proceed further. "//&
+CPSourceFileRef,&
+         only_ionode=.TRUE.)
+    dimer_env%nvec = dimer_env%nvec / norm
+    dimer_env%rot%rotation_step= do_first_rotation_step
+    CALL section_vals_val_get(dimer_section,"DR",r_val=dimer_env%dr,error=error)
+    CALL section_vals_val_get(dimer_section,"INTERPOLATE_GRADIENT",&
+         l_val=dimer_env%rot%interpolate_gradient,error=error)
+    CALL section_vals_val_get(dimer_section,"ANGLE_TOLERANCE",&
+         r_val=dimer_env%rot%angle_tol,error=error)
+    dimer_env%cg_rot%norm_h         = 1.0_dp
+    dimer_env%cg_rot%norm_theta     = 0.0_dp
+    dimer_env%cg_rot%norm_theta_old = 0.0_dp
+    ALLOCATE(dimer_env%cg_rot%nvec_old(natom*3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE dimer_env_create
 
 ! *****************************************************************************
@@ -214,10 +212,8 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(dimer_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPreconditionNoFail(dimer_env%ref_count>0,cp_failure_level,routineP,error)
-       dimer_env%ref_count=dimer_env%ref_count+1
-    END IF
+    CPPreconditionNoFail(dimer_env%ref_count>0,cp_failure_level,routineP,error)
+    dimer_env%ref_count=dimer_env%ref_count+1
   END SUBROUTINE dimer_env_retain
 
 ! *****************************************************************************

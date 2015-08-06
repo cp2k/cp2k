@@ -489,10 +489,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(fist_nonbond_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(fist_nonbond_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       fist_nonbond_env%ref_count=fist_nonbond_env%ref_count+1
-    END IF
+    CPPrecondition(fist_nonbond_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    fist_nonbond_env%ref_count=fist_nonbond_env%ref_count+1
   END SUBROUTINE fist_nonbond_env_retain
 
 ! *****************************************************************************

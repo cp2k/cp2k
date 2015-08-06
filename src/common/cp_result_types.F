@@ -216,10 +216,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(results),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(results%ref_count>0,cp_failure_level,routineP,error,failure)
-       results%ref_count=results%ref_count+1
-    END IF
+    CPPrecondition(results%ref_count>0,cp_failure_level,routineP,error,failure)
+    results%ref_count=results%ref_count+1
   END SUBROUTINE cp_result_retain
 
 ! *****************************************************************************

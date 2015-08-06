@@ -151,80 +151,78 @@ CONTAINS
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-       ! calculate the perdew_zunger correlation
-       CALL pz_lda_eval( pz_orig, rho_set, deriv_set, order, p86_params, error)
+    ! calculate the perdew_zunger correlation
+    CALL pz_lda_eval( pz_orig, rho_set, deriv_set, order, p86_params, error)
 
-       CALL xc_rho_set_get(rho_set,rho=rho,&
-            norm_drho=grho,local_bounds=bo,rho_cutoff=rho_cutoff,&
-            drho_cutoff=drho_cutoff,error=error)
-       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-       CALL p86_init(rho_cutoff)
-       m = ABS(order)
+    CALL xc_rho_set_get(rho_set,rho=rho,&
+         norm_drho=grho,local_bounds=bo,rho_cutoff=rho_cutoff,&
+         drho_cutoff=drho_cutoff,error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL p86_init(rho_cutoff)
+    m = ABS(order)
 
-       ALLOCATE ( rs(npoints), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( rs(npoints), STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       CALL calc_rs_pw ( rho, rs, npoints )
-       IF ( order>=0 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"",&
-               allocate_deriv=.TRUE., error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+    CALL calc_rs_pw ( rho, rs, npoints )
+    IF ( order>=0 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
 
-          CALL p86_u_0 ( rho, rs, grho, e_0, npoints, error )
-       END IF
-       IF ( order>=1 .OR. order==-1 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
-
-          CALL p86_u_1 ( rho, grho, rs, e_rho,&
-               e_ndrho, npoints, error )
-       END IF
-       IF ( order>=2 .OR. order==-2 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)(norm_drho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,&
-               "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
-
-          CALL p86_u_2 ( rho, grho, rs, e_rho_rho,&
-               e_rho_ndrho, e_ndrho_ndrho, npoints, error )
-       END IF
-       IF ( order>=3 .OR. order ==-3 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,&
-               "(rho)(rho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,&
-               "(rho)(norm_drho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,&
-               "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
-               error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
-
-          CALL p86_u_3 ( rho, grho, rs, e_rho_rho_rho,&
-               e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho,&
-               npoints, error )
-       END IF
-       IF ( order>3.OR.order<-3) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="derivatives bigger than 3 not implemented", &
-               error=error, error_level=cp_failure_level)
-       END IF
-       DEALLOCATE ( rs, STAT=stat )
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CALL p86_u_0 ( rho, rs, grho, e_0, npoints, error )
     END IF
+    IF ( order>=1 .OR. order==-1 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+
+       CALL p86_u_1 ( rho, grho, rs, e_rho,&
+            e_ndrho, npoints, error )
+    END IF
+    IF ( order>=2 .OR. order==-2 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)(norm_drho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+            "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
+
+       CALL p86_u_2 ( rho, grho, rs, e_rho_rho,&
+            e_rho_ndrho, e_ndrho_ndrho, npoints, error )
+    END IF
+    IF ( order>=3 .OR. order ==-3 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+            "(rho)(rho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+            "(rho)(norm_drho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+            "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
+            error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
+
+       CALL p86_u_3 ( rho, grho, rs, e_rho_rho_rho,&
+            e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho,&
+            npoints, error )
+    END IF
+    IF ( order>3.OR.order<-3) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="derivatives bigger than 3 not implemented", &
+            error=error, error_level=cp_failure_level)
+    END IF
+    DEALLOCATE ( rs, STAT=stat )
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     CALL timestop(handle)
 
   END SUBROUTINE p86_lda_eval

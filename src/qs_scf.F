@@ -178,54 +178,52 @@ CONTAINS
     failure=.FALSE.
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-      CALL get_qs_env(qs_env,scf_env=scf_env,error=error,input=input, &
-                       dft_control=dft_control,scf_control=scf_control)
-      IF(scf_control%max_scf > 0) THEN
+    CALL get_qs_env(qs_env,scf_env=scf_env,error=error,input=input, &
+                     dft_control=dft_control,scf_control=scf_control)
+    IF(scf_control%max_scf > 0) THEN
 
-        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-        scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
+      dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+      scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
 
-        IF(.NOT. ASSOCIATED(scf_env)) THEN
-          CALL qs_scf_env_initialize(qs_env,scf_env,error=error)
+      IF(.NOT. ASSOCIATED(scf_env)) THEN
+        CALL qs_scf_env_initialize(qs_env,scf_env,error=error)
 !       Moved here from qs_scf_env_initialize to be able to have more scf_env
-          CALL set_qs_env(qs_env,scf_env=scf_env,error=error)
-          CALL scf_env_release(scf_env,error=error)
-          CALL get_qs_env(qs_env=qs_env,scf_env=scf_env,error=error)
-        ELSE
-          CALL qs_scf_env_initialize(qs_env,scf_env,error=error)
-        ENDIF
+        CALL set_qs_env(qs_env,scf_env=scf_env,error=error)
+        CALL scf_env_release(scf_env,error=error)
+        CALL get_qs_env(qs_env=qs_env,scf_env=scf_env,error=error)
+      ELSE
+        CALL qs_scf_env_initialize(qs_env,scf_env,error=error)
+      ENDIF
 
-        IF ((scf_control%density_guess .EQ. history_guess) .AND. (first_step_flag)) THEN
-          max_scf_tmp = scf_control%max_scf
-          scf_control%max_scf = 1
-          outer_scf_loop = scf_control%outer_scf%have_scf
-          scf_control%outer_scf%have_scf = .FALSE.
-        END IF
-
-        CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env,  &
-                          converged=converged, should_stop=should_stop, error=error)
-
-        !   *** add the converged wavefunction to the wavefunction history
-        IF ((ASSOCIATED(qs_env%wf_history)) .AND. &
-            ((scf_control%density_guess .NE. history_guess) .OR. &
-             (.NOT. first_step_flag))) THEN
-            CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp, error=error)
-        ELSE IF ((scf_control%density_guess .EQ. history_guess) .AND. &
-                 (first_step_flag)) THEN
-          scf_control%max_scf = max_scf_tmp
-          scf_control%outer_scf%have_scf = outer_scf_loop
-          first_step_flag = .FALSE.
-        END IF
-
-        ! *** compute properties that depend on the converged wavefunction
-        IF (.NOT.(should_stop)) CALL qs_scf_compute_properties(qs_env,dft_section,error)
-
-        ! *** cleanup
-        CALL scf_env_cleanup(scf_env,error=error)
-
+      IF ((scf_control%density_guess .EQ. history_guess) .AND. (first_step_flag)) THEN
+        max_scf_tmp = scf_control%max_scf
+        scf_control%max_scf = 1
+        outer_scf_loop = scf_control%outer_scf%have_scf
+        scf_control%outer_scf%have_scf = .FALSE.
       END IF
-     END IF
+
+      CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env,  &
+                        converged=converged, should_stop=should_stop, error=error)
+
+      !   *** add the converged wavefunction to the wavefunction history
+      IF ((ASSOCIATED(qs_env%wf_history)) .AND. &
+          ((scf_control%density_guess .NE. history_guess) .OR. &
+           (.NOT. first_step_flag))) THEN
+          CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp, error=error)
+      ELSE IF ((scf_control%density_guess .EQ. history_guess) .AND. &
+               (first_step_flag)) THEN
+        scf_control%max_scf = max_scf_tmp
+        scf_control%outer_scf%have_scf = outer_scf_loop
+        first_step_flag = .FALSE.
+      END IF
+
+      ! *** compute properties that depend on the converged wavefunction
+      IF (.NOT.(should_stop)) CALL qs_scf_compute_properties(qs_env,dft_section,error)
+
+      ! *** cleanup
+      CALL scf_env_cleanup(scf_env,error=error)
+
+    END IF
 
   END SUBROUTINE scf
 
@@ -787,7 +785,6 @@ CPSourceFileRef)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
 
 !   *** Release SCF work storage ***
 
@@ -822,18 +819,18 @@ CPSourceFileRef)
 ! *** method dependent cleanup
        SELECT CASE(scf_env%method)
        CASE(ot_method_nr)
-          !
+   !
        CASE(ot_diag_method_nr)
-          !
+   !
        CASE(general_diag_method_nr)
-          !
+   !
        CASE(special_diag_method_nr)
-          !
+   !
        CASE(block_krylov_diag_method_nr)
        CASE(block_davidson_diag_method_nr)
            CALL block_davidson_deallocate(scf_env%block_davidson_env,error=error)
        CASE(filter_matrix_diag_method_nr)
-          !
+   !
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&
@@ -857,7 +854,6 @@ CPSourceFileRef)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        ENDIF
 
-    END IF
     CALL timestop(handle)
 
   END SUBROUTINE scf_env_cleanup

@@ -98,9 +98,7 @@ CONTAINS
 
     ALLOCATE(kg_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL init_kg_env(kg_env, input, error=error)
-    END IF
+    CALL init_kg_env(kg_env, input, error=error)
   END SUBROUTINE kg_env_create
 
 ! *****************************************************************************

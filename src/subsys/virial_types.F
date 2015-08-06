@@ -270,10 +270,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(virial),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(virial%ref_count>0,cp_failure_level,routineP,error)
-       virial%ref_count=virial%ref_count+1
-    END IF
+    CPPreconditionNoFail(virial%ref_count>0,cp_failure_level,routineP,error)
+    virial%ref_count=virial%ref_count+1
   END SUBROUTINE virial_retain
 
 ! *****************************************************************************

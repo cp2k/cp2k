@@ -143,10 +143,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
-       rho_struct%ref_count=rho_struct%ref_count+1
-    END IF
+    CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+    rho_struct%ref_count=rho_struct%ref_count+1
   END SUBROUTINE qs_rho_retain
 
 ! *****************************************************************************

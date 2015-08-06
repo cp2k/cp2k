@@ -217,251 +217,247 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(.NOT.(ASSOCIATED(green)),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       ALLOCATE(green, stat=stat)
-       CPPostcondition(stat == 0,cp_fatal_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-       green%p3m=.FALSE.
-       green%special_dimension = 0
-       green%radius = 0.0_dp
-       green%slab_size = 0.0_dp
-       green%alpha = 0.0_dp
-       green%method=PERIODIC3D
-       last_greens_fn_id_nr = last_greens_fn_id_nr+1
-       green % id_nr = last_greens_fn_id_nr
-       green%ref_count=1
-       green%MT_alpha=1.0_dp
-       green%MT_rel_cutoff=1.0_dp
-       green%p3m=.FALSE.
-       green%p3m_order=0
-       green%p3m_alpha=0.0_dp
-       green%sr_screening=.FALSE.
-       green%sr_alpha=1.0_dp
-       green%sr_rc=0.0_dp
+    ALLOCATE(green, stat=stat)
+    CPPostcondition(stat == 0,cp_fatal_level,routineP,error,failure)
+    green%p3m=.FALSE.
+    green%special_dimension = 0
+    green%radius = 0.0_dp
+    green%slab_size = 0.0_dp
+    green%alpha = 0.0_dp
+    green%method=PERIODIC3D
+    last_greens_fn_id_nr = last_greens_fn_id_nr+1
+    green % id_nr = last_greens_fn_id_nr
+    green%ref_count=1
+    green%MT_alpha=1.0_dp
+    green%MT_rel_cutoff=1.0_dp
+    green%p3m=.FALSE.
+    green%p3m_order=0
+    green%p3m_alpha=0.0_dp
+    green%sr_screening=.FALSE.
+    green%sr_alpha=1.0_dp
+    green%sr_rc=0.0_dp
 
-       NULLIFY (green%influence_fn,green%p3m_charge)
-       NULLIFY (green%p3m_coeff,green%p3m_bm2)
-       NULLIFY (green%dct_influence_fn)
-       NULLIFY (green%screen_fn)
+    NULLIFY (green%influence_fn,green%p3m_charge)
+    NULLIFY (green%p3m_coeff,green%p3m_bm2)
+    NULLIFY (green%dct_influence_fn)
+    NULLIFY (green%screen_fn)
 
-       !CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
-       DO i=1,3
-          abc(i)=cell_hmat(i,i)
-       END DO
-       dim = COUNT(poisson_params%periodic == 1)
+    !CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
+    DO i=1,3
+       abc(i)=cell_hmat(i,i)
+    END DO
+    dim = COUNT(poisson_params%periodic == 1)
 
-       SELECT CASE (poisson_params%solver)
-       CASE (pw_poisson_periodic)
-          green%method = PERIODIC3D
-          IF (dim /= 3) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Illegal combination of periodicity and Poisson solver periodic3d",&
-                  error=error,failure=failure)
-          END IF
-       CASE (pw_poisson_multipole)
-          green%method = MULTIPOLE0D
-          IF (dim /= 0) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Illegal combination of periodicity and Poisson solver mulipole0d",&
-                  error=error,failure=failure)
-          END IF
-       CASE (pw_poisson_analytic)
-          SELECT CASE (dim)
-          CASE (0)
-             green%method = ANALYTIC0D
-             green%radius = 0.5_dp*MINVAL(abc)
-          CASE (1)
-             green%method = ANALYTIC1D
-             green%special_dimension = MAXLOC(poisson_params%periodic(1:3),1)
-             green%radius = MAXVAL(abc(1:3))
-             DO i=1,3
-                IF (i == green%special_dimension) CYCLE
-                green%radius = MIN(green%radius,0.5_dp*abc(i))
-             END DO
-          CASE (2)
-             green%method = ANALYTIC2D
-             i = MINLOC(poisson_params%periodic,1)
-             green%special_dimension = i
-             green%slab_size = abc(i)
-          CASE (3)
-             green%method = PERIODIC3D
-          CASE DEFAULT
-             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-          END SELECT
-       CASE (pw_poisson_mt)
-          green%MT_rel_cutoff = poisson_params%mt_rel_cutoff
-          green%MT_alpha     = poisson_params%mt_alpha
-          green%MT_alpha=green%MT_alpha/MINVAL(abc)
-          SELECT CASE (dim)
-          CASE (0)
-             green%method = MT0D
-             green%radius = 0.5_dp*MINVAL(abc)
-          CASE (1)
-             green%method = MT1D
-             green%special_dimension = MAXLOC(poisson_params%periodic(1:3),1)
-             green%radius = MAXVAL(abc(1:3))
-             DO i=1,3
-                IF (i == green%special_dimension) CYCLE
-                green%radius = MIN(green%radius,0.5_dp*abc(i))
-             END DO
-          CASE (2)
-             green%method = MT2D
-             i = MINLOC(poisson_params%periodic,1)
-             green%special_dimension = i
-             green%slab_size = abc(i)
-          CASE (3)
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Illegal combination of periodicity and Poisson solver (MT)",&
-                  error=error,failure=failure)
-          CASE DEFAULT
-             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-          END SELECT
-       CASE (pw_poisson_implicit)
-          green%method = PS_IMPLICIT
-       CASE DEFAULT
+    SELECT CASE (poisson_params%solver)
+    CASE (pw_poisson_periodic)
+       green%method = PERIODIC3D
+       IF (dim /= 3) THEN
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "An unknown Poisson solver was specified",error,failure)
+               "Illegal combination of periodicity and Poisson solver periodic3d",&
+               error=error,failure=failure)
+       END IF
+    CASE (pw_poisson_multipole)
+       green%method = MULTIPOLE0D
+       IF (dim /= 0) THEN
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Illegal combination of periodicity and Poisson solver mulipole0d",&
+               error=error,failure=failure)
+       END IF
+    CASE (pw_poisson_analytic)
+       SELECT CASE (dim)
+       CASE (0)
+          green%method = ANALYTIC0D
+          green%radius = 0.5_dp*MINVAL(abc)
+       CASE (1)
+          green%method = ANALYTIC1D
+          green%special_dimension = MAXLOC(poisson_params%periodic(1:3),1)
+          green%radius = MAXVAL(abc(1:3))
+          DO i=1,3
+             IF (i == green%special_dimension) CYCLE
+             green%radius = MIN(green%radius,0.5_dp*abc(i))
+          END DO
+       CASE (2)
+          green%method = ANALYTIC2D
+          i = MINLOC(poisson_params%periodic,1)
+          green%special_dimension = i
+          green%slab_size = abc(i)
+       CASE (3)
+          green%method = PERIODIC3D
+       CASE DEFAULT
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+    CASE (pw_poisson_mt)
+       green%MT_rel_cutoff = poisson_params%mt_rel_cutoff
+       green%MT_alpha     = poisson_params%mt_alpha
+       green%MT_alpha=green%MT_alpha/MINVAL(abc)
+       SELECT CASE (dim)
+       CASE (0)
+          green%method = MT0D
+          green%radius = 0.5_dp*MINVAL(abc)
+       CASE (1)
+          green%method = MT1D
+          green%special_dimension = MAXLOC(poisson_params%periodic(1:3),1)
+          green%radius = MAXVAL(abc(1:3))
+          DO i=1,3
+             IF (i == green%special_dimension) CYCLE
+             green%radius = MIN(green%radius,0.5_dp*abc(i))
+          END DO
+       CASE (2)
+          green%method = MT2D
+          i = MINLOC(poisson_params%periodic,1)
+          green%special_dimension = i
+          green%slab_size = abc(i)
+       CASE (3)
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Illegal combination of periodicity and Poisson solver (MT)",&
+               error=error,failure=failure)
+       CASE DEFAULT
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+    CASE (pw_poisson_implicit)
+       green%method = PS_IMPLICIT
+    CASE DEFAULT
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+            "An unknown Poisson solver was specified",error,failure)
+    END SELECT
+
+    ! allocate influence function,...
+    SELECT CASE ( green % method )
+    CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D, PS_IMPLICIT )
+       CALL pw_pool_create_pw ( pw_pool, green % influence_fn,&
+            use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE ,error=error)
+
+       IF (poisson_params%ewald_type==do_ewald_spme) THEN
+          green%p3m = .TRUE.
+          green%p3m_order = poisson_params%ewald_o_spline
+          green%p3m_alpha = poisson_params%ewald_alpha
+          n=green % p3m_order
+          ALLOCATE ( green%p3m_coeff ( -(n-1):n-1, 0:n-1 ), stat = stat )
+          CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+          CALL spme_coeff_calculate ( n,  green%p3m_coeff )
+          CALL pw_pool_create_pw ( pw_pool, green % p3m_charge, use_data=REALDATA1D, &
+               in_space=RECIPROCALSPACE,error=error)
+          CALL influence_factor ( green ,error=error)
+          CALL calc_p3m_charge(green)
+       ELSE
+          green % p3m = .FALSE.
+       END IF
+       !
+       SELECT CASE(green%method)
+       CASE(MT0D,MT1D,MT2D)
+          CALL MTin_create_screen_fn(green%screen_fn,pw_pool=pw_pool,method=green%method,&
+               alpha=green%MT_alpha, &
+               special_dimension=green%special_dimension, slab_size=green%slab_size, &
+               super_ref_pw_grid=mt_super_ref_pw_grid, error=error)
+       CASE(PS_IMPLICIT)
+          IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) .OR. &
+              (poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC)) THEN
+             CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid, error=error)
+             CALL pw_pool_create_pw(pw_pool_xpndd, green%dct_influence_fn, &
+                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
+             CALL pw_pool_release(pw_pool_xpndd, error=error)
+          END IF
        END SELECT
 
-       ! allocate influence function,...
-       SELECT CASE ( green % method )
-       CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D, MULTIPOLE0D, PS_IMPLICIT )
-          CALL pw_pool_create_pw ( pw_pool, green % influence_fn,&
-               use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE ,error=error)
+    CASE DEFAULT
+       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
 
-          IF (poisson_params%ewald_type==do_ewald_spme) THEN
-             green%p3m = .TRUE.
-             green%p3m_order = poisson_params%ewald_o_spline
-             green%p3m_alpha = poisson_params%ewald_alpha
-             n=green % p3m_order
-             ALLOCATE ( green%p3m_coeff ( -(n-1):n-1, 0:n-1 ), stat = stat )
-             CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-             CALL spme_coeff_calculate ( n,  green%p3m_coeff )
-             CALL pw_pool_create_pw ( pw_pool, green % p3m_charge, use_data=REALDATA1D, &
-                  in_space=RECIPROCALSPACE,error=error)
-             CALL influence_factor ( green ,error=error)
-             CALL calc_p3m_charge(green)
+    ! initialize influence function
+    gf   => green % influence_fn
+    grid => green % influence_fn % pw_grid
+    SELECT CASE ( green%method )
+    CASE ( PERIODIC3D, MULTIPOLE0D )
+
+       DO ig = grid % first_gne0, grid % ngpts_cut_local
+          g2 = grid % gsq ( ig )
+          gf % cc ( ig ) = fourpi / g2
+       END DO
+       IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
+
+    CASE ( ANALYTIC2D )
+
+       iz = green % special_dimension ! iz is the direction with NO PBC
+       zlength = green % slab_size    ! zlength is the thickness of the cell
+       DO ig = grid % first_gne0, grid % ngpts_cut_local
+          nz = grid % g_hat ( iz, ig )
+          g2 = grid % gsq ( ig )
+          g3d = fourpi / g2
+          gg = 0.5_dp * SQRT ( g2 )
+          gf % cc ( ig ) = g3d * ( 1.0_dp - (-1.0_dp)**nz * EXP ( - gg * zlength ) )
+       END DO
+       IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
+
+    CASE ( ANALYTIC1D )
+       ! see 'ab initio molecular dynamics' table 3.1
+       ! iz is the direction of the PBC ( can be 1,2,3 -> x,y,z )
+       iz = green % special_dimension
+       ! rlength is the radius of the tube
+       rlength = green % radius
+       DO ig = grid % first_gne0, grid % ngpts_cut_local
+          g2 = grid % gsq ( ig )
+          g3d = fourpi / g2
+          gxy = SQRT ( MAX(0.0_dp, g2 - grid % g(iz,ig) * grid % g(iz,ig)) )
+          gz  = ABS(grid % g(iz,ig))
+          j0g = bessj0 ( rlength * gxy )
+          j1g = bessj1 ( rlength * gxy )
+          IF (gz>0) THEN
+             k0g = bessk0 ( rlength * gz )
+             k1g = bessk1 ( rlength * gz )
           ELSE
-             green % p3m = .FALSE.
-          END IF
-          !
-          SELECT CASE(green%method)
-          CASE(MT0D,MT1D,MT2D)
-             CALL MTin_create_screen_fn(green%screen_fn,pw_pool=pw_pool,method=green%method,&
-                  alpha=green%MT_alpha, &
-                  special_dimension=green%special_dimension, slab_size=green%slab_size, &
-                  super_ref_pw_grid=mt_super_ref_pw_grid, error=error)
-          CASE(PS_IMPLICIT)
-             IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) .OR. &
-                 (poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC)) THEN
-                CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid, error=error)
-                CALL pw_pool_create_pw(pw_pool_xpndd, green%dct_influence_fn, &
-                     use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, error=error)
-                CALL pw_pool_release(pw_pool_xpndd, error=error)
-             END IF
-          END SELECT
+             k0g = 0
+             k1g = 0
+          ENDIF
+          gf % cc ( ig ) = g3d * ( 1.0_dp + rlength * &
+               ( gxy * j1g * k0g - gz * j0g * k1g ) )
+       END DO
+       IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
 
-       CASE DEFAULT
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
+    CASE ( ANALYTIC0D )
 
-       ! initialize influence function
-       gf   => green % influence_fn
-       grid => green % influence_fn % pw_grid
-       SELECT CASE ( green%method )
-       CASE ( PERIODIC3D, MULTIPOLE0D )
+       rlength = green % radius   ! rlength is the radius of the sphere
+       DO ig = grid % first_gne0, grid % ngpts_cut_local
+          g2 = grid % gsq ( ig )
+          gg = SQRT ( g2 )
+          g3d = fourpi / g2
+          gf % cc ( ig ) = g3d * ( 1.0_dp - COS ( rlength * gg ) )
+       END DO
+       IF ( grid % have_g0 ) &
+            gf % cc ( 1 ) = 0.5_dp * fourpi * rlength * rlength
 
-          DO ig = grid % first_gne0, grid % ngpts_cut_local
-             g2 = grid % gsq ( ig )
-             gf % cc ( ig ) = fourpi / g2
+    CASE ( MT2D, MT1D, MT0D )
+
+       DO ig = grid % first_gne0, grid % ngpts_cut_local
+          g2 = grid % gsq ( ig )
+          g3d = fourpi / g2
+          gf%cc ( ig ) = g3d + green%screen_fn%cc(ig)
+       END DO
+       IF ( grid % have_g0 ) &
+            gf%cc(1) = green%screen_fn%cc(1)
+
+    CASE ( PS_IMPLICIT )
+
+       DO ig = grid % first_gne0, grid % ngpts_cut_local
+          g2 = grid % gsq ( ig )
+          gf % cc ( ig ) = fourpi / g2
+       END DO
+       IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
+
+       IF (ASSOCIATED(green % dct_influence_fn)) THEN
+          dct_gf   => green % dct_influence_fn
+          dct_grid => green % dct_influence_fn % pw_grid
+
+          DO ig = dct_grid % first_gne0, dct_grid % ngpts_cut_local
+             g2 = dct_grid % gsq ( ig )
+             dct_gf % cc ( ig ) = fourpi / g2
           END DO
-          IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
+          IF ( dct_grid % have_g0 ) dct_gf % cc ( 1 ) = 0.0_dp
+       END IF
 
-       CASE ( ANALYTIC2D )
+    CASE DEFAULT
+       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
 
-          iz = green % special_dimension ! iz is the direction with NO PBC
-          zlength = green % slab_size    ! zlength is the thickness of the cell
-          DO ig = grid % first_gne0, grid % ngpts_cut_local
-             nz = grid % g_hat ( iz, ig )
-             g2 = grid % gsq ( ig )
-             g3d = fourpi / g2
-             gg = 0.5_dp * SQRT ( g2 )
-             gf % cc ( ig ) = g3d * ( 1.0_dp - (-1.0_dp)**nz * EXP ( - gg * zlength ) )
-          END DO
-          IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
-
-       CASE ( ANALYTIC1D )
-          ! see 'ab initio molecular dynamics' table 3.1
-          ! iz is the direction of the PBC ( can be 1,2,3 -> x,y,z )
-          iz = green % special_dimension
-          ! rlength is the radius of the tube
-          rlength = green % radius
-          DO ig = grid % first_gne0, grid % ngpts_cut_local
-             g2 = grid % gsq ( ig )
-             g3d = fourpi / g2
-             gxy = SQRT ( MAX(0.0_dp, g2 - grid % g(iz,ig) * grid % g(iz,ig)) )
-             gz  = ABS(grid % g(iz,ig))
-             j0g = bessj0 ( rlength * gxy )
-             j1g = bessj1 ( rlength * gxy )
-             IF (gz>0) THEN
-                k0g = bessk0 ( rlength * gz )
-                k1g = bessk1 ( rlength * gz )
-             ELSE
-                k0g = 0
-                k1g = 0
-             ENDIF
-             gf % cc ( ig ) = g3d * ( 1.0_dp + rlength * &
-                  ( gxy * j1g * k0g - gz * j0g * k1g ) )
-          END DO
-          IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
-
-       CASE ( ANALYTIC0D )
-
-          rlength = green % radius   ! rlength is the radius of the sphere
-          DO ig = grid % first_gne0, grid % ngpts_cut_local
-             g2 = grid % gsq ( ig )
-             gg = SQRT ( g2 )
-             g3d = fourpi / g2
-             gf % cc ( ig ) = g3d * ( 1.0_dp - COS ( rlength * gg ) )
-          END DO
-          IF ( grid % have_g0 ) &
-               gf % cc ( 1 ) = 0.5_dp * fourpi * rlength * rlength
-
-       CASE ( MT2D, MT1D, MT0D )
-
-          DO ig = grid % first_gne0, grid % ngpts_cut_local
-             g2 = grid % gsq ( ig )
-             g3d = fourpi / g2
-             gf%cc ( ig ) = g3d + green%screen_fn%cc(ig)
-          END DO
-          IF ( grid % have_g0 ) &
-               gf%cc(1) = green%screen_fn%cc(1)
-
-       CASE ( PS_IMPLICIT )
-
-          DO ig = grid % first_gne0, grid % ngpts_cut_local
-             g2 = grid % gsq ( ig )
-             gf % cc ( ig ) = fourpi / g2
-          END DO
-          IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
-
-          IF (ASSOCIATED(green % dct_influence_fn)) THEN
-             dct_gf   => green % dct_influence_fn
-             dct_grid => green % dct_influence_fn % pw_grid
-
-             DO ig = dct_grid % first_gne0, dct_grid % ngpts_cut_local
-                g2 = dct_grid % gsq ( ig )
-                dct_gf % cc ( ig ) = fourpi / g2
-             END DO
-             IF ( dct_grid % have_g0 ) dct_gf % cc ( 1 ) = 0.0_dp
-          END IF
-
-       CASE DEFAULT
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
-
-    END IF
   END SUBROUTINE pw_green_create
 
 ! *****************************************************************************
@@ -482,10 +478,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(gftype),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,error,failure)
-       gftype%ref_count=gftype%ref_count+1
-    END IF
+    CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,error,failure)
+    gftype%ref_count=gftype%ref_count+1
   END SUBROUTINE pw_green_retain
 
 ! *****************************************************************************
@@ -510,35 +504,33 @@ CONTAINS
     LOGICAL                                  :: can_give_back, failure
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       IF (ASSOCIATED(gftype)) THEN
-          CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,error,failure)
-          gftype%ref_count=gftype%ref_count-1
-          IF (gftype%ref_count==0) THEN
-             can_give_back=PRESENT(pw_pool)
-             IF (can_give_back) can_give_back=ASSOCIATED(pw_pool)
-             IF (can_give_back) THEN
-                CALL pw_pool_give_back_pw(pw_pool,gftype%influence_fn,&
-                     accept_non_compatible=.TRUE.,error=error)
-                CALL pw_pool_give_back_pw(pw_pool,gftype%dct_influence_fn,&
-                     accept_non_compatible=.TRUE.,error=error)
-                CALL pw_pool_give_back_pw(pw_pool,gftype%screen_fn,&
-                     accept_non_compatible=.TRUE.,error=error)
-                CALL pw_pool_give_back_pw(pw_pool,gftype%p3m_charge,&
-                     accept_non_compatible=.TRUE.,error=error)
-             ELSE
-                CALL pw_release(gftype%influence_fn,error=error)
-                CALL pw_release(gftype%dct_influence_fn,error=error)
-                CALL pw_release(gftype%screen_fn,error=error)
-                CALL pw_release(gftype % p3m_charge, error=error)
-             END IF
-             IF (ASSOCIATED(gftype % p3m_bm2)) &
-                  DEALLOCATE ( gftype % p3m_bm2 )
-             IF (ASSOCIATED(gftype % p3m_coeff)) &
-                  DEALLOCATE ( gftype % p3m_coeff )
-             DEALLOCATE(gftype, stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
+    IF (ASSOCIATED(gftype)) THEN
+       CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,error,failure)
+       gftype%ref_count=gftype%ref_count-1
+       IF (gftype%ref_count==0) THEN
+          can_give_back=PRESENT(pw_pool)
+          IF (can_give_back) can_give_back=ASSOCIATED(pw_pool)
+          IF (can_give_back) THEN
+             CALL pw_pool_give_back_pw(pw_pool,gftype%influence_fn,&
+                  accept_non_compatible=.TRUE.,error=error)
+             CALL pw_pool_give_back_pw(pw_pool,gftype%dct_influence_fn,&
+                  accept_non_compatible=.TRUE.,error=error)
+             CALL pw_pool_give_back_pw(pw_pool,gftype%screen_fn,&
+                  accept_non_compatible=.TRUE.,error=error)
+             CALL pw_pool_give_back_pw(pw_pool,gftype%p3m_charge,&
+                  accept_non_compatible=.TRUE.,error=error)
+          ELSE
+             CALL pw_release(gftype%influence_fn,error=error)
+             CALL pw_release(gftype%dct_influence_fn,error=error)
+             CALL pw_release(gftype%screen_fn,error=error)
+             CALL pw_release(gftype % p3m_charge, error=error)
           END IF
+          IF (ASSOCIATED(gftype % p3m_bm2)) &
+               DEALLOCATE ( gftype % p3m_bm2 )
+          IF (ASSOCIATED(gftype % p3m_coeff)) &
+               DEALLOCATE ( gftype % p3m_coeff )
+          DEALLOCATE(gftype, stat=stat)
+          CPPostcondition(stat == 0,cp_failure_level,routineP,error,failure)
        END IF
     END IF
     NULLIFY(gftype)
@@ -678,27 +670,23 @@ END SUBROUTINE calc_p3m_charge
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       ALLOCATE(poisson_env,stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-       last_poisson_id=last_poisson_id+1
-       poisson_env%id_nr=last_poisson_id
-       poisson_env%ref_count=1
-       poisson_env%method=pw_poisson_none
-       poisson_env%rebuild=.TRUE.
-       NULLIFY(poisson_env%green_fft,&
-            poisson_env%pw_pools,&
-            poisson_env%mt_super_ref_pw_grid,&
-            poisson_env%wavelet,&
-            poisson_env%implicit_env,&
-            poisson_env%dct_pw_grid,&
-            poisson_env%dct_aux_pw_grid,&
-            poisson_env%diel_rs_grid)
-       poisson_env%pw_level=-1
-       poisson_env%ref_count=1
-    END IF
+    ALLOCATE(poisson_env,stat=stat)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    last_poisson_id=last_poisson_id+1
+    poisson_env%id_nr=last_poisson_id
+    poisson_env%ref_count=1
+    poisson_env%method=pw_poisson_none
+    poisson_env%rebuild=.TRUE.
+    NULLIFY(poisson_env%green_fft,&
+         poisson_env%pw_pools,&
+         poisson_env%mt_super_ref_pw_grid,&
+         poisson_env%wavelet,&
+         poisson_env%implicit_env,&
+         poisson_env%dct_pw_grid,&
+         poisson_env%dct_aux_pw_grid,&
+         poisson_env%diel_rs_grid)
+    poisson_env%pw_level=-1
+    poisson_env%ref_count=1
 
   END SUBROUTINE pw_poisson_create
 
@@ -721,10 +709,8 @@ END SUBROUTINE calc_p3m_charge
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(poisson_env%ref_count>0,cp_failure_level,routineP,error)
-       poisson_env%ref_count=poisson_env%ref_count+1
-    END IF
+    CPPreconditionNoFail(poisson_env%ref_count>0,cp_failure_level,routineP,error)
+    poisson_env%ref_count=poisson_env%ref_count+1
   END SUBROUTINE pw_poisson_retain
 
 ! *****************************************************************************

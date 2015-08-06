@@ -201,44 +201,42 @@ CONTAINS
      failure =.FALSE.
      CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
 
-     IF(.NOT.failure) THEN
 
-       IF(PRESENT(iter_count)) iter_count=xas_env%iter_count
-       IF(PRESENT(exc_state)) exc_state=xas_env%exc_state
-       IF(PRESENT(nao)) nao=xas_env%nao
-       IF(PRESENT(nvirtual)) nvirtual=xas_env%nvirtual
-       IF(PRESENT(nvirtual2)) nvirtual2=xas_env%nvirtual2
-       IF(PRESENT(xas_nelectron))  xas_nelectron=xas_env%xas_nelectron
-       IF(PRESENT(occ_estate))  occ_estate=xas_env%occ_estate
-       IF(PRESENT(xas_estate))  xas_estate=xas_env%xas_estate
-       IF(PRESENT(nexc_search))  nexc_search=xas_env%nexc_search
-       IF(PRESENT(nexc_atoms))  nexc_atoms=xas_env%nexc_atoms
-       IF(PRESENT(unoccupied_eps))  unoccupied_eps=xas_env%unoccupied_eps
-       IF(PRESENT(unoccupied_max_iter)) unoccupied_max_iter=xas_env%unoccupied_max_iter
-       IF(PRESENT(centers_wfn)) centers_wfn=>xas_env%centers_wfn
-       IF(PRESENT(atom_of_state)) atom_of_state=>xas_env%atom_of_state
-       IF(PRESENT(exc_atoms)) exc_atoms=>xas_env%exc_atoms
-       IF(PRESENT(type_of_state)) type_of_state=>xas_env%type_of_state
-       IF(PRESENT(state_of_atom)) state_of_atom=>xas_env%state_of_atom
-       IF(PRESENT(mykind_of_atom)) mykind_of_atom=>xas_env%mykind_of_atom
-       IF(PRESENT(mykind_of_kind)) mykind_of_kind=>xas_env%mykind_of_kind
-       IF(PRESENT(unoccupied_evals)) unoccupied_evals=>xas_env%unoccupied_evals
-       IF(PRESENT(all_evals)) all_evals=>xas_env%all_evals
-       IF(PRESENT(spectrum)) spectrum=>xas_env%spectrum
-       IF(PRESENT(groundstate_coeff)) groundstate_coeff=>xas_env%groundstate_coeff
-       IF(PRESENT(ostrength_sm)) ostrength_sm=>xas_env%ostrength_sm
-       IF(PRESENT(excvec_overlap)) excvec_overlap=>xas_env%excvec_overlap
-       IF(PRESENT(unoccupied_orbs)) unoccupied_orbs=>xas_env%unoccupied_orbs
-       IF(PRESENT(fm_work)) fm_work=>xas_env%fm_work
-       IF(PRESENT(all_vectors)) all_vectors=>xas_env%all_vectors
-       IF(PRESENT(dip_fm_set)) dip_fm_set=>xas_env%dip_fm_set
-       IF(PRESENT(qs_loc_env)) qs_loc_env=>xas_env%qs_loc_env
-       IF(PRESENT(excvec_coeff)) excvec_coeff=>xas_env%excvec_coeff
-       IF(PRESENT(my_gto_basis)) my_gto_basis => xas_env%my_gto_basis
-       IF(PRESENT(stogto_overlap)) stogto_overlap => xas_env%stogto_overlap
-       IF (PRESENT(scf_env)) scf_env => xas_env%scf_env
-       IF (PRESENT(scf_control)) scf_control => xas_env%scf_control
-     END IF
+     IF(PRESENT(iter_count)) iter_count=xas_env%iter_count
+     IF(PRESENT(exc_state)) exc_state=xas_env%exc_state
+     IF(PRESENT(nao)) nao=xas_env%nao
+     IF(PRESENT(nvirtual)) nvirtual=xas_env%nvirtual
+     IF(PRESENT(nvirtual2)) nvirtual2=xas_env%nvirtual2
+     IF(PRESENT(xas_nelectron))  xas_nelectron=xas_env%xas_nelectron
+     IF(PRESENT(occ_estate))  occ_estate=xas_env%occ_estate
+     IF(PRESENT(xas_estate))  xas_estate=xas_env%xas_estate
+     IF(PRESENT(nexc_search))  nexc_search=xas_env%nexc_search
+     IF(PRESENT(nexc_atoms))  nexc_atoms=xas_env%nexc_atoms
+     IF(PRESENT(unoccupied_eps))  unoccupied_eps=xas_env%unoccupied_eps
+     IF(PRESENT(unoccupied_max_iter)) unoccupied_max_iter=xas_env%unoccupied_max_iter
+     IF(PRESENT(centers_wfn)) centers_wfn=>xas_env%centers_wfn
+     IF(PRESENT(atom_of_state)) atom_of_state=>xas_env%atom_of_state
+     IF(PRESENT(exc_atoms)) exc_atoms=>xas_env%exc_atoms
+     IF(PRESENT(type_of_state)) type_of_state=>xas_env%type_of_state
+     IF(PRESENT(state_of_atom)) state_of_atom=>xas_env%state_of_atom
+     IF(PRESENT(mykind_of_atom)) mykind_of_atom=>xas_env%mykind_of_atom
+     IF(PRESENT(mykind_of_kind)) mykind_of_kind=>xas_env%mykind_of_kind
+     IF(PRESENT(unoccupied_evals)) unoccupied_evals=>xas_env%unoccupied_evals
+     IF(PRESENT(all_evals)) all_evals=>xas_env%all_evals
+     IF(PRESENT(spectrum)) spectrum=>xas_env%spectrum
+     IF(PRESENT(groundstate_coeff)) groundstate_coeff=>xas_env%groundstate_coeff
+     IF(PRESENT(ostrength_sm)) ostrength_sm=>xas_env%ostrength_sm
+     IF(PRESENT(excvec_overlap)) excvec_overlap=>xas_env%excvec_overlap
+     IF(PRESENT(unoccupied_orbs)) unoccupied_orbs=>xas_env%unoccupied_orbs
+     IF(PRESENT(fm_work)) fm_work=>xas_env%fm_work
+     IF(PRESENT(all_vectors)) all_vectors=>xas_env%all_vectors
+     IF(PRESENT(dip_fm_set)) dip_fm_set=>xas_env%dip_fm_set
+     IF(PRESENT(qs_loc_env)) qs_loc_env=>xas_env%qs_loc_env
+     IF(PRESENT(excvec_coeff)) excvec_coeff=>xas_env%excvec_coeff
+     IF(PRESENT(my_gto_basis)) my_gto_basis => xas_env%my_gto_basis
+     IF(PRESENT(stogto_overlap)) stogto_overlap => xas_env%stogto_overlap
+     IF (PRESENT(scf_env)) scf_env => xas_env%scf_env
+     IF (PRESENT(scf_control)) scf_control => xas_env%scf_control
   END SUBROUTINE get_xas_env
 
 ! *****************************************************************************
@@ -286,36 +284,34 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
 
-    IF(.NOT. failure) THEN
 
-      IF (PRESENT(iter_count)) xas_env%iter_count = iter_count
-      IF (PRESENT(nexc_search)) xas_env%nexc_search = nexc_search
-      IF (PRESENT(nexc_atoms)) xas_env%nexc_atoms = nexc_atoms
-      IF (PRESENT(nvirtual)) xas_env%nvirtual = nvirtual
-      IF (PRESENT(nvirtual2)) xas_env%nvirtual2 = nvirtual2
-      IF (PRESENT(occ_estate)) xas_env%occ_estate = occ_estate
-      IF (PRESENT(xas_nelectron)) xas_env%xas_nelectron = xas_nelectron
-      IF (PRESENT(homo_occ)) xas_env%homo_occ = homo_occ
-      IF (PRESENT(xas_estate)) xas_env%xas_estate = xas_estate
-      IF (PRESENT(ip_energy)) xas_env%ip_energy = ip_energy
-      IF (PRESENT(qs_loc_env)) THEN
-        CALL  qs_loc_env_retain(qs_loc_env, error=error)
-        IF(ASSOCIATED(xas_env%qs_loc_env)) &
-            CALL qs_loc_env_release(xas_env%qs_loc_env,error=error)
-        xas_env%qs_loc_env => qs_loc_env
-      END IF
-      IF (PRESENT(scf_env)) THEN ! accept also null pointers ?
-         CALL scf_env_retain(scf_env,error=error)
-         CALL scf_env_release(xas_env%scf_env, error=error)
-         xas_env%scf_env => scf_env
-      END IF
-      IF (PRESENT(scf_control)) THEN ! accept also null pointers?
-         CALL scf_c_retain(scf_control,error=error)
-         CALL scf_c_release(xas_env%scf_control,error=error)
-         xas_env%scf_control => scf_control
-      END IF
-
+    IF (PRESENT(iter_count)) xas_env%iter_count = iter_count
+    IF (PRESENT(nexc_search)) xas_env%nexc_search = nexc_search
+    IF (PRESENT(nexc_atoms)) xas_env%nexc_atoms = nexc_atoms
+    IF (PRESENT(nvirtual)) xas_env%nvirtual = nvirtual
+    IF (PRESENT(nvirtual2)) xas_env%nvirtual2 = nvirtual2
+    IF (PRESENT(occ_estate)) xas_env%occ_estate = occ_estate
+    IF (PRESENT(xas_nelectron)) xas_env%xas_nelectron = xas_nelectron
+    IF (PRESENT(homo_occ)) xas_env%homo_occ = homo_occ
+    IF (PRESENT(xas_estate)) xas_env%xas_estate = xas_estate
+    IF (PRESENT(ip_energy)) xas_env%ip_energy = ip_energy
+    IF (PRESENT(qs_loc_env)) THEN
+      CALL  qs_loc_env_retain(qs_loc_env, error=error)
+      IF(ASSOCIATED(xas_env%qs_loc_env)) &
+          CALL qs_loc_env_release(xas_env%qs_loc_env,error=error)
+      xas_env%qs_loc_env => qs_loc_env
     END IF
+    IF (PRESENT(scf_env)) THEN ! accept also null pointers ?
+       CALL scf_env_retain(scf_env,error=error)
+       CALL scf_env_release(xas_env%scf_env, error=error)
+       xas_env%scf_env => scf_env
+    END IF
+    IF (PRESENT(scf_control)) THEN ! accept also null pointers?
+       CALL scf_c_retain(scf_control,error=error)
+       CALL scf_c_release(xas_env%scf_control,error=error)
+       xas_env%scf_control => scf_control
+    END IF
+
 
   END SUBROUTINE set_xas_env
 
@@ -339,29 +335,27 @@ CONTAINS
     ALLOCATE(xas_env,STAT=istat)
     CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
 
-      xas_env%ref_count=1
-      xas_env%iter_count=0
-      xas_env%nvirtual=0
-      xas_env%nvirtual2=0
+    xas_env%ref_count=1
+    xas_env%iter_count=0
+    xas_env%nvirtual=0
+    xas_env%nvirtual2=0
 
-      NULLIFY(xas_env%ao_mo_fm_pools)
-      NULLIFY(xas_env%my_gto_basis)
-      NULLIFY(xas_env%state_of_atom, xas_env%atom_of_state)
-      NULLIFY(xas_env%exc_atoms)
-      NULLIFY(xas_env%excvec_coeff,xas_env%excvec_overlap)
-      NULLIFY(xas_env%type_of_state,xas_env%mykind_of_atom)
-      NULLIFY(xas_env%type_of_state,xas_env%mykind_of_kind)
-      NULLIFY(xas_env%fm_work,xas_env%groundstate_coeff,xas_env%dip_fm_set)
-      NULLIFY(xas_env%ostrength_sm,xas_env%qs_loc_env,xas_env%spectrum)
-      NULLIFY(xas_env%all_evals,xas_env%all_vectors)
-      NULLIFY(xas_env%unoccupied_evals,xas_env%unoccupied_orbs)
-      NULLIFY(xas_env%stogto_overlap)
-      NULLIFY(xas_env%scf_env)
-      NULLIFY(xas_env%scf_control)
+    NULLIFY(xas_env%ao_mo_fm_pools)
+    NULLIFY(xas_env%my_gto_basis)
+    NULLIFY(xas_env%state_of_atom, xas_env%atom_of_state)
+    NULLIFY(xas_env%exc_atoms)
+    NULLIFY(xas_env%excvec_coeff,xas_env%excvec_overlap)
+    NULLIFY(xas_env%type_of_state,xas_env%mykind_of_atom)
+    NULLIFY(xas_env%type_of_state,xas_env%mykind_of_kind)
+    NULLIFY(xas_env%fm_work,xas_env%groundstate_coeff,xas_env%dip_fm_set)
+    NULLIFY(xas_env%ostrength_sm,xas_env%qs_loc_env,xas_env%spectrum)
+    NULLIFY(xas_env%all_evals,xas_env%all_vectors)
+    NULLIFY(xas_env%unoccupied_evals,xas_env%unoccupied_orbs)
+    NULLIFY(xas_env%stogto_overlap)
+    NULLIFY(xas_env%scf_env)
+    NULLIFY(xas_env%scf_control)
 
-    END IF
 
    END SUBROUTINE xas_env_create
 
@@ -498,10 +492,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(xas_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       xas_env%ref_count=xas_env%ref_count+1
-    END IF
+    CPPrecondition(xas_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    xas_env%ref_count=xas_env%ref_count+1
   END SUBROUTINE xas_env_retain
 
 END MODULE xas_env_types

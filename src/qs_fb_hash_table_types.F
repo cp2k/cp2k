@@ -173,23 +173,21 @@ CONTAINS
     failure = .FALSE.
     check_ok = .NOT. fb_hash_table_has_data(hash_table)
     CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE(hash_table%obj, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-       NULLIFY(hash_table%obj%table)
-       hash_table%obj%nmax = 0
-       hash_table%obj%nelements = 0
-       hash_table%obj%prime = 2
-       my_nmax = 1
-       IF (PRESENT(nmax)) my_nmax = nmax
-       CALL fb_hash_table_init(hash_table=hash_table, &
-                               nmax=my_nmax, &
-                               error=error)
-       ! book keeping stuff
-       hash_table%obj%ref_count = 1
-       hash_table%obj%id_nr = last_fb_hash_table_id + 1
-       last_fb_hash_table_id = hash_table%obj%id_nr
-    END IF
+    ALLOCATE(hash_table%obj, STAT=stat)
+    CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+    NULLIFY(hash_table%obj%table)
+    hash_table%obj%nmax = 0
+    hash_table%obj%nelements = 0
+    hash_table%obj%prime = 2
+    my_nmax = 1
+    IF (PRESENT(nmax)) my_nmax = nmax
+    CALL fb_hash_table_init(hash_table=hash_table, &
+                            nmax=my_nmax, &
+                            error=error)
+    ! book keeping stuff
+    hash_table%obj%ref_count = 1
+    hash_table%obj%id_nr = last_fb_hash_table_id + 1
+    last_fb_hash_table_id = hash_table%obj%id_nr
   END SUBROUTINE fb_hash_table_create
 
 ! *****************************************************************************
@@ -451,11 +449,9 @@ CONTAINS
     failure = .FALSE.
     check_ok = ASSOCIATED(hash_table%obj)
     CPPostcondition(check_ok, cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       check_ok = hash_table%obj%ref_count > 0
-       CPPreconditionNoFail(check_ok, cp_failure_level, routineP, error)
-       hash_table%obj%ref_count = hash_table%obj%ref_count + 1
-    END IF
+    check_ok = hash_table%obj%ref_count > 0
+    CPPreconditionNoFail(check_ok, cp_failure_level, routineP, error)
+    hash_table%obj%ref_count = hash_table%obj%ref_count + 1
   END SUBROUTINE fb_hash_table_retain
 
 ! *****************************************************************************

@@ -156,51 +156,49 @@ CONTAINS
 
     ALLOCATE (scf_env,STAT=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    IF (.NOT.failure) THEN
-       scf_env%ref_count = 1
-       scf_env%print_count = 0
-       last_scf_env_id = last_scf_env_id + 1
-       scf_env%id_nr = last_scf_env_id
-       scf_env%print_count = 0
-       scf_env%iter_count = 0
-       scf_env%nelectron = 0
-       scf_env%iter_param = 0.0_dp
-       scf_env%iter_delta = 0.0_dp
-       scf_env%iter_method = ""
-       scf_env%print_iter_line = .TRUE.
-       scf_env%skip_mixing = .FALSE.
-       scf_env%skip_diis = .FALSE.
-       scf_env%needs_ortho = .FALSE.
-       scf_env%method = -1
-       scf_env%mixing_method = -1
-       scf_env%p_mix_alpha=1.0_dp
-       scf_env%cholesky_method = -1
-       scf_env%outer_scf%iter_count = 0
-       NULLIFY (scf_env%outer_scf%variables)
-       NULLIFY (scf_env%outer_scf%gradient)
-       NULLIFY (scf_env%outer_scf%energy)
-       NULLIFY (scf_env%outer_scf%count)
-       NULLIFY (scf_env%scf_work1)
-       NULLIFY (scf_env%scf_work2)
-       NULLIFY (scf_env%ortho)
-       NULLIFY (scf_env%ortho_dbcsr)
-       NULLIFY (scf_env%ortho_m1)
-       NULLIFY (scf_env%p_mix_new)
-       NULLIFY (scf_env%ot_preconditioner)
-       NULLIFY (scf_env%qs_ot_env)
-       NULLIFY (scf_env%scf_diis_buffer)
-       NULLIFY (scf_env%buf1_dbcsr)
-       NULLIFY (scf_env%buf2_dbcsr)
-       NULLIFY (scf_env%s_half)
-       NULLIFY (scf_env%p_delta)
-       NULLIFY (scf_env%s_minus_one)
-       NULLIFY (scf_env%cc_buffer)
-       NULLIFY (scf_env%mixing_store)
-       NULLIFY (scf_env%krylov_space)
-       NULLIFY (scf_env%subspace_env)
-       NULLIFY (scf_env%block_davidson_env)
-       CALL fb_env_nullify(scf_env%filter_matrix_env)
-    END IF
+    scf_env%ref_count = 1
+    scf_env%print_count = 0
+    last_scf_env_id = last_scf_env_id + 1
+    scf_env%id_nr = last_scf_env_id
+    scf_env%print_count = 0
+    scf_env%iter_count = 0
+    scf_env%nelectron = 0
+    scf_env%iter_param = 0.0_dp
+    scf_env%iter_delta = 0.0_dp
+    scf_env%iter_method = ""
+    scf_env%print_iter_line = .TRUE.
+    scf_env%skip_mixing = .FALSE.
+    scf_env%skip_diis = .FALSE.
+    scf_env%needs_ortho = .FALSE.
+    scf_env%method = -1
+    scf_env%mixing_method = -1
+    scf_env%p_mix_alpha=1.0_dp
+    scf_env%cholesky_method = -1
+    scf_env%outer_scf%iter_count = 0
+    NULLIFY (scf_env%outer_scf%variables)
+    NULLIFY (scf_env%outer_scf%gradient)
+    NULLIFY (scf_env%outer_scf%energy)
+    NULLIFY (scf_env%outer_scf%count)
+    NULLIFY (scf_env%scf_work1)
+    NULLIFY (scf_env%scf_work2)
+    NULLIFY (scf_env%ortho)
+    NULLIFY (scf_env%ortho_dbcsr)
+    NULLIFY (scf_env%ortho_m1)
+    NULLIFY (scf_env%p_mix_new)
+    NULLIFY (scf_env%ot_preconditioner)
+    NULLIFY (scf_env%qs_ot_env)
+    NULLIFY (scf_env%scf_diis_buffer)
+    NULLIFY (scf_env%buf1_dbcsr)
+    NULLIFY (scf_env%buf2_dbcsr)
+    NULLIFY (scf_env%s_half)
+    NULLIFY (scf_env%p_delta)
+    NULLIFY (scf_env%s_minus_one)
+    NULLIFY (scf_env%cc_buffer)
+    NULLIFY (scf_env%mixing_store)
+    NULLIFY (scf_env%krylov_space)
+    NULLIFY (scf_env%subspace_env)
+    NULLIFY (scf_env%block_davidson_env)
+    CALL fb_env_nullify(scf_env%filter_matrix_env)
 
     CALL timestop(handle)
 
@@ -231,10 +229,8 @@ CONTAINS
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       scf_env%ref_count = scf_env%ref_count + 1
-    END IF
+    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    scf_env%ref_count = scf_env%ref_count + 1
 
     CALL timestop(handle)
 
@@ -266,13 +262,11 @@ CONTAINS
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-       IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-          CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_new,error=error)
-       END IF
-       IF (ASSOCIATED(scf_env%p_delta)) THEN
-          CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_delta,error=error)
-       END IF
+    IF (ASSOCIATED(scf_env%p_mix_new)) THEN
+       CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_new,error=error)
+    END IF
+    IF (ASSOCIATED(scf_env%p_delta)) THEN
+       CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_delta,error=error)
     END IF
 
     CALL timestop(handle)
@@ -424,36 +418,32 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(krylov_space),cp_failure_level,routineP,error,failure)
-    IF(.NOT. failure) THEN
-      ALLOCATE(krylov_space, stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      IF (.NOT.failure) THEN
+    ALLOCATE(krylov_space, stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
 
-        NULLIFY(krylov_space%c_eval,krylov_space%t_eval)
-        NULLIFY(krylov_space%v_mat)
-        NULLIFY(krylov_space%mo_conv, krylov_space%mo_refine)
-        NULLIFY(krylov_space%chc_mat, krylov_space%c_vec)
-        NULLIFY(krylov_space%tmp_mat)
-        NULLIFY(krylov_space%block1_mat, krylov_space%block2_mat)
-        NULLIFY(krylov_space%block3_mat, krylov_space%block4_mat, krylov_space%block5_mat)
+    NULLIFY(krylov_space%c_eval,krylov_space%t_eval)
+    NULLIFY(krylov_space%v_mat)
+    NULLIFY(krylov_space%mo_conv, krylov_space%mo_refine)
+    NULLIFY(krylov_space%chc_mat, krylov_space%c_vec)
+    NULLIFY(krylov_space%tmp_mat)
+    NULLIFY(krylov_space%block1_mat, krylov_space%block2_mat)
+    NULLIFY(krylov_space%block3_mat, krylov_space%block4_mat, krylov_space%block5_mat)
 
-        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%MAX_ITER",&
-             i_val=krylov_space%max_iter,error=error)
-        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%NKRYLOV",&
-             i_val=krylov_space%nkrylov,error=error)
-        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%NBLOCK",&
-             i_val=krylov_space%nblock,error=error)
-        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%EPS_KRYLOV",&
-             r_val=krylov_space%eps_conv,error=error)
-        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%EPS_STD_DIAG",&
-             r_val=krylov_space%eps_std_diag,error=error)
-        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_ADAPT",&
-             r_val=krylov_space%eps_adapt,error=error)
-        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%CHECK_MOS_CONV",&
-             l_val=krylov_space%always_check_conv,error=error)
-      END IF
-    END IF
+    CALL section_vals_val_get(scf_section,"DIAGONALIZATION%MAX_ITER",&
+         i_val=krylov_space%max_iter,error=error)
+    CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%NKRYLOV",&
+         i_val=krylov_space%nkrylov,error=error)
+    CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%NBLOCK",&
+         i_val=krylov_space%nblock,error=error)
+    CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%EPS_KRYLOV",&
+         r_val=krylov_space%eps_conv,error=error)
+    CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%EPS_STD_DIAG",&
+         r_val=krylov_space%eps_std_diag,error=error)
+    CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_ADAPT",&
+         r_val=krylov_space%eps_adapt,error=error)
+    CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%CHECK_MOS_CONV",&
+         l_val=krylov_space%always_check_conv,error=error)
 
  END SUBROUTINE krylov_space_create
 
@@ -552,45 +542,41 @@ CONTAINS
     failure = .FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(subspace_env),cp_failure_level,routineP,error,failure)
-    IF(.NOT. failure) THEN
-      ALLOCATE(subspace_env, stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      IF (.NOT.failure) THEN
+    ALLOCATE(subspace_env, stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
 
-        NULLIFY(subspace_env%p_matrix_store)
-        NULLIFY(subspace_env%p_matrix_mix)
-        NULLIFY(subspace_env%chc_mat)
-        NULLIFY(subspace_env%c_vec)
-        NULLIFY(subspace_env%c0)
-        NULLIFY(subspace_env%mixing_store)
-        NULLIFY(mixing_section)
+    NULLIFY(subspace_env%p_matrix_store)
+    NULLIFY(subspace_env%p_matrix_mix)
+    NULLIFY(subspace_env%chc_mat)
+    NULLIFY(subspace_env%c_vec)
+    NULLIFY(subspace_env%c0)
+    NULLIFY(subspace_env%mixing_store)
+    NULLIFY(mixing_section)
 
-        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%MAX_ITER",&
-             i_val=subspace_env%max_iter,error=error)
-        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%EPS_ENE",&
-             r_val=subspace_env%eps_ene,error=error)
-        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%EPS_SKIP_SUB_DIAG",&
-             r_val=subspace_env%eps_diag_sub,error=error)
-        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%EPS_ADAPT_SCF",&
-             r_val=subspace_env%eps_adapt,error=error)
-        subspace_env%mixing_method = 0
-        do_mixing = .FALSE.
-        mixing_section => section_vals_get_subs_vals(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%MIXING",error=error)
-        CALL section_vals_val_get(mixing_section,"_SECTION_PARAMETERS_",&
-                                 l_val=do_mixing,&
-                                 error=error)
-        IF (do_mixing) THEN
-          CALL section_vals_val_get(mixing_section,"METHOD",&
-                                    i_val=subspace_env%mixing_method,&
-                                    error=error)
-          IF(subspace_env%mixing_method>=direct_mixing_nr)&
-             CALL mixing_storage_create(subspace_env%mixing_store, mixing_section, &
-                  subspace_env%mixing_method, ecut=ecut, error=error)
-        END IF
-
-      END IF
+    CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%MAX_ITER",&
+         i_val=subspace_env%max_iter,error=error)
+    CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%EPS_ENE",&
+         r_val=subspace_env%eps_ene,error=error)
+    CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%EPS_SKIP_SUB_DIAG",&
+         r_val=subspace_env%eps_diag_sub,error=error)
+    CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%EPS_ADAPT_SCF",&
+         r_val=subspace_env%eps_adapt,error=error)
+    subspace_env%mixing_method = 0
+    do_mixing = .FALSE.
+    mixing_section => section_vals_get_subs_vals(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%MIXING",error=error)
+    CALL section_vals_val_get(mixing_section,"_SECTION_PARAMETERS_",&
+                             l_val=do_mixing,&
+                             error=error)
+    IF (do_mixing) THEN
+      CALL section_vals_val_get(mixing_section,"METHOD",&
+                                i_val=subspace_env%mixing_method,&
+                                error=error)
+      IF(subspace_env%mixing_method>=direct_mixing_nr)&
+         CALL mixing_storage_create(subspace_env%mixing_store, mixing_section, &
+              subspace_env%mixing_method, ecut=ecut, error=error)
     END IF
+
 
  END SUBROUTINE diag_subspace_env_create
 

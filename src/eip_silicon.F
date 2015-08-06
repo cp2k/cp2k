@@ -113,127 +113,125 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
 
-    IF (.NOT. failure) THEN
 
-      CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
-                       subsys=subsys, local_particles=local_particles, &
-                       atomic_kind_set=atomic_kind_set, error=error)
-      CALL get_cell(cell=cell, abc=abc)
+    CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
+                     subsys=subsys, local_particles=local_particles, &
+                     atomic_kind_set=atomic_kind_set, error=error)
+    CALL get_cell(cell=cell, abc=abc)
 
-      eip_section => section_vals_get_subs_vals(eip_env%force_env_input, "EIP", &
-                                                      error=error)
-      natom = SIZE(particle_set)
-      !natom = local_particles%n_el(1)
+    eip_section => section_vals_get_subs_vals(eip_env%force_env_input, "EIP", &
+                                                    error=error)
+    natom = SIZE(particle_set)
+    !natom = local_particles%n_el(1)
 
-      ALLOCATE(rxyz(3,natom), stat=stat)
-      CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
+    ALLOCATE(rxyz(3,natom), stat=stat)
+    CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
-      DO i = 1,natom
-        !iparticle = local_particles%list(1)%array(i)
-        rxyz(:,i) = particle_set(i)%r(:)*angstrom
+    DO i = 1,natom
+      !iparticle = local_particles%list(1)%array(i)
+      rxyz(:,i) = particle_set(i)%r(:)*angstrom
+    END DO
+
+    CALL eip_bazant_silicon(nat=natom, alat=abc*angstrom, rxyz0=rxyz, &
+                            fxyz=eip_env%eip_forces, ener=ener, &
+                            coord=eip_env%coord_avg, ener_var=ener_var, &
+                            coord_var=eip_env%coord_var, count=eip_env%count)
+
+    !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
+    CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds,error=error)
+
+    nparticle_kind = atomic_kinds%n_els
+
+    DO iparticle_kind = 1,nparticle_kind
+      atomic_kind => atomic_kind_set(iparticle_kind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+      nparticle_local = local_particles%n_el(iparticle_kind)
+      DO iparticle_local = 1,nparticle_local
+        iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+        ekin = ekin +  0.5_dp * mass * &
+                   (particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
+                  + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
+                  + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3))
       END DO
+    END DO
 
-      CALL eip_bazant_silicon(nat=natom, alat=abc*angstrom, rxyz0=rxyz, &
-                              fxyz=eip_env%eip_forces, ener=ener, &
-                              coord=eip_env%coord_avg, ener_var=ener_var, &
-                              coord_var=eip_env%coord_var, count=eip_env%count)
+    ! sum all contributions to energy over calculated parts on all processors
+    CALL cp_subsys_get(subsys=subsys, para_env=para_env, error=error)
+    CALL mp_sum(ekin, para_env%group)
+    eip_env%eip_kinetic_energy = ekin
 
-      !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
-      CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds,error=error)
+    eip_env%eip_potential_energy = ener/evolt
+    eip_env%eip_energy = eip_env%eip_kinetic_energy + eip_env%eip_potential_energy
+    eip_env%eip_energy_var = ener_var/evolt
 
-      nparticle_kind = atomic_kinds%n_els
+    DO i = 1,natom
+      particle_set(i)%f(:) = eip_env%eip_forces(:,i)/evolt*angstrom
+    END DO
 
-      DO iparticle_kind = 1,nparticle_kind
-        atomic_kind => atomic_kind_set(iparticle_kind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-        nparticle_local = local_particles%n_el(iparticle_kind)
-        DO iparticle_local = 1,nparticle_local
-          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          ekin = ekin +  0.5_dp * mass * &
-                     (particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
-                    + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
-                    + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3))
-        END DO
-      END DO
+    DEALLOCATE(rxyz, stat=stat)
+    CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
-      ! sum all contributions to energy over calculated parts on all processors
-      CALL cp_subsys_get(subsys=subsys, para_env=para_env, error=error)
-      CALL mp_sum(ekin, para_env%group)
-      eip_env%eip_kinetic_energy = ekin
+    ! Print
+    IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+              eip_section, "PRINT%ENERGIES", error=error), cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES", &
+                                extension=".mmLog", error=error)
 
-      eip_env%eip_potential_energy = ener/evolt
-      eip_env%eip_energy = eip_env%eip_kinetic_energy + eip_env%eip_potential_energy
-      eip_env%eip_energy_var = ener_var/evolt
-
-      DO i = 1,natom
-        particle_set(i)%f(:) = eip_env%eip_forces(:,i)/evolt*angstrom
-      END DO
-
-      DEALLOCATE(rxyz, stat=stat)
-      CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-
-      ! Print
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                eip_section, "PRINT%ENERGIES", error=error), cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES", &
-                                  extension=".mmLog", error=error)
-
-        CALL eip_print_energies(eip_env=eip_env, output_unit=iw, error=error)
-        CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                          "PRINT%ENERGIES", error=error)
-      END IF
-
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                eip_section, "PRINT%ENERGIES_VAR", error=error), cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES_VAR", &
-                                  extension=".mmLog", error=error)
-
-        CALL eip_print_energy_var(eip_env=eip_env, output_unit=iw, error=error)
-        CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                          "PRINT%ENERGIES_VAR", error=error)
-      END IF
-
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                eip_section, "PRINT%FORCES", error=error), cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%FORCES", &
-                                  extension=".mmLog", error=error)
-
-        CALL eip_print_forces(eip_env=eip_env, output_unit=iw, error=error)
-        CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                          "PRINT%FORCES", error=error)
-      END IF
-
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                eip_section, "PRINT%COORD_AVG", error=error), cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_AVG", &
-                                  extension=".mmLog", error=error)
-
-        CALL eip_print_coord_avg(eip_env=eip_env, output_unit=iw, error=error)
-        CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                          "PRINT%COORD_AVG", error=error)
-      END IF
-
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                eip_section, "PRINT%COORD_VAR", error=error), cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_VAR", &
-                                  extension=".mmLog", error=error)
-
-        CALL eip_print_coord_var(eip_env=eip_env, output_unit=iw, error=error)
-        CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                          "PRINT%COORD_VAR", error=error)
-      END IF
-
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                eip_section, "PRINT%COUNT", error=error), cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COUNT", &
-                                  extension=".mmLog", error=error)
-
-        CALL eip_print_count(eip_env=eip_env, output_unit=iw, error=error)
-        CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                          "PRINT%COUNT", error=error)
-      END IF
-
+      CALL eip_print_energies(eip_env=eip_env, output_unit=iw, error=error)
+      CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                        "PRINT%ENERGIES", error=error)
     END IF
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+              eip_section, "PRINT%ENERGIES_VAR", error=error), cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES_VAR", &
+                                extension=".mmLog", error=error)
+
+      CALL eip_print_energy_var(eip_env=eip_env, output_unit=iw, error=error)
+      CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                        "PRINT%ENERGIES_VAR", error=error)
+    END IF
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+              eip_section, "PRINT%FORCES", error=error), cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%FORCES", &
+                                extension=".mmLog", error=error)
+
+      CALL eip_print_forces(eip_env=eip_env, output_unit=iw, error=error)
+      CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                        "PRINT%FORCES", error=error)
+    END IF
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+              eip_section, "PRINT%COORD_AVG", error=error), cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_AVG", &
+                                extension=".mmLog", error=error)
+
+      CALL eip_print_coord_avg(eip_env=eip_env, output_unit=iw, error=error)
+      CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                        "PRINT%COORD_AVG", error=error)
+    END IF
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+              eip_section, "PRINT%COORD_VAR", error=error), cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_VAR", &
+                                extension=".mmLog", error=error)
+
+      CALL eip_print_coord_var(eip_env=eip_env, output_unit=iw, error=error)
+      CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                        "PRINT%COORD_VAR", error=error)
+    END IF
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+              eip_section, "PRINT%COUNT", error=error), cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COUNT", &
+                                extension=".mmLog", error=error)
+
+      CALL eip_print_count(eip_env=eip_env, output_unit=iw, error=error)
+      CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                        "PRINT%COUNT", error=error)
+    END IF
+
 
     CALL timestop(handle)
 
@@ -294,127 +292,125 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP, error, failure)
 
-    IF (.NOT. failure) THEN
 
-      CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
-                       subsys=subsys, local_particles=local_particles, &
-                       atomic_kind_set=atomic_kind_set, error=error)
-      CALL get_cell(cell=cell, abc=abc)
+    CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
+                     subsys=subsys, local_particles=local_particles, &
+                     atomic_kind_set=atomic_kind_set, error=error)
+    CALL get_cell(cell=cell, abc=abc)
 
-      eip_section => section_vals_get_subs_vals(eip_env%force_env_input, "EIP", &
-                                                      error=error)
-      natom = SIZE(particle_set)
-      !natom = local_particles%n_el(1)
+    eip_section => section_vals_get_subs_vals(eip_env%force_env_input, "EIP", &
+                                                    error=error)
+    natom = SIZE(particle_set)
+    !natom = local_particles%n_el(1)
 
-      ALLOCATE(rxyz(3,natom), stat=stat)
-      CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
+    ALLOCATE(rxyz(3,natom), stat=stat)
+    CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
-      DO i = 1,natom
-        !iparticle = local_particles%list(1)%array(i)
-        rxyz(:,i) = particle_set(i)%r(:)*angstrom
+    DO i = 1,natom
+      !iparticle = local_particles%list(1)%array(i)
+      rxyz(:,i) = particle_set(i)%r(:)*angstrom
+    END DO
+
+    CALL eip_lenosky_silicon(nat=natom, alat=abc*angstrom, rxyz0=rxyz, &
+                             fxyz=eip_env%eip_forces, ener=ener, &
+                             coord=eip_env%coord_avg, ener_var=ener_var, &
+                             coord_var=eip_env%coord_var, count=eip_env%count)
+
+    !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
+    CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds,error=error)
+
+    nparticle_kind = atomic_kinds%n_els
+
+    DO iparticle_kind = 1,nparticle_kind
+      atomic_kind => atomic_kind_set(iparticle_kind)
+      CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+      nparticle_local = local_particles%n_el(iparticle_kind)
+      DO iparticle_local = 1,nparticle_local
+        iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+        ekin = ekin +  0.5_dp * mass * &
+                   (particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
+                  + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
+                  + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3))
       END DO
+    END DO
 
-      CALL eip_lenosky_silicon(nat=natom, alat=abc*angstrom, rxyz0=rxyz, &
-                               fxyz=eip_env%eip_forces, ener=ener, &
-                               coord=eip_env%coord_avg, ener_var=ener_var, &
-                               coord_var=eip_env%coord_var, count=eip_env%count)
+    ! sum all contributions to energy over calculated parts on all processors
+    CALL cp_subsys_get(subsys=subsys, para_env=para_env, error=error)
+    CALL mp_sum(ekin, para_env%group)
+    eip_env%eip_kinetic_energy = ekin
 
-      !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
-      CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds,error=error)
+    eip_env%eip_potential_energy = ener/evolt
+    eip_env%eip_energy = eip_env%eip_kinetic_energy + eip_env%eip_potential_energy
+    eip_env%eip_energy_var = ener_var/evolt
 
-      nparticle_kind = atomic_kinds%n_els
+    DO i = 1,natom
+      particle_set(i)%f(:) = eip_env%eip_forces(:,i)/evolt*angstrom
+    END DO
 
-      DO iparticle_kind = 1,nparticle_kind
-        atomic_kind => atomic_kind_set(iparticle_kind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
-        nparticle_local = local_particles%n_el(iparticle_kind)
-        DO iparticle_local = 1,nparticle_local
-          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          ekin = ekin +  0.5_dp * mass * &
-                     (particle_set(iparticle)%v(1)* particle_set(iparticle)%v(1) &
-                    + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
-                    + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3))
-        END DO
-      END DO
+    DEALLOCATE(rxyz, stat=stat)
+    CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
-      ! sum all contributions to energy over calculated parts on all processors
-      CALL cp_subsys_get(subsys=subsys, para_env=para_env, error=error)
-      CALL mp_sum(ekin, para_env%group)
-      eip_env%eip_kinetic_energy = ekin
+    ! Print
+    IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+              eip_section, "PRINT%ENERGIES", error=error), cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES", &
+                                extension=".mmLog", error=error)
 
-      eip_env%eip_potential_energy = ener/evolt
-      eip_env%eip_energy = eip_env%eip_kinetic_energy + eip_env%eip_potential_energy
-      eip_env%eip_energy_var = ener_var/evolt
-
-      DO i = 1,natom
-        particle_set(i)%f(:) = eip_env%eip_forces(:,i)/evolt*angstrom
-      END DO
-
-      DEALLOCATE(rxyz, stat=stat)
-      CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
-
-      ! Print
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                eip_section, "PRINT%ENERGIES", error=error), cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES", &
-                                  extension=".mmLog", error=error)
-
-        CALL eip_print_energies(eip_env=eip_env, output_unit=iw, error=error)
-        CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                          "PRINT%ENERGIES", error=error)
-      END IF
-
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                eip_section, "PRINT%ENERGIES_VAR", error=error), cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES_VAR", &
-                                  extension=".mmLog", error=error)
-
-        CALL eip_print_energy_var(eip_env=eip_env, output_unit=iw, error=error)
-        CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                          "PRINT%ENERGIES_VAR", error=error)
-      END IF
-
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                eip_section, "PRINT%FORCES", error=error), cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%FORCES", &
-                                  extension=".mmLog", error=error)
-
-        CALL eip_print_forces(eip_env=eip_env, output_unit=iw, error=error)
-        CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                          "PRINT%FORCES", error=error)
-      END IF
-
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                eip_section, "PRINT%COORD_AVG", error=error), cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_AVG", &
-                                  extension=".mmLog", error=error)
-
-        CALL eip_print_coord_avg(eip_env=eip_env, output_unit=iw, error=error)
-        CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                          "PRINT%COORD_AVG", error=error)
-      END IF
-
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                eip_section, "PRINT%COORD_VAR", error=error), cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_VAR", &
-                                  extension=".mmLog", error=error)
-
-        CALL eip_print_coord_var(eip_env=eip_env, output_unit=iw, error=error)
-        CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                          "PRINT%COORD_VAR", error=error)
-      END IF
-
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                eip_section, "PRINT%COUNT", error=error), cp_p_file)) THEN
-        iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COUNT", &
-                                  extension=".mmLog", error=error)
-
-        CALL eip_print_count(eip_env=eip_env, output_unit=iw, error=error)
-        CALL cp_print_key_finished_output(iw, logger, eip_section, &
-                                          "PRINT%COUNT", error=error)
-      END IF
-
+      CALL eip_print_energies(eip_env=eip_env, output_unit=iw, error=error)
+      CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                        "PRINT%ENERGIES", error=error)
     END IF
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+              eip_section, "PRINT%ENERGIES_VAR", error=error), cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%ENERGIES_VAR", &
+                                extension=".mmLog", error=error)
+
+      CALL eip_print_energy_var(eip_env=eip_env, output_unit=iw, error=error)
+      CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                        "PRINT%ENERGIES_VAR", error=error)
+    END IF
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+              eip_section, "PRINT%FORCES", error=error), cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%FORCES", &
+                                extension=".mmLog", error=error)
+
+      CALL eip_print_forces(eip_env=eip_env, output_unit=iw, error=error)
+      CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                        "PRINT%FORCES", error=error)
+    END IF
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+              eip_section, "PRINT%COORD_AVG", error=error), cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_AVG", &
+                                extension=".mmLog", error=error)
+
+      CALL eip_print_coord_avg(eip_env=eip_env, output_unit=iw, error=error)
+      CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                        "PRINT%COORD_AVG", error=error)
+    END IF
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+              eip_section, "PRINT%COORD_VAR", error=error), cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COORD_VAR", &
+                                extension=".mmLog", error=error)
+
+      CALL eip_print_coord_var(eip_env=eip_env, output_unit=iw, error=error)
+      CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                        "PRINT%COORD_VAR", error=error)
+    END IF
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+              eip_section, "PRINT%COUNT", error=error), cp_p_file)) THEN
+      iw = cp_print_key_unit_nr(logger, eip_section, "PRINT%COUNT", &
+                                extension=".mmLog", error=error)
+
+      CALL eip_print_count(eip_env=eip_env, output_unit=iw, error=error)
+      CALL cp_print_key_finished_output(iw, logger, eip_section, &
+                                        "PRINT%COUNT", error=error)
+    END IF
+
 
     CALL timestop(handle)
 

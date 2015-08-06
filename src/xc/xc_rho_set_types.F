@@ -141,33 +141,31 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     ALLOCATE(rho_set, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       rho_set%ref_count=1
-       last_rho_set_id=last_rho_set_id+1
-       rho_set%id_nr=last_rho_set_id
-       rho_set%rho_cutoff=EPSILON(0.0_dp)
-       IF (PRESENT(rho_cutoff)) rho_set%rho_cutoff=rho_cutoff
-       rho_set%drho_cutoff=EPSILON(0.0_dp)
-       IF (PRESENT(drho_cutoff)) rho_set%drho_cutoff=drho_cutoff
-       rho_set%tau_cutoff=EPSILON(0.0_dp)
-       IF (PRESENT(tau_cutoff)) rho_set%tau_cutoff=tau_cutoff
-       rho_set%local_bounds=local_bounds
-       CALL xc_rho_cflags_setall(rho_set%owns,.TRUE.,error=error)
-       CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
-       NULLIFY(rho_set%rho)
-       DO i=1,3
-          NULLIFY(rho_set%drho(i)%array)
-       END DO
-       NULLIFY(rho_set%rho_1_3)
-       NULLIFY(rho_set%norm_drho,rho_set%rhoa,rho_set%rhob)
-       DO i=1,3
-          NULLIFY(rho_set%drhoa(i)%array, rho_set%drhob(i)%array)
-       END DO
-       NULLIFY(rho_set%norm_drhoa, rho_set%norm_drhob, &
-            rho_set%drhoa_drhob,rho_set%rhoa_1_3,rho_set%rhob_1_3,&
-            rho_set%tau,rho_set%tau_a,rho_set%tau_b, rho_set%laplace_rho, rho_set%laplace_rhoa,&
-            rho_set%laplace_rhob)
-    END IF
+    rho_set%ref_count=1
+    last_rho_set_id=last_rho_set_id+1
+    rho_set%id_nr=last_rho_set_id
+    rho_set%rho_cutoff=EPSILON(0.0_dp)
+    IF (PRESENT(rho_cutoff)) rho_set%rho_cutoff=rho_cutoff
+    rho_set%drho_cutoff=EPSILON(0.0_dp)
+    IF (PRESENT(drho_cutoff)) rho_set%drho_cutoff=drho_cutoff
+    rho_set%tau_cutoff=EPSILON(0.0_dp)
+    IF (PRESENT(tau_cutoff)) rho_set%tau_cutoff=tau_cutoff
+    rho_set%local_bounds=local_bounds
+    CALL xc_rho_cflags_setall(rho_set%owns,.TRUE.,error=error)
+    CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
+    NULLIFY(rho_set%rho)
+    DO i=1,3
+       NULLIFY(rho_set%drho(i)%array)
+    END DO
+    NULLIFY(rho_set%rho_1_3)
+    NULLIFY(rho_set%norm_drho,rho_set%rhoa,rho_set%rhob)
+    DO i=1,3
+       NULLIFY(rho_set%drhoa(i)%array, rho_set%drhob(i)%array)
+    END DO
+    NULLIFY(rho_set%norm_drhoa, rho_set%norm_drhob, &
+         rho_set%drhoa_drhob,rho_set%rhoa_1_3,rho_set%rhob_1_3,&
+         rho_set%tau,rho_set%tau_a,rho_set%tau_b, rho_set%laplace_rho, rho_set%laplace_rhoa,&
+         rho_set%laplace_rhob)
   END SUBROUTINE xc_rho_set_create
 
 ! *****************************************************************************
@@ -187,10 +185,8 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(rho_set%ref_count>0,cp_failure_level,routineP,error)
-       rho_set%ref_count=rho_set%ref_count+1
-    END IF
+    CPPreconditionNoFail(rho_set%ref_count>0,cp_failure_level,routineP,error)
+    rho_set%ref_count=rho_set%ref_count+1
   END SUBROUTINE xc_rho_set_retain
 
 ! *****************************************************************************
@@ -401,100 +397,98 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(rho)) THEN
-          rho => rho_set%rho
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(drho)) THEN
-          drho => rho_set%drho
-          IF (.NOT.my_can_return_null) THEN
-             DO i=1,3
-                CPPrecondition(ASSOCIATED(rho_set%drho(i)%array),cp_failure_level,routineP,error,failure)
-             END DO
-          END IF
-       END IF
-       IF (PRESENT(norm_drho)) THEN
-          norm_drho => rho_set%norm_drho
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drho),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(laplace_rho)) THEN
-          laplace_rho => rho_set%laplace_rho
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rho),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(rhoa)) THEN
-          rhoa => rho_set%rhoa
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhoa),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(rhob)) THEN
-          rhob => rho_set%rhob
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhob),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(drhoa)) THEN
-          drhoa => rho_set%drhoa
-          IF (.NOT.my_can_return_null) THEN
-             DO i=1,3
-                CPAssert(ASSOCIATED(rho_set%drhoa(i)%array),cp_failure_level,routineP,error,failure)
-             END DO
-          END IF
-       END IF
-       IF (PRESENT(drhob)) THEN
-          drhob => rho_set%drhob
-          IF (.NOT.my_can_return_null) THEN
-             DO i=1,3
-                CPPrecondition(ASSOCIATED(rho_set%drhob(i)%array),cp_failure_level,routineP,error,failure)
-             END DO
-          END IF
-       END IF
-       IF (PRESENT(laplace_rhoa)) THEN
-          laplace_rhoa => rho_set%laplace_rhoa
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rhoa),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(laplace_rhob)) THEN
-          laplace_rhob => rho_set%laplace_rhob
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rhob),cp_failure_level,routineP,error,failure)
-       END IF
-      IF (PRESENT(norm_drhoa)) THEN
-          norm_drhoa => rho_set%norm_drhoa
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drhoa),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(norm_drhob)) THEN
-          norm_drhob => rho_set%norm_drhob
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drhob),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(drhoa_drhob)) THEN
-          drhoa_drhob => rho_set%drhoa_drhob
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(drhoa_drhob),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(rho_1_3)) THEN
-          rho_1_3 => rho_set%rho_1_3
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(rho_1_3),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(rhoa_1_3)) THEN
-          rhoa_1_3 => rho_set%rhoa_1_3
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhoa_1_3),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(rhob_1_3)) THEN
-          rhob_1_3 => rho_set%rhob_1_3
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhob_1_3),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(tau)) THEN
-          tau => rho_set%tau
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(tau_a)) THEN
-          tau_a => rho_set%tau_a
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau_a),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(tau_b)) THEN
-          tau_b => rho_set%tau_b
-          CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau_b),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (PRESENT(rho_cutoff)) rho_cutoff=rho_set%rho_cutoff
-       IF (PRESENT(drho_cutoff)) drho_cutoff=rho_set%drho_cutoff
-       IF (PRESENT(tau_cutoff)) tau_cutoff=rho_set%tau_cutoff
-       IF (PRESENT(local_bounds)) local_bounds => rho_set%local_bounds
+    IF (PRESENT(rho)) THEN
+       rho => rho_set%rho
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     END IF
+    IF (PRESENT(drho)) THEN
+       drho => rho_set%drho
+       IF (.NOT.my_can_return_null) THEN
+          DO i=1,3
+             CPPrecondition(ASSOCIATED(rho_set%drho(i)%array),cp_failure_level,routineP,error,failure)
+          END DO
+       END IF
+    END IF
+    IF (PRESENT(norm_drho)) THEN
+       norm_drho => rho_set%norm_drho
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drho),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(laplace_rho)) THEN
+       laplace_rho => rho_set%laplace_rho
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rho),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(rhoa)) THEN
+       rhoa => rho_set%rhoa
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhoa),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(rhob)) THEN
+       rhob => rho_set%rhob
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhob),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(drhoa)) THEN
+       drhoa => rho_set%drhoa
+       IF (.NOT.my_can_return_null) THEN
+          DO i=1,3
+             CPAssert(ASSOCIATED(rho_set%drhoa(i)%array),cp_failure_level,routineP,error,failure)
+          END DO
+       END IF
+    END IF
+    IF (PRESENT(drhob)) THEN
+       drhob => rho_set%drhob
+       IF (.NOT.my_can_return_null) THEN
+          DO i=1,3
+             CPPrecondition(ASSOCIATED(rho_set%drhob(i)%array),cp_failure_level,routineP,error,failure)
+          END DO
+       END IF
+    END IF
+    IF (PRESENT(laplace_rhoa)) THEN
+       laplace_rhoa => rho_set%laplace_rhoa
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rhoa),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(laplace_rhob)) THEN
+       laplace_rhob => rho_set%laplace_rhob
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rhob),cp_failure_level,routineP,error,failure)
+    END IF
+   IF (PRESENT(norm_drhoa)) THEN
+       norm_drhoa => rho_set%norm_drhoa
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drhoa),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(norm_drhob)) THEN
+       norm_drhob => rho_set%norm_drhob
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drhob),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(drhoa_drhob)) THEN
+       drhoa_drhob => rho_set%drhoa_drhob
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(drhoa_drhob),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(rho_1_3)) THEN
+       rho_1_3 => rho_set%rho_1_3
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rho_1_3),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(rhoa_1_3)) THEN
+       rhoa_1_3 => rho_set%rhoa_1_3
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhoa_1_3),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(rhob_1_3)) THEN
+       rhob_1_3 => rho_set%rhob_1_3
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhob_1_3),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(tau)) THEN
+       tau => rho_set%tau
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(tau_a)) THEN
+       tau_a => rho_set%tau_a
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau_a),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(tau_b)) THEN
+       tau_b => rho_set%tau_b
+       CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau_b),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (PRESENT(rho_cutoff)) rho_cutoff=rho_set%rho_cutoff
+    IF (PRESENT(drho_cutoff)) drho_cutoff=rho_set%drho_cutoff
+    IF (PRESENT(tau_cutoff)) tau_cutoff=rho_set%tau_cutoff
+    IF (PRESENT(local_bounds)) local_bounds => rho_set%local_bounds
   END SUBROUTINE xc_rho_set_get
 
 ! *****************************************************************************
@@ -522,111 +516,109 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
 
-       IF (rho_set%owns%rho) THEN
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rho, &
-               accept_non_compatible=.TRUE., error=error)
-       ELSE
-          NULLIFY(rho_set%rho)
-       END IF
-       IF (rho_set%owns%rho_1_3) THEN
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rho_1_3,&
-               accept_non_compatible=.TRUE.,error=error)
-       ELSE
-          NULLIFY(rho_set%rho_1_3)
-       END IF
-       IF (rho_set%owns%drho) THEN
-          DO idir=1,3
-             CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drho(idir)%array,&
-                  accept_non_compatible=.TRUE.,error=error)
-          END DO
-       ELSE
-          DO idir=1,3
-             NULLIFY(rho_set%drho(idir)%array)
-          END DO
-       END IF
-       IF (rho_set%owns%norm_drho) THEN
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drho,&
-               accept_non_compatible=.TRUE.,error=error)
-       ELSE
-          NULLIFY(rho_set%norm_drho)
-       END IF
-       IF (rho_set%owns%laplace_rho) THEN
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%laplace_rho,&
-               accept_non_compatible=.TRUE.,error=error)
-       ELSE
-          NULLIFY(rho_set%laplace_rho)
-       END IF
-       IF (rho_set%owns%tau) THEN
-          CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau,&
-               accept_non_compatible=.TRUE., error=error)
-       ELSE
-          NULLIFY(rho_set%tau)
-       END IF
-       IF (rho_set%owns%rho_spin) THEN
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhoa,&
-               accept_non_compatible=.TRUE., error=error)
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhob,&
-               accept_non_compatible=.TRUE., error=error)
-       ELSE
-          NULLIFY(rho_set%rhoa,rho_set%rhob)
-       END IF
-       IF (rho_set%owns%rho_spin_1_3) THEN
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhoa_1_3,&
-               accept_non_compatible=.TRUE.,error=error)
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhob_1_3,&
-               accept_non_compatible=.TRUE.,error=error)
-       ELSE
-          NULLIFY(rho_set%rhoa_1_3,rho_set%rhob_1_3)
-       END IF
-       IF (rho_set%owns%drho_spin) THEN
-          DO idir=1,3
-             CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drhoa(idir)%array,&
-                  accept_non_compatible=.TRUE.,error=error)
-             CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drhob(idir)%array,&
-                  accept_non_compatible=.TRUE.,error=error)
-          END DO
-       ELSE
-          DO idir=1,3
-             NULLIFY(rho_set%drhoa(idir)%array,rho_set%drhob(idir)%array)
-          END DO
-       END IF
-       IF (rho_set%owns%laplace_rho_spin) THEN
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%laplace_rhoa,&
-               accept_non_compatible=.TRUE.,error=error)
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%laplace_rhob,&
-               accept_non_compatible=.TRUE.,error=error)
-       ELSE
-          NULLIFY(rho_set%laplace_rhoa, rho_set%laplace_rhob)
-       END IF
-      IF (rho_set%owns%norm_drho_spin) THEN
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drhoa,&
-               accept_non_compatible=.TRUE.,error=error)
-          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drhob,&
-               accept_non_compatible=.TRUE.,error=error)
-       ELSE
-          NULLIFY(rho_set%norm_drhoa, rho_set%norm_drhob)
-       END IF
-       IF (rho_set%owns%drhoa_drhob) THEN
-          CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drhoa_drhob,&
-               accept_non_compatible=.TRUE., error=error)
-       ELSE
-          NULLIFY(rho_set%drhoa_drhob)
-       END IF
-       IF (rho_set%owns%tau_spin) THEN
-          CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau_a,&
-               accept_non_compatible=.TRUE., error=error)
-          CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau_b,&
-               accept_non_compatible=.TRUE., error=error)
-       ELSE
-          NULLIFY(rho_set%tau_a,rho_set%tau_b)
-       END IF
-
-       CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
-       CALL xc_rho_cflags_setall(rho_set%owns,.FALSE.,error=error)
-
+    IF (rho_set%owns%rho) THEN
+       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rho, &
+            accept_non_compatible=.TRUE., error=error)
+    ELSE
+       NULLIFY(rho_set%rho)
     END IF
+    IF (rho_set%owns%rho_1_3) THEN
+       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rho_1_3,&
+            accept_non_compatible=.TRUE.,error=error)
+    ELSE
+       NULLIFY(rho_set%rho_1_3)
+    END IF
+    IF (rho_set%owns%drho) THEN
+       DO idir=1,3
+          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drho(idir)%array,&
+               accept_non_compatible=.TRUE.,error=error)
+       END DO
+    ELSE
+       DO idir=1,3
+          NULLIFY(rho_set%drho(idir)%array)
+       END DO
+    END IF
+    IF (rho_set%owns%norm_drho) THEN
+       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drho,&
+            accept_non_compatible=.TRUE.,error=error)
+    ELSE
+       NULLIFY(rho_set%norm_drho)
+    END IF
+    IF (rho_set%owns%laplace_rho) THEN
+       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%laplace_rho,&
+            accept_non_compatible=.TRUE.,error=error)
+    ELSE
+       NULLIFY(rho_set%laplace_rho)
+    END IF
+    IF (rho_set%owns%tau) THEN
+       CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau,&
+            accept_non_compatible=.TRUE., error=error)
+    ELSE
+       NULLIFY(rho_set%tau)
+    END IF
+    IF (rho_set%owns%rho_spin) THEN
+       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhoa,&
+            accept_non_compatible=.TRUE., error=error)
+       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhob,&
+            accept_non_compatible=.TRUE., error=error)
+    ELSE
+       NULLIFY(rho_set%rhoa,rho_set%rhob)
+    END IF
+    IF (rho_set%owns%rho_spin_1_3) THEN
+       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhoa_1_3,&
+            accept_non_compatible=.TRUE.,error=error)
+       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%rhob_1_3,&
+            accept_non_compatible=.TRUE.,error=error)
+    ELSE
+       NULLIFY(rho_set%rhoa_1_3,rho_set%rhob_1_3)
+    END IF
+    IF (rho_set%owns%drho_spin) THEN
+       DO idir=1,3
+          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drhoa(idir)%array,&
+               accept_non_compatible=.TRUE.,error=error)
+          CALL pw_pool_give_back_cr3d(pw_pool,rho_set%drhob(idir)%array,&
+               accept_non_compatible=.TRUE.,error=error)
+       END DO
+    ELSE
+       DO idir=1,3
+          NULLIFY(rho_set%drhoa(idir)%array,rho_set%drhob(idir)%array)
+       END DO
+    END IF
+    IF (rho_set%owns%laplace_rho_spin) THEN
+       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%laplace_rhoa,&
+            accept_non_compatible=.TRUE.,error=error)
+       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%laplace_rhob,&
+            accept_non_compatible=.TRUE.,error=error)
+    ELSE
+       NULLIFY(rho_set%laplace_rhoa, rho_set%laplace_rhob)
+    END IF
+   IF (rho_set%owns%norm_drho_spin) THEN
+       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drhoa,&
+            accept_non_compatible=.TRUE.,error=error)
+       CALL pw_pool_give_back_cr3d(pw_pool,rho_set%norm_drhob,&
+            accept_non_compatible=.TRUE.,error=error)
+    ELSE
+       NULLIFY(rho_set%norm_drhoa, rho_set%norm_drhob)
+    END IF
+    IF (rho_set%owns%drhoa_drhob) THEN
+       CALL pw_pool_give_back_cr3d(pw_pool, rho_set%drhoa_drhob,&
+            accept_non_compatible=.TRUE., error=error)
+    ELSE
+       NULLIFY(rho_set%drhoa_drhob)
+    END IF
+    IF (rho_set%owns%tau_spin) THEN
+       CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau_a,&
+            accept_non_compatible=.TRUE., error=error)
+       CALL pw_pool_give_back_cr3d(pw_pool, rho_set%tau_b,&
+            accept_non_compatible=.TRUE., error=error)
+    ELSE
+       NULLIFY(rho_set%tau_a,rho_set%tau_b)
+    END IF
+
+    CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
+    CALL xc_rho_cflags_setall(rho_set%owns,.FALSE.,error=error)
+
   END SUBROUTINE xc_rho_set_clean
 
 ! *****************************************************************************

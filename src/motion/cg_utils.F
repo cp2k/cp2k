@@ -472,55 +472,53 @@ CONTAINS
     NULLIFY(pcom,xicom,hist)
     rms_dr    = gopt_param%rms_dr
     rms_force = gopt_param%rms_force
-    IF (.NOT.failure) THEN
-       ALLOCATE(pcom(SIZE(xvec)), stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(xicom(SIZE(xvec)), stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(pcom(SIZE(xvec)), stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(xicom(SIZE(xvec)), stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       pcom  = xvec
-       xicom = xi
-       xicom = xicom / SQRT(DOT_PRODUCT(xicom,xicom))
-       step = step * 0.8_dp ! target a little before the minimum for the first point
-       ax = 0.0_dp
-       xx = step
-       CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, &
-            histpoint=hist,globenv=globenv, error=error)
+    pcom  = xvec
+    xicom = xi
+    xicom = xicom / SQRT(DOT_PRODUCT(xicom,xicom))
+    step = step * 0.8_dp ! target a little before the minimum for the first point
+    ax = 0.0_dp
+    xx = step
+    CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, &
+         histpoint=hist,globenv=globenv, error=error)
+    !
+    fprev      = 0.0_dp
+    opt_energy = MINVAL(hist(:,2))
+    odim =  SIZE(hist,1)
+    scale = 0.25_dp
+    loc_iter = 0
+    DO WHILE ( ABS(hist(odim,3)) > rms_force*scale .OR. ABS(hist(odim,1)-hist(odim-1,1)) > scale*rms_dr)
+       CALL external_control(should_stop,"LINFIT",globenv=globenv,error=error)
+       IF(should_stop) EXIT
        !
-       fprev      = 0.0_dp
-       opt_energy = MINVAL(hist(:,2))
-       odim =  SIZE(hist,1)
-       scale = 0.25_dp
-       loc_iter = 0
-       DO WHILE ( ABS(hist(odim,3)) > rms_force*scale .OR. ABS(hist(odim,1)-hist(odim-1,1)) > scale*rms_dr)
-          CALL external_control(should_stop,"LINFIT",globenv=globenv,error=error)
-          IF(should_stop) EXIT
-          !
-          loc_iter = loc_iter + 1
-          fprev = opt_energy
-          xmin  = FindMin(hist(:,1),hist(:,2),hist(:,3),error)
-          CALL reallocate(hist,1,odim+1,1,3)
-          hist(odim+1,1) = xmin
-          hist(odim+1,3) = cg_deval1d(gopt_env,xmin,pcom,xicom,opt_energy,error)
-          hist(odim+1,2) = opt_energy
-          odim = SIZE(hist,1)
-       END DO
-       !
-       xicom = xmin*xicom
-       step = xmin
-       xvec  = xvec + xicom
-       DEALLOCATE(pcom,  stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(xicom, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(hist, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       IF (output_unit>0) THEN
-          WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
-          WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,I7,T78,A)")&
-               "***","FIT LS  - NUMBER OF ENERGY EVALUATIONS : ",loc_iter,"***"
-          WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-       END IF
+       loc_iter = loc_iter + 1
+       fprev = opt_energy
+       xmin  = FindMin(hist(:,1),hist(:,2),hist(:,3),error)
+       CALL reallocate(hist,1,odim+1,1,3)
+       hist(odim+1,1) = xmin
+       hist(odim+1,3) = cg_deval1d(gopt_env,xmin,pcom,xicom,opt_energy,error)
+       hist(odim+1,2) = opt_energy
+       odim = SIZE(hist,1)
+    END DO
+    !
+    xicom = xmin*xicom
+    step = xmin
+    xvec  = xvec + xicom
+    DEALLOCATE(pcom,  stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(xicom, stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(hist, stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (output_unit>0) THEN
+       WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
+       WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,I7,T78,A)")&
+            "***","FIT LS  - NUMBER OF ENERGY EVALUATIONS : ",loc_iter,"***"
+       WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
     END IF
     CALL timestop(handle)
 
@@ -571,31 +569,29 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(pcom,xicom)
-    IF (.NOT.failure) THEN
-       ALLOCATE(pcom(SIZE(xvec)), stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(xicom(SIZE(xvec)), stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(pcom(SIZE(xvec)), stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(xicom(SIZE(xvec)), stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       pcom  = xvec
-       xicom = xi
-       xicom = xicom / SQRT(DOT_PRODUCT(xicom,xicom))
-       step = step * 0.8_dp ! target a little before the minimum for the first point
-       ax = 0.0_dp
-       xx = step
-       CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit,&
-            globenv=globenv, error=error)
+    pcom  = xvec
+    xicom = xi
+    xicom = xicom / SQRT(DOT_PRODUCT(xicom,xicom))
+    step = step * 0.8_dp ! target a little before the minimum for the first point
+    ax = 0.0_dp
+    xx = step
+    CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit,&
+         globenv=globenv, error=error)
 
-       opt_energy = cg_dbrent(gopt_env, ax, xx, bx, brent_tol, brent_max_iter, &
-                              xmin, pcom, xicom, output_unit, globenv, error)
-       xicom = xmin*xicom
-       step = xmin
-       xvec  = xvec + xicom
-       DEALLOCATE(pcom,  stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(xicom, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+    opt_energy = cg_dbrent(gopt_env, ax, xx, bx, brent_tol, brent_max_iter, &
+                           xmin, pcom, xicom, output_unit, globenv, error)
+    xicom = xmin*xicom
+    step = xmin
+    xvec  = xvec + xicom
+    DEALLOCATE(pcom,  stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(xicom, stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE linmin_gold
 
@@ -651,118 +647,92 @@ CONTAINS
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     gold = (1.0_dp+SQRT(5.0_dp))/2.0_dp
-    IF (.NOT.failure) THEN
-       IF (hist) THEN
-          histpoint(1,1) = ax
-          histpoint(1,3) = cg_deval1d(gopt_env,ax,pcom,xicom,fa,error)
-          histpoint(1,2) = fa
-          histpoint(2,1) = bx
-          histpoint(2,3) = cg_deval1d(gopt_env,bx,pcom,xicom,fb,error)
-          histpoint(2,2) = fb
-       ELSE
-          fa=cg_eval1d(gopt_env,ax,pcom,xicom,error=error)
-          fb=cg_eval1d(gopt_env,bx,pcom,xicom,error=error)
-       END IF
-       IF(fb.GT.fa)THEN
-          dum=ax
-          ax=bx
-          bx=dum
-          dum=fb
-          fb=fa
-          fa=dum
-       ENDIF
-       cx=bx+gold*(bx-ax)
-       IF (hist) THEN
-          histpoint(3,1) = cx
-          histpoint(3,3) = cg_deval1d(gopt_env,cx,pcom,xicom,fc,error)
-          histpoint(3,2) = fc
-       ELSE
-          fc=cg_eval1d(gopt_env,cx,pcom,xicom,error=error)
-       END IF
-       loc_iter = 3
-       DO WHILE (fb.GE.fc)
-          CALL external_control(should_stop,"MNBRACK",globenv=globenv,error=error)
-          IF(should_stop) EXIT
-          !
-          r=(bx-ax)*(fb-fc)
-          q=(bx-cx)*(fb-fa)
-          u=bx-((bx-cx)*q-(bx-ax)*r)/(2.0_dp*SIGN(MAX(ABS(q-r),TINY(0.0_dp)),q-r))
-          ulim=bx+brack_limit*(cx-bx)
-          IF ((bx-u)*(u-cx).GT.0.0_dp) THEN
-             IF (hist) THEN
-                odim = SIZE(histpoint,1)
-                CALL reallocate(histpoint,1,odim+1,1,3)
-                histpoint(odim+1,1) = u
-                histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
-                histpoint(odim+1,2) = fu
-             ELSE
-                fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
-             END IF
-             loc_iter = loc_iter + 1
-             IF(fu.LT.fc)THEN
-                ax=bx
-                fa=fb
-                bx=u
-                fb=fu
-                EXIT
-             ELSE IF(fu.GT.fb)THEN
-                cx=u
-                fc=fu
-                EXIT
-             ENDIF
-             u=cx+gold*(cx-bx)
-             IF (hist) THEN
-                odim = SIZE(histpoint,1)
-                CALL reallocate(histpoint,1,odim+1,1,3)
-                histpoint(odim+1,1) = u
-                histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
-                histpoint(odim+1,2) = fu
-             ELSE
-                fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
-             END IF
-             loc_iter = loc_iter + 1
-          ELSE IF((cx-u)*(u-ulim).GT.0.)THEN
-             IF (hist) THEN
-                odim = SIZE(histpoint,1)
-                CALL reallocate(histpoint,1,odim+1,1,3)
-                histpoint(odim+1,1) = u
-                histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
-                histpoint(odim+1,2) = fu
-             ELSE
-                fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
-             END IF
-             loc_iter = loc_iter + 1
-             IF(fu.LT.fc)THEN
-                bx=cx
-                cx=u
-                u=cx+gold*(cx-bx)
-                fb=fc
-                fc=fu
-                IF (hist) THEN
-                   odim = SIZE(histpoint,1)
-                   CALL reallocate(histpoint,1,odim+1,1,3)
-                   histpoint(odim+1,1) = u
-                   histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
-                   histpoint(odim+1,2) = fu
-                ELSE
-                   fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
-                END IF
-                loc_iter = loc_iter + 1
-             ENDIF
-          ELSE IF((u-ulim)*(ulim-cx).GE.0.)THEN
-             u=ulim
-             IF (hist) THEN
-                odim = SIZE(histpoint,1)
-                CALL reallocate(histpoint,1,odim+1,1,3)
-                histpoint(odim+1,1) = u
-                histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
-                histpoint(odim+1,2) = fu
-             ELSE
-                fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
-             END IF
-             loc_iter = loc_iter + 1
+    IF (hist) THEN
+       histpoint(1,1) = ax
+       histpoint(1,3) = cg_deval1d(gopt_env,ax,pcom,xicom,fa,error)
+       histpoint(1,2) = fa
+       histpoint(2,1) = bx
+       histpoint(2,3) = cg_deval1d(gopt_env,bx,pcom,xicom,fb,error)
+       histpoint(2,2) = fb
+    ELSE
+       fa=cg_eval1d(gopt_env,ax,pcom,xicom,error=error)
+       fb=cg_eval1d(gopt_env,bx,pcom,xicom,error=error)
+    END IF
+    IF(fb.GT.fa)THEN
+       dum=ax
+       ax=bx
+       bx=dum
+       dum=fb
+       fb=fa
+       fa=dum
+    ENDIF
+    cx=bx+gold*(bx-ax)
+    IF (hist) THEN
+       histpoint(3,1) = cx
+       histpoint(3,3) = cg_deval1d(gopt_env,cx,pcom,xicom,fc,error)
+       histpoint(3,2) = fc
+    ELSE
+       fc=cg_eval1d(gopt_env,cx,pcom,xicom,error=error)
+    END IF
+    loc_iter = 3
+    DO WHILE (fb.GE.fc)
+       CALL external_control(should_stop,"MNBRACK",globenv=globenv,error=error)
+       IF(should_stop) EXIT
+       !
+       r=(bx-ax)*(fb-fc)
+       q=(bx-cx)*(fb-fa)
+       u=bx-((bx-cx)*q-(bx-ax)*r)/(2.0_dp*SIGN(MAX(ABS(q-r),TINY(0.0_dp)),q-r))
+       ulim=bx+brack_limit*(cx-bx)
+       IF ((bx-u)*(u-cx).GT.0.0_dp) THEN
+          IF (hist) THEN
+             odim = SIZE(histpoint,1)
+             CALL reallocate(histpoint,1,odim+1,1,3)
+             histpoint(odim+1,1) = u
+             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+             histpoint(odim+1,2) = fu
           ELSE
+             fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
+          END IF
+          loc_iter = loc_iter + 1
+          IF(fu.LT.fc)THEN
+             ax=bx
+             fa=fb
+             bx=u
+             fb=fu
+             EXIT
+          ELSE IF(fu.GT.fb)THEN
+             cx=u
+             fc=fu
+             EXIT
+          ENDIF
+          u=cx+gold*(cx-bx)
+          IF (hist) THEN
+             odim = SIZE(histpoint,1)
+             CALL reallocate(histpoint,1,odim+1,1,3)
+             histpoint(odim+1,1) = u
+             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+             histpoint(odim+1,2) = fu
+          ELSE
+             fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
+          END IF
+          loc_iter = loc_iter + 1
+       ELSE IF((cx-u)*(u-ulim).GT.0.)THEN
+          IF (hist) THEN
+             odim = SIZE(histpoint,1)
+             CALL reallocate(histpoint,1,odim+1,1,3)
+             histpoint(odim+1,1) = u
+             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+             histpoint(odim+1,2) = fu
+          ELSE
+             fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
+          END IF
+          loc_iter = loc_iter + 1
+          IF(fu.LT.fc)THEN
+             bx=cx
+             cx=u
              u=cx+gold*(cx-bx)
+             fb=fc
+             fc=fu
              IF (hist) THEN
                 odim = SIZE(histpoint,1)
                 CALL reallocate(histpoint,1,odim+1,1,3)
@@ -774,19 +744,43 @@ CONTAINS
              END IF
              loc_iter = loc_iter + 1
           ENDIF
-          ax=bx
-          bx=cx
-          cx=u
-          fa=fb
-          fb=fc
-          fc=fu
-       END DO
-       IF (output_unit>0) THEN
-          WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
-          WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,I7,T78,A)")&
-               "***","MNBRACK - NUMBER OF ENERGY EVALUATIONS : ",loc_iter,"***"
-          WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-       END IF
+       ELSE IF((u-ulim)*(ulim-cx).GE.0.)THEN
+          u=ulim
+          IF (hist) THEN
+             odim = SIZE(histpoint,1)
+             CALL reallocate(histpoint,1,odim+1,1,3)
+             histpoint(odim+1,1) = u
+             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+             histpoint(odim+1,2) = fu
+          ELSE
+             fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
+          END IF
+          loc_iter = loc_iter + 1
+       ELSE
+          u=cx+gold*(cx-bx)
+          IF (hist) THEN
+             odim = SIZE(histpoint,1)
+             CALL reallocate(histpoint,1,odim+1,1,3)
+             histpoint(odim+1,1) = u
+             histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+             histpoint(odim+1,2) = fu
+          ELSE
+             fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
+          END IF
+          loc_iter = loc_iter + 1
+       ENDIF
+       ax=bx
+       bx=cx
+       cx=u
+       fa=fb
+       fb=fc
+       fc=fu
+    END DO
+    IF (output_unit>0) THEN
+       WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
+       WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,I7,T78,A)")&
+            "***","MNBRACK - NUMBER OF ENERGY EVALUATIONS : ",loc_iter,"***"
+       WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
     END IF
     CALL timestop(handle)
   END SUBROUTINE cg_mnbrak
@@ -846,115 +840,113 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       a  = MIN(ax,cx)
-       b  = MAX(ax,cx)
-       v  = bx ; w  = v; x  = v
-       e  = 0.0_dp
-       dx = cg_deval1d(gopt_env,x,pcom,xicom,fx,error)
-       fv = fx
-       fw = fx
-       dv = dx
-       dw = dx
-       loc_iter = 1
-       DO  iter = 1, itmax
-          CALL external_control(should_stop,"BRENT",globenv=globenv,error=error)
-          IF(should_stop) EXIT
-          !
-          xm    = 0.5_dp * (a+b)
-          tol1  = tol*ABS(x)+zeps
-          tol2  = 2.0_dp * tol1
-          skip0 = .FALSE.
-          skip1 = .FALSE.
-          IF(ABS(x-xm).LE.(tol2-0.5_dp*(b-a))) EXIT
-          IF(ABS(e).GT.tol1) THEN
-             d1 = 2.0_dp*(b-a)
-             d2 = d1
-             IF(dw.NE.dx) d1=(w-x)*dx/(dx-dw)
-             IF(dv.NE.dx) d2=(v-x)*dx/(dx-dv)
-             u1   = x+d1
-             u2   = x+d2
-             ok1  = ((a-u1)*(u1-b).GT.0.0_dp).AND.(dx*d1.LE.0.0_dp)
-             ok2  = ((a-u2)*(u2-b).GT.0.0_dp).AND.(dx*d2.LE.0.0_dp)
-             olde = e
-             e    = d
-             IF(.NOT.(ok1.OR.ok2)) THEN
-                skip0 = .TRUE.
-             ELSE IF (ok1.AND.ok2) THEN
-                IF(ABS(d1).LT.ABS(d2)) THEN
-                   d = d1
-                ELSE
-                   d = d2
-                ENDIF
-             ELSE IF (ok1) THEN
+    a  = MIN(ax,cx)
+    b  = MAX(ax,cx)
+    v  = bx ; w  = v; x  = v
+    e  = 0.0_dp
+    dx = cg_deval1d(gopt_env,x,pcom,xicom,fx,error)
+    fv = fx
+    fw = fx
+    dv = dx
+    dw = dx
+    loc_iter = 1
+    DO  iter = 1, itmax
+       CALL external_control(should_stop,"BRENT",globenv=globenv,error=error)
+       IF(should_stop) EXIT
+       !
+       xm    = 0.5_dp * (a+b)
+       tol1  = tol*ABS(x)+zeps
+       tol2  = 2.0_dp * tol1
+       skip0 = .FALSE.
+       skip1 = .FALSE.
+       IF(ABS(x-xm).LE.(tol2-0.5_dp*(b-a))) EXIT
+       IF(ABS(e).GT.tol1) THEN
+          d1 = 2.0_dp*(b-a)
+          d2 = d1
+          IF(dw.NE.dx) d1=(w-x)*dx/(dx-dw)
+          IF(dv.NE.dx) d2=(v-x)*dx/(dx-dv)
+          u1   = x+d1
+          u2   = x+d2
+          ok1  = ((a-u1)*(u1-b).GT.0.0_dp).AND.(dx*d1.LE.0.0_dp)
+          ok2  = ((a-u2)*(u2-b).GT.0.0_dp).AND.(dx*d2.LE.0.0_dp)
+          olde = e
+          e    = d
+          IF(.NOT.(ok1.OR.ok2)) THEN
+             skip0 = .TRUE.
+          ELSE IF (ok1.AND.ok2) THEN
+             IF(ABS(d1).LT.ABS(d2)) THEN
                 d = d1
              ELSE
                 d = d2
              ENDIF
+          ELSE IF (ok1) THEN
+             d = d1
+          ELSE
+             d = d2
+          ENDIF
+          IF (.NOT.skip0) THEN
+             IF(ABS(d).GT.ABS(0.5_dp*olde)) skip0=.TRUE.
              IF (.NOT.skip0) THEN
-                IF(ABS(d).GT.ABS(0.5_dp*olde)) skip0=.TRUE.
-                IF (.NOT.skip0) THEN
-                   u=x+d
-                   IF((u-a).LT.tol2 .OR. (b-u).LT.tol2) d=SIGN(tol1,xm-x)
-                   skip1=.TRUE.
-                END IF
+                u=x+d
+                IF((u-a).LT.tol2 .OR. (b-u).LT.tol2) d=SIGN(tol1,xm-x)
+                skip1=.TRUE.
              END IF
-          ENDIF
-          IF (.NOT.skip1) THEN
-             IF(dx.GE.0.0_dp) THEN
-                e=a-x
-             ELSE
-                e=b-x
-             ENDIF
-             d=0.5_dp*e
           END IF
-          IF(ABS(d).GE.tol1) THEN
-             u=x+d
-             du=cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
-             loc_iter = loc_iter + 1
+       ENDIF
+       IF (.NOT.skip1) THEN
+          IF(dx.GE.0.0_dp) THEN
+             e=a-x
           ELSE
-             u=x+SIGN(tol1,d)
-             du=cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
-             loc_iter = loc_iter + 1
-             IF(fu.GT.fx) EXIT
+             e=b-x
           ENDIF
-          IF(fu.LE.fx) THEN
-             IF(u.GE.x) THEN
-                a=x
-             ELSE
-                b=x
-             ENDIF
-             v=w;   fv=fw;  dv=dw;  w=x
-             fw=fx; dw=dx;  x=u;    fx=fu;  dx=du
-          ELSE
-             IF(u.LT.x) THEN
-                a=u
-             ELSE
-                b=u
-             ENDIF
-             IF(fu.LE.fw .OR. w.EQ.x) THEN
-                v=w; fv=fw; dv=dw
-                w=u; fw=fu; dw=du
-             ELSE IF(fu.LE.fv .OR. v.EQ.x .OR. v.EQ.w) THEN
-                v=u
-                fv=fu
-                dv=du
-             ENDIF
-          ENDIF
-       END DO
-       IF (output_unit>0) THEN
-          WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
-          WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,I7,T78,A)")&
-               "***","BRENT   - NUMBER OF ENERGY EVALUATIONS : ",loc_iter,"***"
-          IF (iter==itmax+1) &
-               WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,T78,A)")&
-               "***","BRENT - NUMBER OF ITERATIONS EXCEEDED ","***"
-          WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
+          d=0.5_dp*e
        END IF
-       CPPrecondition((iter/=itmax+1),cp_failure_level,routineP,error,failure)
-       xmin=x
-       dbrent=fx
+       IF(ABS(d).GE.tol1) THEN
+          u=x+d
+          du=cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+          loc_iter = loc_iter + 1
+       ELSE
+          u=x+SIGN(tol1,d)
+          du=cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
+          loc_iter = loc_iter + 1
+          IF(fu.GT.fx) EXIT
+       ENDIF
+       IF(fu.LE.fx) THEN
+          IF(u.GE.x) THEN
+             a=x
+          ELSE
+             b=x
+          ENDIF
+          v=w;   fv=fw;  dv=dw;  w=x
+          fw=fx; dw=dx;  x=u;    fx=fu;  dx=du
+       ELSE
+          IF(u.LT.x) THEN
+             a=u
+          ELSE
+             b=u
+          ENDIF
+          IF(fu.LE.fw .OR. w.EQ.x) THEN
+             v=w; fv=fw; dv=dw
+             w=u; fw=fu; dw=du
+          ELSE IF(fu.LE.fv .OR. v.EQ.x .OR. v.EQ.w) THEN
+             v=u
+             fv=fu
+             dv=du
+          ENDIF
+       ENDIF
+    END DO
+    IF (output_unit>0) THEN
+       WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
+       WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,I7,T78,A)")&
+            "***","BRENT   - NUMBER OF ENERGY EVALUATIONS : ",loc_iter,"***"
+       IF (iter==itmax+1) &
+            WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,T78,A)")&
+            "***","BRENT - NUMBER OF ITERATIONS EXCEEDED ","***"
+       WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
     END IF
+    CPPrecondition((iter/=itmax+1),cp_failure_level,routineP,error,failure)
+    xmin=x
+    dbrent=fx
     CALL timestop(handle)
 
   END FUNCTION cg_dbrent
@@ -990,16 +982,14 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       ALLOCATE(xvec(SIZE(pcom)), stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       xvec = pcom + x*xicom
-       CALL cp_eval_at(gopt_env, xvec, my_val, master=gopt_env%force_env%para_env%mepos,&
-                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env,&
-                       error=error)
-       DEALLOCATE(xvec, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+    ALLOCATE(xvec(SIZE(pcom)), stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    xvec = pcom + x*xicom
+    CALL cp_eval_at(gopt_env, xvec, my_val, master=gopt_env%force_env%para_env%mepos,&
+                    final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env,&
+                    error=error)
+    DEALLOCATE(xvec, stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(handle)
 
@@ -1039,21 +1029,19 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       ALLOCATE(xvec(SIZE(pcom)), stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(grad(SIZE(pcom)), stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       xvec = pcom + x * xicom
-       CALL cp_eval_at(gopt_env, xvec, energy, grad, master=gopt_env%force_env%para_env%mepos,&
-                       final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env, error=error)
-       my_val = DOT_PRODUCT(grad,xicom)
-       fval   = energy
-       DEALLOCATE(xvec, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(grad, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+    ALLOCATE(xvec(SIZE(pcom)), stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(grad(SIZE(pcom)), stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    xvec = pcom + x * xicom
+    CALL cp_eval_at(gopt_env, xvec, energy, grad, master=gopt_env%force_env%para_env%mepos,&
+                    final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env, error=error)
+    my_val = DOT_PRODUCT(grad,xicom)
+    fval   = energy
+    DEALLOCATE(xvec, stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(grad, stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
 
   END FUNCTION cg_deval1d
@@ -1092,49 +1080,47 @@ CONTAINS
     failure=.FALSE.
     np=SIZE(x)
     CPPrecondition(np>1,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       sum_x=0._dp
-       sum_xx=0._dp
-       min_pos=1
-       DO i=1,np
-          sum_xx=sum_xx+x(i)**2
-          sum_x=sum_x+x(i)
-          IF (y(min_pos)>y(i)) min_pos=i
-       END DO
-       spread=SQRT(sum_xx/REAL(np,dp)-(sum_x/REAL(np,dp))**2)
-       DO i=1,np
-          w(i)=EXP(-(REAL(np-i,dp))**2/(REAL(2*9,dp)))
-          w(i+np)=2._dp*w(i)
-       END DO
-       DO i=1,np
-          f(i,1)=w(i)
-          f(i,2)=x(i)*w(i)
-          f(i,3)=x(i)**2*w(i)
-          f(i+np,1)=0
-          f(i+np,2)=w(i+np)
-          f(i+np,3)=2*x(i)*w(i+np)
-       END DO
-       DO i=1,np
-          b(i)=y(i)*w(i)
-          b(i+np)=dy(i)*w(i+np)
-       END DO
-       lwork=-1
-       CALL dgesdd('S',SIZE(f,1),SIZE(f,2),f,SIZE(f,1),diag,u,SIZE(u,1),vt,SIZE(vt,1),tmpw,lwork,&
-            iwork,info)
-       lwork=CEILING(tmpw(1))
-       ALLOCATE(work(lwork),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL dgesdd('S',SIZE(f,1),SIZE(f,2),f,SIZE(f,1),diag,u,SIZE(u,1),vt,SIZE(vt,1),work,lwork,&
-            iwork,info)
-       DEALLOCATE(work, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL dgemv('T',SIZE(u,1),SIZE(u,2),1._dp,u,SIZE(u,1),b,1,0._dp,res1,1)
-       DO i=1,3
-          res2(i)=res1(i)/diag(i)
-       END DO
-       CALL dgemv('T',3,3,1._dp,vt,SIZE(vt,1),res2,1,0._dp,res3,1)
-       res=-0.5*res3(2)/res3(3)
-    END IF
+    sum_x=0._dp
+    sum_xx=0._dp
+    min_pos=1
+    DO i=1,np
+       sum_xx=sum_xx+x(i)**2
+       sum_x=sum_x+x(i)
+       IF (y(min_pos)>y(i)) min_pos=i
+    END DO
+    spread=SQRT(sum_xx/REAL(np,dp)-(sum_x/REAL(np,dp))**2)
+    DO i=1,np
+       w(i)=EXP(-(REAL(np-i,dp))**2/(REAL(2*9,dp)))
+       w(i+np)=2._dp*w(i)
+    END DO
+    DO i=1,np
+       f(i,1)=w(i)
+       f(i,2)=x(i)*w(i)
+       f(i,3)=x(i)**2*w(i)
+       f(i+np,1)=0
+       f(i+np,2)=w(i+np)
+       f(i+np,3)=2*x(i)*w(i+np)
+    END DO
+    DO i=1,np
+       b(i)=y(i)*w(i)
+       b(i+np)=dy(i)*w(i+np)
+    END DO
+    lwork=-1
+    CALL dgesdd('S',SIZE(f,1),SIZE(f,2),f,SIZE(f,1),diag,u,SIZE(u,1),vt,SIZE(vt,1),tmpw,lwork,&
+         iwork,info)
+    lwork=CEILING(tmpw(1))
+    ALLOCATE(work(lwork),stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL dgesdd('S',SIZE(f,1),SIZE(f,2),f,SIZE(f,1),diag,u,SIZE(u,1),vt,SIZE(vt,1),work,lwork,&
+         iwork,info)
+    DEALLOCATE(work, stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL dgemv('T',SIZE(u,1),SIZE(u,2),1._dp,u,SIZE(u,1),b,1,0._dp,res1,1)
+    DO i=1,3
+       res2(i)=res1(i)/diag(i)
+    END DO
+    CALL dgemv('T',3,3,1._dp,vt,SIZE(vt,1),res2,1,0._dp,res3,1)
+    res=-0.5*res3(2)/res3(3)
   END FUNCTION FindMin
 
 ! *****************************************************************************

@@ -106,36 +106,32 @@ CPSourceFileRef,&
 #endif
 
     CPPrecondition(ASSOCIATED(matrix_struct),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       ALLOCATE(matrix,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT. failure) THEN
-       context => matrix_struct%context
-       matrix%matrix_struct => matrix_struct
-       CALL cp_fm_struct_retain(matrix%matrix_struct,error=error)
-       last_cfm_id_nr=last_cfm_id_nr+1
-       matrix%id_nr=last_cfm_id_nr
-       matrix%ref_count=1
-       matrix%print_count=0
+    ALLOCATE(matrix,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    context => matrix_struct%context
+    matrix%matrix_struct => matrix_struct
+    CALL cp_fm_struct_retain(matrix%matrix_struct,error=error)
+    last_cfm_id_nr=last_cfm_id_nr+1
+    matrix%id_nr=last_cfm_id_nr
+    matrix%ref_count=1
+    matrix%print_count=0
 
-       nprow=context%num_pe(1)
-       npcol=context%num_pe(2)
-       NULLIFY(matrix%local_data)
+    nprow=context%num_pe(1)
+    npcol=context%num_pe(2)
+    NULLIFY(matrix%local_data)
 
-       nrow_local=matrix_struct%local_leading_dimension
-       ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
-       ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    nrow_local=matrix_struct%local_leading_dimension
+    ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
+    ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       CALL dcopy(2*nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
+    CALL dcopy(2*nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
 ! matrix%local_data(:,:) = 0.0_dp
 
-       IF (PRESENT(name)) THEN
-          matrix%name=name
-       ELSE
-          matrix%name='full matrix'//cp_to_string(matrix%id_nr)
-       END IF
+    IF (PRESENT(name)) THEN
+       matrix%name=name
+    ELSE
+       matrix%name='full matrix'//cp_to_string(matrix%id_nr)
     END IF
   END SUBROUTINE cp_cfm_create
 
@@ -157,10 +153,8 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
-       matrix%ref_count=matrix%ref_count+1
-    END IF
+    CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
+    matrix%ref_count=matrix%ref_count+1
   END SUBROUTINE cp_cfm_retain
 
 ! *****************************************************************************

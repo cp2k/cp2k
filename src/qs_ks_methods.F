@@ -354,10 +354,8 @@ CONTAINS
     END IF
 
     ! gets the tmp grids
-    IF (.NOT. failure) THEN
-       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-                       pw_pools=pw_pools, poisson_env=poisson_env,error=error)
-    END IF
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+                    pw_pools=pw_pools, poisson_env=poisson_env,error=error)
 
     IF (gapw .AND. (poisson_env%parameters%solver .EQ. pw_poisson_implicit)) THEN
         CALL cp_assert(.FALSE., cp_failure_level, cp_assertion_failed, routineP,&
@@ -372,18 +370,16 @@ CONTAINS
     IF (.NOT. failure) THEN
 
        ! Calculate the Hartree potential
-       IF (.NOT.failure) THEN
-          CALL pw_pool_create_pw(auxbas_pw_pool,&
-                                 v_hartree_gspace%pw, &
-                                 use_data=COMPLEXDATA1D,&
-                                 in_space=RECIPROCALSPACE,&
-                                 error=error)
-          CALL pw_pool_create_pw(auxbas_pw_pool,&
-                                 rho_tot_gspace%pw,&
-                                 use_data=COMPLEXDATA1D,&
-                                 in_space=RECIPROCALSPACE,&
-                                 error=error)
-       END IF
+       CALL pw_pool_create_pw(auxbas_pw_pool,&
+                              v_hartree_gspace%pw, &
+                              use_data=COMPLEXDATA1D,&
+                              in_space=RECIPROCALSPACE,&
+                              error=error)
+       CALL pw_pool_create_pw(auxbas_pw_pool,&
+                              rho_tot_gspace%pw,&
+                              use_data=COMPLEXDATA1D,&
+                              in_space=RECIPROCALSPACE,&
+                              error=error)
 
        scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,scf_section,&
@@ -910,10 +906,8 @@ CONTAINS
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     ! gets the tmp grids
-    IF (.NOT. failure) THEN
-       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-                       pw_pools=pw_pools, poisson_env=poisson_env,error=error)
-    END IF
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+                    pw_pools=pw_pools, poisson_env=poisson_env,error=error)
 
     IF (.NOT. failure) THEN
 

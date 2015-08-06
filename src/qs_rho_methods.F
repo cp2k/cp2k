@@ -206,60 +206,50 @@ CONTAINS
 
     ! rho_r
     IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_r)) THEN
-       IF (.NOT.failure) THEN
-          IF (ASSOCIATED(rho_r)) THEN
-             DO i=1,SIZE(rho_r)
-                CALL pw_release(rho_r(i)%pw,error=error)
-             END DO
-             DEALLOCATE(rho_r)
-          END IF
-          ALLOCATE(rho_r(nspins))
-          CALL qs_rho_set(rho, rho_r=rho_r, error=error)
-       END IF
-       IF (.NOT.failure) THEN
-          DO i=1,nspins
-             CALL pw_pool_create_pw(auxbas_pw_pool,rho_r(i)%pw,&
-                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
+       IF (ASSOCIATED(rho_r)) THEN
+          DO i=1,SIZE(rho_r)
+             CALL pw_release(rho_r(i)%pw,error=error)
           END DO
+          DEALLOCATE(rho_r)
        END IF
+       ALLOCATE(rho_r(nspins))
+       CALL qs_rho_set(rho, rho_r=rho_r, error=error)
+       DO i=1,nspins
+          CALL pw_pool_create_pw(auxbas_pw_pool,rho_r(i)%pw,&
+               use_data=REALDATA3D,in_space=REALSPACE,error=error)
+       END DO
     END IF
 
     ! rho_g
     IF (my_rebuild_grids.OR..NOT.ASSOCIATED(rho_g)) THEN
-       IF (.NOT.failure) THEN
-          IF (ASSOCIATED(rho_g)) THEN
-             DO i=1,SIZE(rho_g)
-                CALL pw_release(rho_g(i)%pw,error=error)
-             END DO
-             DEALLOCATE(rho_g)
-          END IF
-          ALLOCATE(rho_g(nspins))
-          CALL qs_rho_set(rho, rho_g=rho_g, error=error)
-       END IF
-       IF (.NOT.failure) THEN
-          DO i=1,nspins
-             CALL pw_pool_create_pw(auxbas_pw_pool,rho_g(i)%pw,&
-                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+       IF (ASSOCIATED(rho_g)) THEN
+          DO i=1,SIZE(rho_g)
+             CALL pw_release(rho_g(i)%pw,error=error)
           END DO
+          DEALLOCATE(rho_g)
        END IF
+       ALLOCATE(rho_g(nspins))
+       CALL qs_rho_set(rho, rho_g=rho_g, error=error)
+       DO i=1,nspins
+          CALL pw_pool_create_pw(auxbas_pw_pool,rho_g(i)%pw,&
+               use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+       END DO
     END IF
 
     ! SCCS
     IF (dft_control%do_sccs) THEN
        IF (my_rebuild_grids.OR.(.NOT.ASSOCIATED(rho_r_sccs))) THEN
-          IF (.NOT.failure) THEN
-             IF (ASSOCIATED(rho_r_sccs)) THEN
-                CALL pw_release(rho_r_sccs%pw,error=error)
-                DEALLOCATE (rho_r_sccs)
-             END IF
-             ALLOCATE (rho_r_sccs)
-             CALL qs_rho_set(rho,rho_r_sccs=rho_r_sccs,error=error)
-             CALL pw_pool_create_pw(auxbas_pw_pool,rho_r_sccs%pw,&
-                                    use_data=REALDATA3D,&
-                                    in_space=REALSPACE,&
-                                    error=error)
-             CALL pw_zero(rho_r_sccs%pw,error=error)
+          IF (ASSOCIATED(rho_r_sccs)) THEN
+             CALL pw_release(rho_r_sccs%pw,error=error)
+             DEALLOCATE (rho_r_sccs)
           END IF
+          ALLOCATE (rho_r_sccs)
+          CALL qs_rho_set(rho,rho_r_sccs=rho_r_sccs,error=error)
+          CALL pw_pool_create_pw(auxbas_pw_pool,rho_r_sccs%pw,&
+                                 use_data=REALDATA3D,&
+                                 in_space=REALSPACE,&
+                                 error=error)
+          CALL pw_zero(rho_r_sccs%pw,error=error)
        END IF
     END IF
 
@@ -267,41 +257,33 @@ CONTAINS
     IF (dft_control%drho_by_collocation) THEN
        ! drho_r
        IF (my_rebuild_grids.OR..NOT.ASSOCIATED(drho_r)) THEN
-          IF (.NOT.failure) THEN
-             IF (ASSOCIATED(drho_r)) THEN
-                DO i=1,SIZE(drho_r)
-                   CALL pw_release(drho_r(i)%pw,error=error)
-                END DO
-                DEALLOCATE(drho_r)
-             END IF
-             ALLOCATE(drho_r(3*nspins))
-             CALL qs_rho_set(rho, drho_r=drho_r, error=error)
-          END IF
-          IF (.NOT.failure) THEN
-             DO i=1,3*nspins
-                CALL pw_pool_create_pw(auxbas_pw_pool,drho_r(i)%pw,&
-                     use_data=REALDATA3D,in_space=REALSPACE,error=error)
+          IF (ASSOCIATED(drho_r)) THEN
+             DO i=1,SIZE(drho_r)
+                CALL pw_release(drho_r(i)%pw,error=error)
              END DO
+             DEALLOCATE(drho_r)
           END IF
+          ALLOCATE(drho_r(3*nspins))
+          CALL qs_rho_set(rho, drho_r=drho_r, error=error)
+          DO i=1,3*nspins
+             CALL pw_pool_create_pw(auxbas_pw_pool,drho_r(i)%pw,&
+                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
+          END DO
        END IF
        ! drho_g
        IF (my_rebuild_grids.OR..NOT.ASSOCIATED(drho_g)) THEN
-          IF (.NOT.failure) THEN
-             IF (ASSOCIATED(drho_g)) THEN
-                DO i=1,SIZE(drho_g)
-                   CALL pw_release(drho_g(i)%pw,error=error)
-                END DO
-                DEALLOCATE(drho_g)
-             END IF
-             ALLOCATE(drho_g(3*nspins))
-             CALL qs_rho_set(rho, drho_g=drho_g, error=error)
-          END IF
-          IF (.NOT.failure) THEN
-             DO i=1,3*nspins
-                CALL pw_pool_create_pw(auxbas_pw_pool,drho_g(i)%pw,&
-                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+          IF (ASSOCIATED(drho_g)) THEN
+             DO i=1,SIZE(drho_g)
+                CALL pw_release(drho_g(i)%pw,error=error)
              END DO
+             DEALLOCATE(drho_g)
           END IF
+          ALLOCATE(drho_g(3*nspins))
+          CALL qs_rho_set(rho, drho_g=drho_g, error=error)
+          DO i=1,3*nspins
+             CALL pw_pool_create_pw(auxbas_pw_pool,drho_g(i)%pw,&
+                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+          END DO
        END IF
     END IF
 
@@ -309,42 +291,34 @@ CONTAINS
     IF (dft_control%use_kinetic_energy_density) THEN
        ! tau_r
        IF (my_rebuild_grids.OR..NOT.ASSOCIATED(tau_r)) THEN
-          IF (.NOT.failure) THEN
-             IF (ASSOCIATED(tau_r)) THEN
-                DO i=1,SIZE(tau_r)
-                   CALL pw_release(tau_r(i)%pw,error=error)
-                END DO
-                DEALLOCATE(tau_r)
-             END IF
-             ALLOCATE(tau_r(nspins))
-             CALL qs_rho_set(rho, tau_r=tau_r, error=error)
-          END IF
-          IF (.NOT.failure) THEN
-             DO i=1,nspins
-                CALL pw_pool_create_pw(auxbas_pw_pool,tau_r(i)%pw,&
-                     use_data=REALDATA3D,in_space=REALSPACE,error=error)
+          IF (ASSOCIATED(tau_r)) THEN
+             DO i=1,SIZE(tau_r)
+                CALL pw_release(tau_r(i)%pw,error=error)
              END DO
+             DEALLOCATE(tau_r)
           END IF
+          ALLOCATE(tau_r(nspins))
+          CALL qs_rho_set(rho, tau_r=tau_r, error=error)
+          DO i=1,nspins
+             CALL pw_pool_create_pw(auxbas_pw_pool,tau_r(i)%pw,&
+                  use_data=REALDATA3D,in_space=REALSPACE,error=error)
+          END DO
        END IF
 
        ! tau_g
        IF (my_rebuild_grids.OR..NOT.ASSOCIATED(tau_g)) THEN
-          IF (.NOT.failure) THEN
-             IF (ASSOCIATED(tau_g)) THEN
-                DO i=1,SIZE(tau_g)
-                   CALL pw_release(tau_g(i)%pw,error=error)
-                END DO
-                DEALLOCATE(tau_g)
-             END IF
-             ALLOCATE(tau_g(nspins))
-             CALL qs_rho_set(rho, tau_g=tau_g, error=error)
-          END IF
-          IF (.NOT.failure) THEN
-             DO i=1,nspins
-                CALL pw_pool_create_pw(auxbas_pw_pool,tau_g(i)%pw,&
-                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+          IF (ASSOCIATED(tau_g)) THEN
+             DO i=1,SIZE(tau_g)
+                CALL pw_release(tau_g(i)%pw,error=error)
              END DO
+             DEALLOCATE(tau_g)
           END IF
+          ALLOCATE(tau_g(nspins))
+          CALL qs_rho_set(rho, tau_g=tau_g, error=error)
+          DO i=1,nspins
+             CALL pw_pool_create_pw(auxbas_pw_pool,tau_g(i)%pw,&
+                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+          END DO
        END IF
     END IF  ! use_kinetic_energy_density
 
@@ -409,165 +383,163 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
     NULLIFY(lri_env, lri_density, para_env, atomic_kind_set)
 
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
 
-      CALL get_qs_env(qs_env,&
-                      ks_env=ks_env,&
-                      dft_control=dft_control,&
-                      task_list=task_list,&
-                      lri_density=lri_density,&
-                      lri_env=lri_env,&
-                      atomic_kind_set=atomic_kind_set,&
-                      para_env=para_env,&
-                      error=error)
+    CALL get_qs_env(qs_env,&
+                    ks_env=ks_env,&
+                    dft_control=dft_control,&
+                    task_list=task_list,&
+                    lri_density=lri_density,&
+                    lri_env=lri_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    para_env=para_env,&
+                    error=error)
 
-      CALL qs_rho_get(rho_struct,&
-                      rho_r=rho_r,&
-                      rho_g=rho_g,&
-                      tot_rho_r=tot_rho_r,&
-                      drho_r=drho_r,&
-                      drho_g=drho_g,&
-                      tau_r=tau_r,&
-                      tau_g=tau_g,&
-                      rho_r_sccs=rho_r_sccs,&
-                      error=error)
+    CALL qs_rho_get(rho_struct,&
+                    rho_r=rho_r,&
+                    rho_g=rho_g,&
+                    tot_rho_r=tot_rho_r,&
+                    drho_r=drho_r,&
+                    drho_g=drho_g,&
+                    tau_r=tau_r,&
+                    tau_g=tau_g,&
+                    rho_r_sccs=rho_r_sccs,&
+                    error=error)
 
-      IF (PRESENT(task_list_external)) task_list => task_list_external 
+    IF (PRESENT(task_list_external)) task_list => task_list_external 
 
-      nspins = dft_control%nspins
-      nimg = dft_control%nimages
-      gapw = dft_control%qs_control%gapw
-      gapw_xc = dft_control%qs_control%gapw_xc
+    nspins = dft_control%nspins
+    nimg = dft_control%nimages
+    gapw = dft_control%qs_control%gapw
+    gapw_xc = dft_control%qs_control%gapw_xc
 
-      IF(dft_control%qs_control%semi_empirical) THEN
-        !
-        CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE., error=error)
-      ELSEIF(dft_control%qs_control%dftb) THEN
-        !
-        CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE., error=error)
-      ELSEIF(dft_control%qs_control%scptb) THEN
-        !
-        CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE., error=error)
-      ELSEIF(dft_control%qs_control%lrigpw) THEN
-        CALL qs_rho_get(rho_struct, rho_ao=rho_ao, error=error)
-        CALL calculate_lri_densities(lri_env,lri_density,qs_env,rho_ao,&
-                                     lri_rho_struct=rho_struct,&
-                                     atomic_kind_set=atomic_kind_set,&
-                                     para_env=para_env,error=error)
-        CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
-      ELSE
-        CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp, error=error)
-        DO ispin=1,nspins
-           rho_ao => rho_ao_kp(ispin,:)
-           CALL calculate_rho_elec(matrix_p_kp=rho_ao,&
-                rho=rho_r(ispin),&
-                rho_gspace=rho_g(ispin),&
-                total_rho=tot_rho_r(ispin),&
-                ks_env=ks_env,soft_valid=gapw,&
-                task_list_external=task_list, error=error)
-        END DO
-        CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
-      END IF
+    IF(dft_control%qs_control%semi_empirical) THEN
+      !
+      CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE., error=error)
+    ELSEIF(dft_control%qs_control%dftb) THEN
+      !
+      CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE., error=error)
+    ELSEIF(dft_control%qs_control%scptb) THEN
+      !
+      CALL qs_rho_set(rho_struct, rho_r_valid=.FALSE., rho_g_valid=.FALSE., error=error)
+    ELSEIF(dft_control%qs_control%lrigpw) THEN
+      CALL qs_rho_get(rho_struct, rho_ao=rho_ao, error=error)
+      CALL calculate_lri_densities(lri_env,lri_density,qs_env,rho_ao,&
+                                   lri_rho_struct=rho_struct,&
+                                   atomic_kind_set=atomic_kind_set,&
+                                   para_env=para_env,error=error)
+      CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
+    ELSE
+      CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp, error=error)
+      DO ispin=1,nspins
+         rho_ao => rho_ao_kp(ispin,:)
+         CALL calculate_rho_elec(matrix_p_kp=rho_ao,&
+              rho=rho_r(ispin),&
+              rho_gspace=rho_g(ispin),&
+              total_rho=tot_rho_r(ispin),&
+              ks_env=ks_env,soft_valid=gapw,&
+              task_list_external=task_list, error=error)
+      END DO
+      CALL qs_rho_set(rho_struct, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
+    END IF
 
-      ! if needed compute also the gradient of the density
-      IF (dft_control%drho_by_collocation) THEN
-         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp, error=error)
-         DO ispin=1,nspins
-           CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
-           rho_ao => rho_ao_kp(ispin,:)
-           CALL calculate_drho_elec(matrix_p_kp=rho_ao,&
-             drho=drho_r(3*(ispin-1)+1:3*ispin),&
-             drho_gspace=drho_g(3*(ispin-1)+1:3*ispin),&
-             qs_env=qs_env,soft_valid=gapw,error=error)
-         END DO
-         CALL qs_rho_set(rho_struct, drho_r_valid=.TRUE., drho_g_valid=.TRUE., error=error)
-      ENDIF
-
-      ! if needed compute also the kinetic energy density
-      IF (dft_control%use_kinetic_energy_density) THEN
-         IF(dft_control%qs_control%lrigpw) THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-             "LRIGPW not implemented for meta-GGAs")
-         ENDIF
-         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp, error=error)
-         DO ispin=1,nspins
-            CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
-            rho_ao => rho_ao_kp(ispin,:)
-            CALL calculate_rho_elec(matrix_p_kp=rho_ao,&
-                 rho=tau_r(ispin),&
-                 rho_gspace=tau_g(ispin),&
-                 total_rho=dum, &  ! presumably not meaningful
-                 ks_env=ks_env, soft_valid=gapw, &
-                 compute_tau=.TRUE.,&
-                 error=error)
-         END DO
-         CALL qs_rho_set(rho_struct, tau_r_valid=.TRUE., tau_g_valid=.TRUE., error=error)
-      ENDIF
-
-     ! GAPW o GAPW_XC require the calculation of hard and soft local densities
-      IF(gapw ) THEN
+    ! if needed compute also the gradient of the density
+    IF (dft_control%drho_by_collocation) THEN
+       CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp, error=error)
+       DO ispin=1,nspins
          CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
-         CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp, error=error)
-         IF(PRESENT(local_rho_set)) THEN
-            CALL calculate_rho_atom_coeff(qs_env,rho_ao_kp,local_rho_set%rho_atom_set,error=error)
-         ELSE
-            CALL calculate_rho_atom_coeff(qs_env,rho_ao_kp,error=error)
-         ENDIF
-      ENDIF
-      IF(gapw_xc) THEN
-         CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
-         CALL get_qs_env(qs_env=qs_env,rho_xc=rho_xc,error=error)
-         CALL qs_rho_get(rho_xc,&
-                         rho_ao_kp=rho_xc_ao,&
-                         rho_r=rho_xc_r,&
-                         rho_g=rho_xc_g,&
-                         tot_rho_r=tot_rho_r_xc,&
-                         drho_g=drho_xc_g,&
-                         tau_r=tau_xc_r,&
-                         tau_g=tau_xc_g,&
-                         error=error)
-         CALL calculate_rho_atom_coeff(qs_env,rho_ao_kp,error=error)
-         ! copy rho_ao into rho_xc_ao
-         DO ispin=1,nspins
-            DO img=1,nimg
-               CALL cp_dbcsr_copy(rho_xc_ao(ispin,img)%matrix,rho_ao_kp(ispin,img)%matrix, error=error)
-            END DO
-         END DO
+         rho_ao => rho_ao_kp(ispin,:)
+         CALL calculate_drho_elec(matrix_p_kp=rho_ao,&
+           drho=drho_r(3*(ispin-1)+1:3*ispin),&
+           drho_gspace=drho_g(3*(ispin-1)+1:3*ispin),&
+           qs_env=qs_env,soft_valid=gapw,error=error)
+       END DO
+       CALL qs_rho_set(rho_struct, drho_r_valid=.TRUE., drho_g_valid=.TRUE., error=error)
+    ENDIF
+
+    ! if needed compute also the kinetic energy density
+    IF (dft_control%use_kinetic_energy_density) THEN
+       IF(dft_control%qs_control%lrigpw) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+           "LRIGPW not implemented for meta-GGAs")
+       ENDIF
+       CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp, error=error)
+       DO ispin=1,nspins
+          CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
+          rho_ao => rho_ao_kp(ispin,:)
+          CALL calculate_rho_elec(matrix_p_kp=rho_ao,&
+               rho=tau_r(ispin),&
+               rho_gspace=tau_g(ispin),&
+               total_rho=dum, &  ! presumably not meaningful
+               ks_env=ks_env, soft_valid=gapw, &
+               compute_tau=.TRUE.,&
+               error=error)
+       END DO
+       CALL qs_rho_set(rho_struct, tau_r_valid=.TRUE., tau_g_valid=.TRUE., error=error)
+    ENDIF
+
+   ! GAPW o GAPW_XC require the calculation of hard and soft local densities
+    IF(gapw ) THEN
+       CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
+       CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp, error=error)
+       IF(PRESENT(local_rho_set)) THEN
+          CALL calculate_rho_atom_coeff(qs_env,rho_ao_kp,local_rho_set%rho_atom_set,error=error)
+       ELSE
+          CALL calculate_rho_atom_coeff(qs_env,rho_ao_kp,error=error)
+       ENDIF
+    ENDIF
+    IF(gapw_xc) THEN
+       CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,error,failure)
+       CALL get_qs_env(qs_env=qs_env,rho_xc=rho_xc,error=error)
+       CALL qs_rho_get(rho_xc,&
+                       rho_ao_kp=rho_xc_ao,&
+                       rho_r=rho_xc_r,&
+                       rho_g=rho_xc_g,&
+                       tot_rho_r=tot_rho_r_xc,&
+                       drho_g=drho_xc_g,&
+                       tau_r=tau_xc_r,&
+                       tau_g=tau_xc_g,&
+                       error=error)
+       CALL calculate_rho_atom_coeff(qs_env,rho_ao_kp,error=error)
+       ! copy rho_ao into rho_xc_ao
+       DO ispin=1,nspins
+          DO img=1,nimg
+             CALL cp_dbcsr_copy(rho_xc_ao(ispin,img)%matrix,rho_ao_kp(ispin,img)%matrix, error=error)
+          END DO
+       END DO
+       DO ispin=1,nspins
+         rho_ao => rho_xc_ao(ispin,:)
+         CALL calculate_rho_elec(matrix_p_kp=rho_ao,&
+              rho=rho_xc_r(ispin),&
+              rho_gspace=rho_xc_g(ispin),&
+              total_rho=tot_rho_r_xc(ispin),&
+              ks_env=ks_env,soft_valid=gapw_xc,error=error)
+       END DO
+       CALL qs_rho_set(rho_xc, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
+       ! if needed compute also the gradient of the density
+       IF (dft_control%drho_by_collocation) THEN
+          DO ispin=1,nspins
+            rho_ao => rho_xc_ao(ispin,:)
+            CALL calculate_drho_elec(matrix_p_kp=rho_ao,&
+              drho=rho_xc_r(3*(ispin-1)+1:3*ispin),&
+              drho_gspace=drho_xc_g(3*(ispin-1)+1:3*ispin),&
+              qs_env=qs_env,soft_valid=gapw_xc,error=error)
+          END DO
+          CALL qs_rho_set(rho_xc, drho_r_valid=.TRUE., drho_g_valid=.TRUE., error=error)
+       ENDIF
+       ! if needed compute also the kinetic energy density
+       IF (dft_control%use_kinetic_energy_density) THEN
          DO ispin=1,nspins
            rho_ao => rho_xc_ao(ispin,:)
            CALL calculate_rho_elec(matrix_p_kp=rho_ao,&
-                rho=rho_xc_r(ispin),&
-                rho_gspace=rho_xc_g(ispin),&
-                total_rho=tot_rho_r_xc(ispin),&
-                ks_env=ks_env,soft_valid=gapw_xc,error=error)
+               rho=tau_xc_r(ispin),&
+               rho_gspace=tau_xc_g(ispin),&
+               total_rho=dum, &  ! presumably not meaningful
+               ks_env=ks_env, soft_valid=gapw_xc, &
+               compute_tau=.TRUE., error=error)
          END DO
-         CALL qs_rho_set(rho_xc, rho_r_valid=.TRUE., rho_g_valid=.TRUE., error=error)
-         ! if needed compute also the gradient of the density
-         IF (dft_control%drho_by_collocation) THEN
-            DO ispin=1,nspins
-              rho_ao => rho_xc_ao(ispin,:)
-              CALL calculate_drho_elec(matrix_p_kp=rho_ao,&
-                drho=rho_xc_r(3*(ispin-1)+1:3*ispin),&
-                drho_gspace=drho_xc_g(3*(ispin-1)+1:3*ispin),&
-                qs_env=qs_env,soft_valid=gapw_xc,error=error)
-            END DO
-            CALL qs_rho_set(rho_xc, drho_r_valid=.TRUE., drho_g_valid=.TRUE., error=error)
-         ENDIF
-         ! if needed compute also the kinetic energy density
-         IF (dft_control%use_kinetic_energy_density) THEN
-           DO ispin=1,nspins
-             rho_ao => rho_xc_ao(ispin,:)
-             CALL calculate_rho_elec(matrix_p_kp=rho_ao,&
-                 rho=tau_xc_r(ispin),&
-                 rho_gspace=tau_xc_g(ispin),&
-                 total_rho=dum, &  ! presumably not meaningful
-                 ks_env=ks_env, soft_valid=gapw_xc, &
-                 compute_tau=.TRUE., error=error)
-           END DO
-           CALL qs_rho_set(rho_xc, tau_r_valid=.TRUE., tau_g_valid=.TRUE., error=error)
-         ENDIF
-      ENDIF
-   END IF
+         CALL qs_rho_set(rho_xc, tau_r_valid=.TRUE., tau_g_valid=.TRUE., error=error)
+       ENDIF
+    ENDIF
 
     CALL timestop(handle)
 

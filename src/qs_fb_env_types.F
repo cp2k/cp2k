@@ -112,10 +112,8 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(fb_env%obj%ref_count>0, cp_failure_level, routineP, error)
-       fb_env%obj%ref_count = fb_env%obj%ref_count + 1
-    END IF
+    CPPreconditionNoFail(fb_env%obj%ref_count>0, cp_failure_level, routineP, error)
+    fb_env%obj%ref_count = fb_env%obj%ref_count + 1
   END SUBROUTINE fb_env_retain
 
 
@@ -237,21 +235,19 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE(fb_env%obj, STAT=stat)
-       CPPostconditionNoFail(stat==0, cp_failure_level, routineP, error)
-       NULLIFY(fb_env%obj%rcut)
-       CALL fb_atomic_halo_list_nullify(fb_env%obj%atomic_halos)
-       CALL fb_trial_fns_nullify(fb_env%obj%trial_fns)
-       fb_env%obj%filter_temperature = 0.0_dp
-       fb_env%obj%auto_cutoff_scale = 1.0_dp
-       fb_env%obj%collective_com = .TRUE.
-       NULLIFY(fb_env%obj%local_atoms)
-       fb_env%obj%nlocal_atoms = 0
-       fb_env%obj%ref_count = 1
-       fb_env%obj%id_nr = last_fb_env_id + 1
-       last_fb_env_id = fb_env%obj%id_nr
-    END IF
+    ALLOCATE(fb_env%obj, STAT=stat)
+    CPPostconditionNoFail(stat==0, cp_failure_level, routineP, error)
+    NULLIFY(fb_env%obj%rcut)
+    CALL fb_atomic_halo_list_nullify(fb_env%obj%atomic_halos)
+    CALL fb_trial_fns_nullify(fb_env%obj%trial_fns)
+    fb_env%obj%filter_temperature = 0.0_dp
+    fb_env%obj%auto_cutoff_scale = 1.0_dp
+    fb_env%obj%collective_com = .TRUE.
+    NULLIFY(fb_env%obj%local_atoms)
+    fb_env%obj%nlocal_atoms = 0
+    fb_env%obj%ref_count = 1
+    fb_env%obj%id_nr = last_fb_env_id + 1
+    last_fb_env_id = fb_env%obj%id_nr
   END SUBROUTINE fb_env_create
 
 
@@ -276,24 +272,22 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       IF (ASSOCIATED(fb_env%obj%rcut)) THEN
-          DEALLOCATE(fb_env%obj%rcut, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          NULLIFY(fb_env%obj%rcut)
-       END IF
-       CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
-       CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
-       fb_env%obj%filter_temperature = 0.0_dp
-       fb_env%obj%auto_cutoff_scale = 1.0_dp
-       fb_env%obj%collective_com = .TRUE.
-       IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
-          DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          NULLIFY(fb_env%obj%local_atoms)
-       END IF
-       fb_env%obj%nlocal_atoms = 0
+    IF (ASSOCIATED(fb_env%obj%rcut)) THEN
+       DEALLOCATE(fb_env%obj%rcut, STAT=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       NULLIFY(fb_env%obj%rcut)
     END IF
+    CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
+    CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
+    fb_env%obj%filter_temperature = 0.0_dp
+    fb_env%obj%auto_cutoff_scale = 1.0_dp
+    fb_env%obj%collective_com = .TRUE.
+    IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
+       DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
+       CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       NULLIFY(fb_env%obj%local_atoms)
+    END IF
+    fb_env%obj%nlocal_atoms = 0
   END SUBROUTINE fb_env_init
 
 
@@ -349,24 +343,22 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
     CPPrecondition(fb_env%obj%ref_count>0, cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(rcut)) &
-            rcut => fb_env%obj%rcut
-       IF (PRESENT(filter_temperature)) &
-            filter_temperature = fb_env%obj%filter_temperature
-       IF (PRESENT(auto_cutoff_scale)) &
-            auto_cutoff_scale = fb_env%obj%auto_cutoff_scale
-       IF (PRESENT(atomic_halos)) &
-            CALL fb_atomic_halo_list_associate(atomic_halos, fb_env%obj%atomic_halos)
-       IF (PRESENT(trial_fns)) &
-            CALL fb_trial_fns_associate(trial_fns, fb_env%obj%trial_fns)
-       IF (PRESENT(collective_com)) &
-            collective_com = fb_env%obj%collective_com
-       IF (PRESENT(local_atoms)) &
-            local_atoms => fb_env%obj%local_atoms
-       IF (PRESENT(nlocal_atoms)) &
-            nlocal_atoms = fb_env%obj%nlocal_atoms
-    END IF
+    IF (PRESENT(rcut)) &
+         rcut => fb_env%obj%rcut
+    IF (PRESENT(filter_temperature)) &
+         filter_temperature = fb_env%obj%filter_temperature
+    IF (PRESENT(auto_cutoff_scale)) &
+         auto_cutoff_scale = fb_env%obj%auto_cutoff_scale
+    IF (PRESENT(atomic_halos)) &
+         CALL fb_atomic_halo_list_associate(atomic_halos, fb_env%obj%atomic_halos)
+    IF (PRESENT(trial_fns)) &
+         CALL fb_trial_fns_associate(trial_fns, fb_env%obj%trial_fns)
+    IF (PRESENT(collective_com)) &
+         collective_com = fb_env%obj%collective_com
+    IF (PRESENT(local_atoms)) &
+         local_atoms => fb_env%obj%local_atoms
+    IF (PRESENT(nlocal_atoms)) &
+         nlocal_atoms = fb_env%obj%nlocal_atoms
   END SUBROUTINE fb_env_get
 
 
@@ -418,42 +410,40 @@ CONTAINS
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP, error, failure)
-    IF (.NOT. failure) THEN
-       IF (PRESENT(rcut)) THEN
-          IF (ASSOCIATED(fb_env%obj%rcut)) THEN
-             DEALLOCATE(fb_env%obj%rcut, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          END IF
-          fb_env%obj%rcut => rcut
+    IF (PRESENT(rcut)) THEN
+       IF (ASSOCIATED(fb_env%obj%rcut)) THEN
+          DEALLOCATE(fb_env%obj%rcut, STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
        END IF
-       IF (PRESENT(filter_temperature)) &
-            fb_env%obj%filter_temperature = filter_temperature
-       IF (PRESENT(auto_cutoff_scale)) &
-            fb_env%obj%auto_cutoff_scale = auto_cutoff_scale
-       IF (PRESENT(atomic_halos)) THEN
-          IF (fb_atomic_halo_list_has_data(atomic_halos)) &
-               CALL fb_atomic_halo_list_retain(atomic_halos, error)
-          CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
-          CALL fb_atomic_halo_list_associate(fb_env%obj%atomic_halos, atomic_halos)
-       END IF
-       IF (PRESENT(trial_fns)) THEN
-          IF (fb_trial_fns_has_data(trial_fns)) &
-               CALL fb_trial_fns_retain(trial_fns, error)
-          CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
-          CALL fb_trial_fns_associate(fb_env%obj%trial_fns, trial_fns)
-       END IF
-       IF (PRESENT(collective_com)) &
-            fb_env%obj%collective_com = collective_com
-       IF (PRESENT(local_atoms)) THEN
-          IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
-             DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
-          END IF
-          fb_env%obj%local_atoms => local_atoms
-       END IF
-       IF (PRESENT(nlocal_atoms)) &
-            fb_env%obj%nlocal_atoms = nlocal_atoms
+       fb_env%obj%rcut => rcut
     END IF
+    IF (PRESENT(filter_temperature)) &
+         fb_env%obj%filter_temperature = filter_temperature
+    IF (PRESENT(auto_cutoff_scale)) &
+         fb_env%obj%auto_cutoff_scale = auto_cutoff_scale
+    IF (PRESENT(atomic_halos)) THEN
+       IF (fb_atomic_halo_list_has_data(atomic_halos)) &
+            CALL fb_atomic_halo_list_retain(atomic_halos, error)
+       CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos, error)
+       CALL fb_atomic_halo_list_associate(fb_env%obj%atomic_halos, atomic_halos)
+    END IF
+    IF (PRESENT(trial_fns)) THEN
+       IF (fb_trial_fns_has_data(trial_fns)) &
+            CALL fb_trial_fns_retain(trial_fns, error)
+       CALL fb_trial_fns_release(fb_env%obj%trial_fns, error)
+       CALL fb_trial_fns_associate(fb_env%obj%trial_fns, trial_fns)
+    END IF
+    IF (PRESENT(collective_com)) &
+         fb_env%obj%collective_com = collective_com
+    IF (PRESENT(local_atoms)) THEN
+       IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
+          DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
+          CPPostcondition(stat==0, cp_failure_level, routineP, error, failure)
+       END IF
+       fb_env%obj%local_atoms => local_atoms
+    END IF
+    IF (PRESENT(nlocal_atoms)) &
+         fb_env%obj%nlocal_atoms = nlocal_atoms
   END SUBROUTINE fb_env_set
 
 END MODULE qs_fb_env_types

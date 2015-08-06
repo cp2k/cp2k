@@ -232,17 +232,13 @@ CONTAINS
     CALL cp_assert(ASSOCIATED(rep_env),cp_failure_level,cp_assertion_failed,&
          routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id),&
          failure=failure)
-    IF (.NOT. failure) THEN
-       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-            new_error=error, failure=failure)
-       IF (.NOT.failure) THEN
-          logger => cp_error_get_logger(error)
-          CALL cp_rm_iter_level(iteration_info=logger%iter_info,&
-               level_name="REPLICA_EVAL",error=error)
-       END IF
-       CALL f_env_rm_defaults(f_env,error,ierr)
-       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-    END IF
+    CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
+         new_error=error, failure=failure)
+    logger => cp_error_get_logger(error)
+    CALL cp_rm_iter_level(iteration_info=logger%iter_info,&
+         level_name="REPLICA_EVAL",error=error)
+    CALL f_env_rm_defaults(f_env,error,ierr)
+    CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE rep_env_destroy_low
 
 ! *****************************************************************************
@@ -265,10 +261,8 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       rep_env%ref_count=rep_env%ref_count+1
-    END IF
+    CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    rep_env%ref_count=rep_env%ref_count+1
     CALL timestop(handle)
   END SUBROUTINE rep_env_retain
 
@@ -364,14 +358,12 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(vals,2)==rep_env%nrep,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       DO irep=1,rep_env%nrep
-          IF (.NOT.rep_env%rep_is_local(irep)) THEN
-             vals(:,irep)=0._dp
-          END IF
-       END DO
-       CALL mp_sum(vals,rep_env%para_env_inter_rep%group)
-    END IF
+    DO irep=1,rep_env%nrep
+       IF (.NOT.rep_env%rep_is_local(irep)) THEN
+          vals(:,irep)=0._dp
+       END IF
+    END DO
+    CALL mp_sum(vals,rep_env%para_env_inter_rep%group)
     CALL timestop(handle)
   END SUBROUTINE rep_env_sync
 
@@ -402,16 +394,14 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(results)==rep_env%nrep,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       DO irep=1, nrep
+    DO irep=1, nrep
 !         source = 0
 !         IF (rep_env%rep_is_local(irep)) source = rep_env%para_env_inter_rep%mepos
 !         CALL mp_sum(source, rep_env%para_env_inter_rep%group)
 ! above three lines should be the same as just:
-          source = rep_env%inter_rep_rank(rep_env%replica_owner(irep))
-          CALL cp_results_mp_bcast(results(irep)%results, source, rep_env%para_env_inter_rep, error)
-       END DO
-    END IF
+       source = rep_env%inter_rep_rank(rep_env%replica_owner(irep))
+       CALL cp_results_mp_bcast(results(irep)%results, source, rep_env%para_env_inter_rep, error)
+    END DO
     CALL timestop(handle)
   END SUBROUTINE rep_env_sync_results
 
@@ -566,17 +556,15 @@ CONTAINS
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       res=-1
-       DO i=1,SIZE(rep_env%local_rep_indices)
-          IF (rep_env%local_rep_indices(i)==global_index) THEN
-             res=i
-             EXIT
-          END IF
-       END DO
-       IF (res==-1) THEN
-          PRINT *,routineP," ",global_index," not in ",rep_env%local_rep_indices
+    res=-1
+    DO i=1,SIZE(rep_env%local_rep_indices)
+       IF (rep_env%local_rep_indices(i)==global_index) THEN
+          res=i
+          EXIT
        END IF
+    END DO
+    IF (res==-1) THEN
+       PRINT *,routineP," ",global_index," not in ",rep_env%local_rep_indices
     END IF
     CALL timestop(handle)
   END FUNCTION rep_env_local_index

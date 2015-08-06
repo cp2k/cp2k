@@ -187,71 +187,69 @@ CONTAINS
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL xc_rho_set_get(rho_set,rho_1_3=rho13,rho=rho,&
-            norm_drho=grho,local_bounds=bo,rho_cutoff=epsilon_rho,&
-            error=error)
-       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-       m=ABS(order)
-       CALL cs1_init(epsilon_rho)
+    CALL xc_rho_set_get(rho_set,rho_1_3=rho13,rho=rho,&
+         norm_drho=grho,local_bounds=bo,rho_cutoff=epsilon_rho,&
+         error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    m=ABS(order)
+    CALL cs1_init(epsilon_rho)
 
-       IF ( order>=0 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"",&
-               allocate_deriv=.TRUE., error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+    IF ( order>=0 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
 
-          CALL cs1_u_0 ( rho, grho, rho13, e_0,npoints, error)
-       END IF
-       IF ( order>=1 .OR. order==-1 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
-
-          CALL cs1_u_1 ( rho, grho, rho13, e_rho, e_ndrho,&
-               npoints,error)
-       END IF
-       IF ( order>=2.OR.order==-2 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)(norm_drho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,&
-               "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
-
-          CALL cs1_u_2 ( rho, grho, rho13, e_rho_rho, e_rho_ndrho, &
-               e_ndrho_ndrho, npoints, error )
-       END IF
-       IF ( order>=3.OR.order==-3 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,&
-               "(rho)(rho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,&
-               "(rho)(norm_drho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,&
-               "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
-               error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
-
-          CALL cs1_u_3 ( rho, grho, rho13, e_rho_rho_rho, e_rho_rho_ndrho,&
-               e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints, error)
-       END IF
-       IF ( order>3.OR.order<-3) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="derivatives bigger than 3 not implemented", &
-               error=error, error_level=cp_failure_level)
-       END IF
-
+       CALL cs1_u_0 ( rho, grho, rho13, e_0,npoints, error)
     END IF
+    IF ( order>=1 .OR. order==-1 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+
+       CALL cs1_u_1 ( rho, grho, rho13, e_rho, e_ndrho,&
+            npoints,error)
+    END IF
+    IF ( order>=2.OR.order==-2 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)(norm_drho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+            "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
+
+       CALL cs1_u_2 ( rho, grho, rho13, e_rho_rho, e_rho_ndrho, &
+            e_ndrho_ndrho, npoints, error )
+    END IF
+    IF ( order>=3.OR.order==-3 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+            "(rho)(rho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+            "(rho)(norm_drho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+            "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
+            error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
+
+       CALL cs1_u_3 ( rho, grho, rho13, e_rho_rho_rho, e_rho_rho_ndrho,&
+            e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints, error)
+    END IF
+    IF ( order>3.OR.order<-3) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="derivatives bigger than 3 not implemented", &
+            error=error, error_level=cp_failure_level)
+    END IF
+
     CALL timestop(handle)
   END SUBROUTINE cs1_lda_eval
 
@@ -290,45 +288,43 @@ CONTAINS
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,&
-            rhoa_1_3=rhoa_1_3,rhob_1_3=rhob_1_3,&
-            norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,&
-            local_bounds=bo,rho_cutoff=epsilon_rho, error=error)
-       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-       CALL cs1_init(epsilon_rho)
+    CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,&
+         rhoa_1_3=rhoa_1_3,rhob_1_3=rhob_1_3,&
+         norm_drhoa=norm_drhoa,norm_drhob=norm_drhob,&
+         local_bounds=bo,rho_cutoff=epsilon_rho, error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL cs1_init(epsilon_rho)
 
-       IF ( order>=0 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"",&
-               allocate_deriv=.TRUE., error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+    IF ( order>=0 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
 
-          CALL cs1_ss_0 ( rhoa, rhob, norm_drhoa, norm_drhob,&
-               rhoa_1_3, rhob_1_3, e_0,npoints,error)
-       END IF
-       IF ( order>=1.OR.order==-1 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rhoa,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rhob,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrhob,error=error)
+       CALL cs1_ss_0 ( rhoa, rhob, norm_drhoa, norm_drhob,&
+            rhoa_1_3, rhob_1_3, e_0,npoints,error)
+    END IF
+    IF ( order>=1.OR.order==-1 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rhoa,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rhob,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrhoa,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrhob,error=error)
 
-          CALL cs1_ss_1 ( rhoa, rhob, norm_drhoa, norm_drhob,&
-               rhoa_1_3, rhob_1_3, e_rhoa, e_rhob, e_ndrhoa, e_ndrhob,&
-               npoints,error)
-       END IF
-       IF ( order>1 .OR. order<1 ) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="derivatives bigger than 3 not implemented", &
-               error=error, error_level=cp_failure_level)
-       END IF
+       CALL cs1_ss_1 ( rhoa, rhob, norm_drhoa, norm_drhob,&
+            rhoa_1_3, rhob_1_3, e_rhoa, e_rhob, e_ndrhoa, e_ndrhob,&
+            npoints,error)
+    END IF
+    IF ( order>1 .OR. order<1 ) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="derivatives bigger than 3 not implemented", &
+            error=error, error_level=cp_failure_level)
     END IF
     CALL timestop(handle)
   END SUBROUTINE cs1_lsd_eval

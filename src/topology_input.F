@@ -63,40 +63,38 @@ SUBROUTINE read_topology_section ( topology, topology_section, error )
 
   CALL timeset(routineN,handle)
   failure = .FALSE.
-  IF (.NOT. failure) THEN
-     CALL section_vals_val_get(topology_section,"CHARGE_OCCUP",l_val=topology%charge_occup,error=error)
-     CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology%charge_beta,error=error)
-     CALL section_vals_val_get(topology_section,"CHARGE_EXTENDED",l_val=topology%charge_extended,error=error)
-     ival = COUNT((/topology%charge_occup,topology%charge_beta,topology%charge_extended/))
-     CALL cp_assert(ival<=1,cp_failure_level,cp_assertion_failed,routineP,&
-          "Only one between <CHARGE_OCCUP,CHARGE_BETA,CHARGE_EXTENDED> can be defined! "//&
+  CALL section_vals_val_get(topology_section,"CHARGE_OCCUP",l_val=topology%charge_occup,error=error)
+  CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology%charge_beta,error=error)
+  CALL section_vals_val_get(topology_section,"CHARGE_EXTENDED",l_val=topology%charge_extended,error=error)
+  ival = COUNT((/topology%charge_occup,topology%charge_beta,topology%charge_extended/))
+  CALL cp_assert(ival<=1,cp_failure_level,cp_assertion_failed,routineP,&
+       "Only one between <CHARGE_OCCUP,CHARGE_BETA,CHARGE_EXTENDED> can be defined! "//&
 CPSourceFileRef,&
-          only_ionode=.TRUE.)
-     CALL section_vals_val_get(topology_section,"PARA_RES",l_val=topology%para_res,error=error)
-     CALL section_vals_val_get(topology_section,"GENERATE%REORDER",l_val=topology%reorder_atom,error=error)
-     CALL section_vals_val_get(topology_section,"GENERATE%CREATE_MOLECULES",l_val=topology%create_molecules,error=error)
-     CALL section_vals_val_get(topology_section,"MOL_CHECK",l_val=topology%molecules_check,error=error)
-     CALL section_vals_val_get(topology_section,"USE_G96_VELOCITY",l_val=topology%use_g96_velocity,error=error)
-     CALL section_vals_val_get(topology_section,"COORD_FILE_FORMAT",i_val=topology%coord_type ,error=error)
-     SELECT CASE(topology%coord_type)
-     CASE(do_coord_off)
-        ! Do Nothing
-     CASE DEFAULT
-        topology%coordinate = .TRUE.
-        CALL section_vals_val_get(topology_section,"COORD_FILE_NAME",c_val=topology%coord_file_name, error=error)
-     END SELECT
-     CALL section_vals_val_get(topology_section,"CONN_FILE_FORMAT",i_val=topology%conn_type,error=error)
-     SELECT CASE(topology%conn_type)
-     CASE(do_conn_off,do_conn_generate,do_conn_mol_set,do_conn_user)
-        ! Do Nothing
-     CASE DEFAULT
-        CALL section_vals_val_get(topology_section,"CONN_FILE_NAME",c_val=topology%conn_file_name,error=error)
-     END SELECT
-     CALL section_vals_val_get(topology_section,"EXCLUDE_VDW",i_val=topology%exclude_vdw,error=error)
-     CALL section_vals_val_get(topology_section,"EXCLUDE_EI",i_val=topology%exclude_ei,error=error)
-     CALL section_vals_val_get(topology_section,"GENERATE%BONDPARM",i_val=topology%bondparm_type,error=error)
-     CALL section_vals_val_get(topology_section,"GENERATE%BONDPARM_FACTOR",r_val=topology%bondparm_factor,error=error)
-  END IF
+       only_ionode=.TRUE.)
+  CALL section_vals_val_get(topology_section,"PARA_RES",l_val=topology%para_res,error=error)
+  CALL section_vals_val_get(topology_section,"GENERATE%REORDER",l_val=topology%reorder_atom,error=error)
+  CALL section_vals_val_get(topology_section,"GENERATE%CREATE_MOLECULES",l_val=topology%create_molecules,error=error)
+  CALL section_vals_val_get(topology_section,"MOL_CHECK",l_val=topology%molecules_check,error=error)
+  CALL section_vals_val_get(topology_section,"USE_G96_VELOCITY",l_val=topology%use_g96_velocity,error=error)
+  CALL section_vals_val_get(topology_section,"COORD_FILE_FORMAT",i_val=topology%coord_type ,error=error)
+  SELECT CASE(topology%coord_type)
+  CASE(do_coord_off)
+     ! Do Nothing
+  CASE DEFAULT
+     topology%coordinate = .TRUE.
+     CALL section_vals_val_get(topology_section,"COORD_FILE_NAME",c_val=topology%coord_file_name, error=error)
+  END SELECT
+  CALL section_vals_val_get(topology_section,"CONN_FILE_FORMAT",i_val=topology%conn_type,error=error)
+  SELECT CASE(topology%conn_type)
+  CASE(do_conn_off,do_conn_generate,do_conn_mol_set,do_conn_user)
+     ! Do Nothing
+  CASE DEFAULT
+     CALL section_vals_val_get(topology_section,"CONN_FILE_NAME",c_val=topology%conn_file_name,error=error)
+  END SELECT
+  CALL section_vals_val_get(topology_section,"EXCLUDE_VDW",i_val=topology%exclude_vdw,error=error)
+  CALL section_vals_val_get(topology_section,"EXCLUDE_EI",i_val=topology%exclude_ei,error=error)
+  CALL section_vals_val_get(topology_section,"GENERATE%BONDPARM",i_val=topology%bondparm_type,error=error)
+  CALL section_vals_val_get(topology_section,"GENERATE%BONDPARM_FACTOR",r_val=topology%bondparm_factor,error=error)
   CALL timestop(handle)
 END SUBROUTINE read_topology_section
 

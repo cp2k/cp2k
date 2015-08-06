@@ -93,10 +93,8 @@ SUBROUTINE qs_diis_b_retain(diis_buffer,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(diis_buffer),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(diis_buffer%ref_count>0,cp_failure_level,routineP,error)
-     diis_buffer%ref_count=diis_buffer%ref_count+1
-  END IF
+  CPPreconditionNoFail(diis_buffer%ref_count>0,cp_failure_level,routineP,error)
+  diis_buffer%ref_count=diis_buffer%ref_count+1
 END SUBROUTINE qs_diis_b_retain
 
 ! *****************************************************************************

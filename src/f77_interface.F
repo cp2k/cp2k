@@ -371,15 +371,13 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(f_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL force_env_release(f_env%force_env,error=error)
-       CALL cp_error_dealloc_ref(f_env%error,error=error)
-       CALL timer_env_release(f_env%timer_env)
-       CALL mp_perf_env_release(f_env%mp_perf_env)
-       IF (f_env%old_path/=f_env%my_path) THEN
-          CALL m_chdir(f_env%old_path,ierr)
-          CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-       END IF
+    CALL force_env_release(f_env%force_env,error=error)
+    CALL cp_error_dealloc_ref(f_env%error,error=error)
+    CALL timer_env_release(f_env%timer_env)
+    CALL mp_perf_env_release(f_env%mp_perf_env)
+    IF (f_env%old_path/=f_env%my_path) THEN
+       CALL m_chdir(f_env%old_path,ierr)
+       CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
   END SUBROUTINE f_env_dealloc
 
@@ -417,19 +415,17 @@ CONTAINS
 
     ALLOCATE(f_env,stat=stat)
     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       f_env%force_env => force_env
-       CALL force_env_retain(f_env%force_env,error=error)
-       CALL cp_error_init(f_env%error,template_error=template_error)
-       f_env%timer_env => timer_env
-       CALL timer_env_retain(f_env%timer_env)
-       f_env%mp_perf_env => mp_perf_env
-       CALL mp_perf_env_retain(f_env%mp_perf_env)
-       f_env%id_nr=id_nr
-       CALL m_getcwd(f_env%my_path)
-       f_env%old_path=f_env%my_path
-       IF (PRESENT(old_dir)) f_env%old_path=old_dir
-    END IF
+    f_env%force_env => force_env
+    CALL force_env_retain(f_env%force_env,error=error)
+    CALL cp_error_init(f_env%error,template_error=template_error)
+    f_env%timer_env => timer_env
+    CALL timer_env_retain(f_env%timer_env)
+    f_env%mp_perf_env => mp_perf_env
+    CALL mp_perf_env_retain(f_env%mp_perf_env)
+    f_env%id_nr=id_nr
+    CALL m_getcwd(f_env%my_path)
+    f_env%old_path=f_env%my_path
+    IF (PRESENT(old_dir)) f_env%old_path=old_dir
   END SUBROUTINE f_env_create
 
 ! *****************************************************************************
@@ -507,17 +503,15 @@ CONTAINS
        CALL cp_error_init(new_error,template_error=f_env%error)
        logger => cp_error_get_logger(f_env%error)
        CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,new_error,my_failure)
-       IF (.NOT.my_failure) THEN
-          CALL m_getcwd(f_env%old_path)
-          IF (f_env%old_path/=f_env%my_path) THEN
-             CALL m_chdir(TRIM(f_env%my_path),ierr)
-             CPAssert(ierr==0,cp_failure_level,routineP,new_error,failure)
-          END IF
-          CALL add_mp_perf_env(f_env%mp_perf_env)
-          CALL add_timer_env(f_env%timer_env)
-          CALL cp_add_default_logger(logger)
-          IF (PRESENT(handle)) handle=cp_default_logger_stack_size()
+       CALL m_getcwd(f_env%old_path)
+       IF (f_env%old_path/=f_env%my_path) THEN
+          CALL m_chdir(TRIM(f_env%my_path),ierr)
+          CPAssert(ierr==0,cp_failure_level,routineP,new_error,failure)
        END IF
+       CALL add_mp_perf_env(f_env%mp_perf_env)
+       CALL add_timer_env(f_env%timer_env)
+       CALL cp_add_default_logger(logger)
+       IF (PRESENT(handle)) handle=cp_default_logger_stack_size()
     END IF
   END SUBROUTINE f_env_add_defaults
 
@@ -568,11 +562,9 @@ CONTAINS
        CPPrecondition(ASSOCIATED(d_logger),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(d_timer_env),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(d_mp_perf_env),cp_failure_level,routineP,error,failure)
-       IF (.NOT.failure) THEN
-          CPPrecondition(logger%id_nr==d_logger%id_nr,cp_failure_level,routineP,error,failure)
-          ! CPPrecondition(d_timer_env%id_nr==f_env%timer_env%id_nr,cp_failure_level,routineP,error,failure)
-          CPPrecondition(d_mp_perf_env%id_nr==f_env%mp_perf_env%id_nr,cp_failure_level,routineP,error,failure)
-       END IF
+       CPPrecondition(logger%id_nr==d_logger%id_nr,cp_failure_level,routineP,error,failure)
+       ! CPPrecondition(d_timer_env%id_nr==f_env%timer_env%id_nr,cp_failure_level,routineP,error,failure)
+       CPPrecondition(d_mp_perf_env%id_nr==f_env%mp_perf_env%id_nr,cp_failure_level,routineP,error,failure)
        IF (f_env%old_path/=f_env%my_path) THEN
           CALL m_chdir(TRIM(f_env%old_path),ierr2)
           CPAssert(ierr2==0,cp_failure_level,routineP,error,failure)
@@ -581,11 +573,9 @@ CONTAINS
           ierr=0
        ENDIF
        CALL cp_error_dealloc_ref(error)
-       IF (.NOT.failure) THEN
-          CALL cp_rm_default_logger()
-          CALL rm_timer_env()
-          CALL rm_mp_perf_env()
-       END IF
+       CALL cp_rm_default_logger()
+       CALL rm_timer_env()
+       CALL rm_mp_perf_env()
     ELSE
        IF (PRESENT(ierr)) THEN
           ierr=0
@@ -767,169 +757,167 @@ CONTAINS
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
     END IF
 
-    IF (.NOT.failure) THEN
 
-       CALL cp2k_read(root_section,para_env,globenv,error=error)
+    CALL cp2k_read(root_section,para_env,globenv,error=error)
 
-       CALL cp2k_setup(root_section,para_env,globenv,error)
-       ! Group Distribution
-       ALLOCATE(group_distribution(0:para_env%num_pe-1),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       group_distribution  = 0
-       lgroup_distribution => group_distribution
-       ! Setup all possible force_env
-       force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
-       CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%MULTIPLE_SUBSYS",&
-            l_val=multiple_subsys,error=error)
-       CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval,&
-            error)
-       ! Enforce the deletion of the subsys (unless not explicitly required)
+    CALL cp2k_setup(root_section,para_env,globenv,error)
+    ! Group Distribution
+    ALLOCATE(group_distribution(0:para_env%num_pe-1),stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    group_distribution  = 0
+    lgroup_distribution => group_distribution
+    ! Setup all possible force_env
+    force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
+    CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%MULTIPLE_SUBSYS",&
+         l_val=multiple_subsys,error=error)
+    CALL multiple_fe_list(force_env_sections, root_section, i_force_eval, nforce_eval,&
+         error)
+    ! Enforce the deletion of the subsys (unless not explicitly required)
+    IF (.NOT.multiple_subsys) THEN
+       DO iforce_eval = 2, nforce_eval
+          wrk_section => section_vals_get_subs_vals(force_env_sections,"SUBSYS",&
+               i_rep_section=i_force_eval(iforce_eval),error=error)
+          CALL section_vals_remove_values(wrk_section, error=error)
+       END DO
+    END IF
+    nsubforce_size        = nforce_eval-1
+    use_multiple_para_env = .FALSE.
+    use_motion_section    = .TRUE.
+    DO iforce_eval = 1, nforce_eval
+       NULLIFY(force_env_section, my_force_env, subsys_section)
+       ! Reference subsys from the first ordered force_eval
        IF (.NOT.multiple_subsys) THEN
-          DO iforce_eval = 2, nforce_eval
-             wrk_section => section_vals_get_subs_vals(force_env_sections,"SUBSYS",&
-                  i_rep_section=i_force_eval(iforce_eval),error=error)
-             CALL section_vals_remove_values(wrk_section, error=error)
+          subsys_section => section_vals_get_subs_vals(force_env_sections,"SUBSYS",&
+               i_rep_section=i_force_eval(1),error=error)
+       END IF
+       ! Handling para_env in case of multiple force_eval
+       IF (use_multiple_para_env) THEN
+          ! Check that the order of the force_eval is the correct one
+          CALL section_vals_val_get(force_env_sections, "METHOD", i_val=method_name_id, &
+               i_rep_section=i_force_eval(1), error=error)
+          CALL cp_assert(method_name_id==do_mixed,cp_failure_level,cp_assertion_failed,routineP,&
+               "In case of multiple force_eval the MAIN force_eval (the first in the list of FORCE_EVAL_ORDER or "//&
+               "the one omitted from that order list) must be a MIXED_ENV type calculation. Please check your "//&
+               "input file and possibly correct the MULTIPLE_FORCE_EVAL%FORCE_EVAL_ORDER. "//&
+CPSourceFileRef,&
+               only_ionode=.TRUE.)
+          check = ASSOCIATED(force_env%mixed_env%sub_para_env)
+          CPPrecondition(check,cp_failure_level,routineP,error,failure)
+          ngroups = force_env%mixed_env%ngroups
+          my_group= lgroup_distribution(para_env%mepos)
+          isubforce_eval = iforce_eval-1
+          ! If task not allocated on this procs skip setup..
+          IF (MODULO(isubforce_eval-1,ngroups)/=my_group) CYCLE
+          my_para_env => force_env%mixed_env%sub_para_env(my_group+1)%para_env
+          my_error = force_env%mixed_env%sub_error(my_group+1)
+       ELSE
+          my_para_env => para_env
+          my_error = error
+       END IF
+
+       ! Initialize force_env_section
+       ! No need to allocate one more force_env_section if only 1 force_eval
+       ! is provided.. this is in order to save memory..
+       IF (nforce_eval>1) THEN
+          CALL section_vals_duplicate(force_env_sections,force_env_section,&
+               i_force_eval(iforce_eval),i_force_eval(iforce_eval),my_error)
+          IF (iforce_eval/=1) use_motion_section = .FALSE.
+       ELSE
+          force_env_section => force_env_sections
+          use_motion_section = .TRUE.
+       END IF
+       CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=my_error)
+
+       SELECT CASE (method_name_id)
+       CASE (do_fist)
+          CALL fist_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
+               force_env_section=force_env_section, subsys_section=subsys_section,&
+               use_motion_section=use_motion_section, error=my_error )
+       CASE (do_qs)
+          CALL qs_env_create(qs_env,globenv,error=my_error)
+          CALL qs_init(qs_env, my_para_env, globenv, root_section, force_env_section=force_env_section,&
+               subsys_section=subsys_section, use_motion_section=use_motion_section, error=my_error)
+          CALL force_env_create(my_force_env, root_section, qs_env=qs_env, para_env=my_para_env, globenv=globenv,&
+               force_env_section=force_env_section,error=my_error)
+          CALL qs_env_release(qs_env,error=my_error)
+
+       CASE (do_qmmm)
+          CALL qmmm_create_force_env( my_force_env, root_section, my_para_env, globenv,&
+               force_env_section=force_env_section, subsys_section=subsys_section,&
+               use_motion_section=use_motion_section, error=my_error)
+
+       CASE (do_eip)
+          CALL eip_env_create(eip_env, error=my_error)
+          CALL eip_init(eip_env, root_section, my_para_env, force_env_section=force_env_section,&
+               subsys_section=subsys_section, error=my_error)
+          CALL force_env_create(my_force_env, root_section, eip_env=eip_env, para_env=my_para_env,&
+               globenv=globenv, force_env_section=force_env_section, error=my_error)
+          CALL eip_env_release(eip_env, error=my_error)
+
+       CASE (do_mixed)
+          CALL mixed_create_force_env(mixed_env, root_section, my_para_env,&
+               force_env_section=force_env_section, n_subforce_eval=nsubforce_size,&
+               use_motion_section=use_motion_section, error=my_error)
+          CALL force_env_create(my_force_env, root_section, mixed_env=mixed_env, para_env=my_para_env,&
+               globenv=globenv, force_env_section=force_env_section, error=my_error)
+          CALL mixed_env_release(mixed_env, error=my_error)
+          use_multiple_para_env = .TRUE.
+          lgroup_distribution => my_force_env%mixed_env%group_distribution
+
+       CASE default
+          CALL create_force_eval_section(section,error)
+          keyword => section_get_keyword(section,"METHOD",error=error)
+          CALL keyword_get(keyword,enum=enum,error=error)
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+               "Invalid METHOD <"//TRIM(enum_i2c(enum,method_name_id,error=error))//&
+            "> was specified, "//&
+CPSourceFileRef,&
+            my_error,failure)
+          CALL section_release(section,error=error)
+       END SELECT
+
+       NULLIFY(meta_env, fp_env)
+       IF (use_motion_section) THEN
+          ! Metadynamics Setup
+          fe_section => section_vals_get_subs_vals(root_section,"MOTION%FREE_ENERGY",error=my_error)
+          CALL metadyn_read(meta_env, my_force_env, root_section, my_para_env, fe_section,&
+                            error=my_error)
+          CALL force_env_set(my_force_env,meta_env=meta_env,error=my_error)
+          CALL meta_env_release(meta_env,error=my_error)
+          ! Flexible Partition Setup
+          fp_section => section_vals_get_subs_vals(root_section,"MOTION%FLEXIBLE_PARTITIONING",error=my_error)
+          CALL fp_env_create(fp_env,error=my_error)
+          CALL fp_env_read(fp_env,fp_section,error=my_error)
+          CALL fp_env_write(fp_env,fp_section,error=my_error)
+          CALL force_env_set(my_force_env,fp_env=fp_env,error=my_error)
+          CALL fp_env_release(fp_env,error=my_error)
+       END IF
+       ! Handle multiple force_eval
+       IF (nforce_eval>1.AND.iforce_eval==1) THEN
+          ALLOCATE(my_force_env%sub_force_env(nsubforce_size),stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,my_error,failure)
+          ! Nullify subforce_env
+          DO k = 1,nsubforce_size
+             NULLIFY(my_force_env%sub_force_env(k)%force_env)
           END DO
        END IF
-       nsubforce_size        = nforce_eval-1
-       use_multiple_para_env = .FALSE.
-       use_motion_section    = .TRUE.
-       DO iforce_eval = 1, nforce_eval
-          NULLIFY(force_env_section, my_force_env, subsys_section)
-          ! Reference subsys from the first ordered force_eval
-          IF (.NOT.multiple_subsys) THEN
-             subsys_section => section_vals_get_subs_vals(force_env_sections,"SUBSYS",&
-                  i_rep_section=i_force_eval(1),error=error)
-          END IF
-          ! Handling para_env in case of multiple force_eval
-          IF (use_multiple_para_env) THEN
-             ! Check that the order of the force_eval is the correct one
-             CALL section_vals_val_get(force_env_sections, "METHOD", i_val=method_name_id, &
-                  i_rep_section=i_force_eval(1), error=error)
-             CALL cp_assert(method_name_id==do_mixed,cp_failure_level,cp_assertion_failed,routineP,&
-                  "In case of multiple force_eval the MAIN force_eval (the first in the list of FORCE_EVAL_ORDER or "//&
-                  "the one omitted from that order list) must be a MIXED_ENV type calculation. Please check your "//&
-                  "input file and possibly correct the MULTIPLE_FORCE_EVAL%FORCE_EVAL_ORDER. "//&
-CPSourceFileRef,&
-                  only_ionode=.TRUE.)
-             check = ASSOCIATED(force_env%mixed_env%sub_para_env)
-             CPPrecondition(check,cp_failure_level,routineP,error,failure)
-             ngroups = force_env%mixed_env%ngroups
-             my_group= lgroup_distribution(para_env%mepos)
-             isubforce_eval = iforce_eval-1
-             ! If task not allocated on this procs skip setup..
-             IF (MODULO(isubforce_eval-1,ngroups)/=my_group) CYCLE
-             my_para_env => force_env%mixed_env%sub_para_env(my_group+1)%para_env
-             my_error = force_env%mixed_env%sub_error(my_group+1)
-          ELSE
-             my_para_env => para_env
-             my_error = error
-          END IF
-
-          ! Initialize force_env_section
-          ! No need to allocate one more force_env_section if only 1 force_eval
-          ! is provided.. this is in order to save memory..
-          IF (nforce_eval>1) THEN
-             CALL section_vals_duplicate(force_env_sections,force_env_section,&
-                  i_force_eval(iforce_eval),i_force_eval(iforce_eval),my_error)
-             IF (iforce_eval/=1) use_motion_section = .FALSE.
-          ELSE
-             force_env_section => force_env_sections
-             use_motion_section = .TRUE.
-          END IF
-          CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=my_error)
-
-          SELECT CASE (method_name_id)
-          CASE (do_fist)
-             CALL fist_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
-                  force_env_section=force_env_section, subsys_section=subsys_section,&
-                  use_motion_section=use_motion_section, error=my_error )
-          CASE (do_qs)
-             CALL qs_env_create(qs_env,globenv,error=my_error)
-             CALL qs_init(qs_env, my_para_env, globenv, root_section, force_env_section=force_env_section,&
-                  subsys_section=subsys_section, use_motion_section=use_motion_section, error=my_error)
-             CALL force_env_create(my_force_env, root_section, qs_env=qs_env, para_env=my_para_env, globenv=globenv,&
-                  force_env_section=force_env_section,error=my_error)
-             CALL qs_env_release(qs_env,error=my_error)
-
-          CASE (do_qmmm)
-             CALL qmmm_create_force_env( my_force_env, root_section, my_para_env, globenv,&
-                  force_env_section=force_env_section, subsys_section=subsys_section,&
-                  use_motion_section=use_motion_section, error=my_error)
-
-          CASE (do_eip)
-             CALL eip_env_create(eip_env, error=my_error)
-             CALL eip_init(eip_env, root_section, my_para_env, force_env_section=force_env_section,&
-                  subsys_section=subsys_section, error=my_error)
-             CALL force_env_create(my_force_env, root_section, eip_env=eip_env, para_env=my_para_env,&
-                  globenv=globenv, force_env_section=force_env_section, error=my_error)
-             CALL eip_env_release(eip_env, error=my_error)
-
-          CASE (do_mixed)
-             CALL mixed_create_force_env(mixed_env, root_section, my_para_env,&
-                  force_env_section=force_env_section, n_subforce_eval=nsubforce_size,&
-                  use_motion_section=use_motion_section, error=my_error)
-             CALL force_env_create(my_force_env, root_section, mixed_env=mixed_env, para_env=my_para_env,&
-                  globenv=globenv, force_env_section=force_env_section, error=my_error)
-             CALL mixed_env_release(mixed_env, error=my_error)
-             use_multiple_para_env = .TRUE.
-             lgroup_distribution => my_force_env%mixed_env%group_distribution
-
-          CASE default
-             CALL create_force_eval_section(section,error)
-             keyword => section_get_keyword(section,"METHOD",error=error)
-             CALL keyword_get(keyword,enum=enum,error=error)
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Invalid METHOD <"//TRIM(enum_i2c(enum,method_name_id,error=error))//&
-               "> was specified, "//&
-CPSourceFileRef,&
-               my_error,failure)
-             CALL section_release(section,error=error)
-          END SELECT
-
-          NULLIFY(meta_env, fp_env)
-          IF (use_motion_section) THEN
-             ! Metadynamics Setup
-             fe_section => section_vals_get_subs_vals(root_section,"MOTION%FREE_ENERGY",error=my_error)
-             CALL metadyn_read(meta_env, my_force_env, root_section, my_para_env, fe_section,&
-                               error=my_error)
-             CALL force_env_set(my_force_env,meta_env=meta_env,error=my_error)
-             CALL meta_env_release(meta_env,error=my_error)
-             ! Flexible Partition Setup
-             fp_section => section_vals_get_subs_vals(root_section,"MOTION%FLEXIBLE_PARTITIONING",error=my_error)
-             CALL fp_env_create(fp_env,error=my_error)
-             CALL fp_env_read(fp_env,fp_section,error=my_error)
-             CALL fp_env_write(fp_env,fp_section,error=my_error)
-             CALL force_env_set(my_force_env,fp_env=fp_env,error=my_error)
-             CALL fp_env_release(fp_env,error=my_error)
-          END IF
-          ! Handle multiple force_eval
-          IF (nforce_eval>1.AND.iforce_eval==1) THEN
-             ALLOCATE(my_force_env%sub_force_env(nsubforce_size),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,my_error,failure)
-             ! Nullify subforce_env
-             DO k = 1,nsubforce_size
-                NULLIFY(my_force_env%sub_force_env(k)%force_env)
-             END DO
-          END IF
-          ! Reference the right force_env
-          IF (iforce_eval==1) THEN
-             force_env => my_force_env
-          ELSE
-             force_env%sub_force_env(iforce_eval-1)%force_env => my_force_env
-          END IF
-          ! Multiple para env for sub_force_eval
-          IF (.NOT.use_multiple_para_env) THEN
-             lgroup_distribution = iforce_eval
-          END IF
-          ! Release force_env_section
-          IF (nforce_eval>1) CALL section_vals_release(force_env_section,my_error)
-       END DO
-       DEALLOCATE(group_distribution,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(i_force_eval,stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-    END IF
+       ! Reference the right force_env
+       IF (iforce_eval==1) THEN
+          force_env => my_force_env
+       ELSE
+          force_env%sub_force_env(iforce_eval-1)%force_env => my_force_env
+       END IF
+       ! Multiple para env for sub_force_eval
+       IF (.NOT.use_multiple_para_env) THEN
+          lgroup_distribution = iforce_eval
+       END IF
+       ! Release force_env_section
+       IF (nforce_eval>1) CALL section_vals_release(force_env_section,my_error)
+    END DO
+    DEALLOCATE(group_distribution,stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(i_force_eval,stat=stat)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
     timer_env => get_timer_env()
     mp_perf_env => get_mp_perf_env()
     CALL mp_max(last_f_env_id,para_env%group)
@@ -1024,9 +1012,7 @@ CPSourceFileRef,&
     n_atom = 0
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       n_atom = force_env_get_natom(f_env%force_env,error=error)
-    END IF
+    n_atom = force_env_get_natom(f_env%force_env,error=error)
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE get_natom
@@ -1055,9 +1041,7 @@ CPSourceFileRef,&
     n_particle = 0
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       n_particle = force_env_get_nparticle(f_env%force_env,error=error)
-    END IF
+    n_particle = force_env_get_nparticle(f_env%force_env,error=error)
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE get_nparticle
@@ -1127,22 +1111,20 @@ CPSourceFileRef,&
     NULLIFY (f_env, subsys, results)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
 
-    IF (.NOT. failure) THEN
-      CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
-      CALL cp_subsys_get(subsys, results=results, error=error)
-      ! first test for the result
-      IF(PRESENT(res_exist)) THEN
-        res_exist = test_for_result(results, description=description, error=error)
-        exist_res = res_exist
-      ELSE
-        exist_res = .TRUE.
-      END IF
-      ! if existing (or assuming the existance) read the results
-      IF(res_exist) THEN
-        CALL get_results(results, description=description, n_rep=nres,error=error)
-        CALL get_results(results, description=description, values=RESULT, nval=nres,error=error)
-      END IF
-    ENDIF
+    CALL force_env_get(f_env%force_env, subsys=subsys, error=error)
+    CALL cp_subsys_get(subsys, results=results, error=error)
+    ! first test for the result
+    IF(PRESENT(res_exist)) THEN
+      res_exist = test_for_result(results, description=description, error=error)
+      exist_res = res_exist
+    ELSE
+      exist_res = .TRUE.
+    END IF
+    ! if existing (or assuming the existance) read the results
+    IF(res_exist) THEN
+      CALL get_results(results, description=description, n_rep=nres,error=error)
+      CALL get_results(results, description=description, values=RESULT, nval=nres,error=error)
+    END IF
 
     CALL f_env_rm_defaults(f_env,error,ierr)
 
@@ -1173,9 +1155,7 @@ CPSourceFileRef,&
     failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       CALL force_env_get_frc(f_env%force_env,frc,n_el,error)
-    END IF
+    CALL force_env_get_frc(f_env%force_env,frc,n_el,error)
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE get_force
@@ -1209,13 +1189,11 @@ CPSourceFileRef,&
     stress_tensor(:,:) = 0.0_dp
 
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       CALL force_env_get(f_env%force_env, subsys=subsys, cell=cell, error=error)
-       CALL cp_subsys_get(subsys, virial=virial, error=error)
-       IF(virial%pv_availability) THEN
-          stress_tensor(:,:) = virial%pv_virial(:,:)/cell%deth
-       ENDIF
-    END IF
+    CALL force_env_get(f_env%force_env, subsys=subsys, cell=cell, error=error)
+    CALL cp_subsys_get(subsys, virial=virial, error=error)
+    IF(virial%pv_availability) THEN
+       stress_tensor(:,:) = virial%pv_virial(:,:)/cell%deth
+    ENDIF
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE get_stress_tensor
@@ -1245,9 +1223,7 @@ CPSourceFileRef,&
     failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       CALL force_env_get_pos(f_env%force_env,pos,n_el,error)
-    END IF
+    CALL force_env_get_pos(f_env%force_env,pos,n_el,error)
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE get_pos
@@ -1277,9 +1253,7 @@ CPSourceFileRef,&
     failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       CALL force_env_get_vel(f_env%force_env,vel,n_el,error)
-    END IF
+    CALL force_env_get_vel(f_env%force_env,vel,n_el,error)
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE get_vel
@@ -1411,11 +1385,9 @@ CPSourceFileRef,&
     failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       logger => cp_error_get_logger(error)
-       CALL cp_iterate(logger%iter_info,error=error) ! add one to the iteration count
-       CALL force_env_calc_energy_force(f_env%force_env,calc_force=calc_force,error=error)
-    END IF
+    logger => cp_error_get_logger(error)
+    CALL cp_iterate(logger%iter_info,error=error) ! add one to the iteration count
+    CALL force_env_calc_energy_force(f_env%force_env,calc_force=calc_force,error=error)
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE calc_energy_force
@@ -1443,9 +1415,7 @@ CPSourceFileRef,&
     failure = .FALSE.
     NULLIFY (f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       CALL force_env_get(f_env%force_env,potential_energy=e_pot,error=error)
-    END IF
+    CALL force_env_get(f_env%force_env,potential_energy=e_pot,error=error)
     CALL f_env_rm_defaults(f_env,error,ierr)
 
   END SUBROUTINE get_energy
@@ -1618,10 +1588,8 @@ CPSourceFileRef,&
 
     NULLIFY(f_env)
     CALL f_env_add_defaults(f_env_id,f_env,error,failure)
-    IF (.NOT.failure) THEN
-       CALL force_env_shake(f_env%force_env,&
-            dt=dt,shake_tol=shake_tol, error=error)
-    END IF
+    CALL force_env_shake(f_env%force_env,&
+         dt=dt,shake_tol=shake_tol, error=error)
     CALL f_env_rm_defaults(f_env,error,ierr)
   END SUBROUTINE do_shake
 

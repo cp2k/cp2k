@@ -314,16 +314,14 @@ CONTAINS
     CPPrecondition(mo_array(1)%mo_set%nmo>=mo_array(2)%mo_set%nmo,cp_failure_level,routineP,error,failure)
 
     ! first nmo_beta orbitals are copied from alpha to beta
-    IF (.NOT.failure) THEN
-       IF(my_convert_dbcsr) THEN!fm->dbcsr
-          CALL cp_dbcsr_copy_columns_hack(mo_array(2)%mo_set%mo_coeff_b,mo_array(1)%mo_set%mo_coeff_b,&!fm->dbcsr
-               mo_array(2)%mo_set%nmo,1,1,&!fm->dbcsr
-               para_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env,&!fm->dbcsr
-               blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context,error=error)!fm->dbcsr
-       ELSE!fm->dbcsr
-          CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff,mo_array(2)%mo_set%mo_coeff,mo_array(2)%mo_set%nmo)
-       ENDIF
-    END IF
+    IF(my_convert_dbcsr) THEN!fm->dbcsr
+       CALL cp_dbcsr_copy_columns_hack(mo_array(2)%mo_set%mo_coeff_b,mo_array(1)%mo_set%mo_coeff_b,&!fm->dbcsr
+            mo_array(2)%mo_set%nmo,1,1,&!fm->dbcsr
+            para_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env,&!fm->dbcsr
+            blacs_env=mo_array(1)%mo_set%mo_coeff%matrix_struct%context,error=error)!fm->dbcsr
+    ELSE!fm->dbcsr
+       CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff,mo_array(2)%mo_set%mo_coeff,mo_array(2)%mo_set%nmo)
+    ENDIF
 
     CALL timestop(handle)
 

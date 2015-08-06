@@ -176,63 +176,61 @@ CONTAINS
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL xc_rho_set_get(rho_set,rho=rho,&
-            local_bounds=bo,rho_cutoff=epsilon_rho,&
-            error=error)
-       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-       CALL vwn_init(epsilon_rho, vwn_params, error)
+    CALL xc_rho_set_get(rho_set,rho=rho,&
+         local_bounds=bo,rho_cutoff=epsilon_rho,&
+         error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL vwn_init(epsilon_rho, vwn_params, error)
 
-       ALLOCATE ( x(npoints), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL calc_srs_pw ( rho, x, npoints )
+    ALLOCATE ( x(npoints), STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL calc_srs_pw ( rho, x, npoints )
 
-       IF (order>=1) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"",&
-               allocate_deriv=.TRUE., error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+    IF (order>=1) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
 
-          CALL vwn_lda_01 ( rho, x, e_0,e_rho,npoints, sc, error )
-       ELSEIF ( order>=0 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"",&
-               allocate_deriv=.TRUE., error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+       CALL vwn_lda_01 ( rho, x, e_0,e_rho,npoints, sc, error )
+    ELSEIF ( order>=0 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
 
-          CALL vwn_lda_0 ( rho, x, e_0, npoints, sc, error )
-       ELSEIF ( order==-1 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+       CALL vwn_lda_0 ( rho, x, e_0, npoints, sc, error )
+    ELSEIF ( order==-1 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
 
-          CALL vwn_lda_1 ( rho, x, e_rho, npoints, sc, error )
-       END IF
-       IF ( order>=2.OR.order==-2 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
-
-          CALL vwn_lda_2 ( rho, x, e_rho_rho, npoints, sc, error )
-       END IF
-       IF ( order>=3.OR.order==-3 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
-
-          CALL vwn_lda_3 ( rho, x, e_rho_rho_rho, npoints, sc,&
-               error)
-       END IF
-       IF ( order>3.OR.order<-3) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="derivatives bigger than 3 not implemented", &
-               error=error, error_level=cp_failure_level)
-       END IF
-
-       DEALLOCATE(x,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CALL vwn_lda_1 ( rho, x, e_rho, npoints, sc, error )
     END IF
+    IF ( order>=2.OR.order==-2 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+
+       CALL vwn_lda_2 ( rho, x, e_rho_rho, npoints, sc, error )
+    END IF
+    IF ( order>=3.OR.order==-3 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+
+       CALL vwn_lda_3 ( rho, x, e_rho_rho_rho, npoints, sc,&
+            error)
+    END IF
+    IF ( order>3.OR.order<-3) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="derivatives bigger than 3 not implemented", &
+            error=error, error_level=cp_failure_level)
+    END IF
+
+    DEALLOCATE(x,stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     CALL timestop(handle)
 
   END SUBROUTINE vwn_lda_eval
@@ -570,130 +568,128 @@ CONTAINS
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-      CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,&
-           local_bounds=bo,rho_cutoff=epsilon_rho,&
-           error=error)
-      npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-      CALL vwn_init(epsilon_rho, vwn_params, error)
+    CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,&
+         local_bounds=bo,rho_cutoff=epsilon_rho,&
+         error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL vwn_init(epsilon_rho, vwn_params, error)
 
-      IF (cp_debug) THEN
-        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      ELSE
-        dummy=> rhoa
-      END IF
+    IF (cp_debug) THEN
+      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+      dummy=> rhoa
+    END IF
 
-      e_0 => dummy
-      e_a => dummy
-      e_b => dummy
-      e_aa => dummy
-      e_bb => dummy
-      e_ab => dummy
-      e_aaa => dummy
-      e_bbb => dummy
-      e_aab => dummy
-      e_abb => dummy
+    e_0 => dummy
+    e_a => dummy
+    e_b => dummy
+    e_aa => dummy
+    e_bb => dummy
+    e_ab => dummy
+    e_aaa => dummy
+    e_bbb => dummy
+    e_aab => dummy
+    e_abb => dummy
 
-      IF (order>=0) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"",&
-              allocate_deriv=.TRUE., error=error)
-        CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
-      END IF
-      IF (order>=1.OR.order==-1) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_a,error=error)
+    IF (order>=0) THEN
+      deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+      CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
+    END IF
+    IF (order>=1.OR.order==-1) THEN
+      deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_a,error=error)
 
-        deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-              allocate_deriv=.TRUE.,error=error)
-         CALL xc_derivative_get(deriv,deriv_data=e_b,error=error)
-      END IF
-      IF (order>=2.OR.order==-2) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_aa,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_b,error=error)
+    END IF
+    IF (order>=2.OR.order==-2) THEN
+      deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_aa,error=error)
 
-        deriv => xc_dset_get_derivative(deriv_set,"(rhob)(rhob)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_bb,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(rhob)(rhob)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_bb,error=error)
 
-        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhob)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ab,error=error)
-      END IF
-      IF (order>=3.OR.order==-3) THEN
-        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)(rhoa)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_aaa,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhob)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_ab,error=error)
+    END IF
+    IF (order>=3.OR.order==-3) THEN
+      deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)(rhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_aaa,error=error)
 
-        deriv => xc_dset_get_derivative(deriv_set,"(rhob)(rhob)(rhob)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_bbb,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(rhob)(rhob)(rhob)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_bbb,error=error)
 
-        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)(rhob)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_aab,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)(rhob)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_aab,error=error)
 
-        deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhob)(rhob)",&
-              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_abb,error=error)
+      deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhob)(rhob)",&
+            allocate_deriv=.TRUE.,error=error)
+      CALL xc_derivative_get(deriv,deriv_data=e_abb,error=error)
 
-      END IF
-      IF ( order>3.OR.order<-3) THEN
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="derivatives bigger than 3 not implemented", &
-             error=error, error_level=cp_failure_level)
-      END IF
+    END IF
+    IF ( order>3.OR.order<-3) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+           message="derivatives bigger than 3 not implemented", &
+           error=error, error_level=cp_failure_level)
+    END IF
 
-      CALL section_vals_val_get(vwn_params,"functional_type",i_val=TYPE,error=error)
-      SELECT CASE(TYPE)
-        CASE(do_vwn3)
+    CALL section_vals_val_get(vwn_params,"functional_type",i_val=TYPE,error=error)
+    SELECT CASE(TYPE)
+      CASE(do_vwn3)
 
-          !$omp parallel default(none) &
-          !$omp          shared(rhoa, rhob, e_0, e_a, e_b, e_aa, e_bb, e_ab) &
-          !$omp          shared(e_aaa, e_bbb, e_aab, e_abb, order, npoints) &
-          !$omp          shared(sc, error)
+        !$omp parallel default(none) &
+        !$omp          shared(rhoa, rhob, e_0, e_a, e_b, e_aa, e_bb, e_ab) &
+        !$omp          shared(e_aaa, e_bbb, e_aab, e_abb, order, npoints) &
+        !$omp          shared(sc, error)
 
-          CALL vwn3_lsd_calc(&
-                 rhoa=rhoa, rhob=rhob, e_0=e_0, &
-                 e_a=e_a, e_b=e_b,&
-                 e_aa=e_aa, e_bb=e_bb,e_ab=e_ab,&
-                 e_aaa=e_aaa, e_bbb=e_bbb, e_aab=e_aab, e_abb=e_abb,&
-                 order=order, npoints=npoints, &
-                 sc=sc, error=error)
+        CALL vwn3_lsd_calc(&
+               rhoa=rhoa, rhob=rhob, e_0=e_0, &
+               e_a=e_a, e_b=e_b,&
+               e_aa=e_aa, e_bb=e_bb,e_ab=e_ab,&
+               e_aaa=e_aaa, e_bbb=e_bbb, e_aab=e_aab, e_abb=e_abb,&
+               order=order, npoints=npoints, &
+               sc=sc, error=error)
 
-          !$omp end parallel
+        !$omp end parallel
 
-        CASE(do_vwn5)
+      CASE(do_vwn5)
 
-          !$omp parallel default(none) &
-          !$omp          shared(rhoa, rhob, e_0, e_a, e_b, e_aa, e_bb, e_ab) &
-          !$omp          shared(e_aaa, e_bbb, e_aab, e_abb, order, npoints) &
-          !$omp          shared(sc, error)
+        !$omp parallel default(none) &
+        !$omp          shared(rhoa, rhob, e_0, e_a, e_b, e_aa, e_bb, e_ab) &
+        !$omp          shared(e_aaa, e_bbb, e_aab, e_abb, order, npoints) &
+        !$omp          shared(sc, error)
 
-          CALL vwn5_lsd_calc(&
-                 rhoa=rhoa, rhob=rhob, e_0=e_0, &
-                 e_a=e_a, e_b=e_b,&
-                 e_aa=e_aa, e_bb=e_bb,e_ab=e_ab,&
-                 e_aaa=e_aaa, e_bbb=e_bbb, e_aab=e_aab, e_abb=e_abb,&
-                 order=order, npoints=npoints, &
-                 sc=sc, error=error)
+        CALL vwn5_lsd_calc(&
+               rhoa=rhoa, rhob=rhob, e_0=e_0, &
+               e_a=e_a, e_b=e_b,&
+               e_aa=e_aa, e_bb=e_bb,e_ab=e_ab,&
+               e_aaa=e_aaa, e_bbb=e_bbb, e_aab=e_aab, e_abb=e_abb,&
+               order=order, npoints=npoints, &
+               sc=sc, error=error)
 
-          !$omp end parallel
+        !$omp end parallel
 
-        CASE DEFAULT
-          failure = .FALSE.
-          CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                        " Only functionals VWN3 and VWN5 are supported" ,error,failure)
-      END SELECT
+      CASE DEFAULT
+        failure = .FALSE.
+        CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
+                      " Only functionals VWN3 and VWN5 are supported" ,error,failure)
+    END SELECT
 
-      IF (cp_debug) THEN
-        DEALLOCATE(dummy,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      ELSE
-        NULLIFY(dummy)
-      END IF
+    IF (cp_debug) THEN
+      DEALLOCATE(dummy,stat=stat)
+      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    ELSE
+      NULLIFY(dummy)
     END IF
 
     CALL timestop(handle)

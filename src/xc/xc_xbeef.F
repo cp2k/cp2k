@@ -174,60 +174,58 @@ CONTAINS
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL xc_rho_set_get(rho_set,rho_1_3=rho_1_3,rho=rho,&
-            norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,error=error)
-       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL xc_rho_set_get(rho_set,rho_1_3=rho_1_3,rho=rho,&
+         norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-       ! meaningful default for the arrays we don't need: let us make compiler
-       ! and debugger happy...
-       IF (cp_debug) THEN
-          ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ELSE
-          dummy=> rho
-       END IF
+    ! meaningful default for the arrays we don't need: let us make compiler
+    ! and debugger happy...
+    IF (cp_debug) THEN
+       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+       dummy=> rho
+    END IF
 
-       e_0 => dummy
-       e_rho => dummy
-       e_ndrho => dummy
+    e_0 => dummy
+    e_rho => dummy
+    e_ndrho => dummy
 
-       IF (grad_deriv>=0) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"",&
-               allocate_deriv=.TRUE., error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
-       END IF
-       IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
-       END IF
-       IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="derivatives greater than 1 not implemented", &
-               error=error, error_level=cp_failure_level)
-       END IF
+    IF (grad_deriv>=0) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+    END IF
+    IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+    END IF
+    IF (grad_deriv>1.OR.grad_deriv<-1) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="derivatives greater than 1 not implemented", &
+            error=error, error_level=cp_failure_level)
+    END IF
 
-       !$omp parallel default(none) &
-       !$omp          shared(rho, rho_1_3, norm_drho, e_0, e_rho) &
-       !$omp          shared(e_ndrho) &
-       !$omp          shared( grad_deriv, npoints) &
-       !$omp          shared(epsilon_rho,sx, error)
-       CALL xbeef_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
-            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
-            grad_deriv=grad_deriv,&
-            npoints=npoints,epsilon_rho=epsilon_rho,sx=sx,error=error)
-       !$omp end parallel
+    !$omp parallel default(none) &
+    !$omp          shared(rho, rho_1_3, norm_drho, e_0, e_rho) &
+    !$omp          shared(e_ndrho) &
+    !$omp          shared( grad_deriv, npoints) &
+    !$omp          shared(epsilon_rho,sx, error)
+    CALL xbeef_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
+         e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
+         grad_deriv=grad_deriv,&
+         npoints=npoints,epsilon_rho=epsilon_rho,sx=sx,error=error)
+    !$omp end parallel
 
-       IF (cp_debug) THEN
-          DEALLOCATE(dummy,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       ELSE
-          NULLIFY(dummy)
-       END IF
+    IF (cp_debug) THEN
+       DEALLOCATE(dummy,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    ELSE
+       NULLIFY(dummy)
     END IF
     CALL timestop(handle)
   END SUBROUTINE xbeef_lda_eval
@@ -392,82 +390,80 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
     CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL xc_rho_set_get(rho_set,rhoa_1_3=rho_1_3(1)%array,&
-            rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
-            rhob=rho(2)%array,norm_drhoa=norm_drho(1)%array, &
-            norm_drhob=norm_drho(2)%array,rho_cutoff=epsilon_rho,&
-            local_bounds=bo, error=error)
-       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL xc_rho_set_get(rho_set,rhoa_1_3=rho_1_3(1)%array,&
+         rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
+         rhob=rho(2)%array,norm_drhoa=norm_drho(1)%array, &
+         norm_drhob=norm_drho(2)%array,rho_cutoff=epsilon_rho,&
+         local_bounds=bo, error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-       ! meaningful default for the arrays we don't need: let us make compiler
-       ! and debugger happy...
-       IF (cp_debug) THEN
-          ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ELSE
-          dummy=> rho(1)%array
-       END IF
+    ! meaningful default for the arrays we don't need: let us make compiler
+    ! and debugger happy...
+    IF (cp_debug) THEN
+       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+       dummy=> rho(1)%array
+    END IF
 
-       e_0=>dummy
-       DO i=1,2
-          e_rho(i)%array => dummy
-          e_ndrho(i)%array => dummy
-       END DO
+    e_0=>dummy
+    DO i=1,2
+       e_rho(i)%array => dummy
+       e_ndrho(i)%array => dummy
+    END DO
 
-      IF (grad_deriv>=0) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"",&
-               allocate_deriv=.TRUE., error=error)
-          CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
-       END IF
-       IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho(1)%array,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho(2)%array,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array,error=error)
-       END IF
-       IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="derivatives greater than 1 not implemented", &
-               error=error, error_level=cp_failure_level)
-       END IF
+   IF (grad_deriv>=0) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+       CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
+    END IF
+    IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho(1)%array,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho(2)%array,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array,error=error)
+    END IF
+    IF (grad_deriv>1.OR.grad_deriv<-1) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="derivatives greater than 1 not implemented", &
+            error=error, error_level=cp_failure_level)
+    END IF
 
-       DO ispin=1,2
+    DO ispin=1,2
 
-          !$omp parallel default(none) &
-          !$omp          shared(rho, ispin, rho_1_3, norm_drho, e_0) &
-          !$omp          shared(e_rho, e_ndrho) &
-          !$omp          shared(grad_deriv, npoints) &
-          !$omp          shared(epsilon_rho, sx, error)
+       !$omp parallel default(none) &
+       !$omp          shared(rho, ispin, rho_1_3, norm_drho, e_0) &
+       !$omp          shared(e_rho, e_ndrho) &
+       !$omp          shared(grad_deriv, npoints) &
+       !$omp          shared(epsilon_rho, sx, error)
 
-          CALL xbeef_lsd_calc(&
-               rho_spin=rho(ispin)%array,&
-               rho_1_3_spin=rho_1_3(ispin)%array,&
-               norm_drho_spin=norm_drho(ispin)%array,&
-               e_0=e_0,e_rho_spin=e_rho(ispin)%array,&
-               e_ndrho_spin=e_ndrho(ispin)%array,&
-               grad_deriv=grad_deriv, npoints=npoints,&
-               epsilon_rho=epsilon_rho,sx=sx,&
-               error=error)
+       CALL xbeef_lsd_calc(&
+            rho_spin=rho(ispin)%array,&
+            rho_1_3_spin=rho_1_3(ispin)%array,&
+            norm_drho_spin=norm_drho(ispin)%array,&
+            e_0=e_0,e_rho_spin=e_rho(ispin)%array,&
+            e_ndrho_spin=e_ndrho(ispin)%array,&
+            grad_deriv=grad_deriv, npoints=npoints,&
+            epsilon_rho=epsilon_rho,sx=sx,&
+            error=error)
 
-          !$omp end parallel
+       !$omp end parallel
 
-       END DO
+    END DO
 
-       IF (cp_debug) THEN
-          DEALLOCATE(dummy,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       ELSE
-          NULLIFY(dummy)
-       END IF
+    IF (cp_debug) THEN
+       DEALLOCATE(dummy,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    ELSE
+       NULLIFY(dummy)
     END IF
     CALL timestop(handle)
 
@@ -521,64 +517,62 @@ SUBROUTINE xbeef_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
     my_epsilon_rho=0.5_dp*epsilon_rho
     epsilon_rho43=my_epsilon_rho**(4._dp/3._dp)
 
-    IF (.NOT. failure) THEN
 
-        !$omp do
-        DO ii=1,npoints
-          my_rho = rho_spin(ii)
+    !$omp do
+    DO ii=1,npoints
+      my_rho = rho_spin(ii)
 
-          IF (my_rho>epsilon_rho) THEN
-             my_rho_1_3 = rho_1_3_spin(ii)
+      IF (my_rho>epsilon_rho) THEN
+         my_rho_1_3 = rho_1_3_spin(ii)
 
-             e_ueg =  k_lsd * my_rho * my_rho_1_3 
-             e_ueg_drho = (4.0_dp/3.0_dp) * k_lsd * my_rho_1_3
+         e_ueg =  k_lsd * my_rho * my_rho_1_3 
+         e_ueg_drho = (4.0_dp/3.0_dp) * k_lsd * my_rho_1_3
 
-             t3 = my_rho_1_3 * my_rho * 2 * kf        !reduced gradient, denominator
+         t3 = my_rho_1_3 * my_rho * 2 * kf        !reduced gradient, denominator
 
-             s = norm_drho_spin(ii)/MAX(t3,epsilon_rho43)  !reduced gradient finally
-             s2 = s**2
-             t = 2.0_dp*s**2 / (4.0_dp + s**2) - 1.0_dp             
+         s = norm_drho_spin(ii)/MAX(t3,epsilon_rho43)  !reduced gradient finally
+         s2 = s**2
+         t = 2.0_dp*s**2 / (4.0_dp + s**2) - 1.0_dp             
 
-             IF (grad_deriv>=0) THEN       !asking for pure e evaluation or also derivatives
-                 e_leg(0) = 1              !first legendre pol
-                 e_leg(1) = t              !second legendre pol
+         IF (grad_deriv>=0) THEN       !asking for pure e evaluation or also derivatives
+             e_leg(0) = 1              !first legendre pol
+             e_leg(1) = t              !second legendre pol
+         END IF
+         
+         IF ((grad_deriv>=1) .OR. (grad_deriv==-1)) THEN  !asking for first derivative or higher
+             de_leg(0) = 0       
+             de_leg(1) = 1       
+             dt = 4.0_dp*s / (4.0_dp + s2) - 4.0_dp * s * s2 / (4.0_dp + s2)**2
+             ds_rho = -(4.0_dp * s) / (3.0_dp * MAX(my_rho,epsilon_rho))
+             ds_ndrho = 1.0_dp/(MAX(t3,epsilon_rho43))
+         END IF
+         
+         DO i=2,m-1    !LEGENDRE PART
+             e_leg(i) = 2.*(t)*e_leg(i-1) - e_leg(i-2) - ((t)*e_leg(i-1) - e_leg(i-2))/(FLOAT(i))
+             !taken from quantum espresso beef library.
+
+             IF (ABS(grad_deriv)>=1) THEN   !first derivative
+                 !the zero-derivatives need to be available for the first deriv.
+                de_leg(i) = e_leg(i-1)*i + de_leg(i-1)*(t) 
              END IF
-             
-             IF ((grad_deriv>=1) .OR. (grad_deriv==-1)) THEN  !asking for first derivative or higher
-                 de_leg(0) = 0       
-                 de_leg(1) = 1       
-                 dt = 4.0_dp*s / (4.0_dp + s2) - 4.0_dp * s * s2 / (4.0_dp + s2)**2
-                 ds_rho = -(4.0_dp * s) / (3.0_dp * MAX(my_rho,epsilon_rho))
-                 ds_ndrho = 1.0_dp/(MAX(t3,epsilon_rho43))
-             END IF
-             
-             DO i=2,m-1    !LEGENDRE PART
-                 e_leg(i) = 2.*(t)*e_leg(i-1) - e_leg(i-2) - ((t)*e_leg(i-1) - e_leg(i-2))/(FLOAT(i))
-                 !taken from quantum espresso beef library.
+         
+         END DO
 
-                 IF (ABS(grad_deriv)>=1) THEN   !first derivative
-                     !the zero-derivatives need to be available for the first deriv.
-                    de_leg(i) = e_leg(i-1)*i + de_leg(i-1)*(t) 
-                 END IF
-             
-             END DO
-
-            !NO DERIVATIVE
-             IF (grad_deriv >= 0) THEN
-                !add the scaled legendre linear combination to e_0
-                e_0(ii) = e_0(ii) + SUM(e_leg*a) * e_ueg  * sx
-            END IF
+        !NO DERIVATIVE
+         IF (grad_deriv >= 0) THEN
+            !add the scaled legendre linear combination to e_0
+            e_0(ii) = e_0(ii) + SUM(e_leg*a) * e_ueg  * sx
+        END IF
 
 
-            !FIRST DERIVATIVE
-            IF ((grad_deriv>=1) .OR. (grad_deriv==-1)) THEN  !asking for first derivative or higher
-                e_rho_spin(ii)   = e_rho_spin(ii)   + (SUM(e_leg*a) * e_ueg_drho + SUM(de_leg*a) * dt * ds_rho * e_ueg ) * sx 
-                e_ndrho_spin(ii) = e_ndrho_spin(ii) + (SUM(de_leg*a) * dt * ds_ndrho * e_ueg ) * sx 
-            END IF
-          END IF
-        END DO
-      !$omp end do
-    END IF
+        !FIRST DERIVATIVE
+        IF ((grad_deriv>=1) .OR. (grad_deriv==-1)) THEN  !asking for first derivative or higher
+            e_rho_spin(ii)   = e_rho_spin(ii)   + (SUM(e_leg*a) * e_ueg_drho + SUM(de_leg*a) * dt * ds_rho * e_ueg ) * sx 
+            e_ndrho_spin(ii) = e_ndrho_spin(ii) + (SUM(de_leg*a) * dt * ds_ndrho * e_ueg ) * sx 
+        END IF
+      END IF
+    END DO
+  !$omp end do
 
   END SUBROUTINE xbeef_lsd_calc
 

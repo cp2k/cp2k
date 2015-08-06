@@ -202,125 +202,121 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL init_job_type(farming_env%job)
 
-    IF (.NOT. failure) THEN
-       has_dep=.FALSE.
-       DO i=1,farming_env%njobs
-          CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-               keyword_name="DIRECTORY",c_val=farming_env%Job(i)%cwd,error=error)
-          CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-               keyword_name="INPUT_FILE_NAME",c_val=farming_env%Job(i)%input,error=error)
-          CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-               keyword_name="OUTPUT_FILE_NAME",c_val=farming_env%Job(i)%output,error=error)
+    has_dep=.FALSE.
+    DO i=1,farming_env%njobs
+       CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+            keyword_name="DIRECTORY",c_val=farming_env%Job(i)%cwd,error=error)
+       CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+            keyword_name="INPUT_FILE_NAME",c_val=farming_env%Job(i)%input,error=error)
+       CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+            keyword_name="OUTPUT_FILE_NAME",c_val=farming_env%Job(i)%output,error=error)
 
-          ! if job id is not specified the job id is the index
-          CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-               keyword_name="JOB_ID",n_rep_val=n_rep_val,error=error)
-          IF (n_rep_val==0) THEN
-               farming_env%Job(i)%id=i
-          ELSE
-               CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-                    keyword_name="JOB_ID",i_val=farming_env%Job(i)%id,error=error)
-          ENDIF
+       ! if job id is not specified the job id is the index
+       CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+            keyword_name="JOB_ID",n_rep_val=n_rep_val,error=error)
+       IF (n_rep_val==0) THEN
+            farming_env%Job(i)%id=i
+       ELSE
+            CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+                 keyword_name="JOB_ID",i_val=farming_env%Job(i)%id,error=error)
+       ENDIF
 
-          ! get dependencies
+       ! get dependencies
+       CALL section_vals_val_get(jobs_section,i_rep_section=i,&
+            keyword_name="DEPENDENCIES",n_rep_val=n_rep_val,error=error)
+       IF (n_rep_val==0) THEN
+          ALLOCATE(farming_env%Job(i)%dependencies(0))
+       ELSE
           CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-               keyword_name="DEPENDENCIES",n_rep_val=n_rep_val,error=error)
-          IF (n_rep_val==0) THEN
-             ALLOCATE(farming_env%Job(i)%dependencies(0))
-          ELSE
-             CALL section_vals_val_get(jobs_section,i_rep_section=i,&
-                  keyword_name="DEPENDENCIES",i_vals=dependencies,error=error)
-             ALLOCATE(farming_env%Job(i)%dependencies(SIZE(dependencies,1)))
-             farming_env%Job(i)%dependencies=dependencies
-             IF (SIZE(dependencies,1).NE.0) has_dep=.TRUE.
-          ENDIF
-       END DO
-    END IF
+               keyword_name="DEPENDENCIES",i_vals=dependencies,error=error)
+          ALLOCATE(farming_env%Job(i)%dependencies(SIZE(dependencies,1)))
+          farming_env%Job(i)%dependencies=dependencies
+          IF (SIZE(dependencies,1).NE.0) has_dep=.TRUE.
+       ENDIF
+    END DO
 
     IF (has_dep) THEN
        CPPostcondition(farming_env%master_slave,cp_failure_level,routineP,error,failure)
        CPPostcondition(.NOT.farming_env%cycle,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    IF (.NOT. failure) THEN
 
-       output_unit=cp_print_key_unit_nr(logger,farming_section,"PROGRAM_RUN_INFO",&
-                                          extension=".log",error=error)
+    output_unit=cp_print_key_unit_nr(logger,farming_section,"PROGRAM_RUN_INFO",&
+                                       extension=".log",error=error)
 
-       ! master slave not supported
-       IF (para_env%num_pe==1) THEN
-          farming_env%master_slave=.FALSE.
-          WRITE(output_unit,FMT="(T2,A)") "FARMING| Master-slave setup not support for serial runs"
-       ENDIF
-       IF (farming_env%master_slave) THEN
-          num_slaves=para_env%num_pe-1
-       ELSE
-          num_slaves=para_env%num_pe
-       ENDIF
+    ! master slave not supported
+    IF (para_env%num_pe==1) THEN
+       farming_env%master_slave=.FALSE.
+       WRITE(output_unit,FMT="(T2,A)") "FARMING| Master-slave setup not support for serial runs"
+    ENDIF
+    IF (farming_env%master_slave) THEN
+       num_slaves=para_env%num_pe-1
+    ELSE
+       num_slaves=para_env%num_pe
+    ENDIF
 
-       IF (output_unit > 0) THEN
-         WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
-         IF (farming_env%ngroup_wish_set) THEN
-            WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Ngroup wish:",farming_env%ngroup_wish
-            IF (ASSOCIATED(farming_env%group_partition)) THEN
-               WRITE(output_unit,FMT="(T2,A)",ADVANCE="NO") "FARMING| User partition:"
-               DO i=0,SIZE(farming_env%group_partition)-1
-                  IF (MODULO(i,4)==0) WRITE(output_unit,*)
-                  WRITE(output_unit,FMT='(I4)',ADVANCE="NO") farming_env%group_partition(i)
-               END DO
-               WRITE(output_unit,*)
-               IF (SUM(farming_env%group_partition).NE.num_slaves) THEN
-                  WRITE(output_unit,FMT="(T2,A,T61,I10,T71,I10)") &
-                      "FARMING| WARNING : group partition CPUs not equal to the available number (ignoring master) ", &
-                      num_slaves, SUM(farming_env%group_partition)
-                  WRITE(output_unit,FMT="(T2,A)") "FARMING|          partition data ignored" ! any better idea ??
-                  DEALLOCATE(farming_env%group_partition)
-               ENDIF
+    IF (output_unit > 0) THEN
+      WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
+      IF (farming_env%ngroup_wish_set) THEN
+         WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Ngroup wish:",farming_env%ngroup_wish
+         IF (ASSOCIATED(farming_env%group_partition)) THEN
+            WRITE(output_unit,FMT="(T2,A)",ADVANCE="NO") "FARMING| User partition:"
+            DO i=0,SIZE(farming_env%group_partition)-1
+               IF (MODULO(i,4)==0) WRITE(output_unit,*)
+               WRITE(output_unit,FMT='(I4)',ADVANCE="NO") farming_env%group_partition(i)
+            END DO
+            WRITE(output_unit,*)
+            IF (SUM(farming_env%group_partition).NE.num_slaves) THEN
+               WRITE(output_unit,FMT="(T2,A,T61,I10,T71,I10)") &
+                   "FARMING| WARNING : group partition CPUs not equal to the available number (ignoring master) ", &
+                   num_slaves, SUM(farming_env%group_partition)
+               WRITE(output_unit,FMT="(T2,A)") "FARMING|          partition data ignored" ! any better idea ??
+               DEALLOCATE(farming_env%group_partition)
             ENDIF
          ENDIF
-         IF (farming_env%group_size_wish_set) THEN
-            WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Group size wish:", &
-                  farming_env%group_size_wish
-         ENDIF
-         WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Max steps      :",farming_env%max_steps
-         IF (farming_env%cycle) THEN
-             text="YES"
-         ELSE
-             text=" NO"
-         ENDIF
-         WRITE(output_unit,FMT="(T2,A,T78,A3)") "FARMING| Cyclic jobs execution:",text
-         IF (farming_env%restart) THEN
-             text="YES"
-         ELSE
-             text=" NO"
-         ENDIF
-         WRITE(output_unit,FMT="(T2,A,T78,A3)") "FARMING| Restarting farm:",text
-         farming_env%restart_n = 1
-         IF (farming_env%restart) THEN
-            iunit=get_unit_number()
-            OPEN(UNIT=iunit,FILE=farming_env%restart_file_name,IOSTAT=stat)
-            IF (stat==0) THEN
-              READ(UNIT=iunit,FMT=*,IOSTAT=stat) farming_env%restart_n
-              IF (stat/=0) THEN
-                 WRITE(output_unit,"(T2,A)") &
-                      "FARMING| ---- WARNING ---- failed to read from ("//TRIM(farming_env%restart_file_name)//") starting at 1"
-              ELSE
-                 WRITE(output_unit,"(T2,A)") &
-                      "FARMING| restarting from ("//TRIM(farming_env%restart_file_name)//")"
-                 WRITE(output_unit,"(T2,A,T71,I10)") &
-                      "FARMING| restarting at ",farming_env%restart_n
-              ENDIF
-            ELSE
+      ENDIF
+      IF (farming_env%group_size_wish_set) THEN
+         WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Group size wish:", &
+               farming_env%group_size_wish
+      ENDIF
+      WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Max steps      :",farming_env%max_steps
+      IF (farming_env%cycle) THEN
+          text="YES"
+      ELSE
+          text=" NO"
+      ENDIF
+      WRITE(output_unit,FMT="(T2,A,T78,A3)") "FARMING| Cyclic jobs execution:",text
+      IF (farming_env%restart) THEN
+          text="YES"
+      ELSE
+          text=" NO"
+      ENDIF
+      WRITE(output_unit,FMT="(T2,A,T78,A3)") "FARMING| Restarting farm:",text
+      farming_env%restart_n = 1
+      IF (farming_env%restart) THEN
+         iunit=get_unit_number()
+         OPEN(UNIT=iunit,FILE=farming_env%restart_file_name,IOSTAT=stat)
+         IF (stat==0) THEN
+           READ(UNIT=iunit,FMT=*,IOSTAT=stat) farming_env%restart_n
+           IF (stat/=0) THEN
               WRITE(output_unit,"(T2,A)") &
-                      "FARMING| ---- WARNING ---- failed to open ("//TRIM(farming_env%restart_file_name)//"), starting at 1"
-            ENDIF
-            CLOSE(iunit,IOSTAT=stat)
+                   "FARMING| ---- WARNING ---- failed to read from ("//TRIM(farming_env%restart_file_name)//") starting at 1"
+           ELSE
+              WRITE(output_unit,"(T2,A)") &
+                   "FARMING| restarting from ("//TRIM(farming_env%restart_file_name)//")"
+              WRITE(output_unit,"(T2,A,T71,I10)") &
+                   "FARMING| restarting at ",farming_env%restart_n
+           ENDIF
+         ELSE
+           WRITE(output_unit,"(T2,A)") &
+                   "FARMING| ---- WARNING ---- failed to open ("//TRIM(farming_env%restart_file_name)//"), starting at 1"
          ENDIF
+         CLOSE(iunit,IOSTAT=stat)
+      ENDIF
 
-         CALL cp_print_key_finished_output(output_unit,logger,farming_section,&
-                "PROGRAM_RUN_INFO", error=error)
-       ENDIF
-     ENDIF
+      CALL cp_print_key_finished_output(output_unit,logger,farming_section,&
+             "PROGRAM_RUN_INFO", error=error)
+    ENDIF
      CALL mp_bcast(farming_env%restart_n,para_env%source,para_env%group)
 
   END SUBROUTINE

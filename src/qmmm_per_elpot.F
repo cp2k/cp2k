@@ -314,32 +314,30 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: grid_print_section
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       Pot%LG            => LG
-       Pot%gx            => gx
-       Pot%gy            => gy
-       Pot%gz            => gz
-       Pot%mm_atom_index => mm_atom_index
-       Pot%Gmax          =  Gmax
-       Pot%Kmax          =  Kmax
-       Pot%n_rep_real    =  n_rep_real
-       Pot%Fac           =  Fac
-       !
-       ! Setting Up Fit Procedure
-       !
-       NULLIFY(Pot%pw_grid)
-       NULLIFY(Pot%pw_pool)
-       NULLIFY(Pot%TabLR, ngrids)
-       CALL section_vals_val_get(qmmm_per_section,"ngrids", i_vals=ngrids, error=error)
-       npts =  ngrids
-       hmat =  mm_cell%hmat
+    Pot%LG            => LG
+    Pot%gx            => gx
+    Pot%gy            => gy
+    Pot%gz            => gz
+    Pot%mm_atom_index => mm_atom_index
+    Pot%Gmax          =  Gmax
+    Pot%Kmax          =  Kmax
+    Pot%n_rep_real    =  n_rep_real
+    Pot%Fac           =  Fac
+    !
+    ! Setting Up Fit Procedure
+    !
+    NULLIFY(Pot%pw_grid)
+    NULLIFY(Pot%pw_pool)
+    NULLIFY(Pot%TabLR, ngrids)
+    CALL section_vals_val_get(qmmm_per_section,"ngrids", i_vals=ngrids, error=error)
+    npts =  ngrids
+    hmat =  mm_cell%hmat
 
-       grid_print_section=> section_vals_get_subs_vals(print_section,"GRID_INFORMATION",error=error)
-       CALL Setup_Ewald_Spline(pw_grid=Pot%pw_grid, pw_pool=Pot%pw_pool, coeff=Pot%TabLR,&
-            LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, param_section=qmmm_per_section,&
-            tag="qmmm",para_env=para_env, print_section=grid_print_section,error=error)
+    grid_print_section=> section_vals_get_subs_vals(print_section,"GRID_INFORMATION",error=error)
+    CALL Setup_Ewald_Spline(pw_grid=Pot%pw_grid, pw_pool=Pot%pw_pool, coeff=Pot%TabLR,&
+         LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, param_section=qmmm_per_section,&
+         tag="qmmm",para_env=para_env, print_section=grid_print_section,error=error)
 
-    END IF
 
   END SUBROUTINE qmmm_per_pot_type_create
 

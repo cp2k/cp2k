@@ -1275,9 +1275,7 @@ CONTAINS
 
     ALLOCATE(qs_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL init_qs_env(qs_env, globenv=globenv, error=error)
-    END IF
+    CALL init_qs_env(qs_env, globenv=globenv, error=error)
   END SUBROUTINE qs_env_create
 
 ! *****************************************************************************
@@ -1301,10 +1299,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       qs_env%ref_count=qs_env%ref_count+1
-    END IF
+    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    qs_env%ref_count=qs_env%ref_count+1
   END SUBROUTINE qs_env_retain
 
 ! *****************************************************************************

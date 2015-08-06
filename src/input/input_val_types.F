@@ -142,156 +142,154 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
   CPPrecondition(.NOT.ASSOCIATED(val),cp_failure_level,routineP,error,failure)
   ALLOCATE(val,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     NULLIFY(val%l_val,val%i_val,val%r_val,val%c_val,val%enum)
-     val%type_of_var=no_t
-     last_val_id=last_val_id+1
-     val%id_nr=last_val_id
-     val%ref_count=1
+  NULLIFY(val%l_val,val%i_val,val%r_val,val%c_val,val%enum)
+  val%type_of_var=no_t
+  last_val_id=last_val_id+1
+  val%id_nr=last_val_id
+  val%ref_count=1
 
-     narg=0
-     val%type_of_var=no_t
-     IF (PRESENT(l_val)) THEN
+  narg=0
+  val%type_of_var=no_t
+  IF (PRESENT(l_val)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(l_vals),cp_failure_level,routineP,error,failure)
 !FM        CPPrecondition(.NOT.PRESENT(l_vals_ptr),cp_failure_level,routineP,error,failure)
-        narg=narg+1
-        ALLOCATE(val%l_val(1),stat=stat)
-        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-        val%l_val(1)=l_val
-        val%type_of_var=logical_t
-     END IF
-     IF (PRESENT(l_vals)) THEN
+     narg=narg+1
+     ALLOCATE(val%l_val(1),stat=stat)
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     val%l_val(1)=l_val
+     val%type_of_var=logical_t
+  END IF
+  IF (PRESENT(l_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(l_vals_ptr),cp_failure_level,routineP,error,failure)
-        narg=narg+1
-        ALLOCATE(val%l_val(SIZE(l_vals)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        val%l_val=l_vals
-        val%type_of_var=logical_t
-     END IF
-     IF (PRESENT(l_vals_ptr)) THEN
-        narg=narg+1
-        val%l_val => l_vals_ptr
-        val%type_of_var=logical_t
-     END IF
+     narg=narg+1
+     ALLOCATE(val%l_val(SIZE(l_vals)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     val%l_val=l_vals
+     val%type_of_var=logical_t
+  END IF
+  IF (PRESENT(l_vals_ptr)) THEN
+     narg=narg+1
+     val%l_val => l_vals_ptr
+     val%type_of_var=logical_t
+  END IF
 
-     IF (PRESENT(r_val)) THEN
+  IF (PRESENT(r_val)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(r_vals),cp_failure_level,routineP,error,failure)
 !FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,error,failure)
-        narg=narg+1
-        ALLOCATE(val%r_val(1),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        val%r_val(1)=r_val
-        val%type_of_var=real_t
-     END IF
-     IF (PRESENT(r_vals)) THEN
+     narg=narg+1
+     ALLOCATE(val%r_val(1),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     val%r_val(1)=r_val
+     val%type_of_var=real_t
+  END IF
+  IF (PRESENT(r_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,error,failure)
-        narg=narg+1
-        ALLOCATE(val%r_val(SIZE(r_vals)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        val%r_val=r_vals
-        val%type_of_var=real_t
-     END IF
-     IF (PRESENT(r_vals_ptr)) THEN
-        narg=narg+1
-        val%r_val => r_vals_ptr
-        val%type_of_var=real_t
-     END IF
+     narg=narg+1
+     ALLOCATE(val%r_val(SIZE(r_vals)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     val%r_val=r_vals
+     val%type_of_var=real_t
+  END IF
+  IF (PRESENT(r_vals_ptr)) THEN
+     narg=narg+1
+     val%r_val => r_vals_ptr
+     val%type_of_var=real_t
+  END IF
 
-     IF (PRESENT(i_val)) THEN
+  IF (PRESENT(i_val)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(i_vals),cp_failure_level,routineP,error,failure)
 !FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,error,failure)
-        narg=narg+1
-        ALLOCATE(val%i_val(1),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        val%i_val(1)=i_val
-        val%type_of_var=integer_t
-     END IF
-     IF (PRESENT(i_vals)) THEN
+     narg=narg+1
+     ALLOCATE(val%i_val(1),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     val%i_val(1)=i_val
+     val%type_of_var=integer_t
+  END IF
+  IF (PRESENT(i_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,error,failure)
-        narg=narg+1
-        ALLOCATE(val%i_val(SIZE(i_vals)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        val%i_val=i_vals
-        val%type_of_var=integer_t
-     END IF
-     IF (PRESENT(i_vals_ptr)) THEN
-        narg=narg+1
-        val%i_val => i_vals_ptr
-        val%type_of_var=integer_t
-     END IF
+     narg=narg+1
+     ALLOCATE(val%i_val(SIZE(i_vals)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     val%i_val=i_vals
+     val%type_of_var=integer_t
+  END IF
+  IF (PRESENT(i_vals_ptr)) THEN
+     narg=narg+1
+     val%i_val => i_vals_ptr
+     val%type_of_var=integer_t
+  END IF
 
-     IF (PRESENT(c_val)) THEN
-        CPPrecondition(LEN_TRIM(c_val)<=default_string_length,cp_failure_level,routineP,error,failure)
+  IF (PRESENT(c_val)) THEN
+     CPPrecondition(LEN_TRIM(c_val)<=default_string_length,cp_failure_level,routineP,error,failure)
 !FM        CPPrecondition(.NOT.PRESENT(c_vals),cp_failure_level,routineP,error,failure)
 !FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,error,failure)
-        narg=narg+1
-        ALLOCATE(val%c_val(1),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        val%c_val(1)=c_val
-        val%type_of_var=char_t
-     END IF
-     IF (PRESENT(c_vals)) THEN
+     narg=narg+1
+     ALLOCATE(val%c_val(1),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     val%c_val(1)=c_val
+     val%type_of_var=char_t
+  END IF
+  IF (PRESENT(c_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,error,failure)
-        CPPrecondition(ALL(LEN_TRIM(c_vals)<=default_string_length),cp_failure_level,routineP,error,failure)
-        narg=narg+1
-        ALLOCATE(val%c_val(SIZE(c_vals)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        val%c_val=c_vals
-        val%type_of_var=char_t
-     END IF
-     IF (PRESENT(c_vals_ptr)) THEN
-        narg=narg+1
-        val%c_val => c_vals_ptr
-        val%type_of_var=char_t
-     END IF
-     IF (PRESENT(lc_val)) THEN
+     CPPrecondition(ALL(LEN_TRIM(c_vals)<=default_string_length),cp_failure_level,routineP,error,failure)
+     narg=narg+1
+     ALLOCATE(val%c_val(SIZE(c_vals)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     val%c_val=c_vals
+     val%type_of_var=char_t
+  END IF
+  IF (PRESENT(c_vals_ptr)) THEN
+     narg=narg+1
+     val%c_val => c_vals_ptr
+     val%type_of_var=char_t
+  END IF
+  IF (PRESENT(lc_val)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(lc_vals),cp_failure_level,routineP,error,failure)
 !FM        CPPrecondition(.NOT.PRESENT(lc_vals_ptr),cp_failure_level,routineP,error,failure)
-        narg=narg+1
-        len_c=LEN_TRIM(lc_val)
-        nVal=MAX(1,CEILING(REAL(len_c,dp)/80._dp))
-        ALLOCATE(val%c_val(nVal),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     narg=narg+1
+     len_c=LEN_TRIM(lc_val)
+     nVal=MAX(1,CEILING(REAL(len_c,dp)/80._dp))
+     ALLOCATE(val%c_val(nVal),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-        IF (len_c == 0) THEN
-           val%c_val(1) = ""
-        ELSE
-           DO i=1,nVal
-              val%c_val(i)=lc_val((i-1)*default_string_length+1:&
-                   MIN(len_c,i*default_string_length))
-           END DO
-        END IF
-        val%type_of_var=lchar_t
+     IF (len_c == 0) THEN
+        val%c_val(1) = ""
+     ELSE
+        DO i=1,nVal
+           val%c_val(i)=lc_val((i-1)*default_string_length+1:&
+                MIN(len_c,i*default_string_length))
+        END DO
      END IF
-     IF (PRESENT(lc_vals)) THEN
-        CPPrecondition(ALL(LEN_TRIM(lc_vals)<=default_string_length),cp_failure_level,routineP,error,failure)
-        narg=narg+1
-        ALLOCATE(val%c_val(SIZE(lc_vals)),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        val%c_val=lc_vals
-        val%type_of_var=lchar_t
-     END IF
-     IF (PRESENT(lc_vals_ptr)) THEN
-        narg=narg+1
-        val%c_val => lc_vals_ptr
-        val%type_of_var=lchar_t
-     END IF
-     CPPostcondition(narg<=1,cp_failure_level,routineP,error,failure)
-     IF (PRESENT(enum)) THEN
-        IF (ASSOCIATED(enum)) THEN
-           IF (val%type_of_var/=no_t.AND.val%type_of_var/=integer_t.AND.&
-                val%type_of_var/=enum_t) THEN
-              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-           END IF
-           IF (ASSOCIATED(val%i_val)) THEN
-              val%type_of_var=enum_t
-              val%enum=>enum
-              CALL enum_retain(enum,error=error)
-           END IF
-        END IF
-     END IF
-     CPPostcondition(ASSOCIATED(val%enum).eqv.val%type_of_var==enum_t,cp_failure_level,routineP,error,failure)
+     val%type_of_var=lchar_t
   END IF
+  IF (PRESENT(lc_vals)) THEN
+     CPPrecondition(ALL(LEN_TRIM(lc_vals)<=default_string_length),cp_failure_level,routineP,error,failure)
+     narg=narg+1
+     ALLOCATE(val%c_val(SIZE(lc_vals)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     val%c_val=lc_vals
+     val%type_of_var=lchar_t
+  END IF
+  IF (PRESENT(lc_vals_ptr)) THEN
+     narg=narg+1
+     val%c_val => lc_vals_ptr
+     val%type_of_var=lchar_t
+  END IF
+  CPPostcondition(narg<=1,cp_failure_level,routineP,error,failure)
+  IF (PRESENT(enum)) THEN
+     IF (ASSOCIATED(enum)) THEN
+        IF (val%type_of_var/=no_t.AND.val%type_of_var/=integer_t.AND.&
+             val%type_of_var/=enum_t) THEN
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+        IF (ASSOCIATED(val%i_val)) THEN
+           val%type_of_var=enum_t
+           val%enum=>enum
+           CALL enum_retain(enum,error=error)
+        END IF
+     END IF
+  END IF
+  CPPostcondition(ASSOCIATED(val%enum).eqv.val%type_of_var==enum_t,cp_failure_level,routineP,error,failure)
 END SUBROUTINE val_create
 
 ! *****************************************************************************
@@ -361,10 +359,8 @@ SUBROUTINE val_retain(val,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(val),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(val%ref_count>0,cp_failure_level,routineP,error)
-     val%ref_count=val%ref_count+1
-  END IF
+  CPPreconditionNoFail(val%ref_count>0,cp_failure_level,routineP,error)
+  val%ref_count=val%ref_count+1
 END SUBROUTINE val_retain
 
 ! *****************************************************************************
@@ -829,39 +825,35 @@ SUBROUTINE val_duplicate(val_in,val_out,error)
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(val_in),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(val_out),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     ALLOCATE(val_out,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF (.NOT.failure) THEN
-     last_val_id=last_val_id+1
-     val_out%id_nr=last_val_id
-     val_out%type_of_var=val_in%type_of_var
-     val_out%ref_count=1
-     val_out%enum => val_in%enum
-     IF (ASSOCIATED(val_out%enum)) CALL enum_retain(val_out%enum,error=error)
+  ALLOCATE(val_out,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  last_val_id=last_val_id+1
+  val_out%id_nr=last_val_id
+  val_out%type_of_var=val_in%type_of_var
+  val_out%ref_count=1
+  val_out%enum => val_in%enum
+  IF (ASSOCIATED(val_out%enum)) CALL enum_retain(val_out%enum,error=error)
 
-     NULLIFY(val_out%l_val,val_out%i_val,val_out%c_val,val_out%r_val)
-     IF (ASSOCIATED(val_in%l_val)) THEN
-        ALLOCATE(val_out%l_val(SIZE(val_in%l_val)),stat=stat)
-        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-        val_out%l_val=val_in%l_val
-     END IF
-     IF (ASSOCIATED(val_in%i_val)) THEN
-        ALLOCATE(val_out%i_val(SIZE(val_in%i_val)),stat=stat)
-        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-        val_out%i_val=val_in%i_val
-     END IF
-     IF (ASSOCIATED(val_in%r_val)) THEN
-        ALLOCATE(val_out%r_val(SIZE(val_in%r_val)),stat=stat)
-        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-        val_out%r_val=val_in%r_val
-     END IF
-     IF (ASSOCIATED(val_in%c_val)) THEN
-        ALLOCATE(val_out%c_val(SIZE(val_in%c_val)),stat=stat)
-        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-        val_out%c_val=val_in%c_val
-     END IF
+  NULLIFY(val_out%l_val,val_out%i_val,val_out%c_val,val_out%r_val)
+  IF (ASSOCIATED(val_in%l_val)) THEN
+     ALLOCATE(val_out%l_val(SIZE(val_in%l_val)),stat=stat)
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     val_out%l_val=val_in%l_val
+  END IF
+  IF (ASSOCIATED(val_in%i_val)) THEN
+     ALLOCATE(val_out%i_val(SIZE(val_in%i_val)),stat=stat)
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     val_out%i_val=val_in%i_val
+  END IF
+  IF (ASSOCIATED(val_in%r_val)) THEN
+     ALLOCATE(val_out%r_val(SIZE(val_in%r_val)),stat=stat)
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     val_out%r_val=val_in%r_val
+  END IF
+  IF (ASSOCIATED(val_in%c_val)) THEN
+     ALLOCATE(val_out%c_val(SIZE(val_in%c_val)),stat=stat)
+     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+     val_out%c_val=val_in%c_val
   END IF
 END SUBROUTINE val_duplicate
 

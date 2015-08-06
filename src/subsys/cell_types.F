@@ -820,9 +820,7 @@ CONTAINS
     cell%orthorhombic = .FALSE.
     cell%symmetry_id = cell_sym_none
     IF (.NOT.PRESENT(hmat)) RETURN
-    IF (.NOT.failure) THEN
-       CALL init_cell(cell,hmat,periodic)
-    END IF
+    CALL init_cell(cell,hmat,periodic)
 
   END SUBROUTINE cell_create
 
@@ -848,10 +846,8 @@ CONTAINS
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
-       cell%ref_count=cell%ref_count+1
-    END IF
+    CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
+    cell%ref_count=cell%ref_count+1
 
   END SUBROUTINE cell_retain
 

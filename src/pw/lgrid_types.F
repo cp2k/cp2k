@@ -64,20 +64,16 @@ SUBROUTINE lgrid_create(lgrid,rs_descs,error)
   failure=.FALSE.
 
   CPPrecondition(.NOT.ASSOCIATED(lgrid),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     ALLOCATE(lgrid, stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF (.NOT. failure) THEN
-     NULLIFY(lgrid%r)
-     lgrid%ref_count=1
-     ! Find the maximum number of grid points needed
-     ngpts = 0
-     DO i=1,SIZE(rs_descs)
-       ngpts = MAX(ngpts, rs_grid_max_ngpts(rs_descs(i)%rs_desc))
-     END DO
-     lgrid%ldim = ngpts
-  END IF
+  ALLOCATE(lgrid, stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  NULLIFY(lgrid%r)
+  lgrid%ref_count=1
+  ! Find the maximum number of grid points needed
+  ngpts = 0
+  DO i=1,SIZE(rs_descs)
+    ngpts = MAX(ngpts, rs_grid_max_ngpts(rs_descs(i)%rs_desc))
+  END DO
+  lgrid%ldim = ngpts
 END SUBROUTINE lgrid_create
 
 ! *****************************************************************************
@@ -101,10 +97,8 @@ SUBROUTINE lgrid_retain(lgrid,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(lgrid%ref_count>0,cp_failure_level,routineP,error,failure)
-     lgrid%ref_count=lgrid%ref_count+1
-  END IF
+  CPPrecondition(lgrid%ref_count>0,cp_failure_level,routineP,error,failure)
+  lgrid%ref_count=lgrid%ref_count+1
 END SUBROUTINE lgrid_retain
 
 ! *****************************************************************************
@@ -164,10 +158,8 @@ SUBROUTINE lgrid_allocate_grid(lgrid, nthreads, error)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(.NOT. ASSOCIATED(lgrid%r),cp_failure_level,routineP,error)
-       ALLOCATE(lgrid%r(lgrid%ldim*nthreads))
-    END IF
+    CPPreconditionNoFail(.NOT. ASSOCIATED(lgrid%r),cp_failure_level,routineP,error)
+    ALLOCATE(lgrid%r(lgrid%ldim*nthreads))
 END SUBROUTINE
 
 END MODULE

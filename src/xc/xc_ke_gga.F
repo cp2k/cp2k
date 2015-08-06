@@ -212,120 +212,118 @@ CONTAINS
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-       CALL xc_rho_set_get(rho_set,rho_1_3=rho13,rho=rho,&
-            norm_drho=grho,local_bounds=bo,rho_cutoff=rho_cutoff,&
-            drho_cutoff=drho_cutoff,error=error)
-       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-       CALL ke_gga_init(rho_cutoff)
+    CALL xc_rho_set_get(rho_set,rho_1_3=rho13,rho=rho,&
+         norm_drho=grho,local_bounds=bo,rho_cutoff=rho_cutoff,&
+         drho_cutoff=drho_cutoff,error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    CALL ke_gga_init(rho_cutoff)
 
-       ALLOCATE ( s(npoints), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE ( fs(npoints,m+1), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( s(npoints), STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( fs(npoints,m+1), STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
 !      s = norm_drho/(rho^(4/3)*2*(pi*pi*3)^(1/3))
-       CALL calc_wave_vector ( "p", rho, grho, s )
+    CALL calc_wave_vector ( "p", rho, grho, s )
 
-       fact = flda
+    fact = flda
 !      Definition of s has changed
-       b = b_lda
+    b = b_lda
 !       tact = t13
-       tact =  1.0_dp
+    tact =  1.0_dp
 
-       SELECT CASE (functional)
-       CASE (ke_ol1)
-          CALL efactor_ol1 ( s, fs, m )
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"OL1 functional currently not working properly",&
-               error,failure)
-       CASE (ke_ol2)
-          CALL efactor_ol2 ( s, fs, m )
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-               routineP,"OL2 functional currently not working properly",&
-               error,failure)
-       CASE (ke_llp)
-          CALL efactor_llp ( s, fs, m )
-       CASE (ke_pw86)
-          CALL efactor_pw86 ( s, fs, m )
-       CASE (ke_pw91)
-          CALL efactor_pw91 ( s, fs, m, 1 )
-       CASE (ke_lc)
-          CALL efactor_pw91 ( s, fs, m, 2 )
-       CASE (ke_t92)
-          CALL efactor_t92 ( s, fs, m )
-       CASE (ke_pbe)
-          CALL efactor_pbex (s, fs, m, 1)
-       CASE (ke_revpbe)
-          CALL efactor_pbex (s, fs, m, 2)
-       CASE DEFAULT
-          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-       END SELECT
+    SELECT CASE (functional)
+    CASE (ke_ol1)
+       CALL efactor_ol1 ( s, fs, m )
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+            routineP,"OL1 functional currently not working properly",&
+            error,failure)
+    CASE (ke_ol2)
+       CALL efactor_ol2 ( s, fs, m )
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+            routineP,"OL2 functional currently not working properly",&
+            error,failure)
+    CASE (ke_llp)
+       CALL efactor_llp ( s, fs, m )
+    CASE (ke_pw86)
+       CALL efactor_pw86 ( s, fs, m )
+    CASE (ke_pw91)
+       CALL efactor_pw91 ( s, fs, m, 1 )
+    CASE (ke_lc)
+       CALL efactor_pw91 ( s, fs, m, 2 )
+    CASE (ke_t92)
+       CALL efactor_t92 ( s, fs, m )
+    CASE (ke_pbe)
+       CALL efactor_pbex (s, fs, m, 1)
+    CASE (ke_revpbe)
+       CALL efactor_pbex (s, fs, m, 2)
+    CASE DEFAULT
+       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
 
-       IF ( order>=0 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"",&
-               allocate_deriv=.TRUE., error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+    IF ( order>=0 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
 
-          CALL kex_p_0 ( rho, rho13, fs, e_0, npoints, error=error )
-       END IF
-
-       IF ( order>=1 .OR. order==-1 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
-
-          CALL kex_p_1 ( rho, rho13, s, fs, e_rho=e_rho, e_ndrho=e_ndrho,&
-               npoints=npoints, error=error)
-       END IF
-       IF ( order>=2 .OR. order==-2 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)(norm_drho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,&
-               "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
-
-          CALL kex_p_2 ( rho, rho13, s, fs, e_rho_rho=e_rho_rho,&
-               e_rho_ndrho=e_rho_ndrho, e_ndrho_ndrho=e_ndrho_ndrho, npoints=npoints,&
-               error=error )
-       END IF
-       IF ( order>=3 .OR. order==-3 ) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
-               allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,&
-               "(rho)(rho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,&
-               "(rho)(norm_drho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,&
-               "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
-               error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
-
-          CALL kex_p_3 ( rho, rho13, s, fs, e_rho_rho_rho=e_rho_rho_rho,&
-               e_rho_rho_ndrho=e_rho_rho_ndrho, e_rho_ndrho_ndrho=e_rho_ndrho_ndrho,&
-               e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,npoints=npoints,error=error)
-       END IF
-       IF ( order>3.OR.order<-3) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="derivatives bigger than 3 not implemented", &
-               error=error, error_level=cp_failure_level)
-       END IF
-
-       DEALLOCATE ( s, STAT=stat )
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       DEALLOCATE ( fs, STAT=stat )
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CALL kex_p_0 ( rho, rho13, fs, e_0, npoints, error=error )
     END IF
+
+    IF ( order>=1 .OR. order==-1 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+
+       CALL kex_p_1 ( rho, rho13, s, fs, e_rho=e_rho, e_ndrho=e_ndrho,&
+            npoints=npoints, error=error)
+    END IF
+    IF ( order>=2 .OR. order==-2 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)(norm_drho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+            "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
+
+       CALL kex_p_2 ( rho, rho13, s, fs, e_rho_rho=e_rho_rho,&
+            e_rho_ndrho=e_rho_ndrho, e_ndrho_ndrho=e_ndrho_ndrho, npoints=npoints,&
+            error=error )
+    END IF
+    IF ( order>=3 .OR. order==-3 ) THEN
+       deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+            "(rho)(rho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+            "(rho)(norm_drho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,&
+            "(norm_drho)(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,&
+            error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
+
+       CALL kex_p_3 ( rho, rho13, s, fs, e_rho_rho_rho=e_rho_rho_rho,&
+            e_rho_rho_ndrho=e_rho_rho_ndrho, e_rho_ndrho_ndrho=e_rho_ndrho_ndrho,&
+            e_ndrho_ndrho_ndrho=e_ndrho_ndrho_ndrho,npoints=npoints,error=error)
+    END IF
+    IF ( order>3.OR.order<-3) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="derivatives bigger than 3 not implemented", &
+            error=error, error_level=cp_failure_level)
+    END IF
+
+    DEALLOCATE ( s, STAT=stat )
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    DEALLOCATE ( fs, STAT=stat )
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
     CALL timestop(handle)
 
@@ -383,131 +381,129 @@ CONTAINS
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-       CALL xc_rho_set_get(rho_set,rhoa_1_3=rho_1_3(1)%array,&
-            rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
-            rhob=rho(2)%array,norm_drhoa=norm_drho(1)%array, &
-            norm_drhob=norm_drho(2)%array,rho_cutoff=rho_cutoff,&
-            local_bounds=bo, error=error)
-       npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-       m=ABS(order)
-       CALL ke_gga_init(rho_cutoff)
+    CALL xc_rho_set_get(rho_set,rhoa_1_3=rho_1_3(1)%array,&
+         rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
+         rhob=rho(2)%array,norm_drhoa=norm_drho(1)%array, &
+         norm_drhob=norm_drho(2)%array,rho_cutoff=rho_cutoff,&
+         local_bounds=bo, error=error)
+    npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
+    m=ABS(order)
+    CALL ke_gga_init(rho_cutoff)
 
-       ALLOCATE ( s(npoints), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE ( fs(npoints,m+1), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( s(npoints), STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( fs(npoints,m+1), STAT=stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       fact = flsd
-       b = b_lsd
-       tact = 1.0_dp
+    fact = flsd
+    b = b_lsd
+    tact = 1.0_dp
 
-       DO ispin=1,2
+    DO ispin=1,2
 
-          CALL calc_wave_vector ( "p", rho(ispin)%array, norm_drho(ispin)%array, s )
+       CALL calc_wave_vector ( "p", rho(ispin)%array, norm_drho(ispin)%array, s )
 
-          SELECT CASE (functional)
-          CASE (ke_ol1)
-             CALL efactor_ol1 ( s, fs, m )
-          CASE (ke_ol2)
-             CALL efactor_ol2 ( s, fs, m )
-          CASE (ke_llp)
-             CALL efactor_llp ( s, fs, m )
-          CASE (ke_pw86)
-             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
-             CALL efactor_pw86 ( s, fs, m, f2_lsd=tact )
-             tact = 1.0_dp
-          CASE (ke_pbe)
-             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
-             CALL efactor_pbex ( s, fs, m, 1, f2_lsd=tact )
-             tact = 1.0_dp
-          CASE (ke_revpbe)
-             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
-             CALL efactor_pbex ( s, fs, m, 2, f2_lsd=tact )
-             tact = 1.0_dp
-          CASE (ke_pw91)
-             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
-             CALL efactor_pw91 ( s, fs, m, 1, f2_lsd=tact )
-             tact = 1.0_dp
-          CASE (ke_lc)
-             tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
-             CALL efactor_pw91 ( s, fs, m, 2 , f2_lsd=tact )
-             tact = 1.0_dp
-          CASE (ke_t92)
-             CALL efactor_t92 ( s, fs, m )
-          CASE DEFAULT
-             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-          END SELECT
+       SELECT CASE (functional)
+       CASE (ke_ol1)
+          CALL efactor_ol1 ( s, fs, m )
+       CASE (ke_ol2)
+          CALL efactor_ol2 ( s, fs, m )
+       CASE (ke_llp)
+          CALL efactor_llp ( s, fs, m )
+       CASE (ke_pw86)
+          tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
+          CALL efactor_pw86 ( s, fs, m, f2_lsd=tact )
+          tact = 1.0_dp
+       CASE (ke_pbe)
+          tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
+          CALL efactor_pbex ( s, fs, m, 1, f2_lsd=tact )
+          tact = 1.0_dp
+       CASE (ke_revpbe)
+          tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
+          CALL efactor_pbex ( s, fs, m, 2, f2_lsd=tact )
+          tact = 1.0_dp
+       CASE (ke_pw91)
+          tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
+          CALL efactor_pw91 ( s, fs, m, 1, f2_lsd=tact )
+          tact = 1.0_dp
+       CASE (ke_lc)
+          tact = (1.0_dp/2.0_dp)**(1.0_dp/3.0_dp)
+          CALL efactor_pw91 ( s, fs, m, 2 , f2_lsd=tact )
+          tact = 1.0_dp
+       CASE (ke_t92)
+          CALL efactor_t92 ( s, fs, m )
+       CASE DEFAULT
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
 
-          IF ( order>=0 ) THEN
-             deriv => xc_dset_get_derivative(deriv_set,"",&
-                  allocate_deriv=.TRUE., error=error)
-             CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
+       IF ( order>=0 ) THEN
+          deriv => xc_dset_get_derivative(deriv_set,"",&
+               allocate_deriv=.TRUE., error=error)
+          CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
 
-             CALL kex_p_0 ( rho(ispin)%array, rho_1_3(ispin)%array, fs, &
-                  e_0=e_0, npoints=npoints, error=error )
-          END IF
-          IF ( order>=1.or.order==-1 ) THEN
-             deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin),&
-                  allocate_deriv=.TRUE.,error=error)
-             CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
-             deriv => xc_dset_get_derivative(deriv_set,norm_drho_spin_name(ispin),&
-                  allocate_deriv=.TRUE.,error=error)
-             CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
+          CALL kex_p_0 ( rho(ispin)%array, rho_1_3(ispin)%array, fs, &
+               e_0=e_0, npoints=npoints, error=error )
+       END IF
+       IF ( order>=1.or.order==-1 ) THEN
+          deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin),&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,norm_drho_spin_name(ispin),&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
 
-             CALL kex_p_1 ( rho=rho(ispin)%array, &
-                  r13=rho_1_3(ispin)%array, s=s, fs=fs, e_rho=e_rho, &
-                  e_ndrho=e_ndrho, npoints=npoints, error=error )
-          END IF
-          IF ( order>=2.OR.order==-2 ) THEN
-             deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
-                  rho_spin_name(ispin),allocate_deriv=.TRUE.,error=error)
-             CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
-             deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
-                  norm_drho_spin_name(ispin),allocate_deriv=.TRUE.,error=error)
-             CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
-             deriv => xc_dset_get_derivative(deriv_set,norm_drho_spin_name(ispin)//&
-                  norm_drho_spin_name(ispin), allocate_deriv=.TRUE.,error=error)
-             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
+          CALL kex_p_1 ( rho=rho(ispin)%array, &
+               r13=rho_1_3(ispin)%array, s=s, fs=fs, e_rho=e_rho, &
+               e_ndrho=e_ndrho, npoints=npoints, error=error )
+       END IF
+       IF ( order>=2.OR.order==-2 ) THEN
+          deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
+               rho_spin_name(ispin),allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
+               norm_drho_spin_name(ispin),allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,norm_drho_spin_name(ispin)//&
+               norm_drho_spin_name(ispin), allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
 
-             CALL kex_p_2 ( rho(ispin)%array, rho_1_3(ispin)%array,&
-                  s, fs, e_rho_rho,e_rho_ndrho,e_ndrho_ndrho,npoints,error=error )
-          END IF
-          IF ( order>=3 .OR. order==-3 ) THEN
-             deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
-                  rho_spin_name(ispin)//rho_spin_name(ispin),&
-                  allocate_deriv=.TRUE.,error=error)
-             CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
-             deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
-                  rho_spin_name(ispin)//norm_drho_spin_name(ispin),&
-                  allocate_deriv=.TRUE.,error=error)
-             CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
-             deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
-                  norm_drho_spin_name(ispin)//norm_drho_spin_name(ispin), &
-                  allocate_deriv=.TRUE.,error=error)
-             CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
-             deriv => xc_dset_get_derivative(deriv_set,norm_drho_spin_name(ispin)//&
-                  norm_drho_spin_name(ispin)//norm_drho_spin_name(ispin),&
-                  allocate_deriv=.TRUE.,error=error)
-             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
+          CALL kex_p_2 ( rho(ispin)%array, rho_1_3(ispin)%array,&
+               s, fs, e_rho_rho,e_rho_ndrho,e_ndrho_ndrho,npoints,error=error )
+       END IF
+       IF ( order>=3 .OR. order==-3 ) THEN
+          deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
+               rho_spin_name(ispin)//rho_spin_name(ispin),&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
+               rho_spin_name(ispin)//norm_drho_spin_name(ispin),&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
+               norm_drho_spin_name(ispin)//norm_drho_spin_name(ispin), &
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,norm_drho_spin_name(ispin)//&
+               norm_drho_spin_name(ispin)//norm_drho_spin_name(ispin),&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho,error=error)
 
-             CALL kex_p_3 ( rho(ispin)%array, &
-                  rho_1_3(ispin)%array, s, fs, e_rho_rho_rho, e_rho_rho_ndrho,&
-                  e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints, error)
-          END IF
-          IF ( order>3.OR.order<-3) THEN
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="derivatives bigger than 3 not implemented", &
-                  error=error, error_level=cp_failure_level)
-          END IF
+          CALL kex_p_3 ( rho(ispin)%array, &
+               rho_1_3(ispin)%array, s, fs, e_rho_rho_rho, e_rho_rho_ndrho,&
+               e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints, error)
+       END IF
+       IF ( order>3.OR.order<-3) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="derivatives bigger than 3 not implemented", &
+               error=error, error_level=cp_failure_level)
+       END IF
 
-       END DO
+    END DO
 
-       DEALLOCATE ( s, STAT=stat )
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       DEALLOCATE ( fs, STAT=stat )
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    END IF
+    DEALLOCATE ( s, STAT=stat )
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    DEALLOCATE ( fs, STAT=stat )
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     CALL timestop(handle)
   END SUBROUTINE ke_gga_lsd_eval
 

@@ -125,53 +125,49 @@ CONTAINS
     my_local=.FALSE.
     IF (PRESENT(local)) my_local = local
     CPPrecondition(.NOT.ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       ALLOCATE(pw_grid,stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-    END IF
-    IF (.NOT.failure) THEN
-       pw_grid % bounds = 0
-       pw_grid % cutoff = 0.0_dp
-       pw_grid % grid_span = FULLSPACE
+    ALLOCATE(pw_grid,stat=stat)
+    CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+    pw_grid % bounds = 0
+    pw_grid % cutoff = 0.0_dp
+    pw_grid % grid_span = FULLSPACE
+    pw_grid % para % mode = PW_MODE_LOCAL
+    pw_grid % para % rs_dims = 0
+    pw_grid % reference = 0
+    pw_grid % ref_count = 1
+    NULLIFY ( pw_grid % g )
+    NULLIFY ( pw_grid % gsq )
+    NULLIFY ( pw_grid % g_hat )
+    NULLIFY ( pw_grid % g_hatmap )
+    NULLIFY ( pw_grid % gidx )
+    NULLIFY ( pw_grid % grays )
+    NULLIFY ( pw_grid % mapl % pos )
+    NULLIFY ( pw_grid % mapl % neg )
+    NULLIFY ( pw_grid % mapm % pos )
+    NULLIFY ( pw_grid % mapm % neg )
+    NULLIFY ( pw_grid % mapn % pos )
+    NULLIFY ( pw_grid % mapn % neg )
+    NULLIFY ( pw_grid % para % yzp )
+    NULLIFY ( pw_grid % para % yzq )
+    NULLIFY ( pw_grid % para % nyzray )
+    NULLIFY ( pw_grid % para % bo )
+    NULLIFY ( pw_grid % para % pos_of_x )
+
+    ! assign a unique tag to this grid
+    grid_tag = grid_tag + 1
+    pw_grid %id_nr = grid_tag
+
+    ! parallel info
+    CALL mp_comm_dup ( pe_group, pw_grid % para % group )
+    CALL mp_environ ( pw_grid % para % group_size, &
+         pw_grid % para % my_pos, &
+         pw_grid % para % group )
+    pw_grid % para % group_head_id = 0
+    pw_grid % para % group_head = &
+         ( pw_grid % para % group_head_id == pw_grid % para % my_pos )
+    IF (pw_grid % para % group_size > 1 .AND. (.NOT.my_local)) THEN
+       pw_grid % para % mode = PW_MODE_DISTRIBUTED
+    ELSE
        pw_grid % para % mode = PW_MODE_LOCAL
-       pw_grid % para % rs_dims = 0
-       pw_grid % reference = 0
-       pw_grid % ref_count = 1
-       NULLIFY ( pw_grid % g )
-       NULLIFY ( pw_grid % gsq )
-       NULLIFY ( pw_grid % g_hat )
-       NULLIFY ( pw_grid % g_hatmap )
-       NULLIFY ( pw_grid % gidx )
-       NULLIFY ( pw_grid % grays )
-       NULLIFY ( pw_grid % mapl % pos )
-       NULLIFY ( pw_grid % mapl % neg )
-       NULLIFY ( pw_grid % mapm % pos )
-       NULLIFY ( pw_grid % mapm % neg )
-       NULLIFY ( pw_grid % mapn % pos )
-       NULLIFY ( pw_grid % mapn % neg )
-       NULLIFY ( pw_grid % para % yzp )
-       NULLIFY ( pw_grid % para % yzq )
-       NULLIFY ( pw_grid % para % nyzray )
-       NULLIFY ( pw_grid % para % bo )
-       NULLIFY ( pw_grid % para % pos_of_x )
-
-       ! assign a unique tag to this grid
-       grid_tag = grid_tag + 1
-       pw_grid %id_nr = grid_tag
-
-       ! parallel info
-       CALL mp_comm_dup ( pe_group, pw_grid % para % group )
-       CALL mp_environ ( pw_grid % para % group_size, &
-            pw_grid % para % my_pos, &
-            pw_grid % para % group )
-       pw_grid % para % group_head_id = 0
-       pw_grid % para % group_head = &
-            ( pw_grid % para % group_head_id == pw_grid % para % my_pos )
-       IF (pw_grid % para % group_size > 1 .AND. (.NOT.my_local)) THEN
-          pw_grid % para % mode = PW_MODE_DISTRIBUTED
-       ELSE
-          pw_grid % para % mode = PW_MODE_LOCAL
-       END IF
     END IF
 
   END SUBROUTINE pw_grid_create
@@ -249,20 +245,18 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF ( .NOT. failure ) THEN
-       IF ( PRESENT(id_nr) ) id_nr = pw_grid%id_nr
-       IF ( PRESENT(mode) ) mode = pw_grid%para%mode
-       IF ( PRESENT(vol) ) vol = pw_grid%vol
-       IF ( PRESENT(dvol) ) dvol = pw_grid%dvol
-       IF ( PRESENT(npts) ) npts(1:3) = pw_grid%npts(1:3)
-       IF ( PRESENT(ngpts) ) ngpts = pw_grid%ngpts
-       IF ( PRESENT(ngpts_cut) ) ngpts_cut = pw_grid%ngpts_cut
-       IF ( PRESENT(dr) ) dr = pw_grid%dr
-       IF ( PRESENT(cutoff) ) cutoff = pw_grid%cutoff
-       IF ( PRESENT(orthorhombic) ) orthorhombic = pw_grid%orthorhombic
-       IF ( PRESENT(gvectors) ) gvectors => pw_grid%g
-       IF ( PRESENT(gsquare) ) gsquare => pw_grid%gsq
-    END IF
+    IF ( PRESENT(id_nr) ) id_nr = pw_grid%id_nr
+    IF ( PRESENT(mode) ) mode = pw_grid%para%mode
+    IF ( PRESENT(vol) ) vol = pw_grid%vol
+    IF ( PRESENT(dvol) ) dvol = pw_grid%dvol
+    IF ( PRESENT(npts) ) npts(1:3) = pw_grid%npts(1:3)
+    IF ( PRESENT(ngpts) ) ngpts = pw_grid%ngpts
+    IF ( PRESENT(ngpts_cut) ) ngpts_cut = pw_grid%ngpts_cut
+    IF ( PRESENT(dr) ) dr = pw_grid%dr
+    IF ( PRESENT(cutoff) ) cutoff = pw_grid%cutoff
+    IF ( PRESENT(orthorhombic) ) orthorhombic = pw_grid%orthorhombic
+    IF ( PRESENT(gvectors) ) gvectors => pw_grid%g
+    IF ( PRESENT(gsquare) ) gsquare => pw_grid%gsq
 
   END SUBROUTINE get_pw_grid_info
 
@@ -300,28 +294,26 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF ( .NOT. failure ) THEN
-       IF ( PRESENT(grid_span) ) THEN
-          pw_grid%grid_span = grid_span
-       END IF
-       IF ( PRESENT(bounds) .AND. PRESENT(npts) ) THEN
-          pw_grid%bounds = bounds
-          pw_grid%npts = npts
-          CPPostcondition(ALL(npts==bounds(2,:)-bounds(1,:)+1),cp_failure_level,routineP,error,failure)
-       ELSE IF ( PRESENT(bounds) ) THEN
-          pw_grid%bounds = bounds
-          pw_grid%npts = bounds(2,:)-bounds(1,:)+1
-       ELSE IF ( PRESENT(npts) ) THEN
-          pw_grid%npts = npts
-          pw_grid%bounds = pw_grid_bounds_from_n(npts,error)
-       END IF
-       IF ( PRESENT(cutoff) ) THEN
-          pw_grid%cutoff = cutoff
-          IF( PRESENT(spherical) ) THEN
-             pw_grid%spherical = spherical
-          ELSE
-             pw_grid%spherical = .FALSE.
-          END IF
+    IF ( PRESENT(grid_span) ) THEN
+       pw_grid%grid_span = grid_span
+    END IF
+    IF ( PRESENT(bounds) .AND. PRESENT(npts) ) THEN
+       pw_grid%bounds = bounds
+       pw_grid%npts = npts
+       CPPostcondition(ALL(npts==bounds(2,:)-bounds(1,:)+1),cp_failure_level,routineP,error,failure)
+    ELSE IF ( PRESENT(bounds) ) THEN
+       pw_grid%bounds = bounds
+       pw_grid%npts = bounds(2,:)-bounds(1,:)+1
+    ELSE IF ( PRESENT(npts) ) THEN
+       pw_grid%npts = npts
+       pw_grid%bounds = pw_grid_bounds_from_n(npts,error)
+    END IF
+    IF ( PRESENT(cutoff) ) THEN
+       pw_grid%cutoff = cutoff
+       IF( PRESENT(spherical) ) THEN
+          pw_grid%spherical = spherical
+       ELSE
+          pw_grid%spherical = .FALSE.
        END IF
     END IF
 
@@ -2361,10 +2353,8 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
-       pw_grid%ref_count=pw_grid%ref_count+1
-    END IF
+    CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
+    pw_grid%ref_count=pw_grid%ref_count+1
   END SUBROUTINE pw_grid_retain
 
 ! *****************************************************************************

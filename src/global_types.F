@@ -109,21 +109,19 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     ALLOCATE(globenv,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       last_globenv_id=last_globenv_id+1
-       globenv%id_nr=last_globenv_id
-       globenv%ref_count=1
-       globenv%run_type_id=0
-       globenv%diag_library="SL"
-       globenv%k_elpa=1
-       globenv%default_fft_library="FFTSG"
-       globenv%fftw_wisdom_file_name="/etc/fftw/wisdom"
-       globenv%prog_name_id=0
-       globenv%idum=0                 !! random number seed
-       globenv%blacs_grid_layout=BLACS_GRID_SQUARE
-       globenv%cp2k_start_time=m_walltime()
-       NULLIFY (globenv%gaussian_rng_stream)
-    END IF
+    last_globenv_id=last_globenv_id+1
+    globenv%id_nr=last_globenv_id
+    globenv%ref_count=1
+    globenv%run_type_id=0
+    globenv%diag_library="SL"
+    globenv%k_elpa=1
+    globenv%default_fft_library="FFTSG"
+    globenv%fftw_wisdom_file_name="/etc/fftw/wisdom"
+    globenv%prog_name_id=0
+    globenv%idum=0                 !! random number seed
+    globenv%blacs_grid_layout=BLACS_GRID_SQUARE
+    globenv%cp2k_start_time=m_walltime()
+    NULLIFY (globenv%gaussian_rng_stream)
   END SUBROUTINE globenv_create
 
 ! *****************************************************************************
@@ -145,10 +143,8 @@ SUBROUTINE globenv_retain(globenv, error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(globenv%ref_count>0,cp_failure_level,routineP,error,failure)
-     globenv%ref_count=globenv%ref_count+1
-  END IF
+  CPPrecondition(globenv%ref_count>0,cp_failure_level,routineP,error,failure)
+  globenv%ref_count=globenv%ref_count+1
 END SUBROUTINE globenv_retain
 
 ! *****************************************************************************

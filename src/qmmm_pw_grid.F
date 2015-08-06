@@ -143,79 +143,77 @@ CONTAINS
 
     CPPrecondition(pw_grid_in%ngpts_cut>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(.NOT.ASSOCIATED(pw_grid_out),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       pw_mode_loc = pw_grid_in%para%mode
-       IF (PRESENT(pw_mode)) pw_mode_loc = pw_mode
-       CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group,error=error)
-       qmmm_grid_tag = qmmm_grid_tag + 1
-       pw_grid_out %id_nr = qmmm_grid_tag
-       pw_grid_out % ref_count  = 1
-       pw_grid_out % reference  = 0
-       pw_grid_out%bounds=pw_grid_in%bounds
-       pw_grid_out%bounds(2,:)=pw_grid_out%bounds(2,:) + 1
-       IF (pw_mode_loc==PW_MODE_DISTRIBUTED) THEN
-          pw_grid_out%bounds_local=pw_grid_in%bounds_local
-          IF ( pw_grid_in%bounds_local(2,1)==pw_grid_in%bounds(2,1).AND.&
-               pw_grid_in%bounds_local(1,1)<=pw_grid_in%bounds(2,1)) THEN
-             pw_grid_out%bounds_local(2,1)=pw_grid_out%bounds_local(2,1)+1
-          END IF
-          pw_grid_out%bounds_local(2,2)=pw_grid_out%bounds_local(2,2)+1
-          pw_grid_out%bounds_local(2,3)=pw_grid_out%bounds_local(2,3)+1
-       ELSE
-          pw_grid_out%bounds_local = pw_grid_out%bounds
+    pw_mode_loc = pw_grid_in%para%mode
+    IF (PRESENT(pw_mode)) pw_mode_loc = pw_mode
+    CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group,error=error)
+    qmmm_grid_tag = qmmm_grid_tag + 1
+    pw_grid_out %id_nr = qmmm_grid_tag
+    pw_grid_out % ref_count  = 1
+    pw_grid_out % reference  = 0
+    pw_grid_out%bounds=pw_grid_in%bounds
+    pw_grid_out%bounds(2,:)=pw_grid_out%bounds(2,:) + 1
+    IF (pw_mode_loc==PW_MODE_DISTRIBUTED) THEN
+       pw_grid_out%bounds_local=pw_grid_in%bounds_local
+       IF ( pw_grid_in%bounds_local(2,1)==pw_grid_in%bounds(2,1).AND.&
+            pw_grid_in%bounds_local(1,1)<=pw_grid_in%bounds(2,1)) THEN
+          pw_grid_out%bounds_local(2,1)=pw_grid_out%bounds_local(2,1)+1
        END IF
-       pw_grid_out%npts            =  pw_grid_in%npts  + 1
-       pw_grid_out%ngpts           =  PRODUCT ( INT(pw_grid_out% npts, KIND=int_8) )
-       pw_grid_out%ngpts_cut=0
-       pw_grid_out%npts_local=pw_grid_out%bounds_local(2,:)-pw_grid_out%bounds_local(1,:)+1
-       pw_grid_out%ngpts_local=PRODUCT(pw_grid_out%npts_local)
-       pw_grid_out%ngpts_cut_local=0
-       pw_grid_out%dr              =  pw_grid_in%dr
-       pw_grid_out%dh              =  pw_grid_in%dh
-       pw_grid_out%dh_inv          =  pw_grid_in%dh_inv
-       pw_grid_out%orthorhombic    =  pw_grid_in%orthorhombic
-       pw_grid_out%dvol            =  pw_grid_in%dvol
-       pw_grid_out%vol             =  pw_grid_in%vol*REAL(pw_grid_out%ngpts,dp)&
-            /REAL(pw_grid_in%ngpts,dp) !FM do not modify?
-       pw_grid_out%cutoff          =  pw_grid_in%cutoff
-       NULLIFY(pw_grid_out%mapl%pos, pw_grid_out%mapl%neg,&
-            pw_grid_out%mapm%pos,pw_grid_out%mapm%neg,&
-            pw_grid_out%mapn%pos,pw_grid_out%mapn%neg)
-
-       !para
-       CALL mp_environ ( pw_grid_out % para % group_size, &
-                         pw_grid_out % para % my_pos, &
-                         pw_grid_out % para % group )
-       pw_grid_out % para % group_head_id = pw_grid_in % para % group_head_id
-       pw_grid_out % para % group_head = &
-            ( pw_grid_out % para % group_head_id == pw_grid_out % para % my_pos )
-       pw_grid_out % para % mode = pw_mode_loc
-       NULLIFY(pw_grid_out % para % yzp,&
-               pw_grid_out % para % yzq,&
-               pw_grid_out % para % nyzray,&
-               pw_grid_out % para % bo)
-       ALLOCATE(pos_of_x(pw_grid_out%bounds(1,1):pw_grid_out%bounds(2,1)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       pos_of_x(:pw_grid_out%bounds(2,1)-1)=pw_grid_in%para%pos_of_x
-       pos_of_x(pw_grid_out%bounds(2,1))=pos_of_x(pw_grid_out%bounds(2,1)-1)
-       pw_grid_out%para%pos_of_x => pos_of_x
-       pw_grid_out % para % rs_dims = pw_grid_in % para % rs_dims
-       IF (PRODUCT(pw_grid_in % para % rs_dims)/=0) THEN
-          CALL mp_comm_dup  ( pw_grid_in  % para % rs_group, &
-                              pw_grid_out % para % rs_group )
-       END IF
-       pw_grid_out % para % rs_pos = pw_grid_in % para % rs_pos
-       pw_grid_out % para % rs_mpo = pw_grid_in % para % rs_mpo
-
-       NULLIFY(pw_grid_out%g,pw_grid_out%gsq,pw_grid_out%g_hat)
-       CPPrecondition(pw_grid_in%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
-       pw_grid_out%grid_span=pw_grid_in%grid_span
-       pw_grid_out%have_g0=.FALSE.
-       pw_grid_out%first_gne0=HUGE(0)
-       NULLIFY(pw_grid_out%gidx)
-       pw_grid_out%spherical                 = .FALSE.
-       pw_grid_out % para % ray_distribution = .FALSE.
-       pw_grid_out % para % blocked          = .FALSE.
+       pw_grid_out%bounds_local(2,2)=pw_grid_out%bounds_local(2,2)+1
+       pw_grid_out%bounds_local(2,3)=pw_grid_out%bounds_local(2,3)+1
+    ELSE
+       pw_grid_out%bounds_local = pw_grid_out%bounds
     END IF
+    pw_grid_out%npts            =  pw_grid_in%npts  + 1
+    pw_grid_out%ngpts           =  PRODUCT ( INT(pw_grid_out% npts, KIND=int_8) )
+    pw_grid_out%ngpts_cut=0
+    pw_grid_out%npts_local=pw_grid_out%bounds_local(2,:)-pw_grid_out%bounds_local(1,:)+1
+    pw_grid_out%ngpts_local=PRODUCT(pw_grid_out%npts_local)
+    pw_grid_out%ngpts_cut_local=0
+    pw_grid_out%dr              =  pw_grid_in%dr
+    pw_grid_out%dh              =  pw_grid_in%dh
+    pw_grid_out%dh_inv          =  pw_grid_in%dh_inv
+    pw_grid_out%orthorhombic    =  pw_grid_in%orthorhombic
+    pw_grid_out%dvol            =  pw_grid_in%dvol
+    pw_grid_out%vol             =  pw_grid_in%vol*REAL(pw_grid_out%ngpts,dp)&
+         /REAL(pw_grid_in%ngpts,dp) !FM do not modify?
+    pw_grid_out%cutoff          =  pw_grid_in%cutoff
+    NULLIFY(pw_grid_out%mapl%pos, pw_grid_out%mapl%neg,&
+         pw_grid_out%mapm%pos,pw_grid_out%mapm%neg,&
+         pw_grid_out%mapn%pos,pw_grid_out%mapn%neg)
+
+    !para
+    CALL mp_environ ( pw_grid_out % para % group_size, &
+                      pw_grid_out % para % my_pos, &
+                      pw_grid_out % para % group )
+    pw_grid_out % para % group_head_id = pw_grid_in % para % group_head_id
+    pw_grid_out % para % group_head = &
+         ( pw_grid_out % para % group_head_id == pw_grid_out % para % my_pos )
+    pw_grid_out % para % mode = pw_mode_loc
+    NULLIFY(pw_grid_out % para % yzp,&
+            pw_grid_out % para % yzq,&
+            pw_grid_out % para % nyzray,&
+            pw_grid_out % para % bo)
+    ALLOCATE(pos_of_x(pw_grid_out%bounds(1,1):pw_grid_out%bounds(2,1)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    pos_of_x(:pw_grid_out%bounds(2,1)-1)=pw_grid_in%para%pos_of_x
+    pos_of_x(pw_grid_out%bounds(2,1))=pos_of_x(pw_grid_out%bounds(2,1)-1)
+    pw_grid_out%para%pos_of_x => pos_of_x
+    pw_grid_out % para % rs_dims = pw_grid_in % para % rs_dims
+    IF (PRODUCT(pw_grid_in % para % rs_dims)/=0) THEN
+       CALL mp_comm_dup  ( pw_grid_in  % para % rs_group, &
+                           pw_grid_out % para % rs_group )
+    END IF
+    pw_grid_out % para % rs_pos = pw_grid_in % para % rs_pos
+    pw_grid_out % para % rs_mpo = pw_grid_in % para % rs_mpo
+
+    NULLIFY(pw_grid_out%g,pw_grid_out%gsq,pw_grid_out%g_hat)
+    CPPrecondition(pw_grid_in%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+    pw_grid_out%grid_span=pw_grid_in%grid_span
+    pw_grid_out%have_g0=.FALSE.
+    pw_grid_out%first_gne0=HUGE(0)
+    NULLIFY(pw_grid_out%gidx)
+    pw_grid_out%spherical                 = .FALSE.
+    pw_grid_out % para % ray_distribution = .FALSE.
+    pw_grid_out % para % blocked          = .FALSE.
   END SUBROUTINE pw_grid_create_copy_no_pbc
 END MODULE qmmm_pw_grid

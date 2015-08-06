@@ -114,42 +114,40 @@ CONTAINS
     ALLOCATE(ks_qmmm_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF (.not.failure) THEN
-       NULLIFY( ks_qmmm_env%pw_env,&
-                ks_qmmm_env%cube_info)
-       NULLIFY( auxbas_pw_pool)
-       CALL get_qs_env(qs_env=qs_env,&
-            pw_env=ks_qmmm_env%pw_env,error=error)
-       CALL pw_env_get(ks_qmmm_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-       CALL pw_env_retain(ks_qmmm_env%pw_env,error=error)
+    NULLIFY( ks_qmmm_env%pw_env,&
+             ks_qmmm_env%cube_info)
+    NULLIFY( auxbas_pw_pool)
+    CALL get_qs_env(qs_env=qs_env,&
+         pw_env=ks_qmmm_env%pw_env,error=error)
+    CALL pw_env_get(ks_qmmm_env%pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+    CALL pw_env_retain(ks_qmmm_env%pw_env,error=error)
 
-       ks_qmmm_env%pc_ener=0.0_dp
-       ks_qmmm_env%n_evals=0
-       ks_qmmm_env%ref_count=1
-       last_ks_qmmm_nr=last_ks_qmmm_nr+1
-       ks_qmmm_env%id_nr=last_ks_qmmm_nr
+    ks_qmmm_env%pc_ener=0.0_dp
+    ks_qmmm_env%n_evals=0
+    ks_qmmm_env%ref_count=1
+    last_ks_qmmm_nr=last_ks_qmmm_nr+1
+    ks_qmmm_env%id_nr=last_ks_qmmm_nr
 
-       CALL pw_pool_create_pw(auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace%pw,&
-            use_data=REALDATA3D, in_space=REALSPACE,error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace%pw,&
+         use_data=REALDATA3D, in_space=REALSPACE,error=error)
 
-       IF ((qmmm_env%qmmm_coupl_type==do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type==do_qmmm_swave)) THEN
-          CALL init_d3_poly_module() ! a fairly arbitrary but sufficient spot to do this
-          CALL pw_env_get(ks_qmmm_env%pw_env,pw_pools=pools,error=error)
-          ALLOCATE(cube_info(SIZE(pools)), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO igrid=1,SIZE(pools)
-             CALL init_cube_info(cube_info(igrid),&
-               pools(igrid)%pool%pw_grid%dr(:),&
-               pools(igrid)%pool%pw_grid%dh(:,:),&
-               pools(igrid)%pool%pw_grid%dh_inv(:,:),&
-               pools(igrid)%pool%pw_grid%orthorhombic,&
-               qmmm_env%maxRadius(igrid))
-          END DO
-          ks_qmmm_env%cube_info => cube_info
-       END IF
-       NULLIFY(ks_qmmm_env%matrix_h)
-       !
+    IF ((qmmm_env%qmmm_coupl_type==do_qmmm_gauss).OR.(qmmm_env%qmmm_coupl_type==do_qmmm_swave)) THEN
+       CALL init_d3_poly_module() ! a fairly arbitrary but sufficient spot to do this
+       CALL pw_env_get(ks_qmmm_env%pw_env,pw_pools=pools,error=error)
+       ALLOCATE(cube_info(SIZE(pools)), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO igrid=1,SIZE(pools)
+          CALL init_cube_info(cube_info(igrid),&
+            pools(igrid)%pool%pw_grid%dr(:),&
+            pools(igrid)%pool%pw_grid%dh(:,:),&
+            pools(igrid)%pool%pw_grid%dh_inv(:,:),&
+            pools(igrid)%pool%pw_grid%orthorhombic,&
+            qmmm_env%maxRadius(igrid))
+       END DO
+       ks_qmmm_env%cube_info => cube_info
     END IF
+    NULLIFY(ks_qmmm_env%matrix_h)
+    !
 
     CALL timestop(handle)
 

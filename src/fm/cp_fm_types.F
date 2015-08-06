@@ -174,52 +174,48 @@ CPSourceFileRef,&
 #endif
 
     CPPrecondition(ASSOCIATED(matrix_struct),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       ALLOCATE(matrix,stat=stat)
+    ALLOCATE(matrix,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    context => matrix_struct%context
+    matrix%matrix_struct => matrix_struct
+    CALL cp_fm_struct_retain(matrix%matrix_struct,error=error)
+    last_fm_id_nr=last_fm_id_nr+1
+    matrix%id_nr=last_fm_id_nr
+    matrix%ref_count=1
+    matrix%print_count=0
+
+    matrix%use_sp = .FALSE.
+    IF(PRESENT(use_sp)) matrix%use_sp = use_sp
+
+    nprow=context%num_pe(1)
+    npcol=context%num_pe(2)
+    NULLIFY(matrix%local_data)
+    NULLIFY(matrix%local_data_sp)
+
+    ! OK, we allocate here at least a 1 x 1 matrix
+    ! this must (and is) compatible with the descinit call
+    ! in cp_fm_struct
+    nrow_local=matrix_struct%local_leading_dimension
+    ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
+    IF(matrix%use_sp) THEN
+       ALLOCATE(matrix%local_data_sp(nrow_local,ncol_local),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    IF (.NOT. failure) THEN
-       context => matrix_struct%context
-       matrix%matrix_struct => matrix_struct
-       CALL cp_fm_struct_retain(matrix%matrix_struct,error=error)
-       last_fm_id_nr=last_fm_id_nr+1
-       matrix%id_nr=last_fm_id_nr
-       matrix%ref_count=1
-       matrix%print_count=0
+    ELSE
+       ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
 
-       matrix%use_sp = .FALSE.
-       IF(PRESENT(use_sp)) matrix%use_sp = use_sp
+    ! JVDV we should remove this, as it is up to the user to zero afterwards
+    IF(matrix%use_sp) THEN
+       CALL scopy(nrow_local*ncol_local,0.0_sp,0,matrix%local_data_sp,1)
+    ELSE
+       CALL dcopy(nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
+    ENDIF
 
-       nprow=context%num_pe(1)
-       npcol=context%num_pe(2)
-       NULLIFY(matrix%local_data)
-       NULLIFY(matrix%local_data_sp)
-
-       ! OK, we allocate here at least a 1 x 1 matrix
-       ! this must (and is) compatible with the descinit call
-       ! in cp_fm_struct
-       nrow_local=matrix_struct%local_leading_dimension
-       ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
-       IF(matrix%use_sp) THEN
-          ALLOCATE(matrix%local_data_sp(nrow_local,ncol_local),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ELSE
-          ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-
-       ! JVDV we should remove this, as it is up to the user to zero afterwards
-       IF(matrix%use_sp) THEN
-          CALL scopy(nrow_local*ncol_local,0.0_sp,0,matrix%local_data_sp,1)
-       ELSE
-          CALL dcopy(nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
-       ENDIF
-
-       IF (PRESENT(name)) THEN
-          matrix%name=name
-       ELSE
-          matrix%name='full matrix'//cp_to_string(matrix%id_nr)
-       END IF
+    IF (PRESENT(name)) THEN
+       matrix%name=name
+    ELSE
+       matrix%name='full matrix'//cp_to_string(matrix%id_nr)
     END IF
 
     CALL timestop(handle)
@@ -247,10 +243,8 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
-       matrix%ref_count=matrix%ref_count+1
-    END IF
+    CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
+    matrix%ref_count=matrix%ref_count+1
 
   END SUBROUTINE cp_fm_retain
 
@@ -694,93 +688,89 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
-    IF (.not.failure) THEN
-       CPPrecondition(fm%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
+    CPPrecondition(fm%ref_count>0,cp_failure_level,routineP,error,failure)
 
     CPPrecondition(.NOT.fm%use_sp,cp_failure_level,routineP,error,failure)
 
-    IF (.not.failure) THEN
-       IF (PRESENT(alpha)) al=alpha
-       IF (PRESENT(beta)) be=beta
-       IF (PRESENT(start_row)) i0=start_row
-       IF (PRESENT(start_col)) j0=start_col
-       IF (PRESENT(transpose)) tr_a=transpose
-       IF (tr_a) THEN
-          nrow=SIZE(new_values,2)
-          ncol=SIZE(new_values,1)
-       ELSE
-          nrow=SIZE(new_values,1)
-          ncol=SIZE(new_values,2)
-       END IF
-       IF (PRESENT(n_rows)) nrow=n_rows
-       IF (PRESENT(n_cols)) ncol=n_cols
+    IF (PRESENT(alpha)) al=alpha
+    IF (PRESENT(beta)) be=beta
+    IF (PRESENT(start_row)) i0=start_row
+    IF (PRESENT(start_col)) j0=start_col
+    IF (PRESENT(transpose)) tr_a=transpose
+    IF (tr_a) THEN
+       nrow=SIZE(new_values,2)
+       ncol=SIZE(new_values,1)
+    ELSE
+       nrow=SIZE(new_values,1)
+       ncol=SIZE(new_values,2)
+    END IF
+    IF (PRESENT(n_rows)) nrow=n_rows
+    IF (PRESENT(n_cols)) ncol=n_cols
 
-       full_block => fm%local_data
+    full_block => fm%local_data
 
-       CALL cp_fm_get_info(matrix=fm,&
-            nrow_global=nrow_global,ncol_global=ncol_global,&
-            nrow_block =nrow_block ,ncol_block =ncol_block ,&
-            nrow_local =nrow_local ,ncol_local =ncol_local ,&
-            row_indices=row_indices,col_indices=col_indices,error=error)
+    CALL cp_fm_get_info(matrix=fm,&
+         nrow_global=nrow_global,ncol_global=ncol_global,&
+         nrow_block =nrow_block ,ncol_block =ncol_block ,&
+         nrow_local =nrow_local ,ncol_local =ncol_local ,&
+         row_indices=row_indices,col_indices=col_indices,error=error)
 
-       IF (al==1.0.AND.be==0.0) THEN
-          DO j=1,ncol_local
-             this_col=col_indices(j)-j0+1
-             IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
-                IF (tr_a) THEN
-                   IF (i0==1.AND.nrow_global==nrow) THEN
-                      DO i=1,nrow_local
-                         full_block(i,j)=new_values(this_col,row_indices(i))
-                      END DO
-                   ELSE
-                      DO i=1,nrow_local
-                         this_row=row_indices(i)-i0+1
-                         IF (this_row>=1 .AND. this_row<=nrow) THEN
-                            full_block(i,j)=new_values(this_col,this_row)
-                         END IF
-                      END DO
-                   END IF
-                ELSE
-                   IF (i0==1.AND.nrow_global==nrow) THEN
-                      DO i=1,nrow_local
-                         full_block(i,j)=new_values(row_indices(i),this_col)
-                      END DO
-                   ELSE
-                      DO i=1,nrow_local
-                         this_row=row_indices(i)-i0+1
-                         IF (this_row>=1 .AND. this_row<=nrow) THEN
-                            full_block(i,j)=new_values(this_row,this_col)
-                         END IF
-                      END DO
-                   END IF
-                END IF
-             END IF
-          END DO
-       ELSE
-          DO j=1,ncol_local
-             this_col=col_indices(j)-j0+1
-             IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
-                IF (tr_a) THEN
+    IF (al==1.0.AND.be==0.0) THEN
+       DO j=1,ncol_local
+          this_col=col_indices(j)-j0+1
+          IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
+             IF (tr_a) THEN
+                IF (i0==1.AND.nrow_global==nrow) THEN
                    DO i=1,nrow_local
-                      this_row=row_indices(i)-i0+1
-                      IF (this_row>=1 .AND. this_row<=nrow) THEN
-                         full_block(i,j)=al*new_values(this_col,this_row)+&
-                              be*full_block(i,j)
-                      END IF
+                      full_block(i,j)=new_values(this_col,row_indices(i))
                    END DO
                 ELSE
                    DO i=1,nrow_local
                       this_row=row_indices(i)-i0+1
                       IF (this_row>=1 .AND. this_row<=nrow) THEN
-                         full_block(i,j)=al*new_values(this_row,this_col)+&
-                              be*full_block(i,j)
+                         full_block(i,j)=new_values(this_col,this_row)
+                      END IF
+                   END DO
+                END IF
+             ELSE
+                IF (i0==1.AND.nrow_global==nrow) THEN
+                   DO i=1,nrow_local
+                      full_block(i,j)=new_values(row_indices(i),this_col)
+                   END DO
+                ELSE
+                   DO i=1,nrow_local
+                      this_row=row_indices(i)-i0+1
+                      IF (this_row>=1 .AND. this_row<=nrow) THEN
+                         full_block(i,j)=new_values(this_row,this_col)
                       END IF
                    END DO
                 END IF
              END IF
-          END DO
-       END IF
+          END IF
+       END DO
+    ELSE
+       DO j=1,ncol_local
+          this_col=col_indices(j)-j0+1
+          IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
+             IF (tr_a) THEN
+                DO i=1,nrow_local
+                   this_row=row_indices(i)-i0+1
+                   IF (this_row>=1 .AND. this_row<=nrow) THEN
+                      full_block(i,j)=al*new_values(this_col,this_row)+&
+                           be*full_block(i,j)
+                   END IF
+                END DO
+             ELSE
+                DO i=1,nrow_local
+                   this_row=row_indices(i)-i0+1
+                   IF (this_row>=1 .AND. this_row<=nrow) THEN
+                      full_block(i,j)=al*new_values(this_row,this_col)+&
+                           be*full_block(i,j)
+                   END IF
+                END DO
+             END IF
+          END IF
+       END DO
     END IF
 
     ! CALL timestop(handle)
@@ -840,76 +830,72 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
-    IF (.not.failure) THEN
-       CPPrecondition(fm%ref_count>0,cp_failure_level,routineP,error,failure)
-    END IF
+    CPPrecondition(fm%ref_count>0,cp_failure_level,routineP,error,failure)
 
     CPPrecondition(.NOT.fm%use_sp,cp_failure_level,routineP,error,failure)
 
-    IF (.not.failure) THEN
-       IF (PRESENT(start_row)) i0=start_row
-       IF (PRESENT(start_col)) j0=start_col
-       IF (PRESENT(transpose)) tr_a=transpose
-       IF (tr_a) THEN
-          nrow=SIZE(target_m,2)
-          ncol=SIZE(target_m,1)
-       ELSE
-          nrow=SIZE(target_m,1)
-          ncol=SIZE(target_m,2)
-       END IF
-       IF (PRESENT(n_rows)) nrow=n_rows
-       IF (PRESENT(n_cols)) ncol=n_cols
+    IF (PRESENT(start_row)) i0=start_row
+    IF (PRESENT(start_col)) j0=start_col
+    IF (PRESENT(transpose)) tr_a=transpose
+    IF (tr_a) THEN
+       nrow=SIZE(target_m,2)
+       ncol=SIZE(target_m,1)
+    ELSE
+       nrow=SIZE(target_m,1)
+       ncol=SIZE(target_m,2)
+    END IF
+    IF (PRESENT(n_rows)) nrow=n_rows
+    IF (PRESENT(n_cols)) ncol=n_cols
 
-       para_env => fm%matrix_struct%para_env
+    para_env => fm%matrix_struct%para_env
 
-       full_block => fm%local_data
+    full_block => fm%local_data
 #if defined(__SCALAPACK)
-       ! zero-out whole target_m
-       IF (SIZE(target_m,1)*SIZE(target_m,2)/=0) THEN
-          CALL dcopy(SIZE(target_m,1)*SIZE(target_m,2),0.0_dp,0,target_m(1,1),1)
-       END IF
+    ! zero-out whole target_m
+    IF (SIZE(target_m,1)*SIZE(target_m,2)/=0) THEN
+       CALL dcopy(SIZE(target_m,1)*SIZE(target_m,2),0.0_dp,0,target_m(1,1),1)
+    END IF
 #endif
 
-       CALL cp_fm_get_info(matrix=fm, &
-            nrow_global=nrow_global,ncol_global=ncol_global, &
-            nrow_local =nrow_local ,ncol_local =ncol_local , &
-            row_indices=row_indices,col_indices=col_indices,error=error)
+    CALL cp_fm_get_info(matrix=fm, &
+         nrow_global=nrow_global,ncol_global=ncol_global, &
+         nrow_local =nrow_local ,ncol_local =ncol_local , &
+         row_indices=row_indices,col_indices=col_indices,error=error)
 
-       DO j=1,ncol_local
-          this_col=col_indices(j)-j0+1
-          IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
-             IF (tr_a) THEN
-                IF (i0==1.AND.nrow_global==nrow) THEN
-                   DO i=1,nrow_local
-                      target_m(this_col,row_indices(i))=full_block(i,j)
-                   END DO
-                ELSE
-                   DO i=1,nrow_local
-                      this_row=row_indices(i)-i0+1
-                      IF (this_row>=1 .AND. this_row<=nrow) THEN
-                         target_m(this_col,this_row)=full_block(i,j)
-                      END IF
-                   END DO
-                END IF
+    DO j=1,ncol_local
+       this_col=col_indices(j)-j0+1
+       IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
+          IF (tr_a) THEN
+             IF (i0==1.AND.nrow_global==nrow) THEN
+                DO i=1,nrow_local
+                   target_m(this_col,row_indices(i))=full_block(i,j)
+                END DO
              ELSE
-                IF (i0==1.AND.nrow_global==nrow) THEN
-                   DO i=1,nrow_local
-                      target_m(row_indices(i),this_col)=full_block(i,j)
-                   END DO
-                ELSE
-                   DO i=1,nrow_local
-                      this_row=row_indices(i)-i0+1
-                      IF (this_row>=1 .AND. this_row<=nrow) THEN
-                         target_m(this_row,this_col)=full_block(i,j)
-                      END IF
-                   END DO
-                END IF
+                DO i=1,nrow_local
+                   this_row=row_indices(i)-i0+1
+                   IF (this_row>=1 .AND. this_row<=nrow) THEN
+                      target_m(this_col,this_row)=full_block(i,j)
+                   END IF
+                END DO
+             END IF
+          ELSE
+             IF (i0==1.AND.nrow_global==nrow) THEN
+                DO i=1,nrow_local
+                   target_m(row_indices(i),this_col)=full_block(i,j)
+                END DO
+             ELSE
+                DO i=1,nrow_local
+                   this_row=row_indices(i)-i0+1
+                   IF (this_row>=1 .AND. this_row<=nrow) THEN
+                      target_m(this_row,this_col)=full_block(i,j)
+                   END IF
+                END DO
              END IF
           END IF
-       END DO
+       END IF
+    END DO
 
-       CALL mp_sum(target_m,para_env%group)
-    END IF
+    CALL mp_sum(target_m,para_env%group)
 
     CALL timestop(handle)
 

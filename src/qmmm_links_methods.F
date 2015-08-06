@@ -59,35 +59,33 @@ CONTAINS
     TYPE(qmmm_imomm_link_type), POINTER      :: my_link
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       n_imomm = SIZE(qmmm_links%imomm)
-       CPPrecondition(n_imomm /= 0,cp_failure_level,routineP,error,failure)
-       DO ilink = 1, n_imomm
-          my_link => qmmm_links%imomm(ilink)%link
-          qm_index = my_link%qm_index
-          mm_index = my_link%mm_index
-          alpha    = 1.0_dp/my_link%alpha
-          DO ip = 1, SIZE(qm_atom_index)
-             IF (qm_atom_index(ip) == qm_index) EXIT
-          END DO
-          CALL cp_assert(ip/=SIZE(qm_atom_index)+1,cp_failure_level,cp_assertion_failed,routineP,&
-               "QM atom index ("//cp_to_string(qm_index)//") specified in the LINK section nr.("//&
-               cp_to_string(ilink)//") is not defined as a QM atom! Please inspect your QM_KIND sections. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
-          ip_qm = ip
-          DO ip = 1, SIZE(qm_atom_index)
-             IF (qm_atom_index(ip) == mm_index) EXIT
-          END DO
-          CALL cp_assert(ip/=SIZE(qm_atom_index)+1,cp_failure_level,cp_assertion_failed,routineP,&
-               "Error in setting up the MM atom index ("//cp_to_string(mm_index)//&
-               ") specified in the LINK section nr.("//cp_to_string(ilink)//"). Please report this bug! "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
-          ip_mm = ip
-          particles(ip_mm)%r = alpha *  particles(ip_mm)%r + (1.0_dp-alpha) * particles(ip_qm)%r
+    n_imomm = SIZE(qmmm_links%imomm)
+    CPPrecondition(n_imomm /= 0,cp_failure_level,routineP,error,failure)
+    DO ilink = 1, n_imomm
+       my_link => qmmm_links%imomm(ilink)%link
+       qm_index = my_link%qm_index
+       mm_index = my_link%mm_index
+       alpha    = 1.0_dp/my_link%alpha
+       DO ip = 1, SIZE(qm_atom_index)
+          IF (qm_atom_index(ip) == qm_index) EXIT
        END DO
-    END IF
+       CALL cp_assert(ip/=SIZE(qm_atom_index)+1,cp_failure_level,cp_assertion_failed,routineP,&
+            "QM atom index ("//cp_to_string(qm_index)//") specified in the LINK section nr.("//&
+            cp_to_string(ilink)//") is not defined as a QM atom! Please inspect your QM_KIND sections. "//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+       ip_qm = ip
+       DO ip = 1, SIZE(qm_atom_index)
+          IF (qm_atom_index(ip) == mm_index) EXIT
+       END DO
+       CALL cp_assert(ip/=SIZE(qm_atom_index)+1,cp_failure_level,cp_assertion_failed,routineP,&
+            "Error in setting up the MM atom index ("//cp_to_string(mm_index)//&
+            ") specified in the LINK section nr.("//cp_to_string(ilink)//"). Please report this bug! "//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+       ip_mm = ip
+       particles(ip_mm)%r = alpha *  particles(ip_mm)%r + (1.0_dp-alpha) * particles(ip_qm)%r
+    END DO
 
   END SUBROUTINE qmmm_link_Imomm_coord
 
@@ -119,36 +117,34 @@ CPSourceFileRef,&
     TYPE(qmmm_imomm_link_type), POINTER      :: my_link
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       n_imomm = SIZE(qmmm_links%imomm)
-       CPPrecondition(n_imomm /= 0,cp_failure_level,routineP,error,failure)
-       DO ilink = 1, n_imomm
-          my_link => qmmm_links%imomm(ilink)%link
-          qm_index = my_link%qm_index
-          mm_index = my_link%mm_index
-          alpha    = 1.0_dp/my_link%alpha
-          DO ip = 1, SIZE(qm_atom_index)
-             IF (qm_atom_index(ip) == qm_index) EXIT
-          END DO
-          CALL cp_assert(ip/=SIZE(qm_atom_index)+1,cp_failure_level,cp_assertion_failed,routineP,&
-               "QM atom index ("//cp_to_string(qm_index)//") specified in the LINK section nr.("//&
-               cp_to_string(ilink)//") is not defined as a QM atom! Please inspect your QM_KIND sections. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
-          ip_qm = ip
-          DO ip = 1, SIZE(qm_atom_index)
-             IF (qm_atom_index(ip) == mm_index) EXIT
-          END DO
-          CALL cp_assert(ip/=SIZE(qm_atom_index)+1,cp_failure_level,cp_assertion_failed,routineP,&
-               "Error in setting up the MM atom index ("//cp_to_string(mm_index)//&
-               ") specified in the LINK section nr.("//cp_to_string(ilink)//"). Please report this bug! "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
-          ip_mm = ip
-          particles_qm(ip_qm)%f = particles_qm(ip_qm)%f + particles_qm(ip_mm)%f * (1.0_dp-alpha)
-          particles_qm(ip_mm)%f = particles_qm(ip_mm)%f * alpha
+    n_imomm = SIZE(qmmm_links%imomm)
+    CPPrecondition(n_imomm /= 0,cp_failure_level,routineP,error,failure)
+    DO ilink = 1, n_imomm
+       my_link => qmmm_links%imomm(ilink)%link
+       qm_index = my_link%qm_index
+       mm_index = my_link%mm_index
+       alpha    = 1.0_dp/my_link%alpha
+       DO ip = 1, SIZE(qm_atom_index)
+          IF (qm_atom_index(ip) == qm_index) EXIT
        END DO
-    END IF
+       CALL cp_assert(ip/=SIZE(qm_atom_index)+1,cp_failure_level,cp_assertion_failed,routineP,&
+            "QM atom index ("//cp_to_string(qm_index)//") specified in the LINK section nr.("//&
+            cp_to_string(ilink)//") is not defined as a QM atom! Please inspect your QM_KIND sections. "//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+       ip_qm = ip
+       DO ip = 1, SIZE(qm_atom_index)
+          IF (qm_atom_index(ip) == mm_index) EXIT
+       END DO
+       CALL cp_assert(ip/=SIZE(qm_atom_index)+1,cp_failure_level,cp_assertion_failed,routineP,&
+            "Error in setting up the MM atom index ("//cp_to_string(mm_index)//&
+            ") specified in the LINK section nr.("//cp_to_string(ilink)//"). Please report this bug! "//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+       ip_mm = ip
+       particles_qm(ip_qm)%f = particles_qm(ip_qm)%f + particles_qm(ip_mm)%f * (1.0_dp-alpha)
+       particles_qm(ip_mm)%f = particles_qm(ip_mm)%f * alpha
+    END DO
 
   END SUBROUTINE qmmm_link_Imomm_forces
 

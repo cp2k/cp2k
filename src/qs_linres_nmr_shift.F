@@ -578,67 +578,65 @@ CONTAINS
     NULLIFY (cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
 
     CPPrecondition(ASSOCIATED(shift_pw_rspace%pw),cp_failure_level,routineP,error,failure)
-    IF(.NOT. failure) THEN
 
-      interp_section =>  section_vals_get_subs_vals(nmr_section,&
-                        "INTERPOLATOR",error=error)
-      CALL section_vals_val_get(interp_section,"aint_precond", &
-                                i_val=aint_precond, error=error)
-      CALL section_vals_val_get(interp_section,"precond",i_val=precond_kind, error=error)
-      CALL section_vals_val_get(interp_section,"max_iter",i_val=max_iter, error=error)
-      CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r, error=error)
-      CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x, error=error)
+    interp_section =>  section_vals_get_subs_vals(nmr_section,&
+                      "INTERPOLATOR",error=error)
+    CALL section_vals_val_get(interp_section,"aint_precond", &
+                              i_val=aint_precond, error=error)
+    CALL section_vals_val_get(interp_section,"precond",i_val=precond_kind, error=error)
+    CALL section_vals_val_get(interp_section,"max_iter",i_val=max_iter, error=error)
+    CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r, error=error)
+    CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x, error=error)
 
-      ! calculate spline coefficients
-      CALL pw_env_get(pw_env,  auxbas_pw_pool=auxbas_pw_pool,error=error)
-      CALL pw_pool_create_pw(auxbas_pw_pool,shiftspl%pw, &
-                             use_data=REALDATA3D,in_space=REALSPACE,&
-                             error=error)
+    ! calculate spline coefficients
+    CALL pw_env_get(pw_env,  auxbas_pw_pool=auxbas_pw_pool,error=error)
+    CALL pw_pool_create_pw(auxbas_pw_pool,shiftspl%pw, &
+                           use_data=REALDATA3D,in_space=REALSPACE,&
+                           error=error)
 
-      CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
-          pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.,error=error)
-      CALL pw_spline_do_precond(precond,shift_pw_rspace%pw,shiftspl%pw,error=error)
-      CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
-      success=find_coeffs(values=shift_pw_rspace%pw,coeffs=shiftspl%pw,&
-             linOp=spl3_pbc,preconditioner=precond,pool=auxbas_pw_pool, &
-             eps_r=eps_r,eps_x=eps_x,max_iter=max_iter, &
-             error=error)
-      CPPostconditionNoFail(success,cp_warning_level,routineP,error)
-      CALL pw_spline_precond_release(precond,error=error)
+    CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
+        pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.,error=error)
+    CALL pw_spline_do_precond(precond,shift_pw_rspace%pw,shiftspl%pw,error=error)
+    CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
+    success=find_coeffs(values=shift_pw_rspace%pw,coeffs=shiftspl%pw,&
+           linOp=spl3_pbc,preconditioner=precond,pool=auxbas_pw_pool, &
+           eps_r=eps_r,eps_x=eps_x,max_iter=max_iter, &
+           error=error)
+    CPPostconditionNoFail(success,cp_warning_level,routineP,error)
+    CALL pw_spline_precond_release(precond,error=error)
 
-      CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
-           chemical_shift=chemical_shift,&
-           chemical_shift_nics=chemical_shift_nics,&
-           n_nics=n_nics,r_nics=r_nics,&
-           do_nics=do_nics,error=error)
+    CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
+         chemical_shift=chemical_shift,&
+         chemical_shift_nics=chemical_shift_nics,&
+         n_nics=n_nics,r_nics=r_nics,&
+         do_nics=do_nics,error=error)
 
-      IF(ASSOCIATED(cs_atom_list)) THEN
-        natom = SIZE(cs_atom_list,1)
-      ELSE
-        natom = -1
-      ENDIF
+    IF(ASSOCIATED(cs_atom_list)) THEN
+      natom = SIZE(cs_atom_list,1)
+    ELSE
+      natom = -1
+    ENDIF
 
-      DO iat = 1,natom
-         iatom = cs_atom_list(iat)
-         R_iatom = pbc(particle_set(iatom)%r,cell)
-         shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error=error)
-         chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
-                                         nmr_env%shift_factor * twopi**2 * shift_val
-      END DO
+    DO iat = 1,natom
+       iatom = cs_atom_list(iat)
+       R_iatom = pbc(particle_set(iatom)%r,cell)
+       shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error=error)
+       chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
+                                       nmr_env%shift_factor * twopi**2 * shift_val
+    END DO
 
-      IF(do_nics) THEN
-         DO iatom = 1,n_nics
-            ra(:) = r_nics(:,iatom)
-            R_iatom = pbc(ra,cell)
-            shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error)
-            chemical_shift_nics(idir,i_B,iatom)= chemical_shift_nics(idir,i_B,iatom)+&
-                                                 nmr_env%shift_factor * twopi**2 * shift_val
-         END DO
-      END IF
-
-      CALL pw_pool_give_back_pw(auxbas_pw_pool,shiftspl%pw,error=error)
-
+    IF(do_nics) THEN
+       DO iatom = 1,n_nics
+          ra(:) = r_nics(:,iatom)
+          R_iatom = pbc(ra,cell)
+          shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error)
+          chemical_shift_nics(idir,i_B,iatom)= chemical_shift_nics(idir,i_B,iatom)+&
+                                               nmr_env%shift_factor * twopi**2 * shift_val
+       END DO
     END IF
+
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,shiftspl%pw,error=error)
+
     !
     CALL timestop(handle)
     !
@@ -685,38 +683,36 @@ CONTAINS
     !
     NULLIFY(cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
     CPPrecondition(ASSOCIATED(shift_pw_gspace%pw),cp_failure_level,routineP,error,failure)
-    IF(.NOT. failure) THEN
-       !
-       CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
-                        chemical_shift=chemical_shift,&
-                        chemical_shift_nics=chemical_shift_nics,&
-                        n_nics=n_nics,r_nics=r_nics,do_nics=do_nics,&
-                        error=error)
-       !
-       IF(ASSOCIATED(cs_atom_list)) THEN
-          natom = SIZE(cs_atom_list,1)
-       ELSE
-          natom = -1
-       ENDIF
-       !
-       ! compute the chemical shift
-       DO iat = 1,natom
-          iatom = cs_atom_list(iat)
-          R_iatom = pbc(particle_set(iatom)%r,cell)
-          CALL gsumr(R_iatom,shift_pw_gspace%pw,cplx)
-          chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
+    !
+    CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
+                     chemical_shift=chemical_shift,&
+                     chemical_shift_nics=chemical_shift_nics,&
+                     n_nics=n_nics,r_nics=r_nics,do_nics=do_nics,&
+                     error=error)
+    !
+    IF(ASSOCIATED(cs_atom_list)) THEN
+       natom = SIZE(cs_atom_list,1)
+    ELSE
+       natom = -1
+    ENDIF
+    !
+    ! compute the chemical shift
+    DO iat = 1,natom
+       iatom = cs_atom_list(iat)
+       R_iatom = pbc(particle_set(iatom)%r,cell)
+       CALL gsumr(R_iatom,shift_pw_gspace%pw,cplx)
+       chemical_shift(idir,i_B,iatom)= chemical_shift(idir,i_B,iatom)+&
+              nmr_env%shift_factor * twopi**2 * REAL(cplx,dp)
+    ENDDO
+    !
+    ! compute nics
+    IF(do_nics) THEN
+       DO iat = 1,n_nics
+          ra = pbc(r_nics(:,iat),cell)
+          CALL gsumr(ra,shift_pw_gspace%pw,cplx)
+          chemical_shift_nics(idir,i_B,iat)= chemical_shift_nics(idir,i_B,iat)+&
                  nmr_env%shift_factor * twopi**2 * REAL(cplx,dp)
        ENDDO
-       !
-       ! compute nics
-       IF(do_nics) THEN
-          DO iat = 1,n_nics
-             ra = pbc(r_nics(:,iat),cell)
-             CALL gsumr(ra,shift_pw_gspace%pw,cplx)
-             chemical_shift_nics(idir,i_B,iat)= chemical_shift_nics(idir,i_B,iat)+&
-                    nmr_env%shift_factor * twopi**2 * REAL(cplx,dp)
-          ENDDO
-       ENDIF
     ENDIF
 
     CALL timestop(handle)

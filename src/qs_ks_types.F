@@ -948,10 +948,8 @@ SUBROUTINE qs_ks_retain(ks_env, error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     ks_env%ref_count=ks_env%ref_count+1
-  END IF
+  CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  ks_env%ref_count=ks_env%ref_count+1
 END SUBROUTINE qs_ks_retain
 
 ! *****************************************************************************

@@ -79,31 +79,29 @@ CONTAINS
     CALL timeset(routineN,handle)
     gcut2 = gcut * gcut
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       !
-       s_dim = rho_tot_g % pw_grid % first_gne0
-       e_dim = rho_tot_g % pw_grid % ngpts_cut_local
-       ALLOCATE(gfunc(s_dim:e_dim,SIZE(radii)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(w(s_dim:e_dim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       gfunc = 0.0_dp
-       w     = 0.0_dp
-       DO igauss = 1, SIZE(radii)
-          rc  = radii(igauss)
-          rc2 = rc*rc
-          DO ig = s_dim, e_dim
-             g2 = rho_tot_g % pw_grid % gsq ( ig )
-             IF (g2 > gcut2) EXIT
-             gfunc(ig,igauss) = EXP(-g2*rc2/4.0_dp)
-          END DO
-       END DO
+    !
+    s_dim = rho_tot_g % pw_grid % first_gne0
+    e_dim = rho_tot_g % pw_grid % ngpts_cut_local
+    ALLOCATE(gfunc(s_dim:e_dim,SIZE(radii)), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(w(s_dim:e_dim), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    gfunc = 0.0_dp
+    w     = 0.0_dp
+    DO igauss = 1, SIZE(radii)
+       rc  = radii(igauss)
+       rc2 = rc*rc
        DO ig = s_dim, e_dim
           g2 = rho_tot_g % pw_grid % gsq ( ig )
           IF (g2 > gcut2) EXIT
-          w(ig) =  fourpi*(g2 -gcut2)**2/(g2*gcut2)
+          gfunc(ig,igauss) = EXP(-g2*rc2/4.0_dp)
        END DO
-    END IF
+    END DO
+    DO ig = s_dim, e_dim
+       g2 = rho_tot_g % pw_grid % gsq ( ig )
+       IF (g2 > gcut2) EXIT
+       w(ig) =  fourpi*(g2 -gcut2)**2/(g2*gcut2)
+    END DO
     CALL timestop(handle)
   END SUBROUTINE ddapc_eval_gfunc
 
@@ -147,44 +145,42 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    IF (.NOT.failure) THEN
-       NULLIFY(my_bv, my_bvw)
-       gcut2 = gcut * gcut
-       s_dim = rho_tot_g % pw_grid % first_gne0
-       e_dim = rho_tot_g % pw_grid % ngpts_cut_local
-       igmax = 0
-       DO ig = s_dim, e_dim
-             g2 = rho_tot_g % pw_grid % gsq ( ig )
-             IF (g2 > gcut2) EXIT
-             igmax = ig
-       ENDDO
-       ALLOCATE(my_bv(s_dim:igmax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(my_bvw(s_dim:igmax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       !
-       DO iparticle = 1, SIZE(particle_set)
-          rvec =  particle_set(iparticle)%r
-          my_bv = 0.0_dp
-          DO ig = s_dim, igmax
-             gvec  = rho_tot_g % pw_grid % g (:,ig)
-             arg   = DOT_PRODUCT(gvec,rvec)
-             phase = CMPLX(COS(arg),-SIN(arg),KIND=dp)
-             my_bv (ig) =  w(ig) * REAL(CONJG(rho_tot_g%cc(ig))*phase,KIND=dp)
-          END DO
-          DO igauss = 1, SIZE(radii)
-             idim = (iparticle-1)*SIZE(radii)+igauss
-             DO ig = s_dim, igmax
-                my_bvw(ig) = my_bv(ig)* gfunc(ig,igauss)
-             END DO
-             bv (idim) = accurate_sum(my_bvw)
-          END DO
+    NULLIFY(my_bv, my_bvw)
+    gcut2 = gcut * gcut
+    s_dim = rho_tot_g % pw_grid % first_gne0
+    e_dim = rho_tot_g % pw_grid % ngpts_cut_local
+    igmax = 0
+    DO ig = s_dim, e_dim
+          g2 = rho_tot_g % pw_grid % gsq ( ig )
+          IF (g2 > gcut2) EXIT
+          igmax = ig
+    ENDDO
+    ALLOCATE(my_bv(s_dim:igmax),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(my_bvw(s_dim:igmax),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    !
+    DO iparticle = 1, SIZE(particle_set)
+       rvec =  particle_set(iparticle)%r
+       my_bv = 0.0_dp
+       DO ig = s_dim, igmax
+          gvec  = rho_tot_g % pw_grid % g (:,ig)
+          arg   = DOT_PRODUCT(gvec,rvec)
+          phase = CMPLX(COS(arg),-SIN(arg),KIND=dp)
+          my_bv (ig) =  w(ig) * REAL(CONJG(rho_tot_g%cc(ig))*phase,KIND=dp)
        END DO
-       DEALLOCATE(my_bvw,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(my_bv,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+       DO igauss = 1, SIZE(radii)
+          idim = (iparticle-1)*SIZE(radii)+igauss
+          DO ig = s_dim, igmax
+             my_bvw(ig) = my_bv(ig)* gfunc(ig,igauss)
+          END DO
+          bv (idim) = accurate_sum(my_bvw)
+       END DO
+    END DO
+    DEALLOCATE(my_bvw,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(my_bv,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE build_b_vector
 
@@ -235,59 +231,57 @@ CONTAINS
     failure = .FALSE.
 
     CALL timeset(routineN,handle)
-    IF (.NOT. failure) THEN
-       gcut2 = gcut * gcut
-       s_dim = rho_tot_g % pw_grid % first_gne0
-       e_dim = rho_tot_g % pw_grid % ngpts_cut_local
-       igmax=0
-       DO ig = s_dim, e_dim
-          g2 = rho_tot_g % pw_grid % gsq ( ig )
-          IF (g2 > gcut2) EXIT
-          igmax  = ig
-       ENDDO
-       ALLOCATE(my_Am(s_dim:igmax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(my_Amw(s_dim:igmax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(gfunc_sq(s_dim:igmax,SIZE(radii),SIZE(radii)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    gcut2 = gcut * gcut
+    s_dim = rho_tot_g % pw_grid % first_gne0
+    e_dim = rho_tot_g % pw_grid % ngpts_cut_local
+    igmax=0
+    DO ig = s_dim, e_dim
+       g2 = rho_tot_g % pw_grid % gsq ( ig )
+       IF (g2 > gcut2) EXIT
+       igmax  = ig
+    ENDDO
+    ALLOCATE(my_Am(s_dim:igmax),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(my_Amw(s_dim:igmax),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(gfunc_sq(s_dim:igmax,SIZE(radii),SIZE(radii)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       DO igauss1 = 1, SIZE(radii)
-          DO igauss2 = 1, SIZE(radii)
-             gfunc_sq(s_dim:igmax,igauss1,igauss2) = w(s_dim:igmax)*gfunc(s_dim:igmax,igauss1)*gfunc(s_dim:igmax,igauss2)
-          END DO
+    DO igauss1 = 1, SIZE(radii)
+       DO igauss2 = 1, SIZE(radii)
+          gfunc_sq(s_dim:igmax,igauss1,igauss2) = w(s_dim:igmax)*gfunc(s_dim:igmax,igauss1)*gfunc(s_dim:igmax,igauss2)
        END DO
+    END DO
 
-       DO iparticle1 = 1, SIZE(particle_set)
-          DO iparticle2 = iparticle1, SIZE(particle_set)
-             DO ig = s_dim, igmax
-                !NB replace explicit dot product and cosine with cos(A+B) formula - much faster
-                my_Am(ig) = (g_dot_rvec_cos(ig-s_dim+1,iparticle1)*g_dot_rvec_cos(ig-s_dim+1,iparticle2) + &
-                                   g_dot_rvec_sin(ig-s_dim+1,iparticle1)*g_dot_rvec_sin(ig-s_dim+1,iparticle2))
-             END DO
-             DO igauss1 = 1, SIZE(radii)
-                idim1 = (iparticle1-1)*SIZE(radii)+igauss1
-                istart_g = 1
-                IF (iparticle2==iparticle1) istart_g = igauss1
-                DO igauss2 = istart_g, SIZE(radii)
-                   idim2 = (iparticle2-1)*SIZE(radii)+igauss2
-                   my_Amw(s_dim:igmax) = my_Am(s_dim:igmax)*gfunc_sq(s_dim:igmax,igauss1,igauss2)
+    DO iparticle1 = 1, SIZE(particle_set)
+       DO iparticle2 = iparticle1, SIZE(particle_set)
+          DO ig = s_dim, igmax
+             !NB replace explicit dot product and cosine with cos(A+B) formula - much faster
+             my_Am(ig) = (g_dot_rvec_cos(ig-s_dim+1,iparticle1)*g_dot_rvec_cos(ig-s_dim+1,iparticle2) + &
+                                g_dot_rvec_sin(ig-s_dim+1,iparticle1)*g_dot_rvec_sin(ig-s_dim+1,iparticle2))
+          END DO
+          DO igauss1 = 1, SIZE(radii)
+             idim1 = (iparticle1-1)*SIZE(radii)+igauss1
+             istart_g = 1
+             IF (iparticle2==iparticle1) istart_g = igauss1
+             DO igauss2 = istart_g, SIZE(radii)
+                idim2 = (iparticle2-1)*SIZE(radii)+igauss2
+                my_Amw(s_dim:igmax) = my_Am(s_dim:igmax)*gfunc_sq(s_dim:igmax,igauss1,igauss2)
 !NB no loss of accuracy in my test cases
-                   !tmp = accurate_sum(my_Amw)
-                   tmp = SUM(my_Amw)
-                   Am (idim2,idim1) = tmp
-                   Am (idim1,idim2) = tmp
-                END DO
+                !tmp = accurate_sum(my_Amw)
+                tmp = SUM(my_Amw)
+                Am (idim2,idim1) = tmp
+                Am (idim1,idim2) = tmp
              END DO
           END DO
        END DO
-       DEALLOCATE(gfunc_sq,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(my_Amw,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(my_Am,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+    END DO
+    DEALLOCATE(gfunc_sq,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(my_Amw,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(my_Am,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE build_A_matrix
 
@@ -335,50 +329,48 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    IF (.NOT.failure) THEN
-       gcut2 = gcut * gcut
-       s_dim = rho_tot_g % pw_grid % first_gne0
-       e_dim = rho_tot_g % pw_grid % ngpts_cut_local
-       igmax  = 0
-       DO ig = s_dim, e_dim
-             g2 = rho_tot_g % pw_grid % gsq ( ig )
-             IF (g2 > gcut2) EXIT
-             igmax  = ig
-       ENDDO
-       ALLOCATE(my_dbv(3,s_dim:igmax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(my_dbvw(s_dim:igmax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO iparticle = 1, SIZE(particle_set)
-          IF (iparticle /= iparticle0) CYCLE
-          rvec =  particle_set(iparticle)%r
-          DO ig = s_dim, igmax
-             gvec   = rho_tot_g % pw_grid % g (:,ig)
-             arg    = DOT_PRODUCT(gvec,rvec)
-             dphase = - CMPLX(SIN(arg),COS(arg),KIND=dp)
-             my_dbv (:,ig) = w(ig) * REAL(CONJG(rho_tot_g%cc(ig))*dphase,KIND=dp) * gvec(:)
-          END DO
-          DO igauss = 1, SIZE(radii)
-             idim = (iparticle-1)*SIZE(radii)+igauss
-             DO ig = s_dim, igmax
-                 my_dbvw(ig) = my_dbv(1,ig)*gfunc(ig,igauss)
-             END DO
-             dbv (idim,1) = accurate_sum(my_dbvw)
-             DO ig = s_dim, igmax
-                 my_dbvw(ig) = my_dbv(2,ig)*gfunc(ig,igauss)
-             END DO
-             dbv (idim,2) = accurate_sum(my_dbvw)
-             DO ig = s_dim, igmax
-                 my_dbvw(ig) = my_dbv(3,ig)*gfunc(ig,igauss)
-             END DO
-             dbv (idim,3) = accurate_sum(my_dbvw)
-          END DO
+    gcut2 = gcut * gcut
+    s_dim = rho_tot_g % pw_grid % first_gne0
+    e_dim = rho_tot_g % pw_grid % ngpts_cut_local
+    igmax  = 0
+    DO ig = s_dim, e_dim
+          g2 = rho_tot_g % pw_grid % gsq ( ig )
+          IF (g2 > gcut2) EXIT
+          igmax  = ig
+    ENDDO
+    ALLOCATE(my_dbv(3,s_dim:igmax),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(my_dbvw(s_dim:igmax),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO iparticle = 1, SIZE(particle_set)
+       IF (iparticle /= iparticle0) CYCLE
+       rvec =  particle_set(iparticle)%r
+       DO ig = s_dim, igmax
+          gvec   = rho_tot_g % pw_grid % g (:,ig)
+          arg    = DOT_PRODUCT(gvec,rvec)
+          dphase = - CMPLX(SIN(arg),COS(arg),KIND=dp)
+          my_dbv (:,ig) = w(ig) * REAL(CONJG(rho_tot_g%cc(ig))*dphase,KIND=dp) * gvec(:)
        END DO
-       DEALLOCATE(my_dbvw,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(my_dbv,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+       DO igauss = 1, SIZE(radii)
+          idim = (iparticle-1)*SIZE(radii)+igauss
+          DO ig = s_dim, igmax
+              my_dbvw(ig) = my_dbv(1,ig)*gfunc(ig,igauss)
+          END DO
+          dbv (idim,1) = accurate_sum(my_dbvw)
+          DO ig = s_dim, igmax
+              my_dbvw(ig) = my_dbv(2,ig)*gfunc(ig,igauss)
+          END DO
+          dbv (idim,2) = accurate_sum(my_dbvw)
+          DO ig = s_dim, igmax
+              my_dbvw(ig) = my_dbv(3,ig)*gfunc(ig,igauss)
+          END DO
+          dbv (idim,3) = accurate_sum(my_dbvw)
+       END DO
+    END DO
+    DEALLOCATE(my_dbvw,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(my_dbv,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE build_der_b_vector
 
@@ -437,91 +429,89 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    IF (.NOT. failure) THEN
-       gcut2 = gcut * gcut
-       s_dim = rho_tot_g % pw_grid % first_gne0
-       e_dim = rho_tot_g % pw_grid % ngpts_cut_local
-       igmax = 0
-       DO ig = s_dim, e_dim
-          g2 = rho_tot_g % pw_grid % gsq ( ig )
-          IF (g2 > gcut2) EXIT
-          igmax  = ig
+    gcut2 = gcut * gcut
+    s_dim = rho_tot_g % pw_grid % first_gne0
+    e_dim = rho_tot_g % pw_grid % ngpts_cut_local
+    igmax = 0
+    DO ig = s_dim, e_dim
+       g2 = rho_tot_g % pw_grid % gsq ( ig )
+       IF (g2 > gcut2) EXIT
+       igmax  = ig
+    ENDDO
+    ALLOCATE(arg1_v_sin(s_dim:igmax),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    Nr=SIZE(radii)
+    Np=SIZE(particle_set)
+    Ng=igmax-s_dim+1
+    ALLOCATE(lhs(nparticles*Nr,Ng), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(rhs(Ng,Np*Nr), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! rhs with first term of sin(g.(rvec1-rvec2)), which used to be called arg1_v_sin()
+    ! rhs has all parts that depend on iparticle2
+    DO iparticle2=1,Np
+       DO igauss2=1,Nr
+          rhs(1:Ng,(iparticle2-1)*Nr+igauss2) = g_dot_rvec_sin(1:Ng, iparticle2)*gfunc(s_dim:igmax,igauss2)
+       END DO
+    END DO
+    DO icomp=1,3
+       ! create lhs, which has all parts that depend on iparticle1
+       DO ipp=1, nparticles
+         iparticle1 = iparticle0 + ipp - 1
+         DO ig=s_dim,igmax
+            lhs((ipp-1)*Nr+1:(ipp-1)*Nr+Nr,ig-s_dim+1) = w(ig) * rho_tot_g%pw_grid%g(icomp,ig) * &
+               gfunc(ig,1:Nr) * g_dot_rvec_cos(ig-s_dim+1, iparticle1)
+         END DO
+       END DO ! ipp
+       ! do main multiply
+       CALL DGEMM('N', 'N', nparticles*Nr, Np*Nr, Ng, 1.0D0, lhs(1,1), nparticles*Nr, rhs(1,1), &
+                  Ng, 0.0D0, dAm((iparticle0-1)*Nr+1,1,icomp), Np*Nr)
+       ! do extra multiplies to compensate for missing factor of 2
+       DO ipp=1, nparticles
+          iparticle1 = iparticle0 + ipp - 1
+          CALL DGEMM('N', 'N', Nr, Nr, Ng, 1.0D0, lhs((ipp-1)*Nr+1,1), nparticles*Nr, rhs(1,(iparticle1-1)*Nr+1), &
+                     Ng, 1.0D0, dAm((iparticle1-1)*Nr+1,(iparticle1-1)*Nr+1,icomp), Np*Nr)
+       END DO
+       ! now extra columns to account for factor of 2 in some rhs columns
+    END DO ! icomp
+
+    ! rhs with second term of sin(g.(rvec1-rvec2)), which used to be called arg1_v_sin()
+    ! rhs has all parts that depend on iparticle2
+    DO iparticle2=1,Np
+       DO igauss2=1,Nr
+          rhs(1:Ng,(iparticle2-1)*Nr+igauss2) = -g_dot_rvec_cos(1:Ng, iparticle2)*gfunc(s_dim:igmax,igauss2)
+       END DO
+    END DO
+    DO icomp=1,3
+       ! create lhs, which has all parts that depend on iparticle1
+       DO ipp=1, nparticles
+         iparticle1 = iparticle0 + ipp - 1
+         DO ig=s_dim,igmax
+            lhs((ipp-1)*Nr+1:(ipp-1)*Nr+Nr,ig-s_dim+1) = w(ig) * rho_tot_g%pw_grid%g(icomp,ig) * gfunc(ig,1:Nr) * &
+               g_dot_rvec_sin(ig-s_dim+1, iparticle1)
+         END DO
        ENDDO
-       ALLOCATE(arg1_v_sin(s_dim:igmax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       Nr=SIZE(radii)
-       Np=SIZE(particle_set)
-       Ng=igmax-s_dim+1
-       ALLOCATE(lhs(nparticles*Nr,Ng), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(rhs(Ng,Np*Nr), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       ! rhs with first term of sin(g.(rvec1-rvec2)), which used to be called arg1_v_sin()
-       ! rhs has all parts that depend on iparticle2
-       DO iparticle2=1,Np
-          DO igauss2=1,Nr
-             rhs(1:Ng,(iparticle2-1)*Nr+igauss2) = g_dot_rvec_sin(1:Ng, iparticle2)*gfunc(s_dim:igmax,igauss2)
-          END DO
+       ! do main multiply
+       CALL DGEMM('N', 'N', nparticles*Nr, Np*Nr, Ng, 1.0D0, lhs(1,1), nparticles*Nr, rhs(1,1), &
+                  Ng, 1.0D0, dAm((iparticle0-1)*Nr+1,1,icomp), Np*Nr)
+       ! do extra multiples to compensate for missing factor of 2
+       DO ipp=1, nparticles
+         iparticle1 = iparticle0 + ipp - 1
+         CALL DGEMM('N', 'N', Nr, Nr, Ng, 1.0D0, lhs((ipp-1)*Nr+1,1), nparticles*Nr, rhs(1,(iparticle1-1)*Nr+1), &
+                    Ng, 1.0D0, dAm((iparticle1-1)*Nr+1,(iparticle1-1)*Nr+1,icomp), Np*Nr)
        END DO
-       DO icomp=1,3
-          ! create lhs, which has all parts that depend on iparticle1
-          DO ipp=1, nparticles
-            iparticle1 = iparticle0 + ipp - 1
-            DO ig=s_dim,igmax
-               lhs((ipp-1)*Nr+1:(ipp-1)*Nr+Nr,ig-s_dim+1) = w(ig) * rho_tot_g%pw_grid%g(icomp,ig) * &
-                  gfunc(ig,1:Nr) * g_dot_rvec_cos(ig-s_dim+1, iparticle1)
-            END DO
-          END DO ! ipp
-          ! do main multiply
-          CALL DGEMM('N', 'N', nparticles*Nr, Np*Nr, Ng, 1.0D0, lhs(1,1), nparticles*Nr, rhs(1,1), &
-                     Ng, 0.0D0, dAm((iparticle0-1)*Nr+1,1,icomp), Np*Nr)
-          ! do extra multiplies to compensate for missing factor of 2
-          DO ipp=1, nparticles
-             iparticle1 = iparticle0 + ipp - 1
-             CALL DGEMM('N', 'N', Nr, Nr, Ng, 1.0D0, lhs((ipp-1)*Nr+1,1), nparticles*Nr, rhs(1,(iparticle1-1)*Nr+1), &
-                        Ng, 1.0D0, dAm((iparticle1-1)*Nr+1,(iparticle1-1)*Nr+1,icomp), Np*Nr)
-          END DO
-          ! now extra columns to account for factor of 2 in some rhs columns
-       END DO ! icomp
+    END DO
 
-       ! rhs with second term of sin(g.(rvec1-rvec2)), which used to be called arg1_v_sin()
-       ! rhs has all parts that depend on iparticle2
-       DO iparticle2=1,Np
-          DO igauss2=1,Nr
-             rhs(1:Ng,(iparticle2-1)*Nr+igauss2) = -g_dot_rvec_cos(1:Ng, iparticle2)*gfunc(s_dim:igmax,igauss2)
-          END DO
-       END DO
-       DO icomp=1,3
-          ! create lhs, which has all parts that depend on iparticle1
-          DO ipp=1, nparticles
-            iparticle1 = iparticle0 + ipp - 1
-            DO ig=s_dim,igmax
-               lhs((ipp-1)*Nr+1:(ipp-1)*Nr+Nr,ig-s_dim+1) = w(ig) * rho_tot_g%pw_grid%g(icomp,ig) * gfunc(ig,1:Nr) * &
-                  g_dot_rvec_sin(ig-s_dim+1, iparticle1)
-            END DO
-          ENDDO
-          ! do main multiply
-          CALL DGEMM('N', 'N', nparticles*Nr, Np*Nr, Ng, 1.0D0, lhs(1,1), nparticles*Nr, rhs(1,1), &
-                     Ng, 1.0D0, dAm((iparticle0-1)*Nr+1,1,icomp), Np*Nr)
-          ! do extra multiples to compensate for missing factor of 2
-          DO ipp=1, nparticles
-            iparticle1 = iparticle0 + ipp - 1
-            CALL DGEMM('N', 'N', Nr, Nr, Ng, 1.0D0, lhs((ipp-1)*Nr+1,1), nparticles*Nr, rhs(1,(iparticle1-1)*Nr+1), &
-                       Ng, 1.0D0, dAm((iparticle1-1)*Nr+1,(iparticle1-1)*Nr+1,icomp), Np*Nr)
-          END DO
-       END DO
-
-       DEALLOCATE(rhs,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(lhs,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       !!! DEALLOCATE(arg1_v,stat=stat)
-       !!! CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(arg1_v_sin,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+    DEALLOCATE(rhs,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(lhs,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    !!! DEALLOCATE(arg1_v,stat=stat)
+    !!! CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(arg1_v_sin,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE build_der_A_matrix_rows
 
@@ -649,59 +639,57 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    IF (.NOT. failure) THEN
-       ndim = SIZE(particle_set)*SIZE(radii)
-       ALLOCATE(Am(ndim, ndim), stat=stat)
+    ndim = SIZE(particle_set)*SIZE(radii)
+    ALLOCATE(Am(ndim, ndim), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(AmI(ndim, ndim), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(GAmI(ndim, ndim), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(cv(ndim), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    Am  = 0.0_dp
+    AmI = 0.0_dp
+    cv  = 1.0_dp/Vol
+    !NB precompute sin(g.r) and cos(g.r) for faster evaluation of cos(g.(r1-r2)) in build_A_matrix()
+    CALL prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos, error)
+    CALL build_A_matrix(Am, gfunc, w, particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos, error)
+    CALL cleanup_g_dot_rvec_sin_cos(g_dot_rvec_sin, g_dot_rvec_cos, error)
+    Am(:,:) = Am(:,:) / (Vol*Vol)
+    CALL mp_sum(Am,rho_tot_g%pw_grid%para%group)
+    IF (iw>0) THEN
+       ! Checking conditions numbers and eigenvalues
+       ALLOCATE(Amw(ndim, ndim), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(AmI(ndim, ndim), stat=stat)
+       ALLOCATE(AmE(ndim), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(GAmI(ndim, ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(cv(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       Am  = 0.0_dp
-       AmI = 0.0_dp
-       cv  = 1.0_dp/Vol
-       !NB precompute sin(g.r) and cos(g.r) for faster evaluation of cos(g.(r1-r2)) in build_A_matrix()
-       CALL prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos, error)
-       CALL build_A_matrix(Am, gfunc, w, particle_set, radii, rho_tot_g, gcut, g_dot_rvec_sin, g_dot_rvec_cos, error)
-       CALL cleanup_g_dot_rvec_sin_cos(g_dot_rvec_sin, g_dot_rvec_cos, error)
-       Am(:,:) = Am(:,:) / (Vol*Vol)
-       CALL mp_sum(Am,rho_tot_g%pw_grid%para%group)
-       IF (iw>0) THEN
-          ! Checking conditions numbers and eigenvalues
-          ALLOCATE(Amw(ndim, ndim), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          ALLOCATE(AmE(ndim), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          Amw(:,:) = Am
-          CALL diamat_all(Amw, AmE,error=error)
-          condition_number = MAXVAL(ABS(AmE))/MINVAL(ABS(AmE))
-          WRITE(iw,'(T3,A)')" Eigenvalues of Matrix A:"
-          WRITE(iw,'(T3,4E15.8)') AmE
-          WRITE(iw,'(T3,A,1E15.9)')" Condition number:",condition_number
-          IF (condition_number > 1.0E12_dp) THEN
-             WRITE (iw,FMT="(/,T2,A)")&
-                  "WARNING: high condition number => possibly ill-conditioned matrix"
-          END IF
-          DEALLOCATE(Amw, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(AmE, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       Amw(:,:) = Am
+       CALL diamat_all(Amw, AmE,error=error)
+       condition_number = MAXVAL(ABS(AmE))/MINVAL(ABS(AmE))
+       WRITE(iw,'(T3,A)')" Eigenvalues of Matrix A:"
+       WRITE(iw,'(T3,4E15.8)') AmE
+       WRITE(iw,'(T3,A,1E15.9)')" Condition number:",condition_number
+       IF (condition_number > 1.0E12_dp) THEN
+          WRITE (iw,FMT="(/,T2,A)")&
+               "WARNING: high condition number => possibly ill-conditioned matrix"
        END IF
-       CALL invert_matrix(Am, AmI, inv_error, "N",error=error, improve=.FALSE.)
-       IF (iw>0) THEN
-          WRITE(iw,'(T3,A,F15.9)')" Error inverting the A matrix: ", inv_error
-       END IF
-       c0 = DOT_PRODUCT(cv,MATMUL(AmI,cv))
-       DEALLOCATE(Am, stat=stat)
+       DEALLOCATE(Amw, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(cv, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       GAmI = AmI
-       DEALLOCATE(AmI, stat=stat)
+       DEALLOCATE(AmE, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    CALL invert_matrix(Am, AmI, inv_error, "N",error=error, improve=.FALSE.)
+    IF (iw>0) THEN
+       WRITE(iw,'(T3,A,F15.9)')" Error inverting the A matrix: ", inv_error
+    END IF
+    c0 = DOT_PRODUCT(cv,MATMUL(AmI,cv))
+    DEALLOCATE(Am, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(cv, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    GAmI = AmI
+    DEALLOCATE(AmI, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE ddapc_eval_AmI
 
@@ -751,157 +739,155 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(EwM)
     CALL timeset(routineN,handle)
-    IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(M),cp_failure_level,routineP,error,failure)
-       CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,error,failure)
-       CPPostcondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
-       rcut = MIN(cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3))/2.0_dp
-       CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep,error=error)
-       IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut,error=error)
-       CALL section_vals_val_get(multipole_section,"EWALD_PRECISION",r_val=eps,error=error)
-       CALL section_vals_val_get(multipole_section,"ANALYTICAL_GTERM",l_val=analyt,error=error)
-       rcut2 = rcut**2
-       !
-       ! Setting-up parameters for Ewald summation
-       !
-       eps    = MIN(ABS(eps),0.5_dp)
-       tol    = SQRT(ABS(LOG(eps*rcut)))
-       alpha  = SQRT(ABS(LOG(eps*rcut*tol)))/rcut
-       galpha = 1.0_dp/(4.0_dp*alpha*alpha)
-       tol1   = SQRT(-LOG(eps*rcut*(2.0_dp*tol*alpha)**2))
-       nmax1  = NINT(0.25_dp + cell%hmat(1,1)*alpha*tol1/pi)
-       nmax2  = NINT(0.25_dp + cell%hmat(2,2)*alpha*tol1/pi)
-       nmax3  = NINT(0.25_dp + cell%hmat(3,3)*alpha*tol1/pi)
+    CPPostcondition(.NOT.ASSOCIATED(M),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,error,failure)
+    CPPostcondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
+    rcut = MIN(cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3))/2.0_dp
+    CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep,error=error)
+    IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut,error=error)
+    CALL section_vals_val_get(multipole_section,"EWALD_PRECISION",r_val=eps,error=error)
+    CALL section_vals_val_get(multipole_section,"ANALYTICAL_GTERM",l_val=analyt,error=error)
+    rcut2 = rcut**2
+    !
+    ! Setting-up parameters for Ewald summation
+    !
+    eps    = MIN(ABS(eps),0.5_dp)
+    tol    = SQRT(ABS(LOG(eps*rcut)))
+    alpha  = SQRT(ABS(LOG(eps*rcut*tol)))/rcut
+    galpha = 1.0_dp/(4.0_dp*alpha*alpha)
+    tol1   = SQRT(-LOG(eps*rcut*(2.0_dp*tol*alpha)**2))
+    nmax1  = NINT(0.25_dp + cell%hmat(1,1)*alpha*tol1/pi)
+    nmax2  = NINT(0.25_dp + cell%hmat(2,2)*alpha*tol1/pi)
+    nmax3  = NINT(0.25_dp + cell%hmat(3,3)*alpha*tol1/pi)
 
-       rmax1  = CEILING(rcut/cell%hmat(1,1))
-       rmax2  = CEILING(rcut/cell%hmat(2,2))
-       rmax3  = CEILING(rcut/cell%hmat(3,3))
-       fac    = 1.e0_dp/cell%deth
-       fac3   = fac*pi
-       fvec   = twopi / (/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
-       ew_neut = - fac * pi / alpha ** 2
-       !
-       ewmdim = SIZE(particle_set) * (SIZE(particle_set)+1) / 2
-       ndim   = SIZE(particle_set) * SIZE(radii)
-       ALLOCATE(EwM(ewmdim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(M(ndim, ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       M = 0.0_dp
-       !
-       idim = 0
-       !NB zero EwM so mp_sum(EwM) will give right answer
-       EwM = 0.0_dp
-       DO iparticle1 = 1, SIZE(particle_set)
-          ip1 = (iparticle1-1)*SIZE(radii)
-          DO iparticle2 = 1, iparticle1
-             ij_fac = 1.0_dp
-             IF (iparticle1==iparticle2) ij_fac=0.5_dp
+    rmax1  = CEILING(rcut/cell%hmat(1,1))
+    rmax2  = CEILING(rcut/cell%hmat(2,2))
+    rmax3  = CEILING(rcut/cell%hmat(3,3))
+    fac    = 1.e0_dp/cell%deth
+    fac3   = fac*pi
+    fvec   = twopi / (/cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3)/)
+    ew_neut = - fac * pi / alpha ** 2
+    !
+    ewmdim = SIZE(particle_set) * (SIZE(particle_set)+1) / 2
+    ndim   = SIZE(particle_set) * SIZE(radii)
+    ALLOCATE(EwM(ewmdim), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(M(ndim, ndim), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    M = 0.0_dp
+    !
+    idim = 0
+    !NB zero EwM so mp_sum(EwM) will give right answer
+    EwM = 0.0_dp
+    DO iparticle1 = 1, SIZE(particle_set)
+       ip1 = (iparticle1-1)*SIZE(radii)
+       DO iparticle2 = 1, iparticle1
+          ij_fac = 1.0_dp
+          IF (iparticle1==iparticle2) ij_fac=0.5_dp
 
-             ip2 = (iparticle2-1)*SIZE(radii)
-             idim = idim + 1
-             !NB parallelization, done here so indexing is right
-             IF (MOD(iparticle1, cp_para_env%num_pe) /= cp_para_env%mepos) CYCLE
-             !
-             ! Real-Space Contribution
-             !
-             my_val = 0.0_dp
-             rvec   = particle_set(iparticle1)%r - particle_set(iparticle2)%r
-             r_ewald = 0.0_dp
-             IF (iparticle1 /= iparticle2) THEN
-                ra = rvec
-                r2tmp  = DOT_PRODUCT(ra,ra)
-                IF (r2tmp<=rcut2) THEN
-                   r  = SQRT(r2tmp)
-                   t1 = erfc(alpha*r) / r
-                   r_ewald = t1
-                END IF
-             END IF
-             DO r1 = -rmax1, rmax1
-                DO r2 = -rmax2, rmax2
-                   DO r3 = -rmax3, rmax3
-                      IF ((r1==0).AND.(r2==0).AND.(r3==0)) CYCLE
-                      ra(1) = rvec(1) + cell%hmat(1,1)*r1
-                      ra(2) = rvec(2) + cell%hmat(2,2)*r2
-                      ra(3) = rvec(3) + cell%hmat(3,3)*r3
-                      r2tmp  = DOT_PRODUCT(ra,ra)
-                      IF (r2tmp<=rcut2) THEN
-                         r  = SQRT(r2tmp)
-                         t1 = erfc(alpha*r) / r
-                         r_ewald = r_ewald + t1*ij_fac
-                      END IF
-                   END DO
-                END DO
-             END DO
-             !
-             ! G-space Contribution
-             !
-             IF (analyt) THEN
-                g_ewald = 0.0_dp
-                DO k1 = 0, nmax1
-                   DO k2 = -nmax2, nmax2
-                      DO k3 = -nmax3, nmax3
-                         IF (k1 == 0.AND.k2 == 0.AND.k3 == 0) CYCLE
-                         fs = 2.0_dp; IF (k1==0) fs = 1.0_dp
-                         gvec = fvec * (/REAL(k1,KIND=dp),REAL(k2,KIND=dp),REAL(k3,KIND=dp)/)
-                         gsq  = DOT_PRODUCT(gvec,gvec)
-                         gsqi = fs/gsq
-                         t1   = fac * gsqi * EXP(-galpha*gsq)
-                         g_ewald = g_ewald + t1 * COS(DOT_PRODUCT(gvec,rvec))
-                      END DO
-                   END DO
-                END DO
-             ELSE
-                g_ewald = Eval_Interp_Spl3_pbc(rvec, coeff, error)
-             END IF
-             !
-             ! G-EWALD, R-EWALD
-             !
-             g_ewald = r_ewald + fourpi*g_ewald
-             !
-             ! Self Contribution
-             !
-             IF (iparticle1 == iparticle2) THEN
-                g_ewald = g_ewald - 2.0_dp * alpha * oorootpi
-             END IF
-             !
-             IF (iparticle1/=iparticle2) THEN
-                ra = rvec
-                r  = SQRT(DOT_PRODUCT(ra,ra))
-                my_val = factor / r
-             END IF
-             EwM(idim) = my_val - factor * g_ewald
-          END DO ! iparticle2
-       END DO ! iparticle1
-       !NB sum over parallelized contributions of different nodes
-       CALL mp_sum(EwM, cp_para_env%group)
-       idim = 0
-       DO iparticle2 = 1, SIZE(particle_set)
           ip2 = (iparticle2-1)*SIZE(radii)
-          idimo = (iparticle2-1)
-          idimo = idimo *(idimo+1) / 2
-          DO igauss2 = 1, SIZE(radii)
-             idim2 = ip2 + igauss2
-             rc2   = radii(igauss2)
-             rc22  = rc2*rc2
-             DO iparticle1 = 1, iparticle2
-                ip1 = (iparticle1-1)*SIZE(radii)
-                idim = idimo + iparticle1
-                istart_g = 1
-                IF (iparticle1==iparticle2) istart_g = igauss2
-                DO igauss1 = istart_g, SIZE(radii)
-                   idim1  = ip1 + igauss1
-                   rc1    = radii(igauss1)
-                   rc12   = rc1*rc1
-                   M(idim1,idim2) = EwM(idim)  - factor * ew_neut - factor * fac3 * (rc12+rc22)
-                   M(idim2,idim1) = M(idim1,idim2)
+          idim = idim + 1
+          !NB parallelization, done here so indexing is right
+          IF (MOD(iparticle1, cp_para_env%num_pe) /= cp_para_env%mepos) CYCLE
+          !
+          ! Real-Space Contribution
+          !
+          my_val = 0.0_dp
+          rvec   = particle_set(iparticle1)%r - particle_set(iparticle2)%r
+          r_ewald = 0.0_dp
+          IF (iparticle1 /= iparticle2) THEN
+             ra = rvec
+             r2tmp  = DOT_PRODUCT(ra,ra)
+             IF (r2tmp<=rcut2) THEN
+                r  = SQRT(r2tmp)
+                t1 = erfc(alpha*r) / r
+                r_ewald = t1
+             END IF
+          END IF
+          DO r1 = -rmax1, rmax1
+             DO r2 = -rmax2, rmax2
+                DO r3 = -rmax3, rmax3
+                   IF ((r1==0).AND.(r2==0).AND.(r3==0)) CYCLE
+                   ra(1) = rvec(1) + cell%hmat(1,1)*r1
+                   ra(2) = rvec(2) + cell%hmat(2,2)*r2
+                   ra(3) = rvec(3) + cell%hmat(3,3)*r3
+                   r2tmp  = DOT_PRODUCT(ra,ra)
+                   IF (r2tmp<=rcut2) THEN
+                      r  = SQRT(r2tmp)
+                      t1 = erfc(alpha*r) / r
+                      r_ewald = r_ewald + t1*ij_fac
+                   END IF
                 END DO
              END DO
-          END DO ! iparticle2
-       END DO ! iparticle1
-       DEALLOCATE(EwM, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+          END DO
+          !
+          ! G-space Contribution
+          !
+          IF (analyt) THEN
+             g_ewald = 0.0_dp
+             DO k1 = 0, nmax1
+                DO k2 = -nmax2, nmax2
+                   DO k3 = -nmax3, nmax3
+                      IF (k1 == 0.AND.k2 == 0.AND.k3 == 0) CYCLE
+                      fs = 2.0_dp; IF (k1==0) fs = 1.0_dp
+                      gvec = fvec * (/REAL(k1,KIND=dp),REAL(k2,KIND=dp),REAL(k3,KIND=dp)/)
+                      gsq  = DOT_PRODUCT(gvec,gvec)
+                      gsqi = fs/gsq
+                      t1   = fac * gsqi * EXP(-galpha*gsq)
+                      g_ewald = g_ewald + t1 * COS(DOT_PRODUCT(gvec,rvec))
+                   END DO
+                END DO
+             END DO
+          ELSE
+             g_ewald = Eval_Interp_Spl3_pbc(rvec, coeff, error)
+          END IF
+          !
+          ! G-EWALD, R-EWALD
+          !
+          g_ewald = r_ewald + fourpi*g_ewald
+          !
+          ! Self Contribution
+          !
+          IF (iparticle1 == iparticle2) THEN
+             g_ewald = g_ewald - 2.0_dp * alpha * oorootpi
+          END IF
+          !
+          IF (iparticle1/=iparticle2) THEN
+             ra = rvec
+             r  = SQRT(DOT_PRODUCT(ra,ra))
+             my_val = factor / r
+          END IF
+          EwM(idim) = my_val - factor * g_ewald
+       END DO ! iparticle2
+    END DO ! iparticle1
+    !NB sum over parallelized contributions of different nodes
+    CALL mp_sum(EwM, cp_para_env%group)
+    idim = 0
+    DO iparticle2 = 1, SIZE(particle_set)
+       ip2 = (iparticle2-1)*SIZE(radii)
+       idimo = (iparticle2-1)
+       idimo = idimo *(idimo+1) / 2
+       DO igauss2 = 1, SIZE(radii)
+          idim2 = ip2 + igauss2
+          rc2   = radii(igauss2)
+          rc22  = rc2*rc2
+          DO iparticle1 = 1, iparticle2
+             ip1 = (iparticle1-1)*SIZE(radii)
+             idim = idimo + iparticle1
+             istart_g = 1
+             IF (iparticle1==iparticle2) istart_g = igauss2
+             DO igauss1 = istart_g, SIZE(radii)
+                idim1  = ip1 + igauss1
+                rc1    = radii(igauss1)
+                rc12   = rc1*rc1
+                M(idim1,idim2) = EwM(idim)  - factor * ew_neut - factor * fac3 * (rc12+rc22)
+                M(idim2,idim1) = M(idim1,idim2)
+             END DO
+          END DO
+       END DO ! iparticle2
+    END DO ! iparticle1
+    DEALLOCATE(EwM, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle)
   END SUBROUTINE ewald_ddapc_pot
 
@@ -945,134 +931,132 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     output_unit= cp_logger_get_default_io_unit(logger)
-    IF (.NOT.failure) THEN
-       ndim   = SIZE(particle_set) * SIZE(radii)
-       ALLOCATE(M(ndim, ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       M      = 0.0_dp
-       eps_in = 1.0_dp
-       CALL section_vals_val_get(solvation_section,"EPS_OUT",r_val=eps_out,error=error)
-       CALL section_vals_val_get(solvation_section,"LMAX",i_val=lmax,error=error)
-       CALL section_vals_val_get(solvation_section,"SPHERE%RADIUS",r_val=Rs,error=error)
-       CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%XYZ",n_rep_val=n_rep1,&
+    ndim   = SIZE(particle_set) * SIZE(radii)
+    ALLOCATE(M(ndim, ndim), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    M      = 0.0_dp
+    eps_in = 1.0_dp
+    CALL section_vals_val_get(solvation_section,"EPS_OUT",r_val=eps_out,error=error)
+    CALL section_vals_val_get(solvation_section,"LMAX",i_val=lmax,error=error)
+    CALL section_vals_val_get(solvation_section,"SPHERE%RADIUS",r_val=Rs,error=error)
+    CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%XYZ",n_rep_val=n_rep1,&
+         error=error)
+    IF (n_rep1/=0) THEN
+       CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%XYZ",r_vals=R0,&
             error=error)
-       IF (n_rep1/=0) THEN
-          CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%XYZ",r_vals=R0,&
+       center = R0
+    ELSE
+       CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%ATOM_LIST",&
+            n_rep_val=n_rep2,error=error)
+       IF (n_rep2/=0) THEN
+          CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%ATOM_LIST",i_vals=list,&
                error=error)
+          CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%WEIGHT_TYPE",i_val=weight,&
+               error=error)
+          ALLOCATE(R0(3),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          SELECT CASE(weight)
+          CASE (weight_type_unit)
+             R0 = 0.0_dp
+             DO i = 1, SIZE(list)
+                R0 = R0 + particle_set(list(i))%r
+             END DO
+             R0 = R0 / REAL(SIZE(list),KIND=dp)
+          CASE (weight_type_mass)
+             R0 = 0.0_dp
+             mass = 0.0_dp
+             DO i = 1, SIZE(list)
+                R0 = R0 + particle_set(list(i))%r * particle_set(list(i))%atomic_kind%mass
+                mass = mass + particle_set(list(i))%atomic_kind%mass
+             END DO
+             R0 = R0 / mass
+          END SELECT
           center = R0
-       ELSE
-          CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%ATOM_LIST",&
-               n_rep_val=n_rep2,error=error)
-          IF (n_rep2/=0) THEN
-             CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%ATOM_LIST",i_vals=list,&
-                  error=error)
-             CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%WEIGHT_TYPE",i_val=weight,&
-                  error=error)
-             ALLOCATE(R0(3),stat=stat)
+          CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%FIXED",l_val=fixed_center,&
+               error=error)
+          IF (fixed_center) THEN
+             CALL section_vals_val_set(solvation_section,"SPHERE%CENTER%XYZ",&
+                  r_vals_ptr=R0,error=error)
+          ELSE
+             DEALLOCATE(R0, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             SELECT CASE(weight)
-             CASE (weight_type_unit)
-                R0 = 0.0_dp
-                DO i = 1, SIZE(list)
-                   R0 = R0 + particle_set(list(i))%r
-                END DO
-                R0 = R0 / REAL(SIZE(list),KIND=dp)
-             CASE (weight_type_mass)
-                R0 = 0.0_dp
-                mass = 0.0_dp
-                DO i = 1, SIZE(list)
-                   R0 = R0 + particle_set(list(i))%r * particle_set(list(i))%atomic_kind%mass
-                   mass = mass + particle_set(list(i))%atomic_kind%mass
-                END DO
-                R0 = R0 / mass
-             END SELECT
-             center = R0
-             CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%FIXED",l_val=fixed_center,&
-                  error=error)
-             IF (fixed_center) THEN
-                CALL section_vals_val_set(solvation_section,"SPHERE%CENTER%XYZ",&
-                     r_vals_ptr=R0,error=error)
-             ELSE
-                DEALLOCATE(R0, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
           END IF
        END IF
-       CPPostcondition(n_rep1/=0.OR.n_rep2/=0,cp_failure_level,routineP,error,failure)
-       ! Potential calculation
-       ALLOCATE(LocP(0:lmax,SIZE(particle_set)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(pos(SIZE(particle_set)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(cost(SIZE(particle_set),SIZE(particle_set)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! Determining the single atomic contribution to the dielectric dipole
-       DO i = 1, SIZE(particle_set)
-          rvec = particle_set(i)%r-center
-          r2   = DOT_PRODUCT(rvec,rvec)
-          r1   = SQRT(r2)
-          IF (r1>=Rs) THEN
-             IF (output_unit>0) THEN
-                WRITE(output_unit,'(A,I6,A)')"Atom number :: ",i," is out of the solvation sphere"
-                WRITE(output_unit,'(2(A,F12.6))')"Distance from the center::",r1," Radius of the sphere::",rs
-             END IF
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END IF
+    CPPostcondition(n_rep1/=0.OR.n_rep2/=0,cp_failure_level,routineP,error,failure)
+    ! Potential calculation
+    ALLOCATE(LocP(0:lmax,SIZE(particle_set)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(pos(SIZE(particle_set)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(cost(SIZE(particle_set),SIZE(particle_set)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! Determining the single atomic contribution to the dielectric dipole
+    DO i = 1, SIZE(particle_set)
+       rvec = particle_set(i)%r-center
+       r2   = DOT_PRODUCT(rvec,rvec)
+       r1   = SQRT(r2)
+       IF (r1>=Rs) THEN
+          IF (output_unit>0) THEN
+             WRITE(output_unit,'(A,I6,A)')"Atom number :: ",i," is out of the solvation sphere"
+             WRITE(output_unit,'(2(A,F12.6))')"Distance from the center::",r1," Radius of the sphere::",rs
           END IF
-          LocP(:,i) = 0.0_dp
-          IF (r1/=0.0_dp) THEN
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
+       LocP(:,i) = 0.0_dp
+       IF (r1/=0.0_dp) THEN
+          DO l = 0, lmax
+             LocP(l,i) = ( r1**l * REAL(l+1,KIND=dp) * (eps_in-eps_out))/&
+                  (Rs**(2*l+1)*eps_in*(REAL(l,KIND=dp)*eps_in+REAL(l+1,KIND=dp)*eps_out))
+          END DO
+       ELSE
+          ! limit for r->0
+          LocP(0,i) = (eps_in-eps_out)/(Rs*eps_in*eps_out)
+       END IF
+       pos(i) =  r1
+    END DO
+    ! Particle-Particle potential energy matrix
+    cost = 0.0_dp
+    DO i = 1, SIZE(particle_set)
+       DO j = 1, i
+          factor    = 0.0_dp
+          IF (pos(i)*pos(j)/=0.0_dp) THEN
+             mycos     = DOT_PRODUCT(particle_set(i)%r-center,particle_set(j)%r-center)/(pos(i)*pos(j))
+             IF (ABS(mycos) > 1.0_dp) mycos = SIGN(1.0_dp, mycos)
              DO l = 0, lmax
-                LocP(l,i) = ( r1**l * REAL(l+1,KIND=dp) * (eps_in-eps_out))/&
-                     (Rs**(2*l+1)*eps_in*(REAL(l,KIND=dp)*eps_in+REAL(l+1,KIND=dp)*eps_out))
+                factor = factor + LocP(l,i) * pos(j)**l * legendre(mycos,l,0)
              END DO
           ELSE
-             ! limit for r->0
-             LocP(0,i) = (eps_in-eps_out)/(Rs*eps_in*eps_out)
+             factor = LocP(0,i)
           END IF
-          pos(i) =  r1
+          cost(i,j) = factor
+          cost(j,i) = factor
        END DO
-       ! Particle-Particle potential energy matrix
-       cost = 0.0_dp
-       DO i = 1, SIZE(particle_set)
-          DO j = 1, i
-             factor    = 0.0_dp
-             IF (pos(i)*pos(j)/=0.0_dp) THEN
-                mycos     = DOT_PRODUCT(particle_set(i)%r-center,particle_set(j)%r-center)/(pos(i)*pos(j))
-                IF (ABS(mycos) > 1.0_dp) mycos = SIGN(1.0_dp, mycos)
-                DO l = 0, lmax
-                   factor = factor + LocP(l,i) * pos(j)**l * legendre(mycos,l,0)
-                END DO
-             ELSE
-                factor = LocP(0,i)
-             END IF
-             cost(i,j) = factor
-             cost(j,i) = factor
-          END DO
-       END DO
-       ! Computes the full potential energy matrix
-       idim = 0
-       DO iparticle2 = 1, SIZE(particle_set)
-          ip2  = (iparticle2-1)*SIZE(radii)
-          DO igauss2 = 1, SIZE(radii)
-             idim2 = ip2 + igauss2
-             DO iparticle1 = 1, iparticle2
-                ip1 = (iparticle1-1)*SIZE(radii)
-                istart_g = 1
-                IF (iparticle1==iparticle2) istart_g = igauss2
-                DO igauss1 = istart_g, SIZE(radii)
-                   idim1  = ip1 + igauss1
-                   M(idim1,idim2) = cost(iparticle1,iparticle2)
-                   M(idim2,idim1) = M(idim1,idim2)
-                END DO
+    END DO
+    ! Computes the full potential energy matrix
+    idim = 0
+    DO iparticle2 = 1, SIZE(particle_set)
+       ip2  = (iparticle2-1)*SIZE(radii)
+       DO igauss2 = 1, SIZE(radii)
+          idim2 = ip2 + igauss2
+          DO iparticle1 = 1, iparticle2
+             ip1 = (iparticle1-1)*SIZE(radii)
+             istart_g = 1
+             IF (iparticle1==iparticle2) istart_g = igauss2
+             DO igauss1 = istart_g, SIZE(radii)
+                idim1  = ip1 + igauss1
+                M(idim1,idim2) = cost(iparticle1,iparticle2)
+                M(idim2,idim1) = M(idim1,idim2)
              END DO
           END DO
        END DO
-       DEALLOCATE(cost,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(pos,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(LocP,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
+    END DO
+    DEALLOCATE(cost,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(pos,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(LocP,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END SUBROUTINE solvation_ddapc_pot
 
 END MODULE cp_ddapc_methods

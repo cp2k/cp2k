@@ -211,16 +211,14 @@ CONTAINS
     my_odd=.FALSE.
     IF (PRESENT(odd)) my_odd=odd
     CPPrecondition(ALL(n>=0),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       IF (my_odd) THEN
-          CALL fft_radix_operations ( n(1), nout(1), FFT_RADIX_NEXT_ODD )
-          CALL fft_radix_operations ( n(2), nout(2), FFT_RADIX_NEXT_ODD )
-          CALL fft_radix_operations ( n(3), nout(3), FFT_RADIX_NEXT_ODD )
-       ELSE
-          CALL fft_radix_operations ( n(1), nout(1), FFT_RADIX_NEXT )
-          CALL fft_radix_operations ( n(2), nout(2), FFT_RADIX_NEXT )
-          CALL fft_radix_operations ( n(3), nout(3), FFT_RADIX_NEXT )
-       END IF
+    IF (my_odd) THEN
+       CALL fft_radix_operations ( n(1), nout(1), FFT_RADIX_NEXT_ODD )
+       CALL fft_radix_operations ( n(2), nout(2), FFT_RADIX_NEXT_ODD )
+       CALL fft_radix_operations ( n(3), nout(3), FFT_RADIX_NEXT_ODD )
+    ELSE
+       CALL fft_radix_operations ( n(1), nout(1), FFT_RADIX_NEXT )
+       CALL fft_radix_operations ( n(2), nout(2), FFT_RADIX_NEXT )
+       CALL fft_radix_operations ( n(3), nout(3), FFT_RADIX_NEXT )
     END IF
 
   END FUNCTION pw_grid_n_for_fft

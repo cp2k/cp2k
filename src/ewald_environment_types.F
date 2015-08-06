@@ -229,26 +229,24 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
-       IF (PRESENT(id_nr)) ewald_env%id_nr = id_nr
-       IF (PRESENT(ewald_type)) ewald_env%ewald_type = ewald_type
-       IF (PRESENT(alpha)) ewald_env%alpha = alpha
-       IF (PRESENT(precs)) ewald_env%precs = precs
-       IF (PRESENT(epsilon)) ewald_env%epsilon = epsilon
-       IF (PRESENT(eps_pol)) ewald_env%eps_pol = eps_pol
-       IF (PRESENT(gmax)) ewald_env%gmax = gmax
-       IF (PRESENT(ns_max)) ewald_env%ns_max = ns_max
-       IF (PRESENT(o_spline)) ewald_env%o_spline = o_spline
-       IF (PRESENT(para_env))ewald_env% para_env => para_env
-       IF (PRESENT(poisson_section)) THEN
-          CALL section_vals_retain(poisson_section,error=error)
-          CALL section_vals_release(ewald_env%poisson_section,error=error)
-          ewald_env%poisson_section => poisson_section
-       END IF
-       IF (PRESENT(interaction_cutoffs)) ewald_env%interaction_cutoffs => &
-         interaction_cutoffs
-       IF (PRESENT(cell_hmat)) ewald_env%cell_hmat = cell_hmat
-    ENDIF
+    IF (PRESENT(id_nr)) ewald_env%id_nr = id_nr
+    IF (PRESENT(ewald_type)) ewald_env%ewald_type = ewald_type
+    IF (PRESENT(alpha)) ewald_env%alpha = alpha
+    IF (PRESENT(precs)) ewald_env%precs = precs
+    IF (PRESENT(epsilon)) ewald_env%epsilon = epsilon
+    IF (PRESENT(eps_pol)) ewald_env%eps_pol = eps_pol
+    IF (PRESENT(gmax)) ewald_env%gmax = gmax
+    IF (PRESENT(ns_max)) ewald_env%ns_max = ns_max
+    IF (PRESENT(o_spline)) ewald_env%o_spline = o_spline
+    IF (PRESENT(para_env))ewald_env% para_env => para_env
+    IF (PRESENT(poisson_section)) THEN
+       CALL section_vals_retain(poisson_section,error=error)
+       CALL section_vals_release(ewald_env%poisson_section,error=error)
+       ewald_env%poisson_section => poisson_section
+    END IF
+    IF (PRESENT(interaction_cutoffs)) ewald_env%interaction_cutoffs => &
+      interaction_cutoffs
+    IF (PRESENT(cell_hmat)) ewald_env%cell_hmat = cell_hmat
   END SUBROUTINE ewald_env_set
 
 ! *****************************************************************************
@@ -276,15 +274,13 @@ CONTAINS
 
     ALLOCATE( ewald_env, stat=stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       ewald_env%ref_count=1
-       last_ewald_env_id_nr=last_ewald_env_id_nr+1
-       ewald_env%id_nr=last_ewald_env_id_nr
-       NULLIFY(ewald_env%poisson_section)
-       CALL cp_para_env_retain(para_env, error=error)
-       ewald_env%para_env => para_env
-       NULLIFY(ewald_env%interaction_cutoffs) ! allocated and initialized later
-    END IF
+    ewald_env%ref_count=1
+    last_ewald_env_id_nr=last_ewald_env_id_nr+1
+    ewald_env%id_nr=last_ewald_env_id_nr
+    NULLIFY(ewald_env%poisson_section)
+    CALL cp_para_env_retain(para_env, error=error)
+    ewald_env%para_env => para_env
+    NULLIFY(ewald_env%interaction_cutoffs) ! allocated and initialized later
   END SUBROUTINE ewald_env_create
 
 ! *****************************************************************************
@@ -308,10 +304,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(ewald_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       ewald_env%ref_count=ewald_env%ref_count+1
-    END IF
+    CPPrecondition(ewald_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    ewald_env%ref_count=ewald_env%ref_count+1
   END SUBROUTINE ewald_env_retain
 
 ! *****************************************************************************
@@ -380,114 +374,112 @@ CONTAINS
     NULLIFY(enum, keyword, section, multipole_section)
     logger=>cp_error_get_logger(error)
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=ewald_env%ewald_type,error=error)
-       CALL section_vals_val_get(ewald_section,"ALPHA",r_val=ewald_env%alpha,error=error)
-       CALL section_vals_val_get(ewald_section,"EWALD_ACCURACY",r_val=ewald_env%precs,error=error)
+    CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=ewald_env%ewald_type,error=error)
+    CALL section_vals_val_get(ewald_section,"ALPHA",r_val=ewald_env%alpha,error=error)
+    CALL section_vals_val_get(ewald_section,"EWALD_ACCURACY",r_val=ewald_env%precs,error=error)
 
-       IF (ewald_env%ewald_type==do_ewald_none) THEN
-          ewald_env%rcut = 0.0_dp
+    IF (ewald_env%ewald_type==do_ewald_none) THEN
+       ewald_env%rcut = 0.0_dp
+    ELSE
+       CALL section_vals_val_get(ewald_section,"RCUT",explicit=explicit,error=error)
+       IF (explicit) THEN
+          CALL section_vals_val_get(ewald_section,"RCUT",r_val=ewald_env%rcut,error=error)
        ELSE
-          CALL section_vals_val_get(ewald_section,"RCUT",explicit=explicit,error=error)
-          IF (explicit) THEN
-             CALL section_vals_val_get(ewald_section,"RCUT",r_val=ewald_env%rcut,error=error)
-          ELSE
-             ewald_env%rcut = find_ewald_optimal_value(ewald_env%precs,error)/ewald_env%alpha
-          ENDIF
+          ewald_env%rcut = find_ewald_optimal_value(ewald_env%precs,error)/ewald_env%alpha
+       ENDIF
+    END IF
+    ! we have no defaults for gmax, gmax is only needed for ewald and spme
+    SELECT CASE ( ewald_env%ewald_type )
+    CASE (do_ewald_ewald, do_ewald_spme)
+       CALL section_vals_val_get(ewald_section,"GMAX",i_vals=gmax_read,error=error)
+       SELECT CASE (SIZE(gmax_read,1))
+       CASE (1)
+          ewald_env%gmax = gmax_read(1)
+       CASE (3)
+          ewald_env%gmax = gmax_read
+       CASE DEFAULT
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+       IF (ewald_env%ewald_type==do_ewald_spme) THEN
+          CALL section_vals_val_get(ewald_section,"O_SPLINE",i_val=ewald_env%o_spline,error=error)
        END IF
-       ! we have no defaults for gmax, gmax is only needed for ewald and spme
-       SELECT CASE ( ewald_env%ewald_type )
-       CASE (do_ewald_ewald, do_ewald_spme)
-          CALL section_vals_val_get(ewald_section,"GMAX",i_vals=gmax_read,error=error)
-          SELECT CASE (SIZE(gmax_read,1))
-          CASE (1)
-             ewald_env%gmax = gmax_read(1)
-          CASE (3)
-             ewald_env%gmax = gmax_read
+    CASE (do_ewald_pme)
+       CALL section_vals_val_get(ewald_section,"NS_MAX",i_val=ewald_env%ns_max,error=error)
+       CALL section_vals_val_get(ewald_section,"EPSILON",r_val=ewald_env%epsilon,error=error)
+    CASE DEFAULT
+       ! this should not be used for do_ewald_none
+       ewald_env%gmax   = HUGE(0)
+       ewald_env%ns_max = HUGE(0)
+    END SELECT
+
+    ! Multipoles
+    multipole_section => section_vals_get_subs_vals(ewald_section,"MULTIPOLES",error=error)
+    CALL section_vals_val_get(multipole_section,"_SECTION_PARAMETERS_",l_val=ewald_env%do_multipoles,error=error)
+    CALL section_vals_val_get(multipole_section,"POL_SCF",i_val=ewald_env%do_ipol,error=error)
+    CALL section_vals_val_get(multipole_section,"EPS_POL",r_val=ewald_env%eps_pol,error=error)
+    IF (ewald_env%do_multipoles) THEN
+       SELECT CASE(ewald_env%ewald_type)
+       CASE(do_ewald_ewald)
+          CALL section_vals_val_get(multipole_section,"MAX_MULTIPOLE_EXPANSION",i_val=ewald_env%max_multipole,error=error)
+          CALL section_vals_val_get(multipole_section,"MAX_IPOL_ITER",i_val=ewald_env%max_ipol_iter,error=error)
+       CASE DEFAULT
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Multipole code works at the moment only with standard EWALD sums.", &
+               error=error, error_level=cp_failure_level)
+       END SELECT
+    END IF
+
+    iw=cp_print_key_unit_nr(logger,ewald_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".log",error=error)
+    IF ( iw > 0 ) THEN
+       NULLIFY(keyword, enum)
+       CALL create_ewald_section(section,error=error)
+       IF ( ewald_env%ewald_type /= do_ewald_none ) THEN
+          keyword => section_get_keyword(section,"EWALD_TYPE",error=error)
+          CALL keyword_get(keyword,enum=enum,error=error)
+          WRITE ( iw, '(/,T2,"EWALD| ",A,T67,A14 )')'Summation is done by:', &
+               ADJUSTR(TRIM(enum_i2c(enum,ewald_env%ewald_type,error=error)))
+          IF (ewald_env%do_multipoles) THEN
+             NULLIFY(keyword, enum)
+             keyword => section_get_keyword(section,"MULTIPOLES%MAX_MULTIPOLE_EXPANSION",error=error)
+             CALL keyword_get(keyword,enum=enum,error=error)
+             WRITE ( iw, '( T2,"EWALD| ",A )' ) 'Enabled Multipole Method'
+             WRITE ( iw, '( T2,"EWALD| ",A,T67,A14 )' ) 'Max Term in Multipole Expansion :',&
+                  ADJUSTR(TRIM(enum_i2c(enum,ewald_env%max_multipole,error=error)))
+             WRITE ( iw, '( T2,"EWALD| ",A,T67,3I10 )' ) 'Max number Iterations for IPOL :',&
+                  ewald_env%max_ipol_iter
+          END IF
+          dummy = cp_unit_from_cp2k(ewald_env%alpha,"angstrom^-1",error=error)
+          WRITE ( iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )' ) &
+               'Alpha parameter [','ANGSTROM^-1',']',dummy
+          dummy = cp_unit_from_cp2k(ewald_env%rcut,"angstrom",error=error)
+          WRITE ( iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )' ) &
+               'Real Space Cutoff [','ANGSTROM',']',dummy
+
+          SELECT CASE ( ewald_env%ewald_type )
+          CASE ( do_ewald_ewald)
+             WRITE ( iw, '( T2,"EWALD| ",A,T51,3I10 )' ) &
+                  'G-space max. Miller index', ewald_env%gmax
+          CASE ( do_ewald_pme)
+             WRITE ( iw, '( T2,"EWALD| ",A,T71,I10 )' ) &
+                  'Max small-grid points (input) ', ewald_env%ns_max
+             WRITE ( iw, '( T2,"EWALD| ",A,T71,E10.4 )' ) &
+                  'Gaussian tolerance (input) ', ewald_env%epsilon
+          CASE ( do_ewald_spme )
+             WRITE ( iw, '( T2,"EWALD| ",A,T51,3I10 )' ) &
+                  'G-space max. Miller index', ewald_env%gmax
+             WRITE ( iw, '( T2,"EWALD| ",A,T71,I10 )' ) &
+                  'Spline interpolation order ', ewald_env%o_spline
           CASE DEFAULT
              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
-          IF (ewald_env%ewald_type==do_ewald_spme) THEN
-             CALL section_vals_val_get(ewald_section,"O_SPLINE",i_val=ewald_env%o_spline,error=error)
-          END IF
-       CASE (do_ewald_pme)
-          CALL section_vals_val_get(ewald_section,"NS_MAX",i_val=ewald_env%ns_max,error=error)
-          CALL section_vals_val_get(ewald_section,"EPSILON",r_val=ewald_env%epsilon,error=error)
-       CASE DEFAULT
-          ! this should not be used for do_ewald_none
-          ewald_env%gmax   = HUGE(0)
-          ewald_env%ns_max = HUGE(0)
-       END SELECT
-
-       ! Multipoles
-       multipole_section => section_vals_get_subs_vals(ewald_section,"MULTIPOLES",error=error)
-       CALL section_vals_val_get(multipole_section,"_SECTION_PARAMETERS_",l_val=ewald_env%do_multipoles,error=error)
-       CALL section_vals_val_get(multipole_section,"POL_SCF",i_val=ewald_env%do_ipol,error=error)
-       CALL section_vals_val_get(multipole_section,"EPS_POL",r_val=ewald_env%eps_pol,error=error)
-       IF (ewald_env%do_multipoles) THEN
-          SELECT CASE(ewald_env%ewald_type)
-          CASE(do_ewald_ewald)
-             CALL section_vals_val_get(multipole_section,"MAX_MULTIPOLE_EXPANSION",i_val=ewald_env%max_multipole,error=error)
-             CALL section_vals_val_get(multipole_section,"MAX_IPOL_ITER",i_val=ewald_env%max_ipol_iter,error=error)
-          CASE DEFAULT
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Multipole code works at the moment only with standard EWALD sums.", &
-                  error=error, error_level=cp_failure_level)
-          END SELECT
+       ELSE
+          WRITE ( iw, '( T2,"EWALD| ",T73, A )' ) 'not used'
        END IF
-
-       iw=cp_print_key_unit_nr(logger,ewald_section,"PRINT%PROGRAM_RUN_INFO",&
-            extension=".log",error=error)
-       IF ( iw > 0 ) THEN
-          NULLIFY(keyword, enum)
-          CALL create_ewald_section(section,error=error)
-          IF ( ewald_env%ewald_type /= do_ewald_none ) THEN
-             keyword => section_get_keyword(section,"EWALD_TYPE",error=error)
-             CALL keyword_get(keyword,enum=enum,error=error)
-             WRITE ( iw, '(/,T2,"EWALD| ",A,T67,A14 )')'Summation is done by:', &
-                  ADJUSTR(TRIM(enum_i2c(enum,ewald_env%ewald_type,error=error)))
-             IF (ewald_env%do_multipoles) THEN
-                NULLIFY(keyword, enum)
-                keyword => section_get_keyword(section,"MULTIPOLES%MAX_MULTIPOLE_EXPANSION",error=error)
-                CALL keyword_get(keyword,enum=enum,error=error)
-                WRITE ( iw, '( T2,"EWALD| ",A )' ) 'Enabled Multipole Method'
-                WRITE ( iw, '( T2,"EWALD| ",A,T67,A14 )' ) 'Max Term in Multipole Expansion :',&
-                     ADJUSTR(TRIM(enum_i2c(enum,ewald_env%max_multipole,error=error)))
-                WRITE ( iw, '( T2,"EWALD| ",A,T67,3I10 )' ) 'Max number Iterations for IPOL :',&
-                     ewald_env%max_ipol_iter
-             END IF
-             dummy = cp_unit_from_cp2k(ewald_env%alpha,"angstrom^-1",error=error)
-             WRITE ( iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )' ) &
-                  'Alpha parameter [','ANGSTROM^-1',']',dummy
-             dummy = cp_unit_from_cp2k(ewald_env%rcut,"angstrom",error=error)
-             WRITE ( iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )' ) &
-                  'Real Space Cutoff [','ANGSTROM',']',dummy
-
-             SELECT CASE ( ewald_env%ewald_type )
-             CASE ( do_ewald_ewald)
-                WRITE ( iw, '( T2,"EWALD| ",A,T51,3I10 )' ) &
-                     'G-space max. Miller index', ewald_env%gmax
-             CASE ( do_ewald_pme)
-                WRITE ( iw, '( T2,"EWALD| ",A,T71,I10 )' ) &
-                     'Max small-grid points (input) ', ewald_env%ns_max
-                WRITE ( iw, '( T2,"EWALD| ",A,T71,E10.4 )' ) &
-                     'Gaussian tolerance (input) ', ewald_env%epsilon
-             CASE ( do_ewald_spme )
-                WRITE ( iw, '( T2,"EWALD| ",A,T51,3I10 )' ) &
-                     'G-space max. Miller index', ewald_env%gmax
-                WRITE ( iw, '( T2,"EWALD| ",A,T71,I10 )' ) &
-                     'Spline interpolation order ', ewald_env%o_spline
-             CASE DEFAULT
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-             END SELECT
-          ELSE
-             WRITE ( iw, '( T2,"EWALD| ",T73, A )' ) 'not used'
-          END IF
-          CALL section_release(section,error=error)
-       END IF
-       CALL cp_print_key_finished_output(iw,logger,ewald_section,&
-            "PRINT%PROGRAM_RUN_INFO", error=error)
+       CALL section_release(section,error=error)
     END IF
+    CALL cp_print_key_finished_output(iw,logger,ewald_section,&
+         "PRINT%PROGRAM_RUN_INFO", error=error)
 
   END SUBROUTINE read_ewald_section
 

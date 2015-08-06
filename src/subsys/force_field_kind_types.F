@@ -126,23 +126,21 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       NULLIFY(bend_kind_set)
-       ALLOCATE (bend_kind_set(nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO ikind=1,nkind
-          bend_kind_set(ikind)%id_type = do_ff_undef
-          bend_kind_set(ikind)%k = 0.0_dp
-          bend_kind_set(ikind)%theta0 = 0.0_dp
-          bend_kind_set(ikind)%cb = 0.0_dp
-          bend_kind_set(ikind)%r012 = 0.0_dp
-          bend_kind_set(ikind)%r032 = 0.0_dp
-          bend_kind_set(ikind)%kbs12 = 0.0_dp
-          bend_kind_set(ikind)%kbs32 = 0.0_dp
-          bend_kind_set(ikind)%kss = 0.0_dp
-          bend_kind_set(ikind)%kind_number = ikind
-       END DO
-    END IF
+    NULLIFY(bend_kind_set)
+    ALLOCATE (bend_kind_set(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ikind=1,nkind
+       bend_kind_set(ikind)%id_type = do_ff_undef
+       bend_kind_set(ikind)%k = 0.0_dp
+       bend_kind_set(ikind)%theta0 = 0.0_dp
+       bend_kind_set(ikind)%cb = 0.0_dp
+       bend_kind_set(ikind)%r012 = 0.0_dp
+       bend_kind_set(ikind)%r032 = 0.0_dp
+       bend_kind_set(ikind)%kbs12 = 0.0_dp
+       bend_kind_set(ikind)%kbs32 = 0.0_dp
+       bend_kind_set(ikind)%kss = 0.0_dp
+       bend_kind_set(ikind)%kind_number = ikind
+    END DO
   END SUBROUTINE allocate_bend_kind_set
 
 ! *****************************************************************************
@@ -166,17 +164,15 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(bond_kind_set)
-    IF (.NOT.failure) THEN
-       ALLOCATE (bond_kind_set(nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO ikind=1,nkind
-          bond_kind_set(ikind)%id_type = do_ff_undef
-          bond_kind_set(ikind)%k(:) = 0.0_dp
-          bond_kind_set(ikind)%r0 = 0.0_dp
-          bond_kind_set(ikind)%cs = 0.0_dp
-          bond_kind_set(ikind)%kind_number = ikind
-       END DO
-    END IF
+    ALLOCATE (bond_kind_set(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO ikind=1,nkind
+       bond_kind_set(ikind)%id_type = do_ff_undef
+       bond_kind_set(ikind)%k(:) = 0.0_dp
+       bond_kind_set(ikind)%r0 = 0.0_dp
+       bond_kind_set(ikind)%cs = 0.0_dp
+       bond_kind_set(ikind)%kind_number = ikind
+    END DO
   END SUBROUTINE allocate_bond_kind_set
 
 ! *****************************************************************************
@@ -200,19 +196,17 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(torsion_kind_set)
-    IF (.NOT.failure) THEN
-       ALLOCATE (torsion_kind_set(nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (torsion_kind_set(nkind),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       DO ikind=1,nkind
-          torsion_kind_set(ikind)%id_type = do_ff_undef
-          torsion_kind_set(ikind)%nmul = 0
-          NULLIFY(torsion_kind_set(ikind)%k)
-          NULLIFY(torsion_kind_set(ikind)%m)
-          NULLIFY(torsion_kind_set(ikind)%phi0)
-          torsion_kind_set(ikind)%kind_number = ikind
-       END DO
-    END IF
+    DO ikind=1,nkind
+       torsion_kind_set(ikind)%id_type = do_ff_undef
+       torsion_kind_set(ikind)%nmul = 0
+       NULLIFY(torsion_kind_set(ikind)%k)
+       NULLIFY(torsion_kind_set(ikind)%m)
+       NULLIFY(torsion_kind_set(ikind)%phi0)
+       torsion_kind_set(ikind)%kind_number = ikind
+    END DO
   END SUBROUTINE allocate_torsion_kind_set
 
 ! *****************************************************************************

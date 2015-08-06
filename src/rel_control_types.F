@@ -90,19 +90,17 @@ CONTAINS
     ALLOCATE (rel_control,STAT=stat)
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
 
-      ! Load the default values
+    ! Load the default values
 
-      rel_control%rel_method = rel_none
-      rel_control%rel_DKH_order = 2
-      rel_control%rel_ZORA_type = rel_zora_full
-      rel_control%rel_transformation = rel_trans_full
-      rel_control%rel_z_cutoff = 1
-      rel_control%rel_potential = rel_pot_full
-      rel_control%ref_count = 1
+    rel_control%rel_method = rel_none
+    rel_control%rel_DKH_order = 2
+    rel_control%rel_ZORA_type = rel_zora_full
+    rel_control%rel_transformation = rel_trans_full
+    rel_control%rel_z_cutoff = 1
+    rel_control%rel_potential = rel_pot_full
+    rel_control%ref_count = 1
 
-    END IF
 
   END SUBROUTINE rel_c_create
 
@@ -130,10 +128,8 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(rel_control),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      CPPrecondition(rel_control%ref_count > 0,cp_failure_level,routineP,error,failure)
-      rel_control%ref_count = rel_control%ref_count + 1
-    END IF
+    CPPrecondition(rel_control%ref_count > 0,cp_failure_level,routineP,error,failure)
+    rel_control%ref_count = rel_control%ref_count + 1
 
   END SUBROUTINE rel_c_retain
 
@@ -204,30 +200,28 @@ CONTAINS
     CPPrecondition((rel_control%ref_count > 0),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_section),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
 
-      rel_section => section_vals_get_subs_vals(dft_section,"RELATIVISTIC",&
-                                                error=error)
-      CALL section_vals_val_get(rel_section,"method",&
-                                i_val=rel_control%rel_method,&
-                                error=error)
-      CALL section_vals_val_get(rel_section,"DKH_order",&
-                                i_val=rel_control%rel_DKH_order,&
-                                error=error)
-      CALL section_vals_val_get(rel_section,"ZORA_TYPE",&
-                                i_val=rel_control%rel_zora_type,&
-                                error=error)
-      CALL section_vals_val_get(rel_section,"transformation",&
-                                i_val=rel_control%rel_transformation,&
-                                error=error)
-      CALL section_vals_val_get(rel_section,"z_cutoff",&
-                                i_val=rel_control%rel_z_cutoff,&
-                                error=error)
-      CALL section_vals_val_get(rel_section,"potential",&
-                                i_val=rel_control%rel_potential,&
-                                error=error)
+    rel_section => section_vals_get_subs_vals(dft_section,"RELATIVISTIC",&
+                                              error=error)
+    CALL section_vals_val_get(rel_section,"method",&
+                              i_val=rel_control%rel_method,&
+                              error=error)
+    CALL section_vals_val_get(rel_section,"DKH_order",&
+                              i_val=rel_control%rel_DKH_order,&
+                              error=error)
+    CALL section_vals_val_get(rel_section,"ZORA_TYPE",&
+                              i_val=rel_control%rel_zora_type,&
+                              error=error)
+    CALL section_vals_val_get(rel_section,"transformation",&
+                              i_val=rel_control%rel_transformation,&
+                              error=error)
+    CALL section_vals_val_get(rel_section,"z_cutoff",&
+                              i_val=rel_control%rel_z_cutoff,&
+                              error=error)
+    CALL section_vals_val_get(rel_section,"potential",&
+                              i_val=rel_control%rel_potential,&
+                              error=error)
 
-    END IF
 
   END SUBROUTINE rel_c_read_parameters
 

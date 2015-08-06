@@ -93,11 +93,9 @@ CONTAINS
     ALLOCATE(gopt_param, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
-       last_gopt_param_id=last_gopt_param_id+1
-       gopt_param%id_nr=last_gopt_param_id
-       gopt_param%ref_count=1
-    END IF
+    last_gopt_param_id=last_gopt_param_id+1
+    gopt_param%id_nr=last_gopt_param_id
+    gopt_param%ref_count=1
   END SUBROUTINE gopt_param_create
 
 ! *****************************************************************************
@@ -129,57 +127,55 @@ CONTAINS
     CALL gopt_param_create(gopt_param, error=error)
 
     failure=.FALSE.
-    IF (.NOT.failure) THEN
-       IF (PRESENT(type_id)) THEN
-          gopt_param%type_id = type_id
-       ELSE
-          CALL section_vals_val_get(gopt_section,"TYPE",i_val=gopt_param%type_id,error=error)
-       END IF
-       CALL section_vals_val_get(gopt_section,"OPTIMIZER",i_val=gopt_param%method_id,error=error)
-
-       CALL section_vals_val_get(gopt_section,"MAX_ITER",i_val=gopt_param%max_iter,error=error)
-       CALL section_vals_val_get(gopt_section,"MAX_DR",r_val=gopt_param%max_dr,error=error)
-       CALL section_vals_val_get(gopt_section,"MAX_FORCE",r_val=gopt_param%max_force,error=error)
-       CALL section_vals_val_get(gopt_section,"RMS_DR",r_val=gopt_param%rms_dr,error=error)
-       CALL section_vals_val_get(gopt_section,"RMS_FORCE",r_val=gopt_param%rms_force,error=error)
-
-       SELECT CASE(gopt_param%method_id)
-       CASE(default_lbfgs_method_id)
-          CALL section_vals_val_get(gopt_section,"LBFGS%MAX_H_RANK",i_val=gopt_param%max_h_rank,error=error)
-          CALL section_vals_val_get(gopt_section,"LBFGS%MAX_F_PER_ITER",i_val=gopt_param%max_f_per_iter,error=error)
-          CALL section_vals_val_get(gopt_section,"LBFGS%WANTED_PROJ_GRADIENT",r_val=gopt_param%wanted_proj_gradient,error=error)
-          CALL section_vals_val_get(gopt_section,"LBFGS%WANTED_REL_F_ERROR",r_val=gopt_param%wanted_rel_f_error,error=error)
-       CASE(default_bfgs_method_id)
-          ! Do nothing
-       CASE(default_cg_method_id)
-          CALL section_vals_val_get(gopt_section,"CG%FLETCHER_REEVES",l_val=gopt_param%Fletcher_Reeves,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%MAX_STEEP_STEPS",i_val=gopt_param%max_steep_steps,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%RESTART_LIMIT",r_val=gopt_param%restart_limit,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%TYPE",i_val=gopt_param%cg_ls%type_id,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%INITIAL_STEP",&
-               r_val=gopt_param%cg_ls%initial_step,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%BRENT_TOL",&
-               r_val=gopt_param%cg_ls%brent_tol,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%BRENT_MAX_ITER",&
-               i_val=gopt_param%cg_ls%brent_max_iter,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%BRACK_LIMIT",&
-               r_val=gopt_param%cg_ls%brack_limit,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%2PNT%MAX_ALLOWED_STEP",&
-               r_val=gopt_param%cg_ls%max_step,error=error)
-          CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%2PNT%LINMIN_GRAD_ONLY",&
-               l_val=gopt_param%cg_ls%grad_only,error=error)
-       END SELECT
-
-       SELECT CASE(gopt_param%type_id)
-       CASE(default_minimization_method_id)
-          ! Do Nothing
-          gopt_param%ts_method_id=none_ts_method_id
-       CASE(default_ts_method_id)
-          CALL section_vals_val_get(gopt_section,"TRANSITION_STATE%METHOD",i_val=gopt_param%ts_method_id,error=error)
-       CASE(default_cell_method_id)
-          CALL section_vals_val_get(gopt_section,"TYPE",i_val=gopt_param%cell_method_id,error=error)
-       END SELECT
+    IF (PRESENT(type_id)) THEN
+       gopt_param%type_id = type_id
+    ELSE
+       CALL section_vals_val_get(gopt_section,"TYPE",i_val=gopt_param%type_id,error=error)
     END IF
+    CALL section_vals_val_get(gopt_section,"OPTIMIZER",i_val=gopt_param%method_id,error=error)
+
+    CALL section_vals_val_get(gopt_section,"MAX_ITER",i_val=gopt_param%max_iter,error=error)
+    CALL section_vals_val_get(gopt_section,"MAX_DR",r_val=gopt_param%max_dr,error=error)
+    CALL section_vals_val_get(gopt_section,"MAX_FORCE",r_val=gopt_param%max_force,error=error)
+    CALL section_vals_val_get(gopt_section,"RMS_DR",r_val=gopt_param%rms_dr,error=error)
+    CALL section_vals_val_get(gopt_section,"RMS_FORCE",r_val=gopt_param%rms_force,error=error)
+
+    SELECT CASE(gopt_param%method_id)
+    CASE(default_lbfgs_method_id)
+       CALL section_vals_val_get(gopt_section,"LBFGS%MAX_H_RANK",i_val=gopt_param%max_h_rank,error=error)
+       CALL section_vals_val_get(gopt_section,"LBFGS%MAX_F_PER_ITER",i_val=gopt_param%max_f_per_iter,error=error)
+       CALL section_vals_val_get(gopt_section,"LBFGS%WANTED_PROJ_GRADIENT",r_val=gopt_param%wanted_proj_gradient,error=error)
+       CALL section_vals_val_get(gopt_section,"LBFGS%WANTED_REL_F_ERROR",r_val=gopt_param%wanted_rel_f_error,error=error)
+    CASE(default_bfgs_method_id)
+       ! Do nothing
+    CASE(default_cg_method_id)
+       CALL section_vals_val_get(gopt_section,"CG%FLETCHER_REEVES",l_val=gopt_param%Fletcher_Reeves,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%MAX_STEEP_STEPS",i_val=gopt_param%max_steep_steps,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%RESTART_LIMIT",r_val=gopt_param%restart_limit,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%TYPE",i_val=gopt_param%cg_ls%type_id,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%INITIAL_STEP",&
+            r_val=gopt_param%cg_ls%initial_step,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%BRENT_TOL",&
+            r_val=gopt_param%cg_ls%brent_tol,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%BRENT_MAX_ITER",&
+            i_val=gopt_param%cg_ls%brent_max_iter,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%GOLD%BRACK_LIMIT",&
+            r_val=gopt_param%cg_ls%brack_limit,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%2PNT%MAX_ALLOWED_STEP",&
+            r_val=gopt_param%cg_ls%max_step,error=error)
+       CALL section_vals_val_get(gopt_section,"CG%LINE_SEARCH%2PNT%LINMIN_GRAD_ONLY",&
+            l_val=gopt_param%cg_ls%grad_only,error=error)
+    END SELECT
+
+    SELECT CASE(gopt_param%type_id)
+    CASE(default_minimization_method_id)
+       ! Do Nothing
+       gopt_param%ts_method_id=none_ts_method_id
+    CASE(default_ts_method_id)
+       CALL section_vals_val_get(gopt_section,"TRANSITION_STATE%METHOD",i_val=gopt_param%ts_method_id,error=error)
+    CASE(default_cell_method_id)
+       CALL section_vals_val_get(gopt_section,"TYPE",i_val=gopt_param%cell_method_id,error=error)
+    END SELECT
 
   END SUBROUTINE gopt_param_read
 
@@ -203,10 +199,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP,error)
-       gopt_param%ref_count=gopt_param%ref_count+1
-    END IF
+    CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP,error)
+    gopt_param%ref_count=gopt_param%ref_count+1
   END SUBROUTINE gopt_param_retain
 
 ! *****************************************************************************

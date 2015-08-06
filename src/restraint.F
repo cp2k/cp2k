@@ -104,147 +104,145 @@ CONTAINS
          molecules, molecule_kind, molecule_kind_set, molecule, molecule_set, particles,&
          particle_set, gci, lfixd_list)
     CALL timeset(routineN,handle)
-    IF (.NOT. failure) THEN
-       CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
-       energy_4x6  = 0.0_dp
-       energy_3x3  = 0.0_dp
-       energy_colv = 0.0_dp
-       energy_fixd = 0.0_dp
-       n_restraint=0
-       CALL cp_subsys_get(subsys=subsys,particles=particles, molecules_new=molecules,&
-            local_particles=local_particles, local_molecules_new=local_molecules,&
-            gci=gci, molecule_kinds_new=molecule_kinds ,error=error)
+    CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell,error=error)
+    energy_4x6  = 0.0_dp
+    energy_3x3  = 0.0_dp
+    energy_colv = 0.0_dp
+    energy_fixd = 0.0_dp
+    n_restraint=0
+    CALL cp_subsys_get(subsys=subsys,particles=particles, molecules_new=molecules,&
+         local_particles=local_particles, local_molecules_new=local_molecules,&
+         gci=gci, molecule_kinds_new=molecule_kinds ,error=error)
 
-       nkind             =  molecule_kinds%n_els
-       particle_set      => particles%els
-       molecule_set      => molecules%els
-       molecule_kind_set => molecule_kinds%els
+    nkind             =  molecule_kinds%n_els
+    particle_set      => particles%els
+    molecule_set      => molecules%els
+    molecule_kind_set => molecule_kinds%els
 
-       ! Intramolecular Restraints
-       ALLOCATE(force(3,SIZE(particle_set)),stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
-       force = 0.0_dp
+    ! Intramolecular Restraints
+    ALLOCATE(force(3,SIZE(particle_set)),stat=stat)
+    CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+    force = 0.0_dp
 
-       ! Create the list of locally fixed atoms
-       CALL create_local_fixd_list(lfixd_list, nkind, molecule_kind_set, local_particles,&
-            error)
+    ! Create the list of locally fixed atoms
+    CALL create_local_fixd_list(lfixd_list, nkind, molecule_kind_set, local_particles,&
+         error)
 
-       DO ifixd = 1, SIZE(lfixd_list)
-          ikind = lfixd_list(ifixd)%ikind
-          ii    = lfixd_list(ifixd)%ifixd_index
-          molecule_kind => molecule_kind_set(ikind)
-          CALL get_molecule_kind(molecule_kind, fixd_list=fixd_list)
-          IF (fixd_list(ii)%restraint%active) THEN
-             n_restraint = n_restraint+1
-             iparticle   = fixd_list(ii)%fixd
-             k0          = fixd_list(ii)%restraint%k0
-             targ        = fixd_list(ii)%coord
-             rab         = 0.0_dp
-             SELECT CASE(fixd_list(ii)%itype)
-             CASE(use_perd_x)
-                rab(1)  = particle_set(iparticle)%r(1)-targ(1)
-             CASE(use_perd_y)
-                rab(2)  = particle_set(iparticle)%r(2)-targ(2)
-             CASE(use_perd_z)
-                rab(3)  = particle_set(iparticle)%r(3)-targ(3)
-             CASE(use_perd_xy)
-                rab(1)  = particle_set(iparticle)%r(1)-targ(1)
-                rab(2)  = particle_set(iparticle)%r(2)-targ(2)
-             CASE(use_perd_xz)
-                rab(1)  = particle_set(iparticle)%r(1)-targ(1)
-                rab(3)  = particle_set(iparticle)%r(3)-targ(3)
-             CASE(use_perd_yz)
-                rab(2)  = particle_set(iparticle)%r(2)-targ(2)
-                rab(3)  = particle_set(iparticle)%r(3)-targ(3)
-             CASE(use_perd_xyz)
-                rab  = particle_set(iparticle)%r-targ
-             END SELECT
-             rab2 = DOT_PRODUCT(rab,rab)
-             ! Energy
-             energy_fixd = energy_fixd + k0 * rab2
-             ! Forces
-             force(:,iparticle) = force(:,iparticle) - 2.0_dp * k0 * rab
-          END IF
-       END DO
-       CALL release_local_fixd_list(lfixd_list, error)
-
-       ! Loop over other kind of Restraints
-       MOL:  DO ikind = 1, nkind
-          molecule_kind => molecule_kind_set(ikind)
-          nmol_per_kind = local_molecules % n_el ( ikind )
-          DO imol = 1, nmol_per_kind
-             i = local_molecules % list ( ikind ) % array ( imol )
-             molecule => molecule_set ( i )
-             molecule_kind => molecule % molecule_kind
-
-             CALL get_molecule_kind ( molecule_kind,&
-                  ncolv = ncolv,  &
-                  ng3x3_restraint = n3x3con_restraint,&
-                  ng4x6_restraint = n4x6con_restraint )
-             ! 3x3
-             IF ( n3x3con_restraint /= 0 ) THEN
-                n_restraint=n_restraint+n3x3con_restraint
-                CALL restraint_3x3_int( molecule, particle_set, energy_3x3, force, error )
-             ENDIF
-             ! 4x6
-             IF ( n4x6con_restraint /= 0 ) THEN
-                n_restraint=n_restraint+n4x6con_restraint
-                CALL restraint_4x6_int( molecule, particle_set, energy_4x6, force, error )
-             ENDIF
-             ! collective variables
-             IF ( ncolv%nrestraint /= 0 ) THEN
-                n_restraint=n_restraint+ncolv%nrestraint
-                CALL restraint_colv_int( molecule, particle_set, cell, energy_colv, force,&
-                     error )
-             ENDIF
-          END DO
-       END DO MOL
-       CALL mp_sum(n_restraint,force_env%para_env%group)
-       IF (n_restraint>0) THEN
-          CALL mp_sum(energy_fixd,force_env%para_env%group)
-          CALL mp_sum(energy_3x3,force_env%para_env%group)
-          CALL mp_sum(energy_4x6,force_env%para_env%group)
-          CALL mp_sum(energy_colv,force_env%para_env%group)
-          CALL update_particle_set(particle_set,force_env%para_env%group,for=force,add=.TRUE.,&
-               error=error)
-          force = 0.0_dp
-          n_restraint = 0
-       ENDIF
-       ! Intermolecular Restraints
-       IF (ASSOCIATED(gci)) THEN
-          IF (gci%nrestraint>0) THEN
-             ! 3x3
-             IF ( gci%ng3x3_restraint /= 0 ) THEN
-                n_restraint=n_restraint+gci%ng3x3_restraint
-                CALL restraint_3x3_ext( gci, particle_set, energy_3x3, force, error )
-             ENDIF
-             ! 4x6
-             IF ( gci%ng4x6_restraint /= 0 ) THEN
-                n_restraint=n_restraint+gci%ng4x6_restraint
-                CALL restraint_4x6_ext( gci, particle_set, energy_4x6, force, error )
-             ENDIF
-             ! collective variables
-             IF ( gci%ncolv%nrestraint /= 0 ) THEN
-                n_restraint=n_restraint+gci%ncolv%nrestraint
-                CALL restraint_colv_ext( gci, particle_set, cell, energy_colv, force,&
-                     error )
-             ENDIF
-             DO iparticle = 1, SIZE(particle_set)
-                particle_set(iparticle)%f = particle_set(iparticle)%f + force(:,iparticle)
-             END DO
-          END IF
+    DO ifixd = 1, SIZE(lfixd_list)
+       ikind = lfixd_list(ifixd)%ikind
+       ii    = lfixd_list(ifixd)%ifixd_index
+       molecule_kind => molecule_kind_set(ikind)
+       CALL get_molecule_kind(molecule_kind, fixd_list=fixd_list)
+       IF (fixd_list(ii)%restraint%active) THEN
+          n_restraint = n_restraint+1
+          iparticle   = fixd_list(ii)%fixd
+          k0          = fixd_list(ii)%restraint%k0
+          targ        = fixd_list(ii)%coord
+          rab         = 0.0_dp
+          SELECT CASE(fixd_list(ii)%itype)
+          CASE(use_perd_x)
+             rab(1)  = particle_set(iparticle)%r(1)-targ(1)
+          CASE(use_perd_y)
+             rab(2)  = particle_set(iparticle)%r(2)-targ(2)
+          CASE(use_perd_z)
+             rab(3)  = particle_set(iparticle)%r(3)-targ(3)
+          CASE(use_perd_xy)
+             rab(1)  = particle_set(iparticle)%r(1)-targ(1)
+             rab(2)  = particle_set(iparticle)%r(2)-targ(2)
+          CASE(use_perd_xz)
+             rab(1)  = particle_set(iparticle)%r(1)-targ(1)
+             rab(3)  = particle_set(iparticle)%r(3)-targ(3)
+          CASE(use_perd_yz)
+             rab(2)  = particle_set(iparticle)%r(2)-targ(2)
+             rab(3)  = particle_set(iparticle)%r(3)-targ(3)
+          CASE(use_perd_xyz)
+             rab  = particle_set(iparticle)%r-targ
+          END SELECT
+          rab2 = DOT_PRODUCT(rab,rab)
+          ! Energy
+          energy_fixd = energy_fixd + k0 * rab2
+          ! Forces
+          force(:,iparticle) = force(:,iparticle) - 2.0_dp * k0 * rab
        END IF
-       DEALLOCATE(force,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    CALL release_local_fixd_list(lfixd_list, error)
 
-       ! Store restraint energies
-       CALL force_env_get(force_env=force_env, additional_potential=extended_energies, error=error)
-       extended_energies=extended_energies+ energy_3x3  +&
-                                            energy_fixd +&
-                                            energy_4x6  +&
-                                            energy_colv
-       CALL force_env_set(force_env=force_env, additional_potential=extended_energies, error=error)
+    ! Loop over other kind of Restraints
+    MOL:  DO ikind = 1, nkind
+       molecule_kind => molecule_kind_set(ikind)
+       nmol_per_kind = local_molecules % n_el ( ikind )
+       DO imol = 1, nmol_per_kind
+          i = local_molecules % list ( ikind ) % array ( imol )
+          molecule => molecule_set ( i )
+          molecule_kind => molecule % molecule_kind
+
+          CALL get_molecule_kind ( molecule_kind,&
+               ncolv = ncolv,  &
+               ng3x3_restraint = n3x3con_restraint,&
+               ng4x6_restraint = n4x6con_restraint )
+          ! 3x3
+          IF ( n3x3con_restraint /= 0 ) THEN
+             n_restraint=n_restraint+n3x3con_restraint
+             CALL restraint_3x3_int( molecule, particle_set, energy_3x3, force, error )
+          ENDIF
+          ! 4x6
+          IF ( n4x6con_restraint /= 0 ) THEN
+             n_restraint=n_restraint+n4x6con_restraint
+             CALL restraint_4x6_int( molecule, particle_set, energy_4x6, force, error )
+          ENDIF
+          ! collective variables
+          IF ( ncolv%nrestraint /= 0 ) THEN
+             n_restraint=n_restraint+ncolv%nrestraint
+             CALL restraint_colv_int( molecule, particle_set, cell, energy_colv, force,&
+                  error )
+          ENDIF
+       END DO
+    END DO MOL
+    CALL mp_sum(n_restraint,force_env%para_env%group)
+    IF (n_restraint>0) THEN
+       CALL mp_sum(energy_fixd,force_env%para_env%group)
+       CALL mp_sum(energy_3x3,force_env%para_env%group)
+       CALL mp_sum(energy_4x6,force_env%para_env%group)
+       CALL mp_sum(energy_colv,force_env%para_env%group)
+       CALL update_particle_set(particle_set,force_env%para_env%group,for=force,add=.TRUE.,&
+            error=error)
+       force = 0.0_dp
+       n_restraint = 0
+    ENDIF
+    ! Intermolecular Restraints
+    IF (ASSOCIATED(gci)) THEN
+       IF (gci%nrestraint>0) THEN
+          ! 3x3
+          IF ( gci%ng3x3_restraint /= 0 ) THEN
+             n_restraint=n_restraint+gci%ng3x3_restraint
+             CALL restraint_3x3_ext( gci, particle_set, energy_3x3, force, error )
+          ENDIF
+          ! 4x6
+          IF ( gci%ng4x6_restraint /= 0 ) THEN
+             n_restraint=n_restraint+gci%ng4x6_restraint
+             CALL restraint_4x6_ext( gci, particle_set, energy_4x6, force, error )
+          ENDIF
+          ! collective variables
+          IF ( gci%ncolv%nrestraint /= 0 ) THEN
+             n_restraint=n_restraint+gci%ncolv%nrestraint
+             CALL restraint_colv_ext( gci, particle_set, cell, energy_colv, force,&
+                  error )
+          ENDIF
+          DO iparticle = 1, SIZE(particle_set)
+             particle_set(iparticle)%f = particle_set(iparticle)%f + force(:,iparticle)
+          END DO
+       END IF
     END IF
+    DEALLOCATE(force,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! Store restraint energies
+    CALL force_env_get(force_env=force_env, additional_potential=extended_energies, error=error)
+    extended_energies=extended_energies+ energy_3x3  +&
+                                         energy_fixd +&
+                                         energy_4x6  +&
+                                         energy_colv
+    CALL force_env_set(force_env=force_env, additional_potential=extended_energies, error=error)
     CALL timestop(handle)
 
   END SUBROUTINE restraint_control

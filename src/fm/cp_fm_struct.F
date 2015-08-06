@@ -162,158 +162,152 @@ CPSourceFileRef,&
   ALLOCATE(fmstruct,stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-  IF (.NOT. failure) THEN
-     fmstruct%nrow_block=optimal_blacs_row_block_size
-     fmstruct%ncol_block=optimal_blacs_col_block_size
+  fmstruct%nrow_block=optimal_blacs_row_block_size
+  fmstruct%ncol_block=optimal_blacs_col_block_size
 
-     IF (.NOT.PRESENT(template_fmstruct)) THEN
-        CPPrecondition(PRESENT(context),cp_failure_level,routineP,error,failure)
-        CPPrecondition(PRESENT(nrow_global),cp_failure_level,routineP,error,failure)
-        CPPrecondition(PRESENT(ncol_global),cp_failure_level,routineP,error,failure)
-        fmstruct %local_leading_dimension = 1
-     ELSE
-        fmstruct%context => template_fmstruct%context
-        fmstruct%para_env => template_fmstruct%para_env
-        fmstruct%descriptor = template_fmstruct %descriptor
-        fmstruct %nrow_block = template_fmstruct %nrow_block
-        fmstruct %nrow_global = template_fmstruct %nrow_global
-        fmstruct %ncol_block = template_fmstruct %ncol_block
-        fmstruct %ncol_global = template_fmstruct %ncol_global
-        fmstruct %first_p_pos = template_fmstruct %first_p_pos
-        fmstruct %local_leading_dimension = &
-             template_fmstruct %local_leading_dimension
-     END IF
-
+  IF (.NOT.PRESENT(template_fmstruct)) THEN
+     CPPrecondition(PRESENT(context),cp_failure_level,routineP,error,failure)
+     CPPrecondition(PRESENT(nrow_global),cp_failure_level,routineP,error,failure)
+     CPPrecondition(PRESENT(ncol_global),cp_failure_level,routineP,error,failure)
+     fmstruct %local_leading_dimension = 1
+  ELSE
+     fmstruct%context => template_fmstruct%context
+     fmstruct%para_env => template_fmstruct%para_env
+     fmstruct%descriptor = template_fmstruct %descriptor
+     fmstruct %nrow_block = template_fmstruct %nrow_block
+     fmstruct %nrow_global = template_fmstruct %nrow_global
+     fmstruct %ncol_block = template_fmstruct %ncol_block
+     fmstruct %ncol_global = template_fmstruct %ncol_global
+     fmstruct %first_p_pos = template_fmstruct %first_p_pos
+     fmstruct %local_leading_dimension = &
+          template_fmstruct %local_leading_dimension
   END IF
+
   my_force_block=force_block_size
   IF (PRESENT(force_block)) my_force_block=force_block
-  IF (.NOT.failure) THEN
 
-     IF (PRESENT(context)) THEN
-        fmstruct%context => context
-        fmstruct%para_env => context%para_env
-     END IF
-     IF (PRESENT(para_env)) fmstruct%para_env => para_env
-     CALL cp_blacs_env_retain(fmstruct%context,error=error)
-     CALL cp_para_env_retain(fmstruct%para_env,error=error)
-
-     IF (PRESENT(nrow_global)) fmstruct%nrow_global=nrow_global
-     IF (PRESENT(ncol_global)) fmstruct%ncol_global=ncol_global
-
-     ! try to avoid small left-over blocks (anyway naive)
-     IF (PRESENT(nrow_block)) THEN
-         fmstruct%nrow_block=nrow_block
-     END IF
-     IF(.NOT. my_force_block) THEN
-       dumblock = CEILING(REAL(fmstruct%nrow_global,KIND=dp)/ &
-                REAL(fmstruct%context%num_pe(1),KIND=dp))
-       fmstruct%nrow_block=MAX(1, MIN(fmstruct%nrow_block, dumblock))
-     END IF
-     IF (PRESENT(ncol_block)) THEN
-       fmstruct%ncol_block=ncol_block
-     END IF
-     IF(.NOT. my_force_block) THEN
-       dumblock = CEILING(REAL(fmstruct%ncol_global,KIND=dp)/ &
-                  REAL(fmstruct%context%num_pe(2),KIND=dp))
-       fmstruct%ncol_block=MAX(1, MIN(fmstruct%ncol_block, dumblock))
-     END IF
-
-     ! square matrix -> square blocks (otherwise some op fail)
-     my_square_blocks = fmstruct%nrow_global==fmstruct%ncol_global
-     IF (PRESENT(square_blocks)) my_square_blocks=square_blocks
-     IF (my_square_blocks) THEN
-        fmstruct%nrow_block=MIN(fmstruct%nrow_block,fmstruct%ncol_block)
-        fmstruct%ncol_block=fmstruct%nrow_block
-     END IF
-
-     ALLOCATE(fmstruct%nrow_locals(0:(fmstruct%context%num_pe(1)-1)),&
-          fmstruct%ncol_locals(0:(fmstruct%context%num_pe(2)-1)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  IF (PRESENT(context)) THEN
+     fmstruct%context => context
+     fmstruct%para_env => context%para_env
   END IF
-  IF (.NOT.failure) THEN
-     IF (.NOT.PRESENT(template_fmstruct)) &
-          fmstruct%first_p_pos=(/0,0/)
-     IF (PRESENT(first_p_pos)) fmstruct%first_p_pos=first_p_pos
+  IF (PRESENT(para_env)) fmstruct%para_env => para_env
+  CALL cp_blacs_env_retain(fmstruct%context,error=error)
+  CALL cp_para_env_retain(fmstruct%para_env,error=error)
 
-     fmstruct%nrow_locals=0
-     fmstruct%ncol_locals=0
+  IF (PRESENT(nrow_global)) fmstruct%nrow_global=nrow_global
+  IF (PRESENT(ncol_global)) fmstruct%ncol_global=ncol_global
+
+  ! try to avoid small left-over blocks (anyway naive)
+  IF (PRESENT(nrow_block)) THEN
+      fmstruct%nrow_block=nrow_block
+  END IF
+  IF(.NOT. my_force_block) THEN
+    dumblock = CEILING(REAL(fmstruct%nrow_global,KIND=dp)/ &
+             REAL(fmstruct%context%num_pe(1),KIND=dp))
+    fmstruct%nrow_block=MAX(1, MIN(fmstruct%nrow_block, dumblock))
+  END IF
+  IF (PRESENT(ncol_block)) THEN
+    fmstruct%ncol_block=ncol_block
+  END IF
+  IF(.NOT. my_force_block) THEN
+    dumblock = CEILING(REAL(fmstruct%ncol_global,KIND=dp)/ &
+               REAL(fmstruct%context%num_pe(2),KIND=dp))
+    fmstruct%ncol_block=MAX(1, MIN(fmstruct%ncol_block, dumblock))
+  END IF
+
+  ! square matrix -> square blocks (otherwise some op fail)
+  my_square_blocks = fmstruct%nrow_global==fmstruct%ncol_global
+  IF (PRESENT(square_blocks)) my_square_blocks=square_blocks
+  IF (my_square_blocks) THEN
+     fmstruct%nrow_block=MIN(fmstruct%nrow_block,fmstruct%ncol_block)
+     fmstruct%ncol_block=fmstruct%nrow_block
+  END IF
+
+  ALLOCATE(fmstruct%nrow_locals(0:(fmstruct%context%num_pe(1)-1)),&
+       fmstruct%ncol_locals(0:(fmstruct%context%num_pe(2)-1)),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  IF (.NOT.PRESENT(template_fmstruct)) &
+       fmstruct%first_p_pos=(/0,0/)
+  IF (PRESENT(first_p_pos)) fmstruct%first_p_pos=first_p_pos
+
+  fmstruct%nrow_locals=0
+  fmstruct%ncol_locals=0
 #if defined(__SCALAPACK)
-     fmstruct%nrow_locals(fmstruct%context%mepos(1))= &
-          numroc(fmstruct%nrow_global,fmstruct%nrow_block,&
-          fmstruct%context%mepos(1),fmstruct%first_p_pos(1),&
-          fmstruct%context%num_pe(1))
-     fmstruct%ncol_locals(fmstruct%context%mepos(2))= &
-          numroc(fmstruct%ncol_global,fmstruct%ncol_block,&
-          fmstruct%context%mepos(2),fmstruct%first_p_pos(2),&
-          fmstruct%context%num_pe(2))
-     CALL mp_sum(fmstruct%nrow_locals,fmstruct%para_env%group)
-     CALL mp_sum(fmstruct%ncol_locals,fmstruct%para_env%group)
-     fmstruct%nrow_locals(:)=fmstruct%nrow_locals(:)/fmstruct%context%num_pe(2)
-     fmstruct%ncol_locals(:)=fmstruct%ncol_locals(:)/fmstruct%context%num_pe(1)
+  fmstruct%nrow_locals(fmstruct%context%mepos(1))= &
+       numroc(fmstruct%nrow_global,fmstruct%nrow_block,&
+       fmstruct%context%mepos(1),fmstruct%first_p_pos(1),&
+       fmstruct%context%num_pe(1))
+  fmstruct%ncol_locals(fmstruct%context%mepos(2))= &
+       numroc(fmstruct%ncol_global,fmstruct%ncol_block,&
+       fmstruct%context%mepos(2),fmstruct%first_p_pos(2),&
+       fmstruct%context%num_pe(2))
+  CALL mp_sum(fmstruct%nrow_locals,fmstruct%para_env%group)
+  CALL mp_sum(fmstruct%ncol_locals,fmstruct%para_env%group)
+  fmstruct%nrow_locals(:)=fmstruct%nrow_locals(:)/fmstruct%context%num_pe(2)
+  fmstruct%ncol_locals(:)=fmstruct%ncol_locals(:)/fmstruct%context%num_pe(1)
 
-     IF (SUM(fmstruct%ncol_locals).NE.fmstruct%ncol_global .OR. SUM(fmstruct%nrow_locals).NE.fmstruct%nrow_global) THEN
-        ! try to collect some output if this is going to happen again
-        ! this seems to trigger on blanc, but should really never happen
-        logger => cp_error_get_logger(error)
-        iunit=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-        WRITE(iunit,*) "mepos",fmstruct%context%mepos(1:2),"numpe",fmstruct%context%num_pe(1:2)
-        WRITE(iunit,*) "ncol_global",fmstruct%ncol_global
-        WRITE(iunit,*) "nrow_global",fmstruct%nrow_global
-        WRITE(iunit,*) "ncol_locals",fmstruct%ncol_locals
-        WRITE(iunit,*) "nrow_locals",fmstruct%nrow_locals
-        CALL m_flush(iunit)
-     ENDIF
+  IF (SUM(fmstruct%ncol_locals).NE.fmstruct%ncol_global .OR. SUM(fmstruct%nrow_locals).NE.fmstruct%nrow_global) THEN
+     ! try to collect some output if this is going to happen again
+     ! this seems to trigger on blanc, but should really never happen
+     logger => cp_error_get_logger(error)
+     iunit=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+     WRITE(iunit,*) "mepos",fmstruct%context%mepos(1:2),"numpe",fmstruct%context%num_pe(1:2)
+     WRITE(iunit,*) "ncol_global",fmstruct%ncol_global
+     WRITE(iunit,*) "nrow_global",fmstruct%nrow_global
+     WRITE(iunit,*) "ncol_locals",fmstruct%ncol_locals
+     WRITE(iunit,*) "nrow_locals",fmstruct%nrow_locals
+     CALL m_flush(iunit)
+  ENDIF
 
-     CALL cp_assert(SUM(fmstruct%ncol_locals).EQ.fmstruct%ncol_global,&
-          cp_failure_level,cp_assertion_failed,routineP,&
-          "sum of local cols not equal global cols"//&
+  CALL cp_assert(SUM(fmstruct%ncol_locals).EQ.fmstruct%ncol_global,&
+       cp_failure_level,cp_assertion_failed,routineP,&
+       "sum of local cols not equal global cols"//&
 CPSourceFileRef,&
-          error)
-     CALL cp_assert(SUM(fmstruct%nrow_locals).EQ.fmstruct%nrow_global,&
-          cp_failure_level,cp_assertion_failed,routineP,&
-          "sum of local row not equal global rows"//&
+       error)
+  CALL cp_assert(SUM(fmstruct%nrow_locals).EQ.fmstruct%nrow_global,&
+       cp_failure_level,cp_assertion_failed,routineP,&
+       "sum of local row not equal global rows"//&
 CPSourceFileRef,&
-          error)
+       error)
 #else
-     ! block = full matrix
-     fmstruct%nrow_block=fmstruct%nrow_global
-     fmstruct%ncol_block=fmstruct%ncol_global
-     fmstruct%nrow_locals(fmstruct%context%mepos(1))=fmstruct%nrow_global
-     fmstruct%ncol_locals(fmstruct%context%mepos(2))=fmstruct%ncol_global
+  ! block = full matrix
+  fmstruct%nrow_block=fmstruct%nrow_global
+  fmstruct%ncol_block=fmstruct%ncol_global
+  fmstruct%nrow_locals(fmstruct%context%mepos(1))=fmstruct%nrow_global
+  fmstruct%ncol_locals(fmstruct%context%mepos(2))=fmstruct%ncol_global
 #endif
 
-     fmstruct%local_leading_dimension = MAX(fmstruct%local_leading_dimension,&
-          fmstruct%nrow_locals(fmstruct%context%mepos(1)))
-     IF (PRESENT(local_leading_dimension)) THEN
-        CALL cp_assert(MAX(1,fmstruct%nrow_locals(fmstruct%context%mepos(1)))&
-             <= local_leading_dimension,cp_failure_level,cp_assertion_failed,&
-             routineP,"local_leading_dimension too small ("//&
-             cp_to_string(local_leading_dimension)//"<"//&
-             cp_to_string(fmstruct%local_leading_dimension)//")"//&
+  fmstruct%local_leading_dimension = MAX(fmstruct%local_leading_dimension,&
+       fmstruct%nrow_locals(fmstruct%context%mepos(1)))
+  IF (PRESENT(local_leading_dimension)) THEN
+     CALL cp_assert(MAX(1,fmstruct%nrow_locals(fmstruct%context%mepos(1)))&
+          <= local_leading_dimension,cp_failure_level,cp_assertion_failed,&
+          routineP,"local_leading_dimension too small ("//&
+          cp_to_string(local_leading_dimension)//"<"//&
+          cp_to_string(fmstruct%local_leading_dimension)//")"//&
 CPSourceFileRef,&
-             error=error,failure=failure)
-        fmstruct%local_leading_dimension=local_leading_dimension
-     END IF
+          error=error,failure=failure)
+     fmstruct%local_leading_dimension=local_leading_dimension
+  END IF
 
-     NULLIFY(fmstruct%row_indices, fmstruct%col_indices)
-     last_fmstruct_id_nr=last_fmstruct_id_nr+1
-     fmstruct%id_nr=last_fmstruct_id_nr
-     fmstruct%ref_count=1
+  NULLIFY(fmstruct%row_indices, fmstruct%col_indices)
+  last_fmstruct_id_nr=last_fmstruct_id_nr+1
+  fmstruct%id_nr=last_fmstruct_id_nr
+  fmstruct%ref_count=1
 
-     IF (PRESENT(descriptor)) THEN
-        fmstruct%descriptor=descriptor
-     ELSE
-        fmstruct%descriptor=0
+  IF (PRESENT(descriptor)) THEN
+     fmstruct%descriptor=descriptor
+  ELSE
+     fmstruct%descriptor=0
 #if defined(__SCALAPACK)
-        ! local leading dimension needs to be at least 1
-        CALL descinit(fmstruct%descriptor,fmstruct%nrow_global,&
-             fmstruct%ncol_global,fmstruct%nrow_block,&
-             fmstruct%ncol_block,fmstruct%first_p_pos(1),&
-             fmstruct%first_p_pos(2),fmstruct%context%group,&
-             fmstruct%local_leading_dimension,stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ! local leading dimension needs to be at least 1
+     CALL descinit(fmstruct%descriptor,fmstruct%nrow_global,&
+          fmstruct%ncol_global,fmstruct%nrow_block,&
+          fmstruct%ncol_block,fmstruct%first_p_pos(1),&
+          fmstruct%first_p_pos(2),fmstruct%context%group,&
+          fmstruct%local_leading_dimension,stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 #endif
-     END IF
   END IF
 END SUBROUTINE cp_fm_struct_create
 
@@ -338,10 +332,8 @@ SUBROUTINE cp_fm_struct_retain(fmstruct,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,error,failure)
-     fmstruct%ref_count=fmstruct%ref_count+1
-  END IF
+  CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,error,failure)
+  fmstruct%ref_count=fmstruct%ref_count+1
 END SUBROUTINE cp_fm_struct_retain
 
 ! *****************************************************************************
@@ -423,19 +415,17 @@ FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
   CPPrecondition(ASSOCIATED(fmstruct2),cp_failure_level,routineP,error,failure)
   CPPrecondition(fmstruct1%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(fmstruct2%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (fmstruct1%id_nr==fmstruct2%id_nr) THEN
-        res=.TRUE.
-     ELSE
-        res= (fmstruct1%context%group==fmstruct2%context%group).AND.&
-             (fmstruct1%nrow_global==fmstruct2%nrow_global).AND.&
-             (fmstruct1%ncol_global==fmstruct2%ncol_global).AND.&
-             (fmstruct1%local_leading_dimension==&
-             fmstruct2%local_leading_dimension)
-        DO i=1,9
-           res=res.AND.(fmstruct1%descriptor(i)==fmstruct1%descriptor(i))
-        END DO
-     END IF
+  IF (fmstruct1%id_nr==fmstruct2%id_nr) THEN
+     res=.TRUE.
+  ELSE
+     res= (fmstruct1%context%group==fmstruct2%context%group).AND.&
+          (fmstruct1%nrow_global==fmstruct2%nrow_global).AND.&
+          (fmstruct1%ncol_global==fmstruct2%ncol_global).AND.&
+          (fmstruct1%local_leading_dimension==&
+          fmstruct2%local_leading_dimension)
+     DO i=1,9
+        res=res.AND.(fmstruct1%descriptor(i)==fmstruct1%descriptor(i))
+     END DO
   END IF
 END FUNCTION cp_fm_struct_equivalent
 
@@ -608,75 +598,73 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
 
   CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,error,failure)
   CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     IF (PRESENT(para_env)) para_env => fmstruct%para_env
-     IF (PRESENT(context)) context => fmstruct%context
-     IF (PRESENT(descriptor)) descriptor = fmstruct%descriptor
-     IF (PRESENT(ncol_block)) ncol_block=fmstruct%ncol_block
-     IF (PRESENT(nrow_block)) nrow_block=fmstruct%nrow_block
-     IF (PRESENT(nrow_global)) nrow_global=fmstruct%nrow_global
-     IF (PRESENT(ncol_global)) ncol_global=fmstruct%ncol_global
-     IF (PRESENT(id_nr)) id_nr=fmstruct%id_nr
-     IF (PRESENT(ref_count)) ref_count=fmstruct%ref_count
-     IF (PRESENT(first_p_pos)) first_p_pos=fmstruct%first_p_pos
-     IF (PRESENT(nrow_locals)) nrow_locals => fmstruct%nrow_locals
-     IF (PRESENT(ncol_locals)) ncol_locals => fmstruct%ncol_locals
-     IF (PRESENT(local_leading_dimension)) local_leading_dimension =&
-          fmstruct%local_leading_dimension
+  IF (PRESENT(para_env)) para_env => fmstruct%para_env
+  IF (PRESENT(context)) context => fmstruct%context
+  IF (PRESENT(descriptor)) descriptor = fmstruct%descriptor
+  IF (PRESENT(ncol_block)) ncol_block=fmstruct%ncol_block
+  IF (PRESENT(nrow_block)) nrow_block=fmstruct%nrow_block
+  IF (PRESENT(nrow_global)) nrow_global=fmstruct%nrow_global
+  IF (PRESENT(ncol_global)) ncol_global=fmstruct%ncol_global
+  IF (PRESENT(id_nr)) id_nr=fmstruct%id_nr
+  IF (PRESENT(ref_count)) ref_count=fmstruct%ref_count
+  IF (PRESENT(first_p_pos)) first_p_pos=fmstruct%first_p_pos
+  IF (PRESENT(nrow_locals)) nrow_locals => fmstruct%nrow_locals
+  IF (PRESENT(ncol_locals)) ncol_locals => fmstruct%ncol_locals
+  IF (PRESENT(local_leading_dimension)) local_leading_dimension =&
+       fmstruct%local_leading_dimension
 
-    myprow=fmstruct%context%mepos(1)
-    mypcol=fmstruct%context%mepos(2)
-    nprow=fmstruct%context%num_pe(1)
-    npcol=fmstruct%context%num_pe(2)
+ myprow=fmstruct%context%mepos(1)
+ mypcol=fmstruct%context%mepos(2)
+ nprow=fmstruct%context%num_pe(1)
+ npcol=fmstruct%context%num_pe(2)
 
-    IF (PRESENT(nrow_local)) nrow_local=fmstruct%nrow_locals(myprow)
-    IF (PRESENT(ncol_local)) ncol_local=fmstruct%ncol_locals(mypcol)
+ IF (PRESENT(nrow_local)) nrow_local=fmstruct%nrow_locals(myprow)
+ IF (PRESENT(ncol_local)) ncol_local=fmstruct%ncol_locals(mypcol)
 
-    IF (PRESENT(row_indices)) THEN
+ IF (PRESENT(row_indices)) THEN
+    row_indices => fmstruct%row_indices
+    IF (.NOT.ASSOCIATED(row_indices)) THEN
+       ! the max should go away
+       ALLOCATE(fmstruct%row_indices &
+            (MAX(fmstruct%nrow_locals(myprow),1)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        row_indices => fmstruct%row_indices
-       IF (.NOT.ASSOCIATED(row_indices)) THEN
-          ! the max should go away
-          ALLOCATE(fmstruct%row_indices &
-               (MAX(fmstruct%nrow_locals(myprow),1)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          row_indices => fmstruct%row_indices
 #ifdef __SCALAPACK
-          DO i=1,SIZE(row_indices)
-          ! the max should go away
-             fmstruct%row_indices(i)=&
-                  indxl2g(i,fmstruct%nrow_block,myprow,&
-                  fmstruct%first_p_pos(1),nprow)
-          ENDDO
+       DO i=1,SIZE(row_indices)
+       ! the max should go away
+          fmstruct%row_indices(i)=&
+               indxl2g(i,fmstruct%nrow_block,myprow,&
+               fmstruct%first_p_pos(1),nprow)
+       ENDDO
 #else
-          DO i=1,SIZE(row_indices)
-             row_indices(i)=i
-          ENDDO
+       DO i=1,SIZE(row_indices)
+          row_indices(i)=i
+       ENDDO
 #endif
-       END IF
-    ENDIF
+    END IF
+ ENDIF
 
-    IF (PRESENT(col_indices)) THEN
+ IF (PRESENT(col_indices)) THEN
+    col_indices => fmstruct%col_indices
+    IF (.NOT.ASSOCIATED(col_indices)) THEN
+       ALLOCATE(fmstruct%col_indices &
+            (MAX(fmstruct%ncol_locals(mypcol),1)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        col_indices => fmstruct%col_indices
-       IF (.NOT.ASSOCIATED(col_indices)) THEN
-          ALLOCATE(fmstruct%col_indices &
-               (MAX(fmstruct%ncol_locals(mypcol),1)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          col_indices => fmstruct%col_indices
 #ifdef __SCALAPACK
-          DO i=1,SIZE(col_indices)
-             col_indices(i)=&
-                  indxl2g(i,fmstruct%ncol_block,mypcol,&
-                  fmstruct%first_p_pos(2),npcol)
-          ENDDO
+       DO i=1,SIZE(col_indices)
+          col_indices(i)=&
+               indxl2g(i,fmstruct%ncol_block,mypcol,&
+               fmstruct%first_p_pos(2),npcol)
+       ENDDO
 #else
-          DO i=1,SIZE(col_indices)
-             col_indices(i)=i
-          ENDDO
+       DO i=1,SIZE(col_indices)
+          col_indices(i)=i
+       ENDDO
 #endif
-       END IF
+    END IF
 
-    ENDIF
-  END IF
+ ENDIF
 END SUBROUTINE cp_fm_struct_get
 
 ! *****************************************************************************

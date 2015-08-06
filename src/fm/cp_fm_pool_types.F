@@ -100,15 +100,13 @@ CONTAINS
 
     ALLOCATE(pool, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       pool%el_struct=> el_struct
-       CALL cp_fm_struct_retain(pool%el_struct,error=error)
-       last_fm_pool_id_nr=last_fm_pool_id_nr+1
-       pool%id_nr=last_fm_pool_id_nr
-       pool%ref_count=1
-       NULLIFY(pool%cache)
-       
-    END IF
+    pool%el_struct=> el_struct
+    CALL cp_fm_struct_retain(pool%el_struct,error=error)
+    last_fm_pool_id_nr=last_fm_pool_id_nr+1
+    pool%id_nr=last_fm_pool_id_nr
+    pool%ref_count=1
+    NULLIFY(pool%cache)
+    
   END SUBROUTINE fm_pool_create
 
 ! *****************************************************************************
@@ -132,11 +130,9 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
 
-       pool%ref_count=pool%ref_count+1
-    END IF
+    pool%ref_count=pool%ref_count+1
   END SUBROUTINE fm_pool_retain
 
 ! *****************************************************************************
@@ -163,14 +159,12 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       iterator => pool%cache
-       DO
-          IF (.NOT.cp_sll_fm_next(iterator,el_att=el_att,error=error)) EXIT
-          CALL cp_fm_release(el_att,error=error)
-       END DO
-       CALL cp_sll_fm_dealloc(pool%cache,error=error)
-    END IF
+    iterator => pool%cache
+    DO
+       IF (.NOT.cp_sll_fm_next(iterator,el_att=el_att,error=error)) EXIT
+       CALL cp_fm_release(el_att,error=error)
+    END DO
+    CALL cp_sll_fm_dealloc(pool%cache,error=error)
   END SUBROUTINE fm_pool_flush_cache
 
 ! *****************************************************************************
@@ -238,26 +232,24 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       IF (ASSOCIATED(pool%cache)) THEN
-          element => cp_sll_fm_get_first_el(pool%cache,error=error)
-          CALL cp_sll_fm_rm_first_el(pool%cache,error=error)
-          
-       ELSE
-          NULLIFY(element)
-          CALL cp_fm_create(element,matrix_struct=pool%el_struct,error=error)
-       END IF
+    IF (ASSOCIATED(pool%cache)) THEN
+       element => cp_sll_fm_get_first_el(pool%cache,error=error)
+       CALL cp_sll_fm_rm_first_el(pool%cache,error=error)
        
-    IF (PRESENT(name)) THEN
-      element%name=name
-      element%print_count=0
     ELSE
-      element%name="tmp-"//TRIM(ADJUSTL(cp_to_string(element%id_nr)))
-      element%print_count=0
-      ! guarantee output unicity?
+       NULLIFY(element)
+       CALL cp_fm_create(element,matrix_struct=pool%el_struct,error=error)
     END IF
     
-    END IF
+ IF (PRESENT(name)) THEN
+   element%name=name
+   element%print_count=0
+ ELSE
+   element%name="tmp-"//TRIM(ADJUSTL(cp_to_string(element%id_nr)))
+   element%print_count=0
+   ! guarantee output unicity?
+ END IF
+ 
     CPPostcondition(ASSOCIATED(element),cp_failure_level,routineP,error,failure)
     CPPostcondition(element%ref_count==1,cp_warning_level,routineP,error,failure)
   END SUBROUTINE fm_pool_create_fm
@@ -291,23 +283,19 @@ CONTAINS
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(element),cp_warning_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-          CALL cp_assert(pool%el_struct%id_nr==element%matrix_struct%id_nr,&
-            cp_failure_level, cp_assertion_failed, routineP,&
-            "pool cannot reuse matrixes with another structure "//&
+    CALL cp_assert(pool%el_struct%id_nr==element%matrix_struct%id_nr,&
+      cp_failure_level, cp_assertion_failed, routineP,&
+      "pool cannot reuse matrixes with another structure "//&
 CPSourceFileRef,&
-            error=error,failure=failure)
-    END IF
+      error=error,failure=failure)
 
-    IF (.NOT. failure) THEN
-       CPPreconditionNoFail(element%ref_count==1,cp_warning_level,routineP,error)
-       IF (cp_debug) THEN
-          CALL cp_sll_fm_insert_ordered(pool%cache, el=element,&
-               insert_equals=.FALSE., did_insert=did_insert, error=error)
-          CPPostcondition(did_insert,cp_failure_level,routineP,error,failure)
-       ELSE
-          CALL cp_sll_fm_insert_el(pool%cache, el=element,error=error)
-       END IF
+    CPPreconditionNoFail(element%ref_count==1,cp_warning_level,routineP,error)
+    IF (cp_debug) THEN
+       CALL cp_sll_fm_insert_ordered(pool%cache, el=element,&
+            insert_equals=.FALSE., did_insert=did_insert, error=error)
+       CPPostcondition(did_insert,cp_failure_level,routineP,error,failure)
+    ELSE
+       CALL cp_sll_fm_insert_el(pool%cache, el=element,error=error)
     END IF
     NULLIFY(element)
   END SUBROUTINE fm_pool_give_back_fm
@@ -336,11 +324,7 @@ FUNCTION fm_pool_get_el_struct(pool,error) RESULT(res)
 
   CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
   CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     res => pool%el_struct
-  ELSE
-     NULLIFY(res)
-  END IF
+  res => pool%el_struct
 END FUNCTION fm_pool_get_el_struct
 
 !================== pools ================
@@ -369,16 +353,12 @@ SUBROUTINE fm_pools_copy(source_pools, target_pools, error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(source_pools),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     ALLOCATE(target_pools(SIZE(source_pools)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF (.NOT.failure) THEN
-     DO i=1,SIZE(source_pools)
-        target_pools(i)%pool => source_pools(i)%pool
-        CALL fm_pool_retain(source_pools(i)%pool,error=error)
-     END DO
-  END IF
+  ALLOCATE(target_pools(SIZE(source_pools)),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  DO i=1,SIZE(source_pools)
+     target_pools(i)%pool => source_pools(i)%pool
+     CALL fm_pool_retain(source_pools(i)%pool,error=error)
+  END DO
 END SUBROUTINE fm_pools_copy
 
 ! *****************************************************************************
@@ -443,26 +423,22 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
   NULLIFY(pool)
 
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     ALLOCATE(elements(SIZE(pools)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF (.NOT.failure) THEN
-     DO i=1,SIZE(pools)
-        NULLIFY(elements(i)%matrix)
-        pool => pools(i)%pool
-        IF (PRESENT(name)) THEN
-         CALL fm_pool_create_fm(pool,elements(i)%matrix,&
-           name=name//"-"//ADJUSTL(cp_to_string(i)),&
-           error=error)
-      ELSE
-         CALL fm_pool_create_fm(pool,elements(i)%matrix,&
-           error=error)
-      END IF
+  ALLOCATE(elements(SIZE(pools)),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  DO i=1,SIZE(pools)
+     NULLIFY(elements(i)%matrix)
+     pool => pools(i)%pool
+     IF (PRESENT(name)) THEN
+      CALL fm_pool_create_fm(pool,elements(i)%matrix,&
+        name=name//"-"//ADJUSTL(cp_to_string(i)),&
+        error=error)
+   ELSE
+      CALL fm_pool_create_fm(pool,elements(i)%matrix,&
+        error=error)
+   END IF
 
-     END DO
-     
-  END IF
+  END DO
+  
 END SUBROUTINE fm_pools_create_fm_vect
 
 ! *****************************************************************************
@@ -496,14 +472,12 @@ SUBROUTINE fm_pools_give_back_fm_vect(pools,elements,error)
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(elements),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(pools)==SIZE(elements),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     DO i=1,SIZE(pools)
-        CALL fm_pool_give_back_fm(pools(i)%pool,&
-             elements(i)%matrix,error=error)
-     END DO
-     DEALLOCATE(elements, stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  END IF
+  DO i=1,SIZE(pools)
+     CALL fm_pool_give_back_fm(pools(i)%pool,&
+          elements(i)%matrix,error=error)
+  END DO
+  DEALLOCATE(elements, stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   NULLIFY(elements)
 END SUBROUTINE fm_pools_give_back_fm_vect
 

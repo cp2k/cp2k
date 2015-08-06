@@ -555,20 +555,18 @@ CONTAINS
     TYPE(graph_type), DIMENSION(:), POINTER  :: tmp_graph_set
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       ldim = 0
+    ldim = 0
+    NULLIFY(tmp_graph_set)
+    IF (ASSOCIATED(graph_set)) THEN
+       ldim = SIZE(graph_set)
+       CPPostcondition(ldim+1==idim,cp_failure_level,routineP,error,failure)
        NULLIFY(tmp_graph_set)
-       IF (ASSOCIATED(graph_set)) THEN
-          ldim = SIZE(graph_set)
-          CPPostcondition(ldim+1==idim,cp_failure_level,routineP,error,failure)
-          NULLIFY(tmp_graph_set)
-          CALL allocate_graph_set(graph_set, tmp_graph_set, error=error)
-       END IF
-       CALL allocate_graph_set(tmp_graph_set, graph_set, ldim, ldim+1, error)
-       CALL setup_graph(ind, graph_set(ldim+1)%graph, array2,&
-                      atom_bond_list, map_mol, atm_map1, atm_map2, atm_map3,&
-                      error=error)
+       CALL allocate_graph_set(graph_set, tmp_graph_set, error=error)
     END IF
+    CALL allocate_graph_set(tmp_graph_set, graph_set, ldim, ldim+1, error)
+    CALL setup_graph(ind, graph_set(ldim+1)%graph, array2,&
+                   atom_bond_list, map_mol, atm_map1, atm_map2, atm_map3,&
+                   error=error)
 
   END SUBROUTINE setup_graph_set
 
@@ -594,42 +592,40 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       CPPostcondition(.NOT.ASSOCIATED(graph_set_out),cp_failure_level,routineP,error,failure)
-       mydim_in  = 0
-       mydim_out = 0
-       IF (ASSOCIATED(graph_set_in)) THEN
-          mydim_in  = SIZE(graph_set_in)
-          mydim_out = SIZE(graph_set_in)
-       END IF
-       IF (PRESENT(ldim_in))  mydim_in  = ldim_in
-       IF (PRESENT(ldim_out)) mydim_out = ldim_out
-       ALLOCATE(graph_set_out(mydim_out),stat=stat)
+    CPPostcondition(.NOT.ASSOCIATED(graph_set_out),cp_failure_level,routineP,error,failure)
+    mydim_in  = 0
+    mydim_out = 0
+    IF (ASSOCIATED(graph_set_in)) THEN
+       mydim_in  = SIZE(graph_set_in)
+       mydim_out = SIZE(graph_set_in)
+    END IF
+    IF (PRESENT(ldim_in))  mydim_in  = ldim_in
+    IF (PRESENT(ldim_out)) mydim_out = ldim_out
+    ALLOCATE(graph_set_out(mydim_out),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i = 1, mydim_out
+       NULLIFY(graph_set_out(i)%graph)
+    END DO
+    ! Copy graph structure into the temporary array
+    DO i = 1, mydim_in
+       v_dim = SIZE(graph_set_in(i)%graph)
+       ALLOCATE(graph_set_out(i)%graph(v_dim),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i = 1, mydim_out
-          NULLIFY(graph_set_out(i)%graph)
-       END DO
-       ! Copy graph structure into the temporary array
-       DO i = 1, mydim_in
-          v_dim = SIZE(graph_set_in(i)%graph)
-          ALLOCATE(graph_set_out(i)%graph(v_dim),stat=stat)
+       DO j = 1, v_dim
+          graph_set_out(i)%graph(j)%kind = graph_set_in(i)%graph(j)%kind
+          b_dim = SIZE(graph_set_in(i)%graph(j)%bonds)
+          ALLOCATE(graph_set_out(i)%graph(j)%bonds(b_dim),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO j = 1, v_dim
-             graph_set_out(i)%graph(j)%kind = graph_set_in(i)%graph(j)%kind
-             b_dim = SIZE(graph_set_in(i)%graph(j)%bonds)
-             ALLOCATE(graph_set_out(i)%graph(j)%bonds(b_dim),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             graph_set_out(i)%graph(j)%bonds = graph_set_in(i)%graph(j)%bonds
-             DEALLOCATE(graph_set_in(i)%graph(j)%bonds,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END DO
-          DEALLOCATE(graph_set_in(i)%graph,stat=stat)
+          graph_set_out(i)%graph(j)%bonds = graph_set_in(i)%graph(j)%bonds
+          DEALLOCATE(graph_set_in(i)%graph(j)%bonds,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO
-       IF (ASSOCIATED(graph_set_in)) THEN
-          DEALLOCATE(graph_set_in,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
+       DEALLOCATE(graph_set_in(i)%graph,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+    IF (ASSOCIATED(graph_set_in)) THEN
+       DEALLOCATE(graph_set_in,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
   END SUBROUTINE allocate_graph_set
@@ -1280,20 +1276,7 @@ CONTAINS
           !-----------------------------------------------------------------------------
           ! 3. Check that each molecule have the same bond sequences
           !-----------------------------------------------------------------------------
-          IF (SIZE(atom_bond_list(iatom)%array1)/=SIZE(atom_bond_list(first+loc_counter-1)%array1))&
-               failure = .TRUE.
-          IF (.NOT.failure) THEN
-             DO k = 1,SIZE(atom_bond_list(iatom)%array1)
-                IF (ALL(atom_bond_list(first+loc_counter-1)%array1-first/=&
-                        atom_bond_list(iatom)%array1(k)-first_loc)) THEN
-                   CALL stop_program(routineN,moduleN,__LINE__,&
-                        "different sequence of bonds for same molecule kind"//&
-                        " molecule type  = "//cp_to_string(mol_typ)//&
-                        " molecule number= "//cp_to_string(mol_num)//&
-                        " NOT FOUND! Check the connectivity of your system.")
-                END IF
-             END DO
-          ELSE
+          IF (SIZE(atom_bond_list(iatom)%array1)/=SIZE(atom_bond_list(first+loc_counter-1)%array1)) THEN
              CALL stop_program(routineN,moduleN,__LINE__,&
                   "different number of bonds for same molecule kind"//&
                   " molecule type  = "//cp_to_string(mol_typ)//&
@@ -1302,7 +1285,18 @@ CONTAINS
                   cp_to_string(SIZE(atom_bond_list(first+loc_counter-1)%array1))//" - "//&
                   cp_to_string(SIZE(atom_bond_list(iatom)%array1))//&
                   " NOT FOUND! Check the connectivity of your system.")
-          END IF
+          ENDIF
+
+          DO k = 1,SIZE(atom_bond_list(iatom)%array1)
+             IF (ALL(atom_bond_list(first+loc_counter-1)%array1-first/=&
+                     atom_bond_list(iatom)%array1(k)-first_loc)) THEN
+                CALL stop_program(routineN,moduleN,__LINE__,&
+                     "different sequence of bonds for same molecule kind"//&
+                     " molecule type  = "//cp_to_string(mol_typ)//&
+                     " molecule number= "//cp_to_string(mol_num)//&
+                     " NOT FOUND! Check the connectivity of your system.")
+             END IF
+          END DO
        ELSE
           mol_num = atom_info%map_mol_num(iatom)
           loc_counter = 1

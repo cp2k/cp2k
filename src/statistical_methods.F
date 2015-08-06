@@ -103,108 +103,104 @@ CONTAINS
     x(:) = ix
     CALL sort(x, n, itmp)
     ! Check for zero range
-    IF (.NOT.failure ) THEN
-       range = x(n) - x(1)
-       IF (range < small) failure = .TRUE.
-       IF (failure.AND.(output_unit>0)) THEN
-         WRITE(output_unit,'(A)')"Shapiro Wilk test: two data points are numerically identical."
-         WRITE(output_unit,'(A)')"Not able to perform the test!"
-       END IF
+    range = x(n) - x(1)
+    IF (range < small) failure = .TRUE.
+    IF (failure.AND.(output_unit>0)) THEN
+      WRITE(output_unit,'(A)')"Shapiro Wilk test: two data points are numerically identical."
+      WRITE(output_unit,'(A)')"Not able to perform the test!"
     END IF
-    IF (.NOT.failure) THEN
-       pw = one
-       w  = one
-       an = n
-       ! Calculates coefficients for the test
-       IF (n == 3) THEN
-          a(1) = sqrth
+    pw = one
+    w  = one
+    an = n
+    ! Calculates coefficients for the test
+    IF (n == 3) THEN
+       a(1) = sqrth
+    ELSE
+       an25 = an + qtr
+       summ2 = zero
+       DO i = 1, n2
+          CALL ppnd7((i - th)/an25, a(i))
+          summ2 = summ2 + a(i) ** 2
+       END DO
+       summ2 = summ2 * two
+       ssumm2 = SQRT(summ2)
+       rsn = one / SQRT(an)
+       a1 = poly(c1, 6, rsn) - a(1) / ssumm2
+       ! Normalize coefficients
+       IF (n > 5) THEN
+          i1 = 3
+          a2 = -a(2)/ssumm2 + poly(c2,6,rsn)
+          fac = SQRT((summ2 - two * a(1)**2 - two * a(2)**2)/(one - two * a1**2 - two * a2**2))
+          a(1) = a1
+          a(2) = a2
        ELSE
-          an25 = an + qtr
-          summ2 = zero
-          DO i = 1, n2
-             CALL ppnd7((i - th)/an25, a(i))
-             summ2 = summ2 + a(i) ** 2
-          END DO
-          summ2 = summ2 * two
-          ssumm2 = SQRT(summ2)
-          rsn = one / SQRT(an)
-          a1 = poly(c1, 6, rsn) - a(1) / ssumm2
-          ! Normalize coefficients
-          IF (n > 5) THEN
-             i1 = 3
-             a2 = -a(2)/ssumm2 + poly(c2,6,rsn)
-             fac = SQRT((summ2 - two * a(1)**2 - two * a(2)**2)/(one - two * a1**2 - two * a2**2))
-             a(1) = a1
-             a(2) = a2
-          ELSE
-             i1 = 2
-             fac = SQRT((summ2 - two * a(1)**2)/ (one - two * a1**2))
-             a(1) = a1
-          END IF
-          DO i = i1, n2
-             a(i) = -a(i)/fac
-          END DO
+          i1 = 2
+          fac = SQRT((summ2 - two * a(1)**2)/ (one - two * a1**2))
+          a(1) = a1
        END IF
-       ! scaled X
-       xx = x(1)/range
-       sx = xx
-       sa = -a(1)
-       j = n - 1
-       DO i = 2, n
-          xi = x(i)/range
-          sx = sx + xi
-          IF (i /= j) sa = sa + SIGN(1, i - j) * a(MIN(i, j))
-          xx = xi
-          j = j - 1
+       DO i = i1, n2
+          a(i) = -a(i)/fac
        END DO
-       ! Calculate W statistic as squared correlation
-       ! between data and coefficients
-       sa = sa/n
-       sx = sx/n
-       ssa = zero
-       ssx = zero
-       sax = zero
-       j = n
-       DO i = 1, n
-          IF (i /= j) THEN
-             asa = SIGN(1, i - j) * a(MIN(i, j)) - sa
-          ELSE
-             asa = -sa
-          END IF
-          xsx = x(i)/range - sx
-          ssa = ssa + asa * asa
-          ssx = ssx + xsx * xsx
-          sax = sax + asa * xsx
-          j = j - 1
-       END DO
-       ! W1 equals (1-W) calculated to avoid excessive rounding error
-       ! for W very near 1 (a potential problem in very large samples)
-       ssassx = SQRT(ssa * ssx)
-       w1 = (ssassx - sax) * (ssassx + sax)/(ssa * ssx)
-       w = one - w1
-       ! Calculate significance level for W (exact for N=3)
-       IF (n == 3) THEN
-          pw = pi6 * (ASIN(SQRT(w)) - stqr)
+    END IF
+    ! scaled X
+    xx = x(1)/range
+    sx = xx
+    sa = -a(1)
+    j = n - 1
+    DO i = 2, n
+       xi = x(i)/range
+       sx = sx + xi
+       IF (i /= j) sa = sa + SIGN(1, i - j) * a(MIN(i, j))
+       xx = xi
+       j = j - 1
+    END DO
+    ! Calculate W statistic as squared correlation
+    ! between data and coefficients
+    sa = sa/n
+    sx = sx/n
+    ssa = zero
+    ssx = zero
+    sax = zero
+    j = n
+    DO i = 1, n
+       IF (i /= j) THEN
+          asa = SIGN(1, i - j) * a(MIN(i, j)) - sa
        ELSE
-          y  = LOG(w1)
-          xx = LOG(an)
-          m = zero
-          s = one
-          IF (n <= 11) THEN
-             gamma = poly(g, 2, an)
-             IF (y >= gamma) THEN
-                pw = small
-             ELSE
-                y = -LOG(gamma - y)
-                m = poly(c3, 4, an)
-                s = EXP(poly(c4, 4, an))
-                pw = alnorm((y - m)/s, .TRUE.)
-             END IF
+          asa = -sa
+       END IF
+       xsx = x(i)/range - sx
+       ssa = ssa + asa * asa
+       ssx = ssx + xsx * xsx
+       sax = sax + asa * xsx
+       j = j - 1
+    END DO
+    ! W1 equals (1-W) calculated to avoid excessive rounding error
+    ! for W very near 1 (a potential problem in very large samples)
+    ssassx = SQRT(ssa * ssx)
+    w1 = (ssassx - sax) * (ssassx + sax)/(ssa * ssx)
+    w = one - w1
+    ! Calculate significance level for W (exact for N=3)
+    IF (n == 3) THEN
+       pw = pi6 * (ASIN(SQRT(w)) - stqr)
+    ELSE
+       y  = LOG(w1)
+       xx = LOG(an)
+       m = zero
+       s = one
+       IF (n <= 11) THEN
+          gamma = poly(g, 2, an)
+          IF (y >= gamma) THEN
+             pw = small
           ELSE
-             m = poly(c5, 4, xx)
-             s = EXP(poly(c6, 3, xx))
+             y = -LOG(gamma - y)
+             m = poly(c3, 4, an)
+             s = EXP(poly(c4, 4, an))
              pw = alnorm((y - m)/s, .TRUE.)
           END IF
+       ELSE
+          m = poly(c5, 4, xx)
+          s = EXP(poly(c6, 3, xx))
+          pw = alnorm((y - m)/s, .TRUE.)
        END IF
     END IF
     DEALLOCATE(x,stat=stat)

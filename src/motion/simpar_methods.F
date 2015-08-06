@@ -280,98 +280,96 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: tmp_section
 
     failure = .FALSE.
-    IF (.NOT.failure) THEN
-       NULLIFY(tmp_section)
-       CALL section_vals_val_get(md_section,"ENSEMBLE",i_val=simpar%ensemble,error=error)
-       CALL section_vals_val_get(md_section,"STEPS",i_val=simpar%nsteps,error=error)
-       CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=simpar%temp_ext,error=error)
-       CALL section_vals_val_get(md_section,"TEMP_TOL",r_val=simpar%temp_tol,error=error)
-       CALL section_vals_val_get(md_section,"ANGVEL_ZERO",l_val=simpar%angvel_zero,error=error)
-       CALL section_vals_val_get(md_section,"TEMP_KIND",l_val=simpar%temperature_per_kind,error=error)
-       CALL section_vals_val_get(md_section,"SCALE_TEMP_KIND",l_val=simpar%scale_temperature_per_kind,error=error)
-       CALL section_vals_val_get(md_section,"ANNEALING",r_val=simpar%f_annealing,explicit=simpar%annealing,&
-                                 error=error)
-       CALL section_vals_val_get(md_section,"ANNEALING_CELL",r_val=simpar%f_annealing_cell,&
-                                 explicit=simpar%annealing_cell,error=error)
-       CALL section_vals_val_get(md_section,"DISPLACEMENT_TOL",r_val=simpar%dr_tol,&
-                                 explicit=simpar%variable_dt,error=error)
-       CALL section_vals_val_get(md_section,"TIMESTEP",r_val=simpar%dt,error=error)
-       ! Initialize dt_fact to 1.0
-       simpar%dt_fact = 1.0_dp
+    NULLIFY(tmp_section)
+    CALL section_vals_val_get(md_section,"ENSEMBLE",i_val=simpar%ensemble,error=error)
+    CALL section_vals_val_get(md_section,"STEPS",i_val=simpar%nsteps,error=error)
+    CALL section_vals_val_get(md_section,"TEMPERATURE",r_val=simpar%temp_ext,error=error)
+    CALL section_vals_val_get(md_section,"TEMP_TOL",r_val=simpar%temp_tol,error=error)
+    CALL section_vals_val_get(md_section,"ANGVEL_ZERO",l_val=simpar%angvel_zero,error=error)
+    CALL section_vals_val_get(md_section,"TEMP_KIND",l_val=simpar%temperature_per_kind,error=error)
+    CALL section_vals_val_get(md_section,"SCALE_TEMP_KIND",l_val=simpar%scale_temperature_per_kind,error=error)
+    CALL section_vals_val_get(md_section,"ANNEALING",r_val=simpar%f_annealing,explicit=simpar%annealing,&
+                              error=error)
+    CALL section_vals_val_get(md_section,"ANNEALING_CELL",r_val=simpar%f_annealing_cell,&
+                              explicit=simpar%annealing_cell,error=error)
+    CALL section_vals_val_get(md_section,"DISPLACEMENT_TOL",r_val=simpar%dr_tol,&
+                              explicit=simpar%variable_dt,error=error)
+    CALL section_vals_val_get(md_section,"TIMESTEP",r_val=simpar%dt,error=error)
+    ! Initialize dt_fact to 1.0
+    simpar%dt_fact = 1.0_dp
 
-       IF (simpar%ensemble == langevin_ensemble) THEN
-          CALL section_vals_val_get(md_section, "LANGEVIN%GAMMA", r_val=simpar%gamma, error=error)
-          CALL section_vals_val_get(md_section, "LANGEVIN%NOISY_GAMMA", r_val=simpar%noisy_gamma,error=error)
-          CALL section_vals_val_get(md_section, "LANGEVIN%SHADOW_GAMMA", r_val=simpar%shadow_gamma,error=error)
-       END IF
-
-       tmp_section => section_vals_get_subs_vals(motion_section,"CONSTRAINT",error=error)
-       CALL section_vals_get(tmp_section,explicit=simpar%constraint,error=error)
-       IF (simpar%constraint) THEN
-          CALL section_vals_val_get(tmp_section,"SHAKE_TOLERANCE",r_val=simpar%shake_tol,error=error)
-          CALL cp_assert(simpar%shake_tol>EPSILON(0.0_dp)*1000.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
-               "Shake tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
-               "This may lead to numerical problems. Setting up shake_tol to 1000*EPSILON! "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
-          simpar%shake_tol = MAX(EPSILON(0.0_dp)*1000.0_dp,simpar%shake_tol)
-
-          CALL section_vals_val_get(tmp_section,"ROLL_TOLERANCE",r_val=simpar%roll_tol,error=error)
-          CALL cp_assert(simpar%roll_tol>EPSILON(0.0_dp)*1000.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
-               "Roll tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
-               "This may lead to numerical problems. Setting up roll_tol to 1000*EPSILON! "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
-          simpar%roll_tol = MAX(EPSILON(0.0_dp)*1000.0_dp,simpar%roll_tol)
-       END IF
-
-       IF (simpar%ensemble == nph_uniaxial_ensemble.OR.simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
-          tmp_section => section_vals_get_subs_vals(md_section,"MSST",error=error)
-          CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p0,error=error)
-          CALL section_vals_val_get(tmp_section,"ENERGY",r_val=simpar%e0,error=error)
-          CALL section_vals_val_get(tmp_section,"VOLUME",r_val=simpar%v0,error=error)
-          CALL section_vals_val_get(tmp_section,"GAMMA",r_val=simpar%gamma_nph,error=error)
-          IF (simpar%gamma_nph /= 0.0_dp) simpar%ensemble = nph_uniaxial_damped_ensemble
-          CALL section_vals_val_get(tmp_section,"CMASS",r_val=simpar%cmass,error=error)
-          CALL section_vals_val_get(tmp_section,"VSHOCK",r_val=simpar%v_shock,error=error)
-       END IF
-
-       SELECT CASE (simpar%ensemble)
-       CASE( nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
-               npt_f_ensemble, npt_i_ensemble, npe_f_ensemble, npe_i_ensemble)
-          tmp_section => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
-          CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p_ext,error=error)
-          CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_cell,error=error)
-       END SELECT
-
-       ! RESPA
-       tmp_section => section_vals_get_subs_vals(md_section,"RESPA",error=error)
-       CALL section_vals_get(tmp_section, explicit=simpar%do_respa, error=error)
-       CALL section_vals_val_get(tmp_section,"FREQUENCY",i_val=simpar%n_time_steps,error=error)
-       simpar%multi_time_switch = simpar%do_respa
-
-       ! CORE-SHELL MODEL
-       tmp_section => section_vals_get_subs_vals(md_section,"SHELL",error=error)
-       CALL section_vals_val_get(tmp_section,"TEMPERATURE",r_val=simpar%temp_sh_ext,error=error)
-       CALL section_vals_val_get(tmp_section,"TEMP_TOL",r_val=simpar%temp_sh_tol,error=error)
-
-       CALL section_vals_val_get(tmp_section,"DISPLACEMENT_SHELL_TOL",r_val=simpar%dsc_tol,&
-                                 explicit=explicit,error=error)
-       simpar%variable_dt = simpar%variable_dt.OR.explicit
-       ! ADIABATIC DYNAMICS
-       tmp_section => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS",error=error)
-       CALL section_vals_val_get(tmp_section,"TEMP_FAST",r_val=simpar%temp_fast,error=error)
-       CALL section_vals_val_get(tmp_section,"TEMP_SLOW",r_val=simpar%temp_slow,error=error)
-       CALL section_vals_val_get(tmp_section,"TEMP_TOL_FAST",r_val=simpar%temp_tol_fast,error=error)
-       CALL section_vals_val_get(tmp_section,"TEMP_TOL_SLOW",r_val=simpar%temp_tol_slow,error=error)
-       CALL section_vals_val_get(tmp_section,"N_RESP_FAST",i_val=simpar%n_resp_fast,error=error)
-
-       ! VELOCITY SOFTENING
-       tmp_section => section_vals_get_subs_vals(md_section,"VELOCITY_SOFTENING",error=error)
-       CALL section_vals_val_get(tmp_section,"STEPS",i_val=simpar%soften_nsteps,error=error)
-       CALL section_vals_val_get(tmp_section,"ALPHA",r_val=simpar%soften_alpha,error=error)
-       CALL section_vals_val_get(tmp_section,"DELTA",r_val=simpar%soften_delta,error=error)
+    IF (simpar%ensemble == langevin_ensemble) THEN
+       CALL section_vals_val_get(md_section, "LANGEVIN%GAMMA", r_val=simpar%gamma, error=error)
+       CALL section_vals_val_get(md_section, "LANGEVIN%NOISY_GAMMA", r_val=simpar%noisy_gamma,error=error)
+       CALL section_vals_val_get(md_section, "LANGEVIN%SHADOW_GAMMA", r_val=simpar%shadow_gamma,error=error)
     END IF
+
+    tmp_section => section_vals_get_subs_vals(motion_section,"CONSTRAINT",error=error)
+    CALL section_vals_get(tmp_section,explicit=simpar%constraint,error=error)
+    IF (simpar%constraint) THEN
+       CALL section_vals_val_get(tmp_section,"SHAKE_TOLERANCE",r_val=simpar%shake_tol,error=error)
+       CALL cp_assert(simpar%shake_tol>EPSILON(0.0_dp)*1000.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
+            "Shake tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
+            "This may lead to numerical problems. Setting up shake_tol to 1000*EPSILON! "//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+       simpar%shake_tol = MAX(EPSILON(0.0_dp)*1000.0_dp,simpar%shake_tol)
+
+       CALL section_vals_val_get(tmp_section,"ROLL_TOLERANCE",r_val=simpar%roll_tol,error=error)
+       CALL cp_assert(simpar%roll_tol>EPSILON(0.0_dp)*1000.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
+            "Roll tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
+            "This may lead to numerical problems. Setting up roll_tol to 1000*EPSILON! "//&
+CPSourceFileRef,&
+            only_ionode=.TRUE.)
+       simpar%roll_tol = MAX(EPSILON(0.0_dp)*1000.0_dp,simpar%roll_tol)
+    END IF
+
+    IF (simpar%ensemble == nph_uniaxial_ensemble.OR.simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
+       tmp_section => section_vals_get_subs_vals(md_section,"MSST",error=error)
+       CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p0,error=error)
+       CALL section_vals_val_get(tmp_section,"ENERGY",r_val=simpar%e0,error=error)
+       CALL section_vals_val_get(tmp_section,"VOLUME",r_val=simpar%v0,error=error)
+       CALL section_vals_val_get(tmp_section,"GAMMA",r_val=simpar%gamma_nph,error=error)
+       IF (simpar%gamma_nph /= 0.0_dp) simpar%ensemble = nph_uniaxial_damped_ensemble
+       CALL section_vals_val_get(tmp_section,"CMASS",r_val=simpar%cmass,error=error)
+       CALL section_vals_val_get(tmp_section,"VSHOCK",r_val=simpar%v_shock,error=error)
+    END IF
+
+    SELECT CASE (simpar%ensemble)
+    CASE( nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
+            npt_f_ensemble, npt_i_ensemble, npe_f_ensemble, npe_i_ensemble)
+       tmp_section => section_vals_get_subs_vals(md_section,"BAROSTAT",error=error)
+       CALL section_vals_val_get(tmp_section,"PRESSURE",r_val=simpar%p_ext,error=error)
+       CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_cell,error=error)
+    END SELECT
+
+    ! RESPA
+    tmp_section => section_vals_get_subs_vals(md_section,"RESPA",error=error)
+    CALL section_vals_get(tmp_section, explicit=simpar%do_respa, error=error)
+    CALL section_vals_val_get(tmp_section,"FREQUENCY",i_val=simpar%n_time_steps,error=error)
+    simpar%multi_time_switch = simpar%do_respa
+
+    ! CORE-SHELL MODEL
+    tmp_section => section_vals_get_subs_vals(md_section,"SHELL",error=error)
+    CALL section_vals_val_get(tmp_section,"TEMPERATURE",r_val=simpar%temp_sh_ext,error=error)
+    CALL section_vals_val_get(tmp_section,"TEMP_TOL",r_val=simpar%temp_sh_tol,error=error)
+
+    CALL section_vals_val_get(tmp_section,"DISPLACEMENT_SHELL_TOL",r_val=simpar%dsc_tol,&
+                              explicit=explicit,error=error)
+    simpar%variable_dt = simpar%variable_dt.OR.explicit
+    ! ADIABATIC DYNAMICS
+    tmp_section => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS",error=error)
+    CALL section_vals_val_get(tmp_section,"TEMP_FAST",r_val=simpar%temp_fast,error=error)
+    CALL section_vals_val_get(tmp_section,"TEMP_SLOW",r_val=simpar%temp_slow,error=error)
+    CALL section_vals_val_get(tmp_section,"TEMP_TOL_FAST",r_val=simpar%temp_tol_fast,error=error)
+    CALL section_vals_val_get(tmp_section,"TEMP_TOL_SLOW",r_val=simpar%temp_tol_slow,error=error)
+    CALL section_vals_val_get(tmp_section,"N_RESP_FAST",i_val=simpar%n_resp_fast,error=error)
+
+    ! VELOCITY SOFTENING
+    tmp_section => section_vals_get_subs_vals(md_section,"VELOCITY_SOFTENING",error=error)
+    CALL section_vals_val_get(tmp_section,"STEPS",i_val=simpar%soften_nsteps,error=error)
+    CALL section_vals_val_get(tmp_section,"ALPHA",r_val=simpar%soften_alpha,error=error)
+    CALL section_vals_val_get(tmp_section,"DELTA",r_val=simpar%soften_delta,error=error)
   END SUBROUTINE read_md_low
 
 END MODULE simpar_methods

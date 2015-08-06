@@ -162,30 +162,28 @@ MODULE qs_efield_berry
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-       CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,error=error)
-       NULLIFY (matrix_s)
-       CALL get_qs_env(qs_env=qs_env,efield=efield,cell=cell,matrix_s=matrix_s,error=error)
-       CALL init_efield_matrices(efield,error)
-       ALLOCATE(cosmat(3),sinmat(3),stat=stat)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,error=error)
+    NULLIFY (matrix_s)
+    CALL get_qs_env(qs_env=qs_env,efield=efield,cell=cell,matrix_s=matrix_s,error=error)
+    CALL init_efield_matrices(efield,error)
+    ALLOCATE(cosmat(3),sinmat(3),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i=1,3
+       ALLOCATE(cosmat(i)%matrix,sinmat(i)%matrix,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i=1,3
-          ALLOCATE(cosmat(i)%matrix,sinmat(i)%matrix,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          CALL cp_dbcsr_init(cosmat(i)%matrix,error=error)
-          CALL cp_dbcsr_init(sinmat(i)%matrix, error=error)
+       CALL cp_dbcsr_init(cosmat(i)%matrix,error=error)
+       CALL cp_dbcsr_init(sinmat(i)%matrix, error=error)
 
-          CALL cp_dbcsr_copy(cosmat(i)%matrix,matrix_s(1)%matrix,'COS MAT',error=error)
-          CALL cp_dbcsr_copy(sinmat(i)%matrix,matrix_s(1)%matrix,'SIN MAT',error=error)
-          CALL cp_dbcsr_set(cosmat(i)%matrix,0.0_dp,error=error)
-          CALL cp_dbcsr_set(sinmat(i)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_copy(cosmat(i)%matrix,matrix_s(1)%matrix,'COS MAT',error=error)
+       CALL cp_dbcsr_copy(sinmat(i)%matrix,matrix_s(1)%matrix,'SIN MAT',error=error)
+       CALL cp_dbcsr_set(cosmat(i)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_set(sinmat(i)%matrix,0.0_dp,error=error)
 
-          kvec(:) = twopi*cell%h_inv(i,:)
-          CALL build_berry_moment_matrix(qs_env,cosmat(i)%matrix,sinmat(i)%matrix,kvec,error)
-       END DO
-       CALL set_efield_matrices(efield=efield,cosmat=cosmat,sinmat=sinmat)
-       CALL set_qs_env(qs_env=qs_env,efield=efield,error=error)
-    END IF
+       kvec(:) = twopi*cell%h_inv(i,:)
+       CALL build_berry_moment_matrix(qs_env,cosmat(i)%matrix,sinmat(i)%matrix,kvec,error)
+    END DO
+    CALL set_efield_matrices(efield=efield,cosmat=cosmat,sinmat=sinmat)
+    CALL set_qs_env(qs_env=qs_env,efield=efield,error=error)
     CALL timestop(handle)
 
   END SUBROUTINE qs_efield_integrals

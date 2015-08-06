@@ -713,7 +713,6 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
 ! *** method dependent cleanup
        SELECT CASE(scf_env%method)
        CASE(ot_method_nr)
@@ -723,22 +722,21 @@ CONTAINS
           DEALLOCATE(scf_env%qs_ot_env,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        CASE(ot_diag_method_nr)
-          !
+   !
        CASE(general_diag_method_nr)
-          !
+   !
        CASE(special_diag_method_nr)
-          !
+   !
        CASE(block_krylov_diag_method_nr,block_davidson_diag_method_nr)
-          !
+   !
        CASE(filter_matrix_diag_method_nr)
-          !
+   !
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&
                cp_to_string(scf_env%method),error,failure)
        END SELECT
 
-    END IF
 
     CALL timestop(handle)
 

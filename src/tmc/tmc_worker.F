@@ -865,16 +865,14 @@ CONTAINS
 
     ! get the molecule info 
     CALL f_env_get_from_id(env_id,f_env,error)
-    IF (.NOT.failure) THEN
-      CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
+    CALL force_env_get(f_env%force_env,subsys=subsys,error=error)
 
-      CALL cp_subsys_get(subsys=subsys, molecules_new=molecule_new,&
-                         error=error)
-      loop_mol: DO mol=1, SIZE(molecule_new%els(:))
-        init_conf%mol(molecule_new%els(mol)%first_atom:&
-                      molecule_new%els(mol)%last_atom) = mol
-      END DO loop_mol
-    END IF
+    CALL cp_subsys_get(subsys=subsys, molecules_new=molecule_new,&
+                       error=error)
+    loop_mol: DO mol=1, SIZE(molecule_new%els(:))
+      init_conf%mol(molecule_new%els(mol)%first_atom:&
+                    molecule_new%els(mol)%last_atom) = mol
+    END DO loop_mol
 
     ! end the timing
     CALL timestop(handle)
@@ -917,24 +915,22 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
 
     CALL f_env_get_from_id(env_id,f_env,error)
-    IF (.NOT.failure) THEN
-      nr_atoms = force_env_get_natom(f_env%force_env,error=error)
-      CALL force_env_get(f_env%force_env,subsys=subsys,cell=cell_tmp,error=error)
-      ALLOCATE(cell)
-      CALL cell_copy(cell_in=cell_tmp, cell_out=cell, error=error)
+    nr_atoms = force_env_get_natom(f_env%force_env,error=error)
+    CALL force_env_get(f_env%force_env,subsys=subsys,cell=cell_tmp,error=error)
+    ALLOCATE(cell)
+    CALL cell_copy(cell_in=cell_tmp, cell_out=cell, error=error)
 
-      !get atom kinds
-      CALL allocate_tmc_atom_type(atoms, nr_atoms, error)
-      CALL cp_subsys_get(subsys, particles=particles, error=error)
-      nunits_tot=SIZE(particles%els(:))
-      IF(nunits_tot .GT. 0) THEN
-         DO iparticle=1, nunits_tot
-           atoms(iparticle)%name = particles%els(iparticle)%atomic_kind%name
-           atoms(iparticle)%mass = particles%els(iparticle)%atomic_kind%mass
-         END DO
-         CPPostcondition(iparticle-1.EQ.nr_atoms,cp_failure_level,routineP,error,failure)
-      ENDIF
-    END IF
+    !get atom kinds
+    CALL allocate_tmc_atom_type(atoms, nr_atoms, error)
+    CALL cp_subsys_get(subsys, particles=particles, error=error)
+    nunits_tot=SIZE(particles%els(:))
+    IF(nunits_tot .GT. 0) THEN
+       DO iparticle=1, nunits_tot
+         atoms(iparticle)%name = particles%els(iparticle)%atomic_kind%name
+         atoms(iparticle)%mass = particles%els(iparticle)%atomic_kind%mass
+       END DO
+       CPPostcondition(iparticle-1.EQ.nr_atoms,cp_failure_level,routineP,error,failure)
+    ENDIF
   END SUBROUTINE get_atom_kinds_and_cell
 
 ! *****************************************************************************

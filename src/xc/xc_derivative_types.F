@@ -83,15 +83,13 @@ CONTAINS
     ALLOCATE(derivative, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF (.NOT. failure) THEN
-       derivative%ref_count = 1
-       derivative%id_nr     = derivative_id_nr
-       derivative_id_nr     = derivative_id_nr + 1
-       CALL standardize_derivative_desc(desc,my_desc,error=error)
-       CALL create_split_derivative_desc(my_desc,derivative%split_desc,error=error)
-       derivative%desc = my_desc
-       derivative%deriv_data => cr3d_ptr
-    END IF
+    derivative%ref_count = 1
+    derivative%id_nr     = derivative_id_nr
+    derivative_id_nr     = derivative_id_nr + 1
+    CALL standardize_derivative_desc(desc,my_desc,error=error)
+    CALL create_split_derivative_desc(my_desc,derivative%split_desc,error=error)
+    derivative%desc = my_desc
+    derivative%deriv_data => cr3d_ptr
 
   END SUBROUTINE xc_derivative_create
 
@@ -116,10 +114,8 @@ SUBROUTINE xc_derivative_retain(deriv,error)
   failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(deriv),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPreconditionNoFail(deriv%ref_count>0,cp_failure_level,routineP,error)
-     deriv%ref_count=deriv%ref_count+1
-  END IF
+  CPPreconditionNoFail(deriv%ref_count>0,cp_failure_level,routineP,error)
+  deriv%ref_count=deriv%ref_count+1
 END SUBROUTINE xc_derivative_retain
 
 ! *****************************************************************************
@@ -147,25 +143,23 @@ END SUBROUTINE xc_derivative_retain
     CPPrecondition(ASSOCIATED(derivative),cp_failure_level,routineP,error,failure)
     CPPrecondition(derivative%ref_count>=1,cp_failure_level,routineP,error,failure)
 
-    IF (.not.failure) THEN
-       derivative%ref_count = derivative%ref_count - 1
-       IF (derivative%ref_count == 0) THEN
-          IF (PRESENT(pw_pool)) THEN
-             IF (ASSOCIATED(pw_pool)) THEN
-                CALL pw_pool_give_back_cr3d(pw_pool, derivative%deriv_data,&
-                     accept_non_compatible=.TRUE.,error=error)
-             END IF
+    derivative%ref_count = derivative%ref_count - 1
+    IF (derivative%ref_count == 0) THEN
+       IF (PRESENT(pw_pool)) THEN
+          IF (ASSOCIATED(pw_pool)) THEN
+             CALL pw_pool_give_back_cr3d(pw_pool, derivative%deriv_data,&
+                  accept_non_compatible=.TRUE.,error=error)
           END IF
-          IF (ASSOCIATED(derivative%deriv_data)) THEN
-             DEALLOCATE(derivative%deriv_data, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-          DEALLOCATE(derivative%split_desc, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-
-          DEALLOCATE(derivative, stat=stat)
+       END IF
+       IF (ASSOCIATED(derivative%deriv_data)) THEN
+          DEALLOCATE(derivative%deriv_data, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
+       DEALLOCATE(derivative%split_desc, stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+       DEALLOCATE(derivative, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     NULLIFY(derivative)
 
@@ -211,17 +205,15 @@ SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
 
   CPPrecondition(ASSOCIATED(deriv),cp_failure_level,routineP,error,failure)
   CPPrecondition(deriv%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (PRESENT(desc)) desc = deriv%desc
-     IF (PRESENT(split_desc)) split_desc => deriv%split_desc
-     IF (PRESENT(deriv_data)) THEN
-        deriv_data => deriv%deriv_data
-        IF (.NOT.my_accept_null_data) THEN
-           CPPrecondition(ASSOCIATED(deriv_data),cp_failure_level,routineP,error,failure)
-        END IF
+  IF (PRESENT(desc)) desc = deriv%desc
+  IF (PRESENT(split_desc)) split_desc => deriv%split_desc
+  IF (PRESENT(deriv_data)) THEN
+     deriv_data => deriv%deriv_data
+     IF (.NOT.my_accept_null_data) THEN
+        CPPrecondition(ASSOCIATED(deriv_data),cp_failure_level,routineP,error,failure)
      END IF
-     IF (PRESENT(order)) order=SIZE(deriv%split_desc)
   END IF
+  IF (PRESENT(order)) order=SIZE(deriv%split_desc)
 END SUBROUTINE xc_derivative_get
 
 END MODULE xc_derivative_types

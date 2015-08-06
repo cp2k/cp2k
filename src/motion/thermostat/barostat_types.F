@@ -160,11 +160,9 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    IF (.NOT. failure) THEN
-       IF (ASSOCIATED(barostat)) THEN
-          CPPrecondition(barostat%ref_count>0,cp_failure_level,routineP,error,failure)
-          barostat%ref_count=barostat%ref_count+1
-       END IF
+    IF (ASSOCIATED(barostat)) THEN
+       CPPrecondition(barostat%ref_count>0,cp_failure_level,routineP,error,failure)
+       barostat%ref_count=barostat%ref_count+1
     END IF
   END SUBROUTINE retain_barostat_type
 

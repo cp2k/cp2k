@@ -506,24 +506,22 @@ CONTAINS
 
 !   *** finish initialization of the MOs ***
     CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
-       DO ispin=1,SIZE(mos)
-          CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,mo_coeff_b=mo_coeff_b)
-          IF (.NOT.ASSOCIATED(mo_coeff)) THEN
-             CALL init_mo_set(mos(ispin)%mo_set,&
-                  ao_mo_fm_pools(ispin)%pool,&
-                  name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                  "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                  error=error)
-          END IF
-          IF(.not.ASSOCIATED(mo_coeff_b)) THEN
-             CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff,ncol_global=nmo,error=error)
-             CALL cp_dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b,error=error)
-             CALL cp_dbcsr_m_by_n_from_row_template(mos(ispin)%mo_set%mo_coeff_b,template=matrix_s(1,1)%matrix,n=nmo,&
-                                                    sym=dbcsr_type_no_symmetry, error=error)
-          ENDIF
-       END DO
-    END IF
+    DO ispin=1,SIZE(mos)
+       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,mo_coeff_b=mo_coeff_b)
+       IF (.NOT.ASSOCIATED(mo_coeff)) THEN
+          CALL init_mo_set(mos(ispin)%mo_set,&
+               ao_mo_fm_pools(ispin)%pool,&
+               name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+               "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+               error=error)
+       END IF
+       IF(.not.ASSOCIATED(mo_coeff_b)) THEN
+          CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff,ncol_global=nmo,error=error)
+          CALL cp_dbcsr_init_p(mos(ispin)%mo_set%mo_coeff_b,error=error)
+          CALL cp_dbcsr_m_by_n_from_row_template(mos(ispin)%mo_set%mo_coeff_b,template=matrix_s(1,1)%matrix,n=nmo,&
+                                                 sym=dbcsr_type_no_symmetry, error=error)
+       ENDIF
+    END DO
 !   *** get the mo_derivs OK if needed ***
 
     IF (qs_env%requires_mo_derivs) THEN
@@ -551,18 +549,16 @@ CONTAINS
       CPPrecondition(ASSOCIATED(mos_aux_fit),cp_failure_level,routineP,error,failure)
       CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit,&
            error=error)
-      IF (.NOT.failure) THEN
-         DO ispin=1,SIZE(mos_aux_fit)
-            CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
-            IF (.NOT.ASSOCIATED(mo_coeff_aux_fit)) THEN
-               CALL init_mo_set(mos_aux_fit(ispin)%mo_set,&
-                    ao_mo_fm_pools_aux_fit(ispin)%pool,&
-                    name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
-                    "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                    error=error)
-            END IF
-         END DO
-      END IF
+      DO ispin=1,SIZE(mos_aux_fit)
+         CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
+         IF (.NOT.ASSOCIATED(mo_coeff_aux_fit)) THEN
+            CALL init_mo_set(mos_aux_fit(ispin)%mo_set,&
+                 ao_mo_fm_pools_aux_fit(ispin)%pool,&
+                 name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
+                 "%mo_aux_fit"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                 error=error)
+         END IF
+      END DO
       IF (qs_env%requires_mo_derivs) THEN
        CALL get_qs_env(qs_env,mo_derivs_aux_fit=mo_derivs_aux_fit,error=error)
        IF (.NOT.ASSOCIATED(mo_derivs_aux_fit)) THEN
@@ -593,20 +589,18 @@ CONTAINS
           mos_k => kpoints%kp_env(ik)%kpoint_env%mos
           ikk = kpoints%kp_range(1) + ik - 1
           CPPrecondition(ASSOCIATED(mos_k),cp_failure_level,routineP,error,failure)
-          IF (.NOT.failure) THEN
-             DO ispin=1,SIZE(mos_k,2)
-                DO ic=1,SIZE(mos_k,1)
-                   CALL get_mo_set(mos_k(ic,ispin)%mo_set,mo_coeff=mo_coeff,mo_coeff_b=mo_coeff_b)
-                   IF (.NOT.ASSOCIATED(mo_coeff)) THEN
-                      CALL init_mo_set(mos_k(ic,ispin)%mo_set,ao_mo_fm_pools(ispin)%pool,&
-                           name="kpoints_"//TRIM(ADJUSTL(cp_to_string(ikk)))//&
-                           "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
-                   END IF
-                   ! no sparse matrix representation of kpoint MO vectors
-                   CPPrecondition(.NOT.ASSOCIATED(mo_coeff_b),cp_failure_level,routineP,error,failure)
-                END DO
+          DO ispin=1,SIZE(mos_k,2)
+             DO ic=1,SIZE(mos_k,1)
+                CALL get_mo_set(mos_k(ic,ispin)%mo_set,mo_coeff=mo_coeff,mo_coeff_b=mo_coeff_b)
+                IF (.NOT.ASSOCIATED(mo_coeff)) THEN
+                   CALL init_mo_set(mos_k(ic,ispin)%mo_set,ao_mo_fm_pools(ispin)%pool,&
+                        name="kpoints_"//TRIM(ADJUSTL(cp_to_string(ikk)))//&
+                        "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
+                END IF
+                ! no sparse matrix representation of kpoint MO vectors
+                CPPrecondition(.NOT.ASSOCIATED(mo_coeff_b),cp_failure_level,routineP,error,failure)
              END DO
-          END IF
+          END DO
        END DO
     END IF
 
@@ -1102,68 +1096,66 @@ CONTAINS
                     para_env=para_env,&
                     error=error)
 
-    IF (.NOT.failure) THEN
-       extrapolation_method_nr=wfi_use_guess_method_nr
-       IF (ASSOCIATED(qs_env%wf_history)) THEN
-          CALL wfi_extrapolate(qs_env%wf_history, &
-               qs_env=qs_env, dt=1.0_dp, &
-               extrapolation_method_nr=extrapolation_method_nr,&
-               orthogonal_wf=orthogonal_wf, error=error)
-          ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
-          IF ((.NOT.orthogonal_wf).AND.&
-              (scf_env%method == ot_method_nr).AND.&
-              (.NOT.(extrapolation_method_nr == wfi_use_guess_method_nr))) THEN
-             DO ispin=1,SIZE(mos)
-                CALL get_mo_set(mos(ispin)%mo_set, &
-                     mo_coeff=mo_coeff, nmo=nmo)
-                CALL reorthogonalize_vectors(qs_env, &
-                     v_matrix=mo_coeff, n_col=nmo,&
-                     error=error)
-                CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, &
-                     smear=scf_control%smear, error=error)
-             END DO
-          END IF
+    extrapolation_method_nr=wfi_use_guess_method_nr
+    IF (ASSOCIATED(qs_env%wf_history)) THEN
+       CALL wfi_extrapolate(qs_env%wf_history, &
+            qs_env=qs_env, dt=1.0_dp, &
+            extrapolation_method_nr=extrapolation_method_nr,&
+            orthogonal_wf=orthogonal_wf, error=error)
+       ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
+       IF ((.NOT.orthogonal_wf).AND.&
+           (scf_env%method == ot_method_nr).AND.&
+           (.NOT.(extrapolation_method_nr == wfi_use_guess_method_nr))) THEN
+          DO ispin=1,SIZE(mos)
+             CALL get_mo_set(mos(ispin)%mo_set, &
+                  mo_coeff=mo_coeff, nmo=nmo)
+             CALL reorthogonalize_vectors(qs_env, &
+                  v_matrix=mo_coeff, n_col=nmo,&
+                  error=error)
+             CALL set_mo_occupation(mo_set=mos(ispin)%mo_set, &
+                  smear=scf_control%smear, error=error)
+          END DO
        END IF
-       output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
-            extension=".scfLog",error=error)
-       IF (output_unit>0) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
-               "Extrapolation method: "//&
-               TRIM(wfi_get_method_label(extrapolation_method_nr,error=error))
-       END IF
-
-       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-            "PRINT%PROGRAM_RUN_INFO", error=error)
-       IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
-          CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,error=error)
-          IF (.NOT.(scf_control%density_guess==densities_guess)) THEN
-            CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-            CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
-                 error=error)
-          END IF
-       END IF
-
-       ! Some preparation for the mixing
-       IF(scf_env%mixing_method>1) THEN
-          IF(dft_control % qs_control%gapw) THEN
-            CALL get_qs_env(qs_env=qs_env,&
-                 rho_atom_set=rho_atom,error=error)
-            CALL mixing_init(scf_env%mixing_method,rho,scf_env%mixing_store,&
-                             para_env,rho_atom=rho_atom,error=error)
-          ELSE
-            CALL mixing_init(scf_env%mixing_method,rho,scf_env%mixing_store,&
-                             para_env,error=error)
-          END IF
-       END IF
-
-       DO ispin=1,SIZE(mos)!fm->dbcsr
-          IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN
-             CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,&
-                  mos(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
-          ENDIF
-       ENDDO!fm->dbcsr
-
     END IF
+    output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".scfLog",error=error)
+    IF (output_unit>0) THEN
+       WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
+            "Extrapolation method: "//&
+            TRIM(wfi_get_method_label(extrapolation_method_nr,error=error))
+    END IF
+
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+         "PRINT%PROGRAM_RUN_INFO", error=error)
+    IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
+       CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,error=error)
+       IF (.NOT.(scf_control%density_guess==densities_guess)) THEN
+         CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+         CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
+              error=error)
+       END IF
+    END IF
+
+    ! Some preparation for the mixing
+    IF(scf_env%mixing_method>1) THEN
+       IF(dft_control % qs_control%gapw) THEN
+         CALL get_qs_env(qs_env=qs_env,&
+              rho_atom_set=rho_atom,error=error)
+         CALL mixing_init(scf_env%mixing_method,rho,scf_env%mixing_store,&
+                          para_env,rho_atom=rho_atom,error=error)
+       ELSE
+         CALL mixing_init(scf_env%mixing_method,rho,scf_env%mixing_store,&
+                          para_env,error=error)
+       END IF
+    END IF
+
+    DO ispin=1,SIZE(mos)!fm->dbcsr
+       IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN
+          CALL copy_fm_to_dbcsr(mos(ispin)%mo_set%mo_coeff,&
+               mos(ispin)%mo_set%mo_coeff_b,error=error)!fm->dbcsr
+       ENDIF
+    ENDDO!fm->dbcsr
+
 
     CALL timestop(handle)
 

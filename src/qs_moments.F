@@ -865,227 +865,259 @@ CONTAINS
       RETURN
     ENDIF
 
-     IF (.NOT.failure) THEN
 
-       CALL timeset(routineN,handle)
+     CALL timeset(routineN,handle)
 
-       ! restrict maximum moment available
-       nmom = MIN(nmoments,2)
+     ! restrict maximum moment available
+     nmom = MIN(nmoments,2)
 
-       nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
-       ! rmom(:,1)=electronic
-       ! rmom(:,2)=nuclear
-       ! rmom(:,1)=total
-       ALLOCATE (rmom(nm+1,3),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (rlab(nm+1),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       rmom = 0.0_dp
-       rlab = ""
-       IF(magnetic) THEN
-          nm=3
-          ALLOCATE (mmom(nm),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          mmom = 0._dp
+     nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
+     ! rmom(:,1)=electronic
+     ! rmom(:,2)=nuclear
+     ! rmom(:,1)=total
+     ALLOCATE (rmom(nm+1,3),STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE (rlab(nm+1),STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     rmom = 0.0_dp
+     rlab = ""
+     IF(magnetic) THEN
+        nm=3
+        ALLOCATE (mmom(nm),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        mmom = 0._dp
+     END IF
+
+     NULLIFY (dft_control,rho,cell,particle_set,results,para_env,&
+              local_particles,matrix_s,mos,rho_ao)
+
+     CALL get_qs_env(qs_env,&
+                     dft_control=dft_control,&
+                     rho=rho,&
+                     cell=cell,&
+                     results=results,&
+                     particle_set=particle_set,&
+                     qs_kind_set=qs_kind_set,&
+                     para_env=para_env,&
+                     local_particles=local_particles,&
+                     matrix_s=matrix_s,&
+                     mos=mos,&
+                     error=error)
+
+     CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+
+     NULLIFY ( cosmat, sinmat )
+     ALLOCATE(cosmat, sinmat)
+     CALL cp_dbcsr_init(cosmat, error=error)
+     CALL cp_dbcsr_init(sinmat, error=error)
+     CALL cp_dbcsr_copy(cosmat,matrix_s(1)%matrix,'COS MOM',error=error)
+     CALL cp_dbcsr_copy(sinmat,matrix_s(1)%matrix,'SIN MOM',error=error)
+     CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
+     CALL cp_dbcsr_set(sinmat,0.0_dp,error=error)
+
+     ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE ( opvec( dft_control%nspins ), STAT = istat )
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     nmotot = 0
+     DO ispin = 1, dft_control%nspins
+       NULLIFY(tmp_fm_struct,mo_coeff)
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+       nmotot = nmotot + nmo
+       CALL cp_fm_create (opvec(ispin)%matrix , mo_coeff%matrix_struct ,error=error)
+       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,&
+            ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context,&
+            error=error)
+       DO i = 1, SIZE ( op_fm_set, 1 )
+          NULLIFY(op_fm_set(i,ispin)%matrix)
+          CALL cp_fm_create (op_fm_set(i,ispin)%matrix , tmp_fm_struct ,error=error)
+       END DO
+       CALL cp_cfm_create ( eigrmat(ispin)%matrix, op_fm_set(1,ispin)%matrix%matrix_struct ,&
+       error=error)
+       CALL cp_fm_struct_release(tmp_fm_struct,error=error)
+     END DO
+
+     ! occupation
+     DO ispin = 1, dft_control%nspins
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=occ,uniform_occupation=uniform)
+       IF (.NOT.uniform) THEN
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Berry phase moments for non uniform MOs' occupation numbers not implemented", &
+               error=error, error_level=cp_failure_level)
        END IF
+     END DO
 
-       NULLIFY (dft_control,rho,cell,particle_set,results,para_env,&
-                local_particles,matrix_s,mos,rho_ao)
+     ! reference point
+     CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)
+     rcc = pbc(rcc,cell)
 
-       CALL get_qs_env(qs_env,&
-                       dft_control=dft_control,&
-                       rho=rho,&
-                       cell=cell,&
-                       results=results,&
-                       particle_set=particle_set,&
-                       qs_kind_set=qs_kind_set,&
-                       para_env=para_env,&
-                       local_particles=local_particles,&
-                       matrix_s=matrix_s,&
-                       mos=mos,&
-                       error=error)
+     ! label
+     DO l = 1, nm
+        ix = indco(1,l+1)
+        iy = indco(2,l+1)
+        iz = indco(3,l+1)
+        CALL set_label (rlab(l+1),ix,iy,iz)
+     END DO
 
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+     ! nuclear contribution
+     DO ia = 1,SIZE(particle_set)
+       atomic_kind => particle_set(ia)%atomic_kind
+       CALL get_atomic_kind(atomic_kind, kind_number=ikind)
+       CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost, error=error)
+       IF (.NOT. ghost) THEN
+          rmom(1,2) = rmom(1,2) - charge
+       ENDIF
+     END DO
+     ria = twopi * MATMUL ( cell%h_inv, rcc )
+     zphase = CMPLX ( COS(ria), SIN(ria), dp )**rmom(1,2)
 
-       NULLIFY ( cosmat, sinmat )
-       ALLOCATE(cosmat, sinmat)
-       CALL cp_dbcsr_init(cosmat, error=error)
-       CALL cp_dbcsr_init(sinmat, error=error)
-       CALL cp_dbcsr_copy(cosmat,matrix_s(1)%matrix,'COS MOM',error=error)
-       CALL cp_dbcsr_copy(sinmat,matrix_s(1)%matrix,'SIN MOM',error=error)
-       CALL cp_dbcsr_set(cosmat,0.0_dp,error=error)
-       CALL cp_dbcsr_set(sinmat,0.0_dp,error=error)
+     zi = 0._dp
+     zij = 0._dp
+     zijk = 0._dp
+     zijkl = 0._dp
 
-       ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE ( opvec( dft_control%nspins ), STAT = istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       nmotot = 0
-       DO ispin = 1, dft_control%nspins
-         NULLIFY(tmp_fm_struct,mo_coeff)
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
-         nmotot = nmotot + nmo
-         CALL cp_fm_create (opvec(ispin)%matrix , mo_coeff%matrix_struct ,error=error)
-         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nmo,&
-              ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context,&
-              error=error)
-         DO i = 1, SIZE ( op_fm_set, 1 )
-            NULLIFY(op_fm_set(i,ispin)%matrix)
-            CALL cp_fm_create (op_fm_set(i,ispin)%matrix , tmp_fm_struct ,error=error)
-         END DO
-         CALL cp_cfm_create ( eigrmat(ispin)%matrix, op_fm_set(1,ispin)%matrix%matrix_struct ,&
-         error=error)
-         CALL cp_fm_struct_release(tmp_fm_struct,error=error)
-       END DO
-
-       ! occupation
-       DO ispin = 1, dft_control%nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=occ,uniform_occupation=uniform)
-         IF (.NOT.uniform) THEN
-            CALL cp_unimplemented_error(fromWhere=routineP, &
-                 message="Berry phase moments for non uniform MOs' occupation numbers not implemented", &
-                 error=error, error_level=cp_failure_level)
-         END IF
-       END DO
-
-       ! reference point
-       CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)
-       rcc = pbc(rcc,cell)
-
-       ! label
-       DO l = 1, nm
-          ix = indco(1,l+1)
-          iy = indco(2,l+1)
-          iz = indco(3,l+1)
-          CALL set_label (rlab(l+1),ix,iy,iz)
-       END DO
-
-       ! nuclear contribution
-       DO ia = 1,SIZE(particle_set)
-         atomic_kind => particle_set(ia)%atomic_kind
-         CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-         CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost, error=error)
-         IF (.NOT. ghost) THEN
-            rmom(1,2) = rmom(1,2) - charge
-         ENDIF
-       END DO
-       ria = twopi * MATMUL ( cell%h_inv, rcc )
-       zphase = CMPLX ( COS(ria), SIN(ria), dp )**rmom(1,2)
-
-       zi = 0._dp
-       zij = 0._dp
-       zijk = 0._dp
-       zijkl = 0._dp
-
-       DO l = 1, nmom
-         SELECT CASE (l)
-           CASE (1)
-             ! Dipole
-             zi(:) = CMPLX ( 1._dp, 0._dp, dp )
-             DO ia = 1,SIZE(particle_set)
-               atomic_kind => particle_set(ia)%atomic_kind
-               CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-               CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost, error=error)
-               IF (.NOT. ghost) THEN
-                  ria = particle_set(ia)%r
-                  ria = pbc(ria,cell)
-                  DO i = 1, 3
-                    kvec(:) = twopi*cell%h_inv(i,:)
-                    dd = SUM ( kvec(:) * ria(:) )
-                    zdeta = CMPLX(COS(dd),SIN(dd),KIND=dp)**charge
-                    zi(i) = zi(i) * zdeta
-                  END DO
-               ENDIF
-             END DO
-             zi = zi * zphase
-             ci = AIMAG(LOG(zi)) / twopi
-             qq = AIMAG(LOG(zi))
-             rmom(2:4,2) = MATMUL ( cell%hmat, ci )
-           CASE (2)
-             ! Quadrupole
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 1 not implemented", &
-                  error=error, error_level=cp_failure_level)
-             zij(:,:) = CMPLX ( 1._dp, 0._dp, dp )
-             DO ia = 1,SIZE(particle_set)
-               atomic_kind => particle_set(ia)%atomic_kind
-               CALL get_atomic_kind(atomic_kind, kind_number=ikind)
-               CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, error=error)
-               ria = particle_set(ia)%r
-               ria = pbc(ria,cell)
-               DO i = 1, 3
-                 DO j = i, 3
-                   kvec(:) = twopi*(cell%h_inv(i,:)+cell%h_inv(j,:))
-                   dd = SUM ( kvec(:) * ria(:) )
-                   zdeta = CMPLX(COS(dd),SIN(dd),KIND=dp)**charge
-                   zij(i,j) = zij(i,j) * zdeta
-                 END DO
-                 zij(j,i) = zij(i,j)
-               END DO
-             END DO
-             DO i=1,3
-               DO j=1,3
-                 zij(i,j) = zij(i,j)*zphase(i)*zphase(j)
-                 zz = zij(i,j)/zi(i)/zi(j)
-                 cij(i,j) = AIMAG(LOG(zz))/twopi
-               END DO
-             END DO
-             cij = 0.5_dp*cij/twopi/twopi
-             cij = MATMUL ( MATMUL ( cell%hmat, cij ), TRANSPOSE(cell%hmat) )
-             DO k = 4, 9
-               ix = indco(1,k+1)
-               iy = indco(2,k+1)
-               iz = indco(3,k+1)
-               IF ( ix == 0 ) THEN
-                 rmom(k+1,2) = cij(iy,iz)
-               ELSE IF ( iy == 0 ) THEN
-                 rmom(k+1,2) = cij(ix,iz)
-               ELSE IF ( iz == 0 ) THEN
-                 rmom(k+1,2) = cij(ix,iy)
-               END IF
-             END DO
-           CASE (3)
-             ! Octapole
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 2 not implemented", &
-                  error=error, error_level=cp_failure_level)
-           CASE (4)
-             ! Hexadecapole
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 3 not implemented", &
-                  error=error, error_level=cp_failure_level)
-           CASE DEFAULT
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 4 not implemented", &
-                  error=error, error_level=cp_failure_level)
-         END SELECT
-       END DO
-
-       ! electronic contribution
-
-       ria = twopi * REAL(nmotot,dp) * occ * MATMUL ( cell%h_inv, rcc )
-       xphase = CMPLX ( COS(ria), SIN(ria), dp )
-
-       ! charge
-       trace = 0.0_dp
-       DO ispin=1,dft_control%nspins
-         CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
-         rmom(1,1) = rmom(1,1) + trace
-       END DO
-
-       zi = 0._dp
-       zij = 0._dp
-       zijk = 0._dp
-       zijkl = 0._dp
-
-       DO l = 1, nmom
-         SELECT CASE (l)
-           CASE (1)
-             ! Dipole
+     DO l = 1, nmom
+       SELECT CASE (l)
+         CASE (1)
+           ! Dipole
+           zi(:) = CMPLX ( 1._dp, 0._dp, dp )
+           DO ia = 1,SIZE(particle_set)
+             atomic_kind => particle_set(ia)%atomic_kind
+             CALL get_atomic_kind(atomic_kind, kind_number=ikind)
+             CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, ghost=ghost, error=error)
+             IF (.NOT. ghost) THEN
+                ria = particle_set(ia)%r
+                ria = pbc(ria,cell)
+                DO i = 1, 3
+                  kvec(:) = twopi*cell%h_inv(i,:)
+                  dd = SUM ( kvec(:) * ria(:) )
+                  zdeta = CMPLX(COS(dd),SIN(dd),KIND=dp)**charge
+                  zi(i) = zi(i) * zdeta
+                END DO
+             ENDIF
+           END DO
+           zi = zi * zphase
+           ci = AIMAG(LOG(zi)) / twopi
+           qq = AIMAG(LOG(zi))
+           rmom(2:4,2) = MATMUL ( cell%hmat, ci )
+         CASE (2)
+           ! Quadrupole
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+                message="Berry phase moments bigger than 1 not implemented", &
+                error=error, error_level=cp_failure_level)
+           zij(:,:) = CMPLX ( 1._dp, 0._dp, dp )
+           DO ia = 1,SIZE(particle_set)
+             atomic_kind => particle_set(ia)%atomic_kind
+             CALL get_atomic_kind(atomic_kind, kind_number=ikind)
+             CALL get_qs_kind(qs_kind_set(ikind), core_charge=charge, error=error)
+             ria = particle_set(ia)%r
+             ria = pbc(ria,cell)
              DO i = 1, 3
-                kvec(:) = twopi*cell%h_inv(i,:)
+               DO j = i, 3
+                 kvec(:) = twopi*(cell%h_inv(i,:)+cell%h_inv(j,:))
+                 dd = SUM ( kvec(:) * ria(:) )
+                 zdeta = CMPLX(COS(dd),SIN(dd),KIND=dp)**charge
+                 zij(i,j) = zij(i,j) * zdeta
+               END DO
+               zij(j,i) = zij(i,j)
+             END DO
+           END DO
+           DO i=1,3
+             DO j=1,3
+               zij(i,j) = zij(i,j)*zphase(i)*zphase(j)
+               zz = zij(i,j)/zi(i)/zi(j)
+               cij(i,j) = AIMAG(LOG(zz))/twopi
+             END DO
+           END DO
+           cij = 0.5_dp*cij/twopi/twopi
+           cij = MATMUL ( MATMUL ( cell%hmat, cij ), TRANSPOSE(cell%hmat) )
+           DO k = 4, 9
+             ix = indco(1,k+1)
+             iy = indco(2,k+1)
+             iz = indco(3,k+1)
+             IF ( ix == 0 ) THEN
+               rmom(k+1,2) = cij(iy,iz)
+             ELSE IF ( iy == 0 ) THEN
+               rmom(k+1,2) = cij(ix,iz)
+             ELSE IF ( iz == 0 ) THEN
+               rmom(k+1,2) = cij(ix,iy)
+             END IF
+           END DO
+         CASE (3)
+           ! Octapole
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+                message="Berry phase moments bigger than 2 not implemented", &
+                error=error, error_level=cp_failure_level)
+         CASE (4)
+           ! Hexadecapole
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+                message="Berry phase moments bigger than 3 not implemented", &
+                error=error, error_level=cp_failure_level)
+         CASE DEFAULT
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+                message="Berry phase moments bigger than 4 not implemented", &
+                error=error, error_level=cp_failure_level)
+       END SELECT
+     END DO
+
+     ! electronic contribution
+
+     ria = twopi * REAL(nmotot,dp) * occ * MATMUL ( cell%h_inv, rcc )
+     xphase = CMPLX ( COS(ria), SIN(ria), dp )
+
+     ! charge
+     trace = 0.0_dp
+     DO ispin=1,dft_control%nspins
+       CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
+       rmom(1,1) = rmom(1,1) + trace
+     END DO
+
+     zi = 0._dp
+     zij = 0._dp
+     zijk = 0._dp
+     zijkl = 0._dp
+
+     DO l = 1, nmom
+       SELECT CASE (l)
+         CASE (1)
+           ! Dipole
+           DO i = 1, 3
+              kvec(:) = twopi*cell%h_inv(i,:)
+              CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
+              IF(qs_env%run_rtp)THEN
+                 CALL get_qs_env(qs_env,rtp=rtp,error=error)
+                 CALL get_rtp(rtp,mos_new=mos_new,error=error)
+                 CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new,error)
+              ELSE
+                 CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
+              END IF
+              zdet = CMPLX ( 1._dp, 0._dp, dp )
+              DO ispin = 1, dft_control%nspins
+                CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim,error=error)
+                DO idim=1,tmp_dim
+                   eigrmat(ispin)%matrix%local_data(:,idim) = &
+                        CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
+                               -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
+                END DO
+                CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta ,error)
+                zdet = zdet * zdeta
+                IF (dft_control%nspins==1) THEN
+                   zdet = zdet * zdeta
+                ENDIF
+              END DO
+              zi(i) = zdet
+           END DO
+           zi = zi * xphase
+         CASE (2)
+           ! Quadrupole
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+              message="Berry phase moments bigger than 1 not implemented", &
+              error=error, error_level=cp_failure_level)
+           DO i = 1, 3
+             DO j = i, 3
+                kvec(:) = twopi*(cell%h_inv(i,:)+cell%h_inv(j,:))
                 CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
                 IF(qs_env%run_rtp)THEN
                    CALL get_qs_env(qs_env,rtp=rtp,error=error)
@@ -1098,9 +1130,9 @@ CONTAINS
                 DO ispin = 1, dft_control%nspins
                   CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim,error=error)
                   DO idim=1,tmp_dim
-                     eigrmat(ispin)%matrix%local_data(:,idim) = &
-                          CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
-                                 -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
+                  eigrmat(ispin)%matrix%local_data(:,idim) = &
+                        CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
+                               -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
                   END DO
                   CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta ,error)
                   zdet = zdet * zdeta
@@ -1108,151 +1140,117 @@ CONTAINS
                      zdet = zdet * zdeta
                   ENDIF
                 END DO
-                zi(i) = zdet
+                zij(i,j) = zdet*xphase(i)*xphase(j)
+                zij(j,i) = zdet*xphase(i)*xphase(j)
              END DO
-             zi = zi * xphase
-           CASE (2)
-             ! Quadrupole
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Berry phase moments bigger than 1 not implemented", &
+           END DO
+         CASE (3)
+           ! Octapole
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+                message="Berry phase moments bigger than 2 not implemented", &
                 error=error, error_level=cp_failure_level)
-             DO i = 1, 3
-               DO j = i, 3
-                  kvec(:) = twopi*(cell%h_inv(i,:)+cell%h_inv(j,:))
-                  CALL build_berry_moment_matrix(qs_env,cosmat,sinmat,kvec,error)
-                  IF(qs_env%run_rtp)THEN
-                     CALL get_qs_env(qs_env,rtp=rtp,error=error)
-                     CALL get_rtp(rtp,mos_new=mos_new,error=error)
-                     CALL op_orbbas_rtp (cosmat,sinmat,mos,op_fm_set,mos_new,error)
-                  ELSE
-                     CALL op_orbbas (cosmat,sinmat,mos,op_fm_set,opvec,error)
-                  END IF
-                  zdet = CMPLX ( 1._dp, 0._dp, dp )
-                  DO ispin = 1, dft_control%nspins
-                    CALL cp_cfm_get_info(eigrmat(ispin)%matrix,ncol_local=tmp_dim,error=error)
-                    DO idim=1,tmp_dim
-                    eigrmat(ispin)%matrix%local_data(:,idim) = &
-                          CMPLX (op_fm_set(1,ispin)%matrix%local_data(:,idim), &
-                                 -op_fm_set(2,ispin)%matrix%local_data(:,idim),dp)
-                    END DO
-                    CALL cp_cfm_lu_decompose ( eigrmat(ispin)%matrix, zdeta ,error)
-                    zdet = zdet * zdeta
-                    IF (dft_control%nspins==1) THEN
-                       zdet = zdet * zdeta
-                    ENDIF
-                  END DO
-                  zij(i,j) = zdet*xphase(i)*xphase(j)
-                  zij(j,i) = zdet*xphase(i)*xphase(j)
-               END DO
-             END DO
-           CASE (3)
-             ! Octapole
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 2 not implemented", &
-                  error=error, error_level=cp_failure_level)
-           CASE (4)
-             ! Hexadecapole
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 3 not implemented", &
-                  error=error, error_level=cp_failure_level)
-           CASE DEFAULT
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 4 not implemented", &
-                  error=error, error_level=cp_failure_level)
-         END SELECT
-       END DO
-       DO l = 1, nmom
-         SELECT CASE (l)
-           CASE (1)
-             ! Dipole (apply periodic (2 Pi) boundary conditions)
-             ci = AIMAG(LOG(zi))
-             DO i=1,3
-                IF( qq(i)+ci(i) > pi ) ci(i) = ci(i) - twopi
-                IF( qq(i)+ci(i) < -pi ) ci(i) = ci(i) + twopi
-             END DO
-             rmom(2:4,1) = MATMUL ( cell%hmat, ci ) / twopi
-           CASE (2)
-             ! Quadrupole
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Berry phase moments bigger than 1 not implemented", &
+         CASE (4)
+           ! Hexadecapole
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+                message="Berry phase moments bigger than 3 not implemented", &
                 error=error, error_level=cp_failure_level)
-             DO i=1,3
-               DO j=1,3
-                 zz = zij(i,j)/zi(i)/zi(j)
-                 cij(i,j) =AIMAG(LOG(zz))/twopi
-               END DO
+         CASE DEFAULT
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+                message="Berry phase moments bigger than 4 not implemented", &
+                error=error, error_level=cp_failure_level)
+       END SELECT
+     END DO
+     DO l = 1, nmom
+       SELECT CASE (l)
+         CASE (1)
+           ! Dipole (apply periodic (2 Pi) boundary conditions)
+           ci = AIMAG(LOG(zi))
+           DO i=1,3
+              IF( qq(i)+ci(i) > pi ) ci(i) = ci(i) - twopi
+              IF( qq(i)+ci(i) < -pi ) ci(i) = ci(i) + twopi
+           END DO
+           rmom(2:4,1) = MATMUL ( cell%hmat, ci ) / twopi
+         CASE (2)
+           ! Quadrupole
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+              message="Berry phase moments bigger than 1 not implemented", &
+              error=error, error_level=cp_failure_level)
+           DO i=1,3
+             DO j=1,3
+               zz = zij(i,j)/zi(i)/zi(j)
+               cij(i,j) =AIMAG(LOG(zz))/twopi
              END DO
-             cij = 0.5_dp*cij/twopi/twopi
-             cij = MATMUL ( MATMUL ( cell%hmat, cij ), TRANSPOSE(cell%hmat) )
-             DO k = 4, 9
-               ix = indco(1,k+1)
-               iy = indco(2,k+1)
-               iz = indco(3,k+1)
-               IF ( ix == 0 ) THEN
-                 rmom(k+1,1) = cij(iy,iz)
-               ELSE IF ( iy == 0 ) THEN
-                 rmom(k+1,1) = cij(ix,iz)
-               ELSE IF ( iz == 0 ) THEN
-                 rmom(k+1,1) = cij(ix,iy)
-               END IF
-             END DO
-           CASE (3)
-             ! Octapole
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 2 not implemented", &
-                  error=error, error_level=cp_failure_level)
-           CASE (4)
-             ! Hexadecapole
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 3 not implemented", &
-                  error=error, error_level=cp_failure_level)
-           CASE DEFAULT
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Berry phase moments bigger than 4 not implemented", &
-                  error=error, error_level=cp_failure_level)
-         END SELECT
-       END DO
+           END DO
+           cij = 0.5_dp*cij/twopi/twopi
+           cij = MATMUL ( MATMUL ( cell%hmat, cij ), TRANSPOSE(cell%hmat) )
+           DO k = 4, 9
+             ix = indco(1,k+1)
+             iy = indco(2,k+1)
+             iz = indco(3,k+1)
+             IF ( ix == 0 ) THEN
+               rmom(k+1,1) = cij(iy,iz)
+             ELSE IF ( iy == 0 ) THEN
+               rmom(k+1,1) = cij(ix,iz)
+             ELSE IF ( iz == 0 ) THEN
+               rmom(k+1,1) = cij(ix,iy)
+             END IF
+           END DO
+         CASE (3)
+           ! Octapole
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+                message="Berry phase moments bigger than 2 not implemented", &
+                error=error, error_level=cp_failure_level)
+         CASE (4)
+           ! Hexadecapole
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+                message="Berry phase moments bigger than 3 not implemented", &
+                error=error, error_level=cp_failure_level)
+         CASE DEFAULT
+           CALL cp_unimplemented_error(fromWhere=routineP, &
+                message="Berry phase moments bigger than 4 not implemented", &
+                error=error, error_level=cp_failure_level)
+       END SELECT
+     END DO
 
-       rmom(:,3) = rmom(:,1) + rmom(:,2)
-       description="[DIPOLE]"
-       CALL cp_results_erase(results=results,description=description,error=error)
-       CALL put_results(results=results,description=description,&
-                        values=rmom(2:4,3),error=error)
-       IF(magnetic) THEN
-          CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.TRUE.,mmom=mmom)
-       ELSE
-          CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.TRUE.)
-       END IF
-
-       DEALLOCATE (rmom,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (rlab,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       IF(magnetic) THEN
-          DEALLOCATE ( mmom, STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       END IF
-
-       CALL cp_dbcsr_deallocate_matrix ( cosmat, error )
-       CALL cp_dbcsr_deallocate_matrix ( sinmat, error )
-
-       DO ispin = 1, dft_control%nspins
-         CALL cp_fm_release(opvec(ispin)%matrix,error=error)
-         CALL cp_cfm_release(eigrmat(ispin)%matrix,error=error)
-         DO i = 1, SIZE ( op_fm_set, 1 )
-           CALL cp_fm_release(op_fm_set(i,ispin)%matrix,error=error)
-         END DO
-       END DO
-       DEALLOCATE ( op_fm_set, STAT = istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE ( opvec, STAT = istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE ( eigrmat, STAT = istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-       CALL timestop(handle)
-
+     rmom(:,3) = rmom(:,1) + rmom(:,2)
+     description="[DIPOLE]"
+     CALL cp_results_erase(results=results,description=description,error=error)
+     CALL put_results(results=results,description=description,&
+                      values=rmom(2:4,3),error=error)
+     IF(magnetic) THEN
+        CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.TRUE.,mmom=mmom)
+     ELSE
+        CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.TRUE.)
      END IF
+
+     DEALLOCATE (rmom,STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE (rlab,STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     IF(magnetic) THEN
+        DEALLOCATE ( mmom, STAT = istat )
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     END IF
+
+     CALL cp_dbcsr_deallocate_matrix ( cosmat, error )
+     CALL cp_dbcsr_deallocate_matrix ( sinmat, error )
+
+     DO ispin = 1, dft_control%nspins
+       CALL cp_fm_release(opvec(ispin)%matrix,error=error)
+       CALL cp_cfm_release(eigrmat(ispin)%matrix,error=error)
+       DO i = 1, SIZE ( op_fm_set, 1 )
+         CALL cp_fm_release(op_fm_set(i,ispin)%matrix,error=error)
+       END DO
+     END DO
+     DEALLOCATE ( op_fm_set, STAT = istat )
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE ( opvec, STAT = istat )
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     DEALLOCATE ( eigrmat, STAT = istat )
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+     CALL timestop(handle)
+
 
   END SUBROUTINE qs_moment_berry_phase
 
@@ -1439,139 +1437,137 @@ CONTAINS
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
 
-       CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
 
-       ! reference point
-       CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)
+    ! reference point
+    CALL get_reference_point(rcc,qs_env=qs_env,reference=reference,ref_point=ref_point,error=error)
 
-       ! only allow for moments up to maxl set by basis
-       nmom = MIN (nmoments,current_maxl)
-       ! electronic contribution
-       NULLIFY ( moments,matrix_s )
-       CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
-       nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
-       CALL cp_dbcsr_allocate_matrix_set(moments,nm,error=error)
-       DO i=1,nm
-          ALLOCATE(moments(i)%matrix,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          CALL cp_dbcsr_init(moments(i)%matrix,error=error)
-          CALL cp_dbcsr_copy(moments(i)%matrix,matrix_s(1)%matrix,"Moments",error=error)
-          CALL cp_dbcsr_set(moments(i)%matrix,0.0_dp,error=error)
-       END DO
-
-       CALL build_local_moment_matrix(qs_env,moments,nmom,ref_point=rcc,error=error)
-
-       NULLIFY (dft_control,rho,cell,particle_set,qs_kind_set,results,para_env,matrix_s,rho_ao)
-       CALL get_qs_env(qs_env,&
-                       dft_control=dft_control,&
-                       rho=rho,&
-                       cell=cell,&
-                       results=results,&
-                       particle_set=particle_set,&
-                       qs_kind_set=qs_kind_set,&
-                       para_env=para_env,&
-                       matrix_s=matrix_s,&
-                       error=error)
-
-       CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
-
-       nm = SIZE(moments)
-       ALLOCATE (rmom(nm+1,3),STAT=istat)
+    ! only allow for moments up to maxl set by basis
+    nmom = MIN (nmoments,current_maxl)
+    ! electronic contribution
+    NULLIFY ( moments,matrix_s )
+    CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,error=error)
+    nm = (6 + 11*nmom + 6*nmom**2 + nmom**3)/6 - 1
+    CALL cp_dbcsr_allocate_matrix_set(moments,nm,error=error)
+    DO i=1,nm
+       ALLOCATE(moments(i)%matrix,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE (rlab(nm+1),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       rmom=0.0_dp
-       rlab = ""
+       CALL cp_dbcsr_init(moments(i)%matrix,error=error)
+       CALL cp_dbcsr_copy(moments(i)%matrix,matrix_s(1)%matrix,"Moments",error=error)
+       CALL cp_dbcsr_set(moments(i)%matrix,0.0_dp,error=error)
+    END DO
 
-       trace = 0.0_dp
+    CALL build_local_moment_matrix(qs_env,moments,nmom,ref_point=rcc,error=error)
+
+    NULLIFY (dft_control,rho,cell,particle_set,qs_kind_set,results,para_env,matrix_s,rho_ao)
+    CALL get_qs_env(qs_env,&
+                    dft_control=dft_control,&
+                    rho=rho,&
+                    cell=cell,&
+                    results=results,&
+                    particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set,&
+                    para_env=para_env,&
+                    matrix_s=matrix_s,&
+                    error=error)
+
+    CALL qs_rho_get(rho, rho_ao=rho_ao, error=error)
+
+    nm = SIZE(moments)
+    ALLOCATE (rmom(nm+1,3),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (rlab(nm+1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    rmom=0.0_dp
+    rlab = ""
+
+    trace = 0.0_dp
+    DO ispin=1,dft_control%nspins
+      CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
+      rmom(1,1) = rmom(1,1) + trace
+    END DO
+
+    DO i = 1, SIZE(moments)
+       strace = 0._dp
        DO ispin=1,dft_control%nspins
-         CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,matrix_s(1)%matrix,trace,error=error)
-         rmom(1,1) = rmom(1,1) + trace
+         CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,moments(i)%matrix,trace,error=error)
+         strace = strace + trace
        END DO
+       rmom(i+1,1) = strace
+    END DO
 
-       DO i = 1, SIZE(moments)
+    CALL cp_dbcsr_deallocate_matrix_set ( moments, error )
+
+    ! magnetic moments
+    IF (magnetic) THEN
+       NULLIFY ( magmom )
+       CALL build_local_magmom_matrix(qs_env,magmom,nmom,ref_point=rcc,error=error)
+       nm = SIZE(magmom)
+       ALLOCATE (mmom(nm),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO i = 1, SIZE(magmom)
           strace = 0._dp
           DO ispin=1,dft_control%nspins
-            CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,moments(i)%matrix,trace,error=error)
+            CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,magmom(i)%matrix,trace,error=error)
             strace = strace + trace
           END DO
-          rmom(i+1,1) = strace
+          mmom(i) = strace
        END DO
+       CALL cp_dbcsr_deallocate_matrix_set(magmom,error=error)
+    END IF
 
-       CALL cp_dbcsr_deallocate_matrix_set ( moments, error )
-
-       ! magnetic moments
-       IF (magnetic) THEN
-          NULLIFY ( magmom )
-          CALL build_local_magmom_matrix(qs_env,magmom,nmom,ref_point=rcc,error=error)
-          nm = SIZE(magmom)
-          ALLOCATE (mmom(nm),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          DO i = 1, SIZE(magmom)
-             strace = 0._dp
-             DO ispin=1,dft_control%nspins
-               CALL cp_dbcsr_trace(rho_ao(ispin)%matrix,magmom(i)%matrix,trace,error=error)
-               strace = strace + trace
-             END DO
-             mmom(i) = strace
-          END DO
-          CALL cp_dbcsr_deallocate_matrix_set(magmom,error=error)
-       END IF
-
-       ! nuclear contribution
-       CALL get_qs_env(qs_env=qs_env,&
-                      local_particles=local_particles,error=error)
-       DO ikind = 1,SIZE(local_particles%n_el)
-          DO ia = 1,local_particles%n_el(ikind)
-            iatom = local_particles%list(ikind)%array(ia)
-            ! fold atomic positions back into unit cell
-            ria = pbc(particle_set(iatom)%r-rcc,cell)+rcc
-            ria = ria - rcc
-            atomic_kind => particle_set(iatom)%atomic_kind
-            CALL get_atomic_kind(atomic_kind, kind_number=akind)
-            CALL get_qs_kind(qs_kind_set(akind), core_charge=charge, error=error)
-            rmom(1,2) = rmom(1,2) - charge
-            DO l = 1, nm
-              ix = indco(1,l+1)
-              iy = indco(2,l+1)
-              iz = indco(3,l+1)
-              dd = 1._dp
-              IF (ix > 0) dd = dd * ria(1)**ix
-              IF (iy > 0) dd = dd * ria(2)**iy
-              IF (iz > 0) dd = dd * ria(3)**iz
-              rmom(l+1,2) = rmom(l+1,2) - charge * dd
-              CALL set_label (rlab(l+1),ix,iy,iz)
-            END DO
-          END DO
+    ! nuclear contribution
+    CALL get_qs_env(qs_env=qs_env,&
+                   local_particles=local_particles,error=error)
+    DO ikind = 1,SIZE(local_particles%n_el)
+       DO ia = 1,local_particles%n_el(ikind)
+         iatom = local_particles%list(ikind)%array(ia)
+         ! fold atomic positions back into unit cell
+         ria = pbc(particle_set(iatom)%r-rcc,cell)+rcc
+         ria = ria - rcc
+         atomic_kind => particle_set(iatom)%atomic_kind
+         CALL get_atomic_kind(atomic_kind, kind_number=akind)
+         CALL get_qs_kind(qs_kind_set(akind), core_charge=charge, error=error)
+         rmom(1,2) = rmom(1,2) - charge
+         DO l = 1, nm
+           ix = indco(1,l+1)
+           iy = indco(2,l+1)
+           iz = indco(3,l+1)
+           dd = 1._dp
+           IF (ix > 0) dd = dd * ria(1)**ix
+           IF (iy > 0) dd = dd * ria(2)**iy
+           IF (iz > 0) dd = dd * ria(3)**iz
+           rmom(l+1,2) = rmom(l+1,2) - charge * dd
+           CALL set_label (rlab(l+1),ix,iy,iz)
+         END DO
        END DO
-       CALL mp_sum(rmom(:,2),para_env%group)
-       rmom(:,:) = -rmom(:,:)
-       rmom(:,3) = rmom(:,1) + rmom(:,2)
+    END DO
+    CALL mp_sum(rmom(:,2),para_env%group)
+    rmom(:,:) = -rmom(:,:)
+    rmom(:,3) = rmom(:,1) + rmom(:,2)
 
-       description="[DIPOLE]"
-       CALL cp_results_erase(results=results,description=description,error=error)
-       CALL put_results(results=results,description=description,&
-                        values=rmom(2:4,3),error=error)
-       IF(magnetic) THEN
-          CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.FALSE.,mmom=mmom)
-       ELSE
-          CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.FALSE.)
-       END IF
+    description="[DIPOLE]"
+    CALL cp_results_erase(results=results,description=description,error=error)
+    CALL put_results(results=results,description=description,&
+                     values=rmom(2:4,3),error=error)
+    IF(magnetic) THEN
+       CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.FALSE.,mmom=mmom)
+    ELSE
+       CALL print_moments(unit_number,nmom,rmom,rlab,rcc,cell,periodic=.FALSE.)
+    END IF
 
-       DEALLOCATE (rmom,STAT=istat)
+    DEALLOCATE (rmom,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (rlab,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    IF (magnetic) THEN
+       DEALLOCATE (mmom,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE (rlab,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       IF (magnetic) THEN
-          DEALLOCATE (mmom,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       END IF
+    END IF
 
-       CALL timestop(handle)
+    CALL timestop(handle)
 
-     END IF
 
   END SUBROUTINE qs_moment_locop
 

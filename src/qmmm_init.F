@@ -1237,89 +1237,87 @@ CPSourceFileRef,&
     move_mm_charges = .FALSE.
     add_mm_charges  = .FALSE.
     NULLIFY( qmmm_link_section, move_section, add_section)
-    IF (.NOT.failure) THEN
-       qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
-       CALL section_vals_get(qmmm_link_section,n_repetition=nlinks,error=error)
-       CPPostcondition(nlinks /= 0,cp_failure_level,routineP,error,failure)
-       icount     = 0
-       n_move_tot = 0
-       n_add_tot  = 0
-       DO ikind= 1, nlinks
-          move_section => section_vals_get_subs_vals(qmmm_link_section,"MOVE_MM_CHARGE",&
-               i_rep_section=ikind, error=error)
-          CALL section_vals_get(move_section,n_repetition=n_moves,error=error)
-          add_section => section_vals_get_subs_vals(qmmm_link_section,"ADD_MM_CHARGE",&
-               i_rep_section=ikind, error=error)
-          CALL section_vals_get(add_section,n_repetition=n_adds,error=error)
-          n_move_tot = n_move_tot + n_moves
-          n_add_tot  = n_add_tot  + n_adds
-       END DO
-       icount = n_move_tot + n_add_tot
-       IF (n_add_tot   /= 0)  add_mm_charges  = .TRUE.
-       IF (n_move_tot  /= 0) move_mm_charges  = .TRUE.
+    qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK",error=error)
+    CALL section_vals_get(qmmm_link_section,n_repetition=nlinks,error=error)
+    CPPostcondition(nlinks /= 0,cp_failure_level,routineP,error,failure)
+    icount     = 0
+    n_move_tot = 0
+    n_add_tot  = 0
+    DO ikind= 1, nlinks
+       move_section => section_vals_get_subs_vals(qmmm_link_section,"MOVE_MM_CHARGE",&
+            i_rep_section=ikind, error=error)
+       CALL section_vals_get(move_section,n_repetition=n_moves,error=error)
+       add_section => section_vals_get_subs_vals(qmmm_link_section,"ADD_MM_CHARGE",&
+            i_rep_section=ikind, error=error)
+       CALL section_vals_get(add_section,n_repetition=n_adds,error=error)
+       n_move_tot = n_move_tot + n_moves
+       n_add_tot  = n_add_tot  + n_adds
+    END DO
+    icount = n_move_tot + n_add_tot
+    IF (n_add_tot   /= 0)  add_mm_charges  = .TRUE.
+    IF (n_move_tot  /= 0) move_mm_charges  = .TRUE.
+    !
+    ! create add_set_type
+    !
+    CALL create_add_set_type(added_charges, ndim=icount, error=error)
+    !
+    ! Fill in structures
+    !
+    icount = 0
+    DO ikind= 1, nlinks
+       move_section => section_vals_get_subs_vals(qmmm_link_section,"MOVE_MM_CHARGE",&
+                                                  i_rep_section=ikind, error=error)
+       CALL section_vals_get(move_section, explicit=explicit, n_repetition=n_moves, error=error)
        !
-       ! create add_set_type
+       ! Moving charge atoms
        !
-       CALL create_add_set_type(added_charges, ndim=icount, error=error)
-       !
-       ! Fill in structures
-       !
-       icount = 0
-       DO ikind= 1, nlinks
-          move_section => section_vals_get_subs_vals(qmmm_link_section,"MOVE_MM_CHARGE",&
-                                                     i_rep_section=ikind, error=error)
-          CALL section_vals_get(move_section, explicit=explicit, n_repetition=n_moves, error=error)
-          !
-          ! Moving charge atoms
-          !
-          IF (explicit) THEN
-             DO i_add = 1, n_moves
-                icount = icount + 1
-                CALL section_vals_val_get(move_section,"ATOM_INDEX_1",i_val=Index1,i_rep_section=i_add,error=error)
-                CALL section_vals_val_get(move_section,"ATOM_INDEX_2",i_val=Index2,i_rep_section=i_add,error=error)
-                CALL section_vals_val_get(move_section,"ALPHA",r_val=alpha,i_rep_section=i_add,error=error)
-                CALL section_vals_val_get(move_section,"RADIUS",r_val=radius,i_rep_section=i_add,error=error)
-                CALL section_vals_val_get(move_section,"CORR_RADIUS",n_rep_val=n_rep_val,i_rep_section=i_add,error=error)
-                c_radius = radius
-                IF (n_rep_val == 1) &
-                     CALL section_vals_val_get(move_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add,error=error)
+       IF (explicit) THEN
+          DO i_add = 1, n_moves
+             icount = icount + 1
+             CALL section_vals_val_get(move_section,"ATOM_INDEX_1",i_val=Index1,i_rep_section=i_add,error=error)
+             CALL section_vals_val_get(move_section,"ATOM_INDEX_2",i_val=Index2,i_rep_section=i_add,error=error)
+             CALL section_vals_val_get(move_section,"ALPHA",r_val=alpha,i_rep_section=i_add,error=error)
+             CALL section_vals_val_get(move_section,"RADIUS",r_val=radius,i_rep_section=i_add,error=error)
+             CALL section_vals_val_get(move_section,"CORR_RADIUS",n_rep_val=n_rep_val,i_rep_section=i_add,error=error)
+             c_radius = radius
+             IF (n_rep_val == 1) &
+                  CALL section_vals_val_get(move_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add,error=error)
 
-                CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius,&
-                                      mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius,&
-                                      mm_el_pot_radius_corr=mm_el_pot_radius_corr,&
-                                      mm_atom_index=mm_atom_index, move=n_moves, Ind1=ind1,&
-                                      error=error)
-             END DO
-             mm_atom_chrg(ind1) = 0.0_dp
-          END IF
+             CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius,&
+                                   mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius,&
+                                   mm_el_pot_radius_corr=mm_el_pot_radius_corr,&
+                                   mm_atom_index=mm_atom_index, move=n_moves, Ind1=ind1,&
+                                   error=error)
+          END DO
+          mm_atom_chrg(ind1) = 0.0_dp
+       END IF
 
-          add_section => section_vals_get_subs_vals(qmmm_link_section,"ADD_MM_CHARGE",&
-                                                    i_rep_section=ikind, error=error)
-          CALL section_vals_get(add_section, explicit=explicit, n_repetition=n_adds, error=error)
-          !
-          ! Adding charge atoms
-          !
-          IF (explicit) THEN
-             DO i_add = 1, n_adds
-                icount = icount + 1
-                CALL section_vals_val_get(add_section,"ATOM_INDEX_1",i_val=Index1,i_rep_section=i_add,error=error)
-                CALL section_vals_val_get(add_section,"ATOM_INDEX_2",i_val=Index2,i_rep_section=i_add,error=error)
-                CALL section_vals_val_get(add_section,"ALPHA",r_val=alpha,i_rep_section=i_add,error=error)
-                CALL section_vals_val_get(add_section,"RADIUS",r_val=radius,i_rep_section=i_add,error=error)
-                CALL section_vals_val_get(add_section,"CHARGE",r_val=charge,i_rep_section=i_add,error=error)
-                CALL section_vals_val_get(add_section,"CORR_RADIUS",n_rep_val=n_rep_val,i_rep_section=i_add,error=error)
-                c_radius = radius
-                IF (n_rep_val == 1) &
-                     CALL section_vals_val_get(add_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add,error=error)
+       add_section => section_vals_get_subs_vals(qmmm_link_section,"ADD_MM_CHARGE",&
+                                                 i_rep_section=ikind, error=error)
+       CALL section_vals_get(add_section, explicit=explicit, n_repetition=n_adds, error=error)
+       !
+       ! Adding charge atoms
+       !
+       IF (explicit) THEN
+          DO i_add = 1, n_adds
+             icount = icount + 1
+             CALL section_vals_val_get(add_section,"ATOM_INDEX_1",i_val=Index1,i_rep_section=i_add,error=error)
+             CALL section_vals_val_get(add_section,"ATOM_INDEX_2",i_val=Index2,i_rep_section=i_add,error=error)
+             CALL section_vals_val_get(add_section,"ALPHA",r_val=alpha,i_rep_section=i_add,error=error)
+             CALL section_vals_val_get(add_section,"RADIUS",r_val=radius,i_rep_section=i_add,error=error)
+             CALL section_vals_val_get(add_section,"CHARGE",r_val=charge,i_rep_section=i_add,error=error)
+             CALL section_vals_val_get(add_section,"CORR_RADIUS",n_rep_val=n_rep_val,i_rep_section=i_add,error=error)
+             c_radius = radius
+             IF (n_rep_val == 1) &
+                  CALL section_vals_val_get(add_section,"CORR_RADIUS",r_val=c_radius,i_rep_section=i_add,error=error)
 
-                CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius, charge,&
-                                      mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius,&
-                                      mm_el_pot_radius_corr=mm_el_pot_radius_corr,&
-                                      mm_atom_index=mm_atom_index, error=error)
-             END DO
-          END IF
-       END DO
-    END IF
+             CALL set_add_set_type(added_charges, icount, Index1, Index2, alpha, radius, c_radius, charge,&
+                                   mm_atom_chrg=mm_atom_chrg, mm_el_pot_radius=mm_el_pot_radius,&
+                                   mm_el_pot_radius_corr=mm_el_pot_radius_corr,&
+                                   mm_atom_index=mm_atom_index, error=error)
+          END DO
+       END IF
+    END DO
 
    END SUBROUTINE move_or_add_atoms
 
@@ -1373,26 +1371,24 @@ CPSourceFileRef,&
      my_c_radius = c_radius
      IF (PRESENT(charge)) my_charge = charge
      IF (PRESENT(move))   my_move   = move
-     IF (.NOT.failure) THEN
-        i = 1
-        GetId: DO WHILE (i<=SIZE(mm_atom_index))
-           IF (Index1 == mm_atom_index(i)) EXIT GetId
-           i = i+1
-        END DO GetId
-        IF (PRESENT(ind1)) ind1 = i
-        CPPostcondition(i<=SIZE(mm_atom_index),cp_failure_level,routineP,error,failure)
-        IF (.NOT.PRESENT(charge)) my_charge = mm_atom_chrg(i)/REAL(my_move,KIND=dp)
-        IF (my_radius   == 0.0_dp) my_radius   = mm_el_pot_radius(i)
-        IF (my_c_radius == 0.0_dp) my_c_radius = mm_el_pot_radius_corr(i)
+     i = 1
+     GetId: DO WHILE (i<=SIZE(mm_atom_index))
+        IF (Index1 == mm_atom_index(i)) EXIT GetId
+        i = i+1
+     END DO GetId
+     IF (PRESENT(ind1)) ind1 = i
+     CPPostcondition(i<=SIZE(mm_atom_index),cp_failure_level,routineP,error,failure)
+     IF (.NOT.PRESENT(charge)) my_charge = mm_atom_chrg(i)/REAL(my_move,KIND=dp)
+     IF (my_radius   == 0.0_dp) my_radius   = mm_el_pot_radius(i)
+     IF (my_c_radius == 0.0_dp) my_c_radius = mm_el_pot_radius_corr(i)
 
-        added_charges%add_env(icount)%Index1        = Index1
-        added_charges%add_env(icount)%Index2        = Index2
-        added_charges%add_env(icount)%alpha         = alpha
-        added_charges%mm_atom_index(icount)         = icount
-        added_charges%mm_atom_chrg(icount)          = my_charge
-        added_charges%mm_el_pot_radius(icount)      = my_radius
-        added_charges%mm_el_pot_radius_corr(icount) = my_c_radius
-     END IF
+     added_charges%add_env(icount)%Index1        = Index1
+     added_charges%add_env(icount)%Index2        = Index2
+     added_charges%add_env(icount)%alpha         = alpha
+     added_charges%mm_atom_index(icount)         = icount
+     added_charges%mm_atom_chrg(icount)          = my_charge
+     added_charges%mm_el_pot_radius(icount)      = my_radius
+     added_charges%mm_el_pot_radius_corr(icount) = my_c_radius
    END SUBROUTINE set_add_set_type
 
 ! *****************************************************************************
@@ -1425,24 +1421,22 @@ CPSourceFileRef,&
     REAL(KINd=dp), DIMENSION(:), POINTER     :: vec
 
      failure = .FALSE.
-     IF (.NOT.failure) THEN
-        ! This is the vector that corrects position to apply properly the PBC
-        tmp(1) =  qm_cell_small%hmat(1,1)
-        tmp(2) =  qm_cell_small%hmat(2,2)
-        tmp(3) =  qm_cell_small%hmat(3,3)
-        CPPostcondition(ALL(tmp>0),cp_failure_level,routineP,error,failure)
-        qmmm_env%dOmmOqm = tmp/2.0_dp
-        ! This is unit vector to translate the QM system in order to center it
-        ! in QM cell
-        CALL section_vals_val_get(qmmm_section,"CENTER_GRID",l_val=center_grid,error=error)
-        IF (center_grid) THEN
-           qmmm_env%utrasl = dr
-        ELSE
-           qmmm_env%utrasl = 1.0_dp
-        ENDIF
-        CALL section_vals_val_get(qmmm_section,"INITIAL_TRANSLATION_VECTOR",r_vals=vec,error=error)
-        qmmm_env%transl_v = vec
-     END IF
+     ! This is the vector that corrects position to apply properly the PBC
+     tmp(1) =  qm_cell_small%hmat(1,1)
+     tmp(2) =  qm_cell_small%hmat(2,2)
+     tmp(3) =  qm_cell_small%hmat(3,3)
+     CPPostcondition(ALL(tmp>0),cp_failure_level,routineP,error,failure)
+     qmmm_env%dOmmOqm = tmp/2.0_dp
+     ! This is unit vector to translate the QM system in order to center it
+     ! in QM cell
+     CALL section_vals_val_get(qmmm_section,"CENTER_GRID",l_val=center_grid,error=error)
+     IF (center_grid) THEN
+        qmmm_env%utrasl = dr
+     ELSE
+        qmmm_env%utrasl = 1.0_dp
+     ENDIF
+     CALL section_vals_val_get(qmmm_section,"INITIAL_TRANSLATION_VECTOR",r_vals=vec,error=error)
+     qmmm_env%transl_v = vec
    END SUBROUTINE setup_origin_mm_cell
 
 ! *****************************************************************************

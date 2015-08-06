@@ -123,236 +123,234 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       NULLIFY(dft_control,rho,para_env,matrix_s,matrix_p)
-       CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
-            dft_control=dft_control,rho=rho,natom=natom,para_env=para_env,&
-            matrix_s_kp=matrix_s,error=error)
-       nspins = dft_control%nspins
-       CALL qs_rho_get(rho, rho_ao_kp=matrix_p, error=error)
-       ! Mulliken charges
-       ALLOCATE(charges(natom,nspins),mcharge(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       !
-       CALL mulliken_charges(matrix_p,matrix_s,para_env,charges,error=error)
-       !
-       nkind = SIZE(atomic_kind_set)
-       DO ikind=1,nkind
-          CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
-          CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
-          CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
-          DO iatom=1,nat
-             iat = atomic_kind_set(ikind)%atom_list(iatom)
-             mcharge(iat) = zeff - SUM(charges(iat,1:nspins))
-          END DO
+    NULLIFY(dft_control,rho,para_env,matrix_s,matrix_p)
+    CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
+         dft_control=dft_control,rho=rho,natom=natom,para_env=para_env,&
+         matrix_s_kp=matrix_s,error=error)
+    nspins = dft_control%nspins
+    CALL qs_rho_get(rho, rho_ao_kp=matrix_p, error=error)
+    ! Mulliken charges
+    ALLOCATE(charges(natom,nspins),mcharge(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    !
+    CALL mulliken_charges(matrix_p,matrix_s,para_env,charges,error=error)
+    !
+    nkind = SIZE(atomic_kind_set)
+    DO ikind=1,nkind
+       CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
+       CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
+       CALL get_dftb_atom_param(dftb_kind,zeff=zeff)
+       DO iatom=1,nat
+          iat = atomic_kind_set(ikind)%atom_list(iatom)
+          mcharge(iat) = zeff - SUM(charges(iat,1:nspins))
        END DO
+    END DO
 
-       print_section => section_vals_get_subs_vals(dft_section,"PRINT",error=error)
+    print_section => section_vals_get_subs_vals(dft_section,"PRINT",error=error)
 
-       ! Mulliken
-       print_key => section_vals_get_subs_vals(print_section,"MULLIKEN", error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-          unit_nr=cp_print_key_unit_nr(logger,print_section,"MULLIKEN",extension=".mulliken",&
-                                       middle_name="",log_filename=.FALSE.,error=error)
-          IF (unit_nr > 0) THEN
-             WRITE (UNIT=unit_nr,FMT="(/,/,T2,A)") "MULLIKEN POPULATION ANALYSIS"
-             IF (nspins == 1) THEN
-                WRITE (UNIT=unit_nr,FMT="(/,T2,A,T70,A)")&
-                       " # Atom   Element   Kind        Atomic population"," Net charge"
-                DO ikind=1,nkind
-                   CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-                   CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
-                   CALL get_dftb_atom_param(dftb_kind,name=aname)
-                   ana = ADJUSTR(TRIM(ADJUSTL(aname)))
-                   DO iatom=1,nat
-                      iat = atomic_kind_set(ikind)%atom_list(iatom)
-                      WRITE (UNIT=unit_nr,&
-                             FMT="(T2,I7,6X,A2,3X,I6,T39,F12.6,T69,F12.6)")&
-                             iat,ana,ikind,charges(iat,1),mcharge(iat)
-                   END DO
+    ! Mulliken
+    print_key => section_vals_get_subs_vals(print_section,"MULLIKEN", error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+       unit_nr=cp_print_key_unit_nr(logger,print_section,"MULLIKEN",extension=".mulliken",&
+                                    middle_name="",log_filename=.FALSE.,error=error)
+       IF (unit_nr > 0) THEN
+          WRITE (UNIT=unit_nr,FMT="(/,/,T2,A)") "MULLIKEN POPULATION ANALYSIS"
+          IF (nspins == 1) THEN
+             WRITE (UNIT=unit_nr,FMT="(/,T2,A,T70,A)")&
+                    " # Atom   Element   Kind        Atomic population"," Net charge"
+             DO ikind=1,nkind
+                CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
+                CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
+                CALL get_dftb_atom_param(dftb_kind,name=aname)
+                ana = ADJUSTR(TRIM(ADJUSTL(aname)))
+                DO iatom=1,nat
+                   iat = atomic_kind_set(ikind)%atom_list(iatom)
+                   WRITE (UNIT=unit_nr,&
+                          FMT="(T2,I7,6X,A2,3X,I6,T39,F12.6,T69,F12.6)")&
+                          iat,ana,ikind,charges(iat,1),mcharge(iat)
                 END DO
-                WRITE (UNIT=unit_nr,&
-                       FMT="(T2,A,T39,F12.6,T69,F12.6,/)")&
-                           "# Total charge",SUM(charges(:,1)),SUM(mcharge(:))
-             ELSE
-                WRITE (UNIT=unit_nr,FMT="(/,T2,A)")&
-                       "# Atom  Element  Kind  Atomic population (alpha,beta)   Net charge  Spin moment"
-                DO ikind=1,nkind
-                   CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
-                   CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
-                   CALL get_dftb_atom_param(dftb_kind,name=aname)
-                   ana = ADJUSTR(TRIM(ADJUSTL(aname)))
-                   DO iatom=1,nat
-                      iat = atomic_kind_set(ikind)%atom_list(iatom)
-                      WRITE (UNIT=unit_nr,&
-                             FMT="(T2,I6,5X,A2,2X,I6,T29,4(1X,F12.6))")&
-                             iat,ana,ikind,charges(iat,1:2),mcharge(iat),charges(iat,1)-charges(iat,2)
-                   END DO
+             END DO
+             WRITE (UNIT=unit_nr,&
+                    FMT="(T2,A,T39,F12.6,T69,F12.6,/)")&
+                        "# Total charge",SUM(charges(:,1)),SUM(mcharge(:))
+          ELSE
+             WRITE (UNIT=unit_nr,FMT="(/,T2,A)")&
+                    "# Atom  Element  Kind  Atomic population (alpha,beta)   Net charge  Spin moment"
+             DO ikind=1,nkind
+                CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
+                CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind, error=error)
+                CALL get_dftb_atom_param(dftb_kind,name=aname)
+                ana = ADJUSTR(TRIM(ADJUSTL(aname)))
+                DO iatom=1,nat
+                   iat = atomic_kind_set(ikind)%atom_list(iatom)
+                   WRITE (UNIT=unit_nr,&
+                          FMT="(T2,I6,5X,A2,2X,I6,T29,4(1X,F12.6))")&
+                          iat,ana,ikind,charges(iat,1:2),mcharge(iat),charges(iat,1)-charges(iat,2)
                 END DO
-                WRITE (UNIT=unit_nr,&
-                       FMT="(T2,A,T29,4(1X,F12.6),/)")&
-                           "# Total charge and spin",SUM(charges(:,1)),SUM(charges(:,2)),SUM(mcharge(:))
-             END IF
-             CALL m_flush(unit_nr)
+             END DO
+             WRITE (UNIT=unit_nr,&
+                    FMT="(T2,A,T29,4(1X,F12.6),/)")&
+                        "# Total charge and spin",SUM(charges(:,1)),SUM(charges(:,2)),SUM(mcharge(:))
           END IF
-          CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
+          CALL m_flush(unit_nr)
        END IF
-
-       ! Lowdin
-       print_key => section_vals_get_subs_vals(print_section,"LOWDIN", error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Lowdin population analysis not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! Hirshfeld
-       print_key => section_vals_get_subs_vals(print_section,"HIRSHFELD", error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Hirshfeld charges not available for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! Dipole Moments
-       print_key => section_vals_get_subs_vals(print_section,"MOMENTS", error=error)
-       IF(BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file))THEN
-          unit_nr=cp_print_key_unit_nr(logger,print_section,"MOMENTS",&
-               extension=".data",middle_name="dftb_dipole",log_filename=.FALSE.,error=error)
-          moments_section => section_vals_get_subs_vals(print_section,"MOMENTS",error=error)
-          CALL dftb_dipole(qs_env, moments_section, unit_nr, mcharge, error)
-          CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
-       END IF
-
-       DEALLOCATE(charges,mcharge,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-       ! EPR Hyperfine Coupling
-       print_key => section_vals_get_subs_vals(print_section,"HYPERFINE_COUPLING_TENSOR",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Hyperfine Coupling not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! EFIELD CUBE FILE 
-       print_key => section_vals_get_subs_vals(print_section,"EFIELD_CUBE",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Efield cube file not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! DENSITY CUBE FILE 
-       print_key => section_vals_get_subs_vals(print_section,"E_DENSITY_CUBE",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Electronic density cube file not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! TOTAL DENSITY CUBE FILE 
-       print_key => section_vals_get_subs_vals(print_section,"TOT_DENSITY_CUBE",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Total density cube file not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! V_Hartree CUBE FILE 
-       print_key => section_vals_get_subs_vals(print_section,"V_HARTREE_CUBE",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Hartree potential cube file not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! V_XC CUBE FILE 
-       print_key => section_vals_get_subs_vals(print_section,"V_XC_CUBE",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="XC potential cube file not available for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! ELF
-       print_key => section_vals_get_subs_vals(print_section,"ELF_CUBE",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="ELF not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! KINETIC ENERGY 
-       print_key => section_vals_get_subs_vals(print_section,"KINETIC_ENERGY",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Kinetic energy not available for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! Xray diffraction spectrum
-       print_key => section_vals_get_subs_vals(print_section,"XRAY_DIFFRACTION_SPECTRUM",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Xray diffraction spectrum not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! Electric field gradients
-       print_key => section_vals_get_subs_vals(print_section,"ELECTRIC_FIELD_GRADIENT",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Electric field gradient not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! STM
-       print_key => section_vals_get_subs_vals(print_section,"STM",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="STM not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! MO 
-       print_key => section_vals_get_subs_vals(print_section,"MO",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Printing of MO properties not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! MO CUBES
-       print_key => section_vals_get_subs_vals(print_section,"MO_CUBES",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Printing of MO cube files not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
- 
-       ! Wavefunction mixing
-       wfn_mix_section => section_vals_get_subs_vals(dft_section,"PRINT%WFN_MIX",error=error)
-       CALL section_vals_get(wfn_mix_section,explicit=explicit,error=error)
-       IF(explicit.AND..NOT.qs_env%run_rtp) CALL wfn_mix_dftb(qs_env,dft_section,scf_env,error)
-
-       ! PLUS_U
-       print_key => section_vals_get_subs_vals(print_section,"PLUS_U",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="DFT+U method not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
-       ! PDOS
-       print_key => section_vals_get_subs_vals(print_section,"PDOS",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Projected DOS not implemented for DFTB method.", &
-            error=error, error_level=cp_warning_level)
-       END IF
-
+       CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
     END IF
+
+    ! Lowdin
+    print_key => section_vals_get_subs_vals(print_section,"LOWDIN", error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Lowdin population analysis not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! Hirshfeld
+    print_key => section_vals_get_subs_vals(print_section,"HIRSHFELD", error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Hirshfeld charges not available for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! Dipole Moments
+    print_key => section_vals_get_subs_vals(print_section,"MOMENTS", error=error)
+    IF(BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file))THEN
+       unit_nr=cp_print_key_unit_nr(logger,print_section,"MOMENTS",&
+            extension=".data",middle_name="dftb_dipole",log_filename=.FALSE.,error=error)
+       moments_section => section_vals_get_subs_vals(print_section,"MOMENTS",error=error)
+       CALL dftb_dipole(qs_env, moments_section, unit_nr, mcharge, error)
+       CALL cp_print_key_finished_output(unit_nr,logger,print_key,error=error)
+    END IF
+
+    DEALLOCATE(charges,mcharge,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! EPR Hyperfine Coupling
+    print_key => section_vals_get_subs_vals(print_section,"HYPERFINE_COUPLING_TENSOR",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Hyperfine Coupling not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! EFIELD CUBE FILE 
+    print_key => section_vals_get_subs_vals(print_section,"EFIELD_CUBE",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Efield cube file not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! DENSITY CUBE FILE 
+    print_key => section_vals_get_subs_vals(print_section,"E_DENSITY_CUBE",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Electronic density cube file not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! TOTAL DENSITY CUBE FILE 
+    print_key => section_vals_get_subs_vals(print_section,"TOT_DENSITY_CUBE",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Total density cube file not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! V_Hartree CUBE FILE 
+    print_key => section_vals_get_subs_vals(print_section,"V_HARTREE_CUBE",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Hartree potential cube file not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! V_XC CUBE FILE 
+    print_key => section_vals_get_subs_vals(print_section,"V_XC_CUBE",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="XC potential cube file not available for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! ELF
+    print_key => section_vals_get_subs_vals(print_section,"ELF_CUBE",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="ELF not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! KINETIC ENERGY 
+    print_key => section_vals_get_subs_vals(print_section,"KINETIC_ENERGY",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Kinetic energy not available for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! Xray diffraction spectrum
+    print_key => section_vals_get_subs_vals(print_section,"XRAY_DIFFRACTION_SPECTRUM",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Xray diffraction spectrum not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! Electric field gradients
+    print_key => section_vals_get_subs_vals(print_section,"ELECTRIC_FIELD_GRADIENT",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Electric field gradient not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! STM
+    print_key => section_vals_get_subs_vals(print_section,"STM",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="STM not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! MO 
+    print_key => section_vals_get_subs_vals(print_section,"MO",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Printing of MO properties not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! MO CUBES
+    print_key => section_vals_get_subs_vals(print_section,"MO_CUBES",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Printing of MO cube files not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! Wavefunction mixing
+    wfn_mix_section => section_vals_get_subs_vals(dft_section,"PRINT%WFN_MIX",error=error)
+    CALL section_vals_get(wfn_mix_section,explicit=explicit,error=error)
+    IF(explicit.AND..NOT.qs_env%run_rtp) CALL wfn_mix_dftb(qs_env,dft_section,scf_env,error)
+
+    ! PLUS_U
+    print_key => section_vals_get_subs_vals(print_section,"PLUS_U",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="DFT+U method not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
+    ! PDOS
+    print_key => section_vals_get_subs_vals(print_section,"PDOS",error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file)) THEN
+      CALL cp_unimplemented_error(fromWhere=routineP, &
+         message="Projected DOS not implemented for DFTB method.", &
+         error=error, error_level=cp_warning_level)
+    END IF
+
     CALL timestop(handle)
 
   END SUBROUTINE scf_post_calculation_dftb

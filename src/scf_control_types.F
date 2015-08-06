@@ -170,97 +170,95 @@ CONTAINS
     ALLOCATE (scf_control,STAT=stat)
     CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
 
-      ! Load the default values
+    ! Load the default values
 
-      scf_control%density_guess = atomic_guess
-      scf_control%eps_eigval = 1.0E-5_dp
-      scf_control%eps_scf = 1.0E-5_dp
-      scf_control%eps_scf_hist = 0.0_dp
-      scf_control%eps_lumos = 1.0E-5_dp
-      scf_control%max_iter_lumos = 2999
-      scf_control%eps_diis = 0.1_dp
-      scf_control%level_shift = 0.0_dp
-      scf_control%max_diis = 4
-      scf_control%max_scf = 50
-      scf_control%nmixing = 2
-      scf_control%use_cholesky = .TRUE.
-      scf_control%use_diag = .TRUE.
-      scf_control%do_diag_sub = .FALSE.
-      scf_control%use_ot = .FALSE.
-      scf_control%do_outer_scf_reortho = .TRUE.
-      scf_control%max_diis = 4
-      scf_control%eps_diis = 0.1_dp
-      scf_control%ref_count=1
-      scf_control%id_nr=last_scf_c_id_nr
-      scf_control%added_mos(:) = 0
-      scf_control%max_scf_hist = 0
+    scf_control%density_guess = atomic_guess
+    scf_control%eps_eigval = 1.0E-5_dp
+    scf_control%eps_scf = 1.0E-5_dp
+    scf_control%eps_scf_hist = 0.0_dp
+    scf_control%eps_lumos = 1.0E-5_dp
+    scf_control%max_iter_lumos = 2999
+    scf_control%eps_diis = 0.1_dp
+    scf_control%level_shift = 0.0_dp
+    scf_control%max_diis = 4
+    scf_control%max_scf = 50
+    scf_control%nmixing = 2
+    scf_control%use_cholesky = .TRUE.
+    scf_control%use_diag = .TRUE.
+    scf_control%do_diag_sub = .FALSE.
+    scf_control%use_ot = .FALSE.
+    scf_control%do_outer_scf_reortho = .TRUE.
+    scf_control%max_diis = 4
+    scf_control%eps_diis = 0.1_dp
+    scf_control%ref_count=1
+    scf_control%id_nr=last_scf_c_id_nr
+    scf_control%added_mos(:) = 0
+    scf_control%max_scf_hist = 0
 
-      !Mixing
-      scf_control%mixing_method = direct_p_mix
+    !Mixing
+    scf_control%mixing_method = direct_p_mix
 
-      ! Diagonalization
-      scf_control%diagonalization%method = 0
-      scf_control%diagonalization%eps_jacobi = 0.0_dp
-      scf_control%diagonalization%jacobi_threshold = 1.0E-7_dp
-      scf_control%diagonalization%max_iter = 0
-      scf_control%diagonalization%eps_iter = 0.0_dp
-      scf_control%diagonalization%eps_adapt = 0.0_dp
-      scf_control%diagonalization%nkrylov = 0
-      scf_control%diagonalization%nblock_krylov = 0
-      CALL qs_ot_settings_init(scf_control%diagonalization%ot_settings)
+    ! Diagonalization
+    scf_control%diagonalization%method = 0
+    scf_control%diagonalization%eps_jacobi = 0.0_dp
+    scf_control%diagonalization%jacobi_threshold = 1.0E-7_dp
+    scf_control%diagonalization%max_iter = 0
+    scf_control%diagonalization%eps_iter = 0.0_dp
+    scf_control%diagonalization%eps_adapt = 0.0_dp
+    scf_control%diagonalization%nkrylov = 0
+    scf_control%diagonalization%nblock_krylov = 0
+    CALL qs_ot_settings_init(scf_control%diagonalization%ot_settings)
 
-      ! ROKS
+    ! ROKS
 
-      scf_control%roks_scheme = high_spin_roks
-      scf_control%roks_f = 0.5_dp
+    scf_control%roks_scheme = high_spin_roks
+    scf_control%roks_f = 0.5_dp
 
-      ! Initialize the diagonal blocks with the default ROKS parameters
-      ! 0 = v)irtual, 1 = o)pen shell, 2 = c)losed shell
+    ! Initialize the diagonal blocks with the default ROKS parameters
+    ! 0 = v)irtual, 1 = o)pen shell, 2 = c)losed shell
 
-      scf_control%roks_parameter(0,0,1) =  1.5_dp ! avv
-      scf_control%roks_parameter(0,0,2) = -0.5_dp ! bvv
-      scf_control%roks_parameter(1,1,1) =  0.5_dp ! aoo
-      scf_control%roks_parameter(1,1,2) =  0.5_dp ! boo
-      scf_control%roks_parameter(2,2,1) = -0.5_dp ! acc
-      scf_control%roks_parameter(2,2,2) =  1.5_dp ! bcc
+    scf_control%roks_parameter(0,0,1) =  1.5_dp ! avv
+    scf_control%roks_parameter(0,0,2) = -0.5_dp ! bvv
+    scf_control%roks_parameter(1,1,1) =  0.5_dp ! aoo
+    scf_control%roks_parameter(1,1,2) =  0.5_dp ! boo
+    scf_control%roks_parameter(2,2,1) = -0.5_dp ! acc
+    scf_control%roks_parameter(2,2,2) =  1.5_dp ! bcc
 
-      ! Initialize off-diagonal blocks (fixed)
+    ! Initialize off-diagonal blocks (fixed)
 
-      scf_control%roks_parameter(0,1,1) =  1.0_dp ! avo
-      scf_control%roks_parameter(0,1,2) =  0.0_dp ! bvo
-      scf_control%roks_parameter(0,2,1) =  0.5_dp ! avc
-      scf_control%roks_parameter(0,2,2) =  0.5_dp ! bvc
-      scf_control%roks_parameter(1,2,1) =  0.0_dp ! aoc
-      scf_control%roks_parameter(1,2,2) =  1.0_dp ! boc
+    scf_control%roks_parameter(0,1,1) =  1.0_dp ! avo
+    scf_control%roks_parameter(0,1,2) =  0.0_dp ! bvo
+    scf_control%roks_parameter(0,2,1) =  0.5_dp ! avc
+    scf_control%roks_parameter(0,2,2) =  0.5_dp ! bvc
+    scf_control%roks_parameter(1,2,1) =  0.0_dp ! aoc
+    scf_control%roks_parameter(1,2,2) =  1.0_dp ! boc
 
-      ! Symmetry enforces
+    ! Symmetry enforces
 
-      scf_control%roks_parameter(1,0,1) = scf_control%roks_parameter(0,1,1) ! aov
-      scf_control%roks_parameter(1,0,2) = scf_control%roks_parameter(0,1,2) ! bov
-      scf_control%roks_parameter(2,0,1) = scf_control%roks_parameter(0,2,1) ! acv
-      scf_control%roks_parameter(2,0,2) = scf_control%roks_parameter(0,2,2) ! bcv
-      scf_control%roks_parameter(2,1,1) = scf_control%roks_parameter(1,2,1) ! aco
-      scf_control%roks_parameter(2,1,2) = scf_control%roks_parameter(1,2,2) ! bco
+    scf_control%roks_parameter(1,0,1) = scf_control%roks_parameter(0,1,1) ! aov
+    scf_control%roks_parameter(1,0,2) = scf_control%roks_parameter(0,1,2) ! bov
+    scf_control%roks_parameter(2,0,1) = scf_control%roks_parameter(0,2,1) ! acv
+    scf_control%roks_parameter(2,0,2) = scf_control%roks_parameter(0,2,2) ! bcv
+    scf_control%roks_parameter(2,1,1) = scf_control%roks_parameter(1,2,1) ! aco
+    scf_control%roks_parameter(2,1,2) = scf_control%roks_parameter(1,2,2) ! bco
 
-      ! Outer SCF default settings
+    ! Outer SCF default settings
 
-      scf_control%outer_scf%have_scf = .FALSE.
-      scf_control%outer_scf%max_scf = 0
-      scf_control%outer_scf%eps_scf = 0.0_dp
-      scf_control%outer_scf%step_size = 0.0_dp
-      scf_control%outer_scf%type = -1
-      scf_control%outer_scf%optimizer = -1
-      scf_control%outer_scf%diis_buffer_length = -1
+    scf_control%outer_scf%have_scf = .FALSE.
+    scf_control%outer_scf%max_scf = 0
+    scf_control%outer_scf%eps_scf = 0.0_dp
+    scf_control%outer_scf%step_size = 0.0_dp
+    scf_control%outer_scf%type = -1
+    scf_control%outer_scf%optimizer = -1
+    scf_control%outer_scf%diis_buffer_length = -1
 
-      ! Smearing of the MO occupations
+    ! Smearing of the MO occupations
 
-      NULLIFY(scf_control%smear)
+    NULLIFY(scf_control%smear)
 
-      last_scf_c_id_nr = last_scf_c_id_nr + 1
+    last_scf_c_id_nr = last_scf_c_id_nr + 1
 
-    END IF
 
     CALL timestop(handle)
 
@@ -289,10 +287,8 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
 
-    IF (.NOT.failure) THEN
-      CPPrecondition(scf_control%ref_count > 0,cp_failure_level,routineP,error,failure)
-      scf_control%ref_count = scf_control%ref_count + 1
-    END IF
+    CPPrecondition(scf_control%ref_count > 0,cp_failure_level,routineP,error,failure)
+    scf_control%ref_count = scf_control%ref_count + 1
 
   END SUBROUTINE scf_c_retain
 
@@ -539,17 +535,15 @@ CONTAINS
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(smear),cp_failure_level,routineP,error,failure)
-    IF(.NOT. failure) THEN
-      ALLOCATE(smear,stat=stat)
-      CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
-      smear%do_smear = .FALSE.
-      smear%method = smear_energy_window
-      smear%electronic_temperature = 0.0_dp
-      smear%eps_fermi_dirac = 1.0E-5_dp
-      smear%fixed_mag_mom=-100.0_dp
-      smear%window_size = 0.0_dp
-      NULLIFY(smear%list)
-    END IF
+    ALLOCATE(smear,stat=stat)
+    CPPostcondition((stat == 0),cp_failure_level,routineP,error,failure)
+    smear%do_smear = .FALSE.
+    smear%method = smear_energy_window
+    smear%electronic_temperature = 0.0_dp
+    smear%eps_fermi_dirac = 1.0E-5_dp
+    smear%fixed_mag_mom=-100.0_dp
+    smear%window_size = 0.0_dp
+    NULLIFY(smear%list)
   END SUBROUTINE init_smear
 
 ! *****************************************************************************

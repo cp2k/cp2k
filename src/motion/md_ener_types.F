@@ -77,21 +77,19 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       ALLOCATE(md_ener,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       last_md_ener_id=last_md_ener_id+1
-       md_ener%id_nr=last_md_ener_id
+    ALLOCATE(md_ener,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    last_md_ener_id=last_md_ener_id+1
+    md_ener%id_nr=last_md_ener_id
 
-       md_ener%ref_count = 1
+    md_ener%ref_count = 1
 
-       NULLIFY(md_ener%ekin_kind)
-       NULLIFY(md_ener%temp_kind)
-       NULLIFY(md_ener%nfree_kind)
-       NULLIFY(md_ener%ekin_shell_kind)
-       NULLIFY(md_ener%temp_shell_kind)
-       NULLIFY(md_ener%nfree_shell_kind)
-    END IF
+    NULLIFY(md_ener%ekin_kind)
+    NULLIFY(md_ener%temp_kind)
+    NULLIFY(md_ener%nfree_kind)
+    NULLIFY(md_ener%ekin_shell_kind)
+    NULLIFY(md_ener%temp_shell_kind)
+    NULLIFY(md_ener%nfree_shell_kind)
   END SUBROUTINE create_md_ener
 
 ! *****************************************************************************
@@ -115,10 +113,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(md_ener%ref_count>0,cp_failure_level,routineP,error,failure)
-       md_ener%ref_count=md_ener%ref_count+1
-    END IF
+    CPPrecondition(md_ener%ref_count>0,cp_failure_level,routineP,error,failure)
+    md_ener%ref_count=md_ener%ref_count+1
   END SUBROUTINE retain_md_ener
 
 ! *****************************************************************************

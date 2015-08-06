@@ -363,9 +363,7 @@ CONTAINS
 
     ALLOCATE(mixed_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL init_mixed_env(mixed_env,para_env=para_env, error=error)
-    END IF
+    CALL init_mixed_env(mixed_env,para_env=para_env, error=error)
   END SUBROUTINE mixed_env_create
 
 ! *****************************************************************************
@@ -387,10 +385,8 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(mixed_env),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       mixed_env%ref_count=mixed_env%ref_count+1
-    END IF
+    CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    mixed_env%ref_count=mixed_env%ref_count+1
   END SUBROUTINE mixed_env_retain
 
 ! *****************************************************************************

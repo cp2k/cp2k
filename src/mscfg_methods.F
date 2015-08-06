@@ -362,33 +362,31 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(logger)
-    IF (.NOT.failure) THEN
-        logger => cp_error_get_logger(error)
-        IF (logger%para_env%mepos==logger%para_env%source) THEN
-           iw=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-        ELSE
-           iw=-1
-        ENDIF
-        
-        IF (iw>0) THEN
+    logger => cp_error_get_logger(error)
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       iw=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       iw=-1
+    ENDIF
+    
+    IF (iw>0) THEN
 
-          WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
-          WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-          WRITE (UNIT=iw,FMT="(T2,A,T5,A,T25,A,T40,I11,T53,A,T67,I11,T80,A)")&
-               "-","MOLECULAR GUESS:", "FRAGMENT", frag, "OUT OF" , nfrags, "-"
-          WRITE (UNIT=iw,FMT="(T2,A,T25,A,T40,I11,T53,A,T67,I11,T80,A)") "-","CHARGE",charge,"MULTIPLICITY",&
-                                                         multpl,"-"
-          WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-          WRITE (UNIT=iw,FMT="(T2,A,T25,A,T53,A,T80,A)") "-","ATOM INDEX","ATOM NAME","-"
-          WRITE (UNIT=iw,FMT="(T2,A,T25,A,T53,A,T80,A)") "-","----------","---------","-"
-          DO i = 1, SIZE(atom_index)
-             WRITE (charI, '(I11)') atom_index(i)
-             WRITE (UNIT=iw,FMT="(T2,A,T25,A,T53,A,T80,A)") "-",ADJUSTL(charI),TRIM(atom_type(i)),"-"
-          END DO
-          WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
-       END IF
+      WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
+      WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+      WRITE (UNIT=iw,FMT="(T2,A,T5,A,T25,A,T40,I11,T53,A,T67,I11,T80,A)")&
+           "-","MOLECULAR GUESS:", "FRAGMENT", frag, "OUT OF" , nfrags, "-"
+      WRITE (UNIT=iw,FMT="(T2,A,T25,A,T40,I11,T53,A,T67,I11,T80,A)") "-","CHARGE",charge,"MULTIPLICITY",&
+                                                     multpl,"-"
+      WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+      WRITE (UNIT=iw,FMT="(T2,A,T25,A,T53,A,T80,A)") "-","ATOM INDEX","ATOM NAME","-"
+      WRITE (UNIT=iw,FMT="(T2,A,T25,A,T53,A,T80,A)") "-","----------","---------","-"
+      DO i = 1, SIZE(atom_index)
+         WRITE (charI, '(I11)') atom_index(i)
+         WRITE (UNIT=iw,FMT="(T2,A,T25,A,T53,A,T80,A)") "-",ADJUSTL(charI),TRIM(atom_type(i)),"-"
+      END DO
+      WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
+   END IF
 
-    END IF
 
   END SUBROUTINE print_frag_info
 
