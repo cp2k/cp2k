@@ -236,7 +236,6 @@ CONTAINS
        NULLIFY(sll%rest)
        IF (PRESENT(rest)) sll%rest => rest
     END IF
-    IF (failure) NULLIFY(sll)
   END SUBROUTINE cp_sll_logical_create
 
 ! *****************************************************************************
@@ -398,6 +397,7 @@ CONTAINS
     IF (cp_debug) THEN
        CPPrecondition(ASSOCIATED(sll),cp_failure_level,routineP,error,failure)
     END IF
+
     res = sll%first_el
   END FUNCTION cp_sll_logical_get_first_el
 
@@ -440,7 +440,7 @@ CONTAINS
              ELSE
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                      routineP, "tried to go past end in "// &
-CPSourceFileRef,&
+                     CPSourceFileRef,&
                      error,failure)
              END IF
           END DO
@@ -474,10 +474,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_get_empty', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     res = .NOT.ASSOCIATED(sll)
   END FUNCTION cp_sll_logical_get_empty
 
@@ -501,10 +497,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_get_length', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_logical_type), POINTER       :: iterator
-
-    failure=.FALSE.
 
     res=0
     iterator => sll
@@ -554,6 +547,7 @@ CPSourceFileRef,&
        pos => cp_sll_logical_get_rest(sll, iter=index-1,error=error)
     END IF
     CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
+
     res = pos%first_el
   END FUNCTION cp_sll_logical_get_el_at
 
@@ -591,6 +585,7 @@ CPSourceFileRef,&
        pos => cp_sll_logical_get_rest(sll, iter=index-1,error=error)
     END IF
     CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
+
     pos%first_el = value
   END SUBROUTINE cp_sll_logical_set_el_at
 
@@ -617,12 +612,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_next', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (ASSOCIATED(iterator)) THEN
-       res=.NOT.failure
+       res=.TRUE.
        IF (PRESENT(el_att)) el_att = iterator%first_el
        iterator => iterator%rest
     ELSE
@@ -653,10 +644,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_insert_el', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_logical_type), POINTER       :: newSlot
 
-    failure=.FALSE.
     NULLIFY(newSlot)
 
     CALL cp_sll_logical_create(newSlot,first_el=el,&
@@ -694,7 +683,7 @@ CPSourceFileRef,&
     ELSE
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
             routineP,"tried to remove first el of an empty list in "//&
-CPSourceFileRef,&
+            CPSourceFileRef,&
             error,failure)
     END IF
   END SUBROUTINE cp_sll_logical_rm_first_el
@@ -799,10 +788,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_logical_rm_all_el', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_logical_type), POINTER       :: actual_node, next_node
-
-    failure=.FALSE.
 
     actual_node => sll
     DO
@@ -870,10 +856,7 @@ FUNCTION cp_sll_logical_from_array(array,error) RESULT(res)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     TYPE(cp_sll_logical_type), POINTER       :: last_el
-
-  failure=.FALSE.
 
   NULLIFY(res,last_el)
   IF (SIZE(array)>0) THEN
