@@ -949,9 +949,13 @@ error=error)
     ! write OT output
 
     IF (output_unit>0) THEN
-       WRITE(output_unit,'(/,A,/)') "  ----------------------------------- OT ---------------------------------------"
-       WRITE(output_unit,'(A,L2)') "  Allowing for rotations: ",settings%do_rotation
-       WRITE(output_unit,'(A,L2)') "  Optimizing orbital energies: ",settings%do_ener
+       WRITE(output_unit,'(/,A)') "  ----------------------------------- OT ---------------------------------------"
+       IF(settings%do_rotation) THEN
+          WRITE(output_unit,'(A)') "  Allowing for rotations "
+       END IF
+       IF(settings%do_ener) THEN
+          WRITE(output_unit,'(A,L2)') "  Optimizing orbital energies "
+       END IF
        SELECT CASE (settings%OT_METHOD)
        CASE ("SD")
           WRITE(output_unit,'(A)') "  Minimizer      : SD                  : steepest descent"
@@ -960,12 +964,11 @@ error=error)
        CASE ("DIIS")
           WRITE(output_unit,'(A)') "  Minimizer      : DIIS                : direct inversion"
           WRITE(output_unit,'(A)') "                                         in the iterative subspace"
-          WRITE(output_unit,'(A,I3,A)')    "                            using      : - ",&
-               settings%diis_m," DIIS vectors"
+          WRITE(output_unit,'(A,I3,A)') "                                         using ",settings%diis_m," DIIS vectors"
           IF (settings%safer_diis) THEN
-             WRITE(output_unit,'(A,I3,A)') "                                         - safer DIIS on"
+             WRITE(output_unit,'(A,I3,A)') "                                         safer DIIS on"
           ELSE
-             WRITE(output_unit,'(A,I3,A)') "                                         - safer DIIS off"
+             WRITE(output_unit,'(A,I3,A)') "                                         safer DIIS off"
           ENDIF
        CASE ("BROY")
           WRITE(output_unit,'(A)')       "  Minimizer      : BROYDEN             : Broyden "
@@ -981,13 +984,14 @@ error=error)
        CASE ("FULL_SINGLE")
           WRITE(output_unit,'(A)') "  Preconditioner : FULL_SINGLE         : diagonalization based"
        CASE ("FULL_SINGLE_INVERSE")
-          WRITE(output_unit,'(A)') "  Preconditioner : FULL_SINGLE_INVERSE : inversion of H + eS - 2*(Sc)(c^T*H*c+const)(Sc)^T"
+          WRITE(output_unit,'(A,/,A)') "  Preconditioner : FULL_SINGLE_INVERSE : inversion of ",&
+            "                                         H + eS - 2*(Sc)(c^T*H*c+const)(Sc)^T"
        CASE ("FULL_ALL")
           WRITE(output_unit,'(A)') "  Preconditioner : FULL_ALL            : diagonalization, state selective"
        CASE ("FULL_KINETIC")
           WRITE(output_unit,'(A)') "  Preconditioner : FULL_KINETIC        : inversion of T + eS"
        CASE ("FULL_S_INVERSE")
-          WRITE(output_unit,'(A)')            "  Preconditioner : FULL_S_INVERSE      : cholesky inversion of S"
+          WRITE(output_unit,'(A)') "  Preconditioner : FULL_S_INVERSE      : cholesky inversion of S"
        CASE ("SPARSE_DIAG")
           WRITE(output_unit,'(A)')  &
                "  Preconditioner : SPARSE_DIAG    : diagonal atomic block diagonalization"
@@ -1016,25 +1020,25 @@ error=error)
              WRITE(output_unit,'(3A)') "  Line search : ", settings%line_search_method," : UNKNOWN"
           END SELECT
        ENDIF
-       WRITE(output_unit,'(A,F14.8)') "  stepsize       :",settings%ds_min
-       WRITE(output_unit,'(A,F14.8)') "  energy_gap     :",settings%energy_gap
-       WRITE(output_unit,'(A)') ""
+       WRITE(output_unit,'(A,F14.8,T49,A,F14.8)') "  stepsize       :",settings%ds_min,&
+                                                  "  energy_gap     :",settings%energy_gap
        IF(settings%ot_algorithm.EQ.'TOD') THEN
-          WRITE(output_unit,'(A,E14.5)') "  eps_taylor     :",settings%eps_taylor
-          WRITE(output_unit,'(A,I14)')   "  max_taylor     :",settings%max_taylor
+          WRITE(output_unit,'(A,E14.5,T49,A,I14)') "  eps_taylor     :",settings%eps_taylor,&
+                                                   "  max_taylor     :",settings%max_taylor
        ENDIF
        IF(settings%ot_algorithm.EQ.'REF') THEN
-          WRITE(output_unit,'(A,1X,A)') "  ortho_irac         :", settings%ortho_irac
-          WRITE(output_unit,'(A,I14)')  "  irac_degree        :", settings%irac_degree
-          WRITE(output_unit,'(A,I14)')  "  max_irac           :", settings%max_irac
-          WRITE(output_unit,'(A,E14.5)')"  eps_irac           :", settings%eps_irac
-          WRITE(output_unit,'(A,E14.5)')"  eps_irac_switch    :", settings%eps_irac_switch
-          WRITE(output_unit,'(A,E14.5)')"  eps_irac_quick_exit:", settings%eps_irac_quick_exit
-          WRITE(output_unit,'(A,L2)')   "  on_the_fly_loc     :", settings%on_the_fly_loc
+          WRITE(output_unit,'(A,1X,A,T49,A,I14)') "  ortho_irac         :", settings%ortho_irac,&
+                                                  "  irac_degree        :", settings%irac_degree
+          WRITE(output_unit,'(A,I14,T49,A,E14.5)')"  max_irac           :", settings%max_irac,&
+                                                  "  eps_irac           :", settings%eps_irac
+          WRITE(output_unit,'(A,E14.5,T49,A,E14.5)')"  eps_irac_switch    :", settings%eps_irac_switch,&
+                                                    "  eps_irac_quick_exit:", settings%eps_irac_quick_exit
+          WRITE(output_unit,'(A,L2)') "  on_the_fly_loc     :", settings%on_the_fly_loc
        END IF
-       WRITE(output_unit,'(A)') ""
-       WRITE(output_unit,'(A,L2)')   "  mixed_precision    :", settings%mixed_precision
-       WRITE(output_unit,'(/,A)') "  ----------------------------------- OT ---------------------------------------"
+       IF(settings%mixed_precision) THEN
+          WRITE(output_unit,'(A)')   "  Preconditioner arithmetic in mixed_precision    "
+       END IF
+       WRITE(output_unit,'(A)') "  ----------------------------------- OT ---------------------------------------"
        WRITE (UNIT=output_unit,&
               FMT="(/,T3,A,T12,A,T31,A,T39,A,T59,A,T75,A,/,T3,A)")&
          "Step","Update method","Time","Convergence","Total energy","Change",&

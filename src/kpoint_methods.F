@@ -370,6 +370,7 @@ CPSourceFileRef,&
        logger => cp_error_get_logger(error)
        unit_nr=cp_logger_get_default_io_unit(logger)
        IF (unit_nr>0) THEN
+          WRITE(unit_nr,*)
           WRITE(unit_nr,FMT="(T2,A,T71,I10)") "KPOINTS| Number of kpoint groups ",nkp_grp
           WRITE(unit_nr,FMT="(T2,A,T71,I10)") "KPOINTS| Size of each kpoint group",ngr
           WRITE(unit_nr,FMT="(T2,A,T71,I10)") "KPOINTS| Number of kpoints per group",nkp_loc

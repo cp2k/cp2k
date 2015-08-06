@@ -147,8 +147,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_init', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=10*default_string_length)  :: cp_flags
     CHARACTER(LEN=default_string_length)     :: dev_flag
-    INTEGER                                  :: my_output_unit
+    INTEGER                                  :: ilen, my_output_unit
     TYPE(cp_logger_type), POINTER            :: logger
 
 ! create a timer_env
@@ -196,8 +197,14 @@ CONTAINS
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
             "CP2K| source code revision number:",&
             ADJUSTR(compile_revision)
+       cp_flags=cp2k_flags()
+       ilen=LEN_TRIM(cp_flags)
        WRITE (UNIT=my_output_unit,FMT="(T2,A)")&
-            "CP2K| "//TRIM(cp2k_flags())
+            "CP2K| "//cp_flags(1:73)
+       IF(ilen>73) THEN
+          WRITE (UNIT=my_output_unit,FMT="(T2,A)")&
+            "CP2K|            "//TRIM(cp_flags(74:))
+       END IF
        WRITE (UNIT=my_output_unit,FMT="(T2,A,T41,A40)")&
             "CP2K| is freely available from ",&
             ADJUSTR(TRIM(cp2k_home))
