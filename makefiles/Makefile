@@ -432,9 +432,9 @@ endif
 %.o: %.F
 ifneq ($(CPP),)
 	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $< > $*.f90
-	$(FC) -c $(FCFLAGS) $*.f90 $(FCLOGPIPE)
+	$(FC) -c $(FCFLAGS) $*.f90
 else
-	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $< $(FCLOGPIPE) 
+	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $<
 endif
 
 %.o: %.c
