@@ -429,12 +429,15 @@ endif
 # the rule how to generate the .o from the .F
 # only if CPP is different from null we do a step over the C preprocessor (which is slower)
 # in the other case the fortran compiler takes care of this directly
+#
+# $(FCLOGPIPE) can be used to store compiler output, e.g. warnings, for each F-file separately.
+# This is used e.g. by the convention checker.
 %.o: %.F
 ifneq ($(CPP),)
 	$(CPP) $(CPPFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $< > $*.f90
-	$(FC) -c $(FCFLAGS) $*.f90
+	$(FC) -c $(FCFLAGS) $*.f90 $(FCLOGPIPE)
 else
-	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $<
+	$(FC) -c $(FCFLAGS) -D__SHORT_FILE__="\"$(notdir $<)\"" $< $(FCLOGPIPE)
 endif
 
 %.o: %.c
