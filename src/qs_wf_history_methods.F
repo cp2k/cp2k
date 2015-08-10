@@ -569,11 +569,11 @@ END FUNCTION wfi_get_method_label
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
-    TYPE(qs_rho_type), POINTER               :: rho, rho_xc
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
 
     NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, mo_coeff, &
-         rho, rho_xc, rho_ao, rho_frozen_ao)
+         rho, rho_ao, rho_frozen_ao)
     failure=.FALSE.
 
     use_overlap = wf_history%store_overlap
@@ -588,7 +588,7 @@ END FUNCTION wfi_get_method_label
     CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CALL get_qs_env(qs_env, mos=mos, rho=rho, rho_xc=rho_xc, do_kpoints=do_kpoints, error=error)
+    CALL get_qs_env(qs_env, mos=mos, rho=rho, do_kpoints=do_kpoints, error=error)
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools, error=error)
     ! chooses the method for this extrapolation
     IF (wf_history%snapshot_count<1) THEN

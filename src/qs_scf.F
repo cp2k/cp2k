@@ -283,7 +283,7 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho, rho_xc
+    TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
 
@@ -291,7 +291,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    NULLIFY(dft_control,rho,rho_xc,energy, &
+    NULLIFY(dft_control,rho,energy, &
             logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
             particle_set,dft_section,input,&
             scf_section, para_env, results, kpoints, pw_env, rho_ao_kp)
@@ -312,7 +312,6 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set,&
                     rho=rho,&
-                    rho_xc=rho_xc,&
                     mos=mos,&
                     input=input,&
                     dft_control=dft_control,&
