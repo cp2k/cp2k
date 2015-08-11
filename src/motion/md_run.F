@@ -401,7 +401,7 @@ CONTAINS
        IF (ASSOCIATED(force_env%meta_env)) THEN
            ! Setup stuff for plumed if needed
            IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
-               CALL metadyn_initialise_plumed(force_env, simpar, error)
+               CALL metadyn_initialise_plumed(force_env, simpar, itimes, error)
            ELSE
                IF(force_env%meta_env%langevin) THEN
                  CALL create_wiener_process_cv(force_env%meta_env, error=error)
@@ -454,7 +454,7 @@ CONTAINS
        md_stride = reftraj%info%stride
        IF (ASSOCIATED(force_env%meta_env)) THEN
            IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
-               CALL metadyn_initialise_plumed(force_env, simpar, error)
+               CALL metadyn_initialise_plumed(force_env, simpar, itimes, error)
             END IF
         END IF
     END IF
