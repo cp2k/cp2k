@@ -199,6 +199,7 @@ manybody_siepmann.F: Unused dummy argument 'loc_cell_v' at (1)
 manybody_siepmann.F: Unused dummy argument 'pv_nonbond' at (1)
 message_passing.F: Found CLOSE statement in procedure "mp_file_close"
 message_passing.F: Found OPEN statement in procedure "mp_file_open"
+metadynamics.F: Unused dummy argument 'itimes' at (1)
 mm_collocate_potential.F: Routine COLLOCATE_GF_NPBC called with an implicit interface.
 mm_collocate_potential.F: Routine INTEGRATE_GF_NPBC called with an implicit interface.
 mp2_direct_method.F: Unused dummy argument 'hfx_section' at (1)
