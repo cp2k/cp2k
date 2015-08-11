@@ -106,7 +106,7 @@ CONTAINS
 #endif
 
 #if defined (__PLUMED_CP2K)
-    INTEGER                                  :: nsp_plumed, i_kinds
+    INTEGER                                  :: nsp_plumed, i_kinds, itimes
     INTEGER, DIMENSION(90)                   :: na_plumed
     REAL(KIND=dp), DIMENSION(90)             :: pma0_plumed
 #endif
@@ -131,6 +131,7 @@ CONTAINS
 #if defined (__PLUMED_CP2K)
     !in a parallel run plumed only needs to be initialized on the master node
     IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
+        itimes = 0
         nsp_plumed=subsys%atomic_kinds%n_els
         DO i_kinds=1,nsp_plumed
             na_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%natom
