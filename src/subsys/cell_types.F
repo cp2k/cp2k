@@ -77,6 +77,7 @@ MODULE cell_types
             cell_clone, cell_copy, parse_cell_line, set_cell_param
 
 #if defined (__PLUMED_CP2K)
+  PUBLIC :: pbc_cp2k_plumed
 #endif
 
 #if defined (__PLUMED_CP2K) || defined (__PLUMED2)
