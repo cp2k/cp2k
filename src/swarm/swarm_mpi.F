@@ -269,7 +269,6 @@ MODULE swarm_mpi
        template_logger=old_logger, iter_info=iter_info)
 
     CALL cp_add_default_logger(new_logger)
-    CALL cp_error_set(error, logger=new_logger)
     CALL cp_logger_release(new_logger)
   END SUBROUTINE error_add_new_logger
 

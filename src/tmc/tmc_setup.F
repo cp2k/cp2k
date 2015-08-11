@@ -113,7 +113,6 @@ CONTAINS
     LOGICAL                                  :: failure, success
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: init_rng_seed
-    TYPE(cp_error_type)                      :: error_sub
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
     TYPE(section_vals_type), POINTER         :: tmc_ana_section
     TYPE(tmc_ana_list_type), DIMENSION(:), &
@@ -195,7 +194,7 @@ CONTAINS
         CALL cp_logger_create(logger_sub,para_env=tmc_env%tmc_comp_set%para_env_m_only,&
                 default_global_unit_nr=default_output_unit, close_global_unit_on_dealloc=.FALSE.)
         CALL cp_logger_set(logger_sub,local_filename="tmc_main")
-        CALL cp_error_init(error_sub, logger=logger_sub)
+        CALL cp_add_default_logger(logger_sub)
      
         ! if we're doing output to the screen, keep it there, else this master
         ! opens a file (not that two different ranks are writing to the
@@ -209,16 +208,16 @@ CONTAINS
           CALL tmc_header(tmc_env%m_env%io_unit)
         ENDIF
         ! print the intresting parameters and starting values
-        CALL tmc_print_params(tmc_env, error_sub)
+        CALL tmc_print_params(tmc_env, error)
         CALL print_move_types(init=.TRUE., file_io=tmc_env%m_env%io_unit, &
-                              tmc_params=tmc_env%params, error=error_sub)
-        CALL do_tmc_master(tmc_env=tmc_env, globenv=globenv, error=error_sub) ! start the master routine
+                              tmc_params=tmc_env%params, error=error)
+        CALL do_tmc_master(tmc_env=tmc_env, globenv=globenv, error=error) ! start the master routine
 
         IF (bcast_output_unit .NE. tmc_env%m_env%io_unit) THEN
           CALL close_file(unit_number=tmc_env%m_env%io_unit)
         ENDIF
   
-        CALL cp_error_dealloc_ref(error_sub,error=error)
+        CALL cp_rm_default_logger()
         CALL cp_logger_release(logger_sub)
   
       ! the worker groups
@@ -228,7 +227,7 @@ CONTAINS
         CALL cp_logger_create(logger_sub,para_env=tmc_env%tmc_comp_set%para_env_sub_group,&
                 default_global_unit_nr=default_output_unit, close_global_unit_on_dealloc=.FALSE.)
         CALL cp_logger_set(logger_sub,local_filename="tmc_localLog")
-        CALL cp_error_init(error_sub, logger=logger_sub)
+        CALL cp_add_default_logger(logger_sub)
         tmc_env%w_env%io_unit = default_output_unit
   
         ! energy worker
@@ -259,14 +258,14 @@ CONTAINS
                          "creating approx force env result in error "//cp_to_string(ierr),&
                          error)
         END IF
-        CALL do_tmc_worker(tmc_env=tmc_env, error=error_sub) ! start the worker routine
+        CALL do_tmc_worker(tmc_env=tmc_env, error=error) ! start the worker routine
   
         IF(tmc_env%w_env%env_id_ener.GT.0) &
           CALL destroy_force_env(tmc_env%w_env%env_id_ener, ierr)
         IF(tmc_env%w_env%env_id_approx.GT.0) &
           CALL destroy_force_env(tmc_env%w_env%env_id_approx, ierr)
   
-        CALL cp_error_dealloc_ref(error_sub,error=error)
+        CALL cp_rm_default_logger()
         CALL cp_logger_release(logger_sub)
 
       ! the analysis group
@@ -278,7 +277,7 @@ CONTAINS
                 default_global_unit_nr=default_output_unit, close_global_unit_on_dealloc=.FALSE.)
         tmc_env%w_env%io_unit = default_output_unit
         CALL cp_logger_set(logger_sub,local_filename="tmc_ana_localLog")
-        CALL cp_error_init(error_sub, logger=logger_sub)
+        CALL cp_add_default_logger(logger_sub)
         ! if we're doing output to the screen, keep it there, else this master
         ! opens a file (not that two different ranks are writing to the
         ! default_output_unit, we leave it up to mpirun or so to merge stuff
@@ -297,7 +296,7 @@ CONTAINS
           CALL tmc_read_ana_input(tmc_ana_section, tmc_ana_env_list(i)%temp, error)
           tmc_ana_env_list(i)%temp%io_unit = output_unit
         END DO
-        CALL do_tmc_worker(tmc_env=tmc_env, ana_list=tmc_ana_env_list, error=error_sub) ! start the worker routine for analysis
+        CALL do_tmc_worker(tmc_env=tmc_env, ana_list=tmc_ana_env_list, error=error) ! start the worker routine for analysis
         DO i=1, tmc_env%params%nr_temp
           IF(ASSOCIATED(tmc_ana_env_list(i)%temp%last_elem)) &
             CALL deallocate_sub_tree_node(tree_elem=tmc_ana_env_list(i)%temp%last_elem, error=error)
@@ -307,8 +306,9 @@ CONTAINS
         IF (bcast_output_unit .NE. output_unit) THEN
           CALL close_file(unit_number=tmc_env%m_env%io_unit)
         ENDIF
-        CALL cp_error_dealloc_ref(error_sub,error=error)
+        CALL cp_rm_default_logger()
         CALL cp_logger_release(logger_sub)
+        
       END IF ! unused worker groups have nothing to do
   
       ! delete the random numbers
@@ -362,14 +362,13 @@ CONTAINS
                                                 my_mpi_world, nr_dim, &
                                                 output_unit, temp
     LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: error_sub
-    TYPE(cp_logger_type), POINTER            :: logger, logger_sub
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(tmc_ana_list_type), DIMENSION(:), &
       POINTER                                :: ana_list
     TYPE(tmc_env_type), POINTER              :: tmc_env
     TYPE(tree_type), POINTER                 :: elem
 
-    NULLIFY(ana_list, tmc_env, elem, logger, logger_sub)
+    NULLIFY(ana_list, tmc_env, elem, logger)
     failure = .FALSE.
 
     ! start the timing
@@ -393,11 +392,6 @@ CONTAINS
       logger=>cp_error_get_logger(error)
       output_unit= cp_logger_get_default_io_unit(logger)
       CPPostconditionNoFail(output_unit.GT.0,cp_failure_level,routineP,error)
-
-      CALL cp_logger_create(logger_sub,para_env=tmc_env%tmc_comp_set%para_env_m_ana,&
-             default_global_unit_nr=default_output_unit, close_global_unit_on_dealloc=.FALSE.)
-      CALL cp_logger_set(logger_sub,local_filename="tmc_ana")
-      CALL cp_error_init(error_sub, logger=logger_sub)
       ! write the header
       CALL tmc_ana_header(output_unit)
 
@@ -474,10 +468,6 @@ CONTAINS
       END DO
 
       DEALLOCATE(ana_list)
-  
-      ! finalize / deallocate everthing
-      CALL cp_error_dealloc_ref(error_sub,error=error)
-      CALL cp_logger_release(logger_sub)
     END IF
     CALL mp_comm_free(my_mpi_world)
     CALL tmc_env_release(tmc_env, error)

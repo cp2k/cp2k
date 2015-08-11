@@ -86,11 +86,9 @@ CONTAINS
 
     INTEGER                                  :: handle
     TYPE(basis_optimization_type)            :: opt_bas
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    logger => cp_get_default_logger()
-    CALL cp_error_init(error, logger=logger)
+    CALL cp_error_init(error)
 
     CALL optimize_basis_init_read_input(opt_bas,root_section,para_env,error)
 

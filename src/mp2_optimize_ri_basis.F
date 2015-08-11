@@ -139,7 +139,6 @@ MODULE mp2_optimize_ri_basis
                                                 Integ_MP2_AB, Integ_MP2_BB
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_error_type)                      :: error_sub
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
     TYPE(gto_basis_set_type), POINTER        :: ri_aux_basis
@@ -264,7 +263,7 @@ MODULE mp2_optimize_ri_basis
     CALL cp_logger_create(logger_sub,para_env=para_env_sub,&
                default_global_unit_nr=local_unit_nr, close_global_unit_on_dealloc=.FALSE.)
     CALL cp_logger_set(logger_sub,local_filename="opt_RI_basis_localLog")
-    CALL cp_error_init(error_sub, logger=logger_sub)
+    CALL cp_add_default_logger(logger_sub)
 
     CALL generate_RI_init_basis(qs_env,mp2_env,nkind,max_rel_dev,basis_was_assoc,error)
 
@@ -367,7 +366,7 @@ MODULE mp2_optimize_ri_basis
                               open_shell_case,homo_beta,virtual_beta,Auto_beta,C_beta,&
                               para_env,para_env_sub,number_groups,color_sub,unit_nr,&
                               p,lower_B,max_dev,&
-                              deriv,error,error_sub)
+                              deriv,error)
 
     g(:)=deriv
     xi(:)=-g
@@ -428,7 +427,7 @@ MODULE mp2_optimize_ri_basis
                                   open_shell_case,homo_beta,virtual_beta,Auto_beta,C_beta,&
                                   para_env,para_env_sub,number_groups,color_sub,unit_nr,&
                                   p,lower_B,max_dev,&
-                                  deriv,error,error_sub)
+                                  deriv,error)
 
         g(:)=deriv
         xi(:)=-g
@@ -489,7 +488,7 @@ MODULE mp2_optimize_ri_basis
                                 open_shell_case,homo_beta,virtual_beta,Auto_beta,C_beta,&
                                 para_env,para_env_sub,number_groups,color_sub,unit_nr,&
                                 p,lower_B,max_dev,&
-                                deriv,error,error_sub)
+                                deriv,error)
 
       ! g is the vector containing the old gradient
       dg(:)=deriv-g
@@ -565,7 +564,7 @@ MODULE mp2_optimize_ri_basis
     CALL release_RI_basis_set(RI_basis_parameter,basis_S0,error)
  
     CALL cp_para_env_release(para_env_sub,error)
-    CALL cp_error_dealloc_ref(error_sub,error=error)
+    CALL cp_rm_default_logger()
     CALL cp_logger_release(logger_sub)
 
     CALL timestop(handle)
@@ -625,7 +624,7 @@ MODULE mp2_optimize_ri_basis
                                   open_shell_case,homo_beta,virtual_beta,Auto_beta,C_beta,&
                                   para_env,para_env_sub,number_groups,color_sub,unit_nr,&
                                   p,lower_B,max_dev,&
-                                  deriv,error,error_sub)
+                                  deriv,error)
     REAL(KIND=dp)                            :: Emp2, Emp2_AA, Emp2_BB, &
                                                 Emp2_AB, DI_ref
     REAL(KIND=dp), ALLOCATABLE, &
@@ -656,7 +655,7 @@ MODULE mp2_optimize_ri_basis
     INTEGER                                  :: number_groups, color_sub, &
                                                 unit_nr
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: p, lower_B, max_dev, deriv
-    TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
+    TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_energy_func_der', &
       routineP = moduleN//':'//routineN
@@ -706,7 +705,7 @@ MODULE mp2_optimize_ri_basis
                               kind_of,index_table_RI,mp2_biel,mp2_env,Auto,C,&
                               RI_basis_parameter,RI_basis_info,basis_S0,&
                               open_shell_case,homo_beta,virtual_beta,Auto_beta,C_beta,&
-                              para_env_sub,unit_nr,.TRUE.,error_sub)
+                              para_env_sub,unit_nr,.TRUE.,error)
 
         RI_basis_parameter(ikind)%zet(1,iset)=orig_basis_val
 
