@@ -759,11 +759,11 @@ END SUBROUTINE val_write
                                         unit_str=cp_unit_desc(unit=unit,&
                                                               error=error),&
                                         error=error)
-              WRITE (UNIT=string(16*i-15:),FMT="(ES16.8)") value
+              WRITE (UNIT=string(16*i-15:),FMT="(ES16.8E3)") value
             END DO
           ELSE
             DO i=1,SIZE(val%r_val)
-              WRITE (UNIT=string(16*i-15:),FMT="(ES16.8)") val%r_val(i)
+              WRITE (UNIT=string(16*i-15:),FMT="(ES16.8E3)") val%r_val(i)
             END DO
           END IF
         ELSE
