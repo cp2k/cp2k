@@ -67,7 +67,7 @@ CONTAINS
 !>      id=str2id(s2s("my short string"))
 ! *****************************************************************************
   FUNCTION str2id(str) RESULT(id)
-    CHARACTER(LEN=default_string_length)     :: str
+    CHARACTER(LEN=*)                         :: str
     INTEGER                                  :: id
 
     INTEGER                                  :: index, ipos
