@@ -435,7 +435,8 @@ CONTAINS
     END DO
 
     ! QUIP
-    CALL quip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, error=error)
+    IF (use_virial) &
+       CALL quip_add_force_virial(fist_nonbond_env, f_nonbond, pv_nonbond, error=error)
 
     ! starting the force loop
     DO ilist=1,nonbonded%nlists

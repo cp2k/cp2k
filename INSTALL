@@ -207,6 +207,11 @@ Below are some additional hints that may help in the compilation process:
       METISLIB = -lscotchmetis -lscotch -lscotcherr
       PARMETISLIB = -lptscotchparmetis -lptscotch -lptscotcherr
 
+==== 2o. QUIP (optional) ====
+QUIP - QUantum mechanics and Interatomic Potentials
+Support for QUIP can be enabled via the flag -D__QUIP .
+For more information see http://www.libatoms.org/ .
+
 ===== 3. Compile =====
 
 ==== 3a. ARCH files ====
