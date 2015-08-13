@@ -1,0 +1,10 @@
+<LJ_params n_types="3" label="default">
+<!-- dummy paramters for testing purposes, no physical meaning -->
+<per_type_data type="1" atomic_num="29" />
+<per_type_data type="2" atomic_num="79" />
+<per_type_data type="3" atomic_num="47" />
+<per_pair_data type1="1" type2="1" sigma="4.0" eps6="1.0" eps12="1.0" cutoff="6.0" energy_shift="T" linear_force_shift="F" />
+<per_pair_data type1="2" type2="2" sigma="5.0" eps6="2.0" eps12="2.0" cutoff="7.5" energy_shift="T" linear_force_shift="F" />
+<per_pair_data type1="1" type2="2" sigma="4.5" eps6="1.5" eps12="1.5" cutoff="6.75" energy_shift="T" linear_force_shift="F" />
+<per_pair_data type1="3" type2="3" sigma="1.9" eps6="1.5" eps12="1.5" cutoff="4.5" energy_shift="T" linear_force_shift="F" />
+</LJ_params>

@@ -1,0 +1,38 @@
+&GLOBAL
+  PROJECT Quip_Cu_LJ
+&END GLOBAL
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Cu
+        CHARGE 0.0
+      &END
+      &NONBONDED
+      &QUIP
+        ATOMS Cu Cu
+        INIT_ARGS IP LJ
+        PARM_FILE_NAME ip.parms.LJ.xml
+      &END QUIP
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+    &END CELL
+    &COORD
+      Cu -1.0 0.0 0.0
+      Cu  0.0 0.0 0.0
+      Cu  1.0 0.0 0.0
+    &END COORD
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
