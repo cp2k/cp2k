@@ -319,7 +319,6 @@ MODULE swarm_mpi
 
     CALL cp_rm_default_logger() !pops the top-most logger
     old_logger => cp_error_get_logger(error)
-    CALL cp_error_set(error, logger=old_logger)
 
     ! restore GLOBAL%PROJECT_NAME
     CALL section_vals_val_set(root_section, "GLOBAL%PROJECT_NAME", &

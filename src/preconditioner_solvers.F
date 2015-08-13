@@ -201,7 +201,6 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_fm_type), POINTER                :: fm
 
     failure = .FALSE.
@@ -217,10 +216,8 @@ CONTAINS
     fm=>preconditioner_env%fm
     !
     ! compute the inverse of SPD matrix fm using the Cholesky factorization
-    CALL cp_error_init(sub_error, template_error=error)
-    CALL cp_fm_cholesky_decompose(fm, error=sub_error)
+    CALL cp_fm_cholesky_decompose(fm, error=error)
     failure = .FALSE.
-    CALL cp_error_dealloc_ref(sub_error)
     !
     ! if fm not SPD we go with the overlap matrix
     IF (failure) THEN
