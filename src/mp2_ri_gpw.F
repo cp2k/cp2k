@@ -4551,6 +4551,7 @@ MODULE mp2_ri_gpw
 !> \param start_point ...
 !> \param integ_group_pos2color_sub ...
 !> \param num_ij_pairs ...
+!> \param proc_map ...
 !> \param ij_map ...
 !> \param ranges_info_array ...
 !> \param Y_i_aP ...
@@ -4575,7 +4576,7 @@ MODULE mp2_ri_gpw
       proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, rec_j, &
       send_L_size, start_point
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: integ_group_pos2color_sub, &
-                                                num_ij_pairs
+                                                num_ij_pairs, proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ranges_info_array
     REAL(KIND=dp), ALLOCATABLE, &
@@ -4589,7 +4590,6 @@ MODULE mp2_ri_gpw
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_map
     LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BI_C_rec, BI_C_send
