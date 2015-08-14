@@ -3061,7 +3061,7 @@ MODULE mp2_ri_gpw
                ij_index, irep, kkk, Lend_pos, lll, Lstart_pos, my_B_size, my_block_size, my_group_L_size, my_i,&
                my_ij_pairs, my_j, ngroup, num_integ_group, proc_receive, proc_send, proc_shift, rec_block_size,&
                rec_i, rec_ij_index, rec_j, send_L_size, start_point, integ_group_pos2color_sub,num_ij_pairs, &
-               ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
+               proc_map,ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
                null_mat_rec, null_mat_send, sizes_array )
       END IF
 
@@ -4564,7 +4564,7 @@ MODULE mp2_ri_gpw
                ij_index, irep, kkk, Lend_pos, lll, Lstart_pos, my_B_size, my_block_size, my_group_L_size, my_i,&
                my_ij_pairs, my_j, ngroup, num_integ_group, proc_receive, proc_send, proc_shift, rec_block_size,&
                rec_i, rec_ij_index, rec_j, send_L_size, start_point, integ_group_pos2color_sub,num_ij_pairs, &
-               ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
+               proc_map,ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
                null_mat_rec, null_mat_send,sizes_array )
 
     TYPE(mp2_type), POINTER                  :: mp2_env
