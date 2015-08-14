@@ -218,8 +218,8 @@ MODULE qs_efield_berry
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, found, uniform, &
                                                 use_virial
-    REAL(dp) :: charge, ci(3), dab, dd, ener_field, f0, fab, fieldpol(3), &
-      focc, fpolvec(3), hmat(3,3), occ, qi(3), ti(3)
+    REAL(dp) :: charge, ci(3), cqi(3), dab, dd, ener_field, f0, fab, &
+      fieldpol(3), focc, fpolvec(3), hmat(3,3), occ, qi(3), ti(3)
     REAL(dp), DIMENSION(3)                   :: forcea, forceb, kvec, ra, &
                                                 rab, rb, ria
     REAL(dp), DIMENSION(:, :), POINTER       :: cosab, iblock, rblock, sinab, &
@@ -636,23 +636,38 @@ MODULE qs_efield_berry
 
     ! Energy
     ener_field=0.0_dp
+    ti = 0.0_dp
     DO idir=1,3
        ! make sure the total normalized polarization is within [-1:1]
-       IF( qi(idir)+ci(idir) > pi ) ci(idir) = ci(idir) - twopi
-       IF( qi(idir)+ci(idir) < -pi ) ci(idir) = ci(idir) + twopi
-       ener_field = ener_field + fpolvec(idir) * (qi(idir)+ci(idir))
+       cqi(idir) = qi(idir)+ci(idir)
+       IF( cqi(idir) > pi ) cqi(idir) = cqi(idir) - twopi
+       IF( cqi(idir) < -pi ) cqi(idir) = cqi(idir) + twopi
+       ! now check for log branch
+       IF (efield%polarisation(idir) == 0.0_dp) THEN
+          efield%polarisation(idir) = cqi(idir)
+       ELSEIF ( ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
+          ti(idir) = (efield%polarisation(idir)-cqi(idir))/pi
+          DO i=1,10
+             cqi(idir) = cqi(idir) + SIGN(1.0_dp,ti(idir)) * twopi
+             IF (ABS(efield%polarisation(idir)-cqi(idir)) < pi) EXIT
+          END DO
+       ELSE
+          efield%polarisation(idir) = cqi(idir)
+       END IF
+       ener_field = ener_field + fpolvec(idir) * cqi(idir)
     END DO
-    energy%efield=ener_field
 
     ! check for smoothness of energy surface
     IF(efield%field_energy == 0.0_dp) THEN
        efield%field_energy = ener_field
     ELSEIF( ABS(efield%field_energy-ener_field) > pi*ABS(SUM(fpolvec))) THEN
-       CALL cp_error_message(cp_note_level, routineP, &
-        "Large change of e-field energy. Non-smooth energy surface", error)
+       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+            "Large change of e-field energy detected. Correct for non-smooth energy surface",&
+            only_ionode=.TRUE.)
     ELSE
        efield%field_energy = ener_field
     END IF
+    energy%efield=ener_field
 
     IF(.NOT.just_energy) THEN
        ! Add the result to mo_derivativs
@@ -663,7 +678,7 @@ MODULE qs_efield_berry
           ti = 0.0_dp
           DO i=1,3
              DO j=1,3
-                ti(j) = ti(j) + hmat(j,i)*(qi(i)+ci(i))
+                ti(j) = ti(j) + hmat(j,i)*cqi(i)
              END DO
           END DO
           DO i=1,3
@@ -739,8 +754,8 @@ MODULE qs_efield_berry
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, found, uniform, &
                                                 use_virial
-    REAL(dp) :: charge, ci(3), dab, dd, di(3), ener_field, fab, fieldpol(3), &
-      focc, hmat(3,3), occ, omega, qi(3), rlog(3), zlog(3)
+    REAL(dp) :: charge, ci(3), cqi(3), dab, dd, di(3), ener_field, fab, &
+      fieldpol(3), focc, hmat(3,3), occ, omega, qi(3), rlog(3), zlog(3)
     REAL(dp), DIMENSION(3)                   :: forcea, forceb, kvec, ra, &
                                                 rab, rb, ria
     REAL(dp), DIMENSION(:, :), POINTER       :: cosab, iblock, rblock, sinab, &
@@ -1149,26 +1164,38 @@ MODULE qs_efield_berry
 
     ! make sure the total normalized polarization is within [-1:1]
     DO idir=1,3
-       IF( rlog(idir)+zlog(idir) > pi ) zlog(idir) = zlog(idir) - twopi
-       IF( rlog(idir)+zlog(idir) < -pi ) zlog(idir) = zlog(idir) + twopi
+       cqi(idir) = rlog(idir) + zlog(idir)
+       IF( cqi(idir) > pi ) cqi(idir) = cqi(idir) - twopi
+       IF( cqi(idir) < -pi ) cqi(idir) = cqi(idir) + twopi
+       ! now check for log branch
+       IF (efield%polarisation(idir) == 0.0_dp) THEN
+          efield%polarisation(idir) = cqi(idir)
+       ELSEIF ( ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
+          di(idir) = (efield%polarisation(idir)-cqi(idir))/pi
+          DO i=1,10
+             cqi(idir) = cqi(idir) + SIGN(1.0_dp,di(idir)) * twopi
+             IF (ABS(efield%polarisation(idir)-cqi(idir)) < pi) EXIT
+          END DO
+       ELSE
+          efield%polarisation(idir) = cqi(idir)
+       END IF
     END DO
     DO idir=1,3
        qi(idir) = 0.0_dp
        ci(idir) = 0.0_dp
        DO i=1,3
-          qi(idir) = qi(idir) + hmat(idir,i) * rlog(i)
-          ci(idir) = ci(idir) + hmat(idir,i) * zlog(i)
+          ci(idir) = ci(idir) + hmat(idir,i) * cqi(i)
        END DO
     END DO
 
-    ! Polarization Energy
-    ener_field=SUM(qi+ci)
+    ener_field=SUM(ci)
     ! check for smoothness of energy surface
     IF(efield%field_energy == 0.0_dp) THEN
        efield%field_energy = ener_field
     ELSEIF( ABS(efield%field_energy-ener_field) > pi*ABS(SUM(hmat)) ) THEN
-       CALL cp_error_message(cp_note_level, routineP, &
-        "Large change of e-field energy. Non-smooth energy surface", error)
+       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+            "Large change of e-field energy detected. Correct for non-smooth energy surface",&
+            only_ionode=.TRUE.)
     ELSE
        efield%field_energy = ener_field
     END IF
@@ -1176,13 +1203,13 @@ MODULE qs_efield_berry
     ! Energy
     ener_field = 0.0_dp
     DO i=1,3
-       ener_field = ener_field + (fieldpol(i) - 2._dp*twopi*(ci(i)+qi(i)))**2
+       ener_field = ener_field + (fieldpol(i) - 2._dp*twopi*ci(i))**2
     END DO
     energy%efield = 0.25_dp*omega/twopi * ener_field
 
     IF(.NOT.just_energy) THEN
        DO i=1,3
-          di(i) = -omega * (fieldpol(i) - 2._dp*twopi*(ci(i)+qi(i)))
+          di(i) = -omega * (fieldpol(i) - 2._dp*twopi*ci(i))
        END DO
        ! Add the result to mo_derivativs
        DO ispin=1, dft_control%nspins
