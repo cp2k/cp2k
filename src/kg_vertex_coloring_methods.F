@@ -291,7 +291,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: dsat, degree
     INTEGER(KIND=valt)                       :: value
 
-    INTEGER, PARAMETER                       :: huge_4 = HUGE(int_4) 
+    INTEGER, PARAMETER                       :: huge_4 = HUGE(0_int_4) 
 
 ! we actually need a max_heap
 
