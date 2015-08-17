@@ -27,8 +27,6 @@ MODULE dbcsr_mp_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mp_methods'
 
-  INTEGER, PUBLIC, SAVE :: dbcsr_matrix_counter = 111111
-
   PUBLIC :: dbcsr_mp_new, dbcsr_mp_hold, dbcsr_mp_release,&
             dbcsr_mp_pgrid, dbcsr_mp_numnodes, dbcsr_mp_mynode, dbcsr_mp_group,&
             dbcsr_mp_new_transposed, dbcsr_mp_nprows, dbcsr_mp_npcols,&
