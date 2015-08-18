@@ -45,6 +45,7 @@ MODULE dbcsr_config
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_get_conf_comm_thread_load
   PUBLIC :: dbcsr_set_conf_external_timing
   PUBLIC :: dbcsr_get_conf_max_ele_block, dbcsr_set_conf_max_ele_block
+  PUBLIC :: dbcsr_get_conf_randmat_seed, dbcsr_set_conf_randmat_seed
   
 
   ! These are for DBCSR internal use.
@@ -75,6 +76,7 @@ MODULE dbcsr_config
 
   PUBLIC :: multrec_limit
   PUBLIC :: default_resize_factor
+  PUBLIC :: randmat_counter
 
   ! First the constants are declared.
   REAL(KIND=dp), PARAMETER             :: default_resize_factor = 1.2_dp
@@ -179,6 +181,10 @@ MODULE dbcsr_config
   LOGICAL, SAVE :: accdrv_do_inhomogenous = .TRUE.
   INTEGER, SAVE :: accdrv_binning_nbins = 4096
   INTEGER, SAVE :: accdrv_binning_binsize = 16
+
+  ! a counter used to generate different random matrices from call to call
+  INTEGER, SAVE :: randmat_counter = 12341313
+
 
 CONTAINS
 
@@ -350,6 +356,39 @@ CONTAINS
 
     max_ele_block = max_elements_per_block
   END FUNCTION dbcsr_get_conf_max_ele_block
+
+! *****************************************************************************
+!> \brief ...
+!> \param randmat_seed ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_set_conf_randmat_seed (randmat_seed, error)
+    INTEGER, INTENT(IN)                      :: randmat_seed
+    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_conf_randmat_seed', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: error_handle
+
+    CALL dbcsr_error_set(routineN, error_handle, error)
+    randmat_counter = randmat_seed
+    CALL dbcsr_error_stop(error_handle, error)
+  END SUBROUTINE dbcsr_set_conf_randmat_seed
+
+! *****************************************************************************
+!> \brief ...
+!> \retval max_ele_block ...
+! *****************************************************************************
+  FUNCTION dbcsr_get_conf_randmat_seed () RESULT (randmat_seed)
+    INTEGER                                  :: randmat_seed
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_conf_randmat_seed', &
+      routineP = moduleN//':'//routineN
+
+    randmat_seed = randmat_counter
+  END FUNCTION dbcsr_get_conf_randmat_seed
+
 
 ! *****************************************************************************
 !> \brief ...
@@ -637,6 +676,8 @@ CONTAINS
     nstacks(1:3) = -1
     use_comm_thread = dbcsr_get_conf_use_comm_thread()
     comm_thread_load = -1
+
+    randmat_counter = 12341313
 
     CALL dbcsr_set_conf_mm_driver (mm_driver, error=error)
     CALL dbcsr_set_conf_mpi_mem (use_mpi_mem, error=error)

@@ -22,10 +22,11 @@ MODULE input_cp2k_global
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, &
        dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_max_ele_block, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_use_comm_thread, &
-       dbcsr_get_conf_use_mpi_filtering, dbcsr_get_conf_use_mpi_rma, &
-       mm_driver_acc, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
-       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_randmat_seed, &
+       dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_filtering, &
+       dbcsr_get_conf_use_mpi_rma, mm_driver_acc, mm_driver_blas, &
+       mm_driver_matmul, mm_driver_smm, mm_name_acc, mm_name_blas, &
+       mm_name_matmul, mm_name_smm, multrec_limit
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              debug_print_level,&
@@ -712,6 +713,13 @@ CONTAINS
          // " A negative or zero value means unlimited.",&
          usage="avg_elements_images 10000",&
          default_i_val=dbcsr_get_conf_avg_elements_images(),error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    !
+    CALL keyword_create(keyword, name="randmat_seed",&
+         description="Seed value used to create random matrices in testing",&
+         usage="randmat_seed 3141592",&
+         default_i_val=dbcsr_get_conf_randmat_seed(),error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     !    

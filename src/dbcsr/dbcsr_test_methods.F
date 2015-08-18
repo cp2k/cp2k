@@ -21,6 +21,7 @@ MODULE dbcsr_test_methods
                                              dbcsr_block_transpose,&
                                              dbcsr_data_clear,&
                                              dbcsr_data_set
+  USE dbcsr_config,                    ONLY: randmat_counter
   USE dbcsr_data_methods,              ONLY: &
        dbcsr_data_clear_pointer, dbcsr_data_get_sizes, dbcsr_data_get_type, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, dbcsr_scalar, &
@@ -411,7 +412,6 @@ CONTAINS
                                                 s_col, s_row
     INTEGER(KIND=int_8)                      :: counter, ele, increment, nmax
     INTEGER, DIMENSION(4)                    :: iseed, jseed
-    INTEGER, SAVE                            :: imat_counter = 12341313
     LOGICAL                                  :: tr
     REAL(kind=real_8)                        :: my_sparsity
     REAL(kind=real_8), DIMENSION(1)          :: value
@@ -422,7 +422,7 @@ CONTAINS
 
     CALL dbcsr_error_set (routineN, error_handle, error)
     ! the counter goes into the seed. Every new call gives a new random matrix
-    imat_counter=imat_counter+1
+    randmat_counter=randmat_counter+1
     ! Create the matrix
     IF (PRESENT (dist)) THEN
        new_dist = dist
@@ -470,7 +470,7 @@ CONTAINS
     nmax = INT(nrow,KIND=int_8)*INT(ncol,KIND=int_8)
     ele = -1
     counter = 0
-    jseed=(/imat_counter,7,42,3/)
+    jseed=(/randmat_counter,7,42,3/)
     DO 
           ! find the next block to add, this is given by a geometrically distributed variable
           ! we number the blocks of the matrix and jump to the next one
@@ -499,7 +499,7 @@ CONTAINS
           IF (.NOT. PRESENT (dist) .AND. my_proc .NE. 0) CYCLE
 
           ! fill based on a block based seed, makes this the same values in parallel
-          iseed=(/imat_counter,row,42,col/)
+          iseed=(/randmat_counter,row,42,col/)
           nze = row_blk_sizes(s_row) * col_blk_sizes(s_col)
           CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
           CALL dbcsr_put_block (matrix, s_row, s_col, data_values)

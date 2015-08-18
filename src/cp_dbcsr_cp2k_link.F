@@ -27,11 +27,12 @@ MODULE cp_dbcsr_cp2k_link
        dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
        dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
-       dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_filtering, &
-       dbcsr_get_conf_use_mpi_rma, dbcsr_set_conf_avg_elements_images, &
-       dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_external_timing, &
-       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
-       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, &
+       dbcsr_get_conf_randmat_seed, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_get_conf_use_mpi_filtering, dbcsr_get_conf_use_mpi_rma, &
+       dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
+       dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
+       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
+       dbcsr_set_conf_nstacks, dbcsr_set_conf_randmat_seed, &
        dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_filtering, &
        dbcsr_set_conf_use_mpi_rma, dbcsr_type_no_symmetry, has_acc, has_mpi, &
        mm_driver_acc, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
@@ -85,10 +86,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_config', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: avg_elements_images, &
-                                                comm_thread_load, &
-                                                error_handle, max_ele_block, &
-                                                mm_driver, mm_ss
+    INTEGER :: avg_elements_images, comm_thread_load, error_handle, &
+      max_ele_block, mm_driver, mm_ss, randmat_seed
     INTEGER, DIMENSION(3)                    :: nstacks
     LOGICAL                                  :: use_comm_thread, &
                                                 use_mpi_filtering, use_mpi_rma
@@ -124,6 +123,8 @@ CONTAINS
          "comm_thread_load", i_val=comm_thread_load, error=error)
     CALL section_vals_val_get(dbcsr_section,&
          "multrec_limit", i_val=multrec_limit, error=error)
+    CALL section_vals_val_get(dbcsr_section,&
+         "randmat_seed", i_val=randmat_seed, error=error)
 
     CALL section_vals_val_get(dbcsr_section,&
          "ACC%priority_streams", i_val=accdrv_priority_streams, error=error)
@@ -159,6 +160,7 @@ CONTAINS
     CALL dbcsr_set_conf_use_mpi_rma(use_mpi_rma, error=dbcsr_error)
     CALL dbcsr_set_conf_use_comm_thread(use_comm_thread, error=dbcsr_error)
     CALL dbcsr_set_conf_comm_thread_load(comm_thread_load, error=dbcsr_error)
+    CALL dbcsr_set_conf_randmat_seed(randmat_seed, error=dbcsr_error)
 
     CALL dbcsr_error_stop (error_handle, dbcsr_error)
   END SUBROUTINE cp_dbcsr_config
@@ -208,6 +210,8 @@ CONTAINS
           WRITE(UNIT=unit_num, FMT='(1X,A,T72,A)')&
                "DBCSR| Maximum elements for images","UNLIMITED"
        ENDIF
+       WRITE(UNIT=unit_num, FMT='(1X,A,T70,I11)')&
+        "DBCSR| Randmat seed", dbcsr_get_conf_randmat_seed()
        
        CALL dbcsr_get_conf_nstacks (n_mnk_stacks, error=dbcsr_error)
        IF (ALL(n_mnk_stacks .EQ. n_mnk_stacks(1))) THEN
