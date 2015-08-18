@@ -643,29 +643,26 @@ MODULE qs_efield_berry
        IF( cqi(idir) > pi ) cqi(idir) = cqi(idir) - twopi
        IF( cqi(idir) < -pi ) cqi(idir) = cqi(idir) + twopi
        ! now check for log branch
-       IF (efield%polarisation(idir) == 0.0_dp) THEN
-          efield%polarisation(idir) = cqi(idir)
-       ELSEIF ( ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
+       IF ( ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
           ti(idir) = (efield%polarisation(idir)-cqi(idir))/pi
           DO i=1,10
              cqi(idir) = cqi(idir) + SIGN(1.0_dp,ti(idir)) * twopi
              IF (ABS(efield%polarisation(idir)-cqi(idir)) < pi) EXIT
           END DO
-       ELSE
-          efield%polarisation(idir) = cqi(idir)
        END IF
        ener_field = ener_field + fpolvec(idir) * cqi(idir)
     END DO
 
-    ! check for smoothness of energy surface
-    IF(efield%field_energy == 0.0_dp) THEN
+    ! update the references
+    IF(calculate_forces)THEN
+       ! check for smoothness of energy surface
+       IF( ABS(efield%field_energy-ener_field) > pi*ABS(SUM(fpolvec))) THEN
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+               "Large change of e-field energy detected. Correct for non-smooth energy surface",&
+               only_ionode=.TRUE.)
+       END IF
        efield%field_energy = ener_field
-    ELSEIF( ABS(efield%field_energy-ener_field) > pi*ABS(SUM(fpolvec))) THEN
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-            "Large change of e-field energy detected. Correct for non-smooth energy surface",&
-            only_ionode=.TRUE.)
-    ELSE
-       efield%field_energy = ener_field
+       efield%polarisation(:) = cqi(:)
     END IF
     energy%efield=ener_field
 
@@ -1168,16 +1165,12 @@ MODULE qs_efield_berry
        IF( cqi(idir) > pi ) cqi(idir) = cqi(idir) - twopi
        IF( cqi(idir) < -pi ) cqi(idir) = cqi(idir) + twopi
        ! now check for log branch
-       IF (efield%polarisation(idir) == 0.0_dp) THEN
-          efield%polarisation(idir) = cqi(idir)
-       ELSEIF ( ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
+       IF ( ABS(efield%polarisation(idir)-cqi(idir)) > pi) THEN
           di(idir) = (efield%polarisation(idir)-cqi(idir))/pi
           DO i=1,10
              cqi(idir) = cqi(idir) + SIGN(1.0_dp,di(idir)) * twopi
              IF (ABS(efield%polarisation(idir)-cqi(idir)) < pi) EXIT
           END DO
-       ELSE
-          efield%polarisation(idir) = cqi(idir)
        END IF
     END DO
     DO idir=1,3
@@ -1188,16 +1181,17 @@ MODULE qs_efield_berry
        END DO
     END DO
 
-    ener_field=SUM(ci)
-    ! check for smoothness of energy surface
-    IF(efield%field_energy == 0.0_dp) THEN
+    ! update the references
+    IF(calculate_forces)THEN
+       ener_field=SUM(ci)
+       ! check for smoothness of energy surface
+       IF( ABS(efield%field_energy-ener_field) > pi*ABS(SUM(hmat)) ) THEN
+          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+               "Large change of e-field energy detected. Correct for non-smooth energy surface",&
+               only_ionode=.TRUE.)
+       END IF
        efield%field_energy = ener_field
-    ELSEIF( ABS(efield%field_energy-ener_field) > pi*ABS(SUM(hmat)) ) THEN
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-            "Large change of e-field energy detected. Correct for non-smooth energy surface",&
-            only_ionode=.TRUE.)
-    ELSE
-       efield%field_energy = ener_field
+       efield%polarisation(:) = cqi(:)
     END IF
 
     ! Energy

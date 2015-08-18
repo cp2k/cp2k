@@ -52,18 +52,29 @@ CONTAINS
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: field_energy
+    REAL(KIND=dp), DIMENSION(3)              :: polarisation
 
     failure=.FALSE.
 
-    IF(ASSOCIATED(efield))CALL efield_berry_release(efield,error)
+    ! retain possible values for energy and polarisation
+    IF(ASSOCIATED(efield)) THEN
+       field_energy = efield%field_energy
+       polarisation = efield%polarisation
+       CALL efield_berry_release(efield,error)
+    ELSE
+       field_energy = 0.0_dp
+       polarisation = 0.0_dp
+    END IF
+
     ALLOCATE(efield,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(efield%cosmat)
     NULLIFY(efield%sinmat)
     NULLIFY(efield%dipmat)
 
-    efield%field_energy = 0.0_dp
-    efield%polarisation = 0.0_dp
+    efield%field_energy = field_energy
+    efield%polarisation = polarisation
 
   END SUBROUTINE init_efield_matrices
 
