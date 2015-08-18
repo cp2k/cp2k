@@ -259,8 +259,8 @@ CONTAINS
     INTEGER :: ext_master_id, external_comm, handle, handle2, i_tmp, ic, &
       ispin, iter_count, output_unit, scf_energy_message_tag, total_steps
     LOGICAL :: diis_step, do_kpoints, energy_only, exit_inner_loop, &
-      exit_outer_loop, failure, gapw, gapw_xc, inner_loop_converged, &
-      just_energy, outer_loop_converged
+      exit_outer_loop, failure, inner_loop_converged, just_energy, &
+      outer_loop_converged
     REAL(KIND=dp)                            :: t1, t2
     REAL(KIND=dp), DIMENSION(3)              :: res_val_3
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -332,10 +332,6 @@ CONTAINS
 
     IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") &
             "SCF WAVEFUNCTION OPTIMIZATION"
-
-    ! short cut flags setting the different methods
-    gapw = dft_control%qs_control%gapw
-    gapw_xc = dft_control%qs_control%gapw_xc
 
     IF ((output_unit > 0).AND.(.NOT.scf_control%use_ot)) THEN
        WRITE (UNIT=output_unit,&
