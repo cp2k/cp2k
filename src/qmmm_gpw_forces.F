@@ -211,8 +211,10 @@ CONTAINS
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
-       Forces(:,:) = Forces(:,:) / REAL(para_env%num_pe,KIND=dp)
-       Forces_added_charges(:,:) = Forces_added_charges(:,:) / REAL(para_env%num_pe,KIND=dp)
+       IF (need_f) THEN
+          Forces(:,:) = Forces(:,:) / REAL(para_env%num_pe,KIND=dp)
+          Forces_added_charges(:,:) = Forces_added_charges(:,:) / REAL(para_env%num_pe,KIND=dp)
+       ENDIF
     ELSE
        ! GPW/GAPW
        CALL pw_env_get(pw_env=pw_env,&
