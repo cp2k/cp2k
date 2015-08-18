@@ -1097,8 +1097,6 @@ CONTAINS
           pc_ener = pc_ener + qpot(iatom)*zeff
        END DO
     END DO
-    CALL mp_sum(qpot,para_env%group)
-    CALL mp_sum(pc_ener,para_env%group)
 
     ! Allocate the core Hamiltonian matrix
     CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc,error=error)
@@ -1175,6 +1173,7 @@ CONTAINS
                        name="QMMM HAMILTONIAN MATRIX",error=error)
     CALL cp_dbcsr_set(matrix_h(1)%matrix,0.0_dp,error)
     ks_qmmm_env_loc%matrix_h => matrix_h
+    ks_qmmm_env_loc%pc_ener = 0.0_dp
 
     CALL cp_dbcsr_deallocate_matrix_set ( matrix_s, error=error )
 
@@ -1332,6 +1331,7 @@ CONTAINS
                 CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
              END DO
           END IF
+          CALL mp_sum(qpot,para_env%group)
           ! Add Ewald and DFTB short range corrections
           ! This is effectively using a minimum image convention!
           ! Set rcutoff to values compatible with alpha Ewald
@@ -1399,9 +1399,6 @@ CONTAINS
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="Unknown Ewald type!", error=error, error_level=cp_fatal_level)
     END SELECT
-
-    CALL mp_sum(pc_ener,para_env%group)
-    CALL mp_sum(qpot,para_env%group)
 
     ! Allocate the core Hamiltonian matrix
     CALL get_qs_env(qs_env=qs_env,ks_qmmm_env=ks_qmmm_env_loc,error=error)
@@ -1515,7 +1512,7 @@ CONTAINS
 
        nspins = dft_control%nspins
        nkind  = SIZE(atomic_kind_set)
-      ! Mulliken charges
+       ! Mulliken charges
        ALLOCATE(charges(number_qm_atoms,nspins),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        !
@@ -1575,10 +1572,8 @@ CONTAINS
              END IF
           END DO
        END DO
-       CALL mp_sum(qpot,para_env%group)
 
        ! Transfer QM gradients to the QM particles..
-       CALL mp_sum(Forces_QM, para_env%group)
        iqm = 0
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
@@ -1822,6 +1817,7 @@ CONTAINS
                 DEALLOCATE(charges_mm,STAT=istat)
                 CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
                 ! transfer MM forces
+                CALL mp_sum(Forces_MM,para_env%group)
                 DO Imp=1,nmm
                    Imm = Pot%mm_atom_index(Imp)
                    Forces(:,Imm) = Forces(:,Imm) - Forces_MM(:,Imp)
@@ -1866,6 +1862,7 @@ CONTAINS
                    END IF
                    CALL deallocate_particle_set(atoms_mm,error)
                    ! transfer MM forces
+                   CALL mp_sum(Forces_MM,para_env%group)
                    DO Imp=1,nmm
                       Imm = Pot%mm_atom_index(Imp)
                       Forces_added_charges(:,Imm) = Forces_added_charges(:,Imm) - Forces_MM(:,Imp)
@@ -1874,6 +1871,8 @@ CONTAINS
                    CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
                 END DO
              END IF
+             CALL mp_sum(qpot,para_env%group)
+             CALL mp_sum(Forces_QM, para_env%group)
              CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
              ! Add Ewald and DFTB short range corrections
              ! This is effectively using a minimum image convention!
@@ -1965,10 +1964,7 @@ CONTAINS
                   message="Unknown Ewald type!", error=error, error_level=cp_fatal_level)
        END SELECT
 
-       CALL mp_sum(qpot,para_env%group)
-
        ! Transfer QM gradients to the QM particles..
-       CALL mp_sum(Forces_QM, para_env%group)
        iqm = 0
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=list)
@@ -2046,6 +2042,7 @@ CONTAINS
        CALL cp_dbcsr_deallocate_matrix_set ( matrix_s, error=error )
 
     END IF
+
     CALL timestop(handle)
 
   END SUBROUTINE deriv_dftb_qmmm_matrix_pc

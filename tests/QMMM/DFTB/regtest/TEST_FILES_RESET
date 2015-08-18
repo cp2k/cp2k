@@ -22,3 +22,11 @@ epc_1.inp
 epc_2.inp
 epc_3.inp
 epc_4.inp
+# debug parallel
+wdim_scc.inp
+wdim_nonscc.inp
+epc_1.inp
+epc_2.inp
+epc_3.inp
+epc_4.inp
+
