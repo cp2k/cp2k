@@ -117,9 +117,11 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="PARALLEL_GROUP_SIZE",&
-         description="Number of processors to be used for a single kpoint."//&
-                     " Value=-1 (minimum number of processes)."//&
-                     " Value=0 (maximum number of processes)."//&
+         description="Number of processors to be used for a single kpoint. "//&
+                     " This number must divide the total number of processes."//&
+                     " The number of groups must divide the total number of kpoints."//&
+                     " Value=-1 (smallest possible number of processes per group, satisfying the constraints)."//&
+                     " Value=0 (all processes)."//&
                      " Value=n (exactly n processes).",&
          usage="PARALLEL_GROUP_SIZE <integer>",&
          default_i_val=-1,error=error)

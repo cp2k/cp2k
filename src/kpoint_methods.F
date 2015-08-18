@@ -295,7 +295,14 @@ CPSourceFileRef,&
     ELSE
        IF(kpoint%parallel_group_size == -1) THEN
           ! maximum parallelization over kpoints
-          ngr = MAX(npe/nkp,1)
+          ! making sure that the group size divides the npe and the nkp_grp the nkp
+          ! in the worst case, there will be no parallelism over kpoints.
+          DO igr=npe,1,-1
+             IF (MOD(npe,igr).NE.0) CYCLE
+             nkp_grp = npe/igr
+             IF (MOD(nkp,nkp_grp).NE.0) CYCLE
+             ngr = igr
+          ENDDO
        ELSE IF(kpoint%parallel_group_size == 0) THEN
           ! no parallelization over kpoints
           ngr = npe
