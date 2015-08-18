@@ -131,15 +131,16 @@ MODULE mp2_types
   END TYPE
 
   TYPE grad_util
-       REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: P_ij, P_ab
-       REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: Gamma_P_ia
-       REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: PQ_half, Gamma_PQ
-       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: G_P_ia
+       REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: P_ij, P_ab, P_ij_beta, P_ab_beta
+       REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE :: Gamma_P_ia, Gamma_P_ia_beta
+       REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: PQ_half, Gamma_PQ, Gamma_PQ_beta
+       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: G_P_ia, G_P_ia_beta
        TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_o_beta, &
                                                    mo_coeff_v, mo_coeff_v_beta
-       TYPE(cp_fm_type), POINTER                :: P_mo, W_mo, L_jb
+       TYPE(cp_fm_type), POINTER                :: P_mo, P_mo_beta, W_mo, W_mo_beta, &
+                                                   L_jb, L_jb_beta 
        REAL(KIND=dp) :: cphf_eps_conv
-       INTEGER :: cphf_max_num_iter
+       INTEGER :: cphf_max_num_iter, num_sing_ij, num_sing_ij_beta
   END TYPE
 
   TYPE mp2_type

@@ -120,10 +120,14 @@ MODULE mp2_cphf
 !> \param Eigenval ...
 !> \param unit_nr ...
 !> \param error ...
-!> \author Mauro Del Ben 
+!> \param Eigenval_beta ...
+!> \param homo_beta ...
+!> \param mo_coeff_beta ...
+!> \author Mauro Del Ben, Vladimir Rybkin
 ! *****************************************************************************
   SUBROUTINE solve_z_vector_eq(qs_env,mp2_env,para_env,dft_control,&
-                               atomic_kind_set,mo_coeff,nmo,homo,Eigenval,unit_nr,error)
+                               atomic_kind_set,mo_coeff,nmo,homo,Eigenval,unit_nr,error,&
+                               Eigenval_beta,homo_beta,mo_coeff_beta)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -135,6 +139,9 @@ MODULE mp2_cphf
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     INTEGER                                  :: unit_nr
     TYPE(cp_error_type), INTENT(inout)       :: error
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: Eigenval_beta
+    INTEGER, OPTIONAL                        :: homo_beta
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff_beta
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq', &
       routineP = moduleN//':'//routineN
@@ -142,14 +149,12 @@ MODULE mp2_cphf
     INTEGER :: alpha, beta, bin, dimen, handle, handle2, i, i_global, &
       i_thread, iiB, ikind, irep, ispin, j_global, jjB, my_bin_size, &
       n_rep_hf, n_threads, ncol_local, nrow_local, stat, transf_type_in, &
-      transf_type_out, virtual
+      transf_type_out, virtual, virtual_beta
     INTEGER, DIMENSION(3)                    :: comp
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: do_dynamic_load_balancing, &
-                                                do_hfx, failure, &
-                                                hfx_treat_lsd_in_core, &
-                                                use_virial
-    REAL(KIND=dp)                            :: e_hartree, out_alpha, &
+    LOGICAL :: alpha_beta, do_dynamic_load_balancing, do_hfx, failure, &
+      hfx_treat_lsd_in_core, use_virial
+    REAL(KIND=dp)                            :: e_hartree, factor, out_alpha, &
                                                 pair_energy, tot_rho_r
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mat_deb
@@ -161,9 +166,9 @@ MODULE mp2_cphf
                                                 matrix_p_mp2, matrix_s, &
                                                 matrix_w_mp2, rho_ao
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: fm_back, fm_G_mu_nu, L_jb, &
-                                                mo_coeff_o, mo_coeff_v, P_ia, &
-                                                P_mo, W_mo
+    TYPE(cp_fm_type), POINTER :: fm_back, fm_G_mu_nu, L_jb, L_jb_beta, &
+      mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, mo_coeff_v_beta, P_ia, &
+      P_ia_beta, P_mo, P_mo_beta, W_mo, W_mo_beta
     TYPE(hfx_container_type), DIMENSION(:), &
       POINTER                                :: integral_containers
     TYPE(hfx_container_type), POINTER        :: maxval_container
@@ -186,12 +191,19 @@ MODULE mp2_cphf
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
     TYPE(virial_type), POINTER               :: virial
 
+! Set alpha-beta 
+
+    alpha_beta = .FALSE.
+    IF (PRESENT(homo_beta) .AND. PRESENT(Eigenval_beta)  &
+    .AND. PRESENT(mo_coeff_beta) ) alpha_beta = .TRUE.
+
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
     ! start collecting stuff
     dimen=nmo
     virtual=dimen-homo
+    IF (alpha_beta) virtual_beta = dimen - homo_beta
     NULLIFY(input,pw_env,matrix_s,blacs_env,rho,energy,force,virial,matrix_w_mp2,&
             matrix_p_mp2,matrix_ks,rho_core,sab_orb)
     CALL get_qs_env(qs_env,&
@@ -221,6 +233,12 @@ MODULE mp2_cphf
     P_mo => mp2_env%ri_grad%P_mo
     W_mo => mp2_env%ri_grad%W_mo
     L_jb => mp2_env%ri_grad%L_jb
+    IF (alpha_beta) THEN
+       NULLIFY(P_mo_beta, W_mo_beta, L_jb_beta)
+       P_mo_beta => mp2_env%ri_grad%P_mo_beta
+       W_mo_beta => mp2_env%ri_grad%W_mo_beta
+       L_jb_beta => mp2_env%ri_grad%L_jb_beta
+    ENDIF
 
     ! pw stuff
     NULLIFY(poisson_env,pw_pools,auxbas_pw_pool)
@@ -301,6 +319,30 @@ MODULE mp2_cphf
                             nrow=dimen, ncol=virtual, & 
                             s_firstrow=1, s_firstcol=homo+1, &
                             t_firstrow=1, t_firstcol=1, error=error)
+    
+    IF (alpha_beta) THEN
+       NULLIFY(mo_coeff_o_beta, fm_struct_tmp)
+       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
+                                nrow_global=dimen,ncol_global=homo_beta,error=error)
+       CALL cp_fm_create(mo_coeff_o_beta, fm_struct_tmp, name="mo_coeff_o_beta",error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+       CALL cp_fm_set_all(mo_coeff_o_beta, 0.0_dp,error=error)
+       CALL cp_fm_to_fm_submat(msource=mo_coeff_beta, mtarget=mo_coeff_o_beta, &
+                               nrow=dimen, ncol=homo_beta, &
+                               s_firstrow=1, s_firstcol=1, &
+                               t_firstrow=1, t_firstcol=1, error=error)
+       
+       NULLIFY(mo_coeff_v_beta, fm_struct_tmp)
+       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
+                                nrow_global=dimen,ncol_global=virtual_beta,error=error)
+       CALL cp_fm_create(mo_coeff_v_beta, fm_struct_tmp, name="mo_coeff_v_beta",error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+       CALL cp_fm_set_all(mo_coeff_v_beta, 0.0_dp,error=error)
+       CALL cp_fm_to_fm_submat(msource=mo_coeff_beta, mtarget=mo_coeff_v_beta, &
+                               nrow=dimen, ncol=virtual_beta, & 
+                               s_firstrow=1, s_firstcol=homo_beta+1, &
+                               t_firstrow=1, t_firstcol=1, error=error)
+    ENDIF
 
     ! create a working rho environment
     NULLIFY(rho_work)
@@ -354,28 +396,104 @@ MODULE mp2_cphf
                      only_ionode=.TRUE.)
     END IF
 
-    ! update lagrangian with the CPHF like update, occ-occ block, first call (recompute hfx integrals if needed)
+    ! update Lagrangian with the CPHF like update, occ-occ block, first call (recompute hfx integrals if needed)
     transf_type_in=1
     transf_type_out=1
     out_alpha=0.5_dp
+    ! In alpha-beta case, L_bj_alpha has Coulomb and XC alpha-alpha part 
+    ! and (only) Coulomb alpha-beta part and vice versa.
+
+    ! Complete in closed shell case, alpha-alpha (Coulomb and XC) 
+    ! part of L_bj(alpha) for open shell
+    factor = 4.0_dp
+    IF (alpha_beta) factor = 2.0_dp
     CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
                           mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
                           hfx_sections,energy,n_rep_hf,poisson_env,&
                           rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                           P_mo,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
                           L_jb,transf_type_out,error,&
-                          recalc_hfx_integrals=mp2_env%ri_mp2%free_hfx_buffer)
+                          recalc_hfx_integrals=mp2_env%ri_mp2%free_hfx_buffer,&
+                          factor=factor)
+    IF (alpha_beta) THEN
+       ! Alpha-beta (Coulomb) part of L_jb(alpha)
+       CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
+                             mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
+                             hfx_sections,energy,n_rep_hf,poisson_env,&
+                             rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
+                             P_mo_beta,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
+                             L_jb,transf_type_out,error, &
+                             mo_coeff_beta=mo_coeff_beta, &
+                             mo_coeff_o_beta=mo_coeff_o_beta, &
+                             mo_coeff_v_beta=mo_coeff_v_beta, &
+                             homo_beta=homo_beta, virtual_beta=virtual_beta,&
+                             factor=factor)
+       ! Beta-beta (Coulomb and XC) part of L_jb(beta)
+       CALL cphf_like_update(qs_env,para_env,homo_beta,virtual_beta,dimen, &
+                              mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
+                             Eigenval_beta,hfx_sections,energy,n_rep_hf,&
+                             poisson_env,rho_work,pot_g,rho_g,rho_r,mat_mu_nu,&
+                             P_mu_nu,P_mo_beta,fm_G_mu_nu,fm_back,transf_type_in,&
+                             out_alpha,L_jb_beta,transf_type_out,error,factor=factor)
+       ! Alpha-beta (Coulomb) part of L_jb(beta)
+       CALL cphf_like_update(qs_env,para_env,homo_beta,virtual_beta,dimen,&
+                             mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
+                             Eigenval_beta,&
+                             hfx_sections,energy,n_rep_hf,poisson_env,&
+                             rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
+                             P_mo,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
+                             L_jb_beta,transf_type_out,error, &
+                             mo_coeff_beta=mo_coeff, &
+                             mo_coeff_o_beta=mo_coeff_o, &
+                             mo_coeff_v_beta=mo_coeff_v, &
+                             homo_beta=homo, virtual_beta=virtual,factor=factor)
+    ENDIF
 
-    ! update lagrangian with the CPHF like update, virt-virt block
+    ! update Lagrangian with the CPHF like update, virt-virt block
     transf_type_in=2
     transf_type_out=1
     out_alpha=0.5_dp
+    ! Complete in closed shell case, alpha-alpha (Coulomb and XC) 
+    ! part of L_bj(alpha) for open shell
     CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
                           mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
                           hfx_sections,energy,n_rep_hf,poisson_env,&
                           rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                           P_mo,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
-                          L_jb,transf_type_out,error)
+                          L_jb,transf_type_out,error,factor=factor)
+    IF (alpha_beta) THEN
+       ! Alpha-beta (Coulomb) part of L_jb(alpha)
+       CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
+                             mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
+                             hfx_sections,energy,n_rep_hf,poisson_env,&
+                             rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
+                             P_mo_beta,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
+                             L_jb,transf_type_out,error, &
+                             mo_coeff_beta=mo_coeff_beta, &
+                             mo_coeff_o_beta=mo_coeff_o_beta, &
+                             mo_coeff_v_beta=mo_coeff_v_beta, &
+                             homo_beta=homo_beta, virtual_beta=virtual_beta,&
+                             factor=factor)
+       ! Beta-beta (Coulomb and XC) part of L_jb(beta)
+       CALL cphf_like_update(qs_env,para_env,homo_beta,virtual_beta,dimen, &
+                              mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
+                             Eigenval_beta,hfx_sections,energy,n_rep_hf,&
+                             poisson_env,rho_work,pot_g,rho_g,rho_r,mat_mu_nu,&
+                             P_mu_nu,P_mo_beta,fm_G_mu_nu,fm_back,transf_type_in,&
+                             out_alpha,L_jb_beta,transf_type_out,error,factor=factor)
+       ! Alpha-beta (Coulomb) part of L_jb(beta)
+       CALL cphf_like_update(qs_env,para_env,homo_beta,virtual_beta,dimen,&
+                             mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
+                             Eigenval_beta,&
+                             hfx_sections,energy,n_rep_hf,poisson_env,&
+                             rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
+                             P_mo,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
+                             L_jb_beta,transf_type_out,error, &
+                             mo_coeff_beta=mo_coeff, &
+                             mo_coeff_o_beta=mo_coeff_o, &
+                             mo_coeff_v_beta=mo_coeff_v, &
+                             homo_beta=homo, virtual_beta=virtual,factor=factor)
+    ENDIF
     ! at this point Lagrnagian is completed ready to solve the Z-vector equations
     ! P_ia will contain the solution of these equations
     NULLIFY(P_ia, fm_struct_tmp)
@@ -384,15 +502,34 @@ MODULE mp2_cphf
     CALL cp_fm_create(P_ia, fm_struct_tmp, name="P_ia",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
     CALL cp_fm_set_all(P_ia, 0.0_dp,error=error)
+    IF (alpha_beta) THEN
+       NULLIFY(P_ia_beta, fm_struct_tmp)
+       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
+                         nrow_global=homo_beta,ncol_global=virtual_beta,error=error)
+       CALL cp_fm_create(P_ia_beta, fm_struct_tmp, name="P_ia_beta",error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+       CALL cp_fm_set_all(P_ia_beta, 0.0_dp,error=error)
+    ENDIF
 
-    CALL solve_z_vector_eq_low(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
-                               mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,blacs_env,&
-                               hfx_sections,energy,n_rep_hf,poisson_env,&
-                               rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
-                               L_jb,fm_G_mu_nu,fm_back,P_ia,error)
+    IF (.NOT. alpha_beta) THEN
+       CALL solve_z_vector_eq_low(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
+                               mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,blacs_env, &
+                               hfx_sections,energy,n_rep_hf, &
+                               poisson_env,rho_work,pot_g,rho_g,rho_r,mat_mu_nu, &
+                               P_mu_nu,L_jb,fm_G_mu_nu,fm_back,P_ia,error)
+    ELSE
+       CALL solve_z_vector_eq_low(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
+                                   mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,blacs_env,&
+                                    hfx_sections,energy,n_rep_hf,&
+                                   poisson_env,rho_work,pot_g,rho_g,rho_r,mat_mu_nu,&
+                                   P_mu_nu,L_jb,fm_G_mu_nu,fm_back,P_ia,error,&
+                                   homo_beta,Eigenval_beta,P_ia_beta, mo_coeff_beta,&
+                                   mo_coeff_o_beta, mo_coeff_v_beta, L_jb_beta)
+    ENDIF
     
     ! release Lagrangian
     CALL cp_fm_release(L_jb,error=error)
+    IF (alpha_beta) CALL cp_fm_release(L_jb_beta,error=error)
 
     ! update the MP2-MO density matrix with the occ-virt block
     CALL cp_fm_to_fm_submat(msource=P_ia, mtarget=P_mo, &
@@ -404,6 +541,18 @@ MODULE mp2_cphf
     CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
     ! P_mo now is ready
     CALL cp_fm_upper_to_full(matrix=P_mo, work=fm_back, error=error)
+    IF (alpha_beta) THEN
+       ! update the MP2-MO density matrix with the occ-virt block
+       CALL cp_fm_to_fm_submat(msource=P_ia_beta, mtarget=P_mo_beta, &
+                               nrow=homo_beta, ncol=virtual_beta, &
+                               s_firstrow=1, s_firstcol=1, &
+                               t_firstrow=1, t_firstcol=homo_beta+1, error=error)
+       CALL cp_fm_release(P_ia_beta,error=error)
+       ! transpose P_MO matrix (easy way to symmetrize)
+       CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+       ! P_mo now is ready
+       CALL cp_fm_upper_to_full(matrix=P_mo_beta, work=fm_back, error=error)
+    ENDIF
 
     ! do the final update to MP2 energy weighted matrix W_MO
     CALL cp_fm_get_info(matrix=W_mo,&
@@ -432,17 +581,83 @@ MODULE mp2_cphf
         END DO
       END IF
     END DO
+    IF (alpha_beta) THEN
+       CALL cp_fm_get_info(matrix=W_mo_beta,&
+                           nrow_local=nrow_local,&
+                           ncol_local=ncol_local,&
+                           row_indices=row_indices,&
+                           col_indices=col_indices,&
+                           error=error)
+       DO jjB=1, ncol_local
+         j_global=col_indices(jjB)
+         IF(j_global<=homo_beta) THEN
+           DO iiB=1, nrow_local
+             i_global=row_indices(iiB)
+             W_mo_beta%local_data(iiB,jjB)= &
+             W_mo_beta%local_data(iiB,jjB)-P_mo_beta%local_data(iiB,jjB)*Eigenval_beta(j_global)
+           END DO
+         ELSE
+           DO iiB=1, nrow_local
+             i_global=row_indices(iiB)
+             IF(i_global<=homo_beta) THEN
+               ! virt-occ
+               W_mo_beta%local_data(iiB,jjB)= &
+               W_mo_beta%local_data(iiB,jjB)-P_mo_beta%local_data(iiB,jjB)*Eigenval_beta(i_global)
+             ELSE
+               ! virt-virt
+               W_mo_beta%local_data(iiB,jjB)= &
+               W_mo_beta%local_data(iiB,jjB)-P_mo_beta%local_data(iiB,jjB)*Eigenval_beta(j_global)
+             END IF
+           END DO
+         END IF
+       END DO
+    ENDIF
 
     ! complete the occ-occ block of W_mo with a CPHF like update
     transf_type_in=4
     transf_type_out=2
     out_alpha=-0.5_dp
+    ! Complete in closed shell case, alpha-alpha (Coulomb and XC) 
+    ! part of W_mo(III)(alpha) for open shell
     CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
                           mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
                           hfx_sections,energy,n_rep_hf,poisson_env,&
                           rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                           P_mo,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
-                          W_mo,transf_type_out,error)
+                          W_mo,transf_type_out,error,factor=factor)
+    IF (alpha_beta) THEN
+       ! Alpha-beta (Coulomb) part of W_mo(III)(alpha)
+       CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
+                             mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
+                             hfx_sections,energy,n_rep_hf,poisson_env,&
+                             rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
+                             P_mo_beta,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
+                             W_mo,transf_type_out,error, &
+                             mo_coeff_beta=mo_coeff_beta, &
+                             mo_coeff_o_beta=mo_coeff_o_beta, &
+                             mo_coeff_v_beta=mo_coeff_v_beta, &
+                             homo_beta=homo_beta, virtual_beta=virtual_beta,&
+                             factor=factor)
+       ! Beta-beta (Coulomb and XC) part of W_mo(III)(beta)
+       CALL cphf_like_update(qs_env,para_env,homo_beta,virtual_beta,dimen, &
+                              mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
+                             Eigenval_beta,hfx_sections,energy,n_rep_hf,&
+                             poisson_env,rho_work,pot_g,rho_g,rho_r,mat_mu_nu,&
+                             P_mu_nu,P_mo_beta,fm_G_mu_nu,fm_back,transf_type_in,&
+                             out_alpha,W_mo_beta,transf_type_out,error,factor=factor)
+       ! Alpha-beta (Coulomb) part of W_mo(III)(beta)
+       CALL cphf_like_update(qs_env,para_env,homo_beta,virtual_beta,dimen,&
+                             mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
+                             Eigenval_beta,&
+                             hfx_sections,energy,n_rep_hf,poisson_env,&
+                             rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
+                             P_mo,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
+                             W_mo_beta,transf_type_out,error, &
+                             mo_coeff_beta=mo_coeff, &
+                             mo_coeff_o_beta=mo_coeff_o, &
+                             mo_coeff_v_beta=mo_coeff_v, &
+                             homo_beta=homo, virtual_beta=virtual,factor=factor)
+    ENDIF
 
     ! release DBCSR stuff
     DO ispin=1, dft_control%nspins
@@ -458,6 +673,10 @@ MODULE mp2_cphf
     CALL cp_fm_release(fm_G_mu_nu,error=error)
     CALL cp_fm_release(mo_coeff_o,error=error)
     CALL cp_fm_release(mo_coeff_v,error=error)
+    IF (alpha_beta) THEN
+       CALL cp_fm_release(mo_coeff_o_beta,error=error)
+       CALL cp_fm_release(mo_coeff_v_beta,error=error)
+    ENDIF
     ! release rho stuff
     CALL qs_rho_release(rho_struct=rho_work,error=error)
  
@@ -496,10 +715,46 @@ MODULE mp2_cphf
       CALL mp_sum(mat_deb,para_env%group)
       IF(para_env%mepos==0) CALL write_array(mat_deb(1:dimen,1:dimen))
       DEALLOCATE(mat_deb)
+      IF (alpha_beta) THEN
+         ALLOCATE(mat_deb(dimen,dimen))
+         mat_deb=0.0_dp
+         CALL cp_fm_get_info(matrix=P_mo_beta,&
+                             nrow_local=nrow_local,&
+                             ncol_local=ncol_local,&
+                             row_indices=row_indices,&
+                             col_indices=col_indices,&
+                             error=error)
+         DO jjB=1, ncol_local
+           j_global=col_indices(jjB)
+           DO iiB=1, nrow_local
+             i_global=row_indices(iiB)
+             mat_deb(i_global,j_global)=P_mo_beta%local_data(iiB,jjB)
+           END DO
+         END DO
+         CALL mp_sum(mat_deb,para_env%group)
+         IF(para_env%mepos==0) CALL write_array(mat_deb(1:dimen,1:dimen))
+         mat_deb=0.0_dp
+         CALL cp_fm_get_info(matrix=W_mo_beta,&
+                             nrow_local=nrow_local,&
+                             ncol_local=ncol_local,&
+                             row_indices=row_indices,&
+                             col_indices=col_indices,&
+                             error=error)
+         DO jjB=1, ncol_local
+           j_global=col_indices(jjB)
+           DO iiB=1, nrow_local
+             i_global=row_indices(iiB)
+             mat_deb(i_global,j_global)=W_mo_beta%local_data(iiB,jjB)
+           END DO
+         END DO
+         CALL mp_sum(mat_deb,para_env%group)
+         IF(para_env%mepos==0) CALL write_array(mat_deb(1:dimen,1:dimen))
+         DEALLOCATE(mat_deb)
+      ENDIF
     END IF
 
     ! backtransform into AO basis, since P_mo and W_mo
-    ! are symmetric (in principle), not need to symmetrize
+    ! are symmetric (in principle), no need to symmetrize
     ! first W_mo
     CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
     CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
@@ -538,9 +793,51 @@ MODULE mp2_cphf
                     b_first_row=1,&
                     c_first_col=1,&
                     c_first_row=1)
+    IF (alpha_beta) THEN
+       CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+       CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
+                       mo_coeff_beta,W_mo_beta,0.0_dp,fm_back,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=1,&
+                       b_first_row=1,&
+                       c_first_col=1,&
+                       c_first_row=1)
+       CALL cp_fm_set_all(W_mo_beta, 0.0_dp,error=error)
+       CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
+                       fm_back,mo_coeff_beta,0.0_dp,W_mo_beta,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=1,&
+                       b_first_row=1,&
+                       c_first_col=1,&
+                       c_first_row=1)
+       ! and P_mo
+       CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+       CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
+                       mo_coeff_beta,P_mo_beta,0.0_dp,fm_back,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=1,&
+                       b_first_row=1,&
+                       c_first_col=1,&
+                       c_first_row=1)
+       CALL cp_fm_set_all(P_mo_beta, 0.0_dp,error=error)
+       CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
+                       fm_back,mo_coeff_beta,0.0_dp,P_mo_beta,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=1,&
+                       b_first_row=1,&
+                       c_first_col=1,&
+                       c_first_row=1)
+    ENDIF
  
     ! copy W_mo into dbcsr
     CALL copy_fm_to_dbcsr(W_mo, matrix_w_mp2(1)%matrix, keep_sparsity=.TRUE.,error=error)
+    IF (alpha_beta) THEN
+        CALL copy_fm_to_dbcsr(W_mo_beta, matrix_w_mp2(2)%matrix, keep_sparsity=.TRUE.,error=error)
+    ENDIF
 
     ! create mp2 DBCSR density
     CALL cp_dbcsr_allocate_matrix_set(matrix_p_mp2,dft_control%nspins,error=error)
@@ -550,17 +847,28 @@ MODULE mp2_cphf
        CALL cp_dbcsr_copy(matrix_p_mp2(ispin)%matrix,rho_ao(ispin)%matrix,&
             name="P MATRIX MP2",error=error)
        CALL cp_dbcsr_set(matrix_p_mp2(ispin)%matrix,0.0_dp,error=error)
-       CALL copy_fm_to_dbcsr(P_mo, matrix_p_mp2(ispin)%matrix,keep_sparsity=.TRUE.,error=error)
+       IF (ispin == 1) &
+          CALL copy_fm_to_dbcsr(P_mo, matrix_p_mp2(ispin)%matrix,keep_sparsity=.TRUE.,error=error)
+       IF (ispin == 2) &
+          CALL copy_fm_to_dbcsr(P_mo_beta, matrix_p_mp2(ispin)%matrix,keep_sparsity=.TRUE.,error=error)
     END DO
     CALL set_ks_env(ks_env, matrix_p_mp2=matrix_p_mp2, error=error)
+
+    CALL cp_fm_release(fm_back,error=error)
 
     ! release remaining fm stuff
     CALL cp_fm_release(W_mo,error=error)
     CALL cp_fm_release(P_mo,error=error)
-    CALL cp_fm_release(fm_back,error=error)
+    IF (alpha_beta) THEN
+       CALL cp_fm_release(W_mo_beta,error=error)
+       CALL cp_fm_release(P_mo_beta,error=error)
+    ENDIF
 
     ! update the core-forces with the MP2-density contribution
     ! put MP2 density on the grid
+    IF (alpha_beta) THEN ! In alpha_beta case, get the joint density
+      CALL cp_dbcsr_add(matrix_p_mp2(1)%matrix,matrix_p_mp2(2)%matrix,1.0_dp,1.0_dp, error)
+    ENDIF
     CALL calculate_rho_elec(matrix_p=matrix_p_mp2(1)%matrix,&
                             rho=rho_r,&
                             rho_gspace=rho_g,&
@@ -577,12 +885,22 @@ MODULE mp2_cphf
     ! calculate core forces
     CALL integrate_v_core_rspace(rho_r, qs_env, error=error)
     DO ikind=1,SIZE(atomic_kind_set)
-       force(ikind)%mp2_sep=force(ikind)%rho_core
+       force(ikind)%mp2_sep= force(ikind)%rho_core
        force(ikind)%rho_core=0.0_dp
     ENDDO
     ! right contribution
+    IF (alpha_beta) THEN ! In alpha_beta case, get the joint density
+      CALL cp_dbcsr_add(rho_ao(1)%matrix,rho_ao(2)%matrix,1.0_dp,1.0_dp, error)
+      CALL cp_dbcsr_add(matrix_ks(1)%matrix,matrix_ks(2)%matrix,1.0_dp,1.0_dp, error)
+    ENDIF
     CALL integrate_v_rspace(v_rspace=rho_r,pmat=rho_ao(1),hmat=matrix_ks(1),&
                             qs_env=qs_env,calculate_forces=.TRUE.,error=error)
+
+    IF (alpha_beta) THEN ! In alpha_beta case, get the initial densities back
+      CALL cp_dbcsr_add(rho_ao(1)%matrix,rho_ao(2)%matrix,1.0_dp,-1.0_dp, error)
+      CALL cp_dbcsr_add(matrix_p_mp2(1)%matrix,matrix_p_mp2(2)%matrix,1.0_dp,-1.0_dp, error)
+      CALL cp_dbcsr_add(matrix_ks(1)%matrix,matrix_ks(2)%matrix,1.0_dp,-1.0_dp, error)
+    ENDIF
 
     IF(use_virial) THEN
       ! update virial if necessery with the volume term
@@ -649,7 +967,7 @@ MODULE mp2_cphf
     END IF
 
     DO ispin=1, dft_control%nspins
-      CALL cp_dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp,  1.0_dp, error)
+      CALL cp_dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp, error)
     END DO
 
     ! release stuff
@@ -700,14 +1018,22 @@ MODULE mp2_cphf
 !> \param transf_type_out ...
 !> \param error ...
 !> \param recalc_hfx_integrals ...
-!> \author Mauro Del Ben 
+!> \param mo_coeff_beta ...
+!> \param mo_coeff_o_beta ...
+!> \param mo_coeff_v_beta ...
+!> \param homo_beta ...
+!> \param virtual_beta ...
+!> \param factor ...
+!> \author Mauro Del Ben, Vladimir Rybkin
 ! *****************************************************************************
   SUBROUTINE cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
                               mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
                               hfx_sections,energy,n_rep_hf,poisson_env,&
                               rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                               fm_mo,fm_ao,fm_back,transf_type_in,out_alpha,&
-                              fm_mo_out,transf_type_out,error,recalc_hfx_integrals)
+                              fm_mo_out,transf_type_out,error,recalc_hfx_integrals, &
+                              mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
+                              homo_beta, virtual_beta, factor)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: homo, virtual, dimen
@@ -730,6 +1056,11 @@ MODULE mp2_cphf
     INTEGER                                  :: transf_type_out
     TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL, OPTIONAL                        :: recalc_hfx_integrals
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff_beta, &
+                                                mo_coeff_o_beta, &
+                                                mo_coeff_v_beta
+    INTEGER, OPTIONAL                        :: homo_beta, virtual_beta
+    REAL(KIND=dp), OPTIONAL                  :: factor
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cphf_like_update', &
       routineP = moduleN//':'//routineN
@@ -738,7 +1069,7 @@ MODULE mp2_cphf
                                                 j_global, jjB, ncol_local, &
                                                 nrow_local, ns
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure, &
+    LOGICAL                                  :: alpha_beta, failure, &
                                                 my_recalc_hfx_integrals
     REAL(KIND=dp)                            :: ex_energy, pair_energy, &
                                                 total_rho
@@ -747,6 +1078,9 @@ MODULE mp2_cphf
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: mat_2d, rho_ao_2d
     TYPE(qs_ks_env_type), POINTER            :: ks_env
+
+    alpha_beta = .FALSE.
+    IF (PRESENT(mo_coeff_beta)) alpha_beta = .TRUE.
 
     NULLIFY(ks_env, rho_work_ao)
     CALL timeset(routineN,handle)
@@ -759,121 +1093,224 @@ MODULE mp2_cphf
     ! perform back transformation
     SELECT CASE(transf_type_in)
       CASE(1)
-        ! occ-occ block
-        CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_gemm('N','N',dimen,homo,homo,1.0_dp,&
-                        mo_coeff_o,fm_mo,0.0_dp,fm_back,&
-                        error=error,&
-                        a_first_row=1,&
-                        b_first_col=1,&
-                        b_first_row=1,&
-                        c_first_col=1,&
-                        c_first_row=1)
-        CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
-        CALL cp_gemm('N','T',dimen,dimen,homo,1.0_dp,&
-                        fm_back,mo_coeff_o,0.0_dp,fm_ao,&
-                        error=error,&
-                        a_first_row=1,&
-                        b_first_col=1,&
-                        b_first_row=1,&
-                        c_first_col=1,&
-                        c_first_row=1)
+        IF (.NOT. alpha_beta) THEN
+           ! occ-occ block
+           CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+           CALL cp_gemm('N','N',dimen,homo,homo,1.0_dp,&
+                           mo_coeff_o,fm_mo,0.0_dp,fm_back,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
+           CALL cp_gemm('N','T',dimen,dimen,homo,1.0_dp,&
+                           fm_back,mo_coeff_o,0.0_dp,fm_ao,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+        ELSE
+           ! occ-occ block
+           CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+           CALL cp_gemm('N','N',dimen,homo_beta,homo_beta,1.0_dp,&
+                           mo_coeff_o_beta,fm_mo,0.0_dp,fm_back,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
+           CALL cp_gemm('N','T',dimen,dimen,homo_beta,1.0_dp,&
+                           fm_back,mo_coeff_o_beta,0.0_dp,fm_ao,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+        ENDIF
 
       CASE(2)
-        ! virt-virt block
-        CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_gemm('N','N',dimen,virtual,virtual,1.0_dp,&
-                        mo_coeff_v,fm_mo,0.0_dp,fm_back,&
-                        error=error,&
-                        a_first_row=1,&
-                        b_first_col=homo+1,&
-                        b_first_row=homo+1,&
-                        c_first_col=1,&
-                        c_first_row=1)
-        CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
-        CALL cp_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
-                        fm_back,mo_coeff_v,0.0_dp,fm_ao,&
-                        error=error,&
-                        a_first_row=1,&
-                        b_first_col=1,&
-                        b_first_row=1,&
-                        c_first_col=1,&
-                        c_first_row=1)
+        IF (.NOT. alpha_beta) THEN
+           ! virt-virt block
+           CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+           CALL cp_gemm('N','N',dimen,virtual,virtual,1.0_dp,&
+                           mo_coeff_v,fm_mo,0.0_dp,fm_back,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=homo+1,&
+                           b_first_row=homo+1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
+           CALL cp_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
+                           fm_back,mo_coeff_v,0.0_dp,fm_ao,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+        ELSE
+           CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+           CALL cp_gemm('N','N',dimen,virtual_beta,virtual_beta,1.0_dp,&
+                           mo_coeff_v_beta,fm_mo,0.0_dp,fm_back,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=homo_beta+1,&
+                           b_first_row=homo_beta+1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
+           CALL cp_gemm('N','T',dimen,dimen,virtual_beta,1.0_dp,&
+                           fm_back,mo_coeff_v_beta,0.0_dp,fm_ao,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+        ENDIF
 
       CASE(3)
-        CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_gemm('N','N',dimen,virtual,homo,1.0_dp,&
-                        mo_coeff_o,fm_mo,0.0_dp,fm_back,&
-                        error=error,&
-                        a_first_row=1,&
-                        b_first_col=1,&
-                        b_first_row=1,&
-                        c_first_col=1,&
-                        c_first_row=1)
-        CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
-        CALL cp_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
-                        fm_back,mo_coeff_v,0.0_dp,fm_ao,&
-                        error=error,&
-                        a_first_row=1,&
-                        b_first_col=1,&
-                        b_first_row=1,&
-                        c_first_col=1,&
-                        c_first_row=1)
-        ! and symmetrize (here again multiply instead of transposing)
-        CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_gemm('N','T',dimen,homo,virtual,1.0_dp,&
-                        mo_coeff_v,fm_mo,0.0_dp,fm_back,&
-                        error=error,&
-                        a_first_row=1,&
-                        b_first_col=1,&
-                        b_first_row=1,&
-                        c_first_col=1,&
-                        c_first_row=1)
-        CALL cp_gemm('N','T',dimen,dimen,homo,0.5_dp,&
-                        fm_back,mo_coeff_o,0.5_dp,fm_ao,&
-                        error=error,&
-                        a_first_row=1,&
-                        b_first_col=1,&
-                        b_first_row=1,&
-                        c_first_col=1,&
-                        c_first_row=1)
-        ! scale for the orbital energy differences for the diagonal elements
-        fm_mo_out%local_data(:,:)=fm_mo%local_data(:,:)
-        CALL cp_fm_get_info(matrix=fm_mo_out,&
-                            nrow_local=nrow_local,&
-                            ncol_local=ncol_local,&
-                            row_indices=row_indices,&
-                            col_indices=col_indices,&
-                            error=error)
-        DO jjB=1, ncol_local
-          j_global=col_indices(jjB)
-          DO iiB=1, nrow_local
-            i_global=row_indices(iiB)
-            fm_mo_out%local_data(iiB,jjB)=fm_mo_out%local_data(iiB,jjB)*&
-                                          (Eigenval(j_global+homo)-Eigenval(i_global))
-          END DO
-        END DO
+        IF (.NOT. alpha_beta) THEN
+           CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+           CALL cp_gemm('N','N',dimen,virtual,homo,1.0_dp,&
+                           mo_coeff_o,fm_mo,0.0_dp,fm_back,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
+           CALL cp_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
+                           fm_back,mo_coeff_v,0.0_dp,fm_ao,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           ! and symmetrize (here again multiply instead of transposing)
+           CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+           CALL cp_gemm('N','T',dimen,homo,virtual,1.0_dp,&
+                           mo_coeff_v,fm_mo,0.0_dp,fm_back,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           CALL cp_gemm('N','T',dimen,dimen,homo,0.5_dp,&
+                           fm_back,mo_coeff_o,0.5_dp,fm_ao,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           ! scale for the orbital energy differences for the diagonal elements
+           fm_mo_out%local_data(:,:)=fm_mo%local_data(:,:)
+           CALL cp_fm_get_info(matrix=fm_mo_out,&
+                               nrow_local=nrow_local,&
+                               ncol_local=ncol_local,&
+                               row_indices=row_indices,&
+                               col_indices=col_indices,&
+                               error=error)
+           DO jjB=1, ncol_local
+             j_global=col_indices(jjB)
+             DO iiB=1, nrow_local
+               i_global=row_indices(iiB)
+               fm_mo_out%local_data(iiB,jjB)=fm_mo_out%local_data(iiB,jjB)*&
+                                             (Eigenval(j_global+homo)-Eigenval(i_global))
+             END DO
+           END DO
+        ELSE
+           CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+           CALL cp_gemm('N','N',dimen,virtual_beta,homo_beta,1.0_dp,&
+                           mo_coeff_o_beta,fm_mo,0.0_dp,fm_back,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
+           CALL cp_gemm('N','T',dimen,dimen,virtual_beta,1.0_dp,&
+                           fm_back,mo_coeff_v_beta,0.0_dp,fm_ao,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           ! and symmetrize (here again multiply instead of transposing)
+           CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+           CALL cp_gemm('N','T',dimen,homo_beta,virtual_beta,1.0_dp,&
+                           mo_coeff_v_beta,fm_mo,0.0_dp,fm_back,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           CALL cp_gemm('N','T',dimen,dimen,homo_beta,0.5_dp,&
+                           fm_back,mo_coeff_o_beta,0.5_dp,fm_ao,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+        ENDIF
 
       CASE(4)
         ! all-all block
-        CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
-        CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
-                        mo_coeff,fm_mo,0.0_dp,fm_back,&
-                        error=error,&
-                        a_first_row=1,&
-                        b_first_col=1,&
-                        b_first_row=1,&
-                        c_first_col=1,&
-                        c_first_row=1)
-        CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
-        CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
-                        fm_back,mo_coeff,0.0_dp,fm_ao,&
-                        error=error,&
-                        a_first_row=1,&
-                        b_first_col=1,&
-                        b_first_row=1,&
-                        c_first_col=1,&
-                        c_first_row=1)
+        IF (.NOT. alpha_beta) THEN
+           CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+           CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
+                           mo_coeff,fm_mo,0.0_dp,fm_back,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
+           CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
+                           fm_back,mo_coeff,0.0_dp,fm_ao,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+        ELSE
+           CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
+           CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
+                           mo_coeff_beta,fm_mo,0.0_dp,fm_back,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+           CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
+           CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
+                           fm_back,mo_coeff_beta,0.0_dp,fm_ao,&
+                           error=error,&
+                           a_first_row=1,&
+                           b_first_col=1,&
+                           b_first_row=1,&
+                           c_first_col=1,&
+                           c_first_row=1)
+        ENDIF
 
       CASE DEFAULT
         ! nothing
@@ -898,28 +1335,33 @@ MODULE mp2_cphf
     CALL integrate_v_rspace(rho_r,hmat=mat_mu_nu(1), &
                             qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
                             error=error)
+
     ! update with the exchange like contributions
     ! copy mat_mu_nu into rho_ao work
-    CALL qs_rho_get(rho_work, rho_ao=rho_work_ao, error=error)
-    CALL cp_dbcsr_set(rho_work_ao(1)%matrix,0.0_dp,error=error)
-    CALL cp_dbcsr_copy(rho_work_ao(1)%matrix,P_mu_nu%matrix,error=error)
-    ! save old EX energy
-    ex_energy=energy%ex
-    DO irep=1, n_rep_hf
-      ns = SIZE(rho_work_ao)
-      rho_ao_2d(1:ns,1:1) => rho_work_ao(1:ns)
-      ns = SIZE(mat_mu_nu)
-      mat_2d(1:ns,1:1) => mat_mu_nu(1:ns)
-      CALL integrate_four_center(qs_env, mat_2d, energy, rho_ao_2d, hfx_sections,&
-                                 para_env, my_recalc_hfx_integrals, irep, .TRUE.,&
-                                 ispin=1, error=error)
-    END DO
-    ! restore original EX energy
-    energy%ex=ex_energy
 
-    ! scale by factor 4.0
-    CALL cp_dbcsr_scale(mat_mu_nu(1)%matrix,4.0_dp,error=error)
+    ! Only for alpha-alpha and beta-beta
+    IF (.NOT. alpha_beta) THEN
+       CALL qs_rho_get(rho_work, rho_ao=rho_work_ao, error=error)
+       CALL cp_dbcsr_set(rho_work_ao(1)%matrix,0.0_dp,error=error)
+       CALL cp_dbcsr_copy(rho_work_ao(1)%matrix,P_mu_nu%matrix,error=error)
+       ! save old EX energy
+       ex_energy=energy%ex
+       DO irep=1, n_rep_hf
+         ns = SIZE(rho_work_ao)
+         rho_ao_2d(1:ns,1:1) => rho_work_ao(1:ns)
+         ns = SIZE(mat_mu_nu)
+         mat_2d(1:ns,1:1) => mat_mu_nu(1:ns)
+         CALL integrate_four_center(qs_env, mat_2d, energy, rho_ao_2d, hfx_sections,&
+                                    para_env, my_recalc_hfx_integrals, irep, .TRUE.,&
+                                    ispin=1, error=error)
+       END DO
+       ! restore original EX energy
+       energy%ex=ex_energy
+    ENDIF
 
+    ! scale by a factor 4.0 (closed shell) or 2.0 (open-shell)
+    CALL cp_dbcsr_scale(mat_mu_nu(1)%matrix,factor,error=error)
+ 
     ! copy back to fm
     CALL cp_fm_set_all(fm_ao, 0.0_dp,error=error)
     CALL copy_dbcsr_to_fm(matrix=mat_mu_nu(1)%matrix, fm=fm_ao, error=error)
@@ -928,6 +1370,9 @@ MODULE mp2_cphf
 
     ! transform to MO basis, here we always sum the result into the input matrix
     SELECT CASE(transf_type_out)
+    ! In alpha-beta case the density is contracted with the orbitals of different
+    ! spin. Thus, there's branching at forward trasform and no branching here,
+    ! at back transform.
       CASE(1)
         ! occ-virt block
         CALL cp_fm_set_all(fm_back, 0.0_dp,error=error)
@@ -1007,13 +1452,22 @@ MODULE mp2_cphf
 !> \param fm_back ...
 !> \param P_ia ...
 !> \param error ...
-!> \author Mauro Del Ben 
+!> \param homo_beta ...
+!> \param Eigenval_beta ...
+!> \param P_ia_beta ...
+!> \param mo_coeff_beta ...
+!> \param mo_coeff_o_beta ...
+!> \param mo_coeff_v_beta ...
+!> \param L_jb_beta ...
+!> \author Mauro Del Ben, Vladimir Rybkin
 ! *****************************************************************************
   SUBROUTINE solve_z_vector_eq_low(qs_env,mp2_env,para_env,homo,virtual,dimen,unit_nr,&
                                    mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,blacs_env,&
                                    hfx_sections,energy,n_rep_hf,poisson_env,&
                                    rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
-                                   L_jb,fm_G_mu_nu,fm_back,P_ia,error)
+                                   L_jb,fm_G_mu_nu,fm_back,P_ia,error,homo_beta,Eigenval_beta,&
+                                   P_ia_beta, mo_coeff_beta, mo_coeff_o_beta, mo_coeff_v_beta,&
+                                   L_jb_beta)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1034,18 +1488,22 @@ MODULE mp2_cphf
     TYPE(cp_fm_type), POINTER                :: L_jb, fm_G_mu_nu, fm_back, &
                                                 P_ia
     TYPE(cp_error_type), INTENT(inout)       :: error
+    INTEGER, OPTIONAL                        :: homo_beta
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: Eigenval_beta
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: P_ia_beta, mo_coeff_beta, &
+                                                mo_coeff_o_beta, &
+                                                mo_coeff_v_beta, L_jb_beta
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low', &
       routineP = moduleN//':'//routineN
 
     INTEGER :: cycle_counter, handle, i_global, iiB, iiter, j_global, jjB, &
       max_num_iter, ncol_local, nrow_local, stat, transf_type_in, &
-      transf_type_out
+      transf_type_out, virtual_beta
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: converged, failure
-    REAL(KIND=dp)                            :: alpha, beta, conv, eps_conv, &
-                                                norm_b, norms(3), out_alpha, &
-                                                rkrk, t1, t2
+    LOGICAL                                  :: alpha_beta, converged, failure
+    REAL(KIND=dp) :: alpha, beta, conv, eps_conv, factor, norm_b, &
+      norm_b_beta, norms(3), norms_beta(3), out_alpha, rkrk, rkrk_beta, t1, t2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: proj_bi_xj, temp_vals, &
                                                 x_norm, xi_b
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1053,11 +1511,20 @@ MODULE mp2_cphf
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: Ax, xn
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: Ap, b_i, pk, precond, &
-                                                residual, rk, xk
+    TYPE(cp_fm_type), POINTER                :: Ap, Ap_b, b_i, pk, pk_b, &
+                                                precond, residual, rk, rk_b, &
+                                                xk, xk_b
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
+
+    alpha_beta = .FALSE.
+    factor = 4.0_dp
+    IF (PRESENT(homo_beta) .AND. PRESENT(Eigenval_beta)) alpha_beta = .TRUE.
+    IF (alpha_beta) THEN
+       virtual_beta = dimen - homo_beta
+       factor = 2.0_dp
+    ENDIF
 
     max_num_iter=mp2_env%ri_grad%cphf_max_num_iter
     eps_conv=mp2_env%ri_grad%cphf_eps_conv
@@ -1080,8 +1547,9 @@ MODULE mp2_cphf
     ! set convergece flag
     converged=.FALSE.
 
-    IF(.FALSE.) THEN
+    IF((.FALSE.) .OR. (alpha_beta)) THEN
       ! CG algorithm
+      ! Used for open-shell systems
       ! create some work array
       NULLIFY(xk, pk, rk, Ap, fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
@@ -1102,6 +1570,30 @@ MODULE mp2_cphf
       norm_b=0.0_dp
       norm_b=SUM(L_jb%local_data(:,:)*L_jb%local_data(:,:))
       CALL mp_sum(norm_b,para_env%group)
+
+      IF (alpha_beta) THEN
+         NULLIFY(xk_b, pk_b, rk_b, Ap_b, fm_struct_tmp)
+         CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
+                            nrow_global=homo_beta,ncol_global=virtual_beta,error=error)
+         CALL cp_fm_create(xk_b, fm_struct_tmp, name="xk",error=error)
+         CALL cp_fm_create(pk_b, fm_struct_tmp, name="pk",error=error)
+         CALL cp_fm_create(rk_b, fm_struct_tmp, name="rk",error=error)
+         CALL cp_fm_create(Ap_b, fm_struct_tmp, name="Ap",error=error)
+         CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+         CALL cp_fm_set_all(xk_b, 0.0_dp,error=error)
+         CALL cp_fm_set_all(pk_b, 0.0_dp,error=error)
+         CALL cp_fm_set_all(rk_b, 0.0_dp,error=error)
+         CALL cp_fm_set_all(Ap_b, 0.0_dp,error=error)
+ 
+         ! copy -L_jb_beta into pk_b and rk_b
+         pk_b%local_data(:,:)=-L_jb_beta%local_data(:,:)
+         rk_b%local_data(:,:)=-L_jb_beta%local_data(:,:)
+         norm_b_beta=0.0_dp
+         norm_b_beta=SUM(L_jb_beta%local_data(:,:)*L_jb_beta%local_data(:,:))
+         CALL mp_sum(norm_b_beta,para_env%group)
+         norm_b=norm_b + norm_b_beta
+      ENDIF
+      ! Set the norm
       norm_b=SQRT(norm_b)
 
       cycle_counter=0
@@ -1111,29 +1603,85 @@ MODULE mp2_cphf
 
         ! calculate matrix-vector product
         CALL cp_fm_set_all(Ap, 0.0_dp,error=error)
+        ! Full for closed shell. Alpha-alpha part of alpha for open shell.
         CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
                               mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
                               hfx_sections,energy,n_rep_hf,poisson_env,&
                               rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                               pk,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
-                              Ap,transf_type_out,error)
+                              Ap,transf_type_out,error,factor=factor)
+        IF (alpha_beta) THEN
+           ! Alpha-beta part of alpha.
+           CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
+                             mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
+                             hfx_sections,energy,n_rep_hf,poisson_env,&
+                             rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
+                             pk_b,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
+                             Ap,transf_type_out,error, factor=factor, &
+                             mo_coeff_beta=mo_coeff_beta, &
+                             mo_coeff_o_beta=mo_coeff_o_beta, &
+                             mo_coeff_v_beta=mo_coeff_v_beta, &
+                             homo_beta=homo_beta, virtual_beta=virtual_beta)
+           ! Beta-beta part (Coulomb and XC) of beta.                     
+           CALL cp_fm_set_all(Ap_b, 0.0_dp,error=error)
+           CALL cphf_like_update(qs_env,para_env,homo_beta,virtual_beta,dimen, &
+                              mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
+                             Eigenval_beta,hfx_sections,energy,n_rep_hf,&
+                             poisson_env,rho_work,pot_g,rho_g,rho_r,mat_mu_nu,&
+                             P_mu_nu,Pk_b,fm_G_mu_nu,fm_back,transf_type_in,&
+                             out_alpha,Ap_b,transf_type_out,error,factor=factor)
+           ! Beta-alpha part of beta.
+            CALL cphf_like_update(qs_env,para_env,homo_beta,virtual_beta,dimen,&
+                             mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
+                             Eigenval_beta,&
+                             hfx_sections,energy,n_rep_hf,poisson_env,&
+                             rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
+                             pk,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
+                             Ap_b,transf_type_out,error, factor=factor,&
+                             mo_coeff_beta=mo_coeff, &
+                             mo_coeff_o_beta=mo_coeff_o, &
+                             mo_coeff_v_beta=mo_coeff_v, &
+                             homo_beta=homo, virtual_beta=virtual)
+        ENDIF
 
         norms=0.0_dp
         norms(1)=SUM(rk%local_data(:,:)*rk%local_data(:,:))
         norms(2)=SUM(rk%local_data(:,:)*pk%local_data(:,:))
         norms(3)=SUM(pk%local_data(:,:)*Ap%local_data(:,:))
         CALL mp_sum(norms,para_env%group)
+        IF (alpha_beta) THEN
+           norms_beta=0.0_dp
+           norms_beta(1)=SUM(rk_b%local_data(:,:)*rk_b%local_data(:,:))
+           norms_beta(2)=SUM(rk_b%local_data(:,:)*pk_b%local_data(:,:))
+           norms_beta(3)=SUM(pk_b%local_data(:,:)*Ap_b%local_data(:,:))
+           CALL mp_sum(norms_beta,para_env%group)
+           norms = norms + norms_beta
+        ENDIF
         alpha=norms(1)/norms(3)
 
         xk%local_data(:,:)=xk%local_data(:,:)+alpha*pk%local_data(:,:)
         rk%local_data(:,:)=rk%local_data(:,:)-alpha*Ap%local_data(:,:)
+        IF (alpha_beta) THEN
+           xk_b%local_data(:,:)=xk_b%local_data(:,:)+alpha*pk_b%local_data(:,:)
+           rk_b%local_data(:,:)=rk_b%local_data(:,:)-alpha*Ap_b%local_data(:,:)
+        ENDIF
 
         rkrk=0.0_dp
         rkrk=SUM(rk%local_data(:,:)*rk%local_data(:,:))
         CALL mp_sum(rkrk,para_env%group) 
+
+        IF (alpha_beta) THEN
+           rkrk_beta=0.0_dp
+           rkrk_beta = SUM(rk_b%local_data(:,:)*rk_b%local_data(:,:))
+           CALL mp_sum(rkrk_beta,para_env%group) 
+           rkrk = rkrk + rkrk_beta
+        ENDIF
         beta=rkrk/norms(2)
 
         pk%local_data(:,:)=rk%local_data(:,:)+beta*pk%local_data(:,:)
+        IF (alpha_beta) THEN
+           pk_b%local_data(:,:)=rk_b%local_data(:,:)+beta*pk_b%local_data(:,:)
+        ENDIF
 
         conv=SQRT(rkrk)/norm_b
  
@@ -1151,11 +1699,20 @@ MODULE mp2_cphf
       END DO
 
       P_ia%local_data(:,:)=xk%local_data(:,:)
+      IF (alpha_beta) THEN
+         P_ia_beta%local_data(:,:)=xk_b%local_data(:,:)
+      ENDIF
 
       CALL cp_fm_release(xk,error=error)
       CALL cp_fm_release(pk,error=error)
       CALL cp_fm_release(rk,error=error)
       CALL cp_fm_release(Ap,error=error)
+      IF (alpha_beta) THEN
+         CALL cp_fm_release(xk_b,error=error)
+         CALL cp_fm_release(pk_b,error=error)
+         CALL cp_fm_release(rk_b,error=error)
+         CALL cp_fm_release(Ap_b,error=error)
+      ENDIF
 
     ELSE
       ! Pople method
@@ -1172,6 +1729,7 @@ MODULE mp2_cphf
       NULLIFY(fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
                                nrow_global=homo,ncol_global=virtual,error=error)
+
 
       ! create preconditioner (for now only orbital energy differences)
       NULLIFY(precond)
@@ -1192,7 +1750,6 @@ MODULE mp2_cphf
         END DO
       END DO
 
-      ! create b_i, work array needed for the orthogonalization of the 
       ! x(iiter) vector
       NULLIFY(b_i)
       CALL cp_fm_create(b_i, fm_struct_tmp, name="b_i",error=error)
@@ -1247,18 +1804,18 @@ MODULE mp2_cphf
         END DO
         DEALLOCATE(proj_bi_xj,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
+         
         ! create Ax(iiter) that will store the matrix vector product for this cycle
         NULLIFY(Ax(iiter)%matrix)
         CALL cp_fm_create(Ax(iiter)%matrix, fm_struct_tmp, name="Ai",error=error)
         CALL cp_fm_set_all(Ax(iiter)%matrix, 0.0_dp, error=error)
-        ! performe the matrix-vector product (CPHF like update) 
+        ! perform the matrix-vector product (CPHF like update) 
         CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
                               mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
                               hfx_sections,energy,n_rep_hf,poisson_env,&
                               rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
                               xn(iiter)%matrix,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
-                              Ax(iiter)%matrix,transf_type_out,error)
+                              Ax(iiter)%matrix,transf_type_out,error,factor=factor)
 
         ! in order to reduce the number of calls to mp_sum here we
         ! cluster all necessary scalar products into a sigle vector

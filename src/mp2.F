@@ -260,11 +260,11 @@ MODULE mp2
 
     nspins=dft_control%nspins
 
-    IF (calc_forces.AND.nspins/=1) THEN
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "No forces/gradients for LSD."//&
-                     CPSourceFileRef, only_ionode=.TRUE.)
-    END IF
+    !IF (calc_forces.AND.nspins/=1) THEN
+    !  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+    !                 "No forces/gradients for LSD."//&
+    !                 CPSourceFileRef, only_ionode=.TRUE.)
+    !END IF
 
     natom = SIZE(particle_set,1)
 

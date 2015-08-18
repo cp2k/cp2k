@@ -131,13 +131,16 @@ MODULE mp2_ri_grad
 !> \param blacs_env_sub ...
 !> \param error ...
 !> \param error_sub ...
+!> \param Eigenval_beta ...
+!> \param homo_beta ...
+!> \param mo_coeff_beta ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
   SUBROUTINE calc_ri_mp2_nonsep(qs_env,mp2_env,para_env,para_env_sub,dft_control,cell,particle_set,&
                                 atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,dimen_RI,Eigenval,&
                                 my_group_L_start,my_group_L_end,my_group_L_size,rho_r,rho_g,pot_g,&
                                 mat_munu,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                                blacs_env_sub,error,error_sub)
+                                blacs_env_sub,error,error_sub,Eigenval_beta,homo_beta,mo_coeff_beta)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
@@ -163,6 +166,9 @@ MODULE mp2_ri_grad
     TYPE(task_list_type), POINTER            :: task_list_sub
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: Eigenval_beta
+    INTEGER, OPTIONAL                        :: homo_beta
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff_beta
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ri_mp2_nonsep', &
       routineP = moduleN//':'//routineN
@@ -170,15 +176,18 @@ MODULE mp2_ri_grad
     INTEGER :: alpha, atom_a, beta, dimen, dir, handle, handle2, handle3, i, &
       iatom, igrid_level, ikind, iorb, ipgf, iset, istat, itmp(2), L_counter, &
       lb(3), LLL, location(3), my_P_end, my_P_size, my_P_start, na1, na2, &
-      natom, ncoa, nkind, nseta, offset, sgfa, stat, tp(3), ub(3), virtual
+      natom, ncoa, nkind, nseta, offset, sgfa, stat, tp(3), ub(3), virtual, &
+      virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: comp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, map_it_here, &
-                                                skip_shell, use_virial
+    LOGICAL                                  :: alpha_beta, failure, &
+                                                map_it_here, skip_shell, &
+                                                use_virial
     REAL(KIND=dp)                            :: e_hartree, eps_filter, &
-                                                pair_energy, rab2, total_rho
+                                                factor, pair_energy, rab2, &
+                                                total_rho
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: wf_vector
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: G_PQ_local, I_ab
@@ -188,20 +197,23 @@ MODULE mp2_ri_grad
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: I_tmp2, pab, rpgfa, sphi_a, &
                                                 zeta
-    TYPE(cp_dbcsr_p_type)                    :: Lag_mu_i_1, Lag_nu_a_2, &
-                                                matrix_P_inu, matrix_P_munu, &
-                                                matrix_P_munu_nosym
+    TYPE(cp_dbcsr_p_type) :: Lag_mu_i_1, Lag_mu_i_1_beta, Lag_nu_a_2, &
+      Lag_nu_a_2_beta, matrix_P_inu, matrix_P_inu_beta, matrix_P_munu, &
+      matrix_P_munu_nosym
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: G_P_ia
-    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
+      POINTER                                :: G_P_ia, G_P_ia_beta
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_o_beta, &
+                                                mo_coeff_v, mo_coeff_v_beta
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: L1_mu_i, L2_nu_a
+    TYPE(cp_fm_type), POINTER                :: L1_mu_i, L1_mu_i_beta, &
+                                                L2_nu_a, L2_nu_a_beta
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(pw_p_type)                          :: dvg(3), psi_L, temp_pw_g
+    TYPE(pw_p_type)                          :: dvg(3), psi_L, psi_L_beta, &
+                                                temp_pw_g
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -214,13 +226,25 @@ MODULE mp2_ri_grad
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
+    ! Find out whether we have a closed or open shell
+    alpha_beta = .FALSE.
+    IF (PRESENT(homo_beta) .AND. PRESENT(Eigenval_beta)) alpha_beta = .TRUE.
+
     dimen=nmo
     virtual=dimen-homo
+    IF (alpha_beta) virtual_beta = dimen - homo_beta
     eps_filter=mp2_env%mp2_gpw%eps_filter
     NULLIFY(mo_coeff_o, mo_coeff_v, G_P_ia, ks_env)
     mo_coeff_o => mp2_env%ri_grad%mo_coeff_o
     mo_coeff_v => mp2_env%ri_grad%mo_coeff_v
     G_P_ia => mp2_env%ri_grad%G_P_ia
+
+    IF (alpha_beta) THEN
+       NULLIFY(mo_coeff_o_beta, mo_coeff_v_beta, G_P_ia_beta)
+       mo_coeff_o_beta => mp2_env%ri_grad%mo_coeff_o_beta
+       mo_coeff_v_beta => mp2_env%ri_grad%mo_coeff_v_beta
+       G_P_ia_beta => mp2_env%ri_grad%G_P_ia_beta
+    ENDIF
 
     CALL get_qs_env(qs_env, ks_env=ks_env, molecule_set=molecule_set, &
                     molecule_kind_set=molecule_kind_set, error=error)
@@ -240,10 +264,20 @@ MODULE mp2_ri_grad
     my_P_size=itmp(2)-itmp(1)+1
     ALLOCATE(G_PQ_local(dimen_RI,my_group_L_size),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     G_PQ_local=0.0_dp
-    G_PQ_local(my_P_start:my_P_end,1:my_group_L_size)=mp2_env%ri_grad%Gamma_PQ
+    IF (.NOT. alpha_beta) THEN
+       G_PQ_local(my_P_start:my_P_end,1:my_group_L_size)=mp2_env%ri_grad%Gamma_PQ
+    ELSE
+       G_PQ_local(my_P_start:my_P_end,1:my_group_L_size)= &
+       0.50_dp*(mp2_env%ri_grad%Gamma_PQ + mp2_env%ri_grad%Gamma_PQ_beta)
+    ENDIF
     DEALLOCATE(mp2_env%ri_grad%Gamma_PQ,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    IF (alpha_beta) THEN
+       DEALLOCATE(mp2_env%ri_grad%Gamma_PQ_beta,STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
     CALL mp_sum(G_PQ_local,para_env_sub%group)
 
     ! deallocate here PQ_half, maybe usefull in the future
@@ -254,6 +288,11 @@ MODULE mp2_ri_grad
     ALLOCATE(matrix_P_inu%matrix)
     CALL cp_dbcsr_init(matrix_P_inu%matrix,error=error_sub)
     CALL cp_dbcsr_create(matrix_P_inu%matrix,template=mo_coeff_o,error=error_sub)
+    IF (alpha_beta) THEN
+       ALLOCATE(matrix_P_inu_beta%matrix)
+       CALL cp_dbcsr_init(matrix_P_inu_beta%matrix,error=error_sub)
+       CALL cp_dbcsr_create(matrix_P_inu_beta%matrix,template=mo_coeff_o_beta,error=error_sub)
+    ENDIF
 
     ! non symmetric matrix
     ALLOCATE(matrix_P_munu_nosym%matrix)
@@ -271,11 +310,23 @@ MODULE mp2_ri_grad
     CALL cp_dbcsr_init(Lag_mu_i_1%matrix,error=error_sub)
     CALL cp_dbcsr_create(Lag_mu_i_1%matrix,template=mo_coeff_o,error=error_sub)
     CALL cp_dbcsr_set(Lag_mu_i_1%matrix,0.0_dp,error=error_sub)
+    IF (alpha_beta) THEN
+       ALLOCATE(Lag_mu_i_1_beta%matrix)
+       CALL cp_dbcsr_init(Lag_mu_i_1_beta%matrix,error=error_sub)
+       CALL cp_dbcsr_create(Lag_mu_i_1_beta%matrix,template=mo_coeff_o_beta,error=error_sub)
+       CALL cp_dbcsr_set(Lag_mu_i_1_beta%matrix,0.0_dp,error=error_sub)
+    ENDIF
 
     ALLOCATE(Lag_nu_a_2%matrix)
     CALL cp_dbcsr_init(Lag_nu_a_2%matrix,error=error_sub)
     CALL cp_dbcsr_create(Lag_nu_a_2%matrix,template=mo_coeff_v,error=error_sub)
     CALL cp_dbcsr_set(Lag_nu_a_2%matrix,0.0_dp,error=error_sub)
+    IF (alpha_beta) THEN
+       ALLOCATE(Lag_nu_a_2_beta%matrix)
+       CALL cp_dbcsr_init(Lag_nu_a_2_beta%matrix,error=error_sub)
+       CALL cp_dbcsr_create(Lag_nu_a_2_beta%matrix,template=mo_coeff_v_beta,error=error_sub)
+       CALL cp_dbcsr_set(Lag_nu_a_2_beta%matrix,0.0_dp,error=error_sub)
+    ENDIF
 
     ALLOCATE(matrix_P_munu%matrix)
     CALL cp_dbcsr_init(matrix_P_munu%matrix,error=error_sub)
@@ -292,6 +343,12 @@ MODULE mp2_ri_grad
     CALL pw_pool_create_pw(auxbas_pw_pool,psi_L%pw,&
                            use_data=REALDATA3D,&
                            in_space=REALSPACE,error=error_sub)
+    IF (alpha_beta) THEN
+       NULLIFY(psi_L_beta%pw)
+       CALL pw_pool_create_pw(auxbas_pw_pool,psi_L_beta%pw,&
+                              use_data=REALDATA3D,&
+                              in_space=REALSPACE,error=error_sub)
+    ENDIF
 
     ! get forces
     NULLIFY (force, virial)
@@ -327,6 +384,11 @@ MODULE mp2_ri_grad
       CALL cp_dbcsr_set(matrix_P_inu%matrix,0.0_dp,error=error_sub)
       CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, G_P_ia(L_counter)%matrix, &
                               0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter, error=error_sub)
+      IF (alpha_beta) THEN
+         CALL cp_dbcsr_set(matrix_P_inu_beta%matrix,0.0_dp,error=error_sub)
+         CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v_beta, G_P_ia_beta(L_counter)%matrix, &
+                          0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter, error=error_sub)
+      ENDIF
       CALL timestop(handle3)
 
       ! second back-transformation i->mu
@@ -334,6 +396,11 @@ MODULE mp2_ri_grad
       CALL cp_dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp,error=error_sub)
       CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_P_inu%matrix, mo_coeff_o, &
                               0.0_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter, error=error_sub)
+      IF (alpha_beta) THEN
+         !CALL cp_dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp,error=error_sub)
+         CALL cp_dbcsr_multiply("N", "T", 0.5_dp, matrix_P_inu_beta%matrix, mo_coeff_o_beta, &
+                              0.5_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter, error=error_sub)
+      ENDIF
 
       ! ! first back-transformation a->nu
       ! CALL timeset(routineN//"_back_v",handle3)
@@ -371,6 +438,14 @@ MODULE mp2_ri_grad
                                   error=error_sub)
 
       rho_r%pw%cr3d = psi_L%pw%cr3d
+      IF (alpha_beta) THEN
+         CALL calculate_wavefunction(mo_coeff_beta,1,psi_L_beta,rho_g, atomic_kind_set,&
+                                     qs_kind_set,cell,dft_control,particle_set, &
+                                     pw_env_sub,basis_type='RI_AUX',&
+                                     external_vector=wf_vector,&
+                                     error=error_sub)
+         rho_r%pw%cr3d = 0.50_dp*(rho_r%pw%cr3d + psi_L_beta%pw%cr3d)
+      ENDIF
       CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
       CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
       CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
@@ -551,20 +626,42 @@ MODULE mp2_ri_grad
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu%matrix, &
                              1.0_dp, Lag_mu_i_1%matrix, filter_eps=eps_filter, error=error_sub)
 
+      IF (alpha_beta) THEN
+         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu_beta%matrix, &
+                             1.0_dp, Lag_mu_i_1_beta%matrix, filter_eps=eps_filter, error=error_sub)
+      ENDIF
+
       ! transform first index of mat_munu and store the result into matrix_P_inu
       CALL cp_dbcsr_set(matrix_P_inu%matrix,0.0_dp,error=error_sub)
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
                              0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter, error=error_sub)
+
+      IF (alpha_beta) THEN
+         CALL cp_dbcsr_set(matrix_P_inu_beta%matrix,0.0_dp,error=error_sub)
+         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o_beta, &
+                        0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter, error=error_sub)
+      ENDIF
 
       ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
       ! in order to update Lag_nu_a_2
       CALL cp_dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu%matrix, G_P_ia(L_counter)%matrix, &
                              1.0_dp, Lag_nu_a_2%matrix, filter_eps=eps_filter, error=error_sub)
 
+      IF (alpha_beta) THEN
+         CALL cp_dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu_beta%matrix, &
+                               G_P_ia_beta(L_counter)%matrix, 1.0_dp, Lag_nu_a_2_beta%matrix, &
+                               filter_eps=eps_filter, error=error_sub)
+      ENDIF
+
       ! release the actual gamma_P_ia
       CALL cp_dbcsr_release(G_P_ia(L_counter)%matrix,error=error_sub)
       DEALLOCATE(G_P_ia(L_counter)%matrix,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF (alpha_beta) THEN
+         CALL cp_dbcsr_release(G_P_ia_beta(L_counter)%matrix,error=error_sub)
+         DEALLOCATE(G_P_ia_beta(L_counter)%matrix,STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ENDIF
       CALL timestop(handle3)
 
       IF(use_virial) THEN
@@ -802,6 +899,11 @@ MODULE mp2_ri_grad
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_L%pw,error=error_sub)
 
+    IF (alpha_beta) THEN
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_L_beta%pw,error=error_sub)
+    ENDIF
+
+
     IF(use_virial) THEN
       CALL pw_pool_give_back_pw(auxbas_pw_pool,temp_pw_g%pw,error=error_sub)
       DO i=1, 3
@@ -812,6 +914,7 @@ MODULE mp2_ri_grad
     CALL cp_dbcsr_release(matrix_P_inu%matrix,error=error_sub)
     DEALLOCATE(matrix_P_inu%matrix,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     CALL cp_dbcsr_release(matrix_P_munu_nosym%matrix,error=error_sub)
     DEALLOCATE(matrix_P_munu_nosym%matrix,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -824,6 +927,15 @@ MODULE mp2_ri_grad
     DEALLOCATE(G_P_ia,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    ! Release G_P_ia_beta and and matrix_P_inu_beta
+    IF (alpha_beta) THEN
+        CALL cp_dbcsr_release(matrix_P_inu_beta%matrix,error=error_sub)
+        DEALLOCATE(matrix_P_inu_beta%matrix,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(G_P_ia_beta,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+
     DEALLOCATE(kind_of)
     DEALLOCATE(atom_of_kind)
 
@@ -832,6 +944,7 @@ MODULE mp2_ri_grad
       force(ikind)%mp2_non_sep(:,:) = force(ikind)%rho_elec(:,:) 
       force(ikind)%rho_elec(:,:) = 0.0_dp
     END DO
+
 
     ! Now we move from the local matrices to the global ones
     ! defined over all MPI tasks
@@ -862,8 +975,50 @@ MODULE mp2_ri_grad
     DEALLOCATE(Lag_nu_a_2%matrix,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
+    ! The same for the beta Lagrangians
+    IF (alpha_beta) THEN
+       ! Now we move from the local matrices to the global ones
+       ! defined over all MPI tasks
+       ! Start with moving from the DBCSR to FM for the lagrangians
+       NULLIFY(L1_mu_i_beta, fm_struct_tmp)
+       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
+                                nrow_global=dimen,ncol_global=homo_beta,error=error_sub)
+       CALL cp_fm_create(L1_mu_i_beta, fm_struct_tmp,name="Lag_mu_i_beta",error=error_sub)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error_sub)
+       CALL cp_fm_set_all(L1_mu_i_beta,0.0_dp,error=error_sub)
+       CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1_beta%matrix, fm=L1_mu_i_beta, error=error_sub)
+ 
+       ! release Lag_mu_i_1
+       CALL cp_dbcsr_release(Lag_mu_i_1_beta%matrix,error=error_sub)
+       DEALLOCATE(Lag_mu_i_1_beta%matrix,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+ 
+       NULLIFY(L2_nu_a_beta, fm_struct_tmp)
+       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
+                                nrow_global=dimen,ncol_global=virtual_beta,error=error_sub)
+       CALL cp_fm_create(L2_nu_a_beta, fm_struct_tmp,name="Lag_nu_a_beta",error=error_sub)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error_sub)
+       CALL cp_fm_set_all(L2_nu_a_beta,0.0_dp,error=error_sub)
+       CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2_beta%matrix, fm=L2_nu_a_beta, error=error_sub)
+ 
+       ! release Lag_nu_a_2
+       CALL cp_dbcsr_release(Lag_nu_a_2_beta%matrix,error=error_sub)
+       DEALLOCATE(Lag_nu_a_2_beta%matrix,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
+
+    ! Set the factor to multiply P_ij (depends on the open or closed shell)
+    factor = 1.0_dp
+    IF (alpha_beta) factor = 0.50_dp
+    
     CALL create_W_P(qs_env,mp2_env,mo_coeff,homo,virtual,dimen,para_env,para_env_sub,&
-                    Eigenval,L1_mu_i,L2_nu_a,error,error_sub)
+                    Eigenval,L1_mu_i,L2_nu_a,error,error_sub,factor,.FALSE.)
+    ! Alpha_beta_case                
+    IF (alpha_beta) THEN
+       CALL create_W_P(qs_env,mp2_env,mo_coeff_beta,homo_beta,virtual_beta,dimen,para_env, &
+                       para_env_sub,Eigenval_beta,L1_mu_i_beta,L2_nu_a_beta, &
+                       error,error_sub,factor,.TRUE.)
+    ENDIF
 
     CALL timestop(handle)
 
@@ -884,9 +1039,11 @@ MODULE mp2_ri_grad
 !> \param L2_nu_a ...
 !> \param error ...
 !> \param error_sub ...
+!> \param factor ...
+!> \param alpha_beta ...
 ! *****************************************************************************
   SUBROUTINE create_W_P(qs_env,mp2_env,mo_coeff,homo,virtual,dimen,para_env,para_env_sub,&
-                        Eigenval,L1_mu_i,L2_nu_a,error,error_sub)
+                        Eigenval,L1_mu_i,L2_nu_a,error,error_sub,factor,alpha_beta)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -895,6 +1052,8 @@ MODULE mp2_ri_grad
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     TYPE(cp_fm_type), POINTER                :: L1_mu_i, L2_nu_a
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
+    REAL(KIND=dp)                            :: factor
+    LOGICAL                                  :: alpha_beta
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_W_P', &
       routineP = moduleN//':'//routineN
@@ -1522,59 +1681,107 @@ MODULE mp2_ri_grad
         IF(j_global==i_global) CYCLE
         ! check if the given element is above the threshold
         IF(ABS(Eigenval(j_global)-Eigenval(i_global))<mp2_env%ri_mp2%eps_canonical) CYCLE
-        mp2_env%ri_grad%P_ij(i_global,j_global)=&
-                      fm_P_ij%local_data(iiB,jjB)/(Eigenval(j_global)-Eigenval(i_global))
+        IF (.NOT. alpha_beta) THEN
+           mp2_env%ri_grad%P_ij(i_global,j_global)=&
+                 factor*fm_P_ij%local_data(iiB,jjB)/(Eigenval(j_global)-Eigenval(i_global))
+        ELSE
+           mp2_env%ri_grad%P_ij_beta(i_global,j_global)=&
+                 factor*fm_P_ij%local_data(iiB,jjB)/(Eigenval(j_global)-Eigenval(i_global))
+        ENDIF
       END DO
     END DO
     ! release fm_P_ij
     CALL cp_fm_release(fm_P_ij,error=error)
     ! mp_sum it (we can avoid mp_sum, but for now let's keep it easy)
-    CALL mp_sum(mp2_env%ri_grad%P_ij,para_env%group)
+    IF (.NOT. alpha_beta) THEN
+       CALL mp_sum(mp2_env%ri_grad%P_ij,para_env%group)
+    ELSE
+       CALL mp_sum(mp2_env%ri_grad%P_ij_beta,para_env%group)
+    ENDIF
     CALL timestop(handle2)
 
     ! Now create and fill the P matrix (MO)
     ! FOR NOW WE ASSUME P_ab AND P_ij ARE REPLICATED OVER EACH MPI RANK
-    CALL timeset(routineN//"_PMO",handle2)
-    NULLIFY(mp2_env%ri_grad%P_mo, fm_struct_tmp)
-    CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
-                             nrow_global=dimen,ncol_global=dimen,error=error)
-    CALL cp_fm_create(mp2_env%ri_grad%P_mo, fm_struct_tmp, name="P_MP2_MO",error=error)
-    CALL cp_fm_set_all(mp2_env%ri_grad%P_mo, 0.0_dp,error=error)
+    IF (.NOT. alpha_beta) THEN
+       CALL timeset(routineN//"_PMO",handle2)
+       NULLIFY(mp2_env%ri_grad%P_mo, fm_struct_tmp)
+       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
+                                nrow_global=dimen,ncol_global=dimen,error=error)
+       CALL cp_fm_create(mp2_env%ri_grad%P_mo, fm_struct_tmp, name="P_MP2_MO",error=error)
+       CALL cp_fm_set_all(mp2_env%ri_grad%P_mo, 0.0_dp,error=error)
+    ELSE
+       CALL timeset(routineN//"_PMO",handle2)
+       NULLIFY(mp2_env%ri_grad%P_mo_beta, fm_struct_tmp)
+       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
+                                nrow_global=dimen,ncol_global=dimen,error=error)
+       CALL cp_fm_create(mp2_env%ri_grad%P_mo_beta, fm_struct_tmp, name="P_MP2_MO",error=error)
+       CALL cp_fm_set_all(mp2_env%ri_grad%P_mo_beta, 0.0_dp,error=error)
+    ENDIF
 
     ! start with the (easy) occ-occ block and locally held P_ab elements
     itmp=get_limit(virtual,para_env_sub%num_pe,para_env_sub%mepos)
     my_B_virtual_start=itmp(1)
     my_B_virtual_end=itmp(2)
 
-    CALL cp_fm_get_info(matrix=mp2_env%ri_grad%P_mo,&
-                        nrow_local=nrow_local,&
-                        ncol_local=ncol_local,&
-                        row_indices=row_indices,&
-                        col_indices=col_indices,&
-                        nrow_block=nrow_block,&
-                        ncol_block=ncol_block,&
-                        error=error)
-    myprow=mp2_env%ri_grad%P_mo%matrix_struct%context%mepos(1)
-    mypcol=mp2_env%ri_grad%P_mo%matrix_struct%context%mepos(2)
-    nprow =mp2_env%ri_grad%P_mo%matrix_struct%context%num_pe(1)
-    npcol =mp2_env%ri_grad%P_mo%matrix_struct%context%num_pe(2)
+    IF (.NOT. alpha_beta) THEN
+       CALL cp_fm_get_info(matrix=mp2_env%ri_grad%P_mo,&
+                           nrow_local=nrow_local,&
+                           ncol_local=ncol_local,&
+                           row_indices=row_indices,&
+                           col_indices=col_indices,&
+                           nrow_block=nrow_block,&
+                           ncol_block=ncol_block,&
+                           error=error)
+       myprow=mp2_env%ri_grad%P_mo%matrix_struct%context%mepos(1)
+       mypcol=mp2_env%ri_grad%P_mo%matrix_struct%context%mepos(2)
+       nprow =mp2_env%ri_grad%P_mo%matrix_struct%context%num_pe(1)
+       npcol =mp2_env%ri_grad%P_mo%matrix_struct%context%num_pe(2)
+    ELSE
+       CALL cp_fm_get_info(matrix=mp2_env%ri_grad%P_mo_beta,&
+                           nrow_local=nrow_local,&
+                           ncol_local=ncol_local,&
+                           row_indices=row_indices,&
+                           col_indices=col_indices,&
+                           nrow_block=nrow_block,&
+                           ncol_block=ncol_block,&
+                           error=error)
+       myprow=mp2_env%ri_grad%P_mo_beta%matrix_struct%context%mepos(1)
+       mypcol=mp2_env%ri_grad%P_mo_beta%matrix_struct%context%mepos(2)
+       nprow =mp2_env%ri_grad%P_mo_beta%matrix_struct%context%num_pe(1)
+       npcol =mp2_env%ri_grad%P_mo_beta%matrix_struct%context%num_pe(2)
+    ENDIF
 
     DO jjB=1, ncol_local
       j_global=col_indices(jjB)
       DO iiB=1, nrow_local
         i_global=row_indices(iiB)
-        IF(i_global<=homo.AND.j_global<=homo) THEN
-          mp2_env%ri_grad%P_mo%local_data(iiB,jjB)=mp2_env%ri_grad%P_ij(i_global,j_global)
-        END IF
-        IF((my_B_virtual_start<=i_global-homo.AND.i_global-homo<=my_B_virtual_end).AND.(j_global>homo)) THEN
-          mp2_env%ri_grad%P_mo%local_data(iiB,jjB)=&
-                             mp2_env%ri_grad%P_ab(i_global-homo-my_B_virtual_start+1,j_global-homo)
-        END IF
+        IF (.NOT. alpha_beta) THEN
+           IF(i_global<=homo.AND.j_global<=homo) THEN
+             mp2_env%ri_grad%P_mo%local_data(iiB,jjB)=mp2_env%ri_grad%P_ij(i_global,j_global)
+           END IF
+           IF((my_B_virtual_start<=i_global-homo.AND.i_global-homo<=my_B_virtual_end).AND.(j_global>homo)) THEN
+             mp2_env%ri_grad%P_mo%local_data(iiB,jjB)=&
+                                mp2_env%ri_grad%P_ab(i_global-homo-my_B_virtual_start+1,j_global-homo)
+           END IF
+        ELSE
+           IF(i_global<=homo.AND.j_global<=homo) THEN
+             mp2_env%ri_grad%P_mo_beta%local_data(iiB,jjB)=mp2_env%ri_grad%P_ij_beta(i_global,j_global)
+           END IF
+           IF((my_B_virtual_start<=i_global-homo.AND.i_global-homo<=my_B_virtual_end).AND.(j_global>homo)) THEN
+             mp2_env%ri_grad%P_mo_beta%local_data(iiB,jjB)=&
+                                mp2_env%ri_grad%P_ab_beta(i_global-homo-my_B_virtual_start+1,j_global-homo)
+           END IF
+        ENDIF
       END DO
     END DO
     ! deallocate the local P_ij
-    DEALLOCATE(mp2_env%ri_grad%P_ij,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. alpha_beta) THEN
+       DEALLOCATE(mp2_env%ri_grad%P_ij,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+       DEALLOCATE(mp2_env%ri_grad%P_ij_beta,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
  
     ! send around the sub_group the local data and check if we 
     ! have to update our block with external elements
@@ -1616,11 +1823,20 @@ MODULE mp2_ri_grad
         i_global=i_global-homo
         IF(.NOT.(my_B_virtual_start<=i_global.AND.i_global<=my_B_virtual_end)) CYCLE
         DO jjB=1, send_col_size
-          j_global=cp_fm_indxl2g(jjB,ncol_block,send_pcol,&
+          IF (.NOT. alpha_beta) THEN
+             j_global=cp_fm_indxl2g(jjB,ncol_block,send_pcol,&
                                  mp2_env%ri_grad%P_mo%matrix_struct%first_p_pos(2),npcol)
+          ELSE
+             j_global=cp_fm_indxl2g(jjB,ncol_block,send_pcol,&
+                                 mp2_env%ri_grad%P_mo_beta%matrix_struct%first_p_pos(2),npcol)
+          ENDIF
           IF(j_global<=homo) CYCLE
           j_global=j_global-homo
-          ab_send(iiB,jjB)=mp2_env%ri_grad%P_ab(i_global-my_B_virtual_start+1,j_global)
+          IF (.NOT. alpha_beta) THEN
+             ab_send(iiB,jjB)=mp2_env%ri_grad%P_ab(i_global-my_B_virtual_start+1,j_global)
+          ELSE
+             ab_send(iiB,jjB)=mp2_env%ri_grad%P_ab_beta(i_global-my_B_virtual_start+1,j_global)
+          ENDIF
         END DO
       END DO
 
@@ -1628,9 +1844,15 @@ MODULE mp2_ri_grad
       CALL  mp_sendrecv(ab_send,proc_send,&
                         ab_rec,proc_receive,&
                         para_env_sub%group)
-
-      mp2_env%ri_grad%P_mo%local_data(1:nrow_local,1:ncol_local)=&
-      mp2_env%ri_grad%P_mo%local_data(1:nrow_local,1:ncol_local)+ab_rec(1:nrow_local,1:ncol_local)
+      IF (.NOT. alpha_beta) THEN
+         mp2_env%ri_grad%P_mo%local_data(1:nrow_local,1:ncol_local)=&
+         mp2_env%ri_grad%P_mo%local_data(1:nrow_local,1:ncol_local)+ &
+         ab_rec(1:nrow_local,1:ncol_local)
+      ELSE
+         mp2_env%ri_grad%P_mo_beta%local_data(1:nrow_local,1:ncol_local)=&
+         mp2_env%ri_grad%P_mo_beta%local_data(1:nrow_local,1:ncol_local)+ &
+         ab_rec(1:nrow_local,1:ncol_local)
+      ENDIF
 
       DEALLOCATE(ab_send)
     END DO
@@ -1638,78 +1860,148 @@ MODULE mp2_ri_grad
     DEALLOCATE(mepos_2_grid)
     DEALLOCATE(sizes)
 
-    ! deallocate the local P_ab
-    DEALLOCATE(mp2_env%ri_grad%P_ab,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! deallocate the local P_ab'
+    IF (.NOT. alpha_beta) THEN
+       DEALLOCATE(mp2_env%ri_grad%P_ab,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+       DEALLOCATE(mp2_env%ri_grad%P_ab_beta,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
     CALL timestop(handle2)
 
     ! create also W_MP2_MO
     CALL timeset(routineN//"_WMO",handle2)
-    NULLIFY(mp2_env%ri_grad%W_mo)
-    CALL cp_fm_create(mp2_env%ri_grad%W_mo, fm_struct_tmp, name="W_MP2_MO",error=error)
-    CALL cp_fm_set_all(mp2_env%ri_grad%W_mo, 0.0_dp,error=error)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-
-    ! all block
-    CALL cp_gemm('T','N',dimen,dimen,dimen,2.0_dp,&
-                    L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo,&
-                    error=error,&
-                    a_first_row=1,&
-                    b_first_col=1,&
-                    b_first_row=1,&
-                    c_first_col=1,&
-                    c_first_row=1)
-
-    ! occ-occ block
-    CALL cp_gemm('T','N',homo,homo,dimen,-2.0_dp,&
-                    L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo,&
-                    error=error,&
-                    a_first_row=1,&
-                    b_first_col=1,&
-                    b_first_row=1,&
-                    c_first_col=1,&
-                    c_first_row=1)
-
-    ! occ-virt block
-    CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp,&
-                    mo_coeff,L_mu_q,0.0_dp,mp2_env%ri_grad%W_mo,&
-                    error=error,&
-                    a_first_row=1,&
-                    b_first_col=homo+1,&
-                    b_first_row=1,&
-                    c_first_col=homo+1,&
-                    c_first_row=1)
+    IF (.NOT. alpha_beta) THEN
+       NULLIFY(mp2_env%ri_grad%W_mo)
+       CALL cp_fm_create(mp2_env%ri_grad%W_mo, fm_struct_tmp, name="W_MP2_MO",error=error)
+       CALL cp_fm_set_all(mp2_env%ri_grad%W_mo, 0.0_dp,error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+     
+       ! all block
+       CALL cp_gemm('T','N',dimen,dimen,dimen,2.0_dp*factor,&
+                       L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=1,&
+                       b_first_row=1,&
+                       c_first_col=1,&
+                       c_first_row=1)
+     
+       ! occ-occ block
+       CALL cp_gemm('T','N',homo,homo,dimen,-2.0_dp*factor,&
+                       L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=1,&
+                       b_first_row=1,&
+                       c_first_col=1,&
+                       c_first_row=1)
+     
+       ! occ-virt block
+       CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp*factor,&
+                       mo_coeff,L_mu_q,0.0_dp,mp2_env%ri_grad%W_mo,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=homo+1,&
+                       b_first_row=1,&
+                       c_first_col=homo+1,&
+                       c_first_row=1)
+    ELSE
+       NULLIFY(mp2_env%ri_grad%W_mo_beta)
+       CALL cp_fm_create(mp2_env%ri_grad%W_mo_beta, fm_struct_tmp, name="W_MP2_MO",error=error)
+       CALL cp_fm_set_all(mp2_env%ri_grad%W_mo_beta, 0.0_dp,error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+     
+       ! all block
+       CALL cp_gemm('T','N',dimen,dimen,dimen,2.0_dp*factor,&
+                       L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo_beta,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=1,&
+                       b_first_row=1,&
+                       c_first_col=1,&
+                       c_first_row=1)
+     
+       ! occ-occ block
+       CALL cp_gemm('T','N',homo,homo,dimen,-2.0_dp*factor,&
+                       L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo_beta,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=1,&
+                       b_first_row=1,&
+                       c_first_col=1,&
+                       c_first_row=1)
+     
+       ! occ-virt block
+       CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp*factor,&
+                       mo_coeff,L_mu_q,0.0_dp,mp2_env%ri_grad%W_mo_beta,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=homo+1,&
+                       b_first_row=1,&
+                       c_first_col=homo+1,&
+                       c_first_row=1)
+    ENDIF
     CALL timestop(handle2)
 
     ! IF(para_env%mepos==0) CALL write_array(mp2_env%ri_grad%P_ij(1:homo,1:homo))
 
     ! Calculate occ-virt block of the lagrangian in MO
     CALL timeset(routineN//"_Ljb",handle2)
-    NULLIFY(mp2_env%ri_grad%L_jb, fm_struct_tmp)
-    CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
-                             nrow_global=homo,ncol_global=virtual,error=error)
-    CALL cp_fm_create(mp2_env%ri_grad%L_jb, fm_struct_tmp, name="fm_L_jb",error=error)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-    CALL cp_fm_set_all(mp2_env%ri_grad%L_jb, 0.0_dp,error=error)
- 
-    ! first Virtual
-    CALL cp_gemm('T','N',homo,virtual,dimen,1.0_dp,&
-                    L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%L_jb,&
-                    error=error,&
-                    a_first_row=1,&
-                    b_first_col=homo+1,&
-                    b_first_row=1,&
-                    c_first_col=1,&
-                    c_first_row=1)
-    ! then occupied
-    CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp,&
-                    mo_coeff,L_mu_q,2.0_dp,mp2_env%ri_grad%L_jb,&
-                    error=error,&
-                    a_first_row=1,&
-                    b_first_col=homo+1,&
-                    b_first_row=1,&
-                    c_first_col=1,&
-                    c_first_row=1)
+    IF (.NOT. alpha_beta) THEN
+       NULLIFY(mp2_env%ri_grad%L_jb, fm_struct_tmp)
+       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
+                                nrow_global=homo,ncol_global=virtual,error=error)
+       CALL cp_fm_create(mp2_env%ri_grad%L_jb, fm_struct_tmp, name="fm_L_jb",error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+       CALL cp_fm_set_all(mp2_env%ri_grad%L_jb, 0.0_dp,error=error)
+  
+       ! first Virtual
+       CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp*factor,&
+                       L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%L_jb,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=homo+1,&
+                       b_first_row=1,&
+                       c_first_col=1,&
+                       c_first_row=1)
+       ! then occupied
+       CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp*factor,&
+                       mo_coeff,L_mu_q,1.0_dp,mp2_env%ri_grad%L_jb,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=homo+1,&
+                       b_first_row=1,&
+                       c_first_col=1,&
+                       c_first_row=1)
+    ELSE
+       NULLIFY(mp2_env%ri_grad%L_jb_beta, fm_struct_tmp)
+       CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
+                                nrow_global=homo,ncol_global=virtual,error=error)
+       CALL cp_fm_create(mp2_env%ri_grad%L_jb_beta, fm_struct_tmp, name="fm_L_jb",error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+       CALL cp_fm_set_all(mp2_env%ri_grad%L_jb_beta, 0.0_dp,error=error)
+  
+       ! first Virtual
+       CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp*factor,&
+                       L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%L_jb_beta,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=homo+1,&
+                       b_first_row=1,&
+                       c_first_col=1,&
+                       c_first_row=1)
+       ! then occupied
+       CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp*factor,&
+                       mo_coeff,L_mu_q,1.0_dp,mp2_env%ri_grad%L_jb_beta,&
+                       error=error,&
+                       a_first_row=1,&
+                       b_first_col=homo+1,&
+                       b_first_row=1,&
+                       c_first_col=1,&
+                       c_first_row=1)
+    ENDIF
     ! finally release L_mu_q
     CALL cp_fm_release(L_mu_q,error=error)
     CALL timestop(handle2)
@@ -1719,17 +2011,30 @@ MODULE mp2_ri_grad
     IF(.FALSE.) THEN   
       ALLOCATE(ab_send(homo,virtual))
       ab_send=0.0_dp
-      CALL cp_fm_get_info(matrix=mp2_env%ri_grad%L_jb,&
+      IF (.NOT. alpha_beta) THEN
+         CALL cp_fm_get_info(matrix=mp2_env%ri_grad%L_jb,&
                           nrow_local=nrow_local,&
                           ncol_local=ncol_local,&
                           row_indices=row_indices,&
                           col_indices=col_indices,&
                           error=error)
+      ELSE
+         CALL cp_fm_get_info(matrix=mp2_env%ri_grad%L_jb_beta,&
+                          nrow_local=nrow_local,&
+                          ncol_local=ncol_local,&
+                          row_indices=row_indices,&
+                          col_indices=col_indices,&
+                          error=error)
+      ENDIF
       DO jjB=1, ncol_local
         j_global=col_indices(jjB)
         DO iiB=1, nrow_local
           i_global=row_indices(iiB)
-          ab_send(i_global,j_global)=mp2_env%ri_grad%L_jb%local_data(iiB,jjB)
+          IF (.NOT. alpha_beta) THEN
+             ab_send(i_global,j_global)=mp2_env%ri_grad%L_jb%local_data(iiB,jjB)
+          ELSE
+             ab_send(i_global,j_global)=mp2_env%ri_grad%L_jb_beta%local_data(iiB,jjB)
+          ENDIF
         END DO
       END DO
       CALL mp_sum(ab_send,para_env%group)
@@ -1744,28 +2049,59 @@ MODULE mp2_ri_grad
       ab_send=0.0_dp
       ab_rec=0.0_dp
       mat_deb=0.0_dp
-      CALL cp_fm_get_info(matrix=mp2_env%ri_grad%P_mo,&
+      IF (.NOT. alpha_beta) THEN
+         CALL cp_fm_get_info(matrix=mp2_env%ri_grad%P_mo,&
                           nrow_local=nrow_local,&
                           ncol_local=ncol_local,&
                           row_indices=row_indices,&
                           col_indices=col_indices,&
                           error=error)
-      DO jjB=1, ncol_local
-        j_global=col_indices(jjB)
-        DO iiB=1, nrow_local
-          i_global=row_indices(iiB)
-          IF(i_global<=homo.AND.j_global<=homo) THEN
-            ab_send(i_global,j_global)=mp2_env%ri_grad%P_mo%local_data(iiB,jjB)
-          ELSE
-            IF(i_global>homo.AND.j_global>homo) THEN
-              ab_rec(i_global-homo,j_global-homo)=mp2_env%ri_grad%P_mo%local_data(iiB,jjB)
-            ELSE
-              mat_deb(MIN(i_global,j_global),MAX(i_global,j_global)-homo)=&
-              mat_deb(MIN(i_global,j_global),MAX(i_global,j_global)-homo)+mp2_env%ri_grad%P_mo%local_data(iiB,jjB)
-            END IF
-          END IF
-        END DO
-      END DO
+      ELSE
+         CALL cp_fm_get_info(matrix=mp2_env%ri_grad%P_mo_beta,&
+                          nrow_local=nrow_local,&
+                          ncol_local=ncol_local,&
+                          row_indices=row_indices,&
+                          col_indices=col_indices,&
+                          error=error)
+      ENDIF
+      IF (.NOT. alpha_beta) THEN
+         DO jjB=1, ncol_local
+           j_global=col_indices(jjB)
+           DO iiB=1, nrow_local
+             i_global=row_indices(iiB)
+             IF(i_global<=homo.AND.j_global<=homo) THEN
+               ab_send(i_global,j_global)=mp2_env%ri_grad%P_mo%local_data(iiB,jjB)
+             ELSE
+               IF(i_global>homo.AND.j_global>homo) THEN
+                 ab_rec(i_global-homo,j_global-homo)=mp2_env%ri_grad%P_mo%local_data(iiB,jjB)
+               ELSE
+                 mat_deb(MIN(i_global,j_global),MAX(i_global,j_global)-homo)=&
+                 mat_deb(MIN(i_global,j_global),MAX(i_global,j_global)-homo)+&
+                 mp2_env%ri_grad%P_mo%local_data(iiB,jjB)
+               END IF
+             END IF
+           END DO
+         END DO
+      ELSE
+         DO jjB=1, ncol_local
+           j_global=col_indices(jjB)
+           DO iiB=1, nrow_local
+             i_global=row_indices(iiB)
+             IF(i_global<=homo.AND.j_global<=homo) THEN
+               ab_send(i_global,j_global)=mp2_env%ri_grad%P_mo_beta%local_data(iiB,jjB)
+             ELSE
+               IF(i_global>homo.AND.j_global>homo) THEN
+                 ab_rec(i_global-homo,j_global-homo)=mp2_env%ri_grad%P_mo_beta%local_data(iiB,jjB)
+               ELSE
+                 mat_deb(MIN(i_global,j_global),MAX(i_global,j_global)-homo)=&
+                 mat_deb(MIN(i_global,j_global),MAX(i_global,j_global)-homo)+&
+                 mp2_env%ri_grad%P_mo_beta%local_data(iiB,jjB)
+               END IF
+             END IF
+           END DO
+         END DO
+      ENDIF
+
       CALL mp_sum(ab_send,para_env%group)
       CALL mp_sum(ab_rec,para_env%group)
       CALL mp_sum(mat_deb,para_env%group)
@@ -1780,17 +2116,33 @@ MODULE mp2_ri_grad
       DEALLOCATE(ab_send, ab_rec, mat_deb)
       ALLOCATE(ab_send(dimen,dimen))
       ab_send=0.0_dp
-      CALL cp_fm_get_info(matrix=mp2_env%ri_grad%W_mo,&
+      IF (.NOT. alpha_beta) THEN
+         CALL cp_fm_get_info(matrix=mp2_env%ri_grad%W_mo,&
                           nrow_local=nrow_local,&
                           ncol_local=ncol_local,&
                           row_indices=row_indices,&
                           col_indices=col_indices,&
                           error=error)
+      ELSE
+         CALL cp_fm_get_info(matrix=mp2_env%ri_grad%W_mo_beta,&
+                          nrow_local=nrow_local,&
+                          ncol_local=ncol_local,&
+                          row_indices=row_indices,&
+                          col_indices=col_indices,&
+                          error=error)
+      ENDIF
+
       DO jjB=1, ncol_local
         j_global=col_indices(jjB)
         DO iiB=1, nrow_local
           i_global=row_indices(iiB)
-          ab_send(i_global,j_global)=mp2_env%ri_grad%W_mo%local_data(iiB,jjB)
+          IF (.NOT. alpha_beta) THEN
+             ab_send(i_global,j_global)= &
+             mp2_env%ri_grad%W_mo%local_data(iiB,jjB)
+          ELSE
+             ab_send(i_global,j_global)= &
+             mp2_env%ri_grad%W_mo_beta%local_data(iiB,jjB)
+          ENDIF
         END DO
       END DO
       CALL mp_sum(ab_send,para_env%group)

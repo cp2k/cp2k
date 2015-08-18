@@ -181,12 +181,14 @@ MODULE hfx_derivatives
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: ede_buffer1, ede_buffer2, &
       ede_primitives_tmp, ede_primitives_tmp_virial, ede_work, ede_work2, &
       ede_work2_virial, ede_work_forces, ede_work_virial, pac_buf, &
-      pac_buf_beta, pac_buf_mp2, pad_buf, pad_buf_beta, pad_buf_mp2, pbc_buf, &
-      pbc_buf_beta, pbc_buf_mp2, pbd_buf, pbd_buf_beta, pbd_buf_mp2
+      pac_buf_beta, pac_buf_mp2, pac_buf_mp2_beta, pad_buf, pad_buf_beta, &
+      pad_buf_mp2, pad_buf_mp2_beta, pbc_buf, pbc_buf_beta, pbc_buf_mp2, &
+      pbc_buf_mp2_beta, pbd_buf, pbd_buf_beta, pbd_buf_mp2, pbd_buf_mp2_beta
     REAL(dp), ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: primitive_forces, &
                                                 primitive_forces_virial
-    REAL(dp), DIMENSION(:), POINTER          :: full_density_mp2, T2
+    REAL(dp), DIMENSION(:), POINTER          :: full_density_mp2, &
+                                                full_density_mp2_beta, T2
     REAL(dp), DIMENSION(:, :), POINTER :: full_density_alpha, &
       full_density_beta, max_contraction, ptr_p_1, ptr_p_2, ptr_p_3, ptr_p_4, &
       shm_pmax_atom, shm_pmax_block, sphi_b, zeta, zetb, zetc, zetd
@@ -327,6 +329,7 @@ MODULE hfx_derivatives
 !$OMP                                  n_threads,&
 !$OMP                                  full_density_alpha,&
 !$OMP                                  full_density_mp2,&
+!$OMP                                  full_density_mp2_beta,&
 !$OMP                                  full_density_beta,&
 !$OMP                                  shm_initial_p,&
 !$OMP                                  shm_is_assoc_atomic_block,&
@@ -381,8 +384,9 @@ MODULE hfx_derivatives
 !$OMP  neris_total,nimages,nints,nneighbors,npgfa,npgfb,npgfc,npgfd,&
 !$OMP  nprim_ints,n_processes,nseta,nsetb,nsgfa,nsgfb,nsgfc,nsgfd,&
 !$OMP  nsgfl_a,nsgfl_b,nsgfl_c,nsgfl_d,nsgf_max,offset_ac_set,offset_ad_set,&
-!$OMP  offset_bc_set,offset_bd_set,pac_buf,pac_buf_beta,pac_buf_mp2,pad_buf,pad_buf_beta,pad_buf_mp2,&
-!$OMP  particle_set,pbc_buf,pbc_buf_beta,pbc_buf_mp2,pbd_buf,pbd_buf_beta,pbd_buf_mp2,pgf_list_ij,&
+!$OMP  offset_bc_set,offset_bd_set,pac_buf,pac_buf_beta,pac_buf_mp2,pac_buf_mp2_beta,pad_buf,pad_buf_beta,pad_buf_mp2,&
+!$OMP  pad_buf_mp2_beta,particle_set,pbc_buf,pbc_buf_beta,pbc_buf_mp2,pbc_buf_mp2_beta,pbd_buf,pbd_buf_beta, &
+!$OMP  pbd_buf_mp2, pbd_buf_mp2_beta, pgf_list_ij,&
 !$OMP  pgf_list_kl,pgf_product_list,pmax_atom,pmax_blocks,pmax_entry,pmax_tmp,potential_parameter,primitive_forces,&
 !$OMP  primitive_forces_virial,private_deriv,ptr_p_1,ptr_p_2,ptr_p_3,ptr_p_4,ra,rab2,&
 !$OMP  rb,rc,rcd2,rd,screening_parameter,screen_pmat_forces,set_list_ij,set_list_kl,&
@@ -550,6 +554,17 @@ MODULE hfx_derivatives
                             shm_block_offset,&
                             kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
                             antisymmetric=is_anti_symmetric,error=error)
+      ! With mp2 density
+      IF(with_mp2_density) THEN
+        NULLIFY(full_density_mp2_beta)
+        ALLOCATE(full_density_mp2_beta(shm_block_offset(ncpu+1)),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        CALL get_full_density(para_env, full_density_mp2_beta, rho_ao_mp2(2)%matrix, shm_number_of_p_entries,&
+                              shm_block_offset,&
+                              kind_of, basis_parameter, get_max_vals_spin=.FALSE.,&
+                              antisymmetric=is_anti_symmetric,error=error)
+      END IF
+
     END IF
     CALL timestop(handle_getP)
 
@@ -580,6 +595,10 @@ MODULE hfx_derivatives
     ! maybe in the future
     IF(with_mp2_density) THEN
       full_density_alpha(:,1)=full_density_alpha(:,1)-full_density_mp2
+      IF (nspins==2) THEN
+         full_density_beta(:,1)= &
+         full_density_beta(:,1)-full_density_mp2_beta
+      ENDIF
       ! full_density_mp2=full_density+full_density_mp2
     END IF
 
@@ -684,6 +703,16 @@ MODULE hfx_derivatives
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       ALLOCATE(pac_buf_beta(nsgf_max**2),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF(with_mp2_density) THEN
+        ALLOCATE(pbd_buf_mp2_beta(nsgf_max**2),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(pbc_buf_mp2_beta(nsgf_max**2),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(pad_buf_mp2_beta(nsgf_max**2),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(pac_buf_mp2_beta(nsgf_max**2),STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
     END IF
 
     ALLOCATE(ede_work(ncos_max**4*12),STAT=stat)
@@ -1469,12 +1498,27 @@ MODULE hfx_derivatives
                                                atomic_offset_ad, atomic_offset_ac,is_anti_symmetric)
                 END IF
                 IF( nspins == 2 ) THEN
-                  CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                               full_density_beta(:,1), pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, &
-                                               iatom, jatom, katom, latom, &
-                                               iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
-                                               offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
-                                               atomic_offset_ad, atomic_offset_ac,is_anti_symmetric)
+                  IF(with_mp2_density) THEN
+                     CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                                  full_density_beta(:,1), pbd_buf_beta, pbc_buf_beta, &
+                                                  pad_buf_beta, pac_buf_beta, iatom, jatom, katom, latom, &
+                                                  iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
+                                                  offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
+                                                  atomic_offset_ad, atomic_offset_ac,is_anti_symmetric)
+                     CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                                  full_density_mp2_beta, pbd_buf_mp2_beta, pbc_buf_mp2_beta,&
+                                                  pad_buf_mp2_beta, pac_buf_mp2_beta, iatom, jatom, katom, latom, &
+                                                  iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
+                                                  offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
+                                                  atomic_offset_ad, atomic_offset_ac,is_anti_symmetric)
+                  ELSE
+                     CALL prefetch_density_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                                  full_density_beta(:,1), pbd_buf_beta, pbc_buf_beta, pad_buf_beta,&
+                                                  pac_buf_beta, iatom, jatom, katom, latom, &
+                                                  iset, jset, kset, lset, offset_bd_set, offset_bc_set,&
+                                                  offset_ad_set, offset_ac_set, atomic_offset_bd, atomic_offset_bc,&
+                                                  atomic_offset_ad, atomic_offset_ac,is_anti_symmetric)
+                  ENDIF
                 END IF
                 IF( spherical_estimate*pmax_entry >= eps_schwarz ) THEN
                   DO coord = 1,12
@@ -1492,9 +1536,17 @@ MODULE hfx_derivatives
                                          T2, force, forces_map, coord)
                     END IF
                     IF( nspins == 2 ) THEN
-                      CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                         pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
-                                         T2, force, forces_map, coord)
+                      IF(with_mp2_density) THEN
+                         CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                            pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, &
+                                            fac, T2, force, forces_map, coord,&
+                                            pbd_buf_mp2_beta, pbc_buf_mp2_beta,&
+                                            pad_buf_mp2_beta, pac_buf_mp2_beta)
+                      ELSE
+                         CALL update_forces(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                            pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
+                                            T2, force, forces_map, coord)
+                      ENDIF
                     END IF
                   END DO !coord
                 END IF
@@ -1773,6 +1825,16 @@ MODULE hfx_derivatives
     IF( nspins == 2 ) THEN
       DEALLOCATE(pbd_buf_beta,pbc_buf_beta,pad_buf_beta,pac_buf_beta, STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF(with_mp2_density) THEN
+        DEALLOCATE(pbd_buf_mp2_beta, STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(pbc_buf_mp2_beta, STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(pad_buf_mp2_beta, STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DEALLOCATE(pac_buf_mp2_beta, STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
     END IF
 
     !

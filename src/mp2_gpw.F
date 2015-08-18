@@ -547,6 +547,14 @@ MODULE mp2_gpw
       NULLIFY(mp2_env%ri_grad%mo_coeff_v)
       CALL cp_dbcsr_init_p(mp2_env%ri_grad%mo_coeff_v,error=error_sub)
       CALL cp_dbcsr_copy(mp2_env%ri_grad%mo_coeff_v,mo_coeff_v,name="mo_coeff_v",error=error_sub)
+      IF (nspins == 2) THEN
+         NULLIFY(mp2_env%ri_grad%mo_coeff_o_beta)
+         CALL cp_dbcsr_init_p(mp2_env%ri_grad%mo_coeff_o_beta,error=error_sub)
+         CALL cp_dbcsr_copy(mp2_env%ri_grad%mo_coeff_o_beta,mo_coeff_o_beta,name="mo_coeff_o_b",error=error_sub)
+         NULLIFY(mp2_env%ri_grad%mo_coeff_v_beta)
+         CALL cp_dbcsr_init_p(mp2_env%ri_grad%mo_coeff_v_beta,error=error_sub)
+         CALL cp_dbcsr_copy(mp2_env%ri_grad%mo_coeff_v_beta,mo_coeff_v_beta,name="mo_coeff_v_b",error=error_sub)
+      ENDIF
       my_group_L_size=sizes_array(color_sub)
       my_group_L_start=starts_array(color_sub)
       my_group_L_end=ends_array(color_sub)
@@ -652,7 +660,7 @@ MODULE mp2_gpw
                                      Eigenval,nmo,homo,dimen_RI,unit_nr,calc_forces,calc_ex,error,error_sub)
         END IF
         ! if we need forces time to calculate the MP2 non-separable contribution 
-        ! and start coputing the largrangian
+        ! and start coputing the Largrangian
         IF(calc_forces) THEN
           ! since we have to compute again integrals reinitialize the stuff we need
           ! get some of the grids ready
@@ -686,11 +694,19 @@ MODULE mp2_gpw
           ! CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix,sab_orb_sub,error_sub)
           ! CALL array_release (row_blk_sizes)
 
-          CALL  calc_ri_mp2_nonsep(qs_env,mp2_env,para_env,para_env_sub,dft_control,cell,particle_set,&
-                                   atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,dimen_RI,Eigenval,&
+          IF (nspins==2) THEN  ! Open shell
+             CALL  calc_ri_mp2_nonsep(qs_env,mp2_env,para_env,para_env_sub,dft_control,cell, &
+                         particle_set,atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,dimen_RI,Eigenval,&
+                                 my_group_L_start,my_group_L_end,my_group_L_size,rho_r,rho_g,pot_g,&
+                                 mat_munu,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
+                                 blacs_env_sub,error,error_sub,Eigenval_beta,homo_beta,mo_coeff_beta)
+          ELSE ! Closed shell
+             CALL  calc_ri_mp2_nonsep(qs_env,mp2_env,para_env,para_env_sub,dft_control,cell, &
+                         particle_set,atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,dimen_RI,Eigenval,&
                                    my_group_L_start,my_group_L_end,my_group_L_size,rho_r,rho_g,pot_g,&
                                    mat_munu,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
                                    blacs_env_sub,error,error_sub)
+          ENDIF
 
           ! release
           CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw,error=error_sub)
@@ -704,6 +720,16 @@ MODULE mp2_gpw
           CALL cp_dbcsr_release(mp2_env%ri_grad%mo_coeff_v,error=error_sub)
           DEALLOCATE(mp2_env%ri_grad%mo_coeff_v, STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+          IF (nspins == 2) THEN 
+             CALL cp_dbcsr_release(mp2_env%ri_grad%mo_coeff_o_beta,error=error_sub)
+             DEALLOCATE(mp2_env%ri_grad%mo_coeff_o_beta, STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        
+             CALL cp_dbcsr_release(mp2_env%ri_grad%mo_coeff_v_beta,error=error_sub)
+             DEALLOCATE(mp2_env%ri_grad%mo_coeff_v_beta, STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ENDIF
 
           CALL cp_dbcsr_release(mat_munu%matrix,error=error_sub)
           DEALLOCATE(mat_munu%matrix, STAT=stat)
@@ -800,8 +826,14 @@ MODULE mp2_gpw
 
     ! finally solve the z-vector equation if forces are required
     IF(calc_forces) THEN
-      CALL solve_z_vector_eq(qs_env,mp2_env,para_env,dft_control,&
+      IF (nspins==2) THEN
+         CALL solve_z_vector_eq(qs_env,mp2_env,para_env,dft_control,&
+                             atomic_kind_set,mo_coeff,nmo,homo,Eigenval,unit_nr,error,&
+                             Eigenval_beta,homo_beta,mo_coeff_beta)
+      ELSE
+         CALL solve_z_vector_eq(qs_env,mp2_env,para_env,dft_control,&
                              atomic_kind_set,mo_coeff,nmo,homo,Eigenval,unit_nr,error)
+      ENDIF
     END IF   
 
     DEALLOCATE(Eigenval,STAT=stat)

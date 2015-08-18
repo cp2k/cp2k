@@ -85,13 +85,14 @@ MODULE mp2_ri_grad_util
 !> \param sub_proc_map ...
 !> \param error ...
 !> \param error_sub ...
+!> \param alpha_case ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
   SUBROUTINE complete_gamma(mp2_env,B_ia_Q,dimen_RI,homo,virtual,para_env,para_env_sub,ngroup,&
                             my_group_L_size,my_group_L_start,my_group_L_end,&
                             my_B_size,my_B_virtual_start,&
                             ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                            sub_proc_map,error,error_sub)
+                            sub_proc_map,error,error_sub,alpha_case)
 
     TYPE(mp2_type), POINTER                  :: mp2_env
     REAL(KIND=dp), ALLOCATABLE, &
@@ -104,6 +105,7 @@ MODULE mp2_ri_grad_util
       sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
       sub_proc_map
     TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
+    LOGICAL                                  :: alpha_case
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'complete_gamma', &
       routineP = moduleN//':'//routineN
@@ -214,7 +216,14 @@ MODULE mp2_ri_grad_util
       DO jjB=1, my_B_size
         ia_global=(iiB-1)*virtual+my_B_virtual_start+jjB-1
         IF(ia_global>=my_ia_start.AND.ia_global<=my_ia_end) THEN
-          Gamma_2D(ia_global-my_ia_start+1,1:my_group_L_size)=mp2_env%ri_grad%Gamma_P_ia(iiB,jjB,1:my_group_L_size)
+          ! Closed-shell, open-shell alpha-alpha component
+          IF (alpha_case) THEN 
+             Gamma_2D(ia_global-my_ia_start+1,1:my_group_L_size)=&
+             mp2_env%ri_grad%Gamma_P_ia(iiB,jjB,1:my_group_L_size)
+          ELSE ! Open-shell beta-beta component
+             Gamma_2D(ia_global-my_ia_start+1,1:my_group_L_size)=&
+             mp2_env%ri_grad%Gamma_P_ia_beta(iiB,jjB,1:my_group_L_size)
+          ENDIF
         END IF
       END DO
     END DO
@@ -231,9 +240,15 @@ MODULE mp2_ri_grad_util
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
       BIb_C_rec=0.0_dp
 
-      CALL  mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia,proc_send,&
+      IF (alpha_case) THEN 
+         CALL  mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia,proc_send,&
                         BIb_C_rec,proc_receive,&
                         para_env_sub%group)
+      ELSE
+         CALL  mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia_beta,proc_send,&
+                        BIb_C_rec,proc_receive,&
+                        para_env_sub%group)
+      ENDIF
 
       DO iiB=1, homo
         DO jjB=1, rec_B_size
@@ -246,7 +261,11 @@ MODULE mp2_ri_grad_util
 
       DEALLOCATE(BIb_C_rec)
     END DO
-    DEALLOCATE(mp2_env%ri_grad%Gamma_P_ia)
+    IF (alpha_case) THEN 
+       DEALLOCATE(mp2_env%ri_grad%Gamma_P_ia)
+    ELSE
+       DEALLOCATE(mp2_env%ri_grad%Gamma_P_ia_beta)
+    ENDIF
 
     ! create the processor map and size arrays
     ALLOCATE(proc_map(-para_env%num_pe:2*para_env%num_pe-1),STAT=stat)
@@ -362,16 +381,28 @@ MODULE mp2_ri_grad_util
       ends(2,i)=ends_array(pos_group)
     END DO
     ! since we will need (P|Q)^(-1/2) in the future, make a copy
-    ALLOCATE(mp2_env%ri_grad%Gamma_PQ(my_P_size,my_group_L_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
-    mp2_env%ri_grad%Gamma_PQ(:,:)=mp2_env%ri_grad%PQ_half
-    
-    CALL array2fm(mp2_env%ri_grad%Gamma_PQ,dimen_RI,dimen_RI,para_env,blacs_env,proc_map,&
-                  my_P_start,my_P_end,&
-                  my_group_L_start,my_group_L_end,&
-                  sizes,starts,ends,&
-                  group_grid_2_mepos,para_env_sub%num_pe,ngroup,&
-                  PQ_half,error)
+    IF (alpha_case) THEN
+       ALLOCATE(mp2_env%ri_grad%Gamma_PQ(my_P_size,my_group_L_size),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+       mp2_env%ri_grad%Gamma_PQ(:,:)=mp2_env%ri_grad%PQ_half
+       CALL array2fm(mp2_env%ri_grad%Gamma_PQ,dimen_RI,dimen_RI,para_env,blacs_env,proc_map,&
+            my_P_start,my_P_end,&
+            my_group_L_start,my_group_L_end,&
+            sizes,starts,ends,&
+            group_grid_2_mepos,para_env_sub%num_pe,ngroup,&
+            PQ_half,error)
+    ELSE
+       ALLOCATE(mp2_env%ri_grad%Gamma_PQ_beta(my_P_size,my_group_L_size),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+       mp2_env%ri_grad%Gamma_PQ_beta(:,:)=mp2_env%ri_grad%PQ_half
+       CALL array2fm(mp2_env%ri_grad%Gamma_PQ_beta,dimen_RI,dimen_RI,para_env,blacs_env,proc_map,&
+            my_P_start,my_P_end,&
+            my_group_L_start,my_group_L_end,&
+            sizes,starts,ends,&
+            group_grid_2_mepos,para_env_sub%num_pe,ngroup,&
+            PQ_half,error)
+    ENDIF
+
 
     ! complete the gamma matrix Gamma_ia^P = sum_Q (Y_ia^Q * (Q|P)^(-1/2))
     NULLIFY(fm_Gamma)
@@ -385,7 +416,7 @@ MODULE mp2_ri_grad_util
     CALL cp_fm_create(fm_Gamma,fm_struct,name="fm_Gamma",error=error)
     CALL cp_fm_set_all(matrix=fm_Gamma,alpha=0.0_dp,error=error)
     CALL cp_fm_struct_release(fm_struct,error=error)
-    ! performe the matrix multiplication
+    ! perform the matrix multiplication
     CALL cp_gemm(transa="N",transb="T", m=dimen_ia, n=dimen_RI, k=dimen_RI, alpha=1.0_dp,&
                     matrix_a=fm_Y, matrix_b=PQ_half, beta=0.0_dp,&
                     matrix_c=fm_Gamma, error=error)
@@ -492,12 +523,21 @@ MODULE mp2_ri_grad_util
     sizes(1,para_env%mepos)=nrow_local
     sizes(2,para_env%mepos)=ncol_local
     CALL mp_sum(sizes,para_env%group)
-    CALL fm2array(mp2_env%ri_grad%Gamma_PQ,dimen_RI,dimen_RI,para_env,proc_map,&
+    IF (alpha_case) THEN
+       CALL fm2array(mp2_env%ri_grad%Gamma_PQ,dimen_RI,dimen_RI,para_env,proc_map,&
                   my_P_size,my_P_start,my_P_end,&
                   my_group_L_size,my_group_L_start,my_group_L_end,&
                   sizes,group_grid_2_mepos,mepos_2_grid_group,&
                   para_env_sub%num_pe,ngroup,&
                   fm_Gamma_PQ,error)
+    ELSE
+       CALL fm2array(mp2_env%ri_grad%Gamma_PQ_beta,dimen_RI,dimen_RI,para_env,proc_map,&
+                  my_P_size,my_P_start,my_P_end,&
+                  my_group_L_size,my_group_L_start,my_group_L_end,&
+                  sizes,group_grid_2_mepos,mepos_2_grid_group,&
+                  para_env_sub%num_pe,ngroup,&
+                  fm_Gamma_PQ,error)
+    ENDIF
 
     IF(.FALSE.) THEN
       ALLOCATE(BIb_C_2D(dimen_ia,dimen_RI))
@@ -509,7 +549,13 @@ MODULE mp2_ri_grad_util
 
       ALLOCATE(BIb_C_2D(dimen_RI,dimen_RI))
       BIb_C_2D=0.0_dp
-      BIb_C_2D(my_P_start:my_P_end,my_group_L_start:my_group_L_end)=mp2_env%ri_grad%Gamma_PQ
+      IF (alpha_case) THEN
+         BIb_C_2D(my_P_start:my_P_end,my_group_L_start:my_group_L_end)= &
+         mp2_env%ri_grad%Gamma_PQ
+      ELSE
+         BIb_C_2D(my_P_start:my_P_end,my_group_L_start:my_group_L_end)= &
+         mp2_env%ri_grad%Gamma_PQ_beta
+      ENDIF
       CALL mp_sum(BIb_C_2D,para_env%group)
       IF(para_env%mepos==0) THEN 
         WRITE(*,*) 'AAAAAAAAAAAAAAAAAA'
@@ -519,11 +565,11 @@ MODULE mp2_ri_grad_util
       DEALLOCATE(BIb_C_2D)
     END IF
 
-    ! create the Gamma_ia_P in DCSR style
+    ! create the Gamma_ia_P in DBCSR style
     CALL create_dbcsr_gamma(Gamma_2D,homo,virtual,dimen_ia,para_env_sub,sub_proc_map,&
                             my_ia_start,my_ia_end,my_group_L_size,&
                             sizes_ia,starts_ia,ends_ia,&
-                            mp2_env,error_sub)
+                            mp2_env,error_sub,alpha_case)
 
 
     IF(.FALSE.) THEN
@@ -532,7 +578,11 @@ MODULE mp2_ri_grad_util
       Gamma_2D=0.0_dp
       BIb_C_rec=0.0_dp
       DO kkB=1, my_group_L_size
-        CALL cp_dbcsr_iterator_start(iter,mp2_env%ri_grad%G_P_ia(kkB)%matrix)
+        IF (alpha_case) THEN
+           CALL cp_dbcsr_iterator_start(iter,mp2_env%ri_grad%G_P_ia(kkB)%matrix)
+        ELSE
+           CALL cp_dbcsr_iterator_start(iter,mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
+        ENDIF
         DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
            CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block, blk,&
                 row_size=row_size, col_size=col_size, &
@@ -1418,11 +1468,12 @@ MODULE mp2_ri_grad_util
 !> \param ends_ia ...
 !> \param mp2_env ...
 !> \param error ...
+!> \param alpha_case ...
 ! *****************************************************************************
   SUBROUTINE create_dbcsr_gamma(Gamma_2D,homo,virtual,dimen_ia,para_env_sub,sub_proc_map,&
                                 my_ia_start,my_ia_end,my_group_L_size,&
                                 sizes_ia,starts_ia,ends_ia,&
-                                mp2_env,error)
+                                mp2_env,error,alpha_case)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Gamma_2D
     INTEGER                                  :: homo, virtual, dimen_ia
@@ -1433,6 +1484,7 @@ MODULE mp2_ri_grad_util
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes_ia, starts_ia, ends_ia
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_error_type), INTENT(inout)       :: error
+    LOGICAL                                  :: alpha_case
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_dbcsr_gamma', &
       routineP = moduleN//':'//routineN
@@ -1466,8 +1518,15 @@ MODULE mp2_ri_grad_util
     failure=.FALSE.
 
     ! allocate G_P_ia (DBCSR)
-    NULLIFY(mp2_env%ri_grad%G_P_ia)
-    CALL cp_dbcsr_allocate_matrix_set(mp2_env%ri_grad%G_P_ia,my_group_L_size,error=error)
+    IF (alpha_case) THEN
+       NULLIFY(mp2_env%ri_grad%G_P_ia)
+       CALL cp_dbcsr_allocate_matrix_set(mp2_env%ri_grad%G_P_ia, &
+            my_group_L_size,error=error)
+    ELSE
+       NULLIFY(mp2_env%ri_grad%G_P_ia_beta)
+       CALL cp_dbcsr_allocate_matrix_set(mp2_env%ri_grad%G_P_ia_beta, &
+            my_group_L_size,error=error)
+    ENDIF
 
     ! create sub blacs env
     NULLIFY(blacs_env)
@@ -1746,11 +1805,21 @@ MODULE mp2_ri_grad_util
       CALL mp_waitall(req_send(:))
 
       ! now create the DBCSR matrix and copy fm_ia into it
-      ALLOCATE(mp2_env%ri_grad%G_P_ia(kkB)%matrix)
-      CALL cp_dbcsr_init(mp2_env%ri_grad%G_P_ia(kkB)%matrix,error=error)
-      CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia(kkB)%matrix,template=mp2_env%ri_grad%mo_coeff_o,&
-                                         m=homo,n=virtual, sym=dbcsr_type_no_symmetry,error=error)
-      CALL copy_fm_to_dbcsr(fm_ia,mp2_env%ri_grad%G_P_ia(kkB)%matrix,keep_sparsity=.FALSE.,error=error)
+      IF (alpha_case) THEN
+        ALLOCATE(mp2_env%ri_grad%G_P_ia(kkB)%matrix)
+        CALL cp_dbcsr_init(mp2_env%ri_grad%G_P_ia(kkB)%matrix,error=error)
+        CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia(kkB)%matrix, &
+             template=mp2_env%ri_grad%mo_coeff_o,&
+             m=homo,n=virtual, sym=dbcsr_type_no_symmetry,error=error)
+        CALL copy_fm_to_dbcsr(fm_ia,mp2_env%ri_grad%G_P_ia(kkB)%matrix,keep_sparsity=.FALSE.,error=error)
+      ELSE 
+        ALLOCATE(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix)
+        CALL cp_dbcsr_init(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix,error=error)
+        CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix, &
+             template=mp2_env%ri_grad%mo_coeff_o_beta,&
+             m=homo,n=virtual, sym=dbcsr_type_no_symmetry,error=error)
+        CALL copy_fm_to_dbcsr(fm_ia,mp2_env%ri_grad%G_P_ia_beta(kkB)%matrix,keep_sparsity=.FALSE.,error=error)
+      ENDIF
 
     END DO
 

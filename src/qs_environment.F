@@ -1016,7 +1016,7 @@ CONTAINS
           END IF
           nelectron_spin(1) = (nelectron + multiplicity - 1)/2
           nelectron_spin(2) = (nelectron - multiplicity + 1)/2
-          IF (nelectron_spin(2) < 0) THEN
+          IF (nelectron_spin(1) < 0) THEN
              CALL stop_program(routineN,moduleN,__LINE__,&
                   "LSD: too few electrons for this multiplicity",para_env)
           END IF
