@@ -40,7 +40,10 @@ valgrind_ver=3.10.1
 lcov_ver=1.11
 
 #gcc_ver=4.9.2
-gcc_ver=5.1.0
+#gcc_ver=5.1.0
+gcc_ver=5.2.0
+# gcc_ver=master will use gcc trunk as obtained from github (not intended for production)
+#gcc_ver=master
 # should we build a toolchain to be used with tsan (-fsanitize=thread), 
 # this is not for normal (production) use, but suitable for
 # finding/testing/debugging threading issues during development
@@ -179,12 +182,18 @@ else
 fi
 
 echo "==================== Installing gcc ======================"
-if [ -f gcc-${gcc_ver}.tar.gz ]; then
+if [ -f gcc-${gcc_ver}.tar.gz -o -f gcc-${gcc_ver}.zip ]; then
   echo "Installation already started, skipping it."
 else
-  wget https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
-  checksum gcc-${gcc_ver}.tar.gz
-  tar -xzf gcc-${gcc_ver}.tar.gz
+  if [ "${gcc_ver}" == "master" ]; then
+     # no check since this follows the gcc trunk svn repo and changes constantly
+     wget -O gcc-master.zip https://github.com/gcc-mirror/gcc/archive/master.zip
+     unzip -q gcc-master.zip 
+  else
+     wget https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
+     checksum gcc-${gcc_ver}.tar.gz
+     tar -xzf gcc-${gcc_ver}.tar.gz
+  fi
   cd gcc-${gcc_ver}
   ./contrib/download_prerequisites >& prereq.log
   GCCROOT=${PWD}
@@ -642,7 +651,7 @@ if [ -f QUIP-${quip_ver}.zip  ]; then
 else
   wget http://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
   checksum QUIP-${quip_ver}.zip
-  unzip QUIP-${quip_ver}.zip > unzip.log
+  unzip QUIP-${quip_ver}.zip >& unzip.log
   mv QUIP-public QUIP-${quip_ver}
   cd QUIP-${quip_ver}
   export QUIP_ARCH=linux_x86_64_gfortran
