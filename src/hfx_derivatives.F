@@ -1761,6 +1761,10 @@ MODULE hfx_derivatives
     IF(nspins==2) THEN
       DEALLOCATE(full_density_beta,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      IF(with_mp2_density) THEN
+        DEALLOCATE(full_density_mp2_beta,STAT=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      END IF
     END IF
     IF (do_dynamic_load_balancing) THEN
       DEALLOCATE(actual_x_data%task_list, STAT=stat)

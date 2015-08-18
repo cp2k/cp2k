@@ -184,7 +184,8 @@ MODULE mp2_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C, BIb_C_beta, BIb_C_gw, &
                                                 BIb_C_gw_beta
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, &
+                                                mo_eigenvalues_beta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -236,11 +237,19 @@ MODULE mp2_gpw
     my_do_ri_sos_laplace_mp2=.FALSE.
     IF(PRESENT(do_ri_sos_laplace_mp2)) my_do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2
 
+    ! Get the number of spins
+    nspins=SIZE(mos_mp2)
+
     ! ... setup needed to be able to qs_integrate in a subgroup.
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, error=error)
     CALL get_mo_set(mo_set=mos_mp2(1)%mo_set, nelectron=nelectron,&
                     eigenvalues=mo_eigenvalues,nmo=nmo,homo=homo,&
                     mo_coeff=mo_coeff,nao=dimen)
+    IF (nspins==2) THEN                
+      CALL get_mo_set(mo_set=mos_mp2(2)%mo_set, nelectron=nelectron_beta,&
+                      eigenvalues=mo_eigenvalues_beta,homo=homo_beta,&
+                      mo_coeff=mo_coeff_beta)
+    ENDIF
 
     ! a para_env
     color_sub=para_env%mepos/mp2_env%mp2_num_proc
@@ -384,6 +393,11 @@ MODULE mp2_gpw
     ALLOCATE(Eigenval(dimen),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     Eigenval(:)=mo_eigenvalues(:)
+    IF (nspins==2) THEN
+       ALLOCATE(Eigenval_beta(dimen),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       Eigenval_beta(:)=mo_eigenvalues_beta(:)
+    ENDIF
 
     ! new routine: replicate a full matrix from one para_env to a smaller one
     ! keeping the memory usage as small as possible in this case the 
@@ -394,14 +408,7 @@ MODULE mp2_gpw
                                    error,error_sub)
 
     ! if open shell case replicate also the coefficient matrix for the beta orbitals 
-    nspins=SIZE(mos_mp2)
     IF(nspins==2) THEN
-      CALL get_mo_set(mo_set=mos_mp2(2)%mo_set, nelectron=nelectron_beta,&
-                      eigenvalues=mo_eigenvalues,homo=homo_beta,&
-                      mo_coeff=mo_coeff_beta)
-      ALLOCATE(Eigenval_beta(dimen),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      Eigenval_beta(:)=mo_eigenvalues(:)
 
       gw_corr_lev_occ_beta=mp2_env%ri_g0w0%corr_mos_occ_beta
       gw_corr_lev_virt_beta=mp2_env%ri_g0w0%corr_mos_virt_beta
