@@ -672,8 +672,11 @@ mkdir -p ${INSTALLDIR}/arch
 
 #
 # unfortunately, optimal flags depend on compiler etc.
+# https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
 #
-WFLAGS="-Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable -Wunused-variable -Wconversion -Werror"
+WFLAGS="-Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable -Wunused-variable -Wconversion"
+WFLAGS2="-pedantic -Wall -Wextra -Wsurprising -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wtabs -Wunused-dummy-argument -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip -Wuse-without-only"
+
 DEBFLAGS="-fcheck=bounds,do,recursion,pointer -fsanitize=leak -ffpe-trap=invalid,zero,overflow -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS"
 BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1 $TSANFLAGS"
 PARAFLAGS="-D__parallel -D__SCALAPACK -D__LIBPEXSI -D__MPI_VERSION=3 -D__ELPA2"
@@ -695,12 +698,12 @@ LIB_QUIP="-lquip_core -latoms -lFoX_sax -lFoX_common -lFoX_utils -lFoX_fsys"
 cat << EOF > ${INSTALLDIR}/arch/local.pdbg
 CC       = gcc
 CPP      =
-FC       = mpif90 
+FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${PARAFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
@@ -709,12 +712,12 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local.popt
 CC       = gcc
 CPP      =
-FC       = mpif90 
+FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${PARAFLAGS} $DFLAGSOPT
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack $LIBSMMLIB ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 
@@ -723,12 +726,12 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local.psmp
 CC       = gcc
 CPP      =
-FC       = mpif90 
+FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${PARAFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp
@@ -737,12 +740,12 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local.sdbg
 CC       = gcc
 CPP      =
-FC       = gfortran 
+FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
@@ -751,12 +754,12 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local.sopt
 CC       = gcc
 CPP      =
-FC       = gfortran 
+FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} $DFLAGSOPT
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint  $LIBSMMLIB ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3
@@ -765,12 +768,12 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local.ssmp
 CC       = gcc
 CPP      =
-FC       = gfortran 
+FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS}  \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS}  \$(DFLAGS) \$(WFLAGS) -Werror
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp
@@ -779,12 +782,12 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local_valgrind.sdbg
 CC       = gcc
 CPP      =
-FC       = gfortran 
+FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} -O3  \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} -O3  \$(DFLAGS) \$(WFLAGS) -Werror
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
@@ -793,12 +796,12 @@ EOF
 cat << EOF > ${INSTALLDIR}/arch/local_valgrind.pdbg
 CC       = gcc
 CPP      =
-FC       = mpif90 
+FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${PARAFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} -O3 \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} -O3 \$(DFLAGS) \$(WFLAGS) -Werror
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
@@ -808,28 +811,46 @@ cat << EOF > ${INSTALLDIR}/arch/local_cuda.psmp
 NVCC     = nvcc -D__GNUC_MINOR__=6  -D__GNUC__=4
 CC       = gcc
 CPP      =
-FC       = mpif90 
+FC       = mpif90
 LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${CUDAFLAGS} ${PARAFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
 EOF
 
+cat << EOF > ${INSTALLDIR}/arch/local_cuda_warn.psmp
+NVCC     = nvcc -D__GNUC_MINOR__=6  -D__GNUC__=4
+CC       = gcc
+CPP      =
+FC       = mpif90
+LD       = mpif90
+AR       = ar -r
+WFLAGS   = ${WFLAGS}
+WFLAGS2  = ${WFLAGS2}
+DFLAGS   = ${DFLAGS} ${CUDAFLAGS} ${PARAFLAGS} $DFLAGSOPT
+FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) \$(WFLAGS2)
+LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
+NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
+CFLAGS   = ${CFLAGS}
+LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
+FCLOGPIPE =  2> \$(notdir \$<).warn
+EOF
+
 cat << EOF > ${INSTALLDIR}/arch/local_cuda.ssmp
 NVCC     = nvcc -D__GNUC_MINOR__=6  -D__GNUC__=4
 CC       = gcc
 CPP      =
-FC       = gfortran 
+FC       = gfortran
 LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${CUDAFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
+FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}

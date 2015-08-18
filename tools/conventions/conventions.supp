@@ -63,14 +63,20 @@ Flag __MIC__ not mentioned in cp2k_flags()
 Flag __MKL not mentioned in cp2k_flags()
 Flag __PILAENV_BLOCKSIZE not mentioned in cp2k_flags()
 Flag __PW_CUDA_NO_HOSTALLOC not mentioned in INSTALL
-Flag __QUIP not mentioned in INSTALL
 Flag __RELEASE_VERSION not mentioned in INSTALL
 Flag __RELEASE_VERSION not mentioned in cp2k_flags()
 Flag __SCALAPACK2 not mentioned in INSTALL
 Flag __STATM_RESIDENT not mentioned in INSTALL
 Flag __STATM_TOTAL not mentioned in INSTALL
-almo_scf_diis_types.F: Unused dummy argument 'sample_var' at (1)
+acc_device.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+acc_devmem.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+acc_event.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+acc_hostmem.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+acc_stream.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+almo_scf_diis_types.F: Unused dummy argument ‘sample_var’ at (1) [-Wunused-dummy-argument]
+atom_energy.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 atom_output.F: Routine XC_F90_VERSION called with an implicit interface.
+atom_utils.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio"
 bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt"
 call_collocate.f90: Routine COLLOCATE_CORE_0 called with an implicit interface.
@@ -95,6 +101,8 @@ call_collocate_omp.f90: Routine COLLOCATE_CORE_7 called with an implicit interfa
 call_collocate_omp.f90: Routine COLLOCATE_CORE_8 called with an implicit interface.
 call_collocate_omp.f90: Routine COLLOCATE_CORE_9 called with an implicit interface.
 call_collocate_omp.f90: Routine COLLOCATE_CORE_DEFAULT called with an implicit interface.
+core_ppl.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+core_ppnl.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 cp2k_shell.F: Found GOTO statement in procedure "cp2k_shell"
 cp2k_shell.F: Found OPEN statement in procedure "get_eof_stat"
 cp_dbcsr_cholesky.F: Routine PDCOPY called with an implicit interface.
@@ -108,38 +116,90 @@ cp_dbcsr_cholesky.F: Routine PSPOTRF called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSPOTRI called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSTRMM called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSTRSM called with an implicit interface.
+cp_dbcsr_interface.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+cp_dbcsr_operations.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 cp_files.F: Found CLOSE statement in procedure "close_file"
 cp_files.F: Found OPEN statement in procedure "open_file"
-cp_fm_basic_linalg.F: Unused dummy argument 'correct_sign' at (1)
-cp_fm_diag.F: Unused parameter 'vl' declared at (1)
-cp_fm_diag.F: Unused parameter 'vu' declared at (1)
-dbcsr_dist_operations.F: Unused dummy argument 'transpose' at (1)
-dbcsr_geev.F: Unused dummy argument 'jobvl' at (1)
-dbcsr_geev.F: Unused dummy argument 'jobvr' at (1)
-dbcsr_mm_hostdrv.F: Unused dummy argument 'this' at (1)
-dbcsr_mm_hostdrv_c.f90: Unused dummy argument 'stack_descr' at (1)
-dbcsr_mm_hostdrv_d.f90: Unused dummy argument 'stack_descr' at (1)
-dbcsr_mm_hostdrv_s.f90: Unused dummy argument 'stack_descr' at (1)
-dbcsr_mm_hostdrv_z.f90: Unused dummy argument 'stack_descr' at (1)
-dbcsr_test_csr_conversions.F: Unused dummy argument 'nblkcols_total' at (1)
-dbcsr_test_csr_conversions.F: Unused dummy argument 'nblkrows_total' at (1)
-dbcsr_tests.F: Unused dummy argument 'mp_group' at (1)
-dm_ls_scf.F: Unused dummy argument 'ls_scf_env' at (1)
+cp_fm_basic_linalg.F: Unused dummy argument ‘correct_sign’ at (1) [-Wunused-dummy-argument]
+cp_fm_diag.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+cp_fm_diag.F: Unused parameter ‘vl’ declared at (1) [-Wunused-parameter]
+cp_fm_diag.F: Unused parameter ‘vu’ declared at (1) [-Wunused-parameter]
+cp_ma_interface.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+cuda_profiling.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+d3_poly.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_acc_operations.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_blas_operations.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_block_access.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_block_operations.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_config.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_data_methods_low.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_data_operations.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_data_types.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_dist_methods.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_dist_operations.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_dist_operations.F: Unused dummy argument ‘transpose’ at (1) [-Wunused-dummy-argument]
+dbcsr_error_handling.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_example_1.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_example_2.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_example_3.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_geev.F: Unused dummy argument ‘jobvl’ at (1) [-Wunused-dummy-argument]
+dbcsr_geev.F: Unused dummy argument ‘jobvr’ at (1) [-Wunused-dummy-argument]
+dbcsr_index_operations.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_io.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_iterator_operations.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_lib.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_mem_methods.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_methods.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_mm_accdrv.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_mm_cannon.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_mm_csr.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_mm_hostdrv.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_mm_hostdrv.F: Unused dummy argument ‘this’ at (1) [-Wunused-dummy-argument]
+dbcsr_mm_hostdrv_c.f90: Unused dummy argument ‘stack_descr’ at (1) [-Wunused-dummy-argument]
+dbcsr_mm_hostdrv_d.f90: Unused dummy argument ‘stack_descr’ at (1) [-Wunused-dummy-argument]
+dbcsr_mm_hostdrv_s.f90: Unused dummy argument ‘stack_descr’ at (1) [-Wunused-dummy-argument]
+dbcsr_mm_hostdrv_z.f90: Unused dummy argument ‘stack_descr’ at (1) [-Wunused-dummy-argument]
+dbcsr_mm_multrec.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_mm_sched.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_mp_methods.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_mp_operations.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_multiply_api.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_operations.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_performance_driver.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_performance_multiply.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_ptr_util.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_test_add.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_test_methods.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_test_multiply.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_tests.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_toollib.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_transformations.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_types.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_unittest.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_util.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_vector_operations_low.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dbcsr_work_operations.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+dm_ls_scf.F: Unused dummy argument ‘ls_scf_env’ at (1) [-Wunused-dummy-argument]
 eip_silicon.F: Found OPEN statement in procedure "eip_bazant_silicon"
 eip_silicon.F: Found OPEN statement in procedure "eip_lenosky_silicon"
+eip_silicon.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+environment.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 erf_fn.F: Found GOTO statement in procedure "calerf"
 ewalds_multipole_debug.h: Copyright banner malformed
 f77_int.h: Copyright banner malformed
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
-fft_lib.F: Unused parameter 'dp' which has been explicitly imported at (1)
-fft_tools.F: Unused dummy argument 'group' at (1)
+fft_lib.F: Unused parameter ‘dp’ which has been explicitly imported at (1) [-Wunused-parameter]
+fft_tools.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+fft_tools.F: Unused dummy argument ‘group’ at (1) [-Wunused-dummy-argument]
+fftw3_lib.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 fparser.F: Copyright banner malformed
 gauss_colloc.F: Found GOTO statement in procedure "collocgauss"
 gauss_colloc.F: Found GOTO statement in procedure "collocgaussflat"
 gauss_colloc.F: Found GOTO statement in procedure "integrategauss"
 gauss_colloc.F: Found GOTO statement in procedure "integrategaussfull"
 gauss_colloc.F: Found GOTO statement in procedure "integrategaussfullflat"
+gauss_colloc.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 glob_matching.F: Copyright banner malformed
 gopt_f77_methods.h: Copyright banner malformed
 graph.F: Copyright banner malformed
@@ -147,64 +207,75 @@ graph_methods.F: Copyright banner malformed
 graph_methods.F: Found OPEN statement in procedure "fes_cube_write"
 graph_utils.F: Copyright banner malformed
 graphcon.F: Found GOTO statement in procedure "all_permutations"
+hfx_derivatives.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+hfx_energy_potential.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+hfx_libint_wrapper.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+hfx_libint_wrapper_types.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+hfx_types.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+ipi_driver.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 k290.F: Found GOTO statement in procedure "mesh"
 k290.F: Found GOTO statement in procedure "sppt2"
+kg_tnadd_mat.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 library_tests.F: Routine PILAENV called with an implicit interface.
-ma_affinity.F: Unused dummy argument 'id' at (1)
-ma_affinity.F: Unused dummy argument 'my_core' at (1)
-ma_affinity.F: Unused dummy argument 'my_node' at (1)
-ma_affinity.F: Unused dummy argument 'node' at (1)
-ma_affinity.F: Unused dummy argument 'print_mem' at (1)
-ma_affinity.F: Unused dummy argument 'print_proc' at (1)
-ma_affinity.F: Unused dummy argument 'proc' at (1)
-ma_affinity.F: Unused dummy argument 'sched_unit' at (1)
-ma_affinity.F: Unused dummy argument 'unit_nr' at (1)
-ma_affinity.F: Unused dummy argument 'unit_num' at (1)
-ma_process_mapping.F: Dummy argument 'mp_new_comm' at (1) was declared INTENT(OUT) but was not set
-ma_process_mapping.F: Unused dummy argument 'kernel' at (1)
-ma_process_mapping.F: Unused dummy argument 'mp_comm' at (1)
-ma_process_mapping.F: Unused dummy argument 'order' at (1)
-ma_topology.F: Unused dummy argument 'dest' at (1)
-ma_topology.F: Unused dummy argument 'mp_group' at (1)
-ma_topology.F: Unused dummy argument 'nid' at (1)
-ma_topology.F: Unused dummy argument 'src' at (1)
-ma_topology.F: Unused dummy argument 'xdir' at (1)
-ma_topology.F: Unused dummy argument 'ydir' at (1)
-ma_topology.F: Unused dummy argument 'zdir' at (1)
+library_tests.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+ma_affinity.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+ma_affinity.F: Unused dummy argument ‘id’ at (1) [-Wunused-dummy-argument]
+ma_affinity.F: Unused dummy argument ‘my_core’ at (1) [-Wunused-dummy-argument]
+ma_affinity.F: Unused dummy argument ‘my_node’ at (1) [-Wunused-dummy-argument]
+ma_affinity.F: Unused dummy argument ‘node’ at (1) [-Wunused-dummy-argument]
+ma_affinity.F: Unused dummy argument ‘print_mem’ at (1) [-Wunused-dummy-argument]
+ma_affinity.F: Unused dummy argument ‘print_proc’ at (1) [-Wunused-dummy-argument]
+ma_affinity.F: Unused dummy argument ‘proc’ at (1) [-Wunused-dummy-argument]
+ma_affinity.F: Unused dummy argument ‘sched_unit’ at (1) [-Wunused-dummy-argument]
+ma_affinity.F: Unused dummy argument ‘unit_nr’ at (1) [-Wunused-dummy-argument]
+ma_affinity.F: Unused dummy argument ‘unit_num’ at (1) [-Wunused-dummy-argument]
+ma_process_mapping.F: Dummy argument ‘mp_new_comm’ at (1) was declared INTENT(OUT) but was not set [-Wunused-dummy-argument]
+ma_process_mapping.F: Unused dummy argument ‘kernel’ at (1) [-Wunused-dummy-argument]
+ma_process_mapping.F: Unused dummy argument ‘mp_comm’ at (1) [-Wunused-dummy-argument]
+ma_process_mapping.F: Unused dummy argument ‘order’ at (1) [-Wunused-dummy-argument]
+ma_topology.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+ma_topology.F: Unused dummy argument ‘dest’ at (1) [-Wunused-dummy-argument]
+ma_topology.F: Unused dummy argument ‘mp_group’ at (1) [-Wunused-dummy-argument]
+ma_topology.F: Unused dummy argument ‘nid’ at (1) [-Wunused-dummy-argument]
+ma_topology.F: Unused dummy argument ‘src’ at (1) [-Wunused-dummy-argument]
+ma_topology.F: Unused dummy argument ‘xdir’ at (1) [-Wunused-dummy-argument]
+ma_topology.F: Unused dummy argument ‘ydir’ at (1) [-Wunused-dummy-argument]
+ma_topology.F: Unused dummy argument ‘zdir’ at (1) [-Wunused-dummy-argument]
 machine.F: Found OPEN statement in procedure "read_energy"
-machine_architecture.F: Unused dummy argument 'core' at (1)
-machine_architecture.F: Unused dummy argument 'coreid' at (1)
-machine_architecture.F: Unused dummy argument 'cpu' at (1)
-machine_architecture.F: Unused dummy argument 'dist' at (1)
-machine_architecture.F: Unused dummy argument 'flag' at (1)
-machine_architecture.F: Unused dummy argument 'mempol' at (1)
-machine_architecture.F: Unused dummy argument 'myrank' at (1)
-machine_architecture.F: Unused dummy argument 'node' at (1)
-machine_architecture.F: Unused dummy argument 'proc' at (1)
-machine_architecture.F: Unused dummy argument 'unit_num' at (1)
+machine.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+machine_architecture.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+machine_architecture.F: Unused dummy argument ‘coreid’ at (1) [-Wunused-dummy-argument]
+machine_architecture.F: Unused dummy argument ‘core’ at (1) [-Wunused-dummy-argument]
+machine_architecture.F: Unused dummy argument ‘cpu’ at (1) [-Wunused-dummy-argument]
+machine_architecture.F: Unused dummy argument ‘dist’ at (1) [-Wunused-dummy-argument]
+machine_architecture.F: Unused dummy argument ‘flag’ at (1) [-Wunused-dummy-argument]
+machine_architecture.F: Unused dummy argument ‘mempol’ at (1) [-Wunused-dummy-argument]
+machine_architecture.F: Unused dummy argument ‘myrank’ at (1) [-Wunused-dummy-argument]
+machine_architecture.F: Unused dummy argument ‘node’ at (1) [-Wunused-dummy-argument]
+machine_architecture.F: Unused dummy argument ‘proc’ at (1) [-Wunused-dummy-argument]
+machine_architecture.F: Unused dummy argument ‘unit_num’ at (1) [-Wunused-dummy-argument]
+machine_architecture_types.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 machine_internal.F: Found CLOSE statement in procedure "m_memory_details"
 machine_internal.F: Found OPEN statement in procedure "m_memory"
 machine_internal.F: Found OPEN statement in procedure "m_memory_details"
-manybody_quip.F: Unused dummy argument 'atomic_kind_set' at (1)
-manybody_quip.F: Unused dummy argument 'cell' at (1)
-manybody_quip.F: Unused dummy argument 'fist_nonbond_env' at (1)
-manybody_quip.F: Unused dummy argument 'force' at (1)
-manybody_quip.F: Unused dummy argument 'para_env' at (1)
-manybody_quip.F: Unused dummy argument 'particle_set' at (1)
-manybody_quip.F: Unused dummy argument 'pot_quip' at (1)
-manybody_quip.F: Unused dummy argument 'potparm' at (1)
-manybody_quip.F: Unused dummy argument 'virial' at (1)
-manybody_siepmann.F: Unused dummy argument 'full_loc_list' at (1)
-manybody_siepmann.F: Unused dummy argument 'loc_cell_v' at (1)
-manybody_siepmann.F: Unused dummy argument 'pv_nonbond' at (1)
+machine_posix.f90: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+manybody_siepmann.F: Unused dummy argument ‘full_loc_list’ at (1) [-Wunused-dummy-argument]
+manybody_siepmann.F: Unused dummy argument ‘loc_cell_v’ at (1) [-Wunused-dummy-argument]
+manybody_siepmann.F: Unused dummy argument ‘pv_nonbond’ at (1) [-Wunused-dummy-argument]
+memory_utilities.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 message_passing.F: Found CLOSE statement in procedure "mp_file_close"
 message_passing.F: Found OPEN statement in procedure "mp_file_open"
-metadynamics.F: Unused dummy argument 'itimes' at (1)
+message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+metadynamics.F: Unused dummy argument ‘itimes’ at (1) [-Wunused-dummy-argument]
+mltfftsg_tools.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 mm_collocate_potential.F: Routine COLLOCATE_GF_NPBC called with an implicit interface.
 mm_collocate_potential.F: Routine INTEGRATE_GF_NPBC called with an implicit interface.
-mp2_direct_method.F: Unused dummy argument 'hfx_section' at (1)
-pexsi_types.F: Unused dummy argument 'nspin' at (1)
+mp2.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+mp2_cphf.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 powell.F: Found GOTO statement in procedure "newuob"
+pw_cuda.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+pw_grids.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+qs_collocate_density.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 qs_integrate_potential_low.F: Routine CALL_TO_XYZ_TO_VAB called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_0 called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_1 called with an implicit interface.
@@ -217,11 +288,17 @@ qs_integrate_potential_low.F: Routine INTEGRATE_CORE_7 called with an implicit i
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_8 called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_9 called with an implicit interface.
 qs_integrate_potential_low.F: Routine INTEGRATE_CORE_DEFAULT called with an implicit interface.
+qs_integrate_potential_product.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+qs_ks_methods.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 qs_linres_op.F: Routine INDXL2G called with an implicit interface.
 qs_loc_utils.F: Routine PZROT called with an implicit interface.
 qs_localization_methods.F: Routine PZROT called with an implicit interface.
-qs_mo_io.F: Unused dummy argument 'atomic_kind_set' at (1)
-qs_scf_loop_utils.F: Unused dummy argument 'do_kpoints' at (1)
+qs_mo_io.F: Unused dummy argument ‘atomic_kind_set’ at (1) [-Wunused-dummy-argument]
+qs_sccs.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+qs_scf_loop_utils.F: Unused dummy argument ‘do_kpoints’ at (1) [-Wunused-dummy-argument]
+realspace_grid_types.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+replica_methods.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+replica_types.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 semi_empirical_int3_utils.F: Routine EVAL called with an implicit interface.
 semi_empirical_int_args.h: Copyright banner malformed
 semi_empirical_int_debug.F: Routine CHECK_VALUE called with an implicit interface.
@@ -232,14 +309,16 @@ swarm_mpi.F: Found CLOSE statement in procedure "logger_init_master"
 swarm_mpi.F: Found OPEN statement in procedure "logger_finalize"
 t_c_g0.F: Copyright banner malformed
 t_sh_p_s_c.F: Copyright banner malformed
-termination.F: Unused dummy argument 'line_number' at (1)
+task_list_methods.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+termination.F: Unused dummy argument ‘line_number’ at (1) [-Wunused-dummy-argument]
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd"
 xc_f90_lib_m.F: Copyright banner malformed
 xc_f90_types_m.F: Copyright banner malformed
-xc_pade.F: Unused dummy argument 'derivative_set' at (1)
+xc_libxc.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+xc_pade.F: Unused dummy argument ‘derivative_set’ at (1) [-Wunused-dummy-argument]
 xc_write_output.F: Routine XC_F90_VERSION called with an implicit interface.
 xml_parser.F: Copyright banner malformed
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB called with an implicit interface.
@@ -268,11 +347,11 @@ xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_1 called with an implicit interface
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_2 called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_3 called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_4 called with an implicit interface.
-xyz_to_vab_optimised.F: Unused dummy argument 'coset' at (1)
-xyz_to_vab_optimised.F: Unused dummy argument 'la_max_local' at (1)
-xyz_to_vab_optimised.F: Unused dummy argument 'la_min_local' at (1)
-xyz_to_vab_optimised.F: Unused dummy argument 'lb_max_local' at (1)
-xyz_to_vab_optimised.F: Unused dummy argument 'lb_min_local' at (1)
-xyz_to_vab_optimised.F: Unused dummy argument 'ra' at (1)
-xyz_to_vab_optimised.F: Unused dummy argument 'rab' at (1)
-xyz_to_vab_optimised.F: Unused dummy argument 'rp' at (1)
+xyz_to_vab_optimised.F: Unused dummy argument ‘coset’ at (1) [-Wunused-dummy-argument]
+xyz_to_vab_optimised.F: Unused dummy argument ‘la_max_local’ at (1) [-Wunused-dummy-argument]
+xyz_to_vab_optimised.F: Unused dummy argument ‘la_min_local’ at (1) [-Wunused-dummy-argument]
+xyz_to_vab_optimised.F: Unused dummy argument ‘lb_max_local’ at (1) [-Wunused-dummy-argument]
+xyz_to_vab_optimised.F: Unused dummy argument ‘lb_min_local’ at (1) [-Wunused-dummy-argument]
+xyz_to_vab_optimised.F: Unused dummy argument ‘rab’ at (1) [-Wunused-dummy-argument]
+xyz_to_vab_optimised.F: Unused dummy argument ‘ra’ at (1) [-Wunused-dummy-argument]
+xyz_to_vab_optimised.F: Unused dummy argument ‘rp’ at (1) [-Wunused-dummy-argument]

@@ -48,7 +48,7 @@ def check_warnings(fn):
     for i, line in enumerate(lines):
         if(len(line)==0): continue
         if(line[0]=="/" and line[-1]==":"):
-            loc = line.rsplit(":", 2)[0].strip()
+            loc = line.rsplit(":")[0].strip()
             loc_short = path.basename(loc)
 
         if(loc.endswith("include/fftw3.f")): continue # an external file
@@ -61,7 +61,10 @@ def check_warnings(fn):
         if("-Wmaybe-uninitialized" in warning): continue
         if("Creating array temporary" in warning): continue
         if("quality comparison" in warning): continue
-        if("Unused" in warning and ("'error'" in warning or "'routinep'" in warning)): continue
+        if("Unused" in warning):
+            if("‘error’" in warning): continue
+            if("‘routinep’" in warning): continue
+            if(loc_short == "cp_common_uses.f90"): continue
         if("defined but not used" in warning): continue
         if("Removing call to function" in warning): continue
         if("Conversion from" in warning): continue
@@ -72,7 +75,7 @@ def check_warnings(fn):
         if("called with an implicit interface" in warning):
             parts = warning.split()
             assert(parts[0] == "Procedure")
-            routine = parts[1].strip("'").upper()
+            routine = parts[1].strip("'‘’").upper()
             if(may_call_implicit(loc, routine)): continue
             print "%s: Routine %s called with an implicit interface."%(loc_short, routine)
         else:
