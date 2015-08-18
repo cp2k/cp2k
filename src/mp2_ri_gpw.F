@@ -2734,13 +2734,13 @@ MODULE mp2_ri_gpw
                                 block_size,my_B_size_beta,my_group_L_size,local_i_aL,&
                                 local_j_aL,calc_forces, Y_i_aP, Y_j_aP, &
                                 error_sub, my_alpha_beta_case,&
-                                my_beta_beta_case,my_open_shell_ss)
+                                my_beta_beta_case)
     ELSE
        CALL mp2_ri_allocate(local_ab, t_ab,mp2_env,homo,virtual,dimen_RI,my_B_size,&
                                 block_size,my_B_size_beta,my_group_L_size,local_i_aL,&
                                 local_j_aL,calc_forces, Y_i_aP, Y_j_aP_beta, &
                                 error_sub, my_alpha_beta_case,&
-                                my_beta_beta_case,my_open_shell_ss,local_ba,virtual_beta)
+                                my_beta_beta_case,local_ba,virtual_beta)
     ENDIF
      
     CALL timeset(routineN//"_RI_loop",handle2)
@@ -3196,13 +3196,13 @@ MODULE mp2_ri_gpw
       ! Start counting the number of almost degenerate ij pairs according
       ! to eps_canonical
       IF (.NOT. my_alpha_beta_case) THEN
-           CALL quasi_degenerate_P_ij(mp2_env,Eigenval,homo,virtual,my_open_shell_ss,my_alpha_alpha_case, &
+           CALL quasi_degenerate_P_ij(mp2_env,Eigenval,homo,virtual,my_open_shell_ss, &
            my_beta_beta_case,my_alpha_beta_case, Bib_C,unit_nr,dimen_RI,my_B_size,ngroup,num_integ_group, &
            error_sub,color_sub,ranges_info_array,para_env_exchange,para_env_sub,proc_map, &
            my_B_virtual_start,my_B_virtual_end,sizes_array, ends_B_virtual,sizes_B_virtual, &
            starts_B_virtual,sub_proc_map,integ_group_pos2color_sub,local_ab)
       ELSE
-           CALL quasi_degenerate_P_ij(mp2_env,Eigenval,homo,virtual,my_open_shell_ss,my_alpha_alpha_case, &
+           CALL quasi_degenerate_P_ij(mp2_env,Eigenval,homo,virtual,my_open_shell_ss, &
            my_beta_beta_case,my_alpha_beta_case,Bib_C,unit_nr,dimen_RI,my_B_size,ngroup,num_integ_group, &
            error_sub,color_sub,ranges_info_array,para_env_exchange,para_env_sub,proc_map, &
            my_B_virtual_start,my_B_virtual_end,sizes_array, ends_B_virtual,sizes_B_virtual, &
@@ -3665,7 +3665,6 @@ MODULE mp2_ri_gpw
 !> \param error_sub ...
 !> \param alpha_beta ...
 !> \param beta_beta ...
-!> \param open_shell ...
 !> \param local_ba ...
 !> \param virtual_beta ...
 ! *****************************************************************************
@@ -3673,7 +3672,7 @@ MODULE mp2_ri_gpw
                                 block_size,my_B_size_beta,my_group_L_size,&
                                 local_i_aL,local_j_aL,calc_forces, &
                                 Y_i_aP, Y_j_aP, error_sub,alpha_beta,&
-                                beta_beta,open_shell,local_ba,virtual_beta)
+                                beta_beta,local_ba,virtual_beta)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: local_ab, t_ab
     TYPE(mp2_type), POINTER                  :: mp2_env
@@ -3687,8 +3686,7 @@ MODULE mp2_ri_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: Y_i_aP, Y_j_aP
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
-    LOGICAL                                  :: alpha_beta, beta_beta, &
-                                                open_shell
+    LOGICAL                                  :: alpha_beta, beta_beta
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :), OPTIONAL              :: local_ba
     INTEGER, OPTIONAL                        :: virtual_beta
@@ -5095,7 +5093,6 @@ MODULE mp2_ri_gpw
 !> \param homo ...
 !> \param virtual ...
 !> \param open_shell ...
-!> \param alpha_alpha ...
 !> \param beta_beta ...
 !> \param alpha_beta ...
 !> \param Bib_C ...
@@ -5129,9 +5126,8 @@ MODULE mp2_ri_gpw
 !> \param homo_beta ...
 !> \param Eigenval_beta ...
 !> \param my_B_virtual_end_beta ...
-!> \param my_B_virtual_start_beta ...   UNMATCHED_PROCEDURE_ARGUMENT: please check 
 ! *****************************************************************************
-    SUBROUTINE quasi_degenerate_P_ij(mp2_env,Eigenval,homo,virtual,open_shell,alpha_alpha, &
+    SUBROUTINE quasi_degenerate_P_ij(mp2_env,Eigenval,homo,virtual,open_shell, &
     beta_beta,alpha_beta, Bib_C,unit_nr,dimen_RI,my_B_size,ngroup,num_integ_group, &
     error_sub,color_sub,ranges_info_array,para_env_exchange,para_env_sub,proc_map, &
     my_B_virtual_start,my_B_virtual_end,sizes_array, ends_B_virtual,sizes_B_virtual, &
@@ -5141,8 +5137,8 @@ MODULE mp2_ri_gpw
     TYPE(mp2_type), POINTER                  :: mp2_env
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     INTEGER                                  :: homo, virtual
-    LOGICAL                                  :: open_shell, alpha_alpha, &
-                                                beta_beta, alpha_beta
+    LOGICAL                                  :: open_shell, beta_beta, &
+                                                alpha_beta
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C
     INTEGER                                  :: unit_nr, dimen_RI, my_B_size, &
