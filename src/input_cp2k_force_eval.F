@@ -92,7 +92,7 @@ CONTAINS
                          "EIP",&
                          "QUICKSTEP",&
                          "MIXED"),&
-         enum_desc=s2a("Electronic structure methods (DFT, ...)",&
+         enum_desc=s2a("Alias for QUICKSTEP",&
                        "Molecular Mechanics",&
                        "Hybrid quantum classical",&
                        "Empirical Interatomic Potential",&
