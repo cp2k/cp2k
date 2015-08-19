@@ -67,7 +67,8 @@ MODULE md_run
                                              temperature_control
   USE mdctrl_methods,                  ONLY: mdctrl_callback
   USE mdctrl_types,                    ONLY: mdctrl_type
-  USE metadynamics,                    ONLY: metadyn_forces,&
+  USE metadynamics,                    ONLY: metadyn_finalise_plumed,&
+                                             metadyn_forces,&
                                              metadyn_initialise_plumed,&
                                              metadyn_write_colvar
   USE metadynamics_types,              ONLY: set_meta_env
@@ -551,6 +552,11 @@ CONTAINS
 
     ! Remove the iteration level
     CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)
+
+    ! Clean up PLUMED
+    IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
+        CALL metadyn_finalise_plumed()
+    END IF
 
     ! Deallocate Thermostats and Barostats
     CALL release_thermostats(thermostats, error=error)

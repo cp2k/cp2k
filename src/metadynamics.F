@@ -76,7 +76,7 @@ MODULE metadynamics
 
   PUBLIC :: metadyn_forces, metadyn_integrator
   PUBLIC :: metadyn_velocities_colvar, metadyn_write_colvar
-  PUBLIC :: metadyn_initialise_plumed
+  PUBLIC :: metadyn_initialise_plumed, metadyn_finalise_plumed
 
 CONTAINS
 
@@ -176,6 +176,26 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE
+
+! *****************************************************************************
+!> \brief makes sure PLUMED is shut down cleanly 
+! *****************************************************************************
+SUBROUTINE metadyn_finalise_plumed()
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'metadyn_finalise_plumed', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
+#if defined (__PLUMED2)
+    CALL plumed_f_gfinalize()
+#endif
+
+    CALL timestop(handle)
+
+END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief  General driver for applying metadynamics
