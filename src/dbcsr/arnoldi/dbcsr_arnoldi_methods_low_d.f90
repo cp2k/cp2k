@@ -726,6 +726,7 @@
     CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local)
     ALLOCATE(v_vec(nrow_local))
     CALL compute_norms_d(ar_data%x_vec, norm, rnorm, control%pcol_group)
+    IF (rnorm==0) rnorm=1 ! catch case where this rank has no actual data
     v_vec(:)=ar_data%x_vec(:)/rnorm
     CALL transfer_local_array_to_dbcsr_d(vectors%input_vec, v_vec, nrow_local, control%local_comp)
     CALL dbcsr_matrix_colvec_multiply(matrix_arnoldi(1)%matrix, vectors%input_vec, vectors%result_vec, 1.0_real_8, &
