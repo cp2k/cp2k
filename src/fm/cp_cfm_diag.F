@@ -24,6 +24,12 @@ MODULE cp_cfm_diag
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#if defined (__HAS_IEEE_EXCEPTIONS)
+  USE ieee_exceptions,                 ONLY: ieee_get_halting_mode,&
+                                             ieee_set_halting_mode,&
+                                             ieee_all
+#endif
+
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -65,10 +71,12 @@ CONTAINS
     INTEGER, DIMENSION(9)                    :: descm, descv
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: v
+#if defined (__HAS_IEEE_EXCEPTIONS)
+    LOGICAL, DIMENSION(5)                    :: halt
+#endif
 #endif
 
     CALL timeset(routineN,handle)
-    
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
@@ -121,8 +129,19 @@ CONTAINS
     work(:) = CMPLX(0.0_dp,0.0_dp,KIND=dp)
 
 #if defined(__SCALAPACK)
+! Scalapack takes advantage of IEEE754 exceptions for speedup.
+! Therefore, we disable floating point traps temporarily.
+#if defined (__HAS_IEEE_EXCEPTIONS)
+    CALL ieee_get_halting_mode(IEEE_ALL, halt)
+    CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
+
     CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv,&
                   work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
+
+#if defined (__HAS_IEEE_EXCEPTIONS)
+    CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
 #else
     CALL ZHEEVD('V','U',n,m(1,1),SIZE(m,1),eigenvalues(1), &
                 work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
