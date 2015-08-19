@@ -26,7 +26,6 @@
        EPS_GEO 1.e-8
        FULL_GRID ON
        VERBOSE T
-       PARALLEL_GROUP_SIZE   1
     &END KPOINTS
 	&PRINT
 	   &MULLIKEN OFF
