@@ -1,4 +1,4 @@
-Ar_mixed_periodic_planar.inp      1     3e-05                               
+Ar_mixed_periodic_planar.inp      1     1e-04                               
 Ar_mixed_periodic_cuboidal.inp    1    1e-12    -21.07466726296222
 Ar_mixed_periodic_cylindrical.inp      1    1e-12
 Ar_neumann.inp    1    1e-12    -21.07467624808816

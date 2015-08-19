@@ -50,4 +50,4 @@ ice-ewald-mol.inp    3    1.0E-14    -2502.02061965270150
 ice-ewald-nomol.inp    3    1.0E-14    -2502.02061965270195
 ice-ewald-r_cut.inp    3    1.0E-14    -2502.01852258319195
 # Atprop energy
-dimer_atprop.inp                  3     1e-13
+dimer_atprop.inp                  3     2e-13                               
