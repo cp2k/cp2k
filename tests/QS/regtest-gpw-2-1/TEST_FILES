@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #normal mode analysis
-H2-vib.inp         8
+H2-vib.inp                        8     2e-07                               
 # test thermostats
 H2O-2.inp                         1     3e-14
 H2O-3.inp    1    4e-14    -17.14553123459409

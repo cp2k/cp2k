@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 ch4-gapw-issc-1.inp 0
-ch4-gapw-issc-2.inp              36     2e-09
+ch4-gapw-issc-2.inp              36     1e-05                               
 no-gapw-issc-1.inp               36     9e-05
 nh3-issc-op-1.inp    34    1.0E-14    0.1840828423510557E+02
 ch4-gapw-issc-pso-1.inp    38    1.0E-14    0.386542E+01

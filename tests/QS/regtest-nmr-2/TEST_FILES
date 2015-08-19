@@ -3,5 +3,5 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-He_nmr_full.inp                  14     1e-05
+He_nmr_full.inp                  14     2e-05                               
 he2_bug_disp.inp    14    1.0E-14    0.144732E+03

@@ -23,8 +23,8 @@ UO2-switch2binary_restart-2.inp    11    1.0E-14    -77.379440574247923
 UO2-switch2binary_restart-3.inp    11    1.0E-14    -77.372160495540030
 # Binary restart for shell thermostats
 UO2-2x2x2-binary_restart-cs-5.inp   11     9e-10
-UO2-2x2x2-binary_restart-cs-6.inp   11     1e-09
-UO2-2x2x2-binary_restart-cs-7.inp   11     3e-10
+UO2-2x2x2-binary_restart-cs-6.inp   11     3e-09                               
+UO2-2x2x2-binary_restart-cs-7.inp   11     2e-09                               
 UO2-2x2x2-binary_restart-cs-8.inp   11     5e-09
 # Non-harmonic core-shell spring potential
 UO2-2x2x2-non-harm-cs.inp    11    1.0E-14    -118.471207246616927
