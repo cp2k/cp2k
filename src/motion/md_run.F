@@ -554,8 +554,10 @@ CONTAINS
     CALL cp_rm_iter_level(logger%iter_info,"MD",error=error)
 
     ! Clean up PLUMED
-    IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
-        CALL metadyn_finalise_plumed()
+    IF (ASSOCIATED(force_env%meta_env)) THEN
+        IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
+            CALL metadyn_finalise_plumed()
+        END IF
     END IF
 
     ! Deallocate Thermostats and Barostats
