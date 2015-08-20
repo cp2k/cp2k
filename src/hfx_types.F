@@ -147,7 +147,7 @@ MODULE hfx_types
 
 ! *****************************************************************************
   TYPE hfx_memory_type
-    INTEGER                                  :: max_memory              !! user def max memory MB
+    INTEGER                                  :: max_memory              !! user def max memory MiB
     INTEGER(int_8)                           :: max_compression_counter !! corresponding number of reals
     INTEGER(int_8)                           :: final_comp_counter_energy
     LOGICAL                                  :: do_all_on_the_fly       !! max mem == 0 ?
@@ -2026,7 +2026,7 @@ MODULE hfx_types
 !>          all relevant buffers from the input MAX_MEM value and add 10% of
 !>          safety margin
 !> \param memory_parameter Memory information
-!> \param subtr_size_mb size of buffers in MB
+!> \param subtr_size_mb size of buffers in MiB
 !> \par History
 !>      02.2009 created [Manuel Guidon]
 !> \author Manuel Guidon

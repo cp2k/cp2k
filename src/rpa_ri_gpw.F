@@ -262,13 +262,13 @@ MODULE rpa_ri_gpw
     mem_min=2.0_dp*REAL(homo,KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
  
     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Minimum required memory per MPI process:',&
-                                                        mem_min, ' MB'
+                                                        mem_min, ' MiB'
    
     mem_real=allowed_memory-mem_real
     mem_real=MAX(mem_real,mem_min)
 
     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Available memory per MPI process:',&
-                                                        mem_real, ' MB'
+                                                        mem_real, ' MiB'
     
     mem_per_group=mem_real*para_env_sub%num_pe
 
@@ -707,7 +707,7 @@ MODULE rpa_ri_gpw
 
       ! do this in chunks to avoid high memory overhead  for both BIb_C_rec and buffers in mp_sendrecv 
       ! TODO: fix this more cleanly with a rewrite sending only needed data etc.
-      ! TODO: occ_chunk should presumably be precomputed so that messages are limited to e.g. 100Mb.
+      ! TODO: occ_chunk should presumably be precomputed so that messages are limited to e.g. 100MiB.
       ALLOCATE(BIb_C_rec(my_group_L_size,rec_B_size,MIN(homo,occ_chunk)),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
 

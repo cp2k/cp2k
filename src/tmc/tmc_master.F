@@ -899,7 +899,7 @@ CONTAINS
                   "sec needed. "
           CALL m_memory(mem)
           WRITE(tmc_env%m_env%io_unit,*)&
-                  "Memory used: ", INT(mem/(1024*1024),KIND=KIND(0)), "Mbytes"
+                  "Memory used: ", INT(mem/(1024*1024),KIND=KIND(0)), "MiBytes"
           CALL m_flush(tmc_env%m_env%io_unit)
           DEALLOCATE(tree_elem_heads)
           DEALLOCATE(tree_elem_counters)

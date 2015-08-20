@@ -428,12 +428,12 @@ MODULE mp2_ri_gpw
                         dimen_RI*REAL(homo_beta,KIND=dp)*(nmo-homo_beta)*8.0_dp/(1024_dp**2)
 
       WRITE(unit_nr,'(T3,A,T67,F11.2,A3)') 'RI_INFO| Total memory for (ia|K) integrals:',&
-                                           mem_for_iaK, ' MB'
+                                           mem_for_iaK, ' MiB'
       IF(my_do_gw) THEN
         mem_for_iaK=dimen_RI*REAL(nmo,KIND=dp)*gw_corr_lev_total*8.0_dp/(1024_dp**2)
 
         WRITE(unit_nr,'(T3,A,T67,F11.2,A3)') 'RI_INFO| Total memory for G0W0-(nm|K) integrals:',&
-                                           mem_for_iaK, ' MB'
+                                           mem_for_iaK, ' MiB'
       END IF
       CALL m_flush(unit_nr)
     ENDIF
@@ -4105,7 +4105,7 @@ MODULE mp2_ri_gpw
  
     IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Minimum required memory per MPI process:',&
-                                                          mem_min, ' MB'
+                                                          mem_min, ' MiB'
     END IF
    
     mem_real=mp2_env%mp2_memory

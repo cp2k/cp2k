@@ -3279,7 +3279,7 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," MB/s"
        ENDIF
     ENDDO
     CALL MPI_BARRIER(comm,ierror)
@@ -3301,7 +3301,7 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," MB/s"
        ENDIF
     ENDDO
     CALL MPI_BARRIER(comm,ierror)
@@ -3332,7 +3332,7 @@ CONTAINS
     IF (ionode) THEN
        DO itask=0,nprocs-1
           DO jtask=itask+1,nprocs-1
-             WRITE(*,'(I4,I4,F12.4,A)') itask,jtask,ncount*8.0E-6_dp/send_timings(itask,jtask)," Mb/s"
+             WRITE(*,'(I4,I4,F12.4,A)') itask,jtask,ncount*8.0E-6_dp/send_timings(itask,jtask)," MB/s"
           ENDDO
        ENDDO
     ENDIF
@@ -3359,7 +3359,7 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," MB/s"
        ENDIF
     ENDDO
     CALL MPI_BARRIER(comm,ierror)
@@ -3386,7 +3386,7 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," MB/s"
        ENDIF
     ENDDO
     ! -------------------------------------------------------------------------------------------
@@ -3407,7 +3407,7 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," MB/s"
        ENDIF
     ENDDO
     ! -------------------------------------------------------------------------------------------
@@ -3427,7 +3427,7 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," MB/s"
        ENDIF
     ENDDO
     ! -------------------------------------------------------------------------------------------
@@ -3455,7 +3455,7 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          WRITE(*,'(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs," Bytes ",(3**(npow-i))*(ncount/nprocs)*nprocs*8.0E-6_dp/t1," Mb/s"
+          WRITE(*,'(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs," Bytes ",(3**(npow-i))*(ncount/nprocs)*nprocs*8.0E-6_dp/t1," MB/s"
        ENDIF
     ENDDO
 

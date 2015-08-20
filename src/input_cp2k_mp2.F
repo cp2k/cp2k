@@ -103,7 +103,7 @@ CONTAINS
     CALL keyword_create(&
          keyword=keyword,&
          name="MEMORY",&
-         description="Maximum allowed total memory usage during MP2 methods [Mb].",&
+         description="Maximum allowed total memory usage during MP2 methods [MiB].",&
          usage="MEMORY 1500 ",&
          default_r_val=1.024E+3_dp,&
          error=error)

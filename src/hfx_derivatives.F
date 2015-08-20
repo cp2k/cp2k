@@ -1686,10 +1686,10 @@ MODULE hfx_derivatives
                  "HFX_MEM_INFO| Number of sph. DERIV's calculated on the fly: ",shm_neris_onthefly
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
-                 "HFX_MEM_INFO| Total memory consumption DERIV's RAM [MB's]:            ",mem_eris
+                 "HFX_MEM_INFO| Total memory consumption DERIV's RAM [MiB]:            ",mem_eris
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
-                 "HFX_MEM_INFO| Whereof max-vals [MB's]:            ",mem_max_val
+                 "HFX_MEM_INFO| Whereof max-vals [MiB]:            ",mem_max_val
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,F21.2),/)")&
                  "HFX_MEM_INFO| Total compression factor DERIV's RAM:                  ",compression_factor

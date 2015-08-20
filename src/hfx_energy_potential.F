@@ -300,7 +300,7 @@ MODULE hfx_energy_potential
                                 extension=".scfLog",error=error)
       IF (iw>0) THEN
         WRITE (UNIT=iw,FMT="(/,(T3,A,T60,I21))")&
-              "HFX_MEM_INFO| Est. max. program size before HFX [MB's]:", memsize_before/(1024*1024)
+              "HFX_MEM_INFO| Est. max. program size before HFX [MiB]:", memsize_before/(1024*1024)
         CALL m_flush(iw)
       END IF
       CALL cp_print_key_finished_output(iw,logger,hfx_section,&
@@ -713,7 +713,7 @@ MODULE hfx_energy_potential
       END IF
     END IF
 
-    ! ** Convert into MB's
+    ! ** Convert into MiB's
     subtr_size_mb = subtr_size_mb * 8_int_8/1024_int_8/1024_int_8
 
     ! ** Subtracting all these buffers from MAX_MEMORY yields the amount
@@ -2089,34 +2089,34 @@ MODULE hfx_energy_potential
                  "HFX_MEM_INFO| Number of sph. ERI's calculated on the fly: ",shm_neris_onthefly
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
-                 "HFX_MEM_INFO| Total memory consumption ERI's RAM [MB's]:            ",mem_eris
+                 "HFX_MEM_INFO| Total memory consumption ERI's RAM [MiB]:            ",mem_eris
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
-                 "HFX_MEM_INFO| Whereof max-vals [MB's]:            ",mem_max_val
+                 "HFX_MEM_INFO| Whereof max-vals [MiB]:            ",mem_max_val
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,F21.2))")&
                  "HFX_MEM_INFO| Total compression factor ERI's RAM:                  ",compression_factor
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
-                 "HFX_MEM_INFO| Total memory consumption ERI's disk [MB's]:       ",mem_eris_disk
+                 "HFX_MEM_INFO| Total memory consumption ERI's disk [MiB]:       ",mem_eris_disk
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,F21.2))")&
                  "HFX_MEM_INFO| Total compression factor ERI's disk:             ",compression_factor_disk
 
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
-                 "HFX_MEM_INFO| Size of density/Fock matrix [MB's]:             ", 2_int_8*mb_size_p
+                 "HFX_MEM_INFO| Size of density/Fock matrix [MiB]:             ", 2_int_8*mb_size_p
 
         IF( do_periodic) THEN
           WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
-                 "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers
+                 "HFX_MEM_INFO| Size of buffers [MiB]:             ", mb_size_buffers
           WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
                  "HFX_MEM_INFO| Number of periodic image cells considered: ", SIZE(shm_master_x_data%neighbor_cells)
         ELSE
            WRITE (UNIT=iw,FMT="((T3,A,T60,I21))")&
-                 "HFX_MEM_INFO| Size of buffers [MB's]:             ", mb_size_buffers
+                 "HFX_MEM_INFO| Size of buffers [MiB]:             ", mb_size_buffers
         END IF
         WRITE (UNIT=iw,FMT="((T3,A,T60,I21),/)")&
-                 "HFX_MEM_INFO| Est. max. program size after HFX  [MB's]:", memsize_after/(1024*1024)
+                 "HFX_MEM_INFO| Est. max. program size after HFX  [MiB]:", memsize_after/(1024*1024)
         CALL m_flush(iw)
       END IF
 

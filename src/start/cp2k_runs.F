@@ -417,7 +417,7 @@ CONTAINS
     CALL mp_max(m_memory_max_mpi,mpi_comm)
     IF (output_unit>0) THEN
        WRITE(output_unit,*)
-       WRITE(output_unit,'(T2,"MEMORY| Estimated peak process memory [Mb]",T73,I8)') &
+       WRITE(output_unit,'(T2,"MEMORY| Estimated peak process memory [MiB]",T73,I8)') &
               (m_memory_max_mpi+(1024*1024)-1)/(1024*1024)
     ENDIF
 

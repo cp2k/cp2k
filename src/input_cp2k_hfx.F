@@ -499,7 +499,7 @@ CONTAINS
     CALL keyword_create(&
          keyword=keyword,&
          name="MAX_MEMORY",&
-         description="Defines the maximum amount of memory [MB] to be consumed by the full HFX module. "//&
+         description="Defines the maximum amount of memory [MiB] to be consumed by the full HFX module. "//&
                      "All temporary buffers and helper arrays are subtracted from this number. "//&
                      "What remains will be used for storage of integrals. NOTE: This number "//&
                      "is assumed to represent the memory available to one MPI process. "//&
@@ -525,7 +525,7 @@ CONTAINS
     CALL keyword_create(&
          keyword=keyword,&
          name="MAX_DISK_SPACE",&
-         description="Defines the maximum amount of disk space [MB] used to store precomputed "//&
+         description="Defines the maximum amount of disk space [MiB] used to store precomputed "//&
                       "compressed four-center integrals. If 0, nothing is stored to disk",&
          usage="MAX_DISK_SPACE 256",&
          default_i_val=0,&
