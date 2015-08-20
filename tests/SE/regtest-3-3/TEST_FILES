@@ -4,7 +4,7 @@ wfn_ex2.inp                       3     3e-14
 wfn_ex3.inp                       3     3e-14
 wfn_ex4.inp         3
 # EWALD with LSD
-H2O-4.inp                         3     1e-11
+H2O-4.inp                         3     2e-11                               
 # NDDO Stress tensor
 LiH.inp    31    1.0E-14    1.045281E+01
 # PERIODIC NDDO
