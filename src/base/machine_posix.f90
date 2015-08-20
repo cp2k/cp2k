@@ -19,6 +19,8 @@
             m_iargc, m_abort, m_chdir, m_mov, &
             m_memory_details, m_procrun
 
+  INTEGER(KIND=int_8), PUBLIC, SAVE :: m_memory_max=0
+
 CONTAINS
 
 ! *****************************************************************************
@@ -101,15 +103,15 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE m_memory(mem)
 
-      INTEGER(KIND=int_8), INTENT(OUT)         :: mem
-      INTEGER(KIND=int_8)                      :: m1,m2,m3
+      INTEGER(KIND=int_8), OPTIONAL, INTENT(OUT)         :: mem
+      INTEGER(KIND=int_8)                      :: m1,m2,m3,mem_local
 
       !
       ! __NO_STATM_ACCESS can be used to disable the stuff, if getpagesize
       ! lead to linking errors or /proc/self/statm can not be opened
       !
 #if defined(__NO_STATM_ACCESS)
-      mem=0
+      mem_local=0
 #else
       CHARACTER(LEN=80) :: DATA
       INTEGER :: iostat,i
@@ -125,7 +127,7 @@ CONTAINS
       !
       ! reading from statm
       !
-      mem=-1
+      mem_local=-1
       DATA=""
       OPEN(121245,FILE="/proc/self/statm",ACTION="READ",STATUS="OLD",ACCESS="STREAM")
       DO I=1,80
@@ -138,18 +140,21 @@ CONTAINS
       ! m3 = shared
       READ(DATA,*,IOSTAT=iostat) m1,m2,m3
       IF (iostat.NE.0) THEN
-         mem=0
+         mem_local=0
       ELSE
-         mem=m2
+         mem_local=m2
 #if defined(__STATM_TOTAL)
-         mem=m1
+         mem_local=m1
 #endif
 #if defined(__STATM_RESIDENT)
-         mem=m2
+         mem_local=m2
 #endif
-         mem=mem*getpagesize()
+         mem_local=mem_local*getpagesize()
       ENDIF
 #endif
+
+      m_memory_max=MAX(mem_local,m_memory_max)
+      IF (PRESENT(mem)) mem=mem_local
 
   END SUBROUTINE m_memory
 

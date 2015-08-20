@@ -92,18 +92,21 @@ MODULE cp2k_runs
   USE ipi_driver,                      ONLY: run_driver
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
-                                             dp
+                                             dp,&
+                                             int_8
   USE library_tests,                   ONLY: lib_test
   USE machine,                         ONLY: default_output_unit,&
                                              m_chdir,&
                                              m_flush,&
                                              m_getcwd,&
+                                             m_memory,&
+                                             m_memory_max,&
                                              m_walltime
   USE mc_run,                          ONLY: do_mon_car
   USE md_run,                          ONLY: qs_mol_dyn
   USE message_passing,                 ONLY: &
        mp_any_source, mp_bcast, mp_comm_dup, mp_comm_free, mp_comm_split, &
-       mp_environ, mp_recv, mp_send, mp_sum, mp_sync
+       mp_environ, mp_max, mp_recv, mp_send, mp_sum, mp_sync
   USE mscfg_methods,                   ONLY: do_mol_loop,&
                                              loop_over_molecules
   USE neb_methods,                     ONLY: neb
@@ -173,6 +176,7 @@ CONTAINS
                                                 iter_level, method_name_id, &
                                                 new_env_id, prog_name_id, &
                                                 run_type_id
+    INTEGER(KIND=int_8)                      :: m_memory_max_mpi
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
     TYPE(cp_error_type)                      :: error, suberror
@@ -403,8 +407,19 @@ CONTAINS
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
+    !sample peak memory
+    CALL m_memory()
+
     CALL pw_cuda_finalize()
     CALL cp_dbcsr_finalize_lib(group=mpi_comm, output_unit=output_unit, error=error)
+
+    m_memory_max_mpi=m_memory_max
+    CALL mp_max(m_memory_max_mpi,mpi_comm)
+    IF (output_unit>0) THEN
+       WRITE(output_unit,*)
+       WRITE(output_unit,'(T2,"MEMORY| Estimated peak process memory [Mb]",T73,I8)') &
+              (m_memory_max_mpi+(1024*1024)-1)/(1024*1024)
+    ENDIF
 
     IF (prog_name_id==do_cp2k) THEN
        f_env%force_env => force_env ! for mc

@@ -95,7 +95,8 @@ MODULE f77_interface
                                              dp
   USE machine,                         ONLY: default_output_unit,&
                                              m_chdir,&
-                                             m_getcwd
+                                             m_getcwd,&
+                                             m_memory
   USE message_passing,                 ONLY: &
        MPI_COMM_WORLD, add_mp_perf_env, get_mp_perf_env, mp_max, &
        mp_perf_env_release, mp_perf_env_retain, mp_perf_env_type, &
@@ -302,6 +303,9 @@ CONTAINS
        ierr=cp_failure_level
     END IF
 
+    !sample peak memory
+    CALL m_memory()
+
   END SUBROUTINE init_cp2k
 
 ! *****************************************************************************
@@ -319,6 +323,10 @@ CONTAINS
 
     INTEGER                                  :: ienv, stat
     TYPE(cp_error_type)                      :: error
+
+!sample peak memory
+
+    CALL m_memory()
 
     IF (.NOT.module_initialized) THEN
        ierr=cp_failure_level

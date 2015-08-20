@@ -20,6 +20,7 @@ MODULE realspace_grid_types
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              int_8
+  USE machine,                         ONLY: m_memory
   USE mathlib,                         ONLY: det_3x3
   USE message_passing,                 ONLY: &
        mp_comm_dup, mp_comm_free, mp_environ, mp_irecv, mp_isend, &
@@ -914,6 +915,9 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     sendbuf=1.0E99_dp ; recvbuf=1.0E99_dp ! init mpi'ed buffers to silence warnings under valgrind
     grid=>rs%r
+
+    !sample peak memory
+    CALL m_memory()
 
     IF ( dir == rs2pw ) THEN
        dest  =MODULO(mepos+1,np)

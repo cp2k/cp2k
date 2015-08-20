@@ -2988,6 +2988,9 @@ MODULE mp2_ri_gpw
             END DO
             CALL timestop(handle3)
 
+            !sample peak memory
+            CALL m_memory()
+
             CALL timeset(routineN//"_ener",handle3)
             ! calculate coulomb only MP2
             sym_fac=2.0_dp

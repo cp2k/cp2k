@@ -20,7 +20,6 @@
 !> \author apsi
 ! *****************************************************************************
 MODULE pw_methods
-  
   USE fast,                            ONLY: copy_cr,&
                                              copy_rc,&
                                              zero_c
@@ -30,6 +29,7 @@ MODULE pw_methods
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              dp_size
+  USE machine,                         ONLY: m_memory
   USE message_passing,                 ONLY: mp_sum
   USE pw_cuda,                         ONLY: pw_cuda_c1dr3d_3d,&
                                              pw_cuda_c1dr3d_3d_ps,&
@@ -655,7 +655,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_transfer', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+    !sample peak memory
+    CALL m_memory()
 
     failure = .FALSE.
     CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -693,6 +698,8 @@ CONTAINS
        CALL fft_wrap_pw1pw2 ( pw1, pw2, debug, error=error)
 
     END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE pw_transfer
 

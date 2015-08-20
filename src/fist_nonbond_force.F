@@ -13,7 +13,6 @@
 !> \author CJM
 ! *****************************************************************************
 MODULE fist_nonbond_force
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -31,6 +30,7 @@ MODULE fist_nonbond_force
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
+  USE machine,                         ONLY: m_memory
   USE mathconstants,                   ONLY: oorootpi,&
                                              sqrthalf
   USE mathlib,                         ONLY: matvec_3x3
@@ -583,6 +583,9 @@ CONTAINS
           !$omp end parallel
        END DO Kind_Group_Loop
     END DO Lists
+
+    !sample peak memory
+    CALL m_memory()
 
     DEALLOCATE (mm_radius,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"mm_radius")

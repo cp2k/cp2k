@@ -19,6 +19,7 @@ MODULE cp_fm_basic_linalg
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              sp
+  USE machine,                         ONLY: m_memory
   USE mathlib,                         ONLY: invert_matrix
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_program
@@ -296,6 +297,9 @@ CPSourceFileRef,&
 #endif
 
     CALL timeset(routineN,handle)
+
+    !sample peak memory
+    CALL m_memory()
 
     a => matrix_a%local_data
     b => matrix_b%local_data

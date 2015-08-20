@@ -87,6 +87,7 @@ MODULE force_env_methods
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
+  USE machine,                         ONLY: m_memory
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
   USE metadynamics_types,              ONLY: meta_env_retain,&
@@ -274,6 +275,10 @@ CONTAINS
           END IF
        END IF
     END IF
+
+    !sample peak memory
+    CALL m_memory()
+
     ! Some additional tasks..
     IF (.NOT.my_skip) THEN
        ! Flexible Partitioning
