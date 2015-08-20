@@ -681,6 +681,32 @@ echo "numprocs         = ${numprocs}"
 echo "OMP_NUM_THREADS  = ${OMP_NUM_THREADS}"
 echo "cp2k_run_prefix  = ${cp2k_run_prefix}"
 echo "cp2k_run_postfix = ${cp2k_run_postfix}"
+echo "cp2k_prefix      = ${cp2k_prefix}"
+echo "cp2k_postfix     = ${cp2k_postfix}"
+echo "cp2k_version     = ${cp2k_version}"
+echo "dir_triplet      = ${dir_triplet}"
+echo "job_max_time     = ${job_max_time}"
+echo "emptycheck       = ${emptycheck}"
+echo "leakcheck        = ${leakcheck}"
+echo "doretest         = ${doretest}"
+echo "nosvn            = ${nosvn}"
+echo "nobuild          = ${nobuild}"
+echo "quick            = ${quick}"
+echo "noreset          = ${noreset}"
+echo "skiptest         = ${skiptest}"
+echo "do_unit_test     = ${do_unit_test}"
+echo "farming          = ${farming}"
+echo "svndate          = ${svndate}"
+t=1
+while [ $t -le ${ndirstoskip} ]; do
+ echo "skip_dirs        = ${skip_dirs[t]}"
+ let t=t+1
+done
+t=1
+while [ $t -le ${ndirstorestrict} ]; do
+ echo "restrict_dirs    = ${restrict_dirs[t]}"
+ let t=t+1
+done
 echo "--------------------------- SVN ------------------------------------------"
 
 if [[ ${nosvn} != "nosvn" ]]; then
