@@ -17,6 +17,8 @@ MODULE lapack
 
   IMPLICIT NONE
 
+  PRIVATE
+
   ! API
   PUBLIC :: lapack_ssyev, lapack_chpev,&
             lapack_sgesvd, lapack_cgesvd,&
