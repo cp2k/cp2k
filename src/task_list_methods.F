@@ -64,7 +64,7 @@ MODULE task_list_methods
   USE util,                            ONLY: sort
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads,&
-!$                    omp_set_lock, omp_unset_lock, omp_init_lock, omp_lock_kind
+!$                    omp_set_lock, omp_unset_lock, omp_init_lock, omp_lock_kind, omp_destroy_lock
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
