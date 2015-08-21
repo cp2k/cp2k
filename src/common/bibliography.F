@@ -2481,7 +2481,7 @@ CONTAINS
          "AU Weber, V",&
          "   Iannuzzi, M",&
          "   Giani, S",&
-         "   Hutter, S",&
+         "   Hutter, J",&
          "   Declerck, R",&
          "   Waroduier, M",&
          "AF Weber, Valery",&
