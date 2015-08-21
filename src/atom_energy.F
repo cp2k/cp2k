@@ -27,13 +27,11 @@ MODULE atom_energy
        create_atom_type, init_atom_basis, init_atom_potential, &
        read_atom_opt_section, release_atom_basis, release_atom_potential, &
        release_atom_type, set_atom
-! ZMP added atom_read_external_density atom_read_external_vxc to atom_utiles
   USE atom_utils,                      ONLY: &
        atom_consistent_method, atom_core_density, atom_density, &
        atom_local_potential, atom_read_external_density, &
        atom_read_external_vxc, atom_set_occupation, atom_write_zmp_restart, &
        get_maxl_occ, get_maxn_occ
-! ZMP added atom_xc module
   USE atom_xc,                         ONLY: calculate_atom_ext_vxc,&
                                              calculate_atom_zmp
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -45,7 +43,7 @@ MODULE atom_energy
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE lapack
+  USE lapack,                          ONLY: lapack_ssyev
   USE mathconstants,                   ONLY: dfac,&
                                              gamma1,&
                                              pi

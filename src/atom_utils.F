@@ -30,7 +30,7 @@ MODULE atom_utils
                                              do_uks_atom
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE lapack
+  USE lapack,                          ONLY: lapack_ssyev
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
                                              fourpi,&

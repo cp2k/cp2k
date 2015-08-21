@@ -16,7 +16,11 @@ MODULE lapack
   
 
   IMPLICIT NONE
-  PUBLIC ! make all routines public
+
+  ! API
+  PUBLIC :: lapack_ssyev, lapack_ssygv, lapack_chpev, lapack_sspgv, &
+            lapack_chpgv, lapack_sgesvd, lapack_cgesvd, lapack_spotrf, &
+            lapack_cpotrf, lapack_strtri, lapack_ctrtri, lapack_sgesv, lapack_sgelss
 
   INTERFACE lapack_ssyev
 ! *****************************************************************************
