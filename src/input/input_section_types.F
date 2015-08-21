@@ -61,7 +61,6 @@ MODULE input_section_types
             section_add_keyword, section_add_subsection, section_describe_html,&
             section_describe_index_html
   PUBLIC :: section_get_subsection_index, section_get_keyword_index
-  PUBLIC :: section_typo_match
 
   PUBLIC :: section_vals_type
   PUBLIC :: section_vals_create, section_vals_retain, section_vals_release,&

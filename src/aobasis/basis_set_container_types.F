@@ -43,8 +43,8 @@ MODULE basis_set_container_types
 
   PUBLIC :: basis_set_container_type
 
-  PUBLIC :: init_basis_set_container, remove_basis_set_container, &
-            add_basis_set_to_container, get_basis_from_container, &
+  PUBLIC :: remove_basis_set_container,&
+            add_basis_set_to_container, get_basis_from_container,&
             remove_basis_from_container, translate_basis_type
 
 ! *****************************************************************************

@@ -62,11 +62,10 @@ MODULE  rt_propagation_utils
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC:: get_restart_wfn,&
-           calc_S_derivs,&
-           calc_update_rho,&
-           calc_update_rho_sparse,&
-           calculate_P_imaginary
+  PUBLIC :: get_restart_wfn,&
+            calc_S_derivs,&
+            calc_update_rho,&
+            calc_update_rho_sparse
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
 

@@ -76,10 +76,6 @@ MODULE cell_types
             cell_create, cell_retain, cell_release,&
             cell_clone, cell_copy, parse_cell_line, set_cell_param
 
-#if defined (__PLUMED_CP2K)
-  PUBLIC :: pbc_cp2k_plumed
-#endif
-
 #if defined (__PLUMED_CP2K) || defined (__PLUMED2)
   PUBLIC :: pbc_cp2k_plumed_getset_cell
 #endif
@@ -885,38 +881,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE cell_release
-
-#if defined (__PLUMED_CP2K)
-! *****************************************************************************
-!> \brief   Interface with plumed, get a coordinate 3-tuple, return the minimum 
-!>          image.
-!> \param x ...
-!> \param y ...
-!> \param z ...
-!> \date    12.12.2012
-!> \author  RK
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE pbc_cp2k_plumed(x,y,z) 
-    REAL(KIND=dp), INTENT(INOUT)             :: x, y, z
-
-    REAL(KIND=dp), DIMENSION(3)              :: r, r2
-    TYPE(cell_type), POINTER                 :: cell
-
-    CALL pbc_cp2k_plumed_getset_cell(cell, set=.FALSE.) !retrieve the cell pointer
-
-    r(1)=x
-    r(2)=y
-    r(3)=z
-
-    r2 = pbc(r,cell)
-
-    x=r2(1)
-    y=r2(2)
-    z=r2(3)
-
-  END SUBROUTINE pbc_cp2k_plumed
-#endif
 
 #if defined (__PLUMED_CP2K) || defined (__PLUMED2)
 ! *****************************************************************************
