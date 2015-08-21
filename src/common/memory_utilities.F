@@ -20,7 +20,8 @@ MODULE memory_utilities
                                              int_8,&
                                              int_8_size,&
                                              int_size
-  USE termination
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
 #include "cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -540,6 +541,9 @@ CONTAINS
        CALL reallocate_ls1(p_long,lb_new,ub_new)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
+                         "At least one of the two optional arguments is required")
+       ! workaround for a prettify bug... the next line should stay here
+       CALL stop_memory(routineN,moduleN,__LINE__,&
                          "At least one of the two optional arguments is required")
     END IF
 
