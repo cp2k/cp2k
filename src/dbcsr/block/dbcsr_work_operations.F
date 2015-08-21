@@ -106,7 +106,7 @@ MODULE dbcsr_work_operations
                                              real_4,&
                                              real_8
 
-  !$ USE OMP_LIB
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, omp_in_parallel
 
   IMPLICIT NONE
   PRIVATE

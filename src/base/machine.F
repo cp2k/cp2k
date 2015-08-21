@@ -20,7 +20,7 @@ MODULE machine
        m_getlog, m_getpid, m_hostnm, m_iargc, m_memory, m_memory_details, &
        m_memory_max, m_mov, m_procrun
 
- !$ USE OMP_LIB
+ !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, OMP_GET_WTIME
 
   IMPLICIT NONE
 

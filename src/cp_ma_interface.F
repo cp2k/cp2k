@@ -64,7 +64,7 @@ MODULE cp_ma_interface
   USE timings,                         ONLY: timeset,&
                                              timestop
 
-!$ USE OMP_LIB
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
   IMPLICIT NONE
 

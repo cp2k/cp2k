@@ -39,7 +39,7 @@ MODULE realspace_grid_types
                                              timestop
   USE util,                            ONLY: get_limit
 
-  !$ USE OMP_LIB
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
 #include "../common/cp_common_uses.f90"
 

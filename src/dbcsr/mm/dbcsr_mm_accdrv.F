@@ -73,7 +73,7 @@ MODULE dbcsr_mm_accdrv
                                              int_8
   USE message_passing,                 ONLY: mp_abort
 
- !$ USE OMP_LIB
+ !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
   IMPLICIT NONE
 

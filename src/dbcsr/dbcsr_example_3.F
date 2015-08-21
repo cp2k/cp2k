@@ -33,7 +33,7 @@ PROGRAM dbcsr_example_3
                                              mp_world_finalize,&
                                              mp_world_init
 
-  !$ USE OMP_LIB
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
   IMPLICIT NONE
 

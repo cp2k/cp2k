@@ -59,7 +59,7 @@ MODULE dbcsr_performance_multiply
                                              mp_sum,&
                                              mp_sync
 
-  !$ USE OMP_LIB
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
   IMPLICIT NONE
 

@@ -44,7 +44,7 @@ MODULE dbcsr_dist_methods
                                              heap_reset_first,&
                                              heap_t
 
-  !$ USE OMP_LIB
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, OMP_IN_PARALLEL
   IMPLICIT NONE
 
   PRIVATE

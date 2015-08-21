@@ -50,7 +50,7 @@ MODULE dbcsr_vector_operations_low
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
 
-  !$ USE OMP_LIB
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
   IMPLICIT NONE
 

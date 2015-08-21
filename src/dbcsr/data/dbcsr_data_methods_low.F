@@ -38,7 +38,7 @@ MODULE dbcsr_data_methods_low
                                              real_4,&
                                              real_8
 
-  !$ USE OMP_LIB
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
   IMPLICIT NONE
 

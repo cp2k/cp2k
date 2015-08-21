@@ -172,7 +172,7 @@ MODULE dbcsr_mm_cannon
        mp_max, mp_min, mp_request_null, mp_rget, mp_sum, mp_testany, &
        mp_waitall, mp_win_free, mp_win_lock_all, mp_win_unlock_all
 
-  !$ USE OMP_LIB
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
   IMPLICIT NONE
 

@@ -25,7 +25,7 @@ MODULE dbcsr_lib
                                              int_4_size,&
                                              int_8_size
 
-  !$ USE OMP_LIB
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
   IMPLICIT NONE
   PRIVATE

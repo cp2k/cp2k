@@ -61,7 +61,7 @@ MODULE dbcsr_io
        mp_file_write_at_all, mp_sum, mp_type_descriptor_type, mp_type_size, &
        mpi_character_size, mpi_integer_size
 
-  !$ USE OMP_LIB
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
   IMPLICIT NONE
 
