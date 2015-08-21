@@ -1,10 +1,11 @@
 # The following settings were tested on IBM/BlueGene Q with
-# - ESSL library             essl/5.1
+# - ESSL library             5.1
 # - LAPACK library           lapack/3.4.2 
 # - SCALAPACK library        scalapack/2.0.2
-# - MASS library             mass/7.3 or later
+# - MASS library             7.3
 # - FFTW3 library            fftw/3.3.3
 # - libint library           libint/1.1.4
+# - libxc library            2.2.2
 # WARNING: Check your own libraries and paths !
 #
 CC       = mpixlc_r
@@ -13,7 +14,7 @@ CPP      = cpp -C -P -traditional-cpp
 FC       = mpixlf95_r
 LD       = mpixlf95_r
 AR       = ar -r
-DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__LIBINT
+DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__LIBINT -D__LIBXC2
 CPPFLAGS = $(DFLAGS) -I$(FFTW3_INCLUDE)
 FCFLAGS  = -O3 -qstrict -q64 -qarch=qp -qtune=qp \
            -I/opt/ibmmath/essl/5.1/include/ \
@@ -23,5 +24,6 @@ LIBS     = -L$(LIBINT_LIB) -lderiv -lint \
            -L$(FFTW3_LIB) -lfftw3 \
            -L$(SCALAPACK_LIB) -lscalapack \
            -L$(LAPACK_LIB) -llapack \
+           -L$(HOME)/libxc-2.2.2-install/lib -lxcf90 -lxc \
            -L/bgsys/local/lib -lesslbg \
            -lmass 
