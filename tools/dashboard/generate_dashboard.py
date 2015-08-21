@@ -27,17 +27,32 @@ from glob import glob
 
 #===============================================================================
 def main():
-    if(len(sys.argv) != 5):
-        print("Usage update_dashboard.py <config-file> <addressbook> <status-file> <output-dir>")
+    if(len(sys.argv) not in (5, 6)):
+        print("Usage update_dashboard.py <config-file> <addressbook> <status-file> <output-dir> [--full-archive]")
         sys.exit(1)
 
-    config_fn, abook_fn, status_fn, outdir = sys.argv[1:]
+    config_fn, abook_fn, status_fn, outdir = sys.argv[1:5]
     assert(outdir.endswith("/"))
-
     assert(path.exists(config_fn))
+
+    full_archive = False
+    if(len(sys.argv) == 6):
+        assert(sys.argv[5] == "--full-archive")
+        full_archive = True
+
     config = ConfigParser.ConfigParser()
     config.read(config_fn)
 
+    if(full_archive):
+        log = svn_log() # fetch entire history
+        gen_archive(config, log, outdir, full_archive=True)
+    else:
+        log = svn_log(limit=100)
+        gen_frontpage(config, log, abook_fn, status_fn, outdir)
+        gen_archive(config, log, outdir)
+
+#===============================================================================
+def gen_frontpage(config, log, abook_fn, status_fn, outdir):
     addressbook = dict([line.split() for line in open(abook_fn).readlines()])
 
     if(path.exists(status_fn)):
@@ -45,7 +60,6 @@ def main():
     else:
         status = dict()
 
-    log = svn_log()
     trunk_revision = log[0]['num']
     log_index = dict([(r['num'], r) for r in log])
 
@@ -61,18 +75,15 @@ def main():
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
     output += '<th>Revision</th><th>Summary</th><th>Last OK</th><th>Tickets</th></tr>\n\n'
 
-    list_full=""; list_recent=""
-
     def get_sortkey(s):
         return config.getint(s, "sortkey")
 
     for s in sorted(config.sections(), key=get_sortkey):
-        print "Working on: "+s
+        print "Working on summary entry of: "+s
         name        = config.get(s,"name")
         host        = config.get(s,"host")
         report_type = config.get(s,"report_type")
         report_url  = config.get(s,"report_url")
-        info_url    = config.get(s,"info_url") if(config.has_option(s,"info_url")) else None
         do_notify   = config.getboolean(s,"notify")
 
         report_txt = retrieve_report(report_url)
@@ -118,11 +129,39 @@ def main():
 
         output += '</tr>\n\n'
 
+    output += '</table></center>\n' + html_footer()
+    write_file(outdir+"index.html", output)
+    write_file(status_fn, pformat(status))
+
+#===============================================================================
+def gen_archive(config, log, outdir, full_archive=False):
+    log_index = dict([(r['num'], r) for r in log])
+
+    if(full_archive):
+        print "Doing the full archive index pages"
+        trunk_revision = None # trunk_version changes too quickly, leave it out.
+        out_fn = "index_full.html"
+        full_index_link = ''
+    else:
+        print "Doing recent archive index pages"
+        trunk_revision = log[0]['num']
+        out_fn = "index.html"
+        full_index_link = '<p>View <a href="index_full.html">full archive</a></p>'
+
+    url_list = ""
+    for s in config.sections():
+        print "Working on archive page of: "+s
+        name        = config.get(s,"name")
+        report_type = config.get(s,"report_type")
+        info_url    = config.get(s,"info_url") if(config.has_option(s,"info_url")) else None
+
+
         # generate archive index
         archive_output = html_header(title=name)
         archive_output += '<p>Go back to <a href="../../index.html">main page</a></p>'
         if(info_url):
             archive_output += '<p>Get <a href="%s">more information</a></p>'%info_url
+        archive_output += full_index_link
         archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
         archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
 
@@ -144,24 +183,21 @@ def main():
                 report = archive_reports[r]
                 archive_output += status_cell(report['status'], report['url'])
                 archive_output += '<td align="left">%s</td>'%report['summary']
-                report_url = "http://dashboard.cp2k.org/archive/%s/%s.gz\n"%(s, report['url'])
-                list_full += report_url
-                if(r > trunk_revision-100):
-                   list_recent += report_url
+                url_list += "http://dashboard.cp2k.org/archive/%s/%s.gz\n"%(s, report['url'])
             else:
                 archive_output += 2*'<td></td>'
             svn_rev = log_index[r]
             archive_output += '<td align="left">%s</td>'%svn_rev['author']
             archive_output += '<td align="left">%s</td>'%svn_rev['msg'].split("\n")[0]
             archive_output += '</tr>\n\n'
-        archive_output += '</table>\n' + html_footer(now)
-        write_file(outdir+"archive/%s/index.html"%s, archive_output)
 
-    output += '</table></center>\n' + html_footer(now)
-    write_file(status_fn, pformat(status))
-    write_file(outdir+"index.html", output)
-    write_file(outdir+"archive/list_full.txt", list_full)
-    write_file(outdir+"archive/list_recent.txt", list_recent)
+        archive_output += '</table>\n'
+        archive_output += full_index_link
+        archive_output += html_footer()
+        write_file(outdir+"archive/%s/%s"%(s,out_fn), archive_output)
+
+    out_fn = "list_full.txt" if (full_archive) else "list_recent.txt"
+    write_file(outdir+"archive/"+out_fn, url_list)
 
 #===============================================================================
 def retrieve_report(report_url):
@@ -253,7 +289,8 @@ def html_header(title):
     return(output)
 
 #===============================================================================
-def html_footer(now):
+def html_footer():
+    now = datetime.utcnow().replace(microsecond=0)
     output  = '<p><small>Page last updated: %s</small></p>\n'%now.isoformat()
     output += '</body></html>'
     return(output)
@@ -270,11 +307,15 @@ def write_file(fn, content, gz=False):
     print("Wrote: "+fn)
 
 #===============================================================================
-def svn_log(limit=3000):
+def svn_log(limit=None):
     sys.stdout.write("Fetching svn log... ")
     sys.stdout.flush()
     # xml version contains nice UTC timestamp
-    cmd = "svn log --limit %d svn://svn.code.sf.net/p/cp2k/code --xml"%limit
+    if(limit):
+        cmd = "svn log --limit %d svn://svn.code.sf.net/p/cp2k/code --xml"%limit
+    else:
+        # our server is much faster, but might be 5 minutes old
+        cmd = "svn log http://svn.cp2k.org/cp2k --xml"
     log_xml = check_output(cmd.split())
     dom = minidom.parseString(log_xml)
     revisions = []
@@ -283,7 +324,9 @@ def svn_log(limit=3000):
         rev['num'] = int(entry.attributes['revision'].value)
         rev_date_str = entry.getElementsByTagName('date')[0].firstChild.nodeValue
         rev['date'] = datetime.strptime(rev_date_str[:19], '%Y-%m-%dT%H:%M:%S')
-        rev['author'] = entry.getElementsByTagName('author')[0].firstChild.nodeValue
+        # some revisions lack an author
+        tags = entry.getElementsByTagName('author')
+        rev['author'] = tags[0].firstChild.nodeValue if (len(tags)==1) else ""
         rev['msg'] = entry.getElementsByTagName('msg')[0].firstChild.nodeValue
         revisions.append(rev)
     print("done.")
@@ -304,7 +347,7 @@ def revision_cell(rev, trunk_rev):
     if(rev == None):
         return('<td>N/A</td>')
     rev_url = "http://sourceforge.net/p/cp2k/code/%d/"%rev
-    rev_delta = "(%d)"%(rev - trunk_rev)
+    rev_delta = "(%d)"%(rev - trunk_rev) if(trunk_rev) else ""
     output = '<td align="left"><a href="%s">%s</a> %s</td>'%(rev_url, rev, rev_delta)
     return(output)
 
