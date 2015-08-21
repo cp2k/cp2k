@@ -92,6 +92,10 @@ def process_log_file(fn, public_symbols, used_symbols):
         elif(tokens and tokens[0] in BANNED_STM):
             print(loc+": Found "+tokens[0]+' statement in procedure "'+curr_procedure+'"')
 
+        elif(line.startswith("WRITE")):
+            unit = tokens[1].split("=")[1]
+            if(unit.isdigit()):
+                print(loc+': Found WRITE statement with hardcoded unit in "'+curr_procedure+'"')
 
 #===============================================================================
 main()
