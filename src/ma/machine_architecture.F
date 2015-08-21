@@ -16,7 +16,7 @@
 ! *****************************************************************************
 MODULE machine_architecture
 
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING,                   ONLY: C_INT
   USE ma_errors,                       ONLY: ma_error_allocation,&
                                              ma_error_finalize,&
                                              ma_error_stop
@@ -96,8 +96,7 @@ MODULE machine_architecture
 #if defined (__HWLOC)
   INTERFACE
      FUNCTION ma_init_interface(topo) RESULT (istat) BIND(C, name="hw_topology_init")
-       USE ISO_C_BINDING
-       USE machine_architecture_types,   ONLY: arch_topology
+       IMPORT
     TYPE(arch_topology)                      :: topo
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -106,8 +105,7 @@ MODULE machine_architecture
 
  INTERFACE
      FUNCTION ma_final_interface(dtopo) RESULT (istat) BIND(C, name="hw_topology_destroy")
-       USE ISO_C_BINDING
-       USE machine_architecture_types,   ONLY: arch_topology
+       IMPORT
     TYPE(arch_topology)                      :: dtopo
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -116,8 +114,7 @@ MODULE machine_architecture
 
  INTERFACE
      SUBROUTINE ma_show_phys_topo(output_phys) BIND(C, name="hw_phys_pu_topology")
-       USE ISO_C_BINDING
-       USE machine_architecture_types,  ONLY: machine_output
+       IMPORT
     TYPE(machine_output)                     :: output_phys
 
      END SUBROUTINE ma_show_phys_topo
@@ -126,8 +123,7 @@ MODULE machine_architecture
 
   INTERFACE
      SUBROUTINE ma_show_branch(output_branch) BIND(C, name="hw_high_level_show")
-       USE ISO_C_BINDING
-       USE machine_architecture_types,  ONLY: machine_output
+       IMPORT
     TYPE(machine_output)                     :: output_branch
 
      END SUBROUTINE ma_show_branch
@@ -135,8 +131,7 @@ MODULE machine_architecture
 
   INTERFACE
      SUBROUTINE ma_show_topo(output_topo) BIND(C, name="hw_machine_topology")
-       USE ISO_C_BINDING
-       USE machine_architecture_types,  ONLY: machine_output
+       IMPORT
     TYPE(machine_output)                     :: output_topo
 
      END SUBROUTINE ma_show_topo
@@ -144,7 +139,7 @@ MODULE machine_architecture
 
   INTERFACE
     FUNCTION ma_get_cuDev(coreId, myRank, nMPIs) RESULT (cuDev) BIND(C, name="hw_my_gpu")
-    USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: coreId, myRank, nMPIs
     INTEGER(KIND=C_INT)                      :: cuDev
 
@@ -153,7 +148,7 @@ MODULE machine_architecture
 
  INTERFACE
   FUNCTION ma_get_netDev(coreId, myRank) RESULT (netDev) BIND(C, name="hw_my_netCard")
-    USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: coreId, myRank
     INTEGER(KIND=C_INT)                      :: netDev
 
@@ -162,7 +157,7 @@ MODULE machine_architecture
 
  INTERFACE
   FUNCTION ma_get_nnetDev(node) RESULT (nnetDev) BIND(C, name="hw_get_nnetcards")
-    USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: node
     INTEGER(KIND=C_INT)                      :: nnetDev
 
@@ -171,7 +166,7 @@ MODULE machine_architecture
 
   INTERFACE
      FUNCTION ma_get_node() RESULT (node) BIND(C, name="hw_my_node")
-       USE ISO_C_BINDING
+       IMPORT
     INTEGER(KIND=C_INT)                      :: node
 
      END FUNCTION ma_get_node
@@ -179,7 +174,7 @@ MODULE machine_architecture
 
   INTERFACE
      FUNCTION ma_get_core_node(core) RESULT (node) BIND(C,name="hw_get_myNode")
-       USE ISO_C_BINDING
+       IMPORT
     INTEGER(KIND=C_INT), VALUE               :: core
     INTEGER(KIND=C_INT)                      :: node
 
@@ -188,7 +183,7 @@ MODULE machine_architecture
 
   INTERFACE
      FUNCTION ma_get_procnode() RESULT (node) BIND(C, name="hw_get_proc_node")
-       USE ISO_C_BINDING
+       IMPORT
     INTEGER(KIND=C_INT)                      :: node
 
      END FUNCTION ma_get_procnode
@@ -196,7 +191,7 @@ MODULE machine_architecture
 
   INTERFACE
     SUBROUTINE ma_set_procnode(node) BIND(C, name="hw_set_proc_node")
-       USE ISO_C_BINDING
+       IMPORT
     INTEGER(KIND=C_INT), VALUE               :: node
 
     END SUBROUTINE ma_set_procnode
@@ -204,7 +199,7 @@ MODULE machine_architecture
 
   INTERFACE
     SUBROUTINE ma_set_thread_node(node) BIND(C, name="hw_set_thread_node")
-       USE ISO_C_BINDING
+       IMPORT
     INTEGER(KIND=C_INT), VALUE               :: node
 
     END SUBROUTINE ma_set_thread_node
@@ -212,13 +207,12 @@ MODULE machine_architecture
 
   INTERFACE
     SUBROUTINE ma_set_thread_allnodes() BIND(C, name="hw_set_thread_allnodes")
-       USE ISO_C_BINDING
     END SUBROUTINE ma_set_thread_allnodes
   END INTERFACE
 
  INTERFACE
     SUBROUTINE ma_set_proc_cores(dist, core) BIND(C, name="hw_set_proc_cores")
-       USE ISO_C_BINDING
+       IMPORT
     INTEGER(KIND=C_INT), VALUE               :: dist, core
 
     END SUBROUTINE ma_set_proc_cores
@@ -226,7 +220,7 @@ MODULE machine_architecture
 
   INTERFACE
     SUBROUTINE ma_set_thread_cores(dist, core) BIND(C, name="hw_set_thread_cores")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: dist, core
 
     END SUBROUTINE ma_set_thread_cores
@@ -234,7 +228,7 @@ MODULE machine_architecture
 
   INTERFACE
       SUBROUTINE ma_set_first_core(node,proc) BIND(C, name="hw_set_first_core_node")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: node, proc
 
      END SUBROUTINE ma_set_first_core
@@ -242,7 +236,7 @@ MODULE machine_architecture
 
   INTERFACE
       SUBROUTINE ma_set_core(cpu) BIND(C, name="hw_set_my_core")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: cpu
 
      END SUBROUTINE ma_set_core
@@ -250,7 +244,7 @@ MODULE machine_architecture
 
   INTERFACE
       FUNCTION ma_get_node_netDev() RESULT (node) BIND(C, name="hw_get_node_net")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: node
 
      END FUNCTION ma_get_node_netDev
@@ -258,7 +252,7 @@ MODULE machine_architecture
 
   INTERFACE
       FUNCTION ma_get_core() RESULT (core) BIND(C, name="hw_my_core")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: core
 
      END FUNCTION ma_get_core
@@ -266,7 +260,7 @@ MODULE machine_architecture
 
   INTERFACE
       SUBROUTINE ma_set_proc_core(cpu) BIND(C, name="hw_set_proc_core")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: cpu
 
      END SUBROUTINE ma_set_proc_core
@@ -274,7 +268,7 @@ MODULE machine_architecture
 
   INTERFACE
       FUNCTION ma_get_first_core() RESULT (core) BIND(C, name="hw_get_firstcore")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: core
 
      END FUNCTION ma_get_first_core
@@ -283,7 +277,7 @@ MODULE machine_architecture
 
   INTERFACE
       FUNCTION ma_get_proccore(flag) RESULT (core) BIND(C, name="hw_get_proc_core")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: flag
     INTEGER(KIND=C_INT)                      :: core
 
@@ -292,7 +286,7 @@ MODULE machine_architecture
 
   INTERFACE
       FUNCTION ma_get_thread_id() RESULT (id) BIND(C, name="hw_get_myid")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: id
 
      END FUNCTION ma_get_thread_id
@@ -300,7 +294,7 @@ MODULE machine_architecture
 
   INTERFACE
      FUNCTION ma_hw_set_mempol(mempol, node) RESULT (error) BIND(C, name="hw_set_mempol")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: mempol, node
     INTEGER(KIND=C_INT)                      :: error
 
@@ -309,7 +303,7 @@ MODULE machine_architecture
 
   INTERFACE
       SUBROUTINE ma_hw_get_mempol(node, mempol) BIND(C, name="hw_get_mempol")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: node, mempol
 
      END SUBROUTINE ma_hw_get_mempol
@@ -317,7 +311,7 @@ MODULE machine_architecture
 
   INTERFACE
    FUNCTION ma_get_gpu_node (gpu) RESULT (node)  BIND(C, name="hw_get_gpu_node")
-    USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: gpu
     INTEGER(KIND=C_INT)                      :: node
 
@@ -332,8 +326,7 @@ MODULE machine_architecture
 #if defined (__LIBNUMA)
   INTERFACE
      FUNCTION ma_init_interface_linux(topo) RESULT (istat) BIND(C, name="linux_topology_init")
-       USE ISO_C_BINDING
-       USE machine_architecture_types,   ONLY: arch_topology
+    IMPORT
     TYPE(arch_topology)                      :: topo
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -342,7 +335,7 @@ MODULE machine_architecture
 
   INTERFACE
     FUNCTION ma_get_cuDev(coreId, myRank, numMPI) RESULT (cuDev) BIND(C,name="linux_my_gpu")
-    USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: coreId, myRank, numMPI
     INTEGER(KIND=C_INT)                      :: cuDev
 
@@ -351,7 +344,7 @@ MODULE machine_architecture
 
   INTERFACE
       SUBROUTINE ma_linux_get_mempol(node, mempol) BIND(C, name="linux_get_mempol")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: node, mempol
 
      END SUBROUTINE ma_linux_get_mempol
@@ -359,7 +352,7 @@ MODULE machine_architecture
 
   INTERFACE
      FUNCTION ma_linux_set_mempol(mempol,node) RESULT (error) BIND(C, name="linux_set_mempol")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: mempol, node
     INTEGER(KIND=C_INT)                      :: error
 
@@ -368,7 +361,7 @@ MODULE machine_architecture
 
   INTERFACE
       FUNCTION ma_linux_get_core() RESULT (core) BIND(C, name="linux_my_core")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: core
 
      END FUNCTION ma_linux_get_core
@@ -376,7 +369,7 @@ MODULE machine_architecture
 
   INTERFACE
       SUBROUTINE ma_linux_set_core(cpu) BIND(C, name="linux_set_my_core")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: cpu
 
      END SUBROUTINE ma_linux_set_core
@@ -384,7 +377,7 @@ MODULE machine_architecture
 
   INTERFACE
       SUBROUTINE ma_linux_set_proccore(cpu) BIND(C, name="linux_set_proc_core")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: cpu
 
      END SUBROUTINE ma_linux_set_proccore
@@ -392,7 +385,7 @@ MODULE machine_architecture
 
   INTERFACE
       FUNCTION ma_linux_get_proccore() RESULT (core) BIND(C, name="linux_proc_core")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: core
 
      END FUNCTION ma_linux_get_proccore
@@ -400,7 +393,7 @@ MODULE machine_architecture
 
   INTERFACE
       FUNCTION ma_linux_get_thread_id() RESULT (id) BIND(C, name="linux_get_myid")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: id
 
      END FUNCTION ma_linux_get_thread_id
@@ -408,7 +401,7 @@ MODULE machine_architecture
 
   INTERFACE
       FUNCTION ma_linux_nnodes() RESULT (nnodes) BIND(C, name="linux_get_nnodes")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: nnodes
 
      END FUNCTION ma_linux_nnodes
@@ -416,7 +409,7 @@ MODULE machine_architecture
 
   INTERFACE
       FUNCTION ma_linux_ncores() RESULT (ncores) BIND(C, name="linux_get_ncores")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: ncores
 
      END FUNCTION ma_linux_ncores
@@ -424,7 +417,7 @@ MODULE machine_architecture
 
   INTERFACE
       FUNCTION ma_linux_get_mynode() RESULT (node) BIND(C, name="linux_get_nodeid")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: node
 
      END FUNCTION ma_linux_get_mynode
@@ -433,7 +426,7 @@ MODULE machine_architecture
 
  INTERFACE
       FUNCTION ma_linux_get_core_node(core) RESULT (node) BIND(C, name="linux_get_nodeid_cpu")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: core
     INTEGER(KIND=C_INT)                      :: node
 
@@ -444,7 +437,7 @@ MODULE machine_architecture
 
 
     SUBROUTINE ma_set_proc_cores(dist, core) BIND(C, name="linux_set_proc_cores")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: dist, core
 
     END SUBROUTINE ma_set_proc_cores
@@ -452,7 +445,7 @@ MODULE machine_architecture
 
   INTERFACE
     SUBROUTINE ma_linux_set_procnode(node) BIND(C, name="linux_set_proc_node")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: node
 
     END SUBROUTINE ma_linux_set_procnode
@@ -460,7 +453,7 @@ MODULE machine_architecture
 
   INTERFACE
    FUNCTION ma_get_gpu_node (gpu) RESULT (node)  BIND(C, name="linux_get_gpu_node")
-    USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), VALUE               :: gpu
     INTEGER(KIND=C_INT)                      :: node
 

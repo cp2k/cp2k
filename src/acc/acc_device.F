@@ -5,7 +5,7 @@
 
 MODULE acc_device
 #if defined (__ACC)
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING,     ONLY: C_INT
 #endif
 
   IMPLICIT NONE
@@ -20,17 +20,17 @@ MODULE acc_device
   INTERFACE
     FUNCTION acc_get_ndevices_cu (n_devices) RESULT (istat) &
           BIND(C, name="acc_get_ndevices")
-       USE ISO_C_BINDING
-    INTEGER(KIND=C_INT), INTENT(OUT)         :: n_devices
-    INTEGER(KIND=C_INT)                      :: istat
+      IMPORT
+      INTEGER(KIND=C_INT), INTENT(OUT)         :: n_devices
+      INTEGER(KIND=C_INT)                      :: istat
 
     END FUNCTION acc_get_ndevices_cu
 
     FUNCTION acc_set_active_device_cu (dev_id) RESULT (istat) &
           BIND(C, name="acc_set_active_device")
-       USE ISO_C_BINDING
-    INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: dev_id
-    INTEGER(KIND=C_INT)                      :: istat
+      IMPORT
+      INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: dev_id
+      INTEGER(KIND=C_INT)                      :: istat
 
     END FUNCTION acc_set_active_device_cu
   END INTERFACE

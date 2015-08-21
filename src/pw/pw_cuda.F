@@ -18,7 +18,10 @@
 !> \author Benjamin G. Levine
 ! *****************************************************************************
 MODULE pw_cuda
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
+                                             C_INT,&
+                                             C_LOC,&
+                                             C_PTR
   USE fast,                            ONLY: zero_c
   USE fft_tools,                       ONLY: &
        cube_transpose_1, cube_transpose_2, fft_scratch_sizes, &
@@ -63,7 +66,7 @@ MODULE pw_cuda
 ! *****************************************************************************
     SUBROUTINE pw_cuda_cfffg_z(din, zout, ghatmap, npts, ngpts, scale)&
       BIND(C, name="pw_cuda_cfffg_z_")
-      USE ISO_C_BINDING
+      IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: din
     TYPE(C_PTR), VALUE                       :: zout
     TYPE(C_PTR), INTENT(IN), VALUE           :: ghatmap
@@ -88,7 +91,7 @@ MODULE pw_cuda
 ! *****************************************************************************
     SUBROUTINE pw_cuda_sfffc_z(zin, dout, ghatmap, npts, ngpts, nmaps, scale)&
       BIND(C, name="pw_cuda_sfffc_z_")
-      USE ISO_C_BINDING
+      IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: zin
     TYPE(C_PTR), VALUE                       :: dout
     TYPE(C_PTR), INTENT(IN), VALUE           :: ghatmap
@@ -109,7 +112,7 @@ MODULE pw_cuda
 ! *****************************************************************************
     SUBROUTINE pw_cuda_cff_z(din, zout, npts)&
       BIND(C, name="pw_cuda_cff_z_")
-      USE ISO_C_BINDING
+      IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: din
     TYPE(C_PTR), VALUE                       :: zout
     INTEGER(KIND=C_INT), DIMENSION(*), &
@@ -127,7 +130,7 @@ MODULE pw_cuda
 ! *****************************************************************************
     SUBROUTINE pw_cuda_ffc_z(zin, dout, npts)&
       BIND(C, name="pw_cuda_ffc_z_")
-      USE ISO_C_BINDING
+      IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: zin
     TYPE(C_PTR), VALUE                       :: dout
     INTEGER(KIND=C_INT), DIMENSION(*), &
@@ -145,7 +148,7 @@ MODULE pw_cuda
 ! *****************************************************************************
     SUBROUTINE pw_cuda_cf_z(din, zout, npts)&
       BIND(C, name="pw_cuda_cf_z_")
-      USE ISO_C_BINDING
+      IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: din
     TYPE(C_PTR), VALUE                       :: zout
     INTEGER(KIND=C_INT), DIMENSION(*), &
@@ -163,7 +166,7 @@ MODULE pw_cuda
 ! *****************************************************************************
     SUBROUTINE pw_cuda_fc_z(zin, dout, npts)&
       BIND(C, name="pw_cuda_fc_z_")
-      USE ISO_C_BINDING
+      IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: zin
     TYPE(C_PTR), VALUE                       :: dout
     INTEGER(KIND=C_INT), DIMENSION(*), &
@@ -183,7 +186,7 @@ MODULE pw_cuda
 ! *****************************************************************************
     SUBROUTINE pw_cuda_f_z(zin, zout, dir, n, m)&
       BIND(C, name="pw_cuda_f_z_")
-      USE ISO_C_BINDING
+      IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: zin
     TYPE(C_PTR), VALUE                       :: zout
     INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: dir, n, m
@@ -204,7 +207,7 @@ MODULE pw_cuda
 ! *****************************************************************************
     SUBROUTINE pw_cuda_fg_z(zin, zout, ghatmap, npts, mmax, ngpts, scale)&
       BIND(C, name="pw_cuda_fg_z_")
-      USE ISO_C_BINDING
+      IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: zin
     TYPE(C_PTR), VALUE                       :: zout
     TYPE(C_PTR), INTENT(IN), VALUE           :: ghatmap
@@ -230,7 +233,7 @@ MODULE pw_cuda
 ! *****************************************************************************
     SUBROUTINE pw_cuda_sf_z(zin, zout, ghatmap, npts, mmax, ngpts, nmaps, scale)&
       BIND(C, name="pw_cuda_sf_z_")
-      USE ISO_C_BINDING
+      IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: zin
     TYPE(C_PTR), VALUE                       :: zout
     TYPE(C_PTR), INTENT(IN), VALUE           :: ghatmap

@@ -24,7 +24,11 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE fft_tools
-
+  USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
+                                             C_INT,&
+                                             C_LOC,&
+                                             C_PTR,&
+                                             C_SIZE_T
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE fast,                            ONLY: zero_c
   USE fft_lib,                         ONLY: &
@@ -160,7 +164,7 @@ MODULE fft_tools
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
     INTERFACE
       INTEGER(KIND=C_INT) FUNCTION cudaFreeHost(buffer)  BIND(C, name="cudaFreeHost")
-        USE ISO_C_BINDING
+        USE ISO_C_BINDING, ONLY: C_INT
         IMPLICIT NONE
         TYPE(C_PTR), VALUE :: buffer
       END FUNCTION cudaFreeHost
@@ -168,7 +172,7 @@ MODULE fft_tools
 
      INTERFACE
       INTEGER(KIND=C_INT) FUNCTION cudaHostAlloc(buffer, length, flag) BIND(C, name="cudaHostAlloc")
-        USE ISO_C_BINDING
+        USE ISO_C_BINDING, ONLY: C_SIZE_T, C_INT
         IMPLICIT NONE
         TYPE(C_PTR)                   :: buffer
         INTEGER(KIND=C_SIZE_T), VALUE :: length
@@ -2708,9 +2712,6 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE deallocate_fft_scratch_type(fft_scratch,error)
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
-    USE ISO_C_BINDING
-#endif
     TYPE(fft_scratch_type), INTENT(INOUT)    :: fft_scratch
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -3057,10 +3058,6 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE get_fft_scratch(fft_scratch,tf_type,n,fft_sizes,error)
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
-    USE ISO_C_BINDING
-#endif
-
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
     INTEGER, INTENT(IN)                      :: tf_type
     INTEGER, DIMENSION(:), INTENT(IN)        :: n

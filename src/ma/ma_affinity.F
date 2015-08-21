@@ -14,7 +14,7 @@
 !> - Created 2011-11-08
 ! *****************************************************************************
 MODULE ma_affinity
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING,                   ONLY: C_INT
   USE ma_config,                       ONLY: &
        hasnet, isdefault, ma_get_conf_mempol, ma_get_conf_mpisched, memory, &
        print_proc, print_thread, process, thread

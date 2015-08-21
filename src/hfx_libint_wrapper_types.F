@@ -11,8 +11,8 @@
 ! *****************************************************************************
 MODULE hfx_libint_wrapper_types
 
-  USE, INTRINSIC :: ISO_C_BINDING
-  USE kinds,                           ONLY: dp, int_8
+  USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
+                                             C_PTR
 
   IMPLICIT NONE
   PRIVATE

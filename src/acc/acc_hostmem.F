@@ -10,7 +10,7 @@
 ! *****************************************************************************
 MODULE acc_hostmem
 #if defined (__ACC)
-  USE ISO_C_BINDING
+    USE ISO_C_BINDING, ONLY: C_INT, C_SIZE_T, C_PTR, C_LOC, C_NULL_PTR
 #endif
   USE acc_kinds,                       ONLY: int_4,&
                                              int_4_size,&
@@ -72,7 +72,7 @@ MODULE acc_hostmem
 
   INTERFACE
      FUNCTION cuda_host_mem_alloc_cu(mem, n, stream_ptr) RESULT (istat) BIND(C, name="acc_host_mem_allocate")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR)                              :: mem
     INTEGER(KIND=C_SIZE_T), INTENT(IN), &
       VALUE                                  :: n
@@ -84,7 +84,7 @@ MODULE acc_hostmem
 
   INTERFACE
      FUNCTION cuda_host_mem_dealloc_cu(mem, stream_ptr) RESULT (istat) bind(C, name="acc_host_mem_deallocate")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), VALUE                       :: mem, stream_ptr
     INTEGER(KIND=C_INT)                      :: istat
 

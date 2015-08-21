@@ -31,7 +31,6 @@ MODULE replica_types
                                              f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
-  USE iso_c_binding
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE message_passing,                 ONLY: mp_sum

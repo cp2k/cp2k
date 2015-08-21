@@ -10,6 +10,10 @@
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE cuda_profiling
+  USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+                                             C_INT,&
+                                             C_NULL_CHAR,&
+                                             C_SIZE_T
   USE kinds,                           ONLY: default_string_length,&
                                              int_8
 
@@ -26,7 +30,7 @@ MODULE cuda_profiling
   INTERFACE
      FUNCTION cuda_nvtx_range_push_dc(message) RESULT(level) &
        BIND(C, name="cuda_nvtx_range_push_cu") 
-       USE ISO_C_BINDING
+       IMPORT
     CHARACTER(kind=C_CHAR), DIMENSION(*), &
       INTENT(IN)                             :: message
     INTEGER(KIND=C_INT)                      :: level
@@ -37,7 +41,7 @@ MODULE cuda_profiling
   INTERFACE
      FUNCTION cuda_nvtx_range_pop_dc() RESULT(level) &
        BIND(C, name="cuda_nvtx_range_pop_cu") 
-       USE ISO_C_BINDING
+       IMPORT
     INTEGER(KIND=C_INT)                      :: level
 
      END FUNCTION cuda_nvtx_range_pop_dc
@@ -46,7 +50,7 @@ MODULE cuda_profiling
   INTERFACE
     FUNCTION cudaMemGetInfo_cu (free, total) RESULT(istat) &
       BIND(C, name="cudaMemGetInfo")
-      USE ISO_C_BINDING
+      IMPORT
     INTEGER(KIND=C_SIZE_T), INTENT(INOUT)    :: free, total
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -56,7 +60,7 @@ MODULE cuda_profiling
   INTERFACE
      SUBROUTINE cuda_nvtx_name_osthread_cu(name)&
           BIND(C, name="cuda_nvtx_name_osthread_cu")
-        USE ISO_C_BINDING
+        IMPORT
     CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: name
 
      END SUBROUTINE cuda_nvtx_name_osthread_cu
@@ -73,7 +77,6 @@ MODULE cuda_profiling
 ! *****************************************************************************
  SUBROUTINE cuda_nvtx_init()
 #if defined( __CUDA_PROFILING )
-    USE ISO_C_BINDING
     CHARACTER(len=default_string_length)     :: threadname
     INTEGER                                  :: ithread
 
@@ -119,7 +122,6 @@ MODULE cuda_profiling
 !> \param total ...
 ! *****************************************************************************
   SUBROUTINE cuda_mem_info(free, total)
-    USE ISO_C_BINDING
     INTEGER(KIND=int_8), INTENT(OUT)         :: free, total
 #if defined( __CUDA_PROFILING )
     INTEGER(KIND=C_INT)                      :: istat

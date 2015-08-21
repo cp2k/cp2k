@@ -15,6 +15,13 @@
 ! *****************************************************************************
 MODULE transport
 
+  USE ISO_C_BINDING,                   ONLY: C_ASSOCIATED,&
+                                             C_DOUBLE,&
+                                             C_F_PROCPOINTER,&
+                                             C_INT,&
+                                             C_LOC,&
+                                             C_NULL_PTR,&
+                                             C_PTR
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
   USE cp_dbcsr_interface,              ONLY: &
        cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr, cp_csr_create, &
@@ -40,9 +47,6 @@ MODULE transport
                                              csr_interop_matrix_get_info,&
                                              csr_interop_nullify,&
                                              transport_env_type
-
-  USE, INTRINSIC :: ISO_C_BINDING,     ONLY: C_ASSOCIATED, C_LOC, C_F_PROCPOINTER, &
-                                             C_PTR, C_NULL_PTR, C_DOUBLE, C_INT
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

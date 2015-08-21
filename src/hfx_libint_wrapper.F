@@ -12,18 +12,22 @@
 ! *****************************************************************************
 MODULE hfx_libint_wrapper
 
-  USE, INTRINSIC :: ISO_C_BINDING
-  USE kinds,                           ONLY: dp
-  USE hfx_libint_wrapper_types,        ONLY: lib_int,&
-                                             lib_deriv,&
-                                             prim_data,&
+  USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
+                                             C_F_POINTER,&
+                                             C_F_PROCPOINTER,&
+                                             C_INT,&
+                                             C_LOC,&
+                                             C_PTR,&
+                                             c_funptr
+  USE hfx_libint_wrapper_types,        ONLY: build_deriv1_eri_size,&
                                              build_eri_size,&
-                                             build_deriv1_eri_size,&
+                                             lib_deriv,&
+                                             lib_int,&
+                                             libderiv_max_am1,&
                                              libint_max_am,&
-                                             libderiv_max_am1
+                                             prim_data
+  USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: nco
-
-
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

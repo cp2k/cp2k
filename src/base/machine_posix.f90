@@ -9,7 +9,7 @@
 ! *****************************************************************************
   USE kinds,                           ONLY: dp, int_8, default_path_length,&
                                              default_string_length
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING, ONLY: C_INT, C_NULL_CHAR, C_CHAR, C_PTR, C_NULL_PTR, C_ASSOCIATED, C_F_POINTER
 
   IMPLICIT NONE
   PRIVATE
@@ -29,7 +29,6 @@ CONTAINS
   SUBROUTINE m_abort()
     INTERFACE
       SUBROUTINE abort() BIND(C,name="abort")
-        USE ISO_C_BINDING
       END SUBROUTINE
     END INTERFACE
 
@@ -78,7 +77,7 @@ CONTAINS
 
     INTERFACE
       FUNCTION kill(pid, sig) BIND(C,name="kill") RESULT(errno)
-        USE ISO_C_BINDING
+        IMPORT
         INTEGER(KIND=C_INT),VALUE                :: pid, sig
         INTEGER(KIND=C_INT)                      :: errno
       END FUNCTION
@@ -119,7 +118,7 @@ CONTAINS
       ! the size of a page, might not be available everywhere
       INTERFACE
        FUNCTION getpagesize() BIND(C,name="getpagesize") RESULT(RES)
-         USE ISO_C_BINDING
+         IMPORT
          INTEGER(C_INT) :: RES
        END FUNCTION
       END INTERFACE
@@ -236,7 +235,7 @@ CONTAINS
 
     INTERFACE
       FUNCTION unlink(path) BIND(C,name="unlink") RESULT(errno)
-        USE ISO_C_BINDING
+        IMPORT
         CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: path
         INTEGER(KIND=C_INT)                      :: errno
       END FUNCTION
@@ -244,7 +243,7 @@ CONTAINS
 
     INTERFACE
       FUNCTION rename(src, dest) BIND(C,name="rename") RESULT(errno)
-        USE ISO_C_BINDING
+        IMPORT
         CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: src, dest
         INTEGER(KIND=C_INT)                      :: errno
       END FUNCTION
@@ -279,7 +278,7 @@ CONTAINS
 
     INTERFACE
       FUNCTION  gethostname(buf, buflen) BIND(C,name="gethostname") RESULT(errno)
-        USE ISO_C_BINDING
+        IMPORT
         CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: buf
         INTEGER(KIND=C_INT), VALUE               :: buflen
         INTEGER(KIND=C_INT)                      :: errno
@@ -303,7 +302,7 @@ CONTAINS
 
     INTERFACE
       FUNCTION  getcwd(buf, buflen) BIND(C,name="getcwd") RESULT(stat)
-        USE ISO_C_BINDING
+        IMPORT
         CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: buf
         INTEGER(KIND=C_INT), VALUE               :: buflen
         TYPE(C_PTR)                              :: stat
@@ -325,7 +324,7 @@ CONTAINS
 
     INTERFACE
       FUNCTION chdir(path) BIND(C,name="chdir") RESULT(errno)
-        USE ISO_C_BINDING
+        IMPORT
         CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: path
         INTEGER(KIND=C_INT)                      :: errno
       END FUNCTION
@@ -357,7 +356,7 @@ CONTAINS
 
     INTERFACE
      FUNCTION getpwuid(uid) BIND(C,name="getpwuid") RESULT(result)
-       USE ISO_C_BINDING
+       IMPORT
        INTEGER(KIND=C_INT), VALUE               :: uid
        TYPE(C_PTR)                              :: result
      END FUNCTION
@@ -394,7 +393,7 @@ CONTAINS
 
    INTERFACE
      FUNCTION getuid() BIND(C,name="getuid") RESULT(uid)
-       USE ISO_C_BINDING
+       IMPORT
        INTEGER(KIND=C_INT)              :: uid
      END FUNCTION
    END INTERFACE
@@ -410,7 +409,7 @@ CONTAINS
 
    INTERFACE
      FUNCTION getpid() BIND(C,name="getpid") RESULT(pid)
-       USE ISO_C_BINDING
+       IMPORT
        INTEGER(KIND=C_INT)              :: pid
      END FUNCTION
    END INTERFACE

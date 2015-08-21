@@ -10,7 +10,7 @@
 ! *****************************************************************************
 MODULE acc_event
 #if defined (__ACC)
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING, ONLY: C_INT, C_NULL_PTR, C_PTR, C_ASSOCIATED, C_NULL_PTR
 #endif
   USE acc_stream,                      ONLY: acc_stream_cptr,&
                                              acc_stream_type
@@ -40,7 +40,7 @@ MODULE acc_event
 
   INTERFACE
      FUNCTION cuda_event_create(event_ptr) RESULT (istat) BIND(C, name="acc_event_create")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR)                              :: event_ptr
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -49,7 +49,7 @@ MODULE acc_event
 
   INTERFACE
      FUNCTION cuda_event_destroy(event_ptr) RESULT (istat) BIND(C, name="acc_event_destroy")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), VALUE                       :: event_ptr
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -58,7 +58,7 @@ MODULE acc_event
 
   INTERFACE
      FUNCTION cuda_event_query(event_ptr, has_occured) RESULT (istat) BIND(C, name="acc_event_query")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), VALUE                       :: event_ptr
     INTEGER(KIND=C_INT)                      :: has_occured, istat
 
@@ -67,7 +67,7 @@ MODULE acc_event
 
   INTERFACE
      FUNCTION cuda_event_record(event_ptr, stream_ptr) RESULT (istat) BIND(C, name="acc_event_record")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), VALUE                       :: event_ptr, stream_ptr
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -76,7 +76,7 @@ MODULE acc_event
 
   INTERFACE
      FUNCTION cuda_stream_wait_event(stream_ptr, event_ptr) RESULT (istat) BIND(C, name="acc_stream_wait_event")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), VALUE                       :: stream_ptr, event_ptr
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -85,7 +85,7 @@ MODULE acc_event
 
   INTERFACE
      FUNCTION cuda_event_synchronize(event_ptr) RESULT (istat) BIND(C, name="acc_event_synchronize")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), VALUE                       :: event_ptr
     INTEGER(KIND=C_INT)                      :: istat
 

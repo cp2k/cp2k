@@ -14,6 +14,13 @@
 ! *****************************************************************************
 MODULE transport_env_types
 
+  USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
+                                             C_FUNPTR,&
+                                             C_F_POINTER,&
+                                             C_INT,&
+                                             C_NULL_FUNPTR,&
+                                             C_NULL_PTR,&
+                                             C_PTR
   USE cp_dbcsr_interface,              ONLY: cp_csr_destroy,&
                                              cp_dbcsr_release,&
                                              cp_dbcsr_type,&
@@ -21,11 +28,6 @@ MODULE transport_env_types
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-
-  USE, INTRINSIC :: ISO_C_BINDING,     ONLY: C_DOUBLE, C_INT, &
-                                             C_NULL_PTR, C_NULL_FUNPTR, &
-                                             C_PTR, C_FUNPTR, &
-                                             C_F_POINTER
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE

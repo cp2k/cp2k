@@ -10,7 +10,7 @@
 ! *****************************************************************************
 MODULE acc_stream
 #if defined (__ACC)
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING, ONLY: C_INT, C_CHAR, C_PTR, C_NULL_PTR, C_NULL_CHAR, C_ASSOCIATED
 #endif
 
   IMPLICIT NONE
@@ -39,7 +39,7 @@ MODULE acc_stream
 
   INTERFACE
      FUNCTION cuda_stream_create(stream_ptr, name, priority) RESULT (istat) BIND(C, name="acc_stream_create")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR)                              :: stream_ptr
     CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: name
     INTEGER(KIND=C_INT), VALUE               :: priority
@@ -50,7 +50,7 @@ MODULE acc_stream
 
   INTERFACE
      FUNCTION cuda_stream_priority_range(least, greatest) RESULT (istat) BIND(C, name="acc_stream_priority_range")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT)                      :: least, greatest, istat
 
     END FUNCTION cuda_stream_priority_range
@@ -58,7 +58,7 @@ MODULE acc_stream
 
   INTERFACE
      FUNCTION cuda_stream_destroy(stream_ptr) RESULT (istat) BIND(C, name="acc_stream_destroy")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), VALUE                       :: stream_ptr
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -67,7 +67,7 @@ MODULE acc_stream
 
   INTERFACE
     FUNCTION cuda_stream_sync(stream_ptr) RESULT (istat) BIND(C, name="acc_stream_sync")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), VALUE                       :: stream_ptr
     INTEGER(KIND=C_INT)                      :: istat
 

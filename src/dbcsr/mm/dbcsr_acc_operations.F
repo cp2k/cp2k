@@ -14,7 +14,8 @@
 !> - 2014-04, Ole Schuett: generalized into acc-framework
 ! *****************************************************************************
 MODULE dbcsr_acc_operations
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING,                   ONLY: C_INT,&
+                                             C_PTR
   USE acc_devmem,                      ONLY: acc_devmem_cptr,&
                                              acc_devmem_type
   USE acc_stream,                      ONLY: acc_stream_cptr,&
@@ -45,7 +46,7 @@ MODULE dbcsr_acc_operations
           stream_ptr)&
           RESULT (istat) &
           BIND(C, name="libsmm_acc_process")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: param_stack
     INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: stack_size, nparams, data_type
     TYPE(C_PTR), INTENT(IN), VALUE           :: a_data, b_data, c_data
@@ -60,7 +61,7 @@ MODULE dbcsr_acc_operations
      FUNCTION libsmm_acc_transpose_cu(trs_stack, offset, nblks, buffer, data_type, m, n, stream_ptr)&
           RESULT (istat) &
           BIND(C, name="libsmm_acc_transpose")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: trs_stack
     INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: offset, nblks
     TYPE(C_PTR), INTENT(IN), VALUE           :: buffer

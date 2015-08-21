@@ -14,7 +14,7 @@
 ! *****************************************************************************
 MODULE ma_topology
 
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING,                   ONLY: C_INT
   USE ma_errors,                       ONLY: ma_error_allocation,&
                                              ma_error_database,&
                                              ma_error_option,&
@@ -80,7 +80,7 @@ IMPLICIT NONE
 
   INTERFACE
      FUNCTION ma_extract_topology() RESULT (istat) BIND(C, name="extract_topology")
-       USE ISO_C_BINDING
+       IMPORT
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION ma_extract_topology
@@ -88,7 +88,7 @@ IMPLICIT NONE
 
   INTERFACE
      FUNCTION ma_remove_topology() RESULT (istat) BIND(C, name="remove_topology")
-       USE ISO_C_BINDING
+       IMPORT
     INTEGER(KIND=C_INT)                      :: istat
 
      END FUNCTION ma_remove_topology
@@ -96,7 +96,7 @@ IMPLICIT NONE
 
   INTERFACE 
    FUNCTION ma_get_job_alloc_strategy() RESULT(istat) BIND(C,name="get_job_alloc_strategy")
-       USE ISO_C_BINDING
+       IMPORT
     INTEGER(KIND=C_INT)                      :: istat
 
    END FUNCTION ma_get_job_alloc_strategy 

@@ -20,7 +20,6 @@
 
 
 MODULE dbcsr_mm_accdrv
-  USE ISO_C_BINDING
   USE acc_devmem,                      ONLY: acc_devmem_allocate_bytes,&
                                              acc_devmem_allocated,&
                                              acc_devmem_deallocate,&
@@ -427,7 +426,6 @@ MODULE dbcsr_mm_accdrv
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_accdrv_finalize(this, error)
-    USE ISO_C_BINDING
     TYPE(dbcsr_mm_accdrv_type), &
       INTENT(INOUT)                          :: this
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error

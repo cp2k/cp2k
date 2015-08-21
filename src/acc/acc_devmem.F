@@ -10,7 +10,7 @@
 ! *****************************************************************************
 MODULE acc_devmem
 #if  defined (__ACC)
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING, ONLY: C_INT, C_SIZE_T, C_PTR, C_LOC, C_NULL_PTR
 #endif
   USE acc_kinds,                       ONLY: int_4,&
                                              int_4_size,&
@@ -77,7 +77,7 @@ MODULE acc_devmem
 
   INTERFACE
      FUNCTION dc_dev_mem_info_cu(free, avail) RESULT (istat) BIND(C, name="acc_dev_mem_info")
-       USE ISO_C_BINDING
+    IMPORT
     INTEGER(KIND=C_INT), INTENT(OUT)         :: free, avail
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -86,7 +86,7 @@ MODULE acc_devmem
 
   INTERFACE
      FUNCTION dc_dev_mem_alloc(mem, n) RESULT (istat) BIND(C, name="acc_dev_mem_allocate")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR)                              :: mem
     INTEGER(KIND=C_SIZE_T), INTENT(IN), &
       VALUE                                  :: n
@@ -97,7 +97,7 @@ MODULE acc_devmem
 
   INTERFACE
      FUNCTION dc_dev_mem_dealloc(mem) RESULT (istat) BIND(C, name="acc_dev_mem_deallocate")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), VALUE                       :: mem
     INTEGER(KIND=C_INT)                      :: istat
 
@@ -106,7 +106,7 @@ MODULE acc_devmem
 
   INTERFACE
      FUNCTION dc_memzero_cu(this, offset, length, stream_ptr) RESULT (istat) BIND(C, name="acc_memset_zero")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: this
     INTEGER(KIND=C_SIZE_T), INTENT(IN), &
       VALUE                                  :: offset, length
@@ -119,7 +119,7 @@ MODULE acc_devmem
   INTERFACE
      FUNCTION dc_memcpy_h2d_cu(host, dev, count, stream_ptr) RESULT (istat) &
           BIND(C, name="acc_memcpy_h2d")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: host
     TYPE(C_PTR), VALUE                       :: dev
     INTEGER(KIND=C_SIZE_T), INTENT(IN), &
@@ -133,7 +133,7 @@ MODULE acc_devmem
   INTERFACE
      FUNCTION dc_memcpy_d2h_cu(dev, host, count, stream_ptr) RESULT (istat) &
           BIND(C, name="acc_memcpy_d2h")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: dev
     TYPE(C_PTR), VALUE                       :: host
     INTEGER(KIND=C_SIZE_T), INTENT(IN), &
@@ -147,7 +147,7 @@ MODULE acc_devmem
   INTERFACE
      FUNCTION dc_memcpy_d2d_cu(dev_src, dev_dst, count, stream_ptr) RESULT (istat) &
           BIND(C, name="acc_memcpy_d2d")
-       USE ISO_C_BINDING
+    IMPORT
     TYPE(C_PTR), INTENT(IN), VALUE           :: dev_src
     TYPE(C_PTR), VALUE                       :: dev_dst
     INTEGER(KIND=C_SIZE_T), INTENT(IN), &

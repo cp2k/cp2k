@@ -14,7 +14,8 @@
 !> - Created 2011-08-09
 ! *****************************************************************************
 MODULE machine_architecture_types
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+                                             C_INT
 
  IMPLICIT NONE
 

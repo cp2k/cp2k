@@ -10,6 +10,11 @@
 !> \author Michele Ceriotti 03.2012
 ! *****************************************************************************
 MODULE ipi_driver
+  USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+                                             C_DOUBLE,&
+                                             C_INT,&
+                                             C_LOC,&
+                                             C_PTR
   USE cell_types,                      ONLY: cell_create,&
                                              cell_type,&
                                              init_cell
@@ -25,7 +30,6 @@ MODULE ipi_driver
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE iso_c_binding
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -59,26 +63,26 @@ MODULE ipi_driver
 
   INTERFACE
     SUBROUTINE open_socket(psockfd, inet, port, host) BIND(C)
-      USE ISO_C_BINDING
-    INTEGER(KIND=C_INT)                      :: psockfd, inet, port
-    CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: host
+      IMPORT
+      INTEGER(KIND=C_INT)                      :: psockfd, inet, port
+      CHARACTER(KIND=C_CHAR), DIMENSION(*)     :: host
 
     END SUBROUTINE open_socket
 
     
     SUBROUTINE writebuffer_csocket(psockfd, pdata, plen) BIND(C, name="writebuffer")
-      USE ISO_C_BINDING
-    INTEGER(KIND=C_INT)                      :: psockfd
-    TYPE(C_PTR), VALUE                       :: pdata
-    INTEGER(KIND=C_INT)                      :: plen
+      IMPORT
+      INTEGER(KIND=C_INT)                      :: psockfd
+      TYPE(C_PTR), VALUE                       :: pdata
+      INTEGER(KIND=C_INT)                      :: plen
 
     END SUBROUTINE writebuffer_csocket       
 
     SUBROUTINE readbuffer_csocket(psockfd, pdata, plen) BIND(C, name="readbuffer")
-      USE ISO_C_BINDING
-    INTEGER(KIND=C_INT)                      :: psockfd
-    TYPE(C_PTR), VALUE                       :: pdata
-    INTEGER(KIND=C_INT)                      :: plen
+      IMPORT
+      INTEGER(KIND=C_INT)                      :: psockfd
+      TYPE(C_PTR), VALUE                       :: pdata
+      INTEGER(KIND=C_INT)                      :: plen
 
     END SUBROUTINE readbuffer_csocket   
   END INTERFACE
@@ -91,7 +95,6 @@ MODULE ipi_driver
 !> \param fdata ...
 ! *****************************************************************************
   SUBROUTINE writebuffer_d (psockfd, fdata)
-      USE ISO_C_BINDING
     INTEGER, INTENT(IN)                      :: psockfd
     REAL(KIND=dp), INTENT(IN)                :: fdata
 
@@ -107,7 +110,6 @@ MODULE ipi_driver
 !> \param fdata ...
 ! *****************************************************************************
   SUBROUTINE writebuffer_i (psockfd, fdata)
-      USE ISO_C_BINDING
     INTEGER, INTENT(IN)                      :: psockfd, fdata
 
     INTEGER(KIND=C_INT), TARGET              :: cdata
@@ -123,7 +125,6 @@ MODULE ipi_driver
 !> \param plen ...
 ! *****************************************************************************
   SUBROUTINE writebuffer_s (psockfd, fstring, plen)
-      USE ISO_C_BINDING
     INTEGER, INTENT(IN)                      :: psockfd
     CHARACTER(LEN=*), INTENT(IN)             :: fstring
     INTEGER, INTENT(IN)                      :: plen
@@ -144,7 +145,6 @@ MODULE ipi_driver
 !> \param plen ...
 ! *****************************************************************************
   SUBROUTINE writebuffer_dv(psockfd, fdata, plen)
-      USE ISO_C_BINDING  
     INTEGER, INTENT(IN)                      :: psockfd, plen
     REAL(KIND=dp), INTENT(IN), TARGET        :: fdata(plen)
 
@@ -157,7 +157,6 @@ MODULE ipi_driver
 !> \param fdata ...
 ! *****************************************************************************
   SUBROUTINE readbuffer_d (psockfd, fdata)
-      USE ISO_C_BINDING
     INTEGER, INTENT(IN)                      :: psockfd
     REAL(KIND=dp), INTENT(OUT)               :: fdata
 
@@ -173,7 +172,6 @@ MODULE ipi_driver
 !> \param fdata ...
 ! *****************************************************************************
   SUBROUTINE readbuffer_i (psockfd, fdata)
-      USE ISO_C_BINDING
     INTEGER, INTENT(IN)                      :: psockfd
     INTEGER, INTENT(OUT)                     :: fdata
 
@@ -190,7 +188,6 @@ MODULE ipi_driver
 !> \param plen ...
 ! *****************************************************************************
   SUBROUTINE readbuffer_s (psockfd, fstring, plen)
-      USE ISO_C_BINDING
     INTEGER, INTENT(IN)                      :: psockfd
     CHARACTER(LEN=*), INTENT(OUT)            :: fstring
     INTEGER, INTENT(IN)                      :: plen
@@ -213,7 +210,6 @@ MODULE ipi_driver
 !> \param plen ...
 ! *****************************************************************************
   SUBROUTINE readbuffer_dv(psockfd, fdata, plen)
-      USE ISO_C_BINDING  
     INTEGER, INTENT(IN)                      :: psockfd, plen
     REAL(KIND=dp), INTENT(OUT), TARGET       :: fdata(plen)
 

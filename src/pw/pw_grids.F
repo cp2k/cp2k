@@ -32,7 +32,11 @@
 !>      CJM
 ! *****************************************************************************
 MODULE pw_grids
-  USE ISO_C_BINDING
+  USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
+                                             C_INT,&
+                                             C_LOC,&
+                                             C_PTR,&
+                                             C_SIZE_T
   USE kinds,                           ONLY: dp,&
                                              int_8,&
                                              int_size
@@ -74,7 +78,7 @@ MODULE pw_grids
     INTERFACE
       INTEGER(C_INT) FUNCTION cudaHostAlloc(buffer, length, flag) &
        BIND(C, name="cudaHostAlloc")
-        USE ISO_C_BINDING
+        IMPORT
         IMPLICIT NONE
         TYPE(C_PTR)              :: buffer
         INTEGER(C_SIZE_T), VALUE :: length
@@ -84,7 +88,7 @@ MODULE pw_grids
 
     INTERFACE
       INTEGER(C_INT) FUNCTION cudaFreeHost(buffer)  BIND(C, name="cudaFreeHost")
-        USE ISO_C_BINDING
+        IMPORT 
         IMPLICIT NONE
         TYPE(C_PTR), VALUE :: buffer
       END FUNCTION cudaFreeHost
@@ -2369,10 +2373,6 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 !>      see doc/ReferenceCounting.html
 ! *****************************************************************************
   SUBROUTINE pw_grid_release(pw_grid, error)
-
-#if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
-    USE ISO_C_BINDING
-#endif
 
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(cp_error_type), INTENT(inout)       :: error

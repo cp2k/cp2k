@@ -40,7 +40,6 @@ MODULE replica_methods
                                              section_vals_val_get,&
                                              section_vals_val_set,&
                                              section_vals_write
-  USE iso_c_binding
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE message_passing,                 ONLY: MPI_COMM_NULL,&
