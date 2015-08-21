@@ -108,8 +108,8 @@ CONTAINS
                                              shortform=shortform,&
                                              ifunc_name=ifunc_name,&
                                              error=error)
-               WRITE (output_unit, fmt="(A,i1,A,i1,A)") ' FUNCTIONAL| LIBXC version ', vmajor, ".", vminor, &
-                      ' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))'
+                 WRITE (output_unit, fmt="(A,i1,A,i1,A,i1,A)") ' FUNCTIONAL| LIBXC Vers. ', vmajor, ".", vminor, &
+                        ".", vmicro,' (Marques, Oliveira, Burnus, CPC 183, 2272 (2012))'
                  WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')") TRIM(shortform)
                  il = LEN_TRIM(reference)
                  IF (il < 67) THEN
