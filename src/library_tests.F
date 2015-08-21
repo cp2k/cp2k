@@ -168,7 +168,7 @@ CONTAINS
     IF ( runtest ( 5 ) /= 0 ) CALL matmul_test ( para_env,test_matmul=.FALSE.,test_dgemm=.TRUE.,iw=iw)
     !
     IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw, globenv%fftw_plan_type, &
-                                              error=error )
+                                              globenv%fftw_wisdom_file_name, error=error )
     !
     IF ( runtest ( 4 ) /= 0 ) CALL eri_test ( iw, error )
     !
@@ -176,7 +176,7 @@ CONTAINS
     !
     ! runtest 7 has been deleted and can be recycled
     !
-    IF ( runtest ( 8 ) /= 0 ) CALL mpi_perf_test ( para_env%group, runtest ( 8 ) )
+    IF ( runtest ( 8 ) /= 0 ) CALL mpi_perf_test ( para_env%group, runtest ( 8 ), iw )
     !
     IF ( runtest ( 9 ) /= 0 ) CALL rng_test( para_env, iw, error)
     !
@@ -568,15 +568,17 @@ CONTAINS
 !> \param para_env ...
 !> \param iw ...
 !> \param fftw_plan_type ...
+!> \param wisdom_file ...
 !> \param error ...
 !> \par History
 !>      none
 !> \author JGH  6-NOV-2000
 ! *****************************************************************************
-  SUBROUTINE fft_test ( para_env, iw, fftw_plan_type, error )
+  SUBROUTINE fft_test ( para_env, iw, fftw_plan_type, wisdom_file, error )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: iw, fftw_plan_type
+    CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: iall, ierr, it, j, len, n(3), &
@@ -605,14 +607,14 @@ CONTAINS
        CASE DEFAULT
           EXIT
        CASE ( 1 )
-          CALL init_fft ( "FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+          CALL init_fft ( "FFTSG", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file=wisdom_file, &
                           pool_limit=10, plan_style=fftw_plan_type, &
                           error=error )
           method = "FFTSG  "
        CASE ( 2 )
           CYCLE
        CASE ( 3 )
-          CALL init_fft ( "FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file="", &
+          CALL init_fft ( "FFTW3", alltoall=.FALSE., fftsg_sizes=.TRUE., wisdom_file=wisdom_file, &
                           pool_limit=10, plan_style=fftw_plan_type, &
                           error=error )
           method = "FFTW3  "
@@ -722,7 +724,7 @@ CONTAINS
           DEALLOCATE ( cc , STAT = ierr )
           IF (ierr /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"cc")
        END IF
-       CALL finalize_fft(para_env, wisdom_file="",error=error)
+       CALL finalize_fft(para_env, wisdom_file=wisdom_file,error=error)
     END DO
 
   END SUBROUTINE fft_test
