@@ -164,7 +164,7 @@ MODULE fft_tools
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
     INTERFACE
       INTEGER(KIND=C_INT) FUNCTION cudaFreeHost(buffer)  BIND(C, name="cudaFreeHost")
-        USE ISO_C_BINDING, ONLY: C_INT
+        IMPORT
         IMPLICIT NONE
         TYPE(C_PTR), VALUE :: buffer
       END FUNCTION cudaFreeHost
@@ -172,7 +172,7 @@ MODULE fft_tools
 
      INTERFACE
       INTEGER(KIND=C_INT) FUNCTION cudaHostAlloc(buffer, length, flag) BIND(C, name="cudaHostAlloc")
-        USE ISO_C_BINDING, ONLY: C_SIZE_T, C_INT
+        IMPORT
         IMPLICIT NONE
         TYPE(C_PTR)                   :: buffer
         INTEGER(KIND=C_SIZE_T), VALUE :: length

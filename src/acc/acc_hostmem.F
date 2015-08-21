@@ -10,7 +10,7 @@
 ! *****************************************************************************
 MODULE acc_hostmem
 #if defined (__ACC)
-    USE ISO_C_BINDING, ONLY: C_INT, C_SIZE_T, C_PTR, C_LOC, C_NULL_PTR
+    USE ISO_C_BINDING, ONLY: C_INT, C_SIZE_T, C_PTR, C_LOC, C_NULL_PTR, C_F_POINTER
 #endif
   USE acc_kinds,                       ONLY: int_4,&
                                              int_4_size,&
