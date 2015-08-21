@@ -43,7 +43,6 @@ MODULE atom_energy
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE lapack,                          ONLY: lapack_ssyev
   USE mathconstants,                   ONLY: dfac,&
                                              gamma1,&
                                              pi
