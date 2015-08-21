@@ -3470,7 +3470,8 @@ CONTAINS
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode .AND. output_unit > 0) THEN
-          WRITE(output_unit,'(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs," Bytes ",(3**(npow-i))*(ncount/nprocs)*nprocs*8.0E-6_dp/t1," MB/s"
+          WRITE(output_unit,'(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs," Bytes ", &
+                             (3**(npow-i))*(ncount/nprocs)*nprocs*8.0E-6_dp/t1," MB/s"
        ENDIF
     ENDDO
 
@@ -3483,7 +3484,8 @@ CONTAINS
     ENDIF
     rcount=Nloc
     DO itests=1,3
-       IF (ionode .AND. output_unit > 0) WRITE(output_unit,*) "------------------------------- test ",itests," ------------------------"
+       IF (ionode .AND. output_unit > 0) &
+                WRITE(output_unit,*) "------------------------------- test ",itests," ------------------------"
        ! *** reference ***
        DO j=1,Nprocs
           DO i=1,Nloc
