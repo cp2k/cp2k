@@ -3200,13 +3200,13 @@ MODULE mp2_ri_gpw
       ! to eps_canonical
       IF (.NOT. my_alpha_beta_case) THEN
            CALL quasi_degenerate_P_ij(mp2_env,Eigenval,homo,virtual,my_open_shell_ss, &
-           my_beta_beta_case,my_alpha_beta_case, Bib_C,unit_nr,dimen_RI,my_B_size,ngroup,num_integ_group, &
+           my_beta_beta_case,my_alpha_beta_case, Bib_C,unit_nr,dimen_RI,my_B_size,ngroup,num_integ_group, my_group_L_size, &
            error_sub,color_sub,ranges_info_array,para_env_exchange,para_env_sub,proc_map, &
            my_B_virtual_start,my_B_virtual_end,sizes_array, ends_B_virtual,sizes_B_virtual, &
            starts_B_virtual,sub_proc_map,integ_group_pos2color_sub,local_ab)
       ELSE
            CALL quasi_degenerate_P_ij(mp2_env,Eigenval,homo,virtual,my_open_shell_ss, &
-           my_beta_beta_case,my_alpha_beta_case,Bib_C,unit_nr,dimen_RI,my_B_size,ngroup,num_integ_group, &
+           my_beta_beta_case,my_alpha_beta_case,Bib_C,unit_nr,dimen_RI,my_B_size,ngroup,num_integ_group, my_group_L_size, &
            error_sub,color_sub,ranges_info_array,para_env_exchange,para_env_sub,proc_map, &
            my_B_virtual_start,my_B_virtual_end,sizes_array, ends_B_virtual,sizes_B_virtual, &
            starts_B_virtual,sub_proc_map,integ_group_pos2color_sub,local_ab,BIb_C_beta,my_B_size_beta,&
@@ -5104,6 +5104,7 @@ MODULE mp2_ri_gpw
 !> \param my_B_size ...
 !> \param ngroup ...
 !> \param num_integ_group ...
+!> \param my_group_L_size ...
 !> \param error_sub ...
 !> \param color_sub ...
 !> \param ranges_info_array ...
@@ -5131,7 +5132,7 @@ MODULE mp2_ri_gpw
 !> \param my_B_virtual_end_beta ...
 ! *****************************************************************************
     SUBROUTINE quasi_degenerate_P_ij(mp2_env,Eigenval,homo,virtual,open_shell, &
-    beta_beta,alpha_beta, Bib_C,unit_nr,dimen_RI,my_B_size,ngroup,num_integ_group, &
+    beta_beta,alpha_beta, Bib_C,unit_nr,dimen_RI,my_B_size,ngroup,num_integ_group, my_group_L_size, &
     error_sub,color_sub,ranges_info_array,para_env_exchange,para_env_sub,proc_map, &
     my_B_virtual_start,my_B_virtual_end,sizes_array, ends_B_virtual,sizes_B_virtual, &
     starts_B_virtual,sub_proc_map,integ_group_pos2color_sub,local_ab,BIb_C_beta,my_B_size_beta,&
@@ -5145,7 +5146,8 @@ MODULE mp2_ri_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C
     INTEGER                                  :: unit_nr, dimen_RI, my_B_size, &
-                                                ngroup, num_integ_group
+                                                ngroup, num_integ_group, &
+                                                my_group_L_size
     TYPE(cp_error_type), INTENT(inout)       :: error_sub
     INTEGER                                  :: color_sub
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: ranges_info_array
@@ -5176,12 +5178,12 @@ MODULE mp2_ri_gpw
 
     INTEGER :: a, a_global, b, b_global, end_point, handle, handle2, &
       ijk_counter, ijk_counter_send, ijk_index, iloops, irep, Lend_pos, &
-      Lstart_pos, max_ijk, max_ijk_beta, max_ijk_loop, my_group_L_size, my_i, &
-      my_ijk, my_ijk_beta, my_j, my_k, my_virtual, nloops, proc_receive, &
-      proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
-      rec_B_virtual_start, rec_L_size, send_B_size, send_B_virtual_end, &
-      send_B_virtual_start, send_i, send_ijk_index, send_j, send_k, size_B_i, &
-      size_B_j, size_B_k, start_point, stat
+      Lstart_pos, max_ijk, max_ijk_beta, max_ijk_loop, my_i, my_ijk, &
+      my_ijk_beta, my_j, my_k, my_virtual, nloops, proc_receive, proc_send, &
+      proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start, &
+      rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
+      send_i, send_ijk_index, send_j, send_k, size_B_i, size_B_j, size_B_k, &
+      start_point, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: num_ijk, num_ijk_beta
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ijk_map, ijk_map_beta
     LOGICAL                                  :: failure
