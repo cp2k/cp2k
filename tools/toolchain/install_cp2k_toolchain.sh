@@ -244,6 +244,8 @@ mutex:_gfortran_st_open
 # PR66761
 race:do_spin
 race:gomp_team_end
+#PR67303
+race:gomp_iter_guided_next
 # bugs related to removing/filtering blocks in DBCSR.. to be fixed
 race:__dbcsr_block_access_MOD_dbcsr_remove_block
 race:__dbcsr_operations_MOD_dbcsr_filter_anytype
@@ -674,8 +676,14 @@ mkdir -p ${INSTALLDIR}/arch
 # unfortunately, optimal flags depend on compiler etc.
 # https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
 #
-WFLAGS="-Waliasing -Wampersand -Wc-binding-type -Wintrinsic-shadow -Wintrinsics-std -Wline-truncation -Wno-tabs -Wrealloc-lhs-all -Wtarget-lifetime -Wunderflow -Wunused-but-set-variable -Wunused-variable -Wconversion"
-WFLAGS2="-pedantic -Wall -Wextra -Wsurprising -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wtabs -Wunused-dummy-argument -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip -Wuse-without-only"
+# we error out for these warnings
+WFLAGSERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=realloc-lhs-all -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=conversion"
+# we just warn for those (that eventually might be promoted to WFLAGSERROR). It is useless to put something here with 100s of warnings.
+WFLAGSWARN="-Wuse-without-only -Wzerotrip"
+# so these are the default
+WFLAGS="$WFLAGSERROR $WFLAGSWARN"
+# while here we collect all other warnings, some we'll ignore
+WFLAGS2="-pedantic -Wall -Wextra -Wsurprising -Wunused-dummy-argument -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-dummy-argument -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
 
 DEBFLAGS="-fcheck=bounds,do,recursion,pointer -fsanitize=leak -ffpe-trap=invalid,zero,overflow -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS"
 BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1 $TSANFLAGS"
@@ -703,7 +711,7 @@ LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${PARAFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
@@ -717,7 +725,7 @@ LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${PARAFLAGS} $DFLAGSOPT
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack $LIBSMMLIB ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 
@@ -731,7 +739,7 @@ LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${PARAFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
+FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp
@@ -745,7 +753,7 @@ LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
@@ -759,7 +767,7 @@ LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} $DFLAGSOPT
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint  $LIBSMMLIB ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3
@@ -773,7 +781,7 @@ LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS}  \$(DFLAGS) \$(WFLAGS) -Werror
+FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS}  \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp
@@ -787,7 +795,7 @@ LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} -O3  \$(DFLAGS) \$(WFLAGS) -Werror
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} -O3  \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
@@ -801,7 +809,7 @@ LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${PARAFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} -O3 \$(DFLAGS) \$(WFLAGS) -Werror
+FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} -O3 \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
 CFLAGS   = ${CFLAGS}
 LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
@@ -816,7 +824,7 @@ LD       = mpif90
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${CUDAFLAGS} ${PARAFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
+FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}
@@ -850,7 +858,7 @@ LD       = gfortran
 AR       = ar -r
 WFLAGS   = ${WFLAGS}
 DFLAGS   = ${DFLAGS} ${CUDAFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) -Werror
+FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
 LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
 NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
 CFLAGS   = ${CFLAGS}
