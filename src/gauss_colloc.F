@@ -436,7 +436,6 @@ SUBROUTINE collocGauss(h,h_inv,grid,poly,alphai,posi,max_r2,&
     CHARACTER(len=*), PARAMETER :: routineN = 'collocGauss', &
       routineP = moduleN//':'//routineN
 
-
 #include "colloc_int_body.f90"
 
 END SUBROUTINE

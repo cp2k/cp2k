@@ -57,12 +57,13 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_c1', &
-         routineP = moduleN//':'//routineN
-
-    INTEGER, PARAMETER                       :: t_size = 2*dp_size
+      routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: zero = (0.0_dp,0.0_dp)
+    INTEGER, PARAMETER                       :: t_size = 2*dp_size
+
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: work
+
 #include "reallocate_1.f90"
 
   END SUBROUTINE reallocate_c1
@@ -86,12 +87,13 @@ CONTAINS
                                                 ub2_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_c2', &
-         routineP = moduleN//':'//routineN
-
-    INTEGER, PARAMETER                       :: t_size = 2*dp_size
+      routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: zero = (0.0_dp,0.0_dp)
+    INTEGER, PARAMETER                       :: t_size = 2*dp_size
+
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
+
 #include "reallocate_2.f90"
 
   END SUBROUTINE reallocate_c2
@@ -117,12 +119,13 @@ CONTAINS
                                                 ub2_new, lb3_new, ub3_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_c3', &
-         routineP = moduleN//':'//routineN
-
-    INTEGER, PARAMETER                       :: t_size = 2*dp_size
+      routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: zero = (0.0_dp,0.0_dp)
+    INTEGER, PARAMETER                       :: t_size = 2*dp_size
+
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: work
+
 #include "reallocate_3.f90"
 
   END SUBROUTINE reallocate_c3
@@ -152,12 +155,13 @@ CONTAINS
                                                 lb4_new, ub4_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_c4', &
-         routineP = moduleN//':'//routineN
-
-    INTEGER, PARAMETER                       :: t_size = 2*dp_size
+      routineP = moduleN//':'//routineN
     COMPLEX(KIND=dp), PARAMETER              :: zero = (0.0_dp,0.0_dp)
+    INTEGER, PARAMETER                       :: t_size = 2*dp_size
+
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: work
+
 #include "reallocate_4.f90"
 
   END SUBROUTINE reallocate_c4
@@ -177,11 +181,11 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_i1', &
-          routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: t_size = int_size, zero = 0
 
-    INTEGER, PARAMETER                       :: t_size = int_size
-    INTEGER, PARAMETER                       :: zero = 0
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
+
 #include "reallocate_1.f90"
 
   END SUBROUTINE reallocate_i1
@@ -204,11 +208,11 @@ CONTAINS
                                                 ub2_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_i2', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: t_size = int_size, zero = 0
 
-    INTEGER, PARAMETER                       :: t_size = int_size
-    INTEGER, PARAMETER                       :: zero = 0
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: work
+
 #include "reallocate_2.f90"
 
   END SUBROUTINE reallocate_i2
@@ -233,11 +237,11 @@ CONTAINS
                                                 ub2_new, lb3_new, ub3_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_i3', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: t_size = int_size, zero = 0
 
-    INTEGER, PARAMETER                       :: t_size = int_size
-    INTEGER, PARAMETER                       :: zero = 0
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: work
+
 #include "reallocate_3.f90"
 
   END SUBROUTINE reallocate_i3
@@ -266,12 +270,12 @@ CONTAINS
                                                 lb4_new, ub4_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_i4', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: t_size = int_size, zero = 0
 
-    INTEGER, PARAMETER                       :: t_size = int_size
-    INTEGER, PARAMETER                       :: zero = 0
     INTEGER, ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: work
+
 #include "reallocate_4.f90"
 
   END SUBROUTINE reallocate_i4
@@ -292,12 +296,13 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_8i1', &
-          routineP = moduleN//':'//routineN
-
-    INTEGER, PARAMETER                       :: t_size = int_8_size
+      routineP = moduleN//':'//routineN
     INTEGER(KIND=int_8), PARAMETER           :: zero = 0
+    INTEGER, PARAMETER                       :: t_size = int_8_size
+
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: work
+
 #include "reallocate_1.f90"
 
   END SUBROUTINE reallocate_8i1
@@ -321,12 +326,13 @@ CONTAINS
                                                 ub2_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_8i2', &
-         routineP = moduleN//':'//routineN
-
-    INTEGER, PARAMETER                       :: t_size = int_8_size
+      routineP = moduleN//':'//routineN
     INTEGER(KIND=int_8), PARAMETER           :: zero = 0
+    INTEGER, PARAMETER                       :: t_size = int_8_size
+
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
+
 #include "reallocate_2.f90"
 
   END SUBROUTINE reallocate_8i2
@@ -346,11 +352,12 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r1', &
-         routineP = moduleN//':'//routineN
-
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: t_size = dp_size
     REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
+
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
+
 #include "reallocate_1.f90"
 
   END SUBROUTINE reallocate_r1
@@ -373,12 +380,13 @@ CONTAINS
                                                 ub2_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r2', &
-         routineP = moduleN//':'//routineN
-
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: t_size = dp_size
     REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
+
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
+
 #include "reallocate_2.f90"
 
   END SUBROUTINE reallocate_r2
@@ -404,12 +412,13 @@ CONTAINS
                                                 ub2_new, lb3_new, ub3_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r3', &
-         routineP = moduleN//':'//routineN
-
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: t_size = dp_size
     REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
+
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: work
+
 #include "reallocate_3.f90"
 
   END SUBROUTINE reallocate_r3
@@ -439,12 +448,13 @@ CONTAINS
                                                 lb4_new, ub4_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r4', &
-         routineP = moduleN//':'//routineN
-
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: t_size = dp_size
     REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
+
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: work
+
 #include "reallocate_4.f90"
 
   END SUBROUTINE reallocate_r4
@@ -469,7 +479,7 @@ CONTAINS
   SUBROUTINE reallocate_r5(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new,&
                              lb4_new,ub4_new,lb5_new,ub5_new)
 
-   REAL(KIND=dp), &
+    REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new, lb2_new, &
                                                 ub2_new, lb3_new, ub3_new, &
@@ -477,12 +487,13 @@ CONTAINS
                                                 ub5_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_r5', &
-         routineP = moduleN//':'//routineN
-
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: t_size = dp_size
     REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
+
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: work
+
 #include "reallocate_5.f90"
 
   END SUBROUTINE reallocate_r5
@@ -502,11 +513,12 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_l1', &
-         routineP = moduleN//':'//routineN
-
+      routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: t_size = int_size
     LOGICAL, PARAMETER                       :: zero = .FALSE.
+
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: work
+
 #include "reallocate_1.f90"
 
   END SUBROUTINE reallocate_l1
@@ -542,9 +554,6 @@ CONTAINS
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "At least one of the two optional arguments is required")
-       ! workaround for a prettify bug... the next line should stay here
-       CALL stop_memory(routineN,moduleN,__LINE__,&
-                         "At least one of the two optional arguments is required")
     END IF
 
   END SUBROUTINE reallocate_s1
@@ -569,13 +578,14 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_ss1', &
-         routineP = moduleN//':'//routineN
-
+      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=default_string_length), &
+      PARAMETER                              :: zero = ""
     INTEGER, PARAMETER :: t_size = int_size*default_string_length
-    CHARACTER(LEN=default_string_length),&
-         PARAMETER                           :: zero = ""
+
     CHARACTER(LEN=default_string_length), &
       ALLOCATABLE, DIMENSION(:)              :: work
+
 #include "reallocate_1.f90"
 
   END SUBROUTINE reallocate_ss1
@@ -599,13 +609,14 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reallocate_ls1', &
-         routineP = moduleN//':'//routineN
-
+      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=default_path_length), &
+      PARAMETER                              :: zero = ""
     INTEGER, PARAMETER :: t_size = int_size*default_path_length
-    CHARACTER(LEN=default_path_length),&
-         PARAMETER                           :: zero = ""
+
     CHARACTER(LEN=default_path_length), &
       ALLOCATABLE, DIMENSION(:)              :: work
+
 #include "reallocate_1.f90"
 
   END SUBROUTINE reallocate_ls1

@@ -114,6 +114,7 @@ def parseRoutine(inFile):
     while 1:
         (jline,comments,lines)=readFortranLine(inFile)
         if len(lines)==0: break
+        if lines[0].lower().startswith("#include"): break
         if not ignoreRe.match(jline):
             if typeBeginRe.match(jline):
                 m=typeRe.match(jline)
