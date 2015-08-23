@@ -137,9 +137,12 @@ CONTAINS
     IF (output_unit .NE. default_output_unit .AND. output_unit .GT.0) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("-",79)
       WRITE (UNIT=output_unit,FMT="(/,T2,A)") "The TMC output files are:"
-      WRITE (UNIT=output_unit,FMT="(/,T2,A)") "tmc_master.out           the TMC master"
-      WRITE (UNIT=output_unit,FMT="(/,T2,A)") "tmc_E_worker_*.out       the worker outputs (energy calculations etc.)"
-      WRITE (UNIT=output_unit,FMT="(/,T2,A)") "tmc_ana.out              the analysis output"
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") &
+            TRIM(tmc_master_out_file_name)//"           the TMC master"
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") &
+            TRIM(tmc_energy_worker_out_file_name)//"         the worker outputs (energy calculations etc.)"
+      WRITE (UNIT=output_unit,FMT="(/,T2,A)") &
+            TRIM(tmc_ana_out_file_name)//"              the analysis output"
       WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("-",79)
     END IF
     bcast_output_unit=output_unit
