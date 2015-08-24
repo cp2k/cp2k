@@ -55,8 +55,7 @@ MODULE cp_fm_diag
 #endif
 
 #if defined (__ELPA)  || defined(__ELPA2)
-  USE ELPA1
-  USE ELPA2
+  USE ELPA2, ONLY: solve_evp_real_2stage
 #endif
 
 #include "../common/cp_common_uses.f90"
