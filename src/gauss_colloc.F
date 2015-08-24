@@ -223,8 +223,7 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     INTEGER, DIMENSION(0:2)                  :: cellShift, l_shift, l_ub, &
                                                 ndim, period, shiftPos,ldim2
     INTEGER, DIMENSION(2, 0:2)               :: l_bounds
-    LOGICAL                                  :: failure, has_overlap, &
-                                                k_bounds_alloc, poly_alloc
+    LOGICAL                                  :: failure, has_overlap
     REAL(dp) :: cci0, cci1, cci2, ccj0, ccj0_i0, ccj0_i1, ccj0_i2, ccj1, &
       ccj1_i0, ccj1_i1, ccj2, cck0, cck0_0, cck0_0_p, cck0_i, cck0_i2, &
       cck0_ij, cck0_j, cck0_j2, cck0_j_p, cck1, cck1_0, cck1_0_p, cck1_i, &
@@ -259,10 +258,10 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
 
     failure=.FALSE.
 
-    k_bounds_alloc=.FALSE.
-    poly_alloc=.FALSE.
-    IF (.NOT.integrate) THEN
-       IF (ALL(poly==0.0_dp)) GOTO 21
+    IF (integrate) THEN
+       poly=0.0_dp
+    ELSE
+       IF (ALL(poly==0.0_dp)) RETURN
     ENDIF
 
     IF (PRESENT(poly_shift)) THEN
@@ -311,16 +310,11 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     DO i=0,2
         CPPrecondition(l_ub(i)<ldim2(i),cp_failure_level,routineP,error,failure)
     END DO
-    IF (failure) GOTO 21
+    IF (failure) RETURN
 
     DO i=0,2
         period(permut(i))=periodic(i)
     END DO
-    IF ((.NOT.(ALL(l_bounds(2,:)<ndim.or.period(:)==1))) .OR. &
-         (.NOT.(ALL(l_bounds(1,:)>=0 .or.period(:)==1))) .OR. &
-         (.NOT.(ALL(l_bounds(2,:)-l_bounds(1,:)<ndim)))) THEN
-      PRINT *, "l_bounds",l_bounds," period ",period," ndim ",ndim
-    END IF
     CPPrecondition(ALL(l_bounds(2,:)<ndim.or.period(:)==1),cp_failure_level,routineP,error,failure)
     CPPrecondition(ALL(l_bounds(1,:)>=0 .or.period(:)==1),cp_failure_level,routineP,error,failure)
     CPPrecondition(ALL(l_bounds(2,:)-l_bounds(1,:)<ndim),cp_failure_level,routineP,error,failure)
@@ -389,7 +383,7 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
         - 2.0_dp * l(1) * m(1,2) * l(2) + 4.0_dp * r_0 * m(1,2) ** 2) &
         / (m(2,2) * m(1,1) - m(1,2) ** 2)) / 4.0_dp-maxr2
     delta_i=cci1*cci1-4.0_dp*cci2*cci0
-    IF (delta_i<=0) GOTO 21
+    IF (delta_i<=0) RETURN
     sqDi=SQRT(delta_i)
     imin=CEILING((-cci1-sqDi)/(2.0_dp*cci2))
     imax=FLOOR((-cci1+sqDi)/(2.0_dp*cci2))
@@ -405,10 +399,10 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
             ELSE
                 has_overlap=imin1<=l_bounds(2,0).OR.(imax1>=ndim(0).and.l_bounds(1,0)<=imax1+ndim(0))
             END IF
-            IF (.not.has_overlap) GOTO 21
+            IF (.not.has_overlap) RETURN
         END IF
     ELSE
-        IF (imax+shiftPos(0)<l_bounds(1,0).or.imin+shiftPos(0)>l_bounds(2,0)) GOTO 21
+        IF (imax+shiftPos(0)<l_bounds(1,0).or.imin+shiftPos(0)>l_bounds(2,0)) RETURN
     END IF
 
     ! j box bounds
@@ -424,7 +418,7 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
             + 2.0_dp * m(0,2) * l(2) * l(0) - 4.0_dp * r_0 * m(0,2) ** 2) &
             / (m(0,0) * m(2,2) - m(0,2) ** 2) / 4.0_dp-maxr2
         delta_j=ccj1*ccj1-4.0_dp*ccj2*ccj0
-        IF (delta_j<=0) GOTO 21
+        IF (delta_j<=0) RETURN
         sqDj=SQRT(delta_j)
         jmin=CEILING((-ccj1-sqDj)/(2.0_dp*ccj2))
         jmax=FLOOR((-ccj1+sqDj)/(2.0_dp*ccj2))
@@ -437,10 +431,10 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
                 ELSE
                     has_overlap=jmin1<=l_bounds(2,1).OR.(jmax1>=ndim(1).AND.(l_bounds(1,1)<=jmax1-ndim(1)))
                 END IF
-                IF (.not.has_overlap) GOTO 21
+                IF (.not.has_overlap) RETURN
             END IF
         ELSE
-            IF (jmax+shiftPos(1)<l_bounds(1,1).or.jmin+shiftPos(1)>l_bounds(2,1)) GOTO 21
+            IF (jmax+shiftPos(1)<l_bounds(1,1).or.jmin+shiftPos(1)>l_bounds(2,1)) RETURN
         END IF
     END IF
 
@@ -455,7 +449,7 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
             + 2.0_dp * m(0,1) * l(1) * l(0) - 4.0_dp * r_0 * m(0,1) ** 2) &
             / (m(0,0) * m(1,1) - m(0,1) ** 2) / 4.0_dp-maxr2
         delta_k=cck1*cck1-4.0_dp*cck2*cck0
-        IF (delta_k<=0) GOTO 21
+        IF (delta_k<=0) RETURN
         sqDk=SQRT(delta_k)
         kmin=CEILING((-cck1-sqDk)/(2.0_dp*cck2))
         kmax=FLOOR((-cck1+sqDk)/(2.0_dp*cck2))
@@ -470,10 +464,10 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
                     has_overlap=kmin1<=l_bounds(2,2).OR.&
                         (kmax1>=ndim(2).AND.(l_bounds(1,2)<=MODULO(kmax1,ndim(2))))
                 END IF
-                IF (.not.has_overlap) GOTO 21
+                IF (.not.has_overlap) RETURN
             END IF
         ELSE
-            IF (kmax+shiftPos(2)<l_bounds(1,2).or.kmin+shiftPos(2)>l_bounds(2,2)) GOTO 21
+            IF (kmax+shiftPos(2)<l_bounds(1,2).or.kmin+shiftPos(2)>l_bounds(2,2)) RETURN
         END IF
     END IF
 
@@ -520,7 +514,6 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     has_overlap=.FALSE.
     ALLOCATE(k_bounds(0:1,0:max_j-1,0:MAX(0,imax-imin+1)),stat=stat)
     CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
-    k_bounds_alloc=.TRUE.
     ! k_bounds=0
     istart=imin
     iiShift=shiftPos(0)-l_bounds(2,0)+istart
@@ -594,7 +587,7 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
         k_bounds(1,:,:)=MIN(l_bounds(2,2)-shiftPos(2),k_bounds(1,:,:))
     END IF
 
-    IF (.not.has_overlap) GOTO 21
+    IF (.not.has_overlap) RETURN
 
     ! poly x,y,z -> i,j,k
     grad=grad_size3(SIZE(poly)/npoly)
@@ -613,8 +606,6 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
         ALLOCATE(poly_k(0:size_k-1),stat=stat)
         CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
     ENDIF
-
-    poly_alloc=.TRUE.
 
     IF (integrate) THEN
        CPPreconditionNoFail(SIZE(poly)==poly_size3(grad),cp_failure_level,routineP,error)
@@ -746,31 +737,12 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     END DO
 
     ! the final cleanup
-21  CONTINUE
-
-    ! dealloc to avoid compiler bug
-    IF (k_bounds_alloc) THEN
-        DEALLOCATE(k_bounds,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
-    END IF
-
     IF(integrate) THEN
-       IF (poly_alloc) THEN
-          CALL poly_affine_t3t(poly_ijk,scaled_h,-resPosReal+p_shift,poly,&
-              npoly=npoly,error=error)
-          DEALLOCATE(k_vals,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
-          DEALLOCATE(poly_ijk,poly_jk,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
-       ELSE
-          poly=0.0_dp
-       ENDIF
-    ELSE
-       IF (poly_alloc) THEN
-          DEALLOCATE(poly_ijk,poly_jk,poly_k,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
-       ENDIF
+       CALL poly_affine_t3t(poly_ijk,scaled_h,-resPosReal+p_shift,poly,&
+           npoly=npoly,error=error)
     END IF
+
+    ! rely on compiler to deallocate ALLOCATABLEs
 
     CONTAINS
 
