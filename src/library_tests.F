@@ -105,9 +105,6 @@ MODULE library_tests
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-#if defined(__parallel) && ! defined(__HAS_NO_MPI_MOD)
-  USE mpi
-#endif
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
