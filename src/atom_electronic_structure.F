@@ -78,17 +78,13 @@ CONTAINS
     method   = atom%method_type
 
     SELECT CASE (method)
-      CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
-      CASE (do_rks_atom)
+      CASE (do_rks_atom, do_rhf_atom)
         CALL calculate_atom_restricted(atom,iw,noguess,error)
-      CASE (do_uks_atom)
-        CALL calculate_atom_unrestricted(atom,iw,noguess,error)
-      CASE (do_rhf_atom)
-        CALL calculate_atom_restricted(atom,iw,noguess,error)
-      CASE (do_uhf_atom)
+      CASE (do_uks_atom, do_uhf_atom)
         CALL calculate_atom_unrestricted(atom,iw,noguess,error)
       CASE (do_rohf_atom)
+        CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
+      CASE DEFAULT
         CPPostcondition(.FALSE., cp_failure_level, routineP, error, failure)
     END SELECT
 
