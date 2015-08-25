@@ -405,3 +405,5 @@ CH-hfx-md-2.inp
 4H2O-mix-disk-ram.inp
 #  
 4H2O-mix-disk-ram-on-the-fly.inp
+#EMD: get P directly from mos if initial wfn was not received through LS_SCF
+H2O-hfx-ls-emd.inp

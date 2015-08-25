@@ -35,4 +35,8 @@ emd-KG.inp
 H2plus-ls-rtp.inp
 #restart from a different input file
 H2O-ls-emd-mcweeny-rt-restart.inp
-
+#get P directly from mos if initial wfn was not received through LS_SCF
+H2O-ls-emd.inp
+H2O-ls-emd-mcweeny.inp
+H2O-ls-emd-mcweeny-rt-restart.inp
+H2O-ls-emd-mixing.inp

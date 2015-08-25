@@ -66,7 +66,8 @@ MODULE rt_propagation
                                              calc_update_rho_sparse,&
                                              get_restart_wfn
   USE rt_propagator_init,              ONLY: init_propagators,&
-                                             rt_initialize_rho_from_ks
+                                             rt_initialize_rho_from_ks,&
+                                             rt_initialize_rho_from_mos
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -234,9 +235,17 @@ CONTAINS
        IF(qs_env%rtp%linear_scaling.AND.rtp_control%initial_wfn==use_scf_wfn) THEN
           CALL get_qs_env(qs_env,&
                           matrix_ks=matrix_ks,&
+                          mos=mos,&
                           nelectron_spin=nelectron_spin,&
                           error=error)
-          CALL rt_initialize_rho_from_ks(rtp,matrix_ks,matrix_s,nelectron_spin,rtp_control%orthonormal,error=error)
+          IF(ASSOCIATED(mos)) THEN
+             !The wavefunction was minimized by an mo based algorith. P is therefore calculated from the mos
+             CALL rt_initialize_rho_from_mos(rtp,mos,matrix_s,rtp_control%orthonormal,error=error)
+          ELSE
+             !The wavefunction was minimized using a linear scaling method. Because the rho in the qs_env has the sparsity of S
+             !the matrix P needs to be recalculated from H
+             CALL rt_initialize_rho_from_ks(rtp,matrix_ks,matrix_s,nelectron_spin,rtp_control%orthonormal,error=error)
+          ENDIF
        ENDIF
        CALL calc_update_rho_sparse(qs_env,error)
     END IF
