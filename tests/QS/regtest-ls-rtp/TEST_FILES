@@ -4,15 +4,15 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
-H2O-ls-emd.inp    1    1.0E-14    -17.0890686606
+H2O-ls-emd.inp                    1     1e-11                 -17.0890686606
 H2O-ls-rtp-bch.inp    1    1.0E-14    -17.0890773065
 H2O-ls-rtp.inp    1    1.0E-14    -17.0890773264
 H2O-ls-rtp-scf-restart.inp    1    1.0E-14    -17.0890773264
 H2O-ls-emd-scf-restart.inp    1    1e-11    -17.0890686606
-H2O-ls-emd-mcweeny.inp    1    1.0E-14    -17.0890686606
+H2O-ls-emd-mcweeny.inp            1     1e-11                 -17.0890686606
 H2O-ls-emd-mcweeny-rt-restart.inp    1    1e-11   -17.0890598734 
 emd-KG.inp                        1     1e-14 -18.1068269888
 H2plus-ls-rtp.inp    1    1.0E-14    -0.5280970816
 H2plus-ls-rtp2.inp    1    1.0E-14    -0.5362416616
 H2O-ls-ortho-emd.inp    1    1.0E-14    -17.0889974663
-H2O-ls-emd-mixing.inp    1    1.0E-14   -17.0889404255
+H2O-ls-emd-mixing.inp             1     1e-11                 -17.0889404255

@@ -10,4 +10,4 @@ H2-rtp_restart-1.inp    1    1.0E-14    -0.9022396836
 H2-rtp-efield.inp    1    1.0E-14    -0.8296879654
 H2-emd-efield.inp    2    4e-11    -0.894866854822E+00
 H2-rtp_ETRS_ARNOLDI.inp    1    1.0E-14    -0.9022396835
-H2-emd_ETRS_ARNOLDI.inp 1    6e-12
+H2-emd_ETRS_ARNOLDI.inp           1     2e-11                               
