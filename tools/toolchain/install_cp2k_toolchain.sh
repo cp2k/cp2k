@@ -441,6 +441,8 @@ else
   checksum libxc-${libxc_ver}.tar.gz
   tar -xzf libxc-${libxc_ver}.tar.gz
   cd libxc-${libxc_ver}
+  # patch buggy configure macro (fails with gcc trunk)
+  sed -i 's/ax_cv_f90_modext=`ls | sed/ax_cv_f90_modext=`ls -1 | grep -iv smod | sed/g' configure
   ./configure  --prefix=${INSTALLDIR} >& config.log
   make -j $nprocs >& make.log
   make install >& install.log

@@ -291,8 +291,9 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: dsat, degree
     INTEGER(KIND=valt)                       :: value
 
-    INTEGER, PARAMETER                       :: huge_4 = HUGE(0_int_4) 
+    INTEGER, PARAMETER                       :: huge_4 = 2_int_4**30
 
+!   INTEGER, PARAMETER                       :: huge_4 = HUGE(0_int_4) ! PR67219 workaround
 ! we actually need a max_heap
 
     value = (huge_4 - INT(dsat,KIND=int_8)) * huge_4 + huge_4-degree
