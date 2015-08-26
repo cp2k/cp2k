@@ -3,188 +3,188 @@
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
-QS/regtest-kp-1
-QS/regtest-p-efield
-QS/regtest-dft-filtermat
-Fist/regtest-plumed                                        plumed1.3
-Fist/regtest-plumed2                                       plumed2
-QS/regtest-elpa                                            elpa
-QS/regtest-rma                                             mpi3
+Fist/regtest-plumed                                         plumed1.3 
+Fist/regtest-plumed2                                        plumed2 
 QS/regtest-sccs-3
+QS/regtest-p-efield
 QS/regtest-sccs-1
 QS/regtest-rel
-QS/regtest-ps-implicit-1-1
 QS/regtest-gpw-4
-QS/regtest-slab
-QS/regtest-ps-implicit-1-3
-QS/regtest-rtp-3
 Fist/regtest-7-1
-QS/regtest-gpw-2-3
+QS/regtest-slab
+QS/regtest-ps-implicit-1-1
+QS/regtest-ps-implicit-1-3
 QS/regtest-admm-qps                                         libint 
-QS/regtest-ot
-QS/regtest-ps-implicit-2-2
-QS/regtest-gpw-1                                            libint 
-SE/regtest-2
-QS/regtest-tddfpt
-QS/regtest-dft-vdw-corr-3                                   libxc2 
-QS/regtest-hfx                                              libint 
-QS/regtest-libxc                                            libxc2 libint 
-QS/regtest-gpw-8
-QS/regtest-ps-implicit-2-3
-QS/regtest-gpw-3
-QMMM/SE/regtest-force-mixing
-QS/regtest-gpw-6-2
-QMMM/QS/regtest-1
-DFTB/regtest-scc
-QS/regtest-gpw-5
-QS/regtest-ps-implicit-2-1
-QS/regtest-almo-2
-QS/regtest-xc
-QS/regtest-ps-implicit-1-2
 QS/regtest-ri-rpa                                           libint 
-QS/regtest-gw
-QS/regtest-plus_u
+QS/regtest-ot
+QS/regtest-rtp-3
+SE/regtest-2
+QS/regtest-ps-implicit-2-1
+QS/regtest-gpw-2-3
+QS/regtest-gpw-3
+QS/regtest-tddfpt
+QS/regtest-gpw-1                                            libint 
+QS/regtest-dft-vdw-corr-3                                   libxc2 
+QS/regtest-ps-implicit-2-2
+QS/regtest-libxc                                            libxc2 libint 
+QS/regtest-hfx                                              libint 
+DFTB/regtest-scc
+QMMM/SE/regtest-force-mixing
+QS/regtest-gpw-8
+QS/regtest-kp-1
+QS/regtest-xc
+QMMM/QS/regtest-1
+QS/regtest-ps-implicit-1-2
 QS/regtest-kg                                               libxc2 
+QS/regtest-gpw-6-2
+QS/regtest-gpw-5
+QS/regtest-almo-2
+QS/regtest-plus_u
 QS/regtest-gapw-4                                           libint 
 QS/regtest-hfx-wfn-fitting                                  libint 
 QS/regtest-ot-1
-QS/regtest-nonortho
 Fist/regtest-5
+QS/regtest-ps-implicit-2-3
 Fist/regtest-12
-QS/regtest-sccs-2
-QS/regtest-admm-4                                           libint 
+QS/regtest-nonortho
 QMMM/SE/regtest
-QS/regtest-ri-mp2                                           libint 
+QS/regtest-sccs-2
 QS/regtest-nmr-uks-1
-ATOM/regtest-pseudo
+QS/regtest-admm-4                                           libint 
 QS/regtest-nmr-6
-SE/regtest-3-4
 SE/regtest-3-2
+ATOM/regtest-pseudo
+SE/regtest-3-4
+QS/regtest-ri-mp2                                           libint 
+Fist/regtest-opt
 Fist/regtest-1-4
 QS/regtest-mp2-stress                                       libint 
-QS/regtest-mp2-3                                            libint 
 QS/regtest-hybrid-4                                         libint 
-QS/regtest-double-hybrid-2                                  libint 
-Fist/regtest-opt
 QS/regtest-gpw-7
 QS/regtest-double-hybrid-3                                  libint 
-QS/regtest-gapw-3
-Pimd
-QS/regtest-sparsity                                         libint 
+QS/regtest-double-hybrid-2                                  libint 
+QS/regtest-mp2-3                                            libint 
 QS/regtest-nmr-1
+Pimd
+QS/regtest-mp2-grad                                         libint 
 QS/regtest-gapw-1
-QS/regtest-hfx-periodic                                     libint 
 QS/regtest-nmr-4
-Fist/regtest-pol
+QS/regtest-hfx-periodic                                     libint 
+QS/regtest-gapw-3
+QS/regtest-dm-ls-scf-3
 QS/regtest-ot-2
-QS/regtest-hole-funct
 Fist/regtest-7-2
-SE/regtest
+QS/regtest-sparsity                                         libint 
+QS/regtest-hole-funct
+QS/regtest-dm-ls-scf-1
 QS/regtest-bs
+Fist/regtest-pol
+QS/regtest-admm-dm                                          libint 
 QS/regtest-admm-2                                           libint 
 QS/regtest-double-hybrid-1                                  libint 
-QS/regtest-dm-ls-scf-3
-QS/regtest-dm-ls-scf-1
+QS/regtest-lrigpw
 QS/regtest-dft-vdw-corr-2                                   libxc2 
 QS/regtest-gpw-2-2
 QS/regtest-almo-1
-QS/regtest-admm-dm                                          libint 
-QS/regtest-mp2-4                                            libint 
-QS/regtest-lrigpw
-QS/regtest-hybrid-3                                         libint 
-QS/regtest-ri-laplace-mp2                                   libint 
-QS/regtest-gapw
-QS/regtest-hfx-stress                                       libint 
-QMMM/QS/regtest-3
-QS/regtest-epr-1
-QS/regtest-admm-1                                           libint 
-Fist/regtest-6
 ATOM/regtest-1
+SE/regtest
+QS/regtest-gapw
+QS/regtest-hybrid-3                                         libint 
+QS/regtest-hfx-stress                                       libint 
+QS/regtest-gw
+QMMM/QS/regtest-3
+Fist/regtest-6
+QS/regtest-pexsi                                            pexsi 
+QS/regtest-mp2-4                                            libint 
+QS/regtest-admm-1                                           libint 
+QS/regtest-epr-1
 QS/regtest-md-extrap
 QS/regtest-admm-3                                           libint 
+QS/regtest-ri-laplace-mp2                                   libint 
 QS/regtest-gpw-6-4
+QS/regtest-ls-rtp
 QS/regtest-gpw-6-3
 Fist/regtest-3
-QS/regtest-hybrid-2                                         libint 
-SCPTB/regtest-1
-QS/regtest-mp2-grad                                         libint 
-Fist/regtest-15
-Fist/regtest-1-3
+ATOM/regtest-2
 SE/regtest-4
+QS/regtest-hybrid-2                                         libint 
+Fist/regtest-15
+QS/regtest-dft-filtermat
+QMMM/QS/regtest-image
+Fist/regtest-1-3
+QS/regtest-dm-ls-scf-2
+SCPTB/regtest-1
 QS/regtest-stress
 QS/regtest-nmr-5
-QS/regtest-ls-rtp
-QS/regtest-dm-ls-scf-2
-QMMM/QS/regtest-image
-ATOM/regtest-2
-QS/regtest-pexsi                                            pexsi 
-QS/regtest-mp2-2                                            libint 
-Fist/regtest-4
-Fist/regtest-1-2
-MC/regtest
 QS/regtest-rtp-2
-QS/regtest-meta
+Fist/regtest-4
+QS/regtest-mp2-2                                            libint 
+MC/regtest
+Fist/regtest-1-2
 Fist/regtest-excl-R
-QMMM/QS/regtest-gapw                                        libint 
+QS/regtest-meta
 Fist/regtest-excl-G
+QMMM/QS/regtest-gapw                                        libint 
+LIBTEST
+DFTB/regtest-nonscc
+QS/regtest-chi-1
 QMMM/QS/regtest-4
 SE/regtest-3-3
-QS/regtest-mp2-1                                            libint 
 QS/regtest-hirshfeld
-QS/regtest-chi-1
 NEB/regtest-4
-LIBTEST
-QS/regtest-epr-2
-QS/regtest-all-electron
-Fist/regtest-2
+QS/regtest-rma                                              mpi3 
 QS/regtest-sym-4
-Fist/regtest-14
-Fist/regtest-1-1
+QS/regtest-epr-2
+Fist/regtest-2
 QS/regtest-sym-3
 QS/regtest-sym-2
+QS/regtest-mp2-1                                            libint 
+QS/regtest-all-electron
 QS/regtest-ot-refine
 QS/regtest-gapw-2
 QMMM/SE/regtest_2
+Fist/regtest-1-1
 QS/regtest-sym-5
 QS/regtest-sym-1
-DFTB/regtest-nonscc
-QS/regtest-ot-refine-2
-QS/regtest-gpw-2-1
 QMMM/DFTB/regtest
+Fist/regtest-14
 Fist/regtest-8
-Fist/regtest-10
+QS/regtest-ot-refine-2
 QS/regtest-hybrid-1                                         libint 
+QS/regtest-gpw-2-1
+Fist/regtest-10
 QS/regtest-rtp-1
 QS/regtest-nmr-3
 TMC/regtest
-QMMM/QS/regtest-2-erf
-FE/regtest-1
 QS/regtest-dft-vdw-corr-1
 QMMM/QS/regtest-2-swave
+FE/regtest-1
 QS/regtest-ot-refine-3
+QS/regtest-nmr-2
+QS/regtest-elpa                                             elpa 
+QMMM/QS/regtest-2-erf
+NEB/regtest-2
 QS/regtest-md-lgvregion
 QS/regtest-spin-spin-1
-QS/regtest-nmr-2
-NEB/regtest-2
+QS
 Fist/regtest-9
 FARMING/regtest-1
 TAMC/regtest
-QS
+QS/regtest-optbas
 Fist/regtest-13
 Fist/regtest-11
-QS/regtest-optbas
+QS/regtest-polar
 NEB/regtest-1
 Fist/regtest-gauss
-QS/regtest-polar
+QS/regtest-properties/resp
 FE/regtest-3
 TMC/regtest_ana_post_proc
-QS/regtest-properties/resp
 SWARM/regtest-glbopt-1
 SE/regtest-3-1
 QS/regtest-lsroks
 QS/regtest-linearscaling
-FE/regtest-2
+NEB/regtest-3
 TMC/regtest_ana_on_the_fly
 optimize_input/regtest-1
-NEB/regtest-3
-Fist/regtest-quip                                           quip
+FE/regtest-2
+Fist/regtest-quip                                           quip 
