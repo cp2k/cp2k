@@ -1,7 +1,7 @@
 {
 "description": "Main package of CP2K",
 "archive" : "libcp2kmain",
-"requires": ["common", "fm", "ma", "dbcsrwrap", "pw", "input", "aobasis", "xc", "acc", "base", "mpiwrap", "subsys"],
+"requires": ["common", "fm", "ma", "dbcsrwrap", "pw", "input", "aobasis", "xc", "acc", "base", "mpiwrap", "subsys", "hfxbase"],
 "implicit": "INIT_METADYN|META_FORCE_CALCULATION|plumed_f_installed|plumed_f_gcreate|plumed_f_gcmd",
 
 }
