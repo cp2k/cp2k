@@ -7,30 +7,40 @@ from datetime import datetime
 from glob import glob
 import ConfigParser
 import gzip
+import sys
 import re
 
 #===============================================================================
 def main():
+    if(len(sys.argv) != 2):
+        print("Usage generate_regtest_survey.py <output-dir>")
+        sys.exit(1)
+
+    outdir = sys.argv[1]
+    assert(outdir.endswith("/"))
+
+    # parse ../../tests/*/*/TEST_FILES
     test_defs = parse_test_files()
 
+    # find eligible testers
+    tester_names = list()
     config = ConfigParser.ConfigParser()
     config.read("dashboard.conf")
-
+    def get_sortkey(s): return config.getint(s, "sortkey")
+    for s in sorted(config.sections(), key=get_sortkey):
+        if(config.get(s,"report_type") == "regtest"):
+            tester_names.append(s)
 
     # parse latest reports
     latest_values = dict()
     revisions = dict()
-    tester_names = list()
     inp_names = set()
-    def get_sortkey(s): return config.getint(s, "sortkey")
-    for s in sorted(config.sections(), key=get_sortkey):
-        if(config.get(s,"report_type") != "regtest"): continue
-        tester_names.append(s)
-        latest_report_fn = sorted(glob("archive/%s/rev_*.txt.gz"%s))[-1]
-        revisions[s] = int(latest_report_fn.rsplit("/rev_")[1][:5])
+    for tname in tester_names:
+        latest_report_fn = sorted(glob(outdir+"archive/%s/rev_*.txt.gz"%tname))[-1]
+        revisions[tname] = int(latest_report_fn.rsplit("/rev_")[1][:5])
         report = parse_report(latest_report_fn)
         inp_names.update(report.keys())
-        latest_values[s] = report
+        latest_values[tname] = report
 
     # html-header
     output  = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">\n'
@@ -68,7 +78,7 @@ def main():
     output += '</body></html>'
 
     # write output file
-    fn = "regtest_survey.html"
+    fn = outdir+"regtest_survey.html"
     f = open(fn, "w")
     f.write(output)
     f.close()
