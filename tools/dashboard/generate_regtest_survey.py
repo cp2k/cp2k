@@ -6,6 +6,7 @@
 from datetime import datetime
 from glob import glob
 import ConfigParser
+import numpy as np
 import gzip
 import sys
 import re
@@ -55,20 +56,39 @@ def main():
 
     # table-header
     output += '<table border="1" cellspacing="3" cellpadding="5">\n'
-    output += '<tr align="center"><th>Name</th><th>Type</th><th>Tolerance</th><th>Reference</th>\n'
+    output += '<tr align="center"><th>Name</th><th>Type</th><th>Tolerance</th>'
+    output += '<th>Reference</th><th>Median</th><th>MAD</th>\n'
     for tname in tester_names:
         output += '<th>%s<br>rev %d</th>\n'%(tname, revisions[tname])
     output += '</tr>\n'
 
     # table-body
     for inp in sorted(inp_names):
+        # calculate median and MAD
+        values = list()
+        for tname in tester_names:
+            val = latest_values[tname].get(inp, None)
+            if(val):
+                values.append(float(val))
+        values = np.array(values)
+        median = np.median(values)
+        mad = np.amax(np.abs(values - median)) # Maximum Absolute Deviation
+
+        # output table-row
         output += '<tr align="right"><th align="left">%s</th>\n'%inp
         output += '<td>%s</td>\n'%test_defs[inp]["type"]
-        output += '<td>%s</td>\n'%test_defs[inp]["tolerance"]
+        output += '<td>%.1e</td>\n'%test_defs[inp]["tolerance"]
         output += '<td>%s</td>\n'%test_defs[inp].get("ref-value", "")
+        output += '<td>%g</td>\n'%median
+        output += '<td>%g</td>\n'%mad
         for tname in tester_names:
-            value = latest_values[tname].get(inp, "")
-            output += '<td>%s</td>\n'%value
+            val = latest_values[tname].get(inp, "")
+            style = ""
+            if(val):
+                rel_diff = abs( (float(val)-median) / median )
+                if(rel_diff > test_defs[inp]["tolerance"]):
+                    style = 'bgcolor="#FF9900"'
+            output += '<td %s>%s</td>\n'%(style, val)
         output += '</tr>\n'
     output += '</table>\n'
 
@@ -101,12 +121,12 @@ def parse_test_files():
             name = d+"/"+parts[0]
             entry = {'type': parts[1]}
             if(len(parts)==2):
-                entry['tolerance'] = 1e-14
+                entry['tolerance'] = 1.0e-14 # default
             elif(len(parts) == 3):
                 entry['tolerance'] = float(parts[2])
             elif(len(parts) == 4):
                 entry['tolerance'] = float(parts[2])
-                entry['ref-value'] = float(parts[3])
+                entry['ref-value'] = parts[3] # do not parse float
             else:
                 raise(Exception("Found strange line in: "+fn))
 
@@ -139,10 +159,15 @@ def parse_report(fn):
             if(not parts[0].endswith(".inp")):
                 print("Found strange line:\n"+line)
                 continue
+            if(parts[1]== "RUNTIME" and parts[2]=="FAIL"):
+                continue  # ignore crashed tests
+            if(parts[1] == "KILLED"):
+                continue  # ignore timeouted tests
             if(parts[1] == "-"):
                 continue  # test without numeric check
+
             test_name = curr_dir+parts[0]
-            values[test_name] = parts[1]
+            values[test_name] = parts[1] # do not parse float
         else:
             pass # ignore line
 
