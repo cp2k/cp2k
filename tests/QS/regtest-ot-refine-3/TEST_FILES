@@ -7,7 +7,7 @@ h2o_ot_lwdn_on_the_fly_l1.inp     1     5e-14
 h2o_ot_poly_on_the_fly_l1.inp    1    6e-14    -17.13045716728550
 o2_ot_lwdn_on_the_fly_l1.inp    1    2e-13    -31.70815206588523
 o2_ot_poly_on_the_fly_l1.inp    1    2e-13    -31.70815206588523
-h2o_ot_refine_3.inp 1
+h2o_ot_refine_3.inp               1     3e-14                               
 h2o_ot_refine_4.inp               1     2e-14
 o2_ot_refine_3.inp    1    5e-13    -31.60858517009395
 o2_ot_refine_4.inp                1     4e-14

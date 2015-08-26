@@ -12,7 +12,7 @@
 1Ne_PBEsol.inp    35    1.0E-14    -128.492082107564
 1Ne_PBE0.inp                            35
 1Ne_PBEsol0.inp                         35
-1H2_PBE.inp    1    1.0E-14    -1.15888443194966
+1H2_PBE.inp                       1     5e-14              -1.15888443194966
 3H2_PBE.inp    1    8e-13    -0.79527067237464
 1H2_PBEsol.inp                    1     2e-13
 3H2_PBEsol.inp    1    8e-14    -0.77570074529717

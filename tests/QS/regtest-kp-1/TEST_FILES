@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 c_1.inp    1    
 c_2.inp    1    
-c_3.inp    1    
-c_4.inp    1    
+c_3.inp                           1     2e-14                               
+c_4.inp                           1     3e-14                               
 c_gapw.inp    1    
 c_gapwxc.inp    1    

@@ -40,7 +40,7 @@ UO2-2x2x2-binary_restart-nve-npt-2.inp    11    1.0E-14    -77.422933585101291
 UO2-2x2x2-binary_restart-nve-npt-cs-1.inp    11    1.0E-14    -118.508379553618425
 UO2-2x2x2-binary_restart-nve-npt-cs-2.inp    11    1.0E-14    -118.506726020459837
 # Cascade section
-UO2-2x2x2-cascade-1.inp          11     2e-13
+UO2-2x2x2-cascade-1.inp          11     4e-13                               
 # Enable binary restart with core-shell potential from a non-core-shell potential and vice versa
 UO2-2x2x2-nocs2cs-nve-1.inp    11    1.0E-14    -77.451043466455289
 UO2-2x2x2-nocs2cs-nve-2.inp    11    1.0E-14    -118.461799043114780

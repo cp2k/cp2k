@@ -6,7 +6,7 @@
 # test mulliken constraints
 H2O-field-gopt.inp        1    3e-11    -16.82100458173946
 H2O-field-gopt-lsd.inp    1    4e-12    -16.84348525871141
-H2O-field.inp             1    2e-13
+H2O-field.inp                     1     4e-13                               
 H2O-field-lsd.inp         1    4e-14    -15.92915010160095
 HF-field.inp              1    1e-12    -24.70767796237102
 HF-field-gopt.inp         1    1e-12    -24.70292863028889

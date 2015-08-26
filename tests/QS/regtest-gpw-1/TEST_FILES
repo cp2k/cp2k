@@ -55,8 +55,8 @@ h4.t5.inp    1    1.0E-14    -2.09271001057167
 h2.t1.inp    1    9e-14    -1.13667556231480
 h2.t2.inp                         1     5e-14
 # EV93 xc functional
-Li2-0-SCF-PBE.inp 53
-Li2-1-nSCF-EV.inp    53    1.0E-14    -3.56444711606907
+Li2-0-SCF-PBE.inp                53     2e-14                               
+Li2-1-nSCF-EV.inp                53     4e-14              -3.56444711606907
 Li2-2-nSCF-EV93.inp    53    1.0E-14    -3.88603502173859
 Li2-3-nSCF-EV93.inp    52    1.0E-14    0.054495957291
 Li2-4-nSCF-EV93.inp    48    1.0E-14    -0.128988862489
