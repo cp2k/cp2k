@@ -1445,9 +1445,9 @@ CONTAINS
     INTEGER, INTENT(OUT)                     :: object
     CHARACTER(LEN=*), INTENT(OUT)            :: error_message
 
+    CHARACTER(LEN=20)                        :: fmtstr
     INTEGER                                  :: i, iop, istat, iz, n
     LOGICAL                                  :: parsing_done
-    CHARACTER(LEN=20)                        :: fmtstr
 
     error_message = ""
 
