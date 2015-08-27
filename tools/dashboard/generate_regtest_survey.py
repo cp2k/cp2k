@@ -59,7 +59,8 @@ def main():
     output += '<tr align="center"><th>Name</th><th>Type</th><th>Tolerance</th>'
     output += '<th>Reference</th><th>Median</th><th>MAD</th>\n'
     for tname in tester_names:
-        output += '<th>%s<br>rev %d</th>\n'%(tname, revisions[tname])
+        display_name = config.get(tname, "name")
+        output += '<th>%s<br>rev %d</th>\n'%(display_name, revisions[tname])
     output += '</tr>\n'
 
     # table-body
@@ -71,24 +72,31 @@ def main():
             if(val):
                 values.append(float(val))
         values = np.array(values)
-        median = np.median(values)
-        mad = np.amax(np.abs(values - median)) # Maximum Absolute Deviation
+        median_iterp = np.median(values) # takes midpoint if len(values)%2==0
+        median_idx = (np.abs(values-median_iterp)).argmin() # find closest point
+        median = values[median_idx]
+        norm = median + 1.0*(median==0.0)
+        rel_diff = abs((values-median)/norm)
+        mad = np.amax(rel_diff) # Maximum Absolute Deviation
+        outlier = list(rel_diff > test_defs[inp]["tolerance"])
 
         # output table-row
-        output += '<tr align="right"><th align="left">%s</th>\n'%inp
+        output += '<tr align="right">\n'
+        style = 'bgcolor="#FF9900"' if any(outlier) else ''
+        output += '<th align="left" %s>%s</th>\n'%(style,inp)
         output += '<td>%s</td>\n'%test_defs[inp]["type"]
         output += '<td>%.1e</td>\n'%test_defs[inp]["tolerance"]
         output += '<td>%s</td>\n'%test_defs[inp].get("ref-value", "")
-        output += '<td>%g</td>\n'%median
+        output += '<td>%.17g</td>\n'%median
         output += '<td>%g</td>\n'%mad
         for tname in tester_names:
-            val = latest_values[tname].get(inp, "")
-            style = ""
-            if(val):
-                rel_diff = abs( (float(val)-median) / median )
-                if(rel_diff > test_defs[inp]["tolerance"]):
-                    style = 'bgcolor="#FF9900"'
-            output += '<td %s>%s</td>\n'%(style, val)
+            val = latest_values[tname].get(inp, None)
+            if(not val):
+                output += '<td></td>\n'
+            elif(outlier.pop(0)):
+                output += '<td bgcolor="#FF9900">%s</td>'%val
+            else:
+                output += '<td>%s</td>'%val
         output += '</tr>\n'
     output += '</table>\n'
 
