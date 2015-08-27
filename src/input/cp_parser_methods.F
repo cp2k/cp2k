@@ -1447,6 +1447,7 @@ CONTAINS
 
     INTEGER                                  :: i, iop, istat, iz, n
     LOGICAL                                  :: parsing_done
+    CHARACTER(LEN=20)                        :: fmtstr
 
     error_message = ""
 
@@ -1464,7 +1465,15 @@ CONTAINS
           iop = n - i + 2
           parsing_done= .TRUE.
        END IF
-       READ (UNIT=string(i:i+iop-2),FMT=*,IOSTAT=istat) iz
+       IF (iop-1>0) THEN
+          ! need an explicit fmtstr here. With 'FMT=*' compilers from intel and pgi will also
+          ! read float numbers as integers, without setting istat non-zero, i.e. string="0.3", istat=0, iz=0
+          ! this leads to wrong CP2K results (e.g. parsing force fields).
+          WRITE(fmtstr,FMT='(A,I0,A)') '(I',iop-1,')'
+          READ (UNIT=string(i:i+iop-2),FMT=fmtstr,IOSTAT=istat) iz
+       ELSE
+          istat=1
+       ENDIF
        IF (istat /= 0) THEN
           error_message = "An integer type object was expected, found <"//&
                           string(i:i+iop-2)//">"
