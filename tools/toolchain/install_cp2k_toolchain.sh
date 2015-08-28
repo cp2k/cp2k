@@ -89,7 +89,12 @@ pexsi_ver=0.8.0
 
 plumed_ver=2.2b
 
+# quip does not build with the tsan toolchain. 
+if [ "$enable_tsan" == "yes" ]; then
+quip_ver=
+else
 quip_ver=336cab5c03
+fi
 
 #
 #
@@ -650,24 +655,32 @@ fi
 #fi
 
 echo "==================== Installing QUIP ================="
-if [ -f QUIP-${quip_ver}.zip  ]; then
-  echo "Installation already started, skipping it."
+if [ x${quip_VER} == x ]; then
+  echo "Not installing QUIP"
+  DEF_QUIP=""
+  LIB_QUIP=""
 else
-  wget http://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
-  checksum QUIP-${quip_ver}.zip
-  unzip QUIP-${quip_ver}.zip >& unzip.log
-  mv QUIP-public QUIP-${quip_ver}
-  cd QUIP-${quip_ver}
-  export QUIP_ARCH=linux_x86_64_gfortran
-  # hit enter a few times to accept decaults
-  echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
-  # make -j does not work :-(
-  make >& make.log
-
-  cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod  ${INSTALLDIR}/include/
-  cp build/linux_x86_64_gfortran/*.a                              ${INSTALLDIR}/lib/
-  cp src/FoX-4.0.3/objs.linux_x86_64_gfortran/lib/*.a             ${INSTALLDIR}/lib/
-  cd ..
+  if [ -f QUIP-${quip_ver}.zip  ]; then
+    echo "Installation already started, skipping it."
+  else
+    wget http://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
+    checksum QUIP-${quip_ver}.zip
+    unzip QUIP-${quip_ver}.zip >& unzip.log
+    mv QUIP-public QUIP-${quip_ver}
+    cd QUIP-${quip_ver}
+    export QUIP_ARCH=linux_x86_64_gfortran
+    # hit enter a few times to accept decaults
+    echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
+    # make -j does not work :-(
+    make >& make.log
+  
+    cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod  ${INSTALLDIR}/include/
+    cp build/linux_x86_64_gfortran/*.a                              ${INSTALLDIR}/lib/
+    cp src/FoX-4.0.3/objs.linux_x86_64_gfortran/lib/*.a             ${INSTALLDIR}/lib/
+    cd ..
+  fi
+  DEF_QUIP="-D__QUIP"
+  LIB_QUIP="-lquip_core -latoms -lFoX_sax -lFoX_common -lFoX_utils -lFoX_fsys"
 fi
 
 echo "==================== generating arch files ===================="
@@ -692,7 +705,7 @@ BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1
 PARAFLAGS="-D__parallel -D__SCALAPACK -D__LIBPEXSI -D__MPI_VERSION=3 -D__ELPA2"
 CUDAFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA"
 OPTFLAGS="-O3 -march=native -ffast-math \$(PROFOPT)"
-DFLAGS="-D__QUIP -D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
+DFLAGS="$DEF_QUIP -D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
 DFLAGSOPT="$LIBSMMFLAG -D__MAX_CONTR=4"
 CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1 $TSANFLAGS"
 
@@ -703,7 +716,6 @@ LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lptscotchp
 # Link to ParMETIS
 #LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lparmetis -lmetis"
 
-LIB_QUIP="-lquip_core -latoms -lFoX_sax -lFoX_common -lFoX_utils -lFoX_fsys"
 
 cat << EOF > ${INSTALLDIR}/arch/local.pdbg
 CC       = gcc
