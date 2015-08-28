@@ -525,7 +525,6 @@ CONTAINS
              tm(2) = -t32(1)*t12(3)+t12(1)*t32(3)
              tm(3) =  t32(1)*t12(2)-t12(1)*t32(2)
              sm = SQRT ( DOT_PRODUCT(tm,tm) )
-             sn = SQRT ( DOT_PRODUCT(tn,tn) )
              s32 = SQRT ( DOT_PRODUCT(t32,t32) )
              CALL force_opbends( opbend_list(iopbend)%opbend_kind%id_type, &
                                       s32,tm,t41, t42, t43, &
