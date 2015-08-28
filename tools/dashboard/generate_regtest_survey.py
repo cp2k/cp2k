@@ -33,42 +33,37 @@ def main():
             tester_names.append(s)
 
     # parse latest reports
-    latest_values = dict()
-    revisions = dict()
+    tester_values = dict()
+    tester_revision = dict()
     inp_names = set()
     for tname in tester_names:
         latest_report_fn = sorted(glob(outdir+"archive/%s/rev_*.txt.gz"%tname))[-1]
-        revisions[tname] = int(latest_report_fn.rsplit("/rev_")[1][:5])
+        tester_revision[tname] = int(latest_report_fn.rsplit("/rev_")[1][:5])
         report = parse_report(latest_report_fn)
         inp_names.update(report.keys())
-        latest_values[tname] = report
+        tester_values[tname] = report
 
     # html-header
     output  = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">\n'
     output += '<html><head>\n'
     output += '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">\n'
     output += '<style type="text/css">\n'
-    output += 'tr:hover { background-color: #ffff99; }\n'
+    output += '  tr:hover { background-color: #ffff99; }\n'
+    output += '  .nowrap { white-space: nowrap; }\n'
     output += '</style>\n'
     output += '<title>CP2K Regtest Survey</title>\n'
     output += '</head><body>\n'
     output += '<center><h1>CP2K REGTEST SURVEY</h1></center>\n'
 
-    # table-header
-    output += '<table border="1" cellspacing="3" cellpadding="5">\n'
-    output += '<tr align="center"><th>Name</th><th>Type</th><th>Tolerance</th>'
-    output += '<th>Reference</th><th>Median</th><th>MAD</th>\n'
-    for tname in tester_names:
-        display_name = config.get(tname, "name")
-        output += '<th>%s<br>rev %d</th>\n'%(display_name, revisions[tname])
-    output += '</tr>\n'
-
     # table-body
+    tester_nskipped = dict([(n,0) for n in tester_names])
+    tester_nfailed  = dict([(n,0) for n in tester_names])
+    tbody = ""
     for inp in sorted(inp_names):
         # calculate median and MAD
         values = list()
         for tname in tester_names:
-            val = latest_values[tname].get(inp, None)
+            val = tester_values[tname].get(inp, None)
             if(val):
                 values.append(float(val))
         values = np.array(values)
@@ -81,23 +76,45 @@ def main():
         outlier = list(rel_diff > test_defs[inp]["tolerance"])
 
         # output table-row
-        output += '<tr align="right">\n'
+        tbody += '<tr align="right">\n'
         style = 'bgcolor="#FF9900"' if any(outlier) else ''
-        output += '<th align="left" %s>%s</th>\n'%(style,inp)
-        output += '<td>%s</td>\n'%test_defs[inp]["type"]
-        output += '<td>%.1e</td>\n'%test_defs[inp]["tolerance"]
-        output += '<td>%s</td>\n'%test_defs[inp].get("ref-value", "")
-        output += '<td>%.17g</td>\n'%median
-        output += '<td>%g</td>\n'%mad
+        tbody += '<th align="left" %s>%s</th>\n'%(style,inp)
+        tbody += '<td>%s</td>\n'%test_defs[inp]["type"]
+        tbody += '<td>%.1e</td>\n'%test_defs[inp]["tolerance"]
+        tbody += '<td>%s</td>\n'%test_defs[inp].get("ref-value", "")
+        tbody += '<td>%.17g</td>\n'%median
+        tbody += '<td>%g</td>\n'%mad
+        tbody += '<td>%i</td>\n'%np.sum(outlier)
         for tname in tester_names:
-            val = latest_values[tname].get(inp, None)
+            val = tester_values[tname].get(inp, None)
             if(not val):
-                output += '<td></td>\n'
+                tbody += '<td></td>\n'
+                tester_nskipped[tname] += 1
             elif(outlier.pop(0)):
-                output += '<td bgcolor="#FF9900">%s</td>'%val
+                tbody += '<td bgcolor="#FF9900">%s</td>'%val
+                tester_nfailed[tname] += 1
             else:
-                output += '<td>%s</td>'%val
-        output += '</tr>\n'
+                tbody += '<td>%s</td>'%val
+        tbody += '<th align="left" %s>%s</th>\n'%(style,inp)
+        tbody += '</tr>\n'
+
+    # table-header
+    theader  ='<tr align="center"><th>Name</th><th>Type</th><th>Tolerance</th>'
+    theader += '<th>Reference</th><th>Median</th><th>MAD</th><th>#failures</th>\n'
+    for tname in tester_names:
+        theader += '<th><span class="nowrap">%s</span>'%config.get(tname, "name")
+        theader += '<br>svn-rev: %d'%tester_revision[tname]
+        theader += '<br>#failed: %d'%tester_nfailed[tname]
+        theader += '<br>#skipped: %d'%tester_nskipped[tname]
+        theader += '</th>\n'
+    theader += '<th>Name</th>'
+    theader += '</tr>\n'
+
+    # assemble table
+    output += '<table border="1" cellspacing="3" cellpadding="5">\n'
+    output += theader
+    output += tbody
+    output += theader
     output += '</table>\n'
 
     #html-footer
