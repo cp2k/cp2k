@@ -5,10 +5,11 @@
 #      for details see cp2k/tools/do_regtest
 # tests GAPW GTH and ALL
 # High-spin restricted open Kohn-Sham
-Li-ROKS.inp    1    3e-14    -7.3389104099416302
-NO2-ROKS.inp    1    1.0E-14    -203.77833570927365
+Li-ROKS.inp                                            1      3e-14            -7.3389104099416302
+NO2-ROKS.inp                                           1    1.0E-14            -203.77833570927365
 # Level-shifting for ROKS
-C-levelshift.inp    1    2e-13    -37.446946584782182
+C-levelshift.inp                                       1      2e-13            -37.446946584782182
 # Check restart for nmo = 0
-H2-pbe-restart-run.inp    1    6e-13    -0.60698327541571
-H2-pbe-restart-rerun.inp    1    7e-13    -0.60698327541577
+H2-pbe-restart-run.inp                                 1      6e-13              -0.60698327541571
+H2-pbe-restart-rerun.inp                               1      7e-13              -0.60698327541577
+#EOF

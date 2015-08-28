@@ -1,4 +1,5 @@
-argon-ref.inp         0
-driver.inp    45    1e-05    107.23470637605151
-driver-restart.inp    45    1e-06    107.6965059321592
-driver-stride.inp    45    1.0E-14    0.1072343388958498E+03
+argon-ref.inp                                          0
+driver.inp                                            45      1e-05             107.23470637605151
+driver-restart.inp                                    45      1e-06              107.6965059321592
+driver-stride.inp                                     45    1.0E-14         0.1072343388958498E+03
+#EOF

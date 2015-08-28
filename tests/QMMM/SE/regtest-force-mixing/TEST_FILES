@@ -4,5 +4,6 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM
-Lysozyme_small_NVT.inp    2    1.0E-14    -0.664207876421E+03
-tyrosine_NVT.inp    2    1.0E-14    -481.71605988300001
+Lysozyme_small_NVT.inp                                 2    1.0E-14            -0.664207876421E+03
+tyrosine_NVT.inp                                       2    1.0E-14            -481.71605988300001
+#EOF

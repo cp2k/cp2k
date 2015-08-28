@@ -5,4 +5,5 @@
 #      for details see cp2k/tools/do_regtest
 #
 # dang-chang model
-water.inp    11    1.0E-14    -0.000549916245559
+water.inp                                             11    1.0E-14             -0.000549916245559
+#EOF

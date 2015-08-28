@@ -1,28 +1,29 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-test_01.inp            0
-test_02.inp            0
-test_pw.inp            0
-test_pw_02.inp         0
-test_pw_03.inp         0
-test_pw_04.inp         0
-test_pw_05.inp         0
-test_cp_fm_gemm_01.inp 0
-test_cp_fm_gemm_02.inp 0
-eig.inp                0
-dbcsr_mm_blas.inp      0
-dbcsr_multistack.inp   0
-dbcsr_types.inp        0
-dbcsr_blocks_01.inp    58
-dbcsr_blocks_02.inp    58
-dbcsr_blocks_03.inp    58
-dbcsr_blocks_04.inp    58
-dbcsr_blocks_05.inp    58
-dbcsr_types_01.inp 58
-dbcsr_types_02.inp 58
-dbcsr_types_03.inp 58
-dbcsr_types_04.inp 58
-dbcsr_types_05.inp 58
-dbcsr_io_1.inp 0
-dbcsr_order_N.inp 58
+test_01.inp                                            0
+test_02.inp                                            0
+test_pw.inp                                            0
+test_pw_02.inp                                         0
+test_pw_03.inp                                         0
+test_pw_04.inp                                         0
+test_pw_05.inp                                         0
+test_cp_fm_gemm_01.inp                                 0
+test_cp_fm_gemm_02.inp                                 0
+eig.inp                                                0
+dbcsr_mm_blas.inp                                      0
+dbcsr_multistack.inp                                   0
+dbcsr_types.inp                                        0
+dbcsr_blocks_01.inp                                   58
+dbcsr_blocks_02.inp                                   58
+dbcsr_blocks_03.inp                                   58
+dbcsr_blocks_04.inp                                   58
+dbcsr_blocks_05.inp                                   58
+dbcsr_types_01.inp                                    58
+dbcsr_types_02.inp                                    58
+dbcsr_types_03.inp                                    58
+dbcsr_types_04.inp                                    58
+dbcsr_types_05.inp                                    58
+dbcsr_io_1.inp                                         0
+dbcsr_order_N.inp                                     58
+#EOF

@@ -3,9 +3,10 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-2gly_DIIS-OEP-NEB.inp    10    6e-11    -1.27851383602517
-2gly_DIIS-NEB.inp    10    7e-12    -2.6272600252110601
-2gly_DIIS-SD-NEB.inp    10    5e-10    -0.92697352461672
-2gly_DIIS-SD-2.inp    10    1e-08    -1.0649077579087201
-2gly_DIIS-DNEB.inp    10    8e-12    -1.9198933736066299
-2gly_DIIS-SM.inp    10    1e-11    1.7582064129930699
+2gly_DIIS-OEP-NEB.inp                                 10      6e-11              -1.27851383602517
+2gly_DIIS-NEB.inp                                     10      7e-12            -2.6272600252110601
+2gly_DIIS-SD-NEB.inp                                  10      5e-10              -0.92697352461672
+2gly_DIIS-SD-2.inp                                    10      1e-08            -1.0649077579087201
+2gly_DIIS-DNEB.inp                                    10      8e-12            -1.9198933736066299
+2gly_DIIS-SM.inp                                      10      1e-11             1.7582064129930699
+#EOF

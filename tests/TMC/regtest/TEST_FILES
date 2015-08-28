@@ -10,27 +10,28 @@
 # testing global tree creation using single exact potential, the deterministic random number generator
 #   with the standard move types, check if at the end the same configuration is created (energy)
 # testing the deterministic random Number generator and the walltime program stop
-TMC_walltime.inp    39    1.0E-14    0.71136711932820296
+TMC_walltime.inp                                      39    1.0E-14            0.71136711932820296
 # testing the standard atom/molecule moves and the proton reordering as well as the two potential checks
 # first standard moves with different molecule sizes
-TMC_1pot_H2ONH4.inp    1    1.0E-14    0.203287689240221
+TMC_1pot_H2ONH4.inp                                    1    1.0E-14              0.203287689240221
 #  compare the energy of last accepted configuration
-TMC_prot_reorder.inp    1    1.0E-14    4.7761910846989544
+TMC_prot_reorder.inp                                   1    1.0E-14             4.7761910846989544
 # testing the atom swap move
-TMC_atom_swap_test.inp    1    1.0E-14    0.84895905876093891
+TMC_atom_swap_test.inp                                 1    1.0E-14            0.84895905876093891
 # testing the Parallel Tempering with several temperatures and swap move
 # also the reference for the restart test
-TMC_PT.inp    1    1.0E-14    0.55029051152245501
+TMC_PT.inp                                             1    1.0E-14            0.55029051152245501
 # testing the NPT routines (volume move and volume acceptance check with 1 potential
-TMC_NPT.inp    1    1.0E-14    4.4183527090890706
+TMC_NPT.inp                                            1    1.0E-14             4.4183527090890706
 # testing the NPT routines (volume move and volume acceptance check with 2 potential
-TMC_NPT_2pot.inp    1    1.0E-14    4.7682876287348002
+TMC_NPT_2pot.inp                                       1    1.0E-14             4.7682876287348002
 # test the move handling (sorting to NMC moves...)
-TMC_NPT_2pot_2.inp    1    1.0E-14    4.7658426157334555
+TMC_NPT_2pot_2.inp                                     1    1.0E-14             4.7658426157334555
 # testing the NPT with NMC AND Parallel Tempering
-TMC_NPT_2pot_PT.inp    1    1.0E-14    4.7855708318741712
+TMC_NPT_2pot_PT.inp                                    1    1.0E-14             4.7855708318741712
 # testing the sub box creation and element selection
-TMC_sub_box.inp 0
+TMC_sub_box.inp                                        0
 # testing the restarting
-TMC_test_restart_0.inp    1    1.0E-14    0.56475525941138938
-TMC_test_restart_1.inp    1    1.0E-14    0.55218050338752289
+TMC_test_restart_0.inp                                 1    1.0E-14            0.56475525941138938
+TMC_test_restart_1.inp                                 1    1.0E-14            0.55218050338752289
+#EOF

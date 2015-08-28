@@ -1,9 +1,10 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-h2o-1.inp    1    3e-13    -75.93975427735262
-h2o-2.inp    1    1E-12    -75.93978939364264
-h2o-3.inp    1    7e-11    -75.944410994607594
-h2o-4.inp    1    3e-11    -75.959598087794959
-h2o-5.inp    1    1E-10    -75.51398967168370
-Hg_rel.inp    1    5e-11    -19597.214499319343
+h2o-1.inp                                              1      3e-13             -75.93975427735262
+h2o-2.inp                                              1      1E-12             -75.93978939364264
+h2o-3.inp                                              1      7e-11            -75.944410994607594
+h2o-4.inp                                              1      3e-11            -75.959598087794959
+h2o-5.inp                                              1      1E-10             -75.51398967168370
+Hg_rel.inp                                             1      5e-11            -19597.214499319343
+#EOF

@@ -1,19 +1,20 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-H2O-hfx-1.inp    1    1.0E-14    -75.88215402262148
-H2O-hfx-2.inp    1    1.0E-14    -75.88215402262149
-H2O-hfx-3.inp    1    6e-14    -75.90339017119409
-CH-hfx-md.inp    2    1e-11    -0.382647034597E+02
-CH-hfx-md-2.inp    2    1e-11    -38.26470346
-H2O_pw.inp    22    1.0E-14    -3.7204188635
-4H2O-disk.inp    1    2e-13    -301.75610687334358
-4H2O-mix-disk-ram.inp    1    2e-13    -301.75610687334415
-4H2O-mix-disk-ram-on-the-fly.inp    1    2e-13    -301.75610687334415
-H2O-hfx-emd.inp    2    1.0E-14    -0.168759281688E+02
-H2O-hfx-emd-restart.inp    2    1E-11    -16.8759281689
-H2O-hfx-atprop.inp    1    8e-14    -16.955115129211752
-H2O-hfx-ls-emd.inp    2    1.0E-14    -0.168398028193E+02 
-H2O-hfx-ls-rtp.inp    1    1.0E-14    -16.8398077850
-H2O-hfx-ls-rtp-bch.inp    1    1.0E-14    -16.8398077850
-H2O-hfx-ls-emd-bch.inp    2    1.0E-14    -0.168398027913E+02
+H2O-hfx-1.inp                                          1    1.0E-14             -75.88215402262148
+H2O-hfx-2.inp                                          1    1.0E-14             -75.88215402262149
+H2O-hfx-3.inp                                          1      6e-14             -75.90339017119409
+CH-hfx-md.inp                                          2      1e-11            -0.382647034597E+02
+CH-hfx-md-2.inp                                        2      1e-11                   -38.26470346
+H2O_pw.inp                                            22    1.0E-14                  -3.7204188635
+4H2O-disk.inp                                          1      2e-13            -301.75610687334358
+4H2O-mix-disk-ram.inp                                  1      2e-13            -301.75610687334415
+4H2O-mix-disk-ram-on-the-fly.inp                       1      2e-13            -301.75610687334415
+H2O-hfx-emd.inp                                        2    1.0E-14            -0.168759281688E+02
+H2O-hfx-emd-restart.inp                                2      1E-11                 -16.8759281689
+H2O-hfx-atprop.inp                                     1      8e-14            -16.955115129211752
+H2O-hfx-ls-emd.inp                                     2    1.0E-14            -0.168398028193E+02
+H2O-hfx-ls-rtp.inp                                     1    1.0E-14                 -16.8398077850
+H2O-hfx-ls-rtp-bch.inp                                 1    1.0E-14                 -16.8398077850
+H2O-hfx-ls-emd-bch.inp                                 2    1.0E-14            -0.168398027913E+02
+#EOF

@@ -1,12 +1,13 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-H2O-trunc-2.inp    1    5e-11    -75.999435045011069
-H2O-trunc-auto.inp    1    5e-11    -75.999435045011097
-H2O-coul-0.inp    1    1.0E-14    -76.02314790926955
-H2O-trunc-auto-md.inp    2    3e-10    -75.238597654700001
-CH3-trunc-auto.inp    1    4e-10    -39.130055305219678
-CH3-trunc-1.inp    1    2e-10    -39.361163097623439
-CH3-trunc-auto-md.inp    2    1e-09    -38.726430190599999
-CH3-coul-0.inp    1    9e-14    -39.399102296891009
-h2o-respa.inp    1    6e-13    -76.023109187259081
+H2O-trunc-2.inp                                        1      5e-11            -75.999435045011069
+H2O-trunc-auto.inp                                     1      5e-11            -75.999435045011097
+H2O-coul-0.inp                                         1    1.0E-14             -76.02314790926955
+H2O-trunc-auto-md.inp                                  2      3e-10            -75.238597654700001
+CH3-trunc-auto.inp                                     1      4e-10            -39.130055305219678
+CH3-trunc-1.inp                                        1      2e-10            -39.361163097623439
+CH3-trunc-auto-md.inp                                  2      1e-09            -38.726430190599999
+CH3-coul-0.inp                                         1      9e-14            -39.399102296891009
+h2o-respa.inp                                          1      6e-13            -76.023109187259081
+#EOF

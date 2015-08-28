@@ -1,10 +1,11 @@
 # multiple_unit_cell with AMBER connectivity
-pc-222.inp    2    1.0E-14    -0.105177118522E+02
-check_ex_14.inp    11    1.0E-14    0.005020140884419
-test_ex_14.inp    11    1.0E-14    0.005020140884419
-si_muc_cell_opt.inp    7    1.0E-14    -2.7222286209
-H2O2_auto_excl.inp    11    1.0E-14    1.344430914415782
-H2O2_topo_excl.inp    11    1.0E-14    1.351188670996930
-SF6_auto_excl.inp    11    1.0E-14    0.036554090374405
-SF6_topo_excl.inp    11    1.0E-14    0.050504879801888
-Pt_1H2O_eam_tersoff.inp    11    1.0E-14    -0.323317211983553
+pc-222.inp                                             2    1.0E-14            -0.105177118522E+02
+check_ex_14.inp                                       11    1.0E-14              0.005020140884419
+test_ex_14.inp                                        11    1.0E-14              0.005020140884419
+si_muc_cell_opt.inp                                    7    1.0E-14                  -2.7222286209
+H2O2_auto_excl.inp                                    11    1.0E-14              1.344430914415782
+H2O2_topo_excl.inp                                    11    1.0E-14              1.351188670996930
+SF6_auto_excl.inp                                     11    1.0E-14              0.036554090374405
+SF6_topo_excl.inp                                     11    1.0E-14              0.050504879801888
+Pt_1H2O_eam_tersoff.inp                               11    1.0E-14             -0.323317211983553
+#EOF

@@ -1,18 +1,19 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-H2_MD.inp                        11     7e-07
-H2_MD-2.inp                      11     7e-07
-H2_MD-3.inp                      11     7e-07
-H2-libxc.inp                     11     5e-14
-H2-libxc-ot.inp                  11     4e-14
-H2-libxc-diag.inp                11     5e-14
-geo-phase-1.inp    11    5e-07    -2.229647716115335
-geo-phase-2.inp 0
-H2_KG-1.inp                      11     7e-07
-H2_KG-2.inp                      11     1e-06                               
-H2_H2O-xcLC.inp                  11     1e-10
-H2_H2O-xcLLP.inp                 11     1e-10
-H2_H2O-xcPW86.inp                11     1e-10
-H2_H2O-xcPW91.inp                11     1e-10
-H2_H2O-xcT92.inp                 11     1e-10
+H2_MD.inp                                             11      7e-07
+H2_MD-2.inp                                           11      7e-07
+H2_MD-3.inp                                           11      7e-07
+H2-libxc.inp                                          11      5e-14
+H2-libxc-ot.inp                                       11      4e-14
+H2-libxc-diag.inp                                     11      5e-14
+geo-phase-1.inp                                       11      5e-07             -2.229647716115335
+geo-phase-2.inp                                        0
+H2_KG-1.inp                                           11      7e-07
+H2_KG-2.inp                                           11      1e-06
+H2_H2O-xcLC.inp                                       11      1e-10
+H2_H2O-xcLLP.inp                                      11      1e-10
+H2_H2O-xcPW86.inp                                     11      1e-10
+H2_H2O-xcPW91.inp                                     11      1e-10
+H2_H2O-xcT92.inp                                      11      1e-10
+#EOF

@@ -1,5 +1,6 @@
 # testing implicit (generalized) Poisson solver
-H2O_periodic.inp    1    1e-12    -17.23756095070105
-H2plus2_implicit_md.inp               11    1e-12
-Hplus_dbl_cstr_md.inp                 11    1e-12
-H2O_dbl_cstr_otcg.inp    1    1e-12    -17.21987123211392
+H2O_periodic.inp                                       1      1e-12             -17.23756095070105
+H2plus2_implicit_md.inp                               11      1e-12
+Hplus_dbl_cstr_md.inp                                 11      1e-12
+H2O_dbl_cstr_otcg.inp                                  1      1e-12             -17.21987123211392
+#EOF

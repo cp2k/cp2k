@@ -4,24 +4,25 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM
-water_3.inp    2    1.0E-14    -0.127773471727E+02
-mol.inp    2    1.0E-14    -0.713831957463E+02
-h2_dbg_0.inp    2    1.0E-14    -0.752127006152E-02
-h2_dbg_1.inp    2    1.0E-14    0.744910443617E-01
-h2_dbg_-2_2.inp    3    1.0E-14    -316.51427641772011
-h2_dbg_-2.inp    3    1.0E-14    -14.74473538369448
-water_3_fdbg.inp    3    1.0E-14    -348.94150458005100
-water_3_fdbg_inv.inp    3    1.0E-14    -352.12828908277055
-water_3_full.inp    7    1.0E-14    -12.8190719912
-water_3_full_num.inp    7    1.0E-14    -12.8190719693
+water_3.inp                                            2    1.0E-14            -0.127773471727E+02
+mol.inp                                                2    1.0E-14            -0.713831957463E+02
+h2_dbg_0.inp                                           2    1.0E-14            -0.752127006152E-02
+h2_dbg_1.inp                                           2    1.0E-14             0.744910443617E-01
+h2_dbg_-2_2.inp                                        3    1.0E-14            -316.51427641772011
+h2_dbg_-2.inp                                          3    1.0E-14             -14.74473538369448
+water_3_fdbg.inp                                       3    1.0E-14            -348.94150458005100
+water_3_fdbg_inv.inp                                   3    1.0E-14            -352.12828908277055
+water_3_full.inp                                       7    1.0E-14                 -12.8190719912
+water_3_full_num.inp                                   7    1.0E-14                 -12.8190719693
 #QMMM Walls
-water_3_NOwalls.inp    2    1.0E-14    -0.127907027267E+02
-water_3_walls.inp    2    1.0E-14    -0.127764135533E+02
-water_3_walls_q.inp    2    1.0E-14    -0.127866977452E+02
-zwitt.inp    2    6e-12    -0.336338875788E+02
+water_3_NOwalls.inp                                    2    1.0E-14            -0.127907027267E+02
+water_3_walls.inp                                      2    1.0E-14            -0.127764135533E+02
+water_3_walls_q.inp                                    2    1.0E-14            -0.127866977452E+02
+zwitt.inp                                              2      6e-12            -0.336338875788E+02
 #QMMM thermostat regions
-mol_CSVR_gen1.inp    2    1.0E-14    -0.376904929147E+02
-mol_CSVR_gen2.inp    2    1.0E-14    -0.376750907406E+02
-mol_CSVR_gen3.inp    2    1.0E-14    -0.377007451987E+02
+mol_CSVR_gen1.inp                                      2    1.0E-14            -0.376904929147E+02
+mol_CSVR_gen2.inp                                      2    1.0E-14            -0.376750907406E+02
+mol_CSVR_gen3.inp                                      2    1.0E-14            -0.377007451987E+02
 #Spherical cutoff
-mol_sph_cut.inp    2    1.0E-14    -0.707096968263E+02
+mol_sph_cut.inp                                        2    1.0E-14            -0.707096968263E+02
+#EOF

@@ -1,10 +1,11 @@
-c8_kerker_gapw.inp    1    5e-14    -41.63368236394499
+c8_kerker_gapw.inp                                     1      5e-14             -41.63368236394499
 #
-c8_broy.inp    1    1e-13    -43.77742436719371
-c8_broy_gop.inp    1    9e-07    -44.221327896913358
-c8_broy_gapw.inp    1    4e-14    -41.32902085078769
-c8_broy_gapw_gop.inp    1    1E-6    -41.865526763974422
+c8_broy.inp                                            1      1e-13             -43.77742436719371
+c8_broy_gop.inp                                        1      9e-07            -44.221327896913358
+c8_broy_gapw.inp                                       1      4e-14             -41.32902085078769
+c8_broy_gapw_gop.inp                                   1       1E-6            -41.865526763974422
 # NLCC corrected pseudos with forces
-Ne_nlcc_md.inp    1    5e-14    -70.152540242702045
+Ne_nlcc_md.inp                                         1      5e-14            -70.152540242702045
 # diagonalization library
-c8_broy_elpa.inp    1    1e-13    -43.77742436719360
+c8_broy_elpa.inp                                       1      1e-13             -43.77742436719360
+#EOF

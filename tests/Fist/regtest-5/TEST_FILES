@@ -1,44 +1,45 @@
-#JAC 
-JAC.inp    2    1.0E-14    -123.353543684
-JAC_us.inp    2    2e-11    -123.302841454
+#JAC
+JAC.inp                                                2    1.0E-14                 -123.353543684
+JAC_us.inp                                             2      2e-11                 -123.302841454
 #vibrational analysis
-wat_freq.inp    8    1.0E-14    1736.710173
-wat_freq_norot.inp    8    1.0E-14    1736.710173
-wat_freq_freeze.inp    8    1.0E-14    -37.593284
-wat_mode_sel.inp                 18     2e-05                               
-wat_mode_sel_range.inp           18     7e-08                               
-ethene-vib-mode-sel-int.inp    21    1.0E-14    0.005710
+wat_freq.inp                                           8    1.0E-14                    1736.710173
+wat_freq_norot.inp                                     8    1.0E-14                    1736.710173
+wat_freq_freeze.inp                                    8    1.0E-14                     -37.593284
+wat_mode_sel.inp                                      18      2e-05
+wat_mode_sel_range.inp                                18      7e-08
+ethene-vib-mode-sel-int.inp                           21    1.0E-14                       0.005710
 # new mode_selective tests for several restart types
-N3dye_geoopt.inp    7    1.0E-14    0.5616272352
-N3dye_vib_bfgs.inp    18    1e-05    1503.8296069999999
-N3dye_vib_bfgs2.inp    18    2e-08    1721.1518249999999
-N3dye_vib_inv_atoms.inp    18    1.0E-14    1434.154489
-N3dye_vib_restart_vec3.inp    18    1.0E-14    1720.504985
-N3dye_vib_restart_vec2.inp    18    1.0E-14    1434.156631
-N3dye_vib_restart_vec.inp    18    1.0E-14    1720.504999
-N3dye_vib_restart_vec4.inp    18    1.0E-14    1720.506967
+N3dye_geoopt.inp                                       7    1.0E-14                   0.5616272352
+N3dye_vib_bfgs.inp                                    18      1e-05             1503.8296069999999
+N3dye_vib_bfgs2.inp                                   18      2e-08             1721.1518249999999
+N3dye_vib_inv_atoms.inp                               18    1.0E-14                    1434.154489
+N3dye_vib_restart_vec3.inp                            18    1.0E-14                    1720.504985
+N3dye_vib_restart_vec2.inp                            18    1.0E-14                    1434.156631
+N3dye_vib_restart_vec.inp                             18    1.0E-14                    1720.504999
+N3dye_vib_restart_vec4.inp                            18    1.0E-14                    1720.506967
 #new linear scaling/fastest/more robust topology generator
-JAC_gen.inp    2    1.0E-14    -125.33168188099999
-arginine.inp    2    4e-11    0.10945072437
-arginine0.inp    2    1.0E-14    0.115267385339E+00
-arginine_crossC.inp    2    1.0E-14    0.115267385339E+00
+JAC_gen.inp                                            2    1.0E-14            -125.33168188099999
+arginine.inp                                           2      4e-11                  0.10945072437
+arginine0.inp                                          2    1.0E-14             0.115267385339E+00
+arginine_crossC.inp                                    2    1.0E-14             0.115267385339E+00
 #new reordering algorithm
-water_reord.inp    2    1.0E-14    0.183700943310E-02
-phenobenz.inp    2    1e-10    0.21873884825500001
-liquid.inp    2    1.0E-14    -0.857747949868E+02
+water_reord.inp                                        2    1.0E-14             0.183700943310E-02
+phenobenz.inp                                          2      1e-10            0.21873884825500001
+liquid.inp                                             2    1.0E-14            -0.857747949868E+02
 #PSF EXT CHARMM
-wat125.inp    2    1.0E-14    -0.201482786158E+01
-#General potential 
-argon_GENPOT.inp    2    1.0E-14    -0.211229954170E+00
-H2O-1-GENPOT.inp    2    1.0E-14    -0.170754712778E-03
-H2O-1-GENPOT-2.inp    2    1.0E-14    -0.170754712778E-03
+wat125.inp                                             2    1.0E-14            -0.201482786158E+01
+#General potential
+argon_GENPOT.inp                                       2    1.0E-14            -0.211229954170E+00
+H2O-1-GENPOT.inp                                       2    1.0E-14            -0.170754712778E-03
+H2O-1-GENPOT-2.inp                                     2    1.0E-14            -0.170754712778E-03
 #test colvar qparm
-argon_GENPOT_fcc-ql.inp    2    1.0E-14    0.738884293119E+00
+argon_GENPOT_fcc-ql.inp                                2    1.0E-14             0.738884293119E+00
 # mixing
-H2OFe-5_75.inp    2    1.0E-14    -0.464085736111E+01
+H2OFe-5_75.inp                                         2    1.0E-14            -0.464085736111E+01
 # test energy_force runtime
-acn-2.inp                 0
-H2OFe-5_75-2.inp          0
-I3.inp    2    1.0E-14    0.130398739829E+02
+acn-2.inp                                              0
+H2OFe-5_75-2.inp                                       0
+I3.inp                                                 2    1.0E-14             0.130398739829E+02
 #TIP4P
-water_tip4p.inp    2    1.0E-14    -0.111390529409E-01
+water_tip4p.inp                                        2    1.0E-14            -0.111390529409E-01
+#EOF

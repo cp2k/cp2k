@@ -1,72 +1,73 @@
 # molname constraints
-water_3_dist_2.inp    2    1.0E-14    -0.146090953012E-03
-water_3_dist_3.inp    2    1.0E-14    0.125671951245E-02
-water32_hbonds_3.inp    2    1.0E-14    -0.153983716098E-01
-water32_hbonds_4.inp    2    1.0E-14    -0.306067373566E-01
-water_massive.inp    2    2e-09    -6.4367113013499999
+water_3_dist_2.inp                                     2    1.0E-14            -0.146090953012E-03
+water_3_dist_3.inp                                     2    1.0E-14             0.125671951245E-02
+water32_hbonds_3.inp                                   2    1.0E-14            -0.153983716098E-01
+water32_hbonds_4.inp                                   2    1.0E-14            -0.306067373566E-01
+water_massive.inp                                      2      2e-09            -6.4367113013499999
 # applying constraint to the 0 step of MD
-water_3_dist_startC.inp    2    7.0E-12    -0.145189973904E-03
+water_3_dist_startC.inp                                2    7.0E-12            -0.145189973904E-03
 # just keep echo_input alive
-acn-3.inp                 0
+acn-3.inp                                              0
 # Restart of restraints
-H2O-fixd-rest.inp    2    1.0E-14    0.270339895452E-02
-H2O-fixd-rest-2.inp    2    1.0E-14    0.113616767819E-02
-H2O-restraint_1.inp    2    1.0E-14    0.302410439733E-02
-H2O-restraint_2.inp    2    1.0E-14    0.549027732099E-02
+H2O-fixd-rest.inp                                      2    1.0E-14             0.270339895452E-02
+H2O-fixd-rest-2.inp                                    2    1.0E-14             0.113616767819E-02
+H2O-restraint_1.inp                                    2    1.0E-14             0.302410439733E-02
+H2O-restraint_2.inp                                    2    1.0E-14             0.549027732099E-02
 # Constrained FIXED_ATOMS + other kinds of contraints
-ethene_colv3.inp    2    8e-10    0.0044422066059699996
-nh3_4x6_fixd.inp    2    1.0E-14    -0.614486476805E+00
-water_3_g3x3_fxd.inp    2    1.0E-14    -0.151680542408E-03
+ethene_colv3.inp                                       2      8e-10          0.0044422066059699996
+nh3_4x6_fixd.inp                                       2    1.0E-14            -0.614486476805E+00
+water_3_g3x3_fxd.inp                                   2    1.0E-14            -0.151680542408E-03
 #bug fix for nonbonded14
-test_pair.inp    11    1.0E-14    -0.138093943980071
-test_ub1.inp    11    1.0E-14    3.217393655177664
-test_ub2.inp    11    1.0E-14    2.580760859555949
-mfi.inp    2    1.0E-14    0.433855168086E+00
+test_pair.inp                                         11    1.0E-14             -0.138093943980071
+test_ub1.inp                                          11    1.0E-14              3.217393655177664
+test_ub2.inp                                          11    1.0E-14              2.580760859555949
+mfi.inp                                                2    1.0E-14             0.433855168086E+00
 # Intermolecular constraints
-water_3_dist_inter.inp            2     6e-12             0.313590831335E-02
-water_3_dist_inter2.inp    2    1e-11    -0.00015041643107799999
-water_3_dist_mix.inp    2    1.0E-14    0.237036295788E-02
+water_3_dist_inter.inp                                 2      6e-12             0.313590831335E-02
+water_3_dist_inter2.inp                                2      1e-11        -0.00015041643107799999
+water_3_dist_mix.inp                                   2    1.0E-14             0.237036295788E-02
 # Intermolecular restraints
-H2O-constr_1_ext.inp    2    1e-11    -0.215250233163E-04
-H2O-restraint_1_ext.inp    2    1.0E-14    0.302410439733E-02
-nh3_4x6_ext.inp    2    1.0E-14    -0.448911308961E+00
-nh3_r4x6_ext.inp    2    1.0E-14    -0.448319509376E+00
-water_3_g3x3_ext.inp    2    1.0E-14    0.385661810330E-02
-water_3_rg3x3_ext.inp    2    1.0E-14    0.113447756830E-02
+H2O-constr_1_ext.inp                                   2      1e-11            -0.215250233163E-04
+H2O-restraint_1_ext.inp                                2    1.0E-14             0.302410439733E-02
+nh3_4x6_ext.inp                                        2    1.0E-14            -0.448911308961E+00
+nh3_r4x6_ext.inp                                       2    1.0E-14            -0.448319509376E+00
+water_3_g3x3_ext.inp                                   2    1.0E-14             0.385661810330E-02
+water_3_rg3x3_ext.inp                                  2    1.0E-14             0.113447756830E-02
 # more mixing
-H2OFe-5_75-3.inp    2    1.0E-14    -0.468442186412E+01
-H2OFe-5_75-4.inp    2    1.0E-14    -0.463709905128E+01
+H2OFe-5_75-3.inp                                       2    1.0E-14            -0.468442186412E+01
+H2OFe-5_75-4.inp                                       2    1.0E-14            -0.463709905128E+01
 #general mixing
-H2OFe-5_75-5.inp    2    1.0E-14    -0.463709905128E+01
+H2OFe-5_75-5.inp                                       2    1.0E-14            -0.463709905128E+01
 #restart mix_env
-H2OFe-5_75-6.inp    2    1.0E-14    -0.484120270229E+01
+H2OFe-5_75-6.inp                                       2    1.0E-14            -0.484120270229E+01
 #general mapping
-H2OFe-5_75-7.inp    2    1.0E-14    -0.506501402353E+01
+H2OFe-5_75-7.inp                                       2    1.0E-14            -0.506501402353E+01
 #target two different molecule name (same nature)
-water_3_dist_2_restr.inp    2    1.0E-14    0.705966204146E-03
+water_3_dist_2_restr.inp                               2    1.0E-14             0.705966204146E-03
 # check charges of Ti in the dumped topology
-interface.inp    2    1.0E-14    -0.582242994901E+00
+interface.inp                                          2    1.0E-14            -0.582242994901E+00
 # silent in parallel
-interface-2.inp           0
+interface-2.inp                                        0
 # geo_opt with save_mem.. bug fix
-mfi_geo.inp    7    1.0E-14    0.1229559807
-mfi_geo2.inp    7    1.0E-14    0.0119785072
-mfi_geo3.inp    7    1.0E-14    0.0000039863
+mfi_geo.inp                                            7    1.0E-14                   0.1229559807
+mfi_geo2.inp                                           7    1.0E-14                   0.0119785072
+mfi_geo3.inp                                           7    1.0E-14                   0.0000039863
 # fixed atoms with only partial components
-nh3_fixd_x.inp    2    1.0E-14    -0.551955955308E+00
-nh3_fixd_xy.inp    2    1.0E-14    -0.558215902527E+00
-nh3_fixd_y.inp    2    1.0E-14    -0.546765909699E+00
-nh3_fixd_z.inp    2    1.0E-14    -0.558873806830E+00
+nh3_fixd_x.inp                                         2    1.0E-14            -0.551955955308E+00
+nh3_fixd_xy.inp                                        2    1.0E-14            -0.558215902527E+00
+nh3_fixd_y.inp                                         2    1.0E-14            -0.546765909699E+00
+nh3_fixd_z.inp                                         2    1.0E-14            -0.558873806830E+00
 #Cell opt
-argon_opt_cell.inp    7    2e-04    -0.1961397953
-argon_opt_cell_ks.inp    7    8e-05    -0.19517552769999999
-argon_opt_cell_md.inp    7    1.0E-14    0.1617110873
-Si_tersoff.inp    7    1.0E-14    -4.9278652447
+argon_opt_cell.inp                                     7      2e-04                  -0.1961397953
+argon_opt_cell_ks.inp                                  7      8e-05           -0.19517552769999999
+argon_opt_cell_md.inp                                  7    1.0E-14                   0.1617110873
+Si_tersoff.inp                                         7    1.0E-14                  -4.9278652447
 #initial orthorombic cells under npt_f dynamics
-nptf_ortho.inp    2    4e-09    -1.68009364663
-nptf_ortho_screen.inp    2    8e-09    -1.68087079556
+nptf_ortho.inp                                         2      4e-09                 -1.68009364663
+nptf_ortho_screen.inp                                  2      8e-09                 -1.68087079556
 # morse and cubic bonded potentials
-bonded-1.inp    2    1.0E-14    0.163326996014E-02
-bonded-2.inp    2    1.0E-14    -0.321706670827E+00
+bonded-1.inp                                           2    1.0E-14             0.163326996014E-02
+bonded-2.inp                                           2    1.0E-14            -0.321706670827E+00
 # mixed stretch-bend form
-bonded-3.inp    2    1.0E-14    0.168535489010E-02
+bonded-3.inp                                           2    1.0E-14             0.168535489010E-02
+#EOF

@@ -4,20 +4,21 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #GEEP library for S-WAVE expansion
-H2O-qmmm-gauss-14-geep-2.inp    1    2e-14    -12.90734521130708
-H2O-qmmm-gauss-14-geep-3.inp    1    2e-14    -12.912834083299121
-H2O-qmmm-gauss-14-geep-4.inp    1    4e-14    -12.91058208430419
-H2O-qmmm-gauss-14-geep-5.inp    1    3e-14    -12.94682754743678
-H2O-qmmm-gauss-14-geep-6.inp    1    4e-14    -12.92452860733718
-H2O-qmmm-gauss-14-geep-7.inp    1    2e-14    -12.92123918724425
-H2O-qmmm-gauss-14-geep-8.inp    1    1e-13    -12.91960951301941
-H2O-qmmm-gauss-14-geep-9.inp    1    2e-14    -12.91867786991166
-H2O-qmmm-gauss-14-geep-10.inp    1    1.0E-14    -12.91834967974590
-H2O-qmmm-gauss-14-geep-11.inp    1    3e-14    -12.91820135888607
-H2O-qmmm-gauss-14-geep-12.inp    1    1.0E-14    -12.9184714476065
-H2O-qmmm-gauss-14-geep-13.inp    1    6e-14    -12.91841635717047
-H2O-qmmm-gauss-14-geep-14.inp    1    3e-14    -12.91812153532482
-H2O-qmmm-gauss-14-geep-15.inp    1    1.0E-14    -12.91839103491836
-H2O-qmmm-gauss-14-geep-16.inp    1    5e-14    -12.91855954617379
-H2O-qmmm-gauss-14-geep-17.inp    1    9e-14    -12.91861259602525
-H2O-qmmm-gauss-14-geep-18.inp    1    3e-14    -12.91839462799581
+H2O-qmmm-gauss-14-geep-2.inp                           1      2e-14             -12.90734521130708
+H2O-qmmm-gauss-14-geep-3.inp                           1      2e-14            -12.912834083299121
+H2O-qmmm-gauss-14-geep-4.inp                           1      4e-14             -12.91058208430419
+H2O-qmmm-gauss-14-geep-5.inp                           1      3e-14             -12.94682754743678
+H2O-qmmm-gauss-14-geep-6.inp                           1      4e-14             -12.92452860733718
+H2O-qmmm-gauss-14-geep-7.inp                           1      2e-14             -12.92123918724425
+H2O-qmmm-gauss-14-geep-8.inp                           1      1e-13             -12.91960951301941
+H2O-qmmm-gauss-14-geep-9.inp                           1      2e-14             -12.91867786991166
+H2O-qmmm-gauss-14-geep-10.inp                          1    1.0E-14             -12.91834967974590
+H2O-qmmm-gauss-14-geep-11.inp                          1      3e-14             -12.91820135888607
+H2O-qmmm-gauss-14-geep-12.inp                          1    1.0E-14              -12.9184714476065
+H2O-qmmm-gauss-14-geep-13.inp                          1      6e-14             -12.91841635717047
+H2O-qmmm-gauss-14-geep-14.inp                          1      3e-14             -12.91812153532482
+H2O-qmmm-gauss-14-geep-15.inp                          1    1.0E-14             -12.91839103491836
+H2O-qmmm-gauss-14-geep-16.inp                          1      5e-14             -12.91855954617379
+H2O-qmmm-gauss-14-geep-17.inp                          1      9e-14             -12.91861259602525
+H2O-qmmm-gauss-14-geep-18.inp                          1      3e-14             -12.91839462799581
+#EOF

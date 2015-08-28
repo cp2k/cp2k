@@ -2,7 +2,8 @@
 # the second field tells which test should be run in order to compare with the last available output
 # e.g. 0 means do not compare anything, running is enough
 #      for details see cp2k/tools/do_regtest
-LJ10_minhop_1.inp    59    5e-5    -0.026595092000000001
-LJ10_minhop_2.inp    59    5e-5    -0.028421844000000002
-LJ10_mincrawl_1.inp    59    5e-5    -0.028422091
+LJ10_minhop_1.inp                                     59       5e-5          -0.026595092000000001
+LJ10_minhop_2.inp                                     59       5e-5          -0.028421844000000002
+LJ10_mincrawl_1.inp                                   59       5e-5                   -0.028422091
+#EOF
 #EOF

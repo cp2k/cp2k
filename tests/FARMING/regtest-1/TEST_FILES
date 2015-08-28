@@ -3,12 +3,13 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-farming-1.inp 0
-farming-2.inp 0
-farming-3.inp 0
-farming-4.inp 0
-farming-5.inp 0
-farming-6.inp 0
-farming-7.inp 0
-farming-8.inp 0
-farming-9.inp 0
+farming-1.inp                                          0
+farming-2.inp                                          0
+farming-3.inp                                          0
+farming-4.inp                                          0
+farming-5.inp                                          0
+farming-6.inp                                          0
+farming-7.inp                                          0
+farming-8.inp                                          0
+farming-9.inp                                          0
+#EOF

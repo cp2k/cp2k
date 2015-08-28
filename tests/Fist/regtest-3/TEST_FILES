@@ -1,37 +1,38 @@
-silicon_cluster.inp    7    1.0E-14    -14.0002460043
-silicon_cluster_2.inp    2    1.0E-14    -0.141634971034E+02
-silicon_cluster_3.inp    7    1.0E-14    -14.5034022524
-silicon_cluster_4.inp    7    1.0E-14    -14.5520435455
-silicon_cluster_5.inp    7    1.0E-14    -14.5662767168
+silicon_cluster.inp                                    7    1.0E-14                 -14.0002460043
+silicon_cluster_2.inp                                  2    1.0E-14            -0.141634971034E+02
+silicon_cluster_3.inp                                  7    1.0E-14                 -14.5034022524
+silicon_cluster_4.inp                                  7    1.0E-14                 -14.5520435455
+silicon_cluster_5.inp                                  7    1.0E-14                 -14.5662767168
 # this depends on the previous runs and provides a quick check
-silicon_cluster_6.inp    2    1.0E-14    -0.145636857875E+02
-al2o3.inp    2    1.0E-14    -0.281494799779E+03
+silicon_cluster_6.inp                                  2    1.0E-14            -0.145636857875E+02
+al2o3.inp                                              2    1.0E-14            -0.281494799779E+03
 # NPT_F restart
-al2o3-res.inp    2    1.0E-14    -0.281518554272E+03
-nh3_4x6.inp    2    1.0E-14    -0.609069034682E+00
-nh3_4x6_npt.inp    2    3e-12    -0.612567635316
-nh3_dist.inp    2    1.0E-14    -0.609068776607E+00
-nh3_dist_npt.inp    2    3e-12    -0.61256754941299996
-cu_eam_0.inp    11    1.0E-14    0.165412608009751
-cu_eam_1.inp    2    1.0E-14    -0.409714991820E+01
-cu_eam_2.inp    2    1.0E-14    -0.409677836585E+01
-cu_eam_3.inp    11    1.0E-14    -0.089118611086518
+al2o3-res.inp                                          2    1.0E-14            -0.281518554272E+03
+nh3_4x6.inp                                            2    1.0E-14            -0.609069034682E+00
+nh3_4x6_npt.inp                                        2      3e-12                -0.612567635316
+nh3_dist.inp                                           2    1.0E-14            -0.609068776607E+00
+nh3_dist_npt.inp                                       2      3e-12           -0.61256754941299996
+cu_eam_0.inp                                          11    1.0E-14              0.165412608009751
+cu_eam_1.inp                                           2    1.0E-14            -0.409714991820E+01
+cu_eam_2.inp                                           2    1.0E-14            -0.409677836585E+01
+cu_eam_3.inp                                          11    1.0E-14             -0.089118611086518
 # Fumi-Tosi Potential
-NaCl.inp    2    1.0E-14    -0.754271873807E+02
-NaCl-H2O.inp    2    1.0E-14    -0.848001875280E+01
+NaCl.inp                                               2    1.0E-14            -0.754271873807E+02
+NaCl-H2O.inp                                           2    1.0E-14            -0.848001875280E+01
 #Dimer Method
-water_2_TS.inp    25    1.0E-14    -0.0007023080
-water_2_TS_CG.inp    25    1.0E-14    -0.0034700359
-argon.inp    25    1.0E-14    -0.0001787063
-2d_pot.inp                       25     5e-06
+water_2_TS.inp                                        25    1.0E-14                  -0.0007023080
+water_2_TS_CG.inp                                     25    1.0E-14                  -0.0034700359
+argon.inp                                             25    1.0E-14                  -0.0001787063
+2d_pot.inp                                            25      5e-06
 #amber files
-ace_ala_nme.inp    7    1.0E-14    -0.1185300854
-ace_ala_nme-ambconn.inp    7    1.0E-14    -0.1185300850
-ace_ala_nme-amber.inp    7    1.0E-14    -0.1257394724
+ace_ala_nme.inp                                        7    1.0E-14                  -0.1185300854
+ace_ala_nme-ambconn.inp                                7    1.0E-14                  -0.1185300850
+ace_ala_nme-amber.inp                                  7    1.0E-14                  -0.1257394724
 #EAM alloys
-agpt.inp    2    1.0E-14    -0.292077327941E+01
+agpt.inp                                               2    1.0E-14            -0.292077327941E+01
 #BMHFTD
-flibe_nopol.inp    2    1.0E-14    0.112600280917E-01
-fli_nopol_small1.inp    11    1.0E-14    2.935980450547099
-fli_nopol_small2.inp    11    1.0E-14    0.008731955712438
-fli_nopol_small3.inp    11    1.0E-14    0.000003641354401
+flibe_nopol.inp                                        2    1.0E-14             0.112600280917E-01
+fli_nopol_small1.inp                                  11    1.0E-14              2.935980450547099
+fli_nopol_small2.inp                                  11    1.0E-14              0.008731955712438
+fli_nopol_small3.inp                                  11    1.0E-14              0.000003641354401
+#EOF

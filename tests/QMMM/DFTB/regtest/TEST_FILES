@@ -4,18 +4,19 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM
-wdim_scc.inp    1    1.0E-14    -4.0735502369332997
-wdim_nonscc.inp    1    1.0E-14    -4.1049845014555002
-wdimmc_scc.inp    1    1.0E-14    -4.07060757309577
-wdimmc_nonscc.inp    1    1.0E-14    -4.10169797261567
-epc_1.inp    1    1.0E-14    -4.07357205844602
-epc_2.inp    1    1.0E-14    -4.0735502369332997
-epc_3.inp    1    1.0E-14    -4.1050091079608704
-epc_4.inp    1    1.0E-14    -4.0735802037711499
-fdeb_1.inp            0
-fdeb_2.inp            0
-fdeb_3.inp            0
-fdeb_4.inp            0
-fdeb_5.inp            0
-fdeb_6.inp            0
-fdeb_7.inp            0
+wdim_scc.inp                                           1    1.0E-14            -4.0735502369332997
+wdim_nonscc.inp                                        1    1.0E-14            -4.1049845014555002
+wdimmc_scc.inp                                         1    1.0E-14              -4.07060757309577
+wdimmc_nonscc.inp                                      1    1.0E-14              -4.10169797261567
+epc_1.inp                                              1    1.0E-14              -4.07357205844602
+epc_2.inp                                              1    1.0E-14            -4.0735502369332997
+epc_3.inp                                              1    1.0E-14            -4.1050091079608704
+epc_4.inp                                              1    1.0E-14            -4.0735802037711499
+fdeb_1.inp                                             0
+fdeb_2.inp                                             0
+fdeb_3.inp                                             0
+fdeb_4.inp                                             0
+fdeb_5.inp                                             0
+fdeb_6.inp                                             0
+fdeb_7.inp                                             0
+#EOF

@@ -4,18 +4,19 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # mixing procedures nr. 1
-si8_pmix.inp    1    3e-14    -31.292343006469419
-si8_kerker.inp    1    4e-14    -31.152242948509159
-si8_pulay.inp    1    1e-13    -31.160585460161109
-si8_broy.inp    1    1.0E-14    -31.148630076168342
-si8_pulay_md.inp    1    1.0E-14    -31.16148751725105
-si8_pulay_skip.inp    1    2e-14    -31.161454050888501
+si8_pmix.inp                                           1      3e-14            -31.292343006469419
+si8_kerker.inp                                         1      4e-14            -31.152242948509159
+si8_pulay.inp                                          1      1e-13            -31.160585460161109
+si8_broy.inp                                           1    1.0E-14            -31.148630076168342
+si8_pulay_md.inp                                       1    1.0E-14             -31.16148751725105
+si8_pulay_skip.inp                                     1      2e-14            -31.161454050888501
 # cholesky methods
-si8_pulay_reduce.inp    1    1e-13    -31.160585460160672
-si8_pulay_restore.inp    1    1e-13    -31.160585460161009
-si8_pulay_inverse.inp    1    9e-14    -31.160585460160981
-si8_pulay_inv_dbcsr.inp    1    3e-13    -31.16058546015924
-si8_pulay_off.inp    1    5e-13    -33.01431207828869
+si8_pulay_reduce.inp                                   1      1e-13            -31.160585460160672
+si8_pulay_restore.inp                                  1      1e-13            -31.160585460161009
+si8_pulay_inverse.inp                                  1      9e-14            -31.160585460160981
+si8_pulay_inv_dbcsr.inp                                1      3e-13             -31.16058546015924
+si8_pulay_off.inp                                      1      5e-13             -33.01431207828869
 #
-si8_pmix_nosmear_mocubes.inp    1    5e-13    -31.18760296982239
-si8_pulay_mocubes.inp    1    5e-13    -31.16058546016065
+si8_pmix_nosmear_mocubes.inp                           1      5e-13             -31.18760296982239
+si8_pulay_mocubes.inp                                  1      5e-13             -31.16058546016065
+#EOF

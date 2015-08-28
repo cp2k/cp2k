@@ -1,72 +1,73 @@
 # test topology generate/dump feature
-acn.inp    2    1.0E-14    -0.188181595734E+00
+acn.inp                                                2    1.0E-14            -0.188181595734E+00
 #metadynamics distance_point_plane and angle
-nh3-meta-1.inp    2    1.0E-14    0.110355972496E+00
-nh3-meta-ref.inp          0
-nh3-meta-ref2.inp         0
-nh3-meta-2.inp    2    1.0E-14    0.103662033913E+00
+nh3-meta-1.inp                                         2    1.0E-14             0.110355972496E+00
+nh3-meta-ref.inp                                       0
+nh3-meta-ref2.inp                                      0
+nh3-meta-2.inp                                         2    1.0E-14             0.103662033913E+00
 #collective constraint both for nve and npt
-ethene_colv0.inp    2    8e-10    0.0064638931085700003
-ethene_colv1.inp    2    8e-10    0.0064656266809200004
-ethene_colv1_npt.inp    2    4e-09    0.00171895688846
-ethene_colv2.inp    2    5e-11    0.017674386846599999
-ethene_colv2_npt.inp    2    3e-10    0.0039278397253399997
+ethene_colv0.inp                                       2      8e-10          0.0064638931085700003
+ethene_colv1.inp                                       2      8e-10          0.0064656266809200004
+ethene_colv1_npt.inp                                   2      4e-09               0.00171895688846
+ethene_colv2.inp                                       2      5e-11           0.017674386846599999
+ethene_colv2_npt.inp                                   2      3e-10          0.0039278397253399997
 #
 # test restraints here
 # flexible partitioning
-H2O-32_SPME_fp.inp    2    1.0E-14    -0.573500908078E+00
+H2O-32_SPME_fp.inp                                     2    1.0E-14            -0.573500908078E+00
 # dist and bend
-H2O-restraint.inp    2    1.0E-14    0.160734238008E-02
+H2O-restraint.inp                                      2    1.0E-14             0.160734238008E-02
 # torsion
-ethene-restraint.inp    2    7e-12    0.00081393113312400005
-ethene-restraint2.inp    2    5e-11    0.813931133125E-03
+ethene-restraint.inp                                   2      7e-12         0.00081393113312400005
+ethene-restraint2.inp                                  2      5e-11             0.813931133125E-03
 #next two are a double crossed check
-ethene-no-restraint.inp    2    2e-12    0.00080042617086399995
-ethene-ck-restraint.inp    2    2e-12    0.00080042617086399995
+ethene-no-restraint.inp                                2      2e-12         0.00080042617086399995
+ethene-ck-restraint.inp                                2      2e-12         0.00080042617086399995
 #restraint 3x3
-H2O-restraint_3x3.inp    2    3e-12    0.769155421056E-03
+H2O-restraint_3x3.inp                                  2      3e-12             0.769155421056E-03
 #restraint 4x6
-nh3-restraint4x6.inp    2    1.0E-14    0.503664372190E-02
+nh3-restraint4x6.inp                                   2    1.0E-14             0.503664372190E-02
 #restraint fixed_atoms
-nh3-restraint-fixd.inp    2    1.0E-14    0.276479131856E-02
+nh3-restraint-fixd.inp                                 2    1.0E-14             0.276479131856E-02
 #
 # testing loops in topology
-loop.inp    2    1.0E-14    -0.110975214201E+01
-pentadiene.inp    2    6e-12    0.347129306924E-01
-cyhex.inp    2    1.0E-14    0.334467445119E-01
-cycbut.inp    2    1.0E-14    0.146699955633E+00
+loop.inp                                               2    1.0E-14            -0.110975214201E+01
+pentadiene.inp                                         2      6e-12             0.347129306924E-01
+cyhex.inp                                              2    1.0E-14             0.334467445119E-01
+cycbut.inp                                             2    1.0E-14             0.146699955633E+00
 # testing cp_units
-H2O-1.inp    2    1.0E-14    -0.170754712777E-03
+H2O-1.inp                                              2    1.0E-14            -0.170754712777E-03
 # Testing multiple potential
-H2O-2-mul0.inp    2    1.0E-14    -0.170754712777E-03
-H2O-2-ovwr.inp    2    1.0E-14    -0.170754712777E-03
-H2O-2-multi.inp    2    1.0E-14    -0.170754712777E-03
-H2O-2-multi-pw.inp    2    1.0E-14    -0.170754712777E-03
+H2O-2-mul0.inp                                         2    1.0E-14            -0.170754712777E-03
+H2O-2-ovwr.inp                                         2    1.0E-14            -0.170754712777E-03
+H2O-2-multi.inp                                        2    1.0E-14            -0.170754712777E-03
+H2O-2-multi-pw.inp                                     2    1.0E-14            -0.170754712777E-03
 # AMBER tests comparing energies w.r.t. AMBER.. differences of the order of 10^-6-10^-7 Hartree
 # see the h2o2_amber.inp for comments
-h2o2_amber.inp    2    1.0E-14    0.379102174525E-01
-gly_amber.inp    2    3e-12    -0.734794690516E-02
-mol_amber.inp    2    1.0E-14    -0.785339124023E-02
+h2o2_amber.inp                                         2    1.0E-14             0.379102174525E-01
+gly_amber.inp                                          2      3e-12            -0.734794690516E-02
+mol_amber.inp                                          2    1.0E-14            -0.785339124023E-02
 #RESPA_TEST
-acn_respa.inp    2    1.0E-14    -0.161228239673E+00
+acn_respa.inp                                          2    1.0E-14            -0.161228239673E+00
 #BFGS optimizer with restraints
-nh3-restraint-fixd-2.inp    7    1.0E-14    0.0010863072
+nh3-restraint-fixd-2.inp                               7    1.0E-14                   0.0010863072
 #Restart fixed on different molecules..
-nh3_wat-restraint-fixd-3.inp    7    1.0E-14    -0.0061030813
-nh3_wat-restraint-fixd-4.inp    7    1.0E-14    -0.0061030820
+nh3_wat-restraint-fixd-3.inp                           7    1.0E-14                  -0.0061030813
+nh3_wat-restraint-fixd-4.inp                           7    1.0E-14                  -0.0061030820
 #BFGS - Restart Hessian
-nh3_bfgs.inp    7    1.0E-14    -0.0000637288
-nh3_bfgs_r.inp    7    1.0E-14    -0.0000637306
+nh3_bfgs.inp                                           7    1.0E-14                  -0.0000637288
+nh3_bfgs_r.inp                                         7    1.0E-14                  -0.0000637306
 #Growth constraints
-ethene_colv1_growth.inp    2    7e-10    0.0124972876295
-ethene_colv1_growth_lim.inp    2    8e-10    0.0087716206527799993
+ethene_colv1_growth.inp                                2      7e-10                0.0124972876295
+ethene_colv1_growth_lim.inp                            2      8e-10          0.0087716206527799993
 #combo restraint/constraint
-H2O-restraint_2.inp    2    1.0E-14    0.200251478411E-03
-H2O-restraint_2r.inp    2    9e-12    0.232271778520E-03
+H2O-restraint_2.inp                                    2    1.0E-14             0.200251478411E-03
+H2O-restraint_2r.inp                                   2      9e-12             0.232271778520E-03
 #Multiple Walkers
-nh3-meta-walks_1.inp    2    1.0E-14    0.709668226001E-03
-nh3-meta-walks_2.inp    2    1.0E-14    0.116427166940E-01
-nh3-meta-walks_1r.inp    2    4e-12    0.0095586840152099995
-nh3-meta-walks_2r.inp    2    7e-10    0.014663352649999999
+nh3-meta-walks_1.inp                                   2    1.0E-14             0.709668226001E-03
+nh3-meta-walks_2.inp                                   2    1.0E-14             0.116427166940E-01
+nh3-meta-walks_1r.inp                                  2      4e-12          0.0095586840152099995
+nh3-meta-walks_2r.inp                                  2      7e-10           0.014663352649999999
 #Combine_colvar
-H2O-meta-combine.inp    2    3e-02    0.00104137484729
+H2O-meta-combine.inp                                   2      3e-02               0.00104137484729
+#EOF

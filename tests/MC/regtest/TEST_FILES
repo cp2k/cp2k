@@ -6,30 +6,31 @@
 #      for details see cp2k/tools/do_regtest
 #
 # QS MC test for volume moves and the ref_cell on water
-MC_QS.inp    6    1.0E-14    -51.34321651
+MC_QS.inp                                              6    1.0E-14                   -51.34321651
 # binary Ar/water GEMC constant pressure simulation...requires an input
 # file for each of the two simulation boxes...constant pressure means each
 # box can change volume independently...uses FIST and the biasing potential
 # (bias_template.inp, which is also used for canonical_bias.inp)
-GEMC_NpT_box1.inp    6    1.0E-14    0.49837578
+GEMC_NpT_box1.inp                                      6    1.0E-14                     0.49837578
 # same as GEMC_NpT_box1.inp, except performs a canonical Gibbs simulation...
 # this means the overall volume of the system is constant, so an attempt
 # to make one box smaller makes the other box larger...this is the only
 # choice for a one component system with the Gibbs ensemble
-GEMC_NVT_box1.inp    6    1.0E-14    0.49834012
+GEMC_NVT_box1.inp                                      6    1.0E-14                     0.49834012
 # same as GEMC_NVT_box1.inp, except tests molecule swaps between boxes
 # instead of volume moves
-GEMC_swap_box1.inp    6    1.0E-14    0.58129066
+GEMC_swap_box1.inp                                     6    1.0E-14                     0.58129066
 # a simple canonical (constant NVT) simulation on the binary water/argon
-# system...uses translations, rotations, and bond length/angle changes, 
+# system...uses translations, rotations, and bond length/angle changes,
 # but the last one only for water...uses FIST
-canonical.inp    6    1.0E-14    0.52222913
-# same as canonical.inp, but this uses a biasing potential (found in 
+canonical.inp                                          6    1.0E-14                     0.52222913
+# same as canonical.inp, but this uses a biasing potential (found in
 # bias_template.inp)...performs a series of moves with the biasing
 # potential before correcting with the "real" potential
-canonical_bias.inp    6    1.0E-14    0.40468169
+canonical_bias.inp                                     6    1.0E-14                     0.40468169
 # computes the second virial coefficient of SCP/E water at 300.0 K
-virial.inp    12    1.0E-14    -.354382E+03
+virial.inp                                            12    1.0E-14                   -.354382E+03
 # does a hybrid Monte Carlo simulation on classical argon at 70.0 K
 # there are no other types of MC moves in this simulation
-hmc.inp    6    1.0E-14    -2.49648316
+hmc.inp                                                6    1.0E-14                    -2.49648316
+#EOF

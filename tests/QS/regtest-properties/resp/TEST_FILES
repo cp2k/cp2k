@@ -5,6 +5,7 @@
 #      51 compare to the RESP charge on atom with index 1
 #      for details see cp2k/tools/do_regtest
 # RESP fitting
-CH3OH_nonperiodic.inp    51    1.0E-14    4.418291
-CH3OH_periodic.inp    51    1.0E-14    2.456029
-graphite.inp    51    1.0E-14    -1.073313
+CH3OH_nonperiodic.inp                                 51    1.0E-14                       4.418291
+CH3OH_periodic.inp                                    51    1.0E-14                       2.456029
+graphite.inp                                          51    1.0E-14                      -1.073313
+#EOF

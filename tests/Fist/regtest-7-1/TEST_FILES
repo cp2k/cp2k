@@ -1,68 +1,69 @@
 # Shell model NVE
-uo2_shell_nve.inp    2    1.0E-14    -0.118520798627E+03
-uo2_shell_nve_r.inp    2    1.0E-14    -0.118527186788E+03
+uo2_shell_nve.inp                                      2    1.0E-14            -0.118520798627E+03
+uo2_shell_nve_r.inp                                    2    1.0E-14            -0.118527186788E+03
 # Shell model NVT
-uo2_shell_nvt.inp    2    1.0E-14    -0.118491617892E+03
-uo2_shell_nvt_res.inp    2    1.0E-14    -0.118452233677E+03
-uo2_shell_nvt_res_2.inp    2    1.0E-14    -0.118456366184E+03
+uo2_shell_nvt.inp                                      2    1.0E-14            -0.118491617892E+03
+uo2_shell_nvt_res.inp                                  2    1.0E-14            -0.118452233677E+03
+uo2_shell_nvt_res_2.inp                                2    1.0E-14            -0.118456366184E+03
 # Shell model NPT
-uo2_shell_npti_b.inp    2    1.0E-14    -0.118474601750E+03
-uo2_shell_npti.inp    2    1.0E-14    -0.118479980258E+03
-uo2_shell_npt300.inp    2    1.0E-14    -0.118480543474E+03
-uo2_shell_npt_msd.inp    2    1.0E-14    -0.118500766505E+03
-uo2_nvt-1.inp    2    1.0E-14    -0.148187064345E+02
-uo2_nvt.inp    2    1.0E-14    -0.148123953364E+02
-uo2_nvt_0.inp    2    1.0E-14    -0.400382176035E+00
-uo2_nvt_1.inp    2    1.0E-14    -0.709095213213E+01
-uo2_nvt_2.inp    2    1.0E-14    -0.708697516574E+01
-uo2_nvt_3.inp    2    1.0E-14    -0.707933127356E+01
-uo2_nvt_4.inp    2    1.0E-14    -0.708325654905E+01
-uo2_shell_nvt_shnose.inp    2    1.0E-14    -0.118490839488E+03
-uo2_shell_nvt_shnose_r.inp    2    1.0E-14    -0.118456979583E+03
-uo2_shell_nvt_shnose_b.inp    2    1.0E-14    -0.118480159371E+03
-uo2_shell_nvt_shnose_c.inp    2    1.0E-14    -0.118482609833E+03
-uo2_shell_nvt_shnosemass.inp    2    1.0E-14    -0.118480159371E+03
-uo2_shell_nvt_shnosemass_r.inp    2    1.0E-14    -0.118439337147E+03
-uo2_shell_nve_shnose.inp    2    1.0E-14    -0.118486599707E+03
+uo2_shell_npti_b.inp                                   2    1.0E-14            -0.118474601750E+03
+uo2_shell_npti.inp                                     2    1.0E-14            -0.118479980258E+03
+uo2_shell_npt300.inp                                   2    1.0E-14            -0.118480543474E+03
+uo2_shell_npt_msd.inp                                  2    1.0E-14            -0.118500766505E+03
+uo2_nvt-1.inp                                          2    1.0E-14            -0.148187064345E+02
+uo2_nvt.inp                                            2    1.0E-14            -0.148123953364E+02
+uo2_nvt_0.inp                                          2    1.0E-14            -0.400382176035E+00
+uo2_nvt_1.inp                                          2    1.0E-14            -0.709095213213E+01
+uo2_nvt_2.inp                                          2    1.0E-14            -0.708697516574E+01
+uo2_nvt_3.inp                                          2    1.0E-14            -0.707933127356E+01
+uo2_nvt_4.inp                                          2    1.0E-14            -0.708325654905E+01
+uo2_shell_nvt_shnose.inp                               2    1.0E-14            -0.118490839488E+03
+uo2_shell_nvt_shnose_r.inp                             2    1.0E-14            -0.118456979583E+03
+uo2_shell_nvt_shnose_b.inp                             2    1.0E-14            -0.118480159371E+03
+uo2_shell_nvt_shnose_c.inp                             2    1.0E-14            -0.118482609833E+03
+uo2_shell_nvt_shnosemass.inp                           2    1.0E-14            -0.118480159371E+03
+uo2_shell_nvt_shnosemass_r.inp                         2    1.0E-14            -0.118439337147E+03
+uo2_shell_nve_shnose.inp                               2    1.0E-14            -0.118486599707E+03
 # Temperature_per kind
-uo2_shell_nvt_tkind.inp    2    1.0E-14    -0.118491617892E+03
-uo2_shell_nvt_tkind_1.inp    2    1.0E-14    -0.118491617892E+03
+uo2_shell_nvt_tkind.inp                                2    1.0E-14            -0.118491617892E+03
+uo2_shell_nvt_tkind_1.inp                              2    1.0E-14            -0.118491617892E+03
 # CSVR Thermostat
-uo2_shell_nvt_shCSVR.inp    2    1.0E-14    -0.118475372005E+03
-uo2_shell_nvt_shCSVR_NOSE.inp    2    1.0E-14    -0.118490839488E+03
-uo2_shell_nvt_shCSVR_R.inp    2    1.0E-14    -0.118434129293E+03
+uo2_shell_nvt_shCSVR.inp                               2    1.0E-14            -0.118475372005E+03
+uo2_shell_nvt_shCSVR_NOSE.inp                          2    1.0E-14            -0.118490839488E+03
+uo2_shell_nvt_shCSVR_R.inp                             2    1.0E-14            -0.118434129293E+03
 #npe ensemble
-uo2_shell_npe_1.inp    2    1.0E-14    -0.118520483143E+03
-uo2_shell_npe_2.inp    2    1.0E-14    -0.118483192177E+03
-uo2_shell_npe_2res.inp    2    1.0E-14    -0.118447611436E+03
-uo2_shell_npe_3.inp    2    1.0E-14    -0.118512674801E+03
-uo2_shell_npe_4.inp    2    1.0E-14    -0.118512945670E+03
-uo2_shell_npe_5.inp    2    1.0E-14    -0.118481755547E+03
-uo2_shell_npe_6.inp    2    1.0E-14    -0.118483273824E+03
+uo2_shell_npe_1.inp                                    2    1.0E-14            -0.118520483143E+03
+uo2_shell_npe_2.inp                                    2    1.0E-14            -0.118483192177E+03
+uo2_shell_npe_2res.inp                                 2    1.0E-14            -0.118447611436E+03
+uo2_shell_npe_3.inp                                    2    1.0E-14            -0.118512674801E+03
+uo2_shell_npe_4.inp                                    2    1.0E-14            -0.118512945670E+03
+uo2_shell_npe_5.inp                                    2    1.0E-14            -0.118481755547E+03
+uo2_shell_npe_6.inp                                    2    1.0E-14            -0.118483273824E+03
 #Variable time step
-uo2_shell_nve_vdt.inp    2    1.0E-14    -0.118528714746E+03
-uo2_shell_nve_vdt_r.inp    2    1.0E-14    -0.118525319398E+03
-uo2_shell_npt_vdt.inp    2    1.0E-14    -0.118264970082E+03
-uo2_shell_npt_vdt_2.inp    2    1.0E-14    -0.117998080269E+03
+uo2_shell_nve_vdt.inp                                  2    1.0E-14            -0.118528714746E+03
+uo2_shell_nve_vdt_r.inp                                2    1.0E-14            -0.118525319398E+03
+uo2_shell_npt_vdt.inp                                  2    1.0E-14            -0.118264970082E+03
+uo2_shell_npt_vdt_2.inp                                2    1.0E-14            -0.117998080269E+03
 #Check on shell-core distance
-uo2_shell_nve_dsc.inp    2    1.0E-14    -0.117674397581E+03
-uo2_shell_npt_dsc.inp    2    1.0E-14    -0.118068236454E+03
+uo2_shell_nve_dsc.inp                                  2    1.0E-14            -0.117674397581E+03
+uo2_shell_npt_dsc.inp                                  2    1.0E-14            -0.118068236454E+03
 #ZBL repulsive term for core-core and shell-core interactions
-uo2_shell_nve_zbl.inp    2    1.0E-14    -0.118482304333E+03
+uo2_shell_nve_zbl.inp                                  2    1.0E-14            -0.118482304333E+03
 # thermal regions
-uo2_shell_nve_cascade.inp    2    1.0E-14    -0.118497693908E+03
+uo2_shell_nve_cascade.inp                              2    1.0E-14            -0.118497693908E+03
 # Geometry optimisation for core-shell model
-UO2-4x4x4-core-forces.inp    43    1.0E-14    0
-UO2-4x4x4-core-shell-debug.inp   42     1e+00
-UO2-4x4x4-shell-forces.inp    44    1.0E-14    0
+UO2-4x4x4-core-forces.inp                             43    1.0E-14                              0
+UO2-4x4x4-core-shell-debug.inp                        42      1e+00
+UO2-4x4x4-shell-forces.inp                            44    1.0E-14                              0
 # Automatic fitting of the BUCK4RANGES polynomials
-UO2-4x4x4-autofit.inp    11    1E-12    -948.24095020004961
+UO2-4x4x4-autofit.inp                                 11      1E-12            -948.24095020004961
 # Connectivity user
-UO2-2x2x2-conn_user.inp    47    1.0E-14    1
-UO2-2x2x2-conn_user_nvt.inp    2    1.0E-14    -0.774510363915E+02
+UO2-2x2x2-conn_user.inp                               47    1.0E-14                              1
+UO2-2x2x2-conn_user_nvt.inp                            2    1.0E-14            -0.774510363915E+02
 # Read CP2K COORD section from an external file, optionally disable all exclusion lists
-UO2-2x2x2-coord-0.inp    11    1.0E-14    -77.461096471996356
-UO2-2x2x2-coord-1.inp    11    1.0E-14    -77.461096471996356
-UO2-2x2x2-coord-2.inp    11    1.0E-14    -77.461096471996385
-UO2-2x2x2-coord-3.inp    11    1.0E-14    -77.461096471996257
-UO2-2x2x2-coord-scaled-1.inp    11    4e-14    -77.461096482422832
+UO2-2x2x2-coord-0.inp                                 11    1.0E-14            -77.461096471996356
+UO2-2x2x2-coord-1.inp                                 11    1.0E-14            -77.461096471996356
+UO2-2x2x2-coord-2.inp                                 11    1.0E-14            -77.461096471996385
+UO2-2x2x2-coord-3.inp                                 11    1.0E-14            -77.461096471996257
+UO2-2x2x2-coord-scaled-1.inp                          11      4e-14            -77.461096482422832
+#EOF

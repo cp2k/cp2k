@@ -1,11 +1,12 @@
-SiO2_lr_quad.inp    11    2e-12    -80.527386668852159
+SiO2_lr_quad.inp                                      11      2e-12            -80.527386668852159
 #XTL file
-Al2O3.inp                        11     6e-14
+Al2O3.inp                                             11      6e-14
 #angvel_tol
-gly_noangvel.inp    2    1.0E-14    -0.496541901720E+02
+gly_noangvel.inp                                       2    1.0E-14            -0.496541901720E+02
 #extended cif test
-Co_complex.inp    11    6e-11    -134.129933982423609
+Co_complex.inp                                        11      6e-11           -134.129933982423609
 #cv distance from path
-N3_rp_md.inp    11    3e-8    -270.16556004958409
-N3_dp_md.inp    11    2e-08    -270.16569370885304
-N3_rp_dp_md.inp    11    2e-08    -270.165612978414
+N3_rp_md.inp                                          11       3e-8            -270.16556004958409
+N3_dp_md.inp                                          11      2e-08            -270.16569370885304
+N3_rp_dp_md.inp                                       11      2e-08              -270.165612978414
+#EOF

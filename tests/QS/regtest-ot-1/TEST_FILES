@@ -3,54 +3,55 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-H2O.inp    1    1.0E-14    -17.139931645492631
+H2O.inp                                                1    1.0E-14            -17.139931645492631
 #restart
-H2O-OT-1.inp    1    4e-13    -17.13993288492818
+H2O-OT-1.inp                                           1      4e-13             -17.13993288492818
 #restart
-H2O-OT-2.inp    1    7e-14    -17.13993271168255
+H2O-OT-2.inp                                           1      7e-14             -17.13993271168255
 #restart
-H2O-OT-3.inp    1    1.0E-14    -17.140105652826129
+H2O-OT-3.inp                                           1    1.0E-14            -17.140105652826129
 #restart
-H2O-OT-4.inp    1    1e-13    -17.13983663781175
+H2O-OT-4.inp                                           1      1e-13             -17.13983663781175
 # restart, state selective
-H2O-OT-5.inp    1    5e-14    -17.14028119979584
-# LSD 
-H2-1.inp    1    4e-13    -0.81434928939885998
-H2-2.inp    1    8e-13    -0.80551808334119002
-H2-3.inp    1    6e-13    -0.81893458480536996
+H2O-OT-5.inp                                           1      5e-14             -17.14028119979584
+# LSD
+H2-1.inp                                               1      4e-13           -0.81434928939885998
+H2-2.inp                                               1      8e-13           -0.80551808334119002
+H2-3.inp                                               1      6e-13           -0.81893458480536996
 # more complete OT testing
-Ar-14.inp    1    4e-13    -20.95260104206562
-Ar-15.inp    1    3e-13    -20.949153287444471
-Ar-16.inp    1    4e-13    -20.95260104206562
-Ar-17.inp    1    4e-13    -20.94915310647679
-Ar-18.inp    1    4e-13    -20.95260104206562
-Ar-19.inp    1    4e-13    -20.949153294889189
-Ar-20.inp    1    4e-13    -20.95260104206562
-Ar-21.inp    1    3e-13    -20.949153295811559
+Ar-14.inp                                              1      4e-13             -20.95260104206562
+Ar-15.inp                                              1      3e-13            -20.949153287444471
+Ar-16.inp                                              1      4e-13             -20.95260104206562
+Ar-17.inp                                              1      4e-13             -20.94915310647679
+Ar-18.inp                                              1      4e-13             -20.95260104206562
+Ar-19.inp                                              1      4e-13            -20.949153294889189
+Ar-20.inp                                              1      4e-13             -20.95260104206562
+Ar-21.inp                                              1      3e-13            -20.949153295811559
 # OT and occuation
-H2O-7.inp    1    1.0E-14    -16.611319626093149
-H2O-8.inp    1    2e-07    -16.810982640293279
-H2O-9.inp    1    3e-09    -16.811010284996321
-H2O-10.inp    1    2e-10    -16.811011547670141
+H2O-7.inp                                              1    1.0E-14            -16.611319626093149
+H2O-8.inp                                              1      2e-07            -16.810982640293279
+H2O-9.inp                                              1      3e-09            -16.811010284996321
+H2O-10.inp                                             1      2e-10            -16.811011547670141
 # OT ASPC
-H2O-OT-ASPC-1.inp    1    4e-14    -17.139932947723182
-H2O-OT-ASPC-2.inp    1    3e-14    -17.139941910069489
-H2O-OT-ASPC-3.inp    1    2e-14    -17.139941991883049
-H2O-OT-ASPC-4.inp    1    3e-14    -17.13994198373085
-H2O-OT-ASPC-5.inp    1    3e-14    -17.13993068757226
-H2O-OT-ASPC-6.inp    1    5e-14    -17.13941008471566
+H2O-OT-ASPC-1.inp                                      1      4e-14            -17.139932947723182
+H2O-OT-ASPC-2.inp                                      1      3e-14            -17.139941910069489
+H2O-OT-ASPC-3.inp                                      1      2e-14            -17.139941991883049
+H2O-OT-ASPC-4.inp                                      1      3e-14             -17.13994198373085
+H2O-OT-ASPC-5.inp                                      1      3e-14             -17.13993068757226
+H2O-OT-ASPC-6.inp                                      1      5e-14             -17.13941008471566
 # Input driven basis set and potential
-H2O-bs_input.inp    1    4e-14    -17.13993294311388
+H2O-bs_input.inp                                       1      4e-14             -17.13993294311388
 # Mode selectiv vibrational analysis and intensities
-H2O-VIB-MS-INT-1.inp    21    1.0E-14    0.009948
-H2O-VIB-MS-INT-2.inp    21    1.0E-14    0.009948
-vib-mixed.inp                     8     1e-14                    2160.676220
-dip-mixed.inp    11    2e-14    -17.24850633393466
-vib-int-mixed.inp       8
+H2O-VIB-MS-INT-1.inp                                  21    1.0E-14                       0.009948
+H2O-VIB-MS-INT-2.inp                                  21    1.0E-14                       0.009948
+vib-mixed.inp                                          8      1e-14                    2160.676220
+dip-mixed.inp                                         11      2e-14             -17.24850633393466
+vib-int-mixed.inp                                      8
 #broyden
-H2O-broyden-1.inp    1    3e-14    -17.16150835997220
-H2O-broyden-2.inp    1    2e-05    -17.160495479573299
+H2O-broyden-1.inp                                      1      3e-14             -17.16150835997220
+H2O-broyden-2.inp                                      1      2e-05            -17.160495479573299
 #inverse_update_preconditioner solve
-H2O-inverse_up.inp    1    1.0E-14    -17.14017488354676
+H2O-inverse_up.inp                                     1    1.0E-14             -17.14017488354676
 #magnetic dipole moment
-H2O-magnetic.inp    17    1.0E-14    0.65963137
+H2O-magnetic.inp                                      17    1.0E-14                     0.65963137
+#EOF

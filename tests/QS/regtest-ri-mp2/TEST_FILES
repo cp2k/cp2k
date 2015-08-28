@@ -1,5 +1,6 @@
-RI_MP2_H2O.inp                   11     1e-10   -17.056222251243558
-RI_MP2_CH3.inp    11    4e-14    -7.2850195288146731
-opt_basis_O_ext_init.inp    57    9e-06    -0.097046226431369995
-opt_basis_O_auto_gen.inp    57    1e-04    -0.097002051066109998
-opt_basis_O_num_func.inp    57    4e-05    -0.097065881652240005
+RI_MP2_H2O.inp                                        11      1e-10            -17.056222251243558
+RI_MP2_CH3.inp                                        11      4e-14            -7.2850195288146731
+opt_basis_O_ext_init.inp                              57      9e-06          -0.097046226431369995
+opt_basis_O_auto_gen.inp                              57      1e-04          -0.097002051066109998
+opt_basis_O_num_func.inp                              57      4e-05          -0.097065881652240005
+#EOF

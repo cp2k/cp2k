@@ -1,7 +1,8 @@
-RI_RPA_H2O.inp    11    1e-09    -17.16012453993439
-RI_RPA_CH3.inp    11    1.0E-14    -7.416548172697896
-RI_RPA_H2O_SYRK.inp    11    7e-09    -17.160124539934376
-RI_RPA_minimax_H_atom.inp    11    1e-08    -0.51012290148468298
-RI_RPA_H2O_minimax.inp    11    1e-08    -17.160123825539717
-RI_RPA_H2O_PBE0.inp    11    1e-08    -17.137291323423945
-RI_RPA_H2O_PBE0_ADMM1.inp    11    1e-08    -17.139647828522083
+RI_RPA_H2O.inp                                        11      1e-09             -17.16012453993439
+RI_RPA_CH3.inp                                        11    1.0E-14             -7.416548172697896
+RI_RPA_H2O_SYRK.inp                                   11      7e-09            -17.160124539934376
+RI_RPA_minimax_H_atom.inp                             11      1e-08           -0.51012290148468298
+RI_RPA_H2O_minimax.inp                                11      1e-08            -17.160123825539717
+RI_RPA_H2O_PBE0.inp                                   11      1e-08            -17.137291323423945
+RI_RPA_H2O_PBE0_ADMM1.inp                             11      1e-08            -17.139647828522083
+#EOF

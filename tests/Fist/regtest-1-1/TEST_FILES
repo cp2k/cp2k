@@ -5,27 +5,28 @@
 #      for details see cp2k/tools/do_regtest
 #
 # EIP
-Si_1000.inp    2    1.0E-14    -0.170183162315E+03
+Si_1000.inp                                            2    1.0E-14            -0.170183162315E+03
 # CHARMM INTRA Forces Test
-pot_input.inp    2    1.0E-14    0.427871243040E-01
-pot_bond.inp    2    1.0E-14    0.183201063777E-01
-pot_bend.inp    2    1.0E-14    0.639901811696E-02
-pot_ub.inp    2    1.0E-14    0.0029592597340700002
-pot_tor.inp    2    1.0E-14    0.118778830725E-01
-pot_onfo.inp    2    1.0E-14    -1.35101556757e-05
-pot_onfo_elec.inp    2    1.0E-14    -1.35101556757e-05
+pot_input.inp                                          2    1.0E-14             0.427871243040E-01
+pot_bond.inp                                           2    1.0E-14             0.183201063777E-01
+pot_bend.inp                                           2    1.0E-14             0.639901811696E-02
+pot_ub.inp                                             2    1.0E-14          0.0029592597340700002
+pot_tor.inp                                            2    1.0E-14             0.118778830725E-01
+pot_onfo.inp                                           2    1.0E-14             -1.35101556757e-05
+pot_onfo_elec.inp                                      2    1.0E-14             -1.35101556757e-05
 # EWALD test
-gmax.inp    2    1.0E-14    -0.108299222629E+01
+gmax.inp                                               2    1.0E-14            -0.108299222629E+01
 #
 # Example system test
-argon_wildcard.inp    2    1.0E-14    -0.209634929499E+00
-argon_muc.inp    2    1.0E-14    -0.417066334171E+00
-argon_muc-r.inp    2    1.0E-14    -0.419092358902E+00
-argon.inp    2    1.0E-14    -0.211229963864E+00
-argon_npt.inp    2    1.0E-14    -0.205974024480E+00
-water_1.inp    2    1.0E-14    0.374760458659E-02
-water_1_res_1.inp    2    1.0E-14    0.280676726224E-02
-water_1_res_2.inp    2    1.0E-14    0.906352439916E-02
-water_1_res_3.inp    2    1.0E-14    0.801094550498E-02
-water_2.inp    2    1.0E-14    0.268336530288E-02
-water_2_rescaleF.inp    2    1.0E-14    0.938701018854E+00
+argon_wildcard.inp                                     2    1.0E-14            -0.209634929499E+00
+argon_muc.inp                                          2    1.0E-14            -0.417066334171E+00
+argon_muc-r.inp                                        2    1.0E-14            -0.419092358902E+00
+argon.inp                                              2    1.0E-14            -0.211229963864E+00
+argon_npt.inp                                          2    1.0E-14            -0.205974024480E+00
+water_1.inp                                            2    1.0E-14             0.374760458659E-02
+water_1_res_1.inp                                      2    1.0E-14             0.280676726224E-02
+water_1_res_2.inp                                      2    1.0E-14             0.906352439916E-02
+water_1_res_3.inp                                      2    1.0E-14             0.801094550498E-02
+water_2.inp                                            2    1.0E-14             0.268336530288E-02
+water_2_rescaleF.inp                                   2    1.0E-14             0.938701018854E+00
+#EOF

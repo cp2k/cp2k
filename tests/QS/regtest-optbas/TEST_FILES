@@ -1,3 +1,4 @@
 # test optimize basis
-H2O-ref.inp    1    9e-14    -17.02896601301607
-opt-1.inp 55
+H2O-ref.inp                                            1      9e-14             -17.02896601301607
+opt-1.inp                                             55
+#EOF

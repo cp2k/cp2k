@@ -4,13 +4,14 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM
-nh3_g4x6_excl_mm.inp    2    1.0E-14    -0.913069017786E+01
-nh3_g4x6_excl_qm.inp    2    1.0E-14    -0.913127863162E+01
-water_colv_excl_mm.inp    2    1.0E-14    -0.128071776255E+02
-water_colv_excl_qm.inp    2    1.0E-14    -0.128078086386E+02
-water_fixd_excl_mm.inp    2    1.0E-14    -0.128094856912E+02
-water_fixd_excl_qm.inp    2    1.0E-14    -0.128087667071E+02
-water_g3x3_excl_mm.inp    2    1.0E-14    -0.128057061878E+02
-water_g3x3_excl_qm.inp    2    1.0E-14    -0.128090813557E+02
+nh3_g4x6_excl_mm.inp                                   2    1.0E-14            -0.913069017786E+01
+nh3_g4x6_excl_qm.inp                                   2    1.0E-14            -0.913127863162E+01
+water_colv_excl_mm.inp                                 2    1.0E-14            -0.128071776255E+02
+water_colv_excl_qm.inp                                 2    1.0E-14            -0.128078086386E+02
+water_fixd_excl_mm.inp                                 2    1.0E-14            -0.128094856912E+02
+water_fixd_excl_qm.inp                                 2    1.0E-14            -0.128087667071E+02
+water_g3x3_excl_mm.inp                                 2    1.0E-14            -0.128057061878E+02
+water_g3x3_excl_qm.inp                                 2    1.0E-14            -0.128090813557E+02
 # QMMM with manybody potential
-Si_tersoff_qmmm.inp    3    2e-13    -3418.0680930896369
+Si_tersoff_qmmm.inp                                    3      2e-13            -3418.0680930896369
+#EOF

@@ -1,7 +1,8 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-H2O-hybrid-bhandh.inp    1    1.0E-14    -75.904821172142746
-H2O-hybrid-bhandhlyp.inp    1    1.0E-14    -76.335580504386499
-H2O-hybrid-pbe0.inp    1    1.0E-14    -76.319953334327153
-H2O-hybrid-b3lyp.inp    1    4e-14    -76.373389389689692
+H2O-hybrid-bhandh.inp                                  1    1.0E-14            -75.904821172142746
+H2O-hybrid-bhandhlyp.inp                               1    1.0E-14            -76.335580504386499
+H2O-hybrid-pbe0.inp                                    1    1.0E-14            -76.319953334327153
+H2O-hybrid-b3lyp.inp                                   1      4e-14            -76.373389389689692
+#EOF

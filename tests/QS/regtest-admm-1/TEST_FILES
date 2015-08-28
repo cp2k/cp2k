@@ -1,8 +1,9 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-CH3-BP-MO_DIAG.inp    1    1e-13    -7.3693624812253598
-CH3-BP-MO_NO_DIAG.inp    1    1e-13    -7.3693624812253598
-CH3-BP-NONE.inp    1    6e-14    -7.3678498912252799
-CH3-BP-NONE_OT_OFF.inp    1    2e-14    -7.39804794174094
-H2O-admm-emd.inp    2    1.0E-14    -0.167845503289E+02
+CH3-BP-MO_DIAG.inp                                     1      1e-13            -7.3693624812253598
+CH3-BP-MO_NO_DIAG.inp                                  1      1e-13            -7.3693624812253598
+CH3-BP-NONE.inp                                        1      6e-14            -7.3678498912252799
+CH3-BP-NONE_OT_OFF.inp                                 1      2e-14              -7.39804794174094
+H2O-admm-emd.inp                                       2    1.0E-14            -0.167845503289E+02
+#EOF

@@ -5,4 +5,5 @@
 #      for details see cp2k/tools/do_regtest
 #
 # dang-chang model
-water.inp               9
+water.inp                                              9
+#EOF

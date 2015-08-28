@@ -1,42 +1,43 @@
 #free energy calculation
-NaCl_fe.inp    2    1.0E-14    0.127003379061E+01
+NaCl_fe.inp                                            2    1.0E-14             0.127003379061E+01
 # new constraints distance_difference
-water_3_ddist.inp    2    1.0E-14    0.124331490580E-01
+water_3_ddist.inp                                      2    1.0E-14             0.124331490580E-01
 # distributed grid for spme/pme
-JAC_distr.inp    2    1.0E-14    -123.353543684
-H2O-32_PME_distr.inp    2    1.0E-14    -0.611544181350E+00
+JAC_distr.inp                                          2    1.0E-14                 -123.353543684
+H2O-32_PME_distr.inp                                   2    1.0E-14            -0.611544181350E+00
 # Central Force Water test (Nir)
-cf_genpot.inp    2    1.0E-14    -0.437747928494E+00
+cf_genpot.inp                                          2    1.0E-14            -0.437747928494E+00
 # Tersoff potential test
-Si_tersoff_rcut.inp    2    1.0E-14    -0.441068723056E+01
-Si_tersoff.inp    2    1.0E-14    -0.441068723056E+01
-Si_tersoff_2.inp    2    1.0E-14    -0.168775130786E+01
-Si_tersoff_3.inp    2    1.0E-14    -0.759727944846E+01
-C_tersoff.inp    2    1.0E-14    -0.971545611681E+02
+Si_tersoff_rcut.inp                                    2    1.0E-14            -0.441068723056E+01
+Si_tersoff.inp                                         2    1.0E-14            -0.441068723056E+01
+Si_tersoff_2.inp                                       2    1.0E-14            -0.168775130786E+01
+Si_tersoff_3.inp                                       2    1.0E-14            -0.759727944846E+01
+C_tersoff.inp                                          2    1.0E-14            -0.971545611681E+02
 # New grouping colvar
-ethene_colv1_g.inp    2    8e-10    0.0064656266809200004
-ethene_colv2_g.inp    2    5e-11    0.017674386846599999
-nh3-meta-1_g.inp    2    1.0E-14    0.110355972496E+00
-water_3_ddist_g.inp    2    1.0E-14    0.124331490580E-01
-water_3_dist_g.inp    2    1.0E-14    -0.146090953012E-03
-water_3_dist_centers.inp    2    1.0E-14    0.123695356882E-03
-water_3_dist_centers2.inp    2    1.0E-14    0.111776817045E-02
-water_3_dist_centers3.inp    2    1.0E-14    0.396688628991E-02
+ethene_colv1_g.inp                                     2      8e-10          0.0064656266809200004
+ethene_colv2_g.inp                                     2      5e-11           0.017674386846599999
+nh3-meta-1_g.inp                                       2    1.0E-14             0.110355972496E+00
+water_3_ddist_g.inp                                    2    1.0E-14             0.124331490580E-01
+water_3_dist_g.inp                                     2    1.0E-14            -0.146090953012E-03
+water_3_dist_centers.inp                               2    1.0E-14             0.123695356882E-03
+water_3_dist_centers2.inp                              2    1.0E-14             0.111776817045E-02
+water_3_dist_centers3.inp                              2    1.0E-14             0.396688628991E-02
 # more on pbc
-cubane_15.inp    7    1.0E-14    0.1143720633
-cubane_0.inp    7    1.0E-14    0.1143720633
+cubane_15.inp                                          7    1.0E-14                   0.1143720633
+cubane_0.inp                                           7    1.0E-14                   0.1143720633
 #fist debug run
-cf_genpot_debug.inp       0
+cf_genpot_debug.inp                                    0
 # buck-morse potential
-uo2_buckmorse_nve.inp    2    1.0E-14    -0.507683890563E+02
+uo2_buckmorse_nve.inp                                  2    1.0E-14            -0.507683890563E+02
 # colvar dist xyz component test
-water_3_dist_xyz.inp    2    1.0E-14    0.367836190353E-03
-argon_ext.inp    2    1.0E-14    0.184419373617E-01
+water_3_dist_xyz.inp                                   2    1.0E-14             0.367836190353E-03
+argon_ext.inp                                          2    1.0E-14             0.184419373617E-01
 #external potential on a selected list of atoms
-extern_pot-test-01.inp    2    1.0E-14    -0.237349831229E+01
-extern_pot-test-02.inp    2    1.0E-14    -0.237349831229E+01
-extern_pot-test-03.inp    2    1.0E-14    -0.237349831229E+01
+extern_pot-test-01.inp                                 2    1.0E-14            -0.237349831229E+01
+extern_pot-test-02.inp                                 2    1.0E-14            -0.237349831229E+01
+extern_pot-test-03.inp                                 2    1.0E-14            -0.237349831229E+01
 #Siepmann-Sprik potential test
-siepmann_sprik_top.inp    2    1.0E-14    -0.138487875314E-01
-siepmann_sprik_fcc.inp    2    1.0E-14    -0.561022623398E-02
-siepmann_sprik_OH.inp    2    1.0E-14    -0.075739572366600005
+siepmann_sprik_top.inp                                 2    1.0E-14            -0.138487875314E-01
+siepmann_sprik_fcc.inp                                 2    1.0E-14            -0.561022623398E-02
+siepmann_sprik_OH.inp                                  2    1.0E-14          -0.075739572366600005
+#EOF
