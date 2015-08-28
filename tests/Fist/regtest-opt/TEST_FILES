@@ -46,8 +46,8 @@ cell_sym_monoclinic.inp          11     3e-09
 cell_sym_none.inp                11     4e-09
 cell_sym_orthorhombic.inp 11 1E-11
 cell_sym_rhombohedral.inp 11 1E-13
-cell_sym_tetragonal_ab.inp       11     1e-09
+cell_sym_tetragonal_ab.inp       11     2e-09                               
 cell_sym_tetragonal_ac.inp       11     2e-08
 cell_sym_tetragonal_bc.inp 11 1E-13
-cell_sym_tetragonal.inp          11     1e-09
+cell_sym_tetragonal.inp          11     2e-09                               
 cell_sym_triclinic.inp           11     2e-09

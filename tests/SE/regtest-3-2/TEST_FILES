@@ -8,4 +8,4 @@ H2O-MNDO-KDSOd.inp    3    1.0E-14    -351.37908064005433
 LM-KSDO.inp                       3     4e-14
 LM-KSDO-D.inp                     3     6e-14
 # Multipole with NONE MAX_EXPANSION
-SiO2.inp                          3     1e-07
+SiO2.inp                          3     6e-07                               

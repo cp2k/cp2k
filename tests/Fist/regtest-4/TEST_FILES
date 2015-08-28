@@ -10,7 +10,7 @@ ethene_colv0.inp                  2     8e-10
 ethene_colv1.inp                  2     8e-10
 ethene_colv1_npt.inp              2     4e-09
 ethene_colv2.inp                  2     5e-11
-ethene_colv2_npt.inp              2     5e-11
+ethene_colv2_npt.inp              2     3e-10                               
 #
 # test restraints here
 # flexible partitioning
@@ -18,11 +18,11 @@ H2O-32_SPME_fp.inp    2    1.0E-14    -0.573500908078E+00
 # dist and bend
 H2O-restraint.inp    2    1.0E-14    0.160734238008E-02
 # torsion
-ethene-restraint.inp      2
+ethene-restraint.inp              2     7e-12                               
 ethene-restraint2.inp    2    5e-11    0.813931133125E-03
 #next two are a double crossed check
-ethene-no-restraint.inp   2
-ethene-ck-restraint.inp   2
+ethene-no-restraint.inp           2     2e-12                               
+ethene-ck-restraint.inp           2     2e-12                               
 #restraint 3x3
 H2O-restraint_3x3.inp    2    3e-12    0.769155421056E-03
 #restraint 4x6

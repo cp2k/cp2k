@@ -3,7 +3,7 @@ H2O-32_PME.inp    2    1.0E-14    -0.611544181350E+00
 H2O-32_SPME.inp    2    1.0E-14    -0.611545021294E+00
 H2O-32_SPME_avg2.inp    32    1.0E-14    -0.605273198468E+00
 H2O-32_SPME_res_1.inp    2    1.0E-14    -0.600749554011E+00
-H2O-32_SPME_res_2.inp     2
+H2O-32_SPME_res_2.inp             2     3e-12                               
 H2O-32_SPME_res_3.inp    2    1.0E-14    -0.595881653299E+00
 H2O-32_SPME_res_4.inp    2    1.0E-14    -0.608953026888E+00
 H2O-32_NPT.inp    2    1.0E-14    -0.614523994245E+00
@@ -12,7 +12,7 @@ H2O-32_NPT_res_2.inp    2    1.0E-14    -0.588376552563E+00
 H2O-32_NPT_res_3.inp    2    1.0E-14    -0.601709162862E+00
 H2O-32_NPT_res_4.inp    2    1.0E-14    -0.617383381810E+00
 H2O-32_NPT_res_5.inp    2    1.0E-14    -0.614523994245E+00
-water_IPBV.inp                    2     4e-10
+water_IPBV.inp                    2     1e-09                               
 water_IPBV_flex.inp               2     7e-10
 sod.inp    2    1.0E-14    0.119421504330E+02
 sod2.inp    2    1.0E-14    0.119421504330E+02

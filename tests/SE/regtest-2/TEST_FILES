@@ -30,7 +30,7 @@ H2O-PDDG.inp    3    1.0E-14    -327.87747718063764
 b2h6_pm6.inp    3    1.0E-14    -191.26932146375466
 ch2o_pm6.inp    3    1.0E-14    -440.23051289700749
 hcn_pm6.inp                       3     1e-09
-md.inp                           11     4e-14
+md.inp                           11     1e-09                               
 # d-orbitals analytical der
 O2-ROKS-PM6.inp    3    1.0E-14    -580.14588779285589
 Pt-cis-2xpet3Cl2.inp              3     8e-14           -3116.62376488246764

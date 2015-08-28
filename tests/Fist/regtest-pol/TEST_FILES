@@ -6,13 +6,13 @@
 #
 # dang-chang model
 H2O-dimer-dangchang.inp    2    1.0E-14    -0.707149464407E-02
-H2OandI-dangchang.inp                 2
+H2OandI-dangchang.inp             2     8e-12                               
 deca_cg.inp    11    1.0E-14    -0.710872118265617
 deca_sc.inp                      11     2e-14
 ethanol_cg.inp    11    1.0E-14    -0.092377428773621
 ethanol_sc.inp    11    1.0E-14    -0.092377428770884
-nacl_cg.inp                          11
-nacl_sc.inp                          11
+nacl_cg.inp                      11     6e-14                               
+nacl_sc.inp                      11     3e-14                               
 quartz_cg.inp    2    1.0E-14    0.110910625643E+02
 quartz_sc.inp    2    1.0E-14    0.110910625668E+02
 #BMHFTD and inducible dipole damping

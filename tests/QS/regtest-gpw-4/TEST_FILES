@@ -31,7 +31,7 @@ spin_restraint.inp                1     9e-11
 #New grouping colvar
 H2O-meta_g.inp    1    1.0E-14    -17.16168353864566
 #Colvar for hydronium
-H2O-meta_hydro.inp                1     4e-14
+H2O-meta_hydro.inp                1     1e-13                               
 #NPT ensemble with QS
 H2O-7.inp    1    3e-14    -17.14737299477585
 #test wavelet based poisson solver for different boundary conditions

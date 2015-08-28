@@ -20,12 +20,12 @@ multipole_zero.inp                   11
 deca_ala_include.inp                  2
 # multipoles forces
 multipole_ch_dip.dbg_f.inp    11    1.0E-14    -1.244734914782993
-multipole_ch_dip.dbg_f_real.inp      11  
-multipole_ch_dip.dbg_f_rec.inp   11     4e-14
+multipole_ch_dip.dbg_f_real.inp   11     2e-14                               
+multipole_ch_dip.dbg_f_rec.inp   11     2e-13                               
 multipole_ch_dip_qu.dbg_f.inp    11    1.0E-14    -0.425959838400946
 multipole_ch_qu.dbg_f.inp    11    1.0E-14    -1.023163612537030
 multipole_ch_qu.dbg_f_real.inp       11
-multipole_ch_qu.dbg_f_rec.inp    11     2e-13
+multipole_ch_qu.dbg_f_rec.inp    11     6e-13                               
 multipole_charge.dbg_f.inp    11    1.0E-14    -0.448601140084368
 multipole_charge.dbg_f_real.inp   11     8e-14
 multipole_charge.dbg_f_rec.inp    11    1.0E-14    -0.448621623307337

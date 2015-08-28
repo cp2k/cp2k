@@ -42,7 +42,7 @@ H2O-MNDO-si.inp    3    1.0E-14    -351.41062850810090
 H2O-MNDO-si-nc.inp    3    1.0E-14    -351.41062851273358
 # GKS INTEGRALS
 h2o_gks.inp    3    1.0E-14    -312.50238362395930
-h2o_gks_p.inp                     3     4e-14
+h2o_gks_p.inp                     3     9e-14                               
 # GKS INTEGRALS + EWALD
 h2o_gks_e.inp    3    9e-14    -312.28506268669480
 # ewald with a molecular topology defined

@@ -18,5 +18,5 @@ c60_pl_pl_angl2_restr.inp    2    1.0E-14    -0.147676373113E+02
 c60_meta_lagr.inp    2    1.0E-14    -0.146982914564E+02
 #Reaction path Colvar  
 2gly_mtd_rp_dp_rmsd.inp    2    7e-12    -0.286918916536E+00
-2gly_mtd_rprmsd.inp               2     7e-12
+2gly_mtd_rprmsd.inp               2     1e-11                               
 2gly_mtd_dprmsd.inp    2    7e-12    -0.287254064957E+00

@@ -2,4 +2,4 @@
 Ar_periodic.inp                        1    2e-9
 Ar_mixed_periodic_aa_planar.inp    1    1e-12    -21.07466726265874
 Ar_mixed_cuboidal.inp                  1    1e-12 
-Ar_mixed_cylindrical.inp               1    1e-12
+Ar_mixed_cylindrical.inp          1     1e-11                               
