@@ -4,21 +4,21 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-htest_1.inp                       1     2e-14                               
-htest_2.inp                       1     2e-14                               
-htest_3.inp                       1     3e-14                               
-htest_4.inp                       1     2e-14                               
-htest_5.inp                       1     3e-14                               
-htest_6.inp                       1     2e-14                               
-htest_7.inp          1
-htest_8.inp          1
-htest_9.inp          1
-hlsd_1.inp                        1     2e-14                               
-hlsd_2.inp           1
-hlsd_3.inp           1
-hlsd_4.inp           1
-hlsd_5.inp                        1     2e-14                               
-hlsd_6.inp                        1     4e-14                               
-hlsd_7.inp                        1     4e-14                               
-hlsd_8.inp                        1     4e-14                               
-hlsd_9.inp                        1     4e-14                               
+htest_1.inp    1    2e-14    -17.146036415769402
+htest_2.inp    1    2e-14    -17.146036415769402
+htest_3.inp    1    3e-14    -17.146036415769402
+htest_4.inp    1    2e-14    -17.146036415769402
+htest_5.inp    1    3e-14    -17.146036415769402
+htest_6.inp    1    2e-14    -17.146036415769402
+htest_7.inp    1    1.0E-14    -17.137717130407751
+htest_8.inp    1    1.0E-14    -17.137717130407751
+htest_9.inp    1    1.0E-14    -17.137717130407751
+hlsd_1.inp    1    2e-14    -16.81101156919301
+hlsd_2.inp    1    1.0E-14    -16.811011569192999
+hlsd_3.inp    1    1.0E-14    -16.811011569192999
+hlsd_4.inp    1    1.0E-14    -16.81101156919301
+hlsd_5.inp    1    2e-14    -16.81101156919301
+hlsd_6.inp    1    4e-14    -16.80070757657565
+hlsd_7.inp    1    4e-14    -16.80070757657565
+hlsd_8.inp    1    4e-14    -16.80070757657565
+hlsd_9.inp    1    4e-14    -16.80070757657565

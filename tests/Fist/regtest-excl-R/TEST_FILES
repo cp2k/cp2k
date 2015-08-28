@@ -35,7 +35,7 @@ ethanol_both_rcut10.0_e1-2_v1-3__SR.inp    11    1.0E-14    -0.014325518510573
 ethanol_both_rcut10.0_e1-2_v1-4___R.inp    11    1.0E-14    -0.021726707657834
 ethanol_both_rcut10.0_e1-2_v1-4_R_R.inp    11    1.0E-14    -0.017493965858955
 ethanol_both_rcut10.0_e1-2_v1-4_RSR.inp    11    1.0E-14    -0.010006736383276
-ethanol_both_rcut10.0_e1-2_v1-4__SR.inp 11 1E-13
+ethanol_both_rcut10.0_e1-2_v1-4__SR.inp    11    1E-13    -0.014239528328878001
 ethanol_both_rcut10.0_e1-3_v1-1___R.inp    11    1.0E-14    -0.025238485847246
 ethanol_both_rcut10.0_e1-3_v1-1_R_R.inp    11    1.0E-14    -0.023779619348268
 ethanol_both_rcut10.0_e1-3_v1-1_RSR.inp    11    1.0E-14    -0.019459360010946

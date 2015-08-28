@@ -1,6 +1,6 @@
-graphite.inp                      2     2e-09
-graphite2.inp                     2     3e-09
-graphite3.inp                     2     2e-09
+graphite.inp    2    2e-09    -19.281478440200001
+graphite2.inp    2    3e-09    -19.270009867700001
+graphite3.inp    2    2e-09    -19.281478440299999
 graphite-stm.inp 0
 graphite-lumo.inp    30    1.0E-14    -15.517030
 graph_b111.inp    31    1.0E-14    2.15955385E+01

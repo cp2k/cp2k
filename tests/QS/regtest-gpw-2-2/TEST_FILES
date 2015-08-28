@@ -1,7 +1,7 @@
-H2O-meta_kinds.inp                1     4e-14
+H2O-meta_kinds.inp    1    4e-14    -17.161666748413939
 H2O-meta.inp    1    1.0E-14    -17.16168353864566
-H2O-meta_res0.inp                 1     4e-14
-H2O-meta_res1.inp                 1     3e-14
+H2O-meta_res0.inp    1    4e-14    -17.161737741363542
+H2O-meta_res1.inp    1    3e-14    -17.162007590211889
 H2O-meta_res2.inp    1    1.0E-14    -17.16019189138901
 H2O-meta_res3.inp    1    3e-14    -17.16211383661781
 # tpss

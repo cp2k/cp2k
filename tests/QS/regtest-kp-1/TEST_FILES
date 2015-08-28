@@ -3,9 +3,9 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-c_1.inp    1    
-c_2.inp    1    
-c_3.inp                           1     2e-14                               
-c_4.inp                           1     3e-14                               
-c_gapw.inp    1    
-c_gapwxc.inp    1    
+c_1.inp    1    1.0E-14    -45.103846597974332
+c_2.inp    1    1.0E-14    -45.679967422369202
+c_3.inp    1    2e-14    -45.665857130851158
+c_4.inp    1    3e-14    -45.66762355620304
+c_gapw.inp    1    1.0E-14    -302.06068361500655
+c_gapwxc.inp    1    1.0E-14    -45.665697201182937

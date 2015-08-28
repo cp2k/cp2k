@@ -4,26 +4,26 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM links
-C4H10-qmmm-gauss-0.inp 1
-C4H10-qmmm-gauss-1.inp 1
-C4H10-qmmm-gauss-2.inp 7
-C4H10-qmmm-gauss-3.inp            1     6e-14
-C4H10-qmmm-gauss-4.inp            1     3e-14
-C4H10-qmmm-gauss-5.inp            1     2e-14
-C4H10-qmmm-gauss-6.inp 1 1E-13
-C4H10-qmmm-gauss-7.inp 1 1E-13
-C4H10-qmmm-gauss-9.inp 7
-C4H10-qmmm-gauss-10.inp 7
-C4H10-qmmm-gauss-11.inp 7
-C11H24-qmmm-gauss-0.inp 7
+C4H10-qmmm-gauss-0.inp    1    1.0E-14    -27.995411661351529
+C4H10-qmmm-gauss-1.inp    1    1.0E-14    -27.99615935895865
+C4H10-qmmm-gauss-2.inp    7    1.0E-14    -14.564420375899999
+C4H10-qmmm-gauss-3.inp    1    6e-14    -16.286464662188639
+C4H10-qmmm-gauss-4.inp    1    3e-14    -14.206400996299481
+C4H10-qmmm-gauss-5.inp    1    2e-14    -14.2064009962995
+C4H10-qmmm-gauss-6.inp    1    1E-13    -14.20640099629961
+C4H10-qmmm-gauss-7.inp    1    1E-13    -14.93841856898772
+C4H10-qmmm-gauss-9.inp    7    1.0E-14    -14.5593809075
+C4H10-qmmm-gauss-10.inp    7    1.0E-14    -58.781943551200001
+C4H10-qmmm-gauss-11.inp    7    1.0E-14    -69.418645194099994
+C11H24-qmmm-gauss-0.inp    7    1.0E-14    -27.430559483700002
 sio2-qmmm-gauss-1.inp    1    7e-14    -487.25602647620707
-sio2-qmmm-gauss-2.inp             1     2e-14
+sio2-qmmm-gauss-2.inp    1    2e-14    -487.3189844762976
 sio2-qmmm-gauss-3.inp    1    3e-14    -488.02714101493734
-constr.inp                        7     7e-12
+constr.inp    7    7e-12    -28.231415141199999
 # different parallel scheme
-C4H10-qmmm-gauss-12.inp 1 1E-13
+C4H10-qmmm-gauss-12.inp    1    1E-13    -14.2064009962996
 # hbonds selective constraints on QM and MM subsystems
-constr_hb_mm.inp                  1     7e-14
-constr_hb_qm.inp                  1     8e-14
+constr_hb_mm.inp    1    7e-14    -30.728315242426049
+constr_hb_qm.inp    1    8e-14    -30.55019251857215
 #constraints
 water_3_dist.inp    2    1.0E-14    -0.171314409831E+02

@@ -3,7 +3,7 @@ NaCl_fe.inp    2    1.0E-14    0.127003379061E+01
 # new constraints distance_difference
 water_3_ddist.inp    2    1.0E-14    0.124331490580E-01
 # distributed grid for spme/pme
-JAC_distr.inp             2
+JAC_distr.inp    2    1.0E-14    -123.353543684
 H2O-32_PME_distr.inp    2    1.0E-14    -0.611544181350E+00
 # Central Force Water test (Nir)
 cf_genpot.inp    2    1.0E-14    -0.437747928494E+00
@@ -14,8 +14,8 @@ Si_tersoff_2.inp    2    1.0E-14    -0.168775130786E+01
 Si_tersoff_3.inp    2    1.0E-14    -0.759727944846E+01
 C_tersoff.inp    2    1.0E-14    -0.971545611681E+02
 # New grouping colvar
-ethene_colv1_g.inp                2     8e-10
-ethene_colv2_g.inp                2     5e-11
+ethene_colv1_g.inp    2    8e-10    0.0064656266809200004
+ethene_colv2_g.inp    2    5e-11    0.017674386846599999
 nh3-meta-1_g.inp    2    1.0E-14    0.110355972496E+00
 water_3_ddist_g.inp    2    1.0E-14    0.124331490580E-01
 water_3_dist_g.inp    2    1.0E-14    -0.146090953012E-03
@@ -39,4 +39,4 @@ extern_pot-test-03.inp    2    1.0E-14    -0.237349831229E+01
 #Siepmann-Sprik potential test
 siepmann_sprik_top.inp    2    1.0E-14    -0.138487875314E-01
 siepmann_sprik_fcc.inp    2    1.0E-14    -0.561022623398E-02
-siepmann_sprik_OH.inp     2
+siepmann_sprik_OH.inp    2    1.0E-14    -0.075739572366600005

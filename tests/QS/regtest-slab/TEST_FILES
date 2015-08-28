@@ -3,8 +3,8 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-hbn3_1h2o_ff.inp     17     1e-04
-hbn3_1h2o_ff_pyz.inp 17     1e-04
-hbn3_1h2o_dipcor_ff.inp  17  1e-04
-hbn3_1h2o_dipcor_ff_pyz.inp  17   1e-04
-hbn3_1h2o_ff_pyz_2dps.inp  17    1e-04
+hbn3_1h2o_ff.inp    17    1e-04    7.7495721800000004
+hbn3_1h2o_ff_pyz.inp    17    1e-04    29.86874422
+hbn3_1h2o_dipcor_ff.inp    17    1e-04    13.98724204
+hbn3_1h2o_dipcor_ff_pyz.inp    17    1e-04    31.325338970000001
+hbn3_1h2o_ff_pyz_2dps.inp    17    1e-04    30.032907210000001

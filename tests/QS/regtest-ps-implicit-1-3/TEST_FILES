@@ -1,4 +1,4 @@
-Ar_mixed_aa_planar.inp                 1    1e-12
-Ar_mixed_planar.inp               1     5e-08                               
-Ar_mixed_aa_planar-ns_cell.inp         1    1e-12
-Ar_spatial_dep_dielec.inp              1    1e-12
+Ar_mixed_aa_planar.inp    1    1e-12    -21.07467703555778
+Ar_mixed_planar.inp    1    5e-08    -21.074660658195011
+Ar_mixed_aa_planar-ns_cell.inp    1    1e-12    -31.28641687498715
+Ar_spatial_dep_dielec.inp    1    1e-12    -33.088693607109207

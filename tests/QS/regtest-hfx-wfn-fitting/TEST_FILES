@@ -2,8 +2,8 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 CH3-HSE06.inp    1    3e-13    -7.36850965923357
-CH3-PBE0.inp                      1     1e-13
-CH3-PBE0_TC.inp                   1     1e-13
+CH3-PBE0.inp    1    1e-13    -7.3693624812253598
+CH3-PBE0_TC.inp    1    1e-13    -7.3588012860483296
 CH4-HSE06.inp    1    2e-13    -8.07752172788651
 CH4-PBE0.inp    1    2e-13    -8.07859057532626
 CH4-PBE0_TC.inp    1    2e-13    -8.06493647364573

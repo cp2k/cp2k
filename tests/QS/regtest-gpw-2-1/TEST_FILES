@@ -4,14 +4,14 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #normal mode analysis
-H2-vib.inp                        8     9e-06                               
+H2-vib.inp    8    9e-06    3855.5249239999998
 # test thermostats
-H2O-2.inp                         1     3e-14
+H2O-2.inp    1    3e-14    -17.146196449545901
 H2O-3.inp    1    4e-14    -17.14553123459409
 H2O-4.inp    1    3e-14    -17.14677584574921
 # core ham bug
-ZrO.inp                           1     5e-14
+ZrO.inp    1    5e-14    -62.205201225176289
 # new xc routines
-Ar-12.inp                         1     3e-13
+Ar-12.inp    1    3e-13    -21.042519995759061
 Ar-13.inp    1    8e-13    -21.12624107439710
 # Metadynamics and restart of metadynamics

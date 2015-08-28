@@ -4,5 +4,5 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 test-shrt.inp      0
-w3-filter.inp      1    8.0E-13
+w3-filter.inp    1    8.0E-13    -51.140517908724917
 w3-filter-2.inp    1    1.0E-14    -78.30555080270769

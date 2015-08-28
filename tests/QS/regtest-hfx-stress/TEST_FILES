@@ -1,7 +1,7 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-ch3-admm.inp                     31     6e-09
-ch3.inp                          31     7e-09                               
-ch4-admm.inp                     31     7e-06
+ch3-admm.inp    31    6e-09    -7.1722067999999997
+ch3.inp    31    7e-09    28.390280199999999
+ch4-admm.inp    31    7e-06    -7.1069467700000004
 h2o.inp                          31     2e-08                 1.26297506E+01

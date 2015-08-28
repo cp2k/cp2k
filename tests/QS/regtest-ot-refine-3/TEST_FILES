@@ -3,15 +3,15 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-h2o_ot_lwdn_on_the_fly_l1.inp     1     5e-14
+h2o_ot_lwdn_on_the_fly_l1.inp    1    5e-14    -17.130457167285488
 h2o_ot_poly_on_the_fly_l1.inp    1    6e-14    -17.13045716728550
 o2_ot_lwdn_on_the_fly_l1.inp    1    2e-13    -31.70815206588523
 o2_ot_poly_on_the_fly_l1.inp    1    2e-13    -31.70815206588523
-h2o_ot_refine_3.inp               1     3e-14                               
-h2o_ot_refine_4.inp               1     2e-14
+h2o_ot_refine_3.inp    1    3e-14    -17.088846783643209
+h2o_ot_refine_4.inp    1    2e-14    -17.118572860209969
 o2_ot_refine_3.inp    1    5e-13    -31.60858517009395
-o2_ot_refine_4.inp                1     4e-14
-h2o_ot_precond_1_mp.inp           1     3e-09
-h2o_ot_precond_2_mp.inp           1     1e-09                               
-h2o_ot_precond_3_mp.inp           1     3e-08                               
-h2o_ot_precond_4_mp.inp           1     8e-08                               
+o2_ot_refine_4.inp    1    4e-14    -31.58768163513356
+h2o_ot_precond_1_mp.inp    1    3e-09    -16.05766868932977
+h2o_ot_precond_2_mp.inp    1    1e-09    -16.06790077788683
+h2o_ot_precond_3_mp.inp    1    3e-08    -16.025599007304251
+h2o_ot_precond_4_mp.inp    1    8e-08    -15.857823378711929

@@ -3,5 +3,5 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-2gly_IT-NEB.inp                  10     7e-12
+2gly_IT-NEB.inp    10    7e-12    -0.25218198664331998
 2gly_IT-NEB-res.inp    10    7e-12    0.38518828458623

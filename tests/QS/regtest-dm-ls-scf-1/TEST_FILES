@@ -10,7 +10,7 @@ H2-big-9.inp                     11     2e-13
 H2-big-10.inp                    11     1e-07
 H2-big-11.inp                    11     4e-07
 H2-big-12.inp                    11     2e-13
-H2O-32-se-ls-2.inp               11     2e-12                               
+H2O-32-se-ls-2.inp    11    2e-12    -91.844809918052079
 H2-big-nimages.inp               11     2e-13
 H2O-32-dftb-ls-2.inp             11     1e-14            -32.574187802183182
 H2O-32-dftb-ls-2-2.inp           11     1e-14            -32.566468033113225

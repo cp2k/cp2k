@@ -1,10 +1,10 @@
 # MD with wavefunction extrapolation methods
 wfn_ex1.inp                       3     5e-14            -636.12635377881054
-wfn_ex2.inp                       3     3e-14
-wfn_ex3.inp                       3     3e-14
-wfn_ex4.inp                       3     3e-14                               
+wfn_ex2.inp    3    3e-14    -636.12635360967624
+wfn_ex3.inp    3    3e-14    -636.12635356503336
+wfn_ex4.inp    3    3e-14    -636.12635359100534
 # EWALD with LSD
-H2O-4.inp                         3     2e-11                               
+H2O-4.inp    3    2e-11    -636.04298707893065
 # NDDO Stress tensor
 LiH.inp    31    1.0E-14    1.045281E+01
 # PERIODIC NDDO

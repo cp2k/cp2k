@@ -5,6 +5,6 @@
 #      for details see cp2k/tools/do_regtest
 # tests simmetry breaking in initialization for spin polarized systems
 cu2cl6_m1_std.inp    1    2e-11    -183.77479423001031
-cu2cl6_m3_std.inp                 1     8e-11
+cu2cl6_m3_std.inp    1    8e-11    -169.43124762801943
 cu2cl6_m1_clp6cud9.inp    1    5e-13    -184.08127571793815
 cu2cl6_m3_clp6cud9.inp    1    5e-13    -184.10144023101697

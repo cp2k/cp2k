@@ -10,13 +10,13 @@ CO_xastphh.inp    1    1e-13    -100.25171069154892
 CO_xastphh_r.inp    1    5e-14    -90.51322995242667
 CO_xastpfh.inp    1    6e-14    -79.09997117400218
 # density mixing
-c8_pmix_gapw_all.inp              1     4e-04
-c8_pmix_gapw_all_xashh.inp        1     1e-04
+c8_pmix_gapw_all.inp    1    4e-04    -302.63376760933824
+c8_pmix_gapw_all_xashh.inp    1    1e-04    -297.77088288250752
 c8_broy_gapw_all.inp    1    1e-13    -303.71941950903482
 c8_broy_gapw_all_xashh.inp    1    2e-11    -294.82581230893271
 # different scf_env
 CO_xastpfh_gsot.inp    1    8e-14    -79.09997113686542
 # XAS TP choice of core occ from input
-CO_xastpflex.inp                  1     8e-14
-CO_xastpflex_c0.3l0.7.inp         1     1e-05
-CO_xastpflex_c0.3.inp             1     8e-14
+CO_xastpflex.inp    1    8e-14    -104.77564814885517
+CO_xastpflex_c0.3l0.7.inp    1    1e-05    -96.350590808933305
+CO_xastpflex_c0.3.inp    1    8e-14    -96.243337524905073

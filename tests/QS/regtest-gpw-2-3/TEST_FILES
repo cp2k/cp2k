@@ -1,14 +1,14 @@
-hcn_ts.inp                        7     3e-10
-hcn_ts_r.inp                      7     1e-07
+hcn_ts.inp    7    3e-10    -0.58467641930000003
+hcn_ts_r.inp    7    1e-07    0.084182408
 #  chain of two coordination numbers
 hcn_md.inp                        1     2e-14             -16.50121471894339
-hcn_meta_coord.inp                1     4e-14
+hcn_meta_coord.inp    1    4e-14    -16.651136320178662
 hcn_meta_chaincoord.inp           1     7e-14             -16.64019903515767
 hcn_meta_chaincoord_kind.inp      1     1e-13             -16.64019903515767
 # Population colvar
-H2O_meta_pop.inp                  1     5e-08
+H2O_meta_pop.inp    1    5e-08    -17.155197480118499
 # Metadynamics with langevin on COLVAR
-H2O_meta_langevin.inp             1     2e-07
+H2O_meta_langevin.inp    1    2e-07    -17.16840571384963
 #gyration radius
 Au13ico_mtd.inp    1    2e-13    -433.32356092160364
 # rmsd AB
