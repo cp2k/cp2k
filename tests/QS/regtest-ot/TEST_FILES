@@ -8,7 +8,7 @@ C2H4-init.inp    1    1.0E-14    -12.67942277363101
 C2H4.inp    1    3e-14    -13.40449179388862
 # test ddapc constraints
 He2_ddapc_constraint.inp    1    5e-13    -5.12409717641076
-He2_ddapc_constraint-2.inp        1     2e-05
+He2_ddapc_constraint-2.inp        1     4e-05                               
 He2_ddapc_constraint-3.inp        1     2e-09                               
 # outer scf loop none
 He2_none.inp    1    3e-13    -5.14307655580282
@@ -37,10 +37,10 @@ sic_energy.inp    1    1.0E-14    -16.68885651999939
 # elf
 C2H4-elf.inp    1    1.0E-14    -13.40989428665456
 # analytic poisson solver
-He_a_xyz.inp                      1     2e-14                               
+He_a_xyz.inp                      1     9e-14                               
 He_a_xz.inp                       1     1e-13              -2.79892418663782
-He_a_yz.inp                       1     5e-14                               
+He_a_yz.inp                       1     1e-13                               
 He_a_xy.inp                       1     1e-13              -2.79892418663782
-He_a_x.inp  1
+He_a_x.inp                        1     2e-14                               
 He_a_y.inp                        1     4e-14                               
-He_a_z.inp  1
+He_a_z.inp                        1     4e-14                               

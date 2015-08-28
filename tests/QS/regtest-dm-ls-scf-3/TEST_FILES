@@ -2,7 +2,7 @@ H2O-32-dftb-ls-7.inp             11     1e-14            -65.156509753649999
 H2O-32-dftb-ls-8.inp             11     1e-14            -65.156510038644626
 H2O-32-dftb-trs4-dyn.inp         11     1e-14            -32.574186647231741
 H2_curvy-1.inp                   11     1e-13
-H2_curvy-2.inp                   11     1e-13
+H2_curvy-2.inp                   11     2e-13                               
 H2_curvy-3.inp                   11     1e-13
 H2O-chebyshev-01.inp             11     1e-14            -32.574187802183182
 H2O-dft-ecube.inp                11     1e-13

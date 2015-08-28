@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 H2O-hybrid-b3lyp_libxc_uks.inp    1    3e-14    -76.41035425153540
 H2O_pbe_libxc_tddfpt-s.inp        1     6e-14
-H2O_lda_libxc_tddfpt-s.inp            1     
+H2O_lda_libxc_tddfpt-s.inp        1     2e-14                               
 H2O_pbe_libxc_tddfpt-t_uks.inp        1
 H2O-hybrid-b3lyp_libxc.inp    1    3e-14    -76.41035425153535
 H2O_lda_libxc_tddfpt-t_uks.inp        1

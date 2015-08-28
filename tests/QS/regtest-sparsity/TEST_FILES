@@ -1,6 +1,6 @@
 # changing sparsities (for various methods)
 Ar-ref-1.inp    1    9e-14    -41.93881704587663
-Ar-ref-2.inp                      1     4e-14                               
+Ar-ref-2.inp                      1     1e-13                               
 Ar-ref-3.inp                      1     1e-13                               
 Ar-ref-4.inp    1    6e-14    -42.28547136845750
 Ar-ref-5.inp                      1     9e-14                               
