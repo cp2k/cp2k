@@ -745,7 +745,7 @@ CONTAINS
          "   Mohamed, F",&
          "   Laio, A",&
          "   Parrinello, M",&
-         "TI An efficient real space multigrid OM/MM electrostatic coupling",&
+         "TI An efficient real space multigrid QM/MM electrostatic coupling",&
          "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION",&
          "SN 1549-9618",&
          "PD NOV-DEC",&
