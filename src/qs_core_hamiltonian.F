@@ -591,18 +591,21 @@ CONTAINS
        CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
        after = MIN(MAX(after,1),16)
        CALL get_qs_env(qs_env, matrix_s_kp=matrixkp_s, error=error)
-       DO ic=1,SIZE(matrixkp_s,2)
-          CALL cp_dbcsr_write_sparse_matrix(matrixkp_s(1,ic)%matrix,4,after,qs_env,para_env,&
-               output_unit=iw,error=error)
-       END DO
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-           "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
+       IF (ASSOCIATED(matrixkp_s)) THEN
           DO ic=1,SIZE(matrixkp_s,2)
-             DO i=2,SIZE(matrix_s)
-                CALL cp_dbcsr_write_sparse_matrix(matrixkp_s(i,ic)%matrix,4,after,qs_env,para_env,&
-                     output_unit=iw,error=error)
-             END DO
+             CALL cp_dbcsr_write_sparse_matrix(matrixkp_s(1,ic)%matrix,4,after,qs_env,para_env,&
+                  output_unit=iw,error=error)
           END DO
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
+              "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file) &
+              .AND. ASSOCIATED(matrix_s)) THEN
+             DO ic=1,SIZE(matrixkp_s,2)
+                DO i=2,SIZE(matrix_s)
+                   CALL cp_dbcsr_write_sparse_matrix(matrixkp_s(i,ic)%matrix,4,after,qs_env,para_env,&
+                        output_unit=iw,error=error)
+                END DO
+             END DO
+          END IF
        END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/OVERLAP", error=error)
@@ -616,10 +619,12 @@ CONTAINS
        CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
        after = MIN(MAX(after,1),16)
        CALL get_qs_env(qs_env, kinetic_kp=matrixkp_t, error=error)
-       DO ic=1,SIZE(matrixkp_t,2)
-          CALL cp_dbcsr_write_sparse_matrix(matrixkp_t(1,ic)%matrix,4,after,qs_env,para_env,&
-               output_unit=iw,error=error)
-       END DO
+       IF (ASSOCIATED(matrixkp_t)) THEN
+          DO ic=1,SIZE(matrixkp_t,2)
+             CALL cp_dbcsr_write_sparse_matrix(matrixkp_t(1,ic)%matrix,4,after,qs_env,para_env,&
+                  output_unit=iw,error=error)
+          END DO
+       END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/KINETIC_ENERGY", error=error)
     END IF
@@ -632,19 +637,21 @@ CONTAINS
        CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
        after = MIN(MAX(after,1),16)
        CALL get_qs_env(qs_env,matrix_h_kp=matrixkp_h,kinetic_kp=matrixkp_t,error=error)
-       IF(SIZE(matrixkp_h,2) == 1) THEN
-          CALL cp_dbcsr_allocate_matrix_set(matrix_v,1,error=error)
-          ALLOCATE (matrix_v(1)%matrix)
-          CALL cp_dbcsr_init(matrix_v(1)%matrix, error=error)
-          CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrixkp_h(1,1)%matrix,name="POTENTIAL ENERGY MATRIX",error=error)
-          CALL cp_dbcsr_add(matrix_v(1)%matrix,matrixkp_t(1,1)%matrix,&
-               alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
-          CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
-          CALL cp_dbcsr_deallocate_matrix_set(matrix_v,error=error)
-       ELSE
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Printing of potential energy matrix not implemented for k-points", &
-            error=error, error_level=cp_warning_level)
+       IF (ASSOCIATED(matrixkp_h)) THEN
+          IF (SIZE(matrixkp_h,2) == 1) THEN
+             CALL cp_dbcsr_allocate_matrix_set(matrix_v,1,error=error)
+             ALLOCATE (matrix_v(1)%matrix)
+             CALL cp_dbcsr_init(matrix_v(1)%matrix, error=error)
+             CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrixkp_h(1,1)%matrix,name="POTENTIAL ENERGY MATRIX",error=error)
+             CALL cp_dbcsr_add(matrix_v(1)%matrix,matrixkp_t(1,1)%matrix,&
+                  alpha_scalar=1.0_dp,beta_scalar=-1.0_dp,error=error)
+             CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,after,qs_env,para_env,output_unit=iw,error=error)
+             CALL cp_dbcsr_deallocate_matrix_set(matrix_v,error=error)
+          ELSE
+             CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="Printing of potential energy matrix not implemented for k-points", &
+               error=error, error_level=cp_warning_level)
+          END IF
        END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY", error=error)
@@ -658,10 +665,12 @@ CONTAINS
        CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after,error=error)
        after = MIN(MAX(after,1),16)
        CALL get_qs_env(qs_env, matrix_h_kp=matrixkp_h, error=error)
-       DO ic=1,SIZE(matrixkp_h,2)
-          CALL cp_dbcsr_write_sparse_matrix(matrixkp_h(1,ic)%matrix,4,after,qs_env,para_env,&
-               output_unit=iw,error=error)
-       END DO
+       IF (ASSOCIATED(matrixkp_h)) THEN
+          DO ic=1,SIZE(matrixkp_h,2)
+             CALL cp_dbcsr_write_sparse_matrix(matrixkp_h(1,ic)%matrix,4,after,qs_env,para_env,&
+                  output_unit=iw,error=error)
+          END DO
+       END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
     END IF
