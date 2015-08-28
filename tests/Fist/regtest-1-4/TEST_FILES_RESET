@@ -8,3 +8,7 @@ multipole_dipole.dbg_st.inp
 multipole_quadrupole.dbg_st.inp
 #fix for generalized arnoldi ev
 water_charge_no_array.inp
+#  
+deca_ala_avg2.inp
+#  
+deca_ala_noavg.inp

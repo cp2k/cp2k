@@ -156,3 +156,5 @@ cubane_0.inp
 cubane_15.inp
 #improvement of bfgs and curvy steps
 cubane_0.inp
+#  
+JAC_distr.inp

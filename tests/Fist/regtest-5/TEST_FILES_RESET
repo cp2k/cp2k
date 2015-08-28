@@ -273,3 +273,11 @@ N3dye_geoopt.inp
 N3dye_vib_bfgs.inp
 #improvement of bfgs and curvy steps
 N3dye_vib_bfgs2.inp
+#  
+JAC.inp
+#  
+JAC_us.inp
+#  
+JAC_gen.inp
+#  
+phenobenz.inp
