@@ -100,7 +100,7 @@ def main():
 
     # table-header
     theader  ='<tr align="center"><th>Name</th><th>Type</th><th>Tolerance</th>'
-    theader += '<th>Reference</th><th>Median</th><th>MAD</th><th>#failures</th>\n'
+    theader += '<th>Reference</th><th>Median</th><th>MAD</th><th>#failed</th>\n'
     for tname in tester_names:
         theader += '<th><span class="nowrap">%s</span>'%config.get(tname, "name")
         theader += '<br>svn-rev: %d'%tester_revision[tname]

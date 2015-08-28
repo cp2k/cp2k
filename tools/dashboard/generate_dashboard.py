@@ -71,6 +71,7 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
     print "threshold_rev: ", threshold_rev
 
     output  = html_header(title="CP2K Dashboard")
+    output += html_linkbox()
     output += '<center><table border="1" cellspacing="3" cellpadding="5">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
     output += '<th>Revision</th><th>Summary</th><th>Last OK</th><th>Tickets</th></tr>\n\n'
@@ -281,11 +282,34 @@ def html_header(title):
     output += '  transform: rotate(45deg);\n'
     output += '  box-shadow: 0 0 10px #888;\n'
     output += '}\n'
+    output += '#linkbox {\n'
+    output += '  position: absolute;\n'
+    output += '  left: 5%;\n'
+    output += '  top: 10%;\n'
+    output += '  width: 15em;\n'
+    output += '  border-radius: 1em;\n'
+    output += '  box-shadow: .2em .2em .7em 0 #777;\n'
+    output += '  font-size: 14px;\n'
+    output += '  padding: 1em;\n'
+    output += '  background: #f7f7f0;\n'
+    output += '}\n'
+    output += '#linkbox h2 {\n'
+    output += '  margin: 0 0 0.5em 0;\n'
+    output += '}\n'
     output += '</style>\n'
     output += '<title>%s</title>\n'%title
     output += '</head><body>\n'
     output += '<div class="ribbon"><a href="http://cp2k.org/dev:dashboard">Need Help?</a></div>\n'
     output += '<center><h1>%s</h1></center>\n'%title.upper()
+    return(output)
+
+#===============================================================================
+def html_linkbox():
+    output  = '<div id="linkbox">\n'
+    output += '<h2>More...</h2>\n'
+    output += '<a href="regtest_survey.html">Regtest Survey</a><br>\n'
+    output += '<a href="http://www.cp2k.org/static/coverage/">Test Coverage</a><br>\n'
+    output += '</div>\n'
     return(output)
 
 #===============================================================================
