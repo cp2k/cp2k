@@ -1,0 +1,54 @@
+#ifdef MPI
+#define IF_MPI(a,b) a
+#else
+#define IF_MPI(a,b) b
+#endif
+#
+#ifdef OMP
+#define IF_OMP(a,b) a
+#else
+#define IF_OMP(a,b) b
+#endif
+#
+#ifdef DEBUG
+#define IF_DEBUG(a,b) a
+#else
+#define IF_DEBUG(a,b) b
+#endif
+#
+#ifdef CUDA
+#define IF_CUDA(a,b) a
+#else
+#define IF_CUDA(a,b) b
+#endif
+#
+CC          = gcc
+CXX         = g++
+CPP         =
+AR          = ar -r
+#
+#ifdef MPI
+#define IF_MPI(a,b) a
+FC          = mpif90
+LD          = mpif90
+#else
+#define IF_MPI(a,b) b
+FC          = gfortran
+LD          = gfortran
+#endif
+#
+LIBS        = ${LIBS}
+DFLAGS      = ${DFLAGS}
+FCFLAGS     = ${FCFLAGS}
+LDFLAGS     = ${LDFLAGS}
+CFLAGS      = ${CFLAGS}
+#
+#ifdef CUDA
+NVCC        = nvcc -D__GNUC_MINOR__=6 -D__GNUC__=4
+NVFLAGS     = ${NVFLAGS}
+#endif
+#
+#ifdef WARN
+FCLOGPIPE   =  2> \$(notdir \$<).warn
+#endif
+

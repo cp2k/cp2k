@@ -6,114 +6,98 @@
 #
 # trap errors
 
-error ()
-{
-  echo "Non-zero exit code in this script on line $1"
-  echo "Aborting, toolchain incomplete"
-  exit 1
+error_handler() {
+   echo "Non-zero exit code in this script on line $1"
+   echo "Aborting, toolchain incomplete"
+   exit 1
 }
-
-trap 'error ${LINENO}' ERR
-
-checksum() {
- filename=$1
- if grep $filename ../checksums.sha256 | sha256sum --quiet --check ; then
-    echo "Checksum of ${filename} Ok"
- else
-    echo "Checksum of ${filename} could not be verified, abort."
-    rm -v ${filename}
-    exit 255
- fi
-}
+trap 'error_handler ${LINENO}' ERR
 
 
-#
-# updating version could be easy, just change here:
-#
-
+# default settings
+enable_tsan=false
+mpichoice=mpich
+mpich_ver=3.1.2
+openmpi_ver=1.8.6
+openblas_ver=v0.2.14-0-gd0c51c4
+scalapack_ver=XXXXXX # no version numbering used.
+libxc_ver=2.2.2
+libint_ver=1.1.4
+fftw_ver=3.3.4
+elpa_ver=2015.05.001
+cmake_ver=3.1.1
+parmetis_ver=4.0.2
+scotch_ver=6.0.0
+superlu_ver=3.3
+pexsi_ver=0.8.0
+plumed_ver=2.2b
+quip_ver=336cab5c03
 #binutils_ver=2.24
 binutils_ver=2.25
-
 #valgrind_ver=3.10.0
 valgrind_ver=3.10.1
-
 lcov_ver=1.11
-
 #gcc_ver=4.9.2
 #gcc_ver=5.1.0
 gcc_ver=5.2.0
-# gcc_ver=master will use gcc trunk as obtained from github (not intended for production)
-#gcc_ver=master
-# should we build a toolchain to be used with tsan (-fsanitize=thread), 
-# this is not for normal (production) use, but suitable for
-# finding/testing/debugging threading issues during development
-# values : yes / no
-enable_tsan=no
+# gcc_ver=master # will use gcc trunk as obtained from github (not intended for production)
 
-#
-# only one of the two should be installed, define mpichoice as needed
-#
-mpichoice=openmpi
-mpichoice=mpich
 
-mpich_ver=3.1.2
-openmpi_ver=1.8.6
+# parse options
+while [ $# -ge 1 ]; do
+   case $1 in
+   --mpich)
+      mpichoice=mpich;;
+   --openmpi)
+      mpichoice=openmpi;;
+   --enable-tsan)
+      enable_tsan=true;;
+   -help|-h|--help)
+      echo "Usage: install_cp2k_toolchain.sh [OPTIONS]"
+      echo "Installs a well defined development environment for CP2K"
+      echo ""
+      echo "Options:"
+      echo "  -h, -help, --help         print this help screen."
+      echo "  --mpich                   use the MPICH package. Default: on."
+      echo "  --openmpi                 use the OpenMPI package. Default: off."
+      echo "  --enable-tsan             compile entire toolchain with -fsanitize=thread. Default: off."
+      echo "                            This is not for normal (production) use, but suitable for"
+      echo "                            finding/testing/debugging threading issues during development."
+      echo ""
+      echo "For more information visit: <http://cp2k.org>"
+      exit 0;;
+   -*)
+      echo "ERROR: Invalid command line flag $1 found"
+      exit 1;;
+   # Default case
+   *)
+      echo "ERROR: Unknown command line string $1 found"
+      exit 1;;
+   esac
+   shift
+done
 
-#
-# use openblas
-#
-openblas_ver=v0.2.14-0-gd0c51c4
 
-# no version numbering used.
-scalapack_ver=XXXXXX
+# helper routine to check integrity of downloaded files
+checksum() {
+   filename=$1
+   if grep $filename ../checksums.sha256 | sha256sum --quiet --check ; then
+      echo "Checksum of ${filename} Ok"
+   else
+      echo "Checksum of ${filename} could not be verified, abort."
+      rm -v ${filename}
+      exit 255
+   fi
+}
 
-#libxc_ver=2.0.1
-libxc_ver=2.2.2
-
-libint_ver=1.1.4
-
-fftw_ver=3.3.4
-
-# will need hand-checking for non-standard dir name in tar
-elpa_ver=2015.05.001
-
-cmake_ver=3.1.1
-
-parmetis_ver=4.0.2
-
-scotch_ver=6.0.0
-
-superlu_ver=3.3
-
-pexsi_ver=0.8.0
-
-plumed_ver=2.2b
-
-# quip does not build with the tsan toolchain. 
-if [ "$enable_tsan" == "yes" ]; then
-quip_ver=
-else
-quip_ver=336cab5c03
-fi
-
-#
-#
-#
-
+# preliminaries
 rootdir=${PWD}
-
 mkdir -p build
 cd build
-
 INSTALLDIR=${rootdir}/install
 echo "All tools will be installed in " ${INSTALLDIR}
 mkdir -p ${INSTALLDIR}
-
-
-#
-# number of processes to use for compilation
-#
-nprocs=`nproc --all`
+nprocs=`nproc --all` # number of processes to use for compilation
 
 #
 # first get an up-to-date toolchain.
@@ -133,104 +117,99 @@ export CXXFLAGS="-O2 -g -Wno-error"
 
 echo "==================== Installing binutils ================="
 if [ -f binutils-${binutils_ver}.tar.gz  ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget http://ftp.gnu.org/gnu/binutils/binutils-${binutils_ver}.tar.gz
-  checksum binutils-${binutils_ver}.tar.gz
-  tar -xzf binutils-${binutils_ver}.tar.gz
-  cd binutils-${binutils_ver}
-  ./configure --prefix=${INSTALLDIR} --enable-gold --enable-plugins >& config.log
-  make -j $nprocs >& make.log
-  make -j $nprocs install >& install.log
-  cd ..
+   wget http://ftp.gnu.org/gnu/binutils/binutils-${binutils_ver}.tar.gz
+   checksum binutils-${binutils_ver}.tar.gz
+   tar -xzf binutils-${binutils_ver}.tar.gz
+   cd binutils-${binutils_ver}
+   ./configure --prefix=${INSTALLDIR} --enable-gold --enable-plugins >& config.log
+   make -j $nprocs >& make.log
+   make -j $nprocs install >& install.log
+   cd ..
 fi
 
 echo "==================== Installing valgrind ================="
 if [ -f valgrind-${valgrind_ver}.tar.bz2 ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget http://www.cp2k.org/static/downloads/valgrind-${valgrind_ver}.tar.bz2
-  checksum valgrind-${valgrind_ver}.tar.bz2
-  tar -xjf valgrind-${valgrind_ver}.tar.bz2
-  cd valgrind-${valgrind_ver}
-  ./configure --prefix=${INSTALLDIR} >& config.log
-  make -j $nprocs >& make.log
-  make -j $nprocs install >& install.log
-  cd ..
+   wget http://www.cp2k.org/static/downloads/valgrind-${valgrind_ver}.tar.bz2
+   checksum valgrind-${valgrind_ver}.tar.bz2
+   tar -xjf valgrind-${valgrind_ver}.tar.bz2
+   cd valgrind-${valgrind_ver}
+   ./configure --prefix=${INSTALLDIR} >& config.log
+   make -j $nprocs >& make.log
+   make -j $nprocs install >& install.log
+   cd ..
 fi
 
 echo "==================== Installing lcov ====================="
 if [ -f lcov-${lcov_ver}.tar.gz ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget http://www.cp2k.org/static/downloads/lcov-${lcov_ver}.tar.gz
-  checksum lcov-${lcov_ver}.tar.gz
-  tar -xzf lcov-${lcov_ver}.tar.gz
-  cd lcov-${lcov_ver}
-  # note.... this installs in ${INSTALLDIR}/usr/bin
-  make PREFIX=${INSTALLDIR} install >& make.log
-  cd ..
+   wget http://www.cp2k.org/static/downloads/lcov-${lcov_ver}.tar.gz
+   checksum lcov-${lcov_ver}.tar.gz
+   tar -xzf lcov-${lcov_ver}.tar.gz
+   cd lcov-${lcov_ver}
+   # note.... this installs in ${INSTALLDIR}/usr/bin
+   make PREFIX=${INSTALLDIR} install >& make.log
+   cd ..
 fi
 
 echo "================== Installing CMake ================="
 if [ -f cmake-${cmake_ver}.tar.gz ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget http://www.cp2k.org/static/downloads/cmake-${cmake_ver}.tar.gz
-  checksum cmake-${cmake_ver}.tar.gz
-  tar -xzf cmake-${cmake_ver}.tar.gz
-  cd cmake-${cmake_ver}
-  ./bootstrap --prefix=${INSTALLDIR} >& config.log
-  make -j $nprocs >&  make.log
-  make install >& install.log
-  cd ..
+   wget http://www.cp2k.org/static/downloads/cmake-${cmake_ver}.tar.gz
+   checksum cmake-${cmake_ver}.tar.gz
+   tar -xzf cmake-${cmake_ver}.tar.gz
+   cd cmake-${cmake_ver}
+   ./bootstrap --prefix=${INSTALLDIR} >& config.log
+   make -j $nprocs >&  make.log
+   make install >& install.log
+   cd ..
 fi
 
 echo "==================== Installing gcc ======================"
 if [ -f gcc-${gcc_ver}.tar.gz -o -f gcc-${gcc_ver}.zip ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  if [ "${gcc_ver}" == "master" ]; then
-     # no check since this follows the gcc trunk svn repo and changes constantly
-     wget -O gcc-master.zip https://github.com/gcc-mirror/gcc/archive/master.zip
-     unzip -q gcc-master.zip 
-  else
-     wget https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
-     checksum gcc-${gcc_ver}.tar.gz
-     tar -xzf gcc-${gcc_ver}.tar.gz
-  fi
-  cd gcc-${gcc_ver}
-  ./contrib/download_prerequisites >& prereq.log
-  GCCROOT=${PWD}
-  mkdir obj
-  cd obj
-  ${GCCROOT}/configure --prefix=${INSTALLDIR}  --enable-languages=c,c++,fortran --disable-multilib --disable-bootstrap --enable-lto --enable-plugins >& config.log
-  make -j $nprocs >& make.log
-  make -j $nprocs install >& install.log
+   if [ "${gcc_ver}" == "master" ]; then
+      # no check since this follows the gcc trunk svn repo and changes constantly
+      wget -O gcc-master.zip https://github.com/gcc-mirror/gcc/archive/master.zip
+      unzip -q gcc-master.zip 
+   else
+      wget https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
+      checksum gcc-${gcc_ver}.tar.gz
+      tar -xzf gcc-${gcc_ver}.tar.gz
+   fi
+   cd gcc-${gcc_ver}
+   ./contrib/download_prerequisites >& prereq.log
+   GCCROOT=${PWD}
+   mkdir obj
+   cd obj
+   ${GCCROOT}/configure --prefix=${INSTALLDIR}  --enable-languages=c,c++,fortran --disable-multilib --disable-bootstrap --enable-lto --enable-plugins >& config.log
+   make -j $nprocs >& make.log
+   make -j $nprocs install >& install.log
 
-  if [ "$enable_tsan" == "yes" ]; then
-    # now the tricky bit... we need to recompile in particular libgomp with -fsanitize=thread.. there is not configure option for this (as far as I know). 
-    # we need to go in the build tree and recompile / reinstall with proper options...
-    # this is likely to break for later version of gcc, tested with 5.1.0
-    # based on https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55374#c10
-    cd x86_64*/libgfortran
-    make clean >& clean.log
-    make -j $nprocs CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread "  FCFLAGS="-g -O2 -fsanitize=thread" CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " LDFLAGS="-B`pwd`/../libsanitizer/tsan/.libs/ -Wl,-rpath,`pwd`/../libsanitizer/tsan/.libs/ -fsanitize=thread" >& make.log
-    make install >& install.log
-    cd ../libgomp
-    make clean >& clean.log
-    make -j $nprocs CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread "  FCFLAGS="-g -O2 -fsanitize=thread" CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " LDFLAGS="-B`pwd`/../libsanitizer/tsan/.libs/ -Wl,-rpath,`pwd`/../libsanitizer/tsan/.libs/ -fsanitize=thread" >& make.log
-    make install >& install.log
-    cd $GCCROOT/obj/
-  else
-    TSANFLAGS=""
-  fi
-
-  cd ../..
-
+   if $enable_tsan ; then
+      # now the tricky bit... we need to recompile in particular libgomp with -fsanitize=thread.. there is not configure option for this (as far as I know).
+      # we need to go in the build tree and recompile / reinstall with proper options...
+      # this is likely to break for later version of gcc, tested with 5.1.0
+      # based on https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55374#c10
+      cd x86_64*/libgfortran
+      make clean >& clean.log
+      make -j $nprocs CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread "  FCFLAGS="-g -O2 -fsanitize=thread" CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " LDFLAGS="-B`pwd`/../libsanitizer/tsan/.libs/ -Wl,-rpath,`pwd`/../libsanitizer/tsan/.libs/ -fsanitize=thread" >& make.log
+      make install >& install.log
+      cd ../libgomp
+      make clean >& clean.log
+      make -j $nprocs CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread "  FCFLAGS="-g -O2 -fsanitize=thread" CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " LDFLAGS="-B`pwd`/../libsanitizer/tsan/.libs/ -Wl,-rpath,`pwd`/../libsanitizer/tsan/.libs/ -fsanitize=thread" >& make.log
+      make install >& install.log
+      cd $GCCROOT/obj/
+   fi
+   cd ../..
 fi
-
-if [ "$enable_tsan" == "yes" ]; then
+if $enable_tsan ; then
    TSANFLAGS="-fsanitize=thread"
 else
    TSANFLAGS=""
@@ -291,276 +270,287 @@ export CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -
 export LDFLAGS=" $TSANFLAGS"
 
 if [ "$mpichoice" == "openmpi" ]; then
-echo "=================== Installing openmpi ====================="
-if [ -f openmpi-${openmpi_ver}.tar.gz ]; then
-  echo "Installation already started, skipping it."
-else
-  wget http://www.open-mpi.org/software/ompi/v1.8/downloads/openmpi-${openmpi_ver}.tar.gz
-  checksum openmpi-${openmpi_ver}.tar.gz
-  tar -xzf openmpi-${openmpi_ver}.tar.gz
-  cd openmpi-${openmpi_ver}
-  ./configure --prefix=${INSTALLDIR} >& config.log
-  make -j $nprocs >& make.log
-  make -j $nprocs install >& install.log
-  cd ..
+   echo "=================== Installing openmpi ====================="
+   if [ -f openmpi-${openmpi_ver}.tar.gz ]; then
+      echo "Installation already started, skipping it."
+   else
+      wget http://www.open-mpi.org/software/ompi/v1.8/downloads/openmpi-${openmpi_ver}.tar.gz
+      checksum openmpi-${openmpi_ver}.tar.gz
+      tar -xzf openmpi-${openmpi_ver}.tar.gz
+      cd openmpi-${openmpi_ver}
+      ./configure --prefix=${INSTALLDIR} >& config.log
+      make -j $nprocs >& make.log
+      make -j $nprocs install >& install.log
+      cd ..
+   fi
+   #extra libs needed to link with mpif90 also applications based on C++
+   FLAGS="${FLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3,)"
+   LIBS="IF_MPI(-lmpi_cxx,) ${LIBS}"
 fi
-#extra libs needed to link with mpif90 also applications based on C++
-mpiextralibs=" -lmpi_cxx "
-fi
+
 
 if [ "$mpichoice" == "mpich" ]; then
-echo "=================== Installing mpich ====================="
-if [ -f mpich-${mpich_ver}.tar.gz ]; then
-  echo "Installation already started, skipping it."
-else
-  # needed to install mpich ??
-  unset F90; unset F90FLAGS
-  wget http://www.cp2k.org/static/downloads/mpich-${mpich_ver}.tar.gz
-  checksum mpich-${mpich_ver}.tar.gz
-  tar -xzf mpich-${mpich_ver}.tar.gz
-  cd mpich-${mpich_ver}
-  ./configure --prefix=${INSTALLDIR} >& config.log
-  make -j $nprocs >& make.log
-  make -j $nprocs install >& install.log
-  cd ..
+   echo "=================== Installing mpich ====================="
+   if [ -f mpich-${mpich_ver}.tar.gz ]; then
+      echo "Installation already started, skipping it."
+   else
+      # needed to install mpich ??
+      unset F90; unset F90FLAGS
+      wget http://www.cp2k.org/static/downloads/mpich-${mpich_ver}.tar.gz
+      checksum mpich-${mpich_ver}.tar.gz
+      tar -xzf mpich-${mpich_ver}.tar.gz
+      cd mpich-${mpich_ver}
+      ./configure --prefix=${INSTALLDIR} >& config.log
+      make -j $nprocs >& make.log
+      make -j $nprocs install >& install.log
+      cd ..
+   fi
+   DFLAGS="${DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3,)"
 fi
-#extra libs needed to link with mpif90 also applications based on C++
-mpiextralibs=""
-fi
-
-libsmm=""
-#
-# currently openblas is not thread safe (neither serial nor omp version), 
-# so ssmp and psmp codes need to link to netlib versions
-# the default for LIB_LAPACK_OPT is overwritten if openblas is installed
-#
-LIB_LAPACK_DEBUG="-lreflapack -lrefblas"
-LIB_LAPACK_OPT="$LIB_LAPACK_DEBUG"
 
 
 echo "================= Installing openblas ==================="
 if [ -f xianyi-OpenBLAS-${openblas_ver}.zip ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget http://www.cp2k.org/static/downloads/xianyi-OpenBLAS-${openblas_ver}.zip
-  checksum xianyi-OpenBLAS-${openblas_ver}.zip
-  unzip xianyi-OpenBLAS-${openblas_ver}.zip >& unzip.log
-  cd xianyi-OpenBLAS-*
-  # we install both the serial and the omp threaded version.
-  # Unfortunately, neither is thread-safe (i.e. the CP2K ssmp and psmp version need to link to something else, the omp version is unused)
-  make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.serial.log
-  make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.serial.log
-  # make clean >& clean.log
-  # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} >& make.omp.log
-  # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} install >& install.omp.log
-  cd ..
+   wget http://www.cp2k.org/static/downloads/xianyi-OpenBLAS-${openblas_ver}.zip
+   checksum xianyi-OpenBLAS-${openblas_ver}.zip
+   unzip xianyi-OpenBLAS-${openblas_ver}.zip >& unzip.log
+   cd xianyi-OpenBLAS-*
+   # we install both the serial and the omp threaded version.
+   # Unfortunately, neither is thread-safe (i.e. the CP2K ssmp and psmp version need to link to something else, the omp version is unused)
+   make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.serial.log
+   make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.serial.log
+   # make clean >& clean.log
+   # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} >& make.omp.log
+   # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} install >& install.omp.log
+   cd ..
 fi
-LIB_LAPACK_OPT="-lopenblas_serial"
+# currently openblas is not thread safe (neither serial nor omp version),
+LIBS="IF_OMP(-lreflapack -lrefblas,-lopenblas_serial) ${LIBS}"
 
-if [ "$enable_tsan" == "yes" ]; then
-  echo "TSAN build ... not downloading libsmm"
-else
-#
-# Here we attempt to determine which libsmm to download, and do that if it exists.
-# We use info on the architecture / core from the openblas build.
-#
 echo "================= Installing libsmm ==================="
-# helper to check if libsmm is available (return 0) or not (return 8)
-libsmm_exists() {
- wget --spider http://www.cp2k.org/static/downloads/libsmm/$1 >& /dev/null
- echo $?
-}
-
-# where is the openblas configuration file, which gives us the core
-openblas_conf=`echo ${rootdir}/build/*OpenBLAS*/Makefile.conf`
-if [ -f "$openblas_conf" ]; then
- openblas_libcore=`grep 'LIBCORE=' $openblas_conf | cut -f2 -d=`
- openblas_arch=`grep 'ARCH=' $openblas_conf | cut -f2 -d=`
- libsmm_libcore=libsmm_dnn_${openblas_libcore}.a
- tst=`libsmm_exists $libsmm_libcore`
- if [ "$tst" == "0" ]; then
-    libsmm=$libsmm_libcore
-    echo "An optimized libsmm $libsmm is available"
- else
-    libsmm_arch=libsmm_dnn_${openblas_arch}.a
-    tst=`libsmm_exists $libsmm_arch`
-    if [ "$tst" == "0" ]; then
-       libsmm=$libsmm_arch
-       echo "A generic libsmm $libsmm is available."
-       echo "Consider building and contributing to CP2K an optimized libsmm for your $openblas_arch $openblas_libcore"
-    else
-       echo "No libsmm is available"
-       echo "Consider building and contributing to CP2K an optimized libsmm for your $openblas_arch $openblas_libcore"
-    fi
- fi
+if ! $enable_tsan ; then
+   echo "TSAN build ... not downloading libsmm"
+   libsmm=""
 else
- # info not found
- echo "Not found: $openblas_conf"
- false
-fi
+   # Here we attempt to determine which libsmm to download, and do that if it exists.
+   # We use info on the architecture / core from the openblas build.
+
+   # helper to check if libsmm is available (return 0) or not (return 8)
+   libsmm_exists() {
+      wget --spider http://www.cp2k.org/static/downloads/libsmm/$1 >& /dev/null
+      echo $?
+   }
+
+   # where is the openblas configuration file, which gives us the core
+   openblas_conf=`echo ${rootdir}/build/*OpenBLAS*/Makefile.conf`
+   if [ ! -f "$openblas_conf" ]; then
+      echo "Could not find OpenBLAS' Makefile.conf: $openblas_conf"
+      exit 1
+   fi
+   openblas_libcore=`grep 'LIBCORE=' $openblas_conf | cut -f2 -d=`
+   openblas_arch=`grep 'ARCH=' $openblas_conf | cut -f2 -d=`
+   libsmm_libcore=libsmm_dnn_${openblas_libcore}.a
+   tst=`libsmm_exists $libsmm_libcore`
+   if [ "$tst" == "0" ]; then
+      libsmm=$libsmm_libcore
+      echo "An optimized libsmm $libsmm is available"
+   else
+      libsmm_arch=libsmm_dnn_${openblas_arch}.a
+      tst=`libsmm_exists $libsmm_arch`
+      if [ "$tst" == "0" ]; then
+         libsmm=$libsmm_arch
+         echo "A generic libsmm $libsmm is available."
+         echo "Consider building and contributing to CP2K an optimized libsmm for your $openblas_arch $openblas_libcore"
+      else
+         echo "No libsmm is available"
+         echo "Consider building and contributing to CP2K an optimized libsmm for your $openblas_arch $openblas_libcore"
+         libsmm=""
+      fi
+   fi
 fi
 
 # we know what to get, proceed with install
 if [ "$libsmm" != "" ]; then
-  if [ -f $libsmm ]; then
-    echo "Installation already started, skipping it."
-  else
-    wget http://www.cp2k.org/static/downloads/libsmm/$libsmm
-    checksum $libsmm
-    cp $libsmm ${INSTALLDIR}/lib/
-    ln -s ${INSTALLDIR}/lib/$libsmm ${INSTALLDIR}/lib/libsmm_dnn.a
-  fi
-  LIBSMMFLAG="-D__HAS_smm_dnn"
-  LIBSMMLIB="-lsmm_dnn"
-else
-  LIBSMMFLAG=""
-  LIBSMMLIB=""
+   if [ -f $libsmm ]; then
+      echo "Installation already started, skipping it."
+   else
+      wget http://www.cp2k.org/static/downloads/libsmm/$libsmm
+      checksum $libsmm
+      cp $libsmm ${INSTALLDIR}/lib/
+      ln -s ${INSTALLDIR}/lib/$libsmm ${INSTALLDIR}/lib/libsmm_dnn.a
+   fi
+   DFLAGS="${DFLAGS} -D__HAS_smm_dnn"
+   LIBS="-lsmm_dnn ${LIBS}"
 fi
+
 
 echo "================= Installing scalapack ==================="
 if [ -f scalapack_installer.tgz ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget http://www.cp2k.org/static/downloads/scalapack_installer.tgz
-  checksum scalapack_installer.tgz
-  tar -xzf scalapack_installer.tgz
-  # we dont know the version
-  cd scalapack_installer_*
-  SLROOT=${PWD}
-  # We use echo as mpirun command to avoid testing scalapack,
-  # (lapack is still tested, and the --notesting flag causes lapack/blas not to be build, seemingly.)
-  # yet download blas / lapack... whole installer is a bit serial as well (and fails with --make="make -j32")
-  # also, doesn't seem to stop if something goes wrong in the build process..
-  # finally, we should avoid -ffast-math as this seems to cause problems
-  ./setup.py --mpirun=echo --downblas --downlapack --fcflags="$FCFLAGS -fno-fast-math" --ccflags="$CFLAGS -fno-fast-math" --ldflags_c="$LDFLAGS -fno-fast-math" --ldflags_fc="$LDFLAGS -fno-fast-math" >& make.log
-  # copy libraries where we like them
-  cp install/lib/* ${INSTALLDIR}/lib/
-  cd ..
+   wget http://www.cp2k.org/static/downloads/scalapack_installer.tgz
+   checksum scalapack_installer.tgz
+   tar -xzf scalapack_installer.tgz
+   # we dont know the version
+   cd scalapack_installer_*
+   SLROOT=${PWD}
+   # We use echo as mpirun command to avoid testing scalapack,
+   # (lapack is still tested, and the --notesting flag causes lapack/blas not to be build, seemingly.)
+   # yet download blas / lapack... whole installer is a bit serial as well (and fails with --make="make -j32")
+   # also, doesn't seem to stop if something goes wrong in the build process..
+   # finally, we should avoid -ffast-math as this seems to cause problems
+   ./setup.py --mpirun=echo --downblas --downlapack --fcflags="$FCFLAGS -fno-fast-math" --ccflags="$CFLAGS -fno-fast-math" --ldflags_c="$LDFLAGS -fno-fast-math" --ldflags_fc="$LDFLAGS -fno-fast-math" >& make.log
+   # copy libraries where we like them
+   cp install/lib/* ${INSTALLDIR}/lib/
+   cd ..
 fi
+DFLAGS="${DFLAGS} IF_MPI(-D__SCALAPACK,)"
+LIBS="IF_MPI(-lscalapack,) ${LIBS}"
+
 
 echo "==================== Installing libxc ===================="
 if [ -f libxc-${libxc_ver}.tar.gz ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget http://www.cp2k.org/static/downloads/libxc-${libxc_ver}.tar.gz
-  checksum libxc-${libxc_ver}.tar.gz
-  tar -xzf libxc-${libxc_ver}.tar.gz
-  cd libxc-${libxc_ver}
-  # patch buggy configure macro (fails with gcc trunk)
-  sed -i 's/ax_cv_f90_modext=`ls | sed/ax_cv_f90_modext=`ls -1 | grep -iv smod | sed/g' configure
-  ./configure  --prefix=${INSTALLDIR} >& config.log
-  make -j $nprocs >& make.log
-  make install >& install.log
-  cd ..
+   wget http://www.cp2k.org/static/downloads/libxc-${libxc_ver}.tar.gz
+   checksum libxc-${libxc_ver}.tar.gz
+   tar -xzf libxc-${libxc_ver}.tar.gz
+   cd libxc-${libxc_ver}
+   # patch buggy configure macro (fails with gcc trunk)
+   sed -i 's/ax_cv_f90_modext=`ls | sed/ax_cv_f90_modext=`ls -1 | grep -iv smod | sed/g' configure
+   ./configure  --prefix=${INSTALLDIR} >& config.log
+   make -j $nprocs >& make.log
+   make install >& install.log
+   cd ..
 fi
+DFLAGS="${DFLAGS} -D__LIBXC2"
+LIBS="-lxcf90 -lxc ${LIBS}"
+
 
 echo "=================== Installing libint ===================="
 if [ -f libint-${libint_ver}.tar.gz ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget http://www.cp2k.org/static/downloads/libint-${libint_ver}.tar.gz
-  checksum libint-${libint_ver}.tar.gz
-  tar -xzf libint-${libint_ver}.tar.gz
-  cd libint-${libint_ver}
-  # hack for -with-cc (needed for -fsanitize=thread that also needs to be passed to the linker, but seemingly ldflags is ignored by libint's configure)
-  ./configure  --prefix=${INSTALLDIR} --with-libint-max-am=5 --with-libderiv-max-am1=4 --with-cc="gcc $CFLAGS" --with-cc-optflags="$CFLAGS" --with-cxx-optflags="$CXXFLAGS" >& config.log
-  make -j $nprocs >&  make.log
-  make install >& install.log
-  cd ..
+   wget http://www.cp2k.org/static/downloads/libint-${libint_ver}.tar.gz
+   checksum libint-${libint_ver}.tar.gz
+   tar -xzf libint-${libint_ver}.tar.gz
+   cd libint-${libint_ver}
+   # hack for -with-cc (needed for -fsanitize=thread that also needs to be passed to the linker, but seemingly ldflags is ignored by libint's configure)
+   ./configure  --prefix=${INSTALLDIR} --with-libint-max-am=5 --with-libderiv-max-am1=4 --with-cc="gcc $CFLAGS" --with-cc-optflags="$CFLAGS" --with-cxx-optflags="$CXXFLAGS" >& config.log
+   make -j $nprocs >&  make.log
+   make install >& install.log
+   cd ..
 fi
+DFLAGS="${DFLAGS} -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
+LIBS="-lderiv -lint ${LIBS}"
+
 
 echo "==================== Installing FFTW ====================="
 if [ -f fftw-${fftw_ver}.tar.gz ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget http://www.cp2k.org/static/downloads/fftw-${fftw_ver}.tar.gz
-  checksum fftw-${fftw_ver}.tar.gz
-  tar -xzf fftw-${fftw_ver}.tar.gz
-  cd fftw-${fftw_ver}
-  ./configure  --prefix=${INSTALLDIR} --enable-openmp >& config.log
-  make -j $nprocs >&  make.log
-  make install >& install.log
-  cd ..
+   wget http://www.cp2k.org/static/downloads/fftw-${fftw_ver}.tar.gz
+   checksum fftw-${fftw_ver}.tar.gz
+   tar -xzf fftw-${fftw_ver}.tar.gz
+   cd fftw-${fftw_ver}
+   ./configure  --prefix=${INSTALLDIR} --enable-openmp >& config.log
+   make -j $nprocs >&  make.log
+   make install >& install.log
+   cd ..
 fi
+DFLAGS="${DFLAGS} -D__FFTW3"
+LIBS="-lfftw3 IF_OMP(-lfftw3_omp,) ${LIBS}"
+
 
 echo "==================== Installing ELPA ====================="
 # elpa expect FC to be an mpi fortran compiler that's happy with long lines, and that a bunch of libs can be found
-export FC="mpif90 -ffree-line-length-none"
-export LDFLAGS="-L${INSTALLDIR}/lib"
-export LIBS="-lscalapack -lreflapack -lrefblas"
+#export FC="mpif90 -ffree-line-length-none"
+#export LDFLAGS="-L${INSTALLDIR}/lib"
+#export LIBS="-lscalapack -lreflapack -lrefblas"
 if [ -f elpa-${elpa_ver}.tar.gz ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget http://www.cp2k.org/static/downloads/elpa-${elpa_ver}.tar.gz
-  checksum elpa-${elpa_ver}.tar.gz
-  tar -xzf elpa-${elpa_ver}.tar.gz
+   wget http://www.cp2k.org/static/downloads/elpa-${elpa_ver}.tar.gz
+   checksum elpa-${elpa_ver}.tar.gz
+   tar -xzf elpa-${elpa_ver}.tar.gz
 
-  # need both flavors ?
-  cp -rp elpa-${elpa_ver} elpa-${elpa_ver}_mt
+   # need both flavors ?
+   cp -rp elpa-${elpa_ver} elpa-${elpa_ver}_mt
 
-  cd elpa-${elpa_ver}_mt
-  ./configure  --prefix=${INSTALLDIR} --enable-openmp=yes --with-generic --enable-shared=no >& config.log
-  make -j $nprocs >&  make.log
-  make install >& install.log
-  cd ..
+   cd elpa-${elpa_ver}_mt
+   ./configure  --prefix=${INSTALLDIR} --enable-openmp=yes --with-generic --enable-shared=no >& config.log
+   make -j $nprocs >&  make.log
+   make install >& install.log
+   cd ..
 
-  cd elpa-${elpa_ver}
-  ./configure  --prefix=${INSTALLDIR} --enable-openmp=no --with-generic --enable-shared=no >& config.log
-  make -j $nprocs >&  make.log
-  make install >& install.log
-  cd ..
+   cd elpa-${elpa_ver}
+   ./configure  --prefix=${INSTALLDIR} --enable-openmp=no --with-generic --enable-shared=no >& config.log
+   make -j $nprocs >&  make.log
+   make install >& install.log
+   cd ..
 fi
+#TODO: create links to elpa modules
+DFLAGS="${DFLAGS} IF_MPI(-I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules -D__ELPA2,)"
+LIBS="IF_MPI(IF_OMP(-lelpa_openmp,-lelpa),) ${LIBS}"
 
-echo "================== Installing ParMETIS =================="
-if [ -f parmetis-${parmetis_ver}.tar.gz ]; then
-  echo "Installation already started, skipping it."
-else
-  wget http://www.cp2k.org/static/downloads/parmetis-${parmetis_ver}.tar.gz
-  checksum parmetis-${parmetis_ver}.tar.gz
-  tar -xzf parmetis-${parmetis_ver}.tar.gz
-
-  cd parmetis-${parmetis_ver}
-  make config prefix=${INSTALLDIR} >& config.log
-  make -j $nprocs >& make.log
-  make install >& install.log
-
-  # Have to build METIS again independently due to bug in ParMETIS make install
-  cd metis
-  make config prefix=${INSTALLDIR} >& config.log
-  make -j $nprocs >& make.log
-  make install >& install.log
-  cd ../..
-fi
 
 echo "================== Installing PT-Scotch =================="
 if [ -f scotch_${scotch_ver}.tar.gz ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget  http://www.cp2k.org/static/downloads/scotch_${scotch_ver}.tar.gz
-  checksum scotch_${scotch_ver}.tar.gz
-  tar -xzf scotch_${scotch_ver}.tar.gz
-  cd scotch_${scotch_ver}/src
-  cat Make.inc/Makefile.inc.x86-64_pc_linux2 | \
-  sed "s|\(^CFLAGS\).*|\1 =  $CFLAGS -DCOMMON_RANDOM_FIXED_SEED -DSCOTCH_RENAME -Drestrict=__restrict -DIDXSIZE64|" > Makefile.inc
+   wget  http://www.cp2k.org/static/downloads/scotch_${scotch_ver}.tar.gz
+   checksum scotch_${scotch_ver}.tar.gz
+   tar -xzf scotch_${scotch_ver}.tar.gz
+   cd scotch_${scotch_ver}/src
+   cat Make.inc/Makefile.inc.x86-64_pc_linux2 | \
+   sed "s|\(^CFLAGS\).*|\1 =  $CFLAGS -DCOMMON_RANDOM_FIXED_SEED -DSCOTCH_RENAME -Drestrict=__restrict -DIDXSIZE64|" > Makefile.inc
 
-  make scotch -j $nprocs >& make.log
-  make ptscotch -j $nrocs >& make.log
-  make install prefix=${INSTALLDIR} >& install.log
-  cd ../..
+   make scotch -j $nprocs >& make.log
+   make ptscotch -j $nrocs >& make.log
+   make install prefix=${INSTALLDIR} >& install.log
+   cd ../..
 fi
+#TODO: use a linker group?
+LIBS="IF_MPI(-lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr,) ${LIBS}"
+
+
+echo "================== Installing ParMETIS =================="
+if [ -f parmetis-${parmetis_ver}.tar.gz ]; then
+   echo "Installation already started, skipping it."
+else
+   wget http://www.cp2k.org/static/downloads/parmetis-${parmetis_ver}.tar.gz
+   checksum parmetis-${parmetis_ver}.tar.gz
+   tar -xzf parmetis-${parmetis_ver}.tar.gz
+
+   cd parmetis-${parmetis_ver}
+   make config prefix=${INSTALLDIR} >& config.log
+   make -j $nprocs >& make.log
+   make install >& install.log
+
+   # Have to build METIS again independently due to bug in ParMETIS make install
+   cd metis
+   make config prefix=${INSTALLDIR} >& config.log
+   make -j $nprocs >& make.log
+   make install >& install.log
+   cd ../..
+fi
+LIBS="IF_MPI(-lptscotchparmetis,) ${LIBS}"
+LIBSOMP="${LIBSOMP} IF_MPI(-lptscotchparmetis,)"
+
 
 echo "================== Installing SuperLU_DIST =================="
-
 if [ -f superlu_dist_${superlu_ver}.tar.gz ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget http://www.cp2k.org/static/downloads/superlu_dist_${superlu_ver}.tar.gz
-  checksum superlu_dist_${superlu_ver}.tar.gz
-  tar -xzf superlu_dist_${superlu_ver}.tar.gz
+   wget http://www.cp2k.org/static/downloads/superlu_dist_${superlu_ver}.tar.gz
+   checksum superlu_dist_${superlu_ver}.tar.gz
+   tar -xzf superlu_dist_${superlu_ver}.tar.gz
 
-  cd SuperLU_DIST_${superlu_ver}
-  mv make.inc make.inc.orig
-  cat <<EOF >> make.inc
+   cd SuperLU_DIST_${superlu_ver}
+   mv make.inc make.inc.orig
+   cat <<EOF >> make.inc
 PLAT=_x86_64
 DSUPERLULIB= ${PWD}/lib/libsuperlu_dist_${superlu_ver}.a
 LIBS=\$(DSUPERLULIB) -L${INSTALLDIR}/lib -lparmetis -lmetis -lrefblas
@@ -576,67 +566,71 @@ LOADER=\$(CC)
 LOADOPTS=${CFLAGS}
 CDEFS=-DAdd_
 EOF
-  make &> make.log #-j $nprocs will crash
-  # no make install
-  chmod a+r lib/* SRC/*.h
-  cp lib/libsuperlu_dist_${superlu_ver}.a ${INSTALLDIR}/lib/
-  mkdir -p ${INSTALLDIR}/include/superlu_dist_${superlu_ver}
-  cp SRC/*.h ${INSTALLDIR}/include/superlu_dist_${superlu_ver}/
-  cd ..
+   make &> make.log #-j $nprocs will crash
+   # no make install
+   chmod a+r lib/* SRC/*.h
+   cp lib/libsuperlu_dist_${superlu_ver}.a ${INSTALLDIR}/lib/
+   mkdir -p ${INSTALLDIR}/include/superlu_dist_${superlu_ver}
+   cp SRC/*.h ${INSTALLDIR}/include/superlu_dist_${superlu_ver}/
+   cd ..
 fi
+LIBS="IF_MPI(-lsuperlu_dist_${superlu_ver},) ${LIBS}"
+
 
 echo "================== Installing PEXSI =================="
-
 if [ -f pexsi_v${pexsi_ver}.tar.gz ]; then
-  echo "Installation already started, skipping it."
+   echo "Installation already started, skipping it."
 else
-  wget http://www.cp2k.org/static/downloads/pexsi_v${pexsi_ver}.tar.gz
-  #wget https://math.berkeley.edu/~linlin/pexsi/download/pexsi_v${pexsi_ver}.tar.gz
-  checksum pexsi_v${pexsi_ver}.tar.gz
+   wget http://www.cp2k.org/static/downloads/pexsi_v${pexsi_ver}.tar.gz
+   #wget https://math.berkeley.edu/~linlin/pexsi/download/pexsi_v${pexsi_ver}.tar.gz
+   checksum pexsi_v${pexsi_ver}.tar.gz
 
-  tar -xzf pexsi_v${pexsi_ver}.tar.gz
+   tar -xzf pexsi_v${pexsi_ver}.tar.gz
 
-  cd pexsi_v${pexsi_ver}
+   cd pexsi_v${pexsi_ver}
 
-  cat config/make.inc.linux.gnu | \
-  sed 's|\(PAR_ND_LIBRARY *=\).*|\1 parmetis|' |\
-  sed 's|\(SEQ_ND_LIBRARY *=\).*|\1 metis|' |\
-  sed "s|\(PEXSI_DIR *=\).*|\1 ${PWD}|" |\
-  sed "s|\(CPP_LIB *=\).*|\1 -lstdc++ ${mpiextralibs}|" |\
-  sed "s|\(LAPACK_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lreflapack|" |\
-  sed "s|\(BLAS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lrefblas|" |\
-  sed "s|\(\bMETIS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lmetis|" |\
-  sed "s|\(PARMETIS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lparmetis|" |\
-  sed "s|\(DSUPERLU_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lsuperlu_dist_${superlu_ver}|" |\
-  sed 's|#FLOADOPTS *=.*|FLOADOPTS    = ${LIBS} ${CPP_LIB}|' |\
-  sed "s|\(DSUPERLU_INCLUDE *=\).*|\1 -I${INSTALLDIR}/include/superlu_dist_${superlu_ver}|" |\
-  sed 's|\(INCLUDES *=\).*|\1 ${DSUPERLU_INCLUDE} ${PEXSI_INCLUDE}|' |\
-  sed "s|\(COMPILE_FLAG *=\).*|\1 ${CFLAGS}|" |\
-  sed "s|\(SUFFIX *=\).*|\1 linux_v${pexsi_ver}|" |\
-  sed 's|\(DSUPERLU_DIR *=\).*|\1|' |\
-  sed 's|\(METIS_DIR *=\).*|\1|' |\
-  sed 's|\(PARMETIS_DIR *=\).*|\1|' |\
-  sed 's|\(PTSCOTCH_DIR *=\).*|\1|' |\
-  sed 's|\(LAPACK_DIR *=\).*|\1|' |\
-  sed 's|\(BLAS_DIR *=\).*|\1|' |\
-  sed 's|\(GFORTRAN_LIB *=\).*|\1|' > make.inc
-  cd src
-  make -j $nprocs >& make.log
-  # no make install
-  chmod a+r libpexsi_linux_v${pexsi_ver}.a
-  cp libpexsi_linux_v${pexsi_ver}.a ${INSTALLDIR}/lib/
+   cat config/make.inc.linux.gnu | \
+   sed 's|\(PAR_ND_LIBRARY *=\).*|\1 parmetis|' |\
+   sed 's|\(SEQ_ND_LIBRARY *=\).*|\1 metis|' |\
+   sed "s|\(PEXSI_DIR *=\).*|\1 ${PWD}|" |\
+   sed "s|\(CPP_LIB *=\).*|\1 -lstdc++ ${mpiextralibs}|" |\
+   sed "s|\(LAPACK_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lreflapack|" |\
+   sed "s|\(BLAS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lrefblas|" |\
+   sed "s|\(\bMETIS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lmetis|" |\
+   sed "s|\(PARMETIS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lparmetis|" |\
+   sed "s|\(DSUPERLU_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lsuperlu_dist_${superlu_ver}|" |\
+   sed 's|#FLOADOPTS *=.*|FLOADOPTS    = ${LIBS} ${CPP_LIB}|' |\
+   sed "s|\(DSUPERLU_INCLUDE *=\).*|\1 -I${INSTALLDIR}/include/superlu_dist_${superlu_ver}|" |\
+   sed 's|\(INCLUDES *=\).*|\1 ${DSUPERLU_INCLUDE} ${PEXSI_INCLUDE}|' |\
+   sed "s|\(COMPILE_FLAG *=\).*|\1 ${CFLAGS}|" |\
+   sed "s|\(SUFFIX *=\).*|\1 linux_v${pexsi_ver}|" |\
+   sed 's|\(DSUPERLU_DIR *=\).*|\1|' |\
+   sed 's|\(METIS_DIR *=\).*|\1|' |\
+   sed 's|\(PARMETIS_DIR *=\).*|\1|' |\
+   sed 's|\(PTSCOTCH_DIR *=\).*|\1|' |\
+   sed 's|\(LAPACK_DIR *=\).*|\1|' |\
+   sed 's|\(BLAS_DIR *=\).*|\1|' |\
+   sed 's|\(GFORTRAN_LIB *=\).*|\1|' > make.inc
+   cd src
+   make -j $nprocs >& make.log
+   # no make install
+   chmod a+r libpexsi_linux_v${pexsi_ver}.a
+   cp libpexsi_linux_v${pexsi_ver}.a ${INSTALLDIR}/lib/
 
-  # make fortran interface
-  cd ../fortran
-  make >& make.log #-j $nprocs will crash
-  chmod a+r f_ppexsi_interface.mod
-  cp f_ppexsi_interface.mod ${INSTALLDIR}/include/ 
-  cd ..
-  # no need to install PEXSI headers
-  #mkdir -p ${INSTALLDIR}/include/pexsi_v${pexsi_ver}
-  #cp include/* ${INSTALLDIR}/include/pexsi_v${pexsi_ver}/
-  cd ..
+   # make fortran interface
+   cd ../fortran
+   make >& make.log #-j $nprocs will crash
+   chmod a+r f_ppexsi_interface.mod
+   cp f_ppexsi_interface.mod ${INSTALLDIR}/include/ 
+   cd ..
+   # no need to install PEXSI headers
+   #mkdir -p ${INSTALLDIR}/include/pexsi_v${pexsi_ver}
+   #cp include/* ${INSTALLDIR}/include/pexsi_v${pexsi_ver}/
+   cd ..
 fi
+DFLAGS="${DFLAGS} IF_MPI(-D__LIBPEXSI,)"
+LIBS="IF_MPI(-lpexsi_linux_v${pexsi_ver},) ${LIBS}"
+
 
 #echo "==================== Installing PLUMED ====================="
 # Unfortunately plumed 2.x does not compile with gcc 5.x at the moment:
@@ -655,229 +649,91 @@ fi
 #fi
 
 echo "==================== Installing QUIP ================="
-if [ x${quip_VER} == x ]; then
-  echo "Not installing QUIP"
-  DEF_QUIP=""
-  LIB_QUIP=""
+if [ -f QUIP-${quip_ver}.zip  ]; then
+   echo "Installation already started, skipping it."
 else
-  if [ -f QUIP-${quip_ver}.zip  ]; then
-    echo "Installation already started, skipping it."
-  else
-    wget http://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
-    checksum QUIP-${quip_ver}.zip
-    unzip QUIP-${quip_ver}.zip >& unzip.log
-    mv QUIP-public QUIP-${quip_ver}
-    cd QUIP-${quip_ver}
-    export QUIP_ARCH=linux_x86_64_gfortran
-    # hit enter a few times to accept decaults
-    echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
-    # make -j does not work :-(
-    make >& make.log
-  
-    cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod  ${INSTALLDIR}/include/
-    cp build/linux_x86_64_gfortran/*.a                              ${INSTALLDIR}/lib/
-    cp src/FoX-4.0.3/objs.linux_x86_64_gfortran/lib/*.a             ${INSTALLDIR}/lib/
-    cd ..
-  fi
-  DEF_QUIP="-D__QUIP"
-  LIB_QUIP="-lquip_core -latoms -lFoX_sax -lFoX_common -lFoX_utils -lFoX_fsys"
+   wget http://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
+   checksum QUIP-${quip_ver}.zip
+   unzip QUIP-${quip_ver}.zip >& unzip.log
+   mv QUIP-public QUIP-${quip_ver}
+   cd QUIP-${quip_ver}
+   export QUIP_ARCH=linux_x86_64_gfortran
+   # hit enter a few times to accept decaults
+   echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
+   # make -j does not work :-(
+   make >& make.log
+
+   cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod  ${INSTALLDIR}/include/
+   cp build/linux_x86_64_gfortran/*.a                              ${INSTALLDIR}/lib/
+   cp src/FoX-4.0.3/objs.linux_x86_64_gfortran/lib/*.a             ${INSTALLDIR}/lib/
+   cd ..
 fi
+if ! $enable_tsan ; then
+   # Quip does not work with TSAN
+   LIBS="-lquip_core -latoms -lFoX_sax -lFoX_common -lFoX_utils -lFoX_fsys ${LIBS}"
+   DFLAGS="${DFLAGS} -D__QUIP"
+fi
+
 
 echo "==================== generating arch files ===================="
 echo "arch files can be found in the ${INSTALLDIR}/arch subdirectory"
 mkdir -p ${INSTALLDIR}/arch
+cd ${INSTALLDIR}/arch
 
+# standart libs
+LIBS="${LIBS} -lstdc++ "
+
+# Flags which both gfortran and gcc understand.
+BASEFLAGS="IF_OMP(-fopenmp,)"
+BASEFLAGS="${BASEFLAGS} -march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
+BASEFLAGS="${BASEFLAGS} IF_DEBUG(-O1,-O3 -ffast-math \$(PROFOPT))"
+BASEFLAGS="${BASEFLAGS} IF_DEBUG(-fsanitize=leak -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS,)"
+
+# Special flags for gfortran
 #
-# unfortunately, optimal flags depend on compiler etc.
 # https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
-#
 # we error out for these warnings
 WFLAGSERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=realloc-lhs-all -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=conversion"
 # we just warn for those (that eventually might be promoted to WFLAGSERROR). It is useless to put something here with 100s of warnings.
 WFLAGSWARN="-Wuse-without-only -Wzerotrip"
-# so these are the default
-WFLAGS="$WFLAGSERROR $WFLAGSWARN"
 # while here we collect all other warnings, some we'll ignore
 WFLAGS2="-pedantic -Wall -Wextra -Wsurprising -Wunused-dummy-argument -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-dummy-argument -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
+# combine warn/error flags
+WFLAGS="$WFLAGSERROR $WFLAGSWARN IF_WARN(${WFLAGS2},)"
+FCFLAGS="${BASEFLAGS} -I\$(CP2KINSTALLDIR)/include -std=f2003 -fimplicit-none -ffree-form IF_DEBUG(-fcheck='bounds,do,recursion,pointer',) \$(DFLAGS) \$(WFLAGS)"
+LDFLAGS="-L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)"
 
-DEBFLAGS="-fcheck=bounds,do,recursion,pointer -fsanitize=leak -ffpe-trap=invalid,zero,overflow -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS"
-BASEFLAGS="-std=f2003 -fimplicit-none -ffree-form -fno-omit-frame-pointer -g -O1 $TSANFLAGS"
-PARAFLAGS="-D__parallel -D__SCALAPACK -D__LIBPEXSI -D__MPI_VERSION=3 -D__ELPA2"
-CUDAFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA"
-OPTFLAGS="-O3 -march=native -ffast-math \$(PROFOPT)"
-DFLAGS="$DEF_QUIP -D__LIBINT -D__FFTW3 -D__LIBXC2 -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
-DFLAGSOPT="$LIBSMMFLAG -D__MAX_CONTR=4"
-CFLAGS="\$(DFLAGS) -I\$(CP2KINSTALLDIR)/include -fno-omit-frame-pointer -g -O1 $TSANFLAGS"
+# Spcial flags for gcc (currently none)
+CFLAGS="${BASEFLAGS} -I\$(CP2KINSTALLDIR)/include \$(DFLAGS)"
 
+# CUDA stuff
+LIBS="${LIBS} IF_CUDA(-lcudart -lcufft -lcublas -lrt,)"
+FLAGS="IF_CUDA(-D__ACC -D__DBCSR_ACC -D__PW_CUDA,) ${FLAGS}"
+NVFLAGS="-arch sm_35 \$(DFLAGS) "
 
-# Link to SCOTCH
-LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lptscotchparmetis -lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr ${mpiextralibs}"
+# helper routine for instantiating the arch.tmpl 
+gen_arch_file() {
+ filename=$1
+ flags=$2
+ TMPL=`cat ../../arch.tmpl`
+ eval "printf \"$TMPL\"" | cpp -traditional-cpp -P ${flags} - > $filename
+ echo "Wrote install/arch/"$filename
+}
 
-# Link to ParMETIS
-#LIB_PEXSI="-lpexsi_linux_v${pexsi_ver} -lsuperlu_dist_${superlu_ver} -lparmetis -lmetis"
+gen_arch_file "local.sopt"            ""
+gen_arch_file "local.sdbg"            "-DDEBUG"
+gen_arch_file "local.ssmp"            "-DOMP"
+gen_arch_file "local.popt"            "-DMPI"
+gen_arch_file "local.pdbg"            "-DMPI -DDEBUG"
+gen_arch_file "local.psmp"            "-DMPI -DOMP"
+gen_arch_file "local_cuda.ssmp"       "-DCUDA -DOMP"
+gen_arch_file "local_cuda.psmp"       "-DCUDA -DMPI -DOMP"
+gen_arch_file "local_cuda_warn.psmp"  "-DCUDA -DMPI -DOMP -DWARN"
 
+#TODO: what is special about a valgrind arch file?
+#gen_arch_file "local_valgrind.sdbg"   "-DVALGRIND"
+#gen_arch_file "local_valgrind.pdbg"   "-DVALGRIND -DMPI"
 
-cat << EOF > ${INSTALLDIR}/arch/local.pdbg
-CC       = gcc
-CPP      =
-FC       = mpif90
-LD       = mpif90
-AR       = ar -r
-WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} ${PARAFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
-LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
-CFLAGS   = ${CFLAGS}
-LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
-EOF
-
-cat << EOF > ${INSTALLDIR}/arch/local.popt
-CC       = gcc
-CPP      =
-FC       = mpif90
-LD       = mpif90
-AR       = ar -r
-WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} ${PARAFLAGS} $DFLAGSOPT
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
-LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
-CFLAGS   = ${CFLAGS}
-LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack $LIBSMMLIB ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3 
-EOF
-
-cat << EOF > ${INSTALLDIR}/arch/local.psmp
-CC       = gcc
-CPP      =
-FC       = mpif90
-LD       = mpif90
-AR       = ar -r
-WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} ${PARAFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
-LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
-CFLAGS   = ${CFLAGS}
-LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp
-EOF
-
-cat << EOF > ${INSTALLDIR}/arch/local.sdbg
-CC       = gcc
-CPP      =
-FC       = gfortran
-LD       = gfortran
-AR       = ar -r
-WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${DEBFLAGS} \$(DFLAGS) \$(WFLAGS)
-LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
-CFLAGS   = ${CFLAGS}
-LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
-EOF
-
-cat << EOF > ${INSTALLDIR}/arch/local.sopt
-CC       = gcc
-CPP      =
-FC       = gfortran
-LD       = gfortran
-AR       = ar -r
-WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} $DFLAGSOPT
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
-LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
-CFLAGS   = ${CFLAGS}
-LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint  $LIBSMMLIB ${LIB_LAPACK_OPT}  -lstdc++ -lfftw3
-EOF
-
-cat << EOF > ${INSTALLDIR}/arch/local.ssmp
-CC       = gcc
-CPP      =
-FC       = gfortran
-LD       = gfortran
-AR       = ar -r
-WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS}  \$(DFLAGS) \$(WFLAGS)
-LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ \$(FCFLAGS)
-CFLAGS   = ${CFLAGS}
-LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp
-EOF
-
-cat << EOF > ${INSTALLDIR}/arch/local_valgrind.sdbg
-CC       = gcc
-CPP      =
-FC       = gfortran
-LD       = gfortran
-AR       = ar -r
-WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} -O3  \$(DFLAGS) \$(WFLAGS)
-LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
-CFLAGS   = ${CFLAGS}
-LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
-EOF
-
-cat << EOF > ${INSTALLDIR}/arch/local_valgrind.pdbg
-CC       = gcc
-CPP      =
-FC       = mpif90
-LD       = mpif90
-AR       = ar -r
-WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} ${PARAFLAGS}
-FCFLAGS  = -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules ${BASEFLAGS} -O3 \$(DFLAGS) \$(WFLAGS)
-LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)
-CFLAGS   = ${CFLAGS}
-LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa -lscalapack ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3
-EOF
-
-cat << EOF > ${INSTALLDIR}/arch/local_cuda.psmp
-NVCC     = nvcc -D__GNUC_MINOR__=6  -D__GNUC__=4
-CC       = gcc
-CPP      =
-FC       = mpif90
-LD       = mpif90
-AR       = ar -r
-WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} ${CUDAFLAGS} ${PARAFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
-LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
-NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
-CFLAGS   = ${CFLAGS}
-LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
-EOF
-
-cat << EOF > ${INSTALLDIR}/arch/local_cuda_warn.psmp
-NVCC     = nvcc -D__GNUC_MINOR__=6  -D__GNUC__=4
-CC       = gcc
-CPP      =
-FC       = mpif90
-LD       = mpif90
-AR       = ar -r
-WFLAGS   = ${WFLAGS}
-WFLAGS2  = ${WFLAGS2}
-DFLAGS   = ${DFLAGS} ${CUDAFLAGS} ${PARAFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include -I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS) \$(WFLAGS2)
-LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
-NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
-CFLAGS   = ${CFLAGS}
-LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIB_PEXSI -lelpa_openmp -lscalapack $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
-FCLOGPIPE =  2> \$(notdir \$<).warn
-EOF
-
-cat << EOF > ${INSTALLDIR}/arch/local_cuda.ssmp
-NVCC     = nvcc -D__GNUC_MINOR__=6  -D__GNUC__=4
-CC       = gcc
-CPP      =
-FC       = gfortran
-LD       = gfortran
-AR       = ar -r
-WFLAGS   = ${WFLAGS}
-DFLAGS   = ${DFLAGS} ${CUDAFLAGS} $DFLAGSOPT
-FCFLAGS  = -fopenmp -I\$(CP2KINSTALLDIR)/include ${BASEFLAGS} ${OPTFLAGS} \$(DFLAGS) \$(WFLAGS)
-LDFLAGS  = -L\$(CP2KINSTALLDIR)/lib/ -L/usr/local/cuda/lib64 \$(FCFLAGS)
-NVFLAGS  = \$(DFLAGS) -g -O2 -arch sm_35
-CFLAGS   = ${CFLAGS}
-LIBS     = $LIB_QUIP -lxcf90 -lxc -lderiv -lint $LIBSMMLIB ${LIB_LAPACK_DEBUG}  -lstdc++ -lfftw3 -lfftw3_omp -lcudart -lcufft -lcublas -lrt
-EOF
 
 echo "========================== usage ========================="
 echo "done!"
