@@ -27,17 +27,20 @@
 
     INTEGER                                  :: blk, bp, bpe, row, row_i, &
                                                 row_size
+    LOGICAL                                  :: is_in_parallel
 
 !   ---------------------------------------------------------------------------
 
     max_val = 0
+    is_in_parallel = .FALSE.
+!$  is_in_parallel = omp_in_parallel()
 
     !$omp parallel default(none) &
     !$omp          private (row_i, row, row_size, blk, bp, bpe) &
     !$omp          shared (nrows, local) &
     !$omp          shared (local2global, rbs, cbs, row_p, col_i, blk_p, &
     !$omp                  data, norms) &
-    !$omp          reduction (max:max_val)
+    !$omp          reduction (max:max_val) if (.not.is_in_parallel)
     !$omp do
     DO row_i = 1, nrows
        IF (local) THEN
@@ -88,17 +91,20 @@
     REAL(kind=sp), INTENT(OUT)               :: max_val
 
     INTEGER                                  :: blk, bp, bpe, row, col
+    LOGICAL                                  :: is_in_parallel
 
 !   ---------------------------------------------------------------------------
 
     max_val = 0
+    is_in_parallel = .FALSE.
+!$  is_in_parallel = omp_in_parallel()
 
     !$omp parallel default(none) &
     !$omp          private (row, col, blk, bp, bpe) &
     !$omp          shared (local, nblks) &
     !$omp          shared (rbs, cbs, blki, &
     !$omp                  data, norms, local2global_rows, local2global_cols) &
-    !$omp          reduction (max:max_val)
+    !$omp          reduction (max:max_val) if (.not.is_in_parallel)
     !$omp do
     DO blk = 1, nblks
        IF (blki(3,blk) .NE. 0) THEN

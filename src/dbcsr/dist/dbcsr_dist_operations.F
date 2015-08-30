@@ -839,13 +839,13 @@ CONTAINS
 !>                                      distribution to these column images
 !> \param[in] match_col_nbins           number of bins in the distribution to
 !>                                      match the local columns
-!> \param nclusters_rows ...
-!> \param nclusters_cols ...
+!> \param nimages_rows ...
+!> \param nimages_cols ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_image_dist(imgdist, dist,&
        match_row_pdist, match_row_idist, match_row_nbins,&
        match_col_pdist, match_col_idist, match_col_nbins,&
-       nclusters_rows, nclusters_cols)
+       nimages_rows, nimages_cols)
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(OUT)                            :: imgdist
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
@@ -857,7 +857,7 @@ CONTAINS
       OPTIONAL                               :: match_col_pdist, &
                                                 match_col_idist
     INTEGER, INTENT(IN)                      :: match_col_nbins, &
-                                                nclusters_rows, nclusters_cols
+                                                nimages_rows, nimages_cols
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_image_dist', &
       routineP = moduleN//':'//routineN
@@ -888,8 +888,8 @@ CONTAINS
          nprows, npcols
     !
     ! Create the new row distribution and row image distribution
-    imgdist%i%row_decimation = nclusters_rows / nprows
-    imgdist%i%row_multiplicity = nclusters_rows / gcd (nclusters_rows, match_row_nbins)
+    imgdist%i%row_decimation = nimages_rows / nprows
+    imgdist%i%row_multiplicity = nimages_rows / gcd (nimages_rows, match_row_nbins)
     new_row_dist = .FALSE.
     !
     IF (debug_mod) WRITE (*,*)routineN//'row decimation, multiplicity',&
@@ -947,8 +947,8 @@ CONTAINS
     CALL array_new (imgdist%i%vrow_dist, row_vdist, gift=.TRUE.)
     !
     ! Create the new column distribution and column image distribution
-    imgdist%i%col_decimation = nclusters_cols / npcols
-    imgdist%i%col_multiplicity = nclusters_cols / gcd (nclusters_cols, match_col_nbins)
+    imgdist%i%col_decimation = nimages_cols / npcols
+    imgdist%i%col_multiplicity = nimages_cols / gcd (nimages_cols, match_col_nbins)
     new_col_dist = .FALSE.
     !
     IF (debug_mod) WRITE (*,*)routineN//'col decimation, multiplicity',&
@@ -2156,38 +2156,44 @@ CONTAINS
 !>         for images.
 !> \param matrix ...
 !> \param imgdist ...
+!> \param do_rows ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_reset_vlocals (matrix, imgdist, error)
+  SUBROUTINE dbcsr_reset_vlocals (matrix, imgdist, do_rows, error)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(INOUT)                          :: imgdist
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_rows
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    TYPE(dbcsr_distribution_obj)             :: dist
+    LOGICAL                                  :: my_do_rows
 
 !   ---------------------------------------------------------------------------
 
-    dist = dbcsr_distribution (matrix)
+    CALL dbcsr_release_locals (matrix, error=error)
+    my_do_rows = .TRUE.
+    IF (PRESENT(do_rows)) my_do_rows = do_rows
     ! Rows
-    CALL dbcsr_release_locals (matrix, error)
-    CALL dbcsr_get_local_vrows (imgdist, matrix%m%local_rows,&
-         matrix%m%index(dbcsr_slot_home_vprow), error=error)
+    IF (.NOT.PRESENT(do_rows) .OR. my_do_rows) THEN
+       CALL dbcsr_get_local_vrows (imgdist, matrix%m%local_rows,&
+            matrix%m%index(dbcsr_slot_home_vprow), error=error)
+    ELSE
+       matrix%m%local_rows = imgdist%i%main%d%local_rows
+    ENDIF
     CALL array_hold (matrix%m%local_rows)
     matrix%m%has_local_rows = .TRUE.
-    !write(*,'(1X,A,7(1X,I7))')"reset_vlocals my homevprow",&
-    !     matrix%m%index(dbcsr_slot_home_vprow), &
-    !     matrix%m%index(dbcsr_slot_home_prow), matrix%m%index(dbcsr_slot_home_rowi),&
-    !     matrix%m%dist%d%mp_env%mp%myprow, matrix%m%dist%d%mp_env%mp%mypcol,&
-    !     SIZE(matrix%m%dist%d%mp_env%mp%pgrid,1), SIZE(matrix%m%dist%d%mp_env%mp%pgrid,2)
     matrix%m%nblkrows_local = array_size (matrix%m%local_rows)
     matrix%m%index(dbcsr_slot_nblkrows_local) = array_size (matrix%m%local_rows)
     CALL dbcsr_get_global_vrow_map (imgdist, matrix%m%global_rows, error=error)
     CALL array_hold (matrix%m%global_rows)
     matrix%m%has_global_rows = .TRUE.
     ! Columns
-    CALL dbcsr_get_local_vcols (imgdist, matrix%m%local_cols,&
-         matrix%m%index(dbcsr_slot_home_vpcol), error=error)
+    IF (.NOT.PRESENT(do_rows) .OR. .NOT.my_do_rows) THEN
+       CALL dbcsr_get_local_vcols (imgdist, matrix%m%local_cols,&
+            matrix%m%index(dbcsr_slot_home_vpcol), error=error)
+    ELSE
+       matrix%m%local_cols = imgdist%i%main%d%local_cols
+    ENDIF
     CALL array_hold (matrix%m%local_cols)
     matrix%m%has_local_cols = .TRUE.
     matrix%m%nblkcols_local = array_size (matrix%m%local_cols)

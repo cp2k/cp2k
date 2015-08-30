@@ -274,13 +274,15 @@ CONTAINS
   SUBROUTINE dbcsr_data_copy_frombuffer_obj (area, template_area, size_data, displ)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     TYPE(dbcsr_data_obj), INTENT(IN)         :: template_area
-    INTEGER, INTENT(IN)                      :: size_data, displ
+    INTEGER, INTENT(IN)                      :: size_data
+    INTEGER(kind=int_8), INTENT(IN)          :: displ
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'dbcsr_data_copy_frombuffer_obj', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: displ_end, error_handler
+    INTEGER                                  :: error_handler
+    INTEGER(kind=int_8)                      :: displ_end
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -301,7 +303,7 @@ CONTAINS
          "area and template area type mismatch", __LINE__, error=error)
 
     displ_end = displ+size_data-1
-    CALL dbcsr_assert (displ_end, "LE", dbcsr_data_get_size_referenced (area),&
+    CALL dbcsr_assert (INT(displ_end), "LE", dbcsr_data_get_size_referenced (area),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Attempt to copy out of bounds",__LINE__,error)
 
@@ -338,12 +340,14 @@ CONTAINS
   SUBROUTINE dbcsr_data_copy_frombuffer_i (area, template_area, size_data, displ)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     INTEGER, DIMENSION(:), INTENT(IN)        :: template_area
-    INTEGER, INTENT(IN)                      :: size_data, displ
+    INTEGER, INTENT(IN)                      :: size_data
+    INTEGER(kind=int_8), INTENT(IN)          :: displ
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copy_frombuffer_i', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: displ_end, error_handler
+    INTEGER                                  :: error_handler
+    INTEGER(kind=int_8)                      :: displ_end
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -360,7 +364,7 @@ CONTAINS
          "area and template area type mismatch", __LINE__, error=error)
 
     displ_end = displ+size_data-1
-    CALL dbcsr_assert (displ_end, "LE", dbcsr_data_get_size_referenced (area),&
+    CALL dbcsr_assert (INT(displ_end), "LE", dbcsr_data_get_size_referenced (area),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Attempt to copy out of bounds",__LINE__,error)
 
