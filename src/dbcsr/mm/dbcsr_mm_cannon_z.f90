@@ -37,11 +37,11 @@
 
     !$omp parallel default(none) &
     !$omp          private (row_i, row, row_size, blk, bp, bpe) &
-    !$omp          shared (nrows, local) &
+    !$omp          shared (nrows, local, max_val) &
     !$omp          shared (local2global, rbs, cbs, row_p, col_i, blk_p, &
     !$omp                  data, norms) &
-    !$omp          reduction (max:max_val) if (.not.is_in_parallel)
-    !$omp do
+    !$omp          if (.not.is_in_parallel)
+    !$omp do reduction (max:max_val)
     DO row_i = 1, nrows
        IF (local) THEN
           row = local2global(row_i)
@@ -101,11 +101,11 @@
 
     !$omp parallel default(none) &
     !$omp          private (row, col, blk, bp, bpe) &
-    !$omp          shared (local, nblks) &
+    !$omp          shared (local, nblks, max_val) &
     !$omp          shared (rbs, cbs, blki, &
     !$omp                  data, norms, local2global_rows, local2global_cols) &
-    !$omp          reduction (max:max_val) if (.not.is_in_parallel)
-    !$omp do
+    !$omp          if (.not.is_in_parallel)
+    !$omp do reduction (max:max_val)
     DO blk = 1, nblks
        IF (blki(3,blk) .NE. 0) THEN
           bp = blki(3,blk)

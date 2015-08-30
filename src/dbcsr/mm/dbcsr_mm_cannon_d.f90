@@ -37,9 +37,9 @@
 
     !$omp parallel default(none) &
     !$omp          private (row_i, row, row_size, blk, bp, bpe) &
-    !$omp          shared (nrows, local) &
+    !$omp          shared (nrows, local, max_val) &
     !$omp          shared (local2global, rbs, cbs, row_p, col_i, blk_p, &
-    !$omp                  data, norms, max_val) &
+    !$omp                  data, norms) &
     !$omp          if (.not.is_in_parallel)
     !$omp do reduction (max:max_val)
     DO row_i = 1, nrows
