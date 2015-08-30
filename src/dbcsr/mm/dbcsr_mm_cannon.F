@@ -3130,7 +3130,7 @@ MODULE dbcsr_mm_cannon
                right_set%mats(v_ri,v_ci)%m%index(dbcsr_slot_size)
           IF (v_ri.LE.min_nimages) THEN
              right_offset_images_calc(v_ci+1,v_ri) = &
-                  right_offset_images_calc(v_ci,v_ri) + local_right_refs(idata_size,v_ri,v_ci)
+                  right_offset_images_calc(v_ci,v_ri) + INT(local_right_refs(idata_size,v_ri,v_ci))
           ENDIF
           local_right_refs(idata_displ,v_ri,v_ci) = right_data_size
           local_right_refs(imeta_displ,v_ri,v_ci) = right_meta_size
@@ -3153,7 +3153,7 @@ MODULE dbcsr_mm_cannon
                left_set%mats(v_ri,v_ci)%m%index(dbcsr_slot_size)
           IF (v_ci.LE.min_nimages) THEN
              left_offset_images_calc(v_ri+1,v_ci) = &
-                  left_offset_images_calc(v_ri,v_ci) + local_left_refs(idata_size,v_ri,v_ci)
+                  left_offset_images_calc(v_ri,v_ci) + INT(local_left_refs(idata_size,v_ri,v_ci))
           ENDIF
           local_left_refs(idata_displ,v_ri,v_ci) = left_data_size
           local_left_refs(imeta_displ,v_ri,v_ci) = left_meta_size
@@ -3670,7 +3670,8 @@ MODULE dbcsr_mm_cannon
                     right_recv_filtered(v_ki,v_ci,metronome).LT.left_row_nimages) THEN
                    !
                    right_offset_images_comm_ptr(v_ci+2,v_ki+1) = &
-                        right_offset_images_comm_ptr(v_ci+1,v_ki+1) + right_refs(idata_size,recv_vrow,recv_vcol)
+                        right_offset_images_comm_ptr(v_ci+1,v_ki+1) + &
+                        INT(right_refs(idata_size,recv_vrow,recv_vcol))
                    CALL dbcsr_data_set_pointer(&
                         area=right_data_get,&
                         rsize=INT(right_refs(idata_size,recv_vrow,recv_vcol)),&
@@ -3759,7 +3760,8 @@ MODULE dbcsr_mm_cannon
                     left_recv_filtered(v_ri,v_ki,metronome).LT.right_col_nimages) THEN
                    !
                    left_offset_images_comm_ptr(v_ri+2,v_ki+1) = &
-                        left_offset_images_comm_ptr(v_ri+1,v_ki+1) + left_refs(idata_size,recv_vrow,recv_vcol)
+                        left_offset_images_comm_ptr(v_ri+1,v_ki+1) + &
+                        INT(left_refs(idata_size,recv_vrow,recv_vcol))
                    CALL dbcsr_data_set_pointer(&
                         area=left_data_get,&
                         rsize=INT(left_refs(idata_size,recv_vrow,recv_vcol)),&
