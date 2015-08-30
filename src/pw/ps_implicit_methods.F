@@ -684,12 +684,12 @@ CONTAINS
           CALL mp_sum(Bxv_new, pw_grid%para%group)
           IF (outp_unit .GT. 0) THEN
              WRITE(outp_unit, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
-             WRITE(outp_unit, '(T25,A)') "Drgn       tile      vhartree"
-             WRITE(outp_unit, '(T24,A)') REPEAT('-', 32)
+             WRITE(outp_unit, '(T20,A)') "Drgn       tile      vhartree      lambda "
+             WRITE(outp_unit, '(T19,A)') REPEAT('-', 46)
              nt_tot = 1
              DO ng = 1, n_gates
                 DO nt = 1, ps_implicit_env%gates(ng)%dirichlet_bc%n_tiles
-                   WRITE(outp_unit, '(T22,I6,5X,I6,3X,E13.4)') ng, nt, Bxv_new(nt_tot)
+                   WRITE(outp_unit, '(T17,I6,5X,I6,3X,E13.4,E13.4)') ng, nt, Bxv_new(nt_tot), lambda_new(nt_tot)
                    nt_tot = nt_tot + 1
                 END DO
              END DO 
@@ -965,12 +965,12 @@ CONTAINS
           CALL mp_sum(Bxv_new, pw_grid%para%group)
           IF (outp_unit .GT. 0) THEN
              WRITE(outp_unit, '(T3,A)') "======== verbose "//REPEAT('=', 61)
-             WRITE(outp_unit, '(T25,A)') "Drgn       tile      vhartree"
-             WRITE(outp_unit, '(T24,A)') REPEAT('-', 32)
+             WRITE(outp_unit, '(T20,A)') "Drgn       tile      vhartree      lambda "
+             WRITE(outp_unit, '(T19,A)') REPEAT('-', 46)
              nt_tot = 1
              DO ng = 1, n_gates
                 DO nt = 1, ps_implicit_env%gates(ng)%dirichlet_bc%n_tiles
-                   WRITE(outp_unit, '(T22,I6,5X,I6,3X,E13.4)') ng, nt, Bxv_new(nt_tot)
+                   WRITE(outp_unit, '(T17,I6,5X,I6,3X,E13.4,E13.4)') ng, nt, Bxv_new(nt_tot), lambda_new(nt_tot)
                    nt_tot = nt_tot + 1
                 END DO
              END DO 
