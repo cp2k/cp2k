@@ -173,7 +173,7 @@ MODULE dbcsr_mm_cannon
        mp_max, mp_min, mp_request_null, mp_rget, mp_sum, mp_testany, &
        mp_waitall, mp_win_free, mp_win_lock_all, mp_win_unlock_all
 
-  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, omp_in_parallel
+  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
   IMPLICIT NONE
 
@@ -2953,8 +2953,9 @@ MODULE dbcsr_mm_cannon
       recv_vrow, right_col_mult, right_col_nimages, right_data_win
     INTEGER :: right_meta_win, right_myfirstvcol, right_myfirstvrow, &
       right_mypcol, right_myprow, right_npcols, right_nprows, right_row_mult, &
-      right_row_nimages, row, size_guess, src_vcol, src_vrow, stat, &
-      threads_finished, threads_finished_read, v_ci, v_i, v_ki, v_ri
+      right_row_nimages, row, size_guess, size_threads_index, src_vcol, &
+      src_vrow, stat, threads_finished, threads_finished_read, v_ci, v_i, &
+      v_ki, v_ri
     INTEGER(KIND=int_8)                      :: mem
     INTEGER(kind=mp_address_kind) :: left_data_size, left_max_data_merged, &
       left_max_meta, left_max_meta_images, left_max_meta_merged, &
@@ -2979,13 +2980,10 @@ MODULE dbcsr_mm_cannon
       right_offset_images_calc_ptr, right_offset_images_comm_ptr
     LOGICAL                                  :: keep_sparsity, otf_filtering
     REAL(kind=sp)                            :: min_row_max_epss
-    REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: left_norms, right_norms, &
-                                                row_max_epss
-    REAL(kind=sp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: left_max_norms, &
-                                                left_max_norms_recv, &
-                                                right_max_norms, &
-                                                right_max_norms_recv
+    REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: row_max_epss
+    REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :) :: left_max_norms, &
+      left_max_norms_recv, left_norms, right_max_norms, right_max_norms_recv, &
+      right_norms
     REAL(kind=sp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: all_left_max_norms, &
                                                 all_right_max_norms
@@ -3204,14 +3202,16 @@ MODULE dbcsr_mm_cannon
        right_max_meta_merged = MAX(right_max_meta_merged,size_meta_merged)
     ENDDO
     !
+    size_threads_index = 0
+!$  size_threads_index = nthreads+1
     left_max_data_merged = 0
-    left_max_meta_images = dbcsr_num_slots+nthreads+1
-    left_max_meta = dbcsr_num_slots+nthreads+1
-    left_max_meta_merged = dbcsr_num_slots+nthreads+1
+    left_max_meta_images = dbcsr_num_slots+size_threads_index
+    left_max_meta = dbcsr_num_slots+size_threads_index
+    left_max_meta_merged = dbcsr_num_slots+size_threads_index
     !
     DO src_vcol = 0, nvirt_k-1
        size_data_merged = 0
-       size_meta_merged = dbcsr_num_slots+nthreads+1
+       size_meta_merged = dbcsr_num_slots+size_threads_index
        DO src_vrow = left_myfirstvrow, left_myfirstvrow+left_row_nimages-1
           ! Calculate what was shifted.  The left_src_v{row,col} are
           ! the "source" rows/columns; the left_dst are the shifted
@@ -3229,7 +3229,7 @@ MODULE dbcsr_mm_cannon
           left_max_meta = MAX(left_max_meta,left_refs(imeta_size,src_vrow,src_vcol))
           size_data_merged = size_data_merged + left_refs(idata_size,src_vrow,src_vcol)
           size_meta_merged = size_meta_merged + left_refs(imeta_size,src_vrow,src_vcol) -&
-                             (dbcsr_num_slots+nthreads+1)
+                             (dbcsr_num_slots+size_threads_index)
        ENDDO
        left_max_data_merged = MAX(left_max_data_merged,size_data_merged)
        left_max_meta_merged = MAX(left_max_meta_merged,size_meta_merged)
@@ -3299,8 +3299,8 @@ MODULE dbcsr_mm_cannon
        ENDIF
        !
        nblkrows_total = dbcsr_nblkrows_total (left_set%mats(1, 1))
-       ALLOCATE(left_norms((left_max_meta_merged-dbcsr_num_slots-nthreads-1)/3),&
-                right_norms((right_max_meta_merged-dbcsr_num_slots)/3),&
+       ALLOCATE(left_norms((left_max_meta_merged-dbcsr_num_slots-size_threads_index)/3,min_nimages),&
+                right_norms((right_max_meta_merged-dbcsr_num_slots)/3,min_nimages),&
                 row_max_epss(nblkrows_total),stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
             dbcsr_internal_error,&
@@ -3378,7 +3378,7 @@ MODULE dbcsr_mm_cannon
           DO v_ci = 1, right_col_nimages
              DO v_ri = 1, right_row_nimages
                 CALL calculate_norms(right_set%mats(v_ri, v_ci),&
-                                     right_norms,&
+                                     right_norms(:,1),&
                                      right_max_norms(v_ri,v_ci),&
                                      error=error)
              ENDDO
@@ -3388,7 +3388,7 @@ MODULE dbcsr_mm_cannon
           DO v_ci = 1, left_col_nimages
              DO v_ri = 1, left_row_nimages
                 CALL calculate_norms(left_set%mats(v_ri, v_ci),&
-                                     left_norms,&
+                                     left_norms(:,1),&
                                      left_max_norms(v_ri,v_ci),&
                                      error=error)
              ENDDO
@@ -3436,7 +3436,7 @@ MODULE dbcsr_mm_cannon
     ELSE
        !
        ! These arrays must be valid when passed to called subroutines.
-       ALLOCATE(left_norms(0),right_norms(0),row_max_epss(0),stat=stat)
+       ALLOCATE(left_norms(0,min_nimages),right_norms(0,min_nimages),row_max_epss(0),stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Could not allocate memory",&
@@ -3825,11 +3825,19 @@ MODULE dbcsr_mm_cannon
           ENDIF
        ENDDO
        !
+       IF (otf_filtering) THEN
+          DO v_ki = 1, min_nimages
+             CALL calculate_norms(left_buffer_calc%mats(1,v_ki),&
+                                  left_norms(:,v_ki), error=error)
+             CALL calculate_norms(right_buffer_calc%mats(v_ki,1),&
+                                  right_norms(:,v_ki), error=error)
+          ENDDO
+       ENDIF
+       !
        threads_finished = 0
        !
 !$omp parallel default (none) &
-!$omp shared (min_nimages,otf_filtering, &
-!$omp         left_buffer_calc,right_buffer_calc, &
+!$omp shared (min_nimages,left_buffer_calc,right_buffer_calc, &
 !$omp         left_norms,right_norms,use_comm_thread, &
 !$omp         metronome,nsteps_k,multrec,nthreads,threads_finished, &
 !$omp         right_get_requests,left_get_requests) &
@@ -3845,19 +3853,11 @@ MODULE dbcsr_mm_cannon
        DO v_ki = 1, min_nimages
           IF (right_buffer_calc%mats(v_ki, 1)%m%nblks.EQ.0 .OR. &
               left_buffer_calc%mats(1, v_ki)%m%nblks.EQ.0) CYCLE
-          IF (otf_filtering) THEN
-! synchronize evaluation of the norms
-!$omp barrier
-             CALL calculate_norms(left_buffer_calc%mats(1,v_ki),&
-                                  left_norms, error=error)
-             CALL calculate_norms(right_buffer_calc%mats(v_ki,1),&
-                                  right_norms, error=error)
-          ENDIF
           CALL dbcsr_mm_multrec_multiply(multrec(ithread)%p,&
                left=left_buffer_calc%mats(1, v_ki)%m,&
                right=right_buffer_calc%mats(v_ki, 1)%m,&
                flop=flop,&
-               a_norms=left_norms, b_norms=right_norms,&
+               a_norms=left_norms(:,v_ki), b_norms=right_norms(:,v_ki),&
                error=error)
        ENDDO
        !
@@ -4017,7 +4017,7 @@ MODULE dbcsr_mm_cannon
 
     meta_index(dbcsr_slot_size) = dbcsr_num_slots
     IF (PRESENT(nthreads)) THEN
-       meta_index(dbcsr_slot_size) = meta_index(dbcsr_slot_size)+nthreads+1
+!$     meta_index(dbcsr_slot_size) = meta_index(dbcsr_slot_size)+nthreads+1
     ENDIF
     meta_index(dbcsr_slot_size+1:meta_index(dbcsr_slot_size)) = 0
     meta_index(dbcsr_slot_nblkrows_total) = matrix%index(dbcsr_slot_nblkrows_total)
@@ -4037,10 +4037,10 @@ MODULE dbcsr_mm_cannon
     meta_index(dbcsr_slot_row_p) = 1
     meta_index(dbcsr_slot_col_i) = 1
     meta_index(dbcsr_slot_blk_p) = 1
-    IF (PRESENT(nthreads)) THEN
-       meta_index(dbcsr_slot_thr_c) = dbcsr_num_slots+1
-       meta_index(dbcsr_slot_thr_c+1) = meta_index(dbcsr_slot_thr_c)+nthreads
-    ENDIF
+!$ IF (PRESENT(nthreads)) THEN
+!$     meta_index(dbcsr_slot_thr_c) = dbcsr_num_slots+1
+!$     meta_index(dbcsr_slot_thr_c+1) = meta_index(dbcsr_slot_thr_c)+nthreads
+!$  ENDIF
     meta_index(dbcsr_slot_coo_l) = meta_index(dbcsr_slot_size)+1
     meta_index(dbcsr_num_slots) = meta_index(dbcsr_slot_size)
   END SUBROUTINE set_empty_meta_index
@@ -5060,7 +5060,7 @@ MODULE dbcsr_mm_cannon
        size_prefix_meta = dbcsr_num_slots
        my_nthreads = 1
        IF (PRESENT(nthreads)) THEN
-          size_prefix_meta = size_prefix_meta+nthreads+1
+!$        size_prefix_meta = size_prefix_meta+nthreads+1
           my_nthreads = nthreads
        ENDIF
        !
@@ -5104,11 +5104,11 @@ MODULE dbcsr_mm_cannon
                            mimage%index(dbcsr_slot_nze)+&
                            unmerged_indices(dbcsr_slot_nze)
                       ! threads distribution
-                      IF (PRESENT(nthreads)) THEN
-                         mimage%index(dbcsr_num_slots+1:size_prefix_meta) = &
-                              mimage%index(dbcsr_num_slots+1:size_prefix_meta)+&
-                              unmerged_indices(dbcsr_num_slots+1:size_prefix_meta)
-                      ENDIF
+!$                    IF (PRESENT(nthreads)) THEN
+!$                       mimage%index(dbcsr_num_slots+1:size_prefix_meta) = &
+!$                            mimage%index(dbcsr_num_slots+1:size_prefix_meta)+&
+!$                            unmerged_indices(dbcsr_num_slots+1:size_prefix_meta)
+!$                    ENDIF
                       ! Copy data
                       IF (do_merge_data) THEN
                          CALL dbcsr_data_copy(mimage%data_area,&
@@ -5120,12 +5120,11 @@ MODULE dbcsr_mm_cannon
                    ! Copy CSR indices (3 values per block: row-index, col-index, offset)
                    ! remap indices taking in account threads and images
                    ks = size_prefix_meta+1
-                   IF (PRESENT(nthreads)) THEN
-                      ks = ks+unmerged_indices(dbcsr_num_slots+ithread)*3
-                      kl = size_prefix_meta+unmerged_indices(dbcsr_num_slots+ithread+1)*3
-                   ELSE
-                      kl = unmerged_indices(dbcsr_slot_size)
-                   ENDIF
+                   kl = unmerged_indices(dbcsr_slot_size)
+!$                 IF (PRESENT(nthreads)) THEN
+!$                    ks = ks+unmerged_indices(dbcsr_num_slots+ithread)*3
+!$                    kl = size_prefix_meta+unmerged_indices(dbcsr_num_slots+ithread+1)*3
+!$                 ENDIF
                    DO ki = ks, kl, 3
                       ! Indices remapping
                       mimage%index(mimage%index(dbcsr_slot_size)+index_offset) = &
@@ -5205,12 +5204,12 @@ MODULE dbcsr_mm_cannon
           mimage%index(dbcsr_slot_blk_p:dbcsr_slot_blk_p+1) = &
                first_unmerged_indices(dbcsr_slot_blk_p:dbcsr_slot_blk_p+1)
           ! thr_c
-          IF (PRESENT(nthreads)) THEN
-             mimage%index(dbcsr_slot_thr_c) = &
-                  first_unmerged_indices(dbcsr_slot_thr_c)
-             mimage%index(dbcsr_slot_thr_c+1) = &
-                  first_unmerged_indices(dbcsr_slot_thr_c+1)
-          ENDIF
+!$        IF (PRESENT(nthreads)) THEN
+!$           mimage%index(dbcsr_slot_thr_c) = &
+!$                first_unmerged_indices(dbcsr_slot_thr_c)
+!$           mimage%index(dbcsr_slot_thr_c+1) = &
+!$                first_unmerged_indices(dbcsr_slot_thr_c+1)
+!$        ENDIF
           ! coo_l
           mimage%index(dbcsr_slot_coo_l) = &
                first_unmerged_indices(dbcsr_slot_coo_l)
