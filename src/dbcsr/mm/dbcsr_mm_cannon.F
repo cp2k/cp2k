@@ -515,8 +515,8 @@ MODULE dbcsr_mm_cannon
 
     CHARACTER                                :: transa_l, transb_l
     INTEGER :: comm, error_handler, error_handler2, f_col, f_k, f_row, &
-      ithread, l_col, l_k, l_row, multiplicity, nimages_left_rows, &
-      nimages_match, nimages_right_cols, numnodes, output_unit
+      ithread, l_col, l_k, l_row, nimages_left_rows, nimages_match, &
+      nimages_right_cols, numnodes, output_unit
     INTEGER(KIND=int_8)                      :: my_flop
     LOGICAL :: ab_dense, keep_product_data, keep_sparsity, new_left, &
       new_right, product_reindex, release_tdist, use_dense_mult
@@ -861,12 +861,16 @@ MODULE dbcsr_mm_cannon
     IF (dbcsr_distribution_has_row_clusters(matrix_left%m%dist)) THEN
        nimages_left_rows = dbcsr_distribution_num_local_row_clusters(matrix_left%m%dist)*&
             dbcsr_mp_nprows (dbcsr_distribution_mp (matrix_left%m%dist))
-    ELSE
+    ELSE IF (use_mpi_rma) THEN
+       ! 2D clustering
        nimages_left_rows = dbcsr_distribution_get_num_images_1d(&
             dbcsr_nfullrows_total(matrix_left),&
             dbcsr_nblkrows_total(matrix_left),&
             dbcsr_mp_nprows (dbcsr_distribution_mp (matrix_left%m%dist)),&
             dbcsr_mp_npcols (dbcsr_distribution_mp (matrix_left%m%dist)))
+    ELSE
+       ! 1D clustering for the old algorithm (only RMA support 2D clustering)
+       nimages_left_rows = dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%m%dist))       
     ENDIF
     !
     IF (dbcsr_distribution_has_col_clusters(matrix_left%m%dist)) THEN
@@ -886,21 +890,15 @@ MODULE dbcsr_mm_cannon
     IF (dbcsr_distribution_has_col_clusters(matrix_right%m%dist)) THEN
        nimages_right_cols = dbcsr_distribution_num_local_col_clusters(matrix_right%m%dist)*&
             dbcsr_mp_npcols (dbcsr_distribution_mp (matrix_right%m%dist))
-    ELSE
+    ELSE IF (use_mpi_rma) THEN 
        nimages_right_cols = dbcsr_distribution_get_num_images_1d(&
             dbcsr_nfullcols_total(matrix_right),&
             dbcsr_nblkcols_total(matrix_right),&
             dbcsr_mp_nprows (dbcsr_distribution_mp (matrix_right%m%dist)),&
             dbcsr_mp_npcols (dbcsr_distribution_mp (matrix_right%m%dist)))
-    ENDIF
-    !
-    ! 1D clustering for the old algorithm (only RMA support 2D clustering)
-    IF (.NOT.use_mpi_rma) THEN
-       multiplicity = nimages_left_rows/dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_left%m%dist))
-       nimages_left_rows = nimages_left_rows/multiplicity
-       nimages_match = nimages_match*multiplicity
-       multiplicity = nimages_right_cols/dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_right%m%dist))
-       nimages_right_cols = nimages_right_cols/multiplicity
+    ELSE
+       ! 1D clustering for the old algorithm (only RMA support 2D clustering)
+       nimages_right_cols = dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_right%m%dist))       
     ENDIF
     !
     ! Create imaged distributions for the multiply.
