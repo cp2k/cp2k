@@ -71,8 +71,9 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
     print "threshold_rev: ", threshold_rev
 
     output  = html_header(title="CP2K Dashboard")
+    output += '<div id="flex-container">\n'
     output += html_linkbox()
-    output += '<center><table border="1" cellspacing="3" cellpadding="5">\n'
+    output += '<table border="1" cellspacing="3" cellpadding="5">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
     output += '<th>Revision</th><th>Summary</th><th>Last OK</th><th>Tickets</th></tr>\n\n'
 
@@ -130,7 +131,9 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
 
         output += '</tr>\n\n'
 
-    output += '</table></center>\n' + html_footer()
+    output += '</table>\n'
+    output += '<div id="dummybox"></div></div>\n' # complete flex-container
+    output += html_footer()
     write_file(outdir+"index.html", output)
     write_file(status_fn, pformat(status))
 
@@ -282,19 +285,30 @@ def html_header(title):
     output += '  transform: rotate(45deg);\n'
     output += '  box-shadow: 0 0 10px #888;\n'
     output += '}\n'
+    output += '#flex-container {\n'
+    output += '  display: -webkit-flex; /* Safari */\n'
+    output += '  display: flex;\n'
+    output += '  -webkit-flex-flow: row wrap; /* Safari */\n'
+    output += '  flex-flow:         row wrap;\n'
+    output += '  -webkit-justify-content: space-around; /* Safari */\n'
+    output += '  justify-content:         space-around;\n'
+    output += '  -webkit-align-items: flex-start; /* Safari */\n'
+    output += '  align-items:         flex-start;\n'
+    output += '}\n'
     output += '#linkbox {\n'
-    output += '  position: absolute;\n'
-    output += '  left: 5%;\n'
-    output += '  top: 10%;\n'
     output += '  width: 15em;\n'
     output += '  border-radius: 1em;\n'
     output += '  box-shadow: .2em .2em .7em 0 #777;\n'
+    output += '  background: #f7f7f0;\n'
     output += '  font-size: 14px;\n'
     output += '  padding: 1em;\n'
-    output += '  background: #f7f7f0;\n'
+    output += '  margin: 20px;\n'
     output += '}\n'
     output += '#linkbox h2 {\n'
     output += '  margin: 0 0 0.5em 0;\n'
+    output += '}\n'
+    output += '#dummybox {\n'
+    output += '  width: 15em;\n'
     output += '}\n'
     output += '</style>\n'
     output += '<title>%s</title>\n'%title
