@@ -335,7 +335,7 @@ MODULE dbcsr_mm_cannon
      CALL mp_max(max_recv_data,group)
 
      IF (dbcsr_mpi_statistics%nexchanged.GT.0) THEN
-        average = SUM(total_recv_data(:))/total_nexchanged
+        average = SUM(total_recv_data(:))/REAL(total_nexchanged)
      ELSE
         average=0
         min_recv_data=0
