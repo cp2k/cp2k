@@ -343,13 +343,17 @@ If your compiler/machine is really special, it shouldn't be too difficult
 to support it. Only cp2k/src/machine/ should be affected.
 
 ===== 6. Regtesting =====
-If compilation works fine, you can run one of the test cases
-to try out the executable (most inputs in any of the cp2k/tests/*regtest*/
-directories are tested on a daily basis).
-  >  cd ~/cp2k/tests/QS/
-  > ~/cp2k/exe/YOURMACHINE/cp2k.sopt C.inp
 
-systematic regtesting is described here: http://cp2k.org/dev:regtesting
+If compilation works fine, it is recommended to test the generated binary,
+to exclude errors in libraries, or miscompilations, etc. 
+
+make -j ARCH=... VERSION=... test
+
+should work if you can locally execute CP2K without the need for e.g. batch submission.
+
+In the other case, you might need to configure the underlying testing script as described more systematically at
+
+http://cp2k.org/dev:regtesting
 
 ===== 7. Talk to us ====
 In any case please tell us your comments, praise, criticism, thanks, ...
