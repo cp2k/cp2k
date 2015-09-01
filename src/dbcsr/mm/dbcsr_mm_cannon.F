@@ -2955,10 +2955,10 @@ MODULE dbcsr_mm_cannon
       v_ki, v_ri
     INTEGER(KIND=int_8)                      :: mem
     INTEGER(kind=mp_address_kind) :: left_data_size, left_max_data_merged, &
-      left_max_meta, left_max_meta_images, left_max_meta_merged, &
-      left_meta_size, right_data_size, right_max_data_merged, right_max_meta, &
-      right_max_meta_images, right_max_meta_merged, right_meta_size, &
-      size_data_merged, size_meta_merged
+      left_max_meta_images, left_max_meta_merged, left_meta_size, &
+      right_data_size, right_max_data_merged, right_max_meta_images, &
+      right_max_meta_merged, right_meta_size, size_data_merged, &
+      size_meta_merged
     INTEGER(kind=mp_address_kind), &
       ALLOCATABLE, DIMENSION(:, :, :)        :: left_refs, local_left_refs, &
                                                 local_right_refs, right_refs
@@ -3168,7 +3168,6 @@ MODULE dbcsr_mm_cannon
     !
     right_max_data_merged = 0
     right_max_meta_images = dbcsr_num_slots
-    right_max_meta = dbcsr_num_slots
     right_max_meta_merged = dbcsr_num_slots
     !
     ! Translate the all_sizes to account for pre-distribution.  This
@@ -3190,7 +3189,6 @@ MODULE dbcsr_mm_cannon
           IF (right_refs(idata_size,src_vrow,src_vcol).EQ.0) CYCLE
           right_max_meta_images = MAX(right_max_meta_images,&
                right_refs(imeta_size,src_vrow,src_vcol))
-          right_max_meta = MAX(right_max_meta,right_refs(imeta_size,src_vrow,src_vcol))
           size_data_merged = size_data_merged + right_refs(idata_size,src_vrow,src_vcol)
           size_meta_merged = size_meta_merged + right_refs(imeta_size,src_vrow,src_vcol) - &
                              dbcsr_num_slots
@@ -3203,7 +3201,6 @@ MODULE dbcsr_mm_cannon
 !$  size_threads_index = nthreads+1
     left_max_data_merged = 0
     left_max_meta_images = dbcsr_num_slots+size_threads_index
-    left_max_meta = dbcsr_num_slots+size_threads_index
     left_max_meta_merged = dbcsr_num_slots+size_threads_index
     !
     DO src_vcol = 0, nvirt_k-1
@@ -3223,7 +3220,6 @@ MODULE dbcsr_mm_cannon
           IF (left_refs(idata_size,src_vrow,src_vcol).EQ.0) CYCLE
           left_max_meta_images = MAX(left_max_meta_images,&
                left_refs(imeta_size,src_vrow,src_vcol))
-          left_max_meta = MAX(left_max_meta,left_refs(imeta_size,src_vrow,src_vcol))
           size_data_merged = size_data_merged + left_refs(idata_size,src_vrow,src_vcol)
           size_meta_merged = size_meta_merged + left_refs(imeta_size,src_vrow,src_vcol) -&
                              (dbcsr_num_slots+size_threads_index)
@@ -3263,28 +3259,6 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_2%pool, &
             capacity=left_col_nimages + right_row_nimages)
     ENDIF
-    !
-    ! Prepare buffers for computation
-    ! Left:
-    CALL buffer_matrices_ensure_size_images(left_set, index_size_images=left_max_meta_images,&
-         index_size_merged=left_max_meta_merged, data_size_merged=left_max_data_merged,& 
-         is_left=.TRUE., error=error)
-    CALL setup_buffer_matrices_images (left_buffer, left_row_nimages, min_nimages,&
-         left_set%mats(1,1), index_size_images=left_max_meta_images,&
-         index_size_merged=left_max_meta_merged, data_size_merged=left_max_data_merged,&
-         is_left=.TRUE., error=error)
-    left_buffer_calc => left_set
-    left_buffer_comm => left_buffer
-    ! Right:
-    CALL buffer_matrices_ensure_size_images(right_set, index_size_images=right_max_meta_images,&
-         index_size_merged=right_max_meta_merged, data_size_merged=right_max_data_merged,&
-         is_left=.FALSE., error=error)
-    CALL setup_buffer_matrices_images (right_buffer, min_nimages, right_col_nimages,&
-         right_set%mats(1,1), index_size_images=right_max_meta_images,&
-         index_size_merged=right_max_meta_merged, data_size_merged=right_max_data_merged,&
-         is_left=.FALSE., error=error)
-    right_buffer_calc => right_set
-    right_buffer_comm => right_buffer
     !
     ! Count the maximum possible multiplies per row for on-the-fly filtering.
     IF (otf_filtering) THEN
@@ -3493,8 +3467,25 @@ MODULE dbcsr_mm_cannon
        IF (otf_filtering.AND.use_mpi_filtering) THEN
           ALLOCATE(right_max_norms_recv(0:min_nimages-1,0:right_col_nimages-1))
           ALLOCATE(left_max_norms_recv(0:left_row_nimages-1,0:min_nimages-1))
+          !
+          ! Take the dimension of the local data
+          right_max_data_merged = MAXVAL(right_offset_images_calc(right_col_nimages+1,:))-1
+          left_max_data_merged = MAXVAL(left_offset_images_calc(left_row_nimages+1,:))-1
+          !
+!$omp parallel &
+!$omp default (none) &
+!$omp shared (nsteps_k,min_nimages,right_col_nimages,right_set,&
+!$omp         right_myfirstvrow,right_myfirstvcol,right_max_norms,right_max_norms_recv,&
+!$omp         left_row_nimages,left_set,left_myfirstvrow,left_myfirstvcol,&
+!$omp         left_max_norms,left_max_norms_recv,min_row_max_epss,&
+!$omp         left_recv_filtered,right_recv_filtered,right_refs,left_refs,&
+!$omp         right_offset_images_comm,left_offset_images_comm) &
+!$omp private (metronome,v_ki,v_ci,v_ri,recv_vrow,recv_vcol,size_data_merged) &
+!$omp reduction(max: right_max_data_merged, left_max_data_merged) &
+!$omp firstprivate (error)
           DO metronome = 1, nsteps_k-1
              !
+!$omp do
              DO v_ki = 0, min_nimages-1
                 !
                 ! Right matrix transfer
@@ -3509,7 +3500,8 @@ MODULE dbcsr_mm_cannon
                         shifting='R', error=error)
                    !
                    right_max_norms_recv(v_ki,v_ci) = right_max_norms(recv_vrow,recv_vcol)
-                END DO
+                   right_offset_images_comm(v_ci+2,v_ki+1) = INT(right_refs(idata_size,recv_vrow,recv_vcol))
+                ENDDO
                 !
                 ! Left matrix transfer
                 DO v_ri = 0, left_row_nimages-1
@@ -3523,30 +3515,36 @@ MODULE dbcsr_mm_cannon
                         shifting='L', error=error)
                    !
                    left_max_norms_recv(v_ri,v_ki) = left_max_norms(recv_vrow,recv_vcol)
+                   left_offset_images_comm(v_ri+2,v_ki+1) = INT(left_refs(idata_size,recv_vrow,recv_vcol))
                 ENDDO
-             ENDDO
-             !
-!$omp parallel do &
-!$omp default (none) &
-!$omp shared (left_max_norms_recv,right_max_norms_recv,min_nimages,&
-!$omp         min_row_max_epss,right_col_nimages,left_row_nimages,metronome,&
-!$omp         left_recv_filtered,right_recv_filtered) &
-!$omp private (v_ki,v_ci,v_ri) &
-!$omp collapse(3)
-             DO v_ri = 0, left_row_nimages-1
-                DO v_ci = 0, right_col_nimages-1
-                   DO v_ki = 0, min_nimages-1
+                !
+                ! multiplication of norms
+                DO v_ri = 0, left_row_nimages-1
+                   DO v_ci = 0, right_col_nimages-1
                       IF (left_max_norms_recv(v_ri,v_ki)*right_max_norms_recv(v_ki,v_ci).GE.&
                            min_row_max_epss) CYCLE
-!$omp atomic
                       left_recv_filtered(v_ri,v_ki,metronome) = left_recv_filtered(v_ri,v_ki,metronome)+1
-!$omp atomic
                       right_recv_filtered(v_ki,v_ci,metronome) = right_recv_filtered(v_ki,v_ci,metronome)+1
                    ENDDO
                 ENDDO
+                !
+                ! resize buffers taking in account filtering
+                size_data_merged = 0
+                DO v_ci = 0, right_col_nimages-1
+                   IF (right_recv_filtered(v_ki,v_ci,metronome).GE.left_row_nimages) CYCLE
+                   size_data_merged = size_data_merged + right_offset_images_comm(v_ci+2,v_ki+1)
+                ENDDO
+                right_max_data_merged = MAX(right_max_data_merged,size_data_merged)
+                size_data_merged = 0
+                DO v_ri = 0, left_row_nimages-1
+                   IF (left_recv_filtered(v_ri,v_ki,metronome).GE.right_col_nimages) CYCLE
+                   size_data_merged = size_data_merged + left_offset_images_comm(v_ri+2,v_ki+1)
+                ENDDO
+                left_max_data_merged = MAX(left_max_data_merged,size_data_merged)
              ENDDO
-!$omp end parallel do
+!$omp end do
           ENDDO
+!$omp end parallel
           DEALLOCATE(left_max_norms_recv,right_max_norms_recv)
           DEALLOCATE(right_max_norms,left_max_norms)
        ENDIF
@@ -3603,6 +3601,28 @@ MODULE dbcsr_mm_cannon
        ALLOCATE (left_get_requests(2,0:left_row_nimages*min_nimages-1))
        left_get_requests = mp_request_null
     ENDIF
+    !
+    ! Prepare buffers for computation
+    ! Left:
+    CALL buffer_matrices_ensure_size_images(left_set, index_size_images=left_max_meta_images,&
+         index_size_merged=left_max_meta_merged, data_size_merged=left_max_data_merged,& 
+         is_left=.TRUE., error=error)
+    CALL setup_buffer_matrices_images (left_buffer, left_row_nimages, min_nimages,&
+         left_set%mats(1,1), index_size_images=left_max_meta_images,&
+         index_size_merged=left_max_meta_merged, data_size_merged=left_max_data_merged,&
+         is_left=.TRUE., error=error)
+    left_buffer_calc => left_set
+    left_buffer_comm => left_buffer
+    ! Right:
+    CALL buffer_matrices_ensure_size_images(right_set, index_size_images=right_max_meta_images,&
+         index_size_merged=right_max_meta_merged, data_size_merged=right_max_data_merged,&
+         is_left=.FALSE., error=error)
+    CALL setup_buffer_matrices_images (right_buffer, min_nimages, right_col_nimages,&
+         right_set%mats(1,1), index_size_images=right_max_meta_images,&
+         index_size_merged=right_max_meta_merged, data_size_merged=right_max_data_merged,&
+         is_left=.FALSE., error=error)
+    right_buffer_calc => right_set
+    right_buffer_comm => right_buffer
     !
     left_offset_images_calc_ptr => left_offset_images_calc
     left_offset_images_comm_ptr => left_offset_images_comm
