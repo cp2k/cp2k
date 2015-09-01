@@ -93,6 +93,9 @@ def main():
     n = len([t for t in test_defs.values() if int(t["type"])!=0])
     output += '<tr><td>Numeric tests, ie. type &ne; 0</td>'
     output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n'%(n,n/(0.01*ntests))
+    n = len([t for t in test_defs.values() if t.has_key("ref-value")])
+    output += '<tr><td>Numeric tests with fixed reference</td>'
+    output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n'%(n,n/(0.01*ntests))
     for i in range(14, 9, -1):
         tol = float("1.e-%d"%i)
         n = len([t for t in test_defs.values() if int(t["type"])!=0 and float(t["tolerance"])<=tol])
