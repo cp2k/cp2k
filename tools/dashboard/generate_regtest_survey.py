@@ -23,6 +23,9 @@ def main():
     # parse ../../tests/*/*/TEST_FILES
     test_defs = parse_test_files()
 
+    # parse ../../tests/TEST_TYPES
+    test_types = parse_test_types()
+
     # find eligible testers
     tester_names = list()
     config = ConfigParser.ConfigParser()
@@ -47,18 +50,60 @@ def main():
     output  = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">\n'
     output += '<html><head>\n'
     output += '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">\n'
+    output += '<script type="text/javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>\n'
+    output += '<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery.tablesorter/2.23.2/js/jquery.tablesorter.min.js"></script>\n'
+    output += '<script type="text/javascript">\n'
+    output += '$(document).ready(function(){\n'
+    output += '    $("table").tablesorter();\n'
+    output += '    $("table").bind("sortStart",function(){ $(".waitmsg").show(); });\n'
+    output += '    $("table").bind("sortEnd",  function(){ $(".waitmsg").hide(); });\n'
+    output += '  }\n'
+    output += ');\n'
+    output += '</script>\n'
     output += '<style type="text/css">\n'
-    output += '  tr:hover { background-color: #ffff99; }\n'
-    output += '  .nowrap { white-space: nowrap; }\n'
+    output += '.nowrap { white-space: nowrap; }\n'
+    output += 'tr:hover { background-color: #ffff99; }\n'
+    output += '.waitmsg {\n'
+    output += '  color: red;\n'
+    output += '  font: bold 20pt sans-serif;\n'
+    output += '  display: none;\n'
+    output += '}\n'
+    output += '#factbox {\n'
+    output += '  display: inline-block;\n'
+    output += '  border-radius: 1em;\n'
+    output += '  box-shadow: .2em .2em .7em 0 #777;\n'
+    output += '  background: #f7f7f0;\n'
+    output += '  padding: 1em;\n'
+    output += '  margin: 20px;\n'
+    output += '}\n'
+    output += '#factbox h2 { margin: 0 0 0.5em 0; }\n'
     output += '</style>\n'
     output += '<title>CP2K Regtest Survey</title>\n'
     output += '</head><body>\n'
     output += '<center><h1>CP2K REGTEST SURVEY</h1></center>\n'
 
+    # fun facts
+    output += '<div id="factbox"><table>\n'
+    ntests = len(test_defs)
+    output += '<tr><td>Total number of test-cases</td>'
+    output += '<td align="right">%d</td><td align="right">100.0%%</tr>\n'%ntests
+    n = len([t for t in test_defs.values() if len(t["flags"])!=0])
+    output += '<tr><td>Tests which require flags</td>'
+    output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n'%(n,n/(0.01*ntests))
+    n = len([t for t in test_defs.values() if int(t["type"])!=0])
+    output += '<tr><td>Numeric tests, ie. type &ne; 0</td>'
+    output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n'%(n,n/(0.01*ntests))
+    for i in range(14, 9, -1):
+        tol = float("1.e-%d"%i)
+        n = len([t for t in test_defs.values() if int(t["type"])!=0 and float(t["tolerance"])<=tol])
+        output += '<tr><td>Numeric tests with tolerance &le; 10<sup>-%d</sup></td>'%i
+        output += '<td align="right">%d</td><td align="right">%.1f%%</td></tr>\n'%(n, n/(0.01*ntests))
+    output += "</table></div>\n"
+
     # table-body
     tester_nskipped = dict([(n,0) for n in tester_names])
     tester_nfailed  = dict([(n,0) for n in tester_names])
-    tbody = ""
+    tbody = ''
     for inp in sorted(inp_names):
         # calculate median and MAD
         values = list()
@@ -79,7 +124,9 @@ def main():
         tbody += '<tr align="right">\n'
         style = 'bgcolor="#FF9900"' if any(outlier) else ''
         tbody += '<th align="left" %s>%s</th>\n'%(style,inp)
-        tbody += '<td>%s</td>\n'%test_defs[inp]["type"]
+        ttype_num = test_defs[inp]["type"]
+        ttype_re = test_types[int(test_defs[inp]["type"])].split("!")[0].strip()
+        tbody += '<td title="%s" >%s</td>\n'%(ttype_re, ttype_num)
         tbody += '<td>%.1e</td>\n'%test_defs[inp]["tolerance"]
         tbody += '<td>%s</td>\n'%test_defs[inp].get("ref-value", "")
         tbody += '<td>%.17g</td>\n'%median
@@ -111,10 +158,12 @@ def main():
     theader += '</tr>\n'
 
     # assemble table
-    output += '<table border="1" cellspacing="3" cellpadding="5">\n'
-    output += theader
-    output += tbody
-    output += theader
+    output += '<div class="waitmsg">Sorting, please wait...</div>\n'
+    output += '<p>Click on table header to sort by column.</p>\n'
+    output += '<table border="1" cellpadding="5">\n'
+    output += '<thead>'+theader+'</thead>'
+    output += '<tfoot>'+theader+'</tfoot>'
+    output += '<tbody>'+tbody+'</tbody>'
     output += '</table>\n'
 
     #html-footer
@@ -134,9 +183,12 @@ def parse_test_files():
     test_defs = dict()
 
     tests_root = "../../tests/"
-    lines = open(tests_root+"TEST_DIRS").readlines()
-    test_dirs = [l.split()[0] for l in lines if l[0]!="#"]
-    for d in test_dirs:
+    test_dir_lines = open(tests_root+"TEST_DIRS").readlines()
+    for dline in test_dir_lines:
+        if(dline.startswith("#")):
+            continue
+        d = dline.split()[0]
+        flags = dline.split()[1:] # flags requiremented by this test_dir
         fn = tests_root+d+"/TEST_FILES"
         content = open(fn).read()
         for line in content.strip().split("\n"):
@@ -144,7 +196,7 @@ def parse_test_files():
                 continue
             parts = line.split()
             name = d+"/"+parts[0]
-            entry = {'type': parts[1]}
+            entry = {'type': parts[1], 'flags': flags}
             if(len(parts)==2):
                 entry['tolerance'] = 1.0e-14 # default
             elif(len(parts) == 3):
@@ -158,6 +210,15 @@ def parse_test_files():
             test_defs[name] = entry
 
     return(test_defs)
+
+#===============================================================================
+def parse_test_types():
+    test_types = [None]
+    lines = open("../../tests/TEST_TYPES").readlines()
+    ntypes = int(lines[0])
+    for i in range(1,ntypes+1):
+        test_types.append(lines[i])
+    return(test_types)
 
 #===============================================================================
 def parse_report(fn):
@@ -197,6 +258,7 @@ def parse_report(fn):
             pass # ignore line
 
     return values
+
 
 #===============================================================================
 main()
