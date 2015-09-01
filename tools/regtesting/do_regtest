@@ -456,8 +456,8 @@ function run_regtest_dir() {
         else
            # Still running, you must be joking...
            # see if we manage to pass the testing
-           # but only if we can compare
-           if [ -f ${output_last} ] || [ -n "${test_ref_value}" ]; then
+           # but only if we can compare (or don't need to)
+           if [ -f ${output_last} ] || [ -n "${test_ref_value}" ] || [ "${test_type}" == "0" ]; then
               do_test "${test_type}" "${test_tolerance}" "${test_ref_value}" "${output_file}" "${output_last}" "${error_description_file}"
               if (( $? )); then
                  this_test="WRONG RESULT TEST ${test_type}"
