@@ -13,7 +13,8 @@
 !> - Created 2010-02-08
 ! *****************************************************************************
 MODULE dbcsr_test_methods
-  USE dbcsr_blas_operations,           ONLY: dbcsr_lapack_larnv
+  USE dbcsr_blas_operations,           ONLY: dbcsr_lapack_larnv,&
+                                             set_larnv_seed
   USE dbcsr_block_access,              ONLY: dbcsr_put_block
   USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
                                              dbcsr_block_partial_copy,&
@@ -470,7 +471,8 @@ CONTAINS
     nmax = INT(nrow,KIND=int_8)*INT(ncol,KIND=int_8)
     ele = -1
     counter = 0
-    jseed=(/randmat_counter,7,42,3/)
+    CALL set_larnv_seed(7,42,3,42,randmat_counter,jseed)
+
     DO 
           ! find the next block to add, this is given by a geometrically distributed variable
           ! we number the blocks of the matrix and jump to the next one
@@ -499,7 +501,7 @@ CONTAINS
           IF (.NOT. PRESENT (dist) .AND. my_proc .NE. 0) CYCLE
 
           ! fill based on a block based seed, makes this the same values in parallel
-          iseed=(/randmat_counter,row,42,col/)
+          CALL set_larnv_seed(row,nrow,col,ncol,randmat_counter,iseed)
           nze = row_blk_sizes(s_row) * col_blk_sizes(s_col)
           CALL dbcsr_lapack_larnv( 1, iseed, nze, data_values, error )
           CALL dbcsr_put_block (matrix, s_row, s_col, data_values)

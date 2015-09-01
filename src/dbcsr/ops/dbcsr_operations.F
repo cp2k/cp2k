@@ -16,6 +16,7 @@
 MODULE dbcsr_operations
   USE array_types,                     ONLY: array_data,&
                                              array_get
+  USE dbcsr_blas_operations,           ONLY: set_larnv_seed
   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
                                              dbcsr_put_block,&
                                              dbcsr_remove_block,&
@@ -1268,7 +1269,7 @@ CONTAINS
   END SUBROUTINE dbcsr_add_on_diag_anytype
 
 ! *****************************************************************************
-!> \brief ...
+!> \brief ... TODO : unify with other version which is generic in the data_type
 !> \param matrix ...
 !> \param keep_sparsity ...
 !> \param error ...
@@ -1281,10 +1282,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_random', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col, col_size, error_handler, &
-                                                hold, iseed(4), mynode, row, &
-                                                row_size, stored_col, &
-                                                stored_row
+    INTEGER :: col, col_size, error_handler, hold, iseed(4), mynode, ncol, &
+      nrow, row, row_size, stored_col, stored_row
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: found, my_keep_sparsity, tr
     REAL(real_8), ALLOCATABLE, DIMENSION(:)  :: rnd
@@ -1303,8 +1302,10 @@ CONTAINS
     CALL dbcsr_work_create(matrix, work_mutable=.TRUE., error=error)
 
     ALLOCATE(rnd(MAXVAL(row_blk_size)*MAXVAL(col_blk_size)))
-    DO row = 1,dbcsr_nblkrows_total(matrix)
-    DO col = 1,dbcsr_nblkcols_total(matrix)
+    nrow = dbcsr_nblkrows_total(matrix)
+    ncol = dbcsr_nblkcols_total(matrix)
+    DO row = 1, nrow
+    DO col = 1, ncol
        row_size = row_blk_size(row)
        col_size = col_blk_size(col)
        tr = .FALSE.
@@ -1316,7 +1317,7 @@ CONTAINS
           IF(found.OR.(.NOT.my_keep_sparsity)) THEN
              ! set the seed for dlarnv, is here to guarantee same value of the random numbers
              ! for all layouts (and block distributions)
-             iseed(1)=4;iseed(2)=row;iseed(3)=col;iseed(4)=1
+             CALL set_larnv_seed(row,nrow,col,ncol,1,iseed)
              CALL dlarnv(1,iseed,row_size*col_size,rnd(1))
           ENDIF
           IF(found) THEN

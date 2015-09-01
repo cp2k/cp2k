@@ -1,2 +1,8 @@
 new defaults for preconditioner
 almo-d.inp
+#  
+almo-x.inp
+#  
+almo-guess.inp
+#  
+almo-scf.inp

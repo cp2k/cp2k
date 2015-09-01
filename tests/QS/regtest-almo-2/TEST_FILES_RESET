@@ -1,2 +1,8 @@
 new defaults for preconditioner
 ion-pair.inp
+#  
+almo-fullx.inp
+#  
+almo-no-deloc.inp
+#  
+FH-chain.inp
