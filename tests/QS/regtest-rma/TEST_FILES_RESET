@@ -4,3 +4,9 @@ H2O-32-dftb-ls-2.inp
 H2-big-nimages.inp
 #  
 H2-big-nimages_clusters.inp
+#  
+H2-big-nimages.inp
+#  
+H2-big-nimages_clusters.inp
+#  
+H2-big-nimages_clusters_nofilter.inp
