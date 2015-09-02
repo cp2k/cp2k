@@ -43,7 +43,6 @@ MODULE qs_rho_atom_methods
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
-  USE qs_linres_types,                 ONLY: linres_control_type
   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                              neighbor_list_iterate,&
                                              neighbor_list_iterator_create,&
@@ -814,7 +813,6 @@ MODULE qs_rho_atom_methods
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(rho_atom_type), DIMENSION(:), &
@@ -825,12 +823,12 @@ MODULE qs_rho_atom_methods
 
     NULLIFY(rho_atom_set)
     NULLIFY(qs_kind_set, atomic_kind_set)
-    NULLIFY(dft_control,linres_control)
+    NULLIFY(dft_control)
     NULLIFY(orb_basis_set)
     NULLIFY(my_CG, grid_atom, harmonics,atom_list)
 
     CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set,&
-                    dft_control=dft_control,linres_control=linres_control,error=error)
+                    dft_control=dft_control,error=error)
     CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
     CALL get_qs_kind_set(qs_kind_set,maxlgto=maxlgto,error=error)
 
