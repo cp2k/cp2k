@@ -63,7 +63,7 @@
   PROJECT H2-big-1
   RUN_TYPE ENERGY
   PRINT_LEVEL MEDIUM
-  EXTENDED_FFT_LENGTHS
+  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
   &DBCSR
     avg_elements_images 500
   &END

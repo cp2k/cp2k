@@ -3,3 +3,7 @@ H2O_periodic.inp
 
 # properly include the dielectric contribution to the Hamiltonian, v_eps.
 H2O_periodic.inp        
+#  
+H2plus2_implicit_md.inp
+#  
+Hplus_dbl_cstr_md.inp

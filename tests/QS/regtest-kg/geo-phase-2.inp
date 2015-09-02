@@ -94,7 +94,7 @@
   PROJECT test
   RUN_TYPE GEO_OPT
   PRINT_LEVEL MEDIUM
-  EXTENDED_FFT_LENGTHS
+  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
   SAVE_MEM
 ! TRACE
 ! TRACE_ROUTINES dbcsr_mm_cannon_multiply kg_ekin_subset

@@ -79,5 +79,5 @@
   &TIMINGS
      THRESHOLD 0.000001
   &END
-  EXTENDED_FFT_LENGTHS
+  ! EXTENDED_FFT_LENGTHS ! enable for large systems and FFTW
 &END GLOBAL
