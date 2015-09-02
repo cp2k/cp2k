@@ -327,10 +327,10 @@ else
    cd ..
 fi
 # currently openblas is not thread safe (neither serial nor omp version),
-LIBS="IF_OMP(-lreflapack -lrefblas,-lopenblas_serial) ${LIBS}"
+LIBS="IF_VALGRIND(-lreflapack -lrefblas, IF_OMP(-lreflapack -lrefblas,-lopenblas_serial)) ${LIBS}"
 
 echo "================= Installing libsmm ==================="
-if ! $enable_tsan ; then
+if $enable_tsan ; then
    echo "TSAN build ... not downloading libsmm"
    libsmm=""
 else
@@ -381,8 +381,8 @@ if [ "$libsmm" != "" ]; then
       cp $libsmm ${INSTALLDIR}/lib/
       ln -s ${INSTALLDIR}/lib/$libsmm ${INSTALLDIR}/lib/libsmm_dnn.a
    fi
-   DFLAGS="${DFLAGS} -D__HAS_smm_dnn"
-   LIBS="-lsmm_dnn ${LIBS}"
+   DFLAGS="${DFLAGS} IF_VALGRIND(,-D__HAS_smm_dnn)"
+   LIBS="IF_VALGRIND(,-lsmm_dnn) ${LIBS}"
 fi
 
 
@@ -443,7 +443,7 @@ else
    make install >& install.log
    cd ..
 fi
-DFLAGS="${DFLAGS} -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
+DFLAGS="${DFLAGS} -D__LIBINT -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
 LIBS="-lderiv -lint ${LIBS}"
 
 
@@ -461,6 +461,7 @@ else
    cd ..
 fi
 DFLAGS="${DFLAGS} -D__FFTW3"
+DFLAGS="${DFLAGS} IF_COVERAGE(IF_MPI(,-U__FFTW3),)" # also want to cover FFT_SG
 LIBS="-lfftw3 IF_OMP(-lfftw3_omp,) ${LIBS}"
 
 
@@ -491,8 +492,10 @@ else
    make install >& install.log
    cd ..
 fi
-#TODO: create links to elpa modules
-DFLAGS="${DFLAGS} IF_MPI(-I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules -D__ELPA2,)"
+# Unfortunately, we need two separate include dirs for ELPA w/wo threading.
+P1="-I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules"
+P2="-I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules"
+DFLAGS="${DFLAGS} IF_MPI(-D__ELPA2 IF_OMP(${P1},${P2}),)"
 LIBS="IF_MPI(IF_OMP(-lelpa_openmp,-lelpa),) ${LIBS}"
 
 
@@ -512,7 +515,6 @@ else
    make install prefix=${INSTALLDIR} >& install.log
    cd ../..
 fi
-#TODO: use a linker group?
 LIBS="IF_MPI(-lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr,) ${LIBS}"
 
 
@@ -648,28 +650,30 @@ LIBS="IF_MPI(-lpexsi_linux_v${pexsi_ver},) ${LIBS}"
 #  cd ..
 #fi
 
-echo "==================== Installing QUIP ================="
-if [ -f QUIP-${quip_ver}.zip  ]; then
-   echo "Installation already started, skipping it."
-else
-   wget http://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
-   checksum QUIP-${quip_ver}.zip
-   unzip QUIP-${quip_ver}.zip >& unzip.log
-   mv QUIP-public QUIP-${quip_ver}
-   cd QUIP-${quip_ver}
-   export QUIP_ARCH=linux_x86_64_gfortran
-   # hit enter a few times to accept decaults
-   echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
-   # make -j does not work :-(
-   make >& make.log
 
-   cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod  ${INSTALLDIR}/include/
-   cp build/linux_x86_64_gfortran/*.a                              ${INSTALLDIR}/lib/
-   cp src/FoX-4.0.3/objs.linux_x86_64_gfortran/lib/*.a             ${INSTALLDIR}/lib/
-   cd ..
-fi
-if ! $enable_tsan ; then
-   # Quip does not work with TSAN
+echo "==================== Installing QUIP ================="
+if $enable_tsan ; then
+   echo "TSAN build ... will not use QUIP"
+   libsmm=""
+else
+   if [ -f QUIP-${quip_ver}.zip  ]; then
+      echo "Installation already started, skipping it."
+   else
+      wget http://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
+      checksum QUIP-${quip_ver}.zip
+      unzip QUIP-${quip_ver}.zip >& unzip.log
+      mv QUIP-public QUIP-${quip_ver}
+      cd QUIP-${quip_ver}
+      export QUIP_ARCH=linux_x86_64_gfortran
+      # hit enter a few times to accept defaults
+      echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
+      # make -j does not work :-(
+      make >& make.log
+      cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod  ${INSTALLDIR}/include/
+      cp build/linux_x86_64_gfortran/*.a                              ${INSTALLDIR}/lib/
+      cp src/FoX-4.0.3/objs.linux_x86_64_gfortran/lib/*.a             ${INSTALLDIR}/lib/
+      cd ..
+   fi
    LIBS="-lquip_core -latoms -lFoX_sax -lFoX_common -lFoX_utils -lFoX_fsys ${LIBS}"
    DFLAGS="${DFLAGS} -D__QUIP"
 fi
@@ -686,32 +690,32 @@ LIBS="${LIBS} -lstdc++ "
 # Flags which both gfortran and gcc understand.
 BASEFLAGS="IF_OMP(-fopenmp,)"
 BASEFLAGS="${BASEFLAGS} -march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
-BASEFLAGS="${BASEFLAGS} IF_DEBUG(-O1,-O3 -ffast-math \$(PROFOPT))"
+BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage, IF_DEBUG(-O1,-O3 -ffast-math))"
 BASEFLAGS="${BASEFLAGS} IF_DEBUG(-fsanitize=leak -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS,)"
+BASEFLAGS="${BASEFLAGS} \$(PROFOPT)"
 
 # Special flags for gfortran
-#
 # https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
 # we error out for these warnings
 WFLAGSERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=realloc-lhs-all -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=conversion"
 # we just warn for those (that eventually might be promoted to WFLAGSERROR). It is useless to put something here with 100s of warnings.
 WFLAGSWARN="-Wuse-without-only -Wzerotrip"
 # while here we collect all other warnings, some we'll ignore
-WFLAGS2="-pedantic -Wall -Wextra -Wsurprising -Wunused-dummy-argument -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-dummy-argument -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
+WFLAGSWARNALL="-pedantic -Wall -Wextra -Wsurprising -Wunused-dummy-argument -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-dummy-argument -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
 # combine warn/error flags
-WFLAGS="$WFLAGSERROR $WFLAGSWARN IF_WARN(${WFLAGS2},)"
-FCFLAGS="${BASEFLAGS} -I\$(CP2KINSTALLDIR)/include -std=f2003 -fimplicit-none -ffree-form IF_DEBUG(-fcheck='bounds,do,recursion,pointer',) \$(DFLAGS) \$(WFLAGS)"
+WFLAGS="$WFLAGSERROR $WFLAGSWARN IF_WARNALL(${WFLAGSWARNALL},)"
+FCFLAGS="${BASEFLAGS} -I\$(CP2KINSTALLDIR)/include -std=f2003 -fimplicit-none -ffree-form IF_DEBUG(-fcheck='bounds,do,recursion,pointer',) ${WFLAGS} \$(DFLAGS)"
 LDFLAGS="-L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)"
 
 # Spcial flags for gcc (currently none)
 CFLAGS="${BASEFLAGS} -I\$(CP2KINSTALLDIR)/include \$(DFLAGS)"
 
 # CUDA stuff
-LIBS="${LIBS} IF_CUDA(-lcudart -lcufft -lcublas -lrt,)"
-FLAGS="IF_CUDA(-D__ACC -D__DBCSR_ACC -D__PW_CUDA,) ${FLAGS}"
+LIBS="${LIBS} IF_CUDA(-lcudart -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt,),)"
+DFLAGS="IF_CUDA(-D__ACC -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__CUDA_PROFILING,),) ${DFLAGS}"
 NVFLAGS="-arch sm_35 \$(DFLAGS) "
 
-# helper routine for instantiating the arch.tmpl 
+# helper routine for instantiating the arch.tmpl
 gen_arch_file() {
  filename=$1
  flags=$2
@@ -720,20 +724,23 @@ gen_arch_file() {
  echo "Wrote install/arch/"$filename
 }
 
-gen_arch_file "local.sopt"            ""
-gen_arch_file "local.sdbg"            "-DDEBUG"
-gen_arch_file "local.ssmp"            "-DOMP"
-gen_arch_file "local.popt"            "-DMPI"
-gen_arch_file "local.pdbg"            "-DMPI -DDEBUG"
-gen_arch_file "local.psmp"            "-DMPI -DOMP"
-gen_arch_file "local_cuda.ssmp"       "-DCUDA -DOMP"
-gen_arch_file "local_cuda.psmp"       "-DCUDA -DMPI -DOMP"
-gen_arch_file "local_cuda_warn.psmp"  "-DCUDA -DMPI -DOMP -DWARN"
-
-#TODO: what is special about a valgrind arch file?
-#gen_arch_file "local_valgrind.sdbg"   "-DVALGRIND"
-#gen_arch_file "local_valgrind.pdbg"   "-DVALGRIND -DMPI"
-
+rm -f ${INSTALLDIR}/arch/local*
+gen_arch_file "local.sopt"                 ""
+gen_arch_file "local.sdbg"                 "-DDEBUG"
+gen_arch_file "local.ssmp"                 "-DOMP"
+gen_arch_file "local.popt"                 "-DMPI"
+gen_arch_file "local.pdbg"                 "-DMPI -DDEBUG"
+gen_arch_file "local.psmp"                 "-DMPI -DOMP"
+gen_arch_file "local_cuda.ssmp"            "-DCUDA -DOMP"
+gen_arch_file "local_cuda.psmp"            "-DCUDA -DOMP -DMPI"
+gen_arch_file "local_cuda.sdbg"            "-DCUDA -DDEBUG -DOMP"
+gen_arch_file "local_cuda.pdbg"            "-DCUDA -DDEBUG -DOMP -DMPI"
+gen_arch_file "local_valgrind.sdbg"        "-DVALGRIND"
+gen_arch_file "local_valgrind.pdbg"        "-DVALGRIND -DMPI"
+gen_arch_file "local_coverage.sdbg"        "-DCOVERAGE -DDEBUG"
+gen_arch_file "local_coverage.pdbg"        "-DCOVERAGE -DDEBUG -DMPI"
+gen_arch_file "local_coverage_cuda.pdbg"   "-DCOVERAGE -DDEBUG -DMPI -DCUDA"
+gen_arch_file "local_cuda_warn.psmp"       "-DCUDA -DMPI -DOMP -DWARNALL"
 
 echo "========================== usage ========================="
 echo "done!"
