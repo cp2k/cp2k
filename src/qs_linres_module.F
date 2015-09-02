@@ -14,6 +14,8 @@
 !> \author MI
 ! *****************************************************************************
 MODULE qs_linres_module
+  USE bibliography,                    ONLY: Weber2009,&
+                                             cite_reference
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -431,6 +433,9 @@ CONTAINS
     TYPE(nmr_env_type)                       :: nmr_env
 
     linres_control%property = lr_current
+
+    CALL cite_reference(Weber2009)
+
     IF(.NOT.linres_control%localized_psi0) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
             "Are you sure that you want to calculate the chemical "//&
