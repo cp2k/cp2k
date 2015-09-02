@@ -8,3 +8,7 @@ test_pexsi.inp
 test_entropic_pexsi.inp
 #  
 rho_mixing_pexsi.inp
+#  
+test_pexsi_md.inp
+#  
+test_pexsi.inp
