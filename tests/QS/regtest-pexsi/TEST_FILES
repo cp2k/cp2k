@@ -1,5 +1,5 @@
 test_pexsi_md.inp                11     2e-14            -17.161733576721318
-test_pexsi.inp                   11     3e-13           -103.006481139376916
+test_pexsi.inp                   11     7e-13           -103.006481139376916
 test_entropic_pexsi.inp                               11      6e-11            -31.161826985004726
 rho_mixing_pexsi.inp                                  11      4e-14            -43.839710136566339
 #EOF
