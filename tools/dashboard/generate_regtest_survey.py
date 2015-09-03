@@ -244,14 +244,14 @@ def parse_report(fn):
         elif(line.startswith("<<<")):
             curr_dir = None
         elif(curr_dir):
+            if("RUNTIME FAIL" in line):
+                continue  # ignore crashed tests
+            if("KILLED" in line):
+                continue  # ignore timeouted tests
             parts = line.split()
             if(not parts[0].endswith(".inp")):
                 print("Found strange line:\n"+line)
                 continue
-            if(parts[1]== "RUNTIME" and parts[2]=="FAIL"):
-                continue  # ignore crashed tests
-            if(parts[1] == "KILLED"):
-                continue  # ignore timeouted tests
             if(parts[1] == "-"):
                 continue  # test without numeric check
 

@@ -455,6 +455,9 @@ def parse_regtest_report(report_txt):
     if(memory_leaks > 0):
         report['summary'] += "; memleaks: %d"%memory_leaks
 
+    runtime = float(re.search("\nRegtest took (.+) seconds.\n", report_txt).group(1))
+    report['summary'] += "; time: %.0fs"%runtime
+
     if(wrong_results>0 or runtime_errors>0 or memory_leaks>0):
         report['status'] = "FAILED"
     else:
