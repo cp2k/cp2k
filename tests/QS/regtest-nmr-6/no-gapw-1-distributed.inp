@@ -30,6 +30,7 @@
     &LINRES
        &LOCALIZE
          MAX_ITER 5
+         METHOD CRAZY
        &END
        PRECONDITIONER FULL_ALL
        MAX_ITER 5

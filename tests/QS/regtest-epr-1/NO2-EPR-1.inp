@@ -28,6 +28,7 @@
        PRECONDITIONER FULL_ALL
        &LOCALIZE
          MAX_ITER 10
+         METHOD CRAZY
        &END LOCALIZE
        &CURRENT
           GAUGE R_AND_STEP_FUNCTION

@@ -29,6 +29,7 @@
     &LINRES
        &LOCALIZE
          MAX_ITER 5
+         METHOD CRAZY
        &END
        MAX_ITER 10
        PRECONDITIONER FULL_S_INVERSE

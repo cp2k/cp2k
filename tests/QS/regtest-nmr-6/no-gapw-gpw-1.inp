@@ -28,6 +28,7 @@
     &LINRES
        &LOCALIZE
          MAX_ITER 2
+         METHOD CRAZY
        &END
        MAX_ITER 2
        PRECONDITIONER FULL_ALL
