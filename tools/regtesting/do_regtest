@@ -962,10 +962,17 @@ if [[ ${skiptest} != "skiptest" ]]; then
      features_required=`cat ${dir_out}/tests/TEST_DIRS | grep -v "#" | awk -v dir="$dir" '{if ($1==dir) for(i=2;i<=NF;i++) printf("%s ",$i)}'`
      for fr in $features_required
      do
-        echo $cp2kflags | grep $fr >& /dev/null 
+        # allow a specification on the mpiranks needed e.g. fr="mpiranks>2&&mpiranks<6"
+        echo $fr | grep mpiranks >& /dev/null
         if [[ "$?" == "1" ]]; then
+          echo $cp2kflags | grep $fr >& /dev/null 
+          res=$?
+        else
+          res=`echo "" | awk -v mpiranks=$numprocs "{print !($fr)}"`
+        fi
+        if [[ "$res" == "1" ]]; then
            featurematch="no"
-           echo "Skipping $dir : missing required feature in cp2kflags : $fr" 
+           echo "Skipping $dir : missing required feature : $fr" 
         fi
      done
    
