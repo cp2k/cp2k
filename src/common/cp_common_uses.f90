@@ -2,6 +2,7 @@
 ! should be included in the use statements
 
   USE cp_log_handling,                 ONLY: cp_logger_type,&
+                                             cp_logger_p_type,&
                                              cp_logger_create,&
                                              cp_logger_release,&
                                              cp_logger_set,&

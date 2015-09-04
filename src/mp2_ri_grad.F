@@ -130,7 +130,6 @@ MODULE mp2_ri_grad
 !> \param task_list_sub ...
 !> \param blacs_env_sub ...
 !> \param error ...
-!> \param error_sub ...
 !> \param Eigenval_beta ...
 !> \param homo_beta ...
 !> \param mo_coeff_beta ...
@@ -140,7 +139,7 @@ MODULE mp2_ri_grad
                                 atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,dimen_RI,Eigenval,&
                                 my_group_L_start,my_group_L_end,my_group_L_size,rho_r,rho_g,pot_g,&
                                 mat_munu,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                                blacs_env_sub,error,error_sub,Eigenval_beta,homo_beta,mo_coeff_beta)
+                                blacs_env_sub,error,Eigenval_beta,homo_beta,mo_coeff_beta)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
@@ -165,7 +164,7 @@ MODULE mp2_ri_grad
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(task_list_type), POINTER            :: task_list_sub
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
-    TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: Eigenval_beta
     INTEGER, OPTIONAL                        :: homo_beta
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff_beta
@@ -286,55 +285,55 @@ MODULE mp2_ri_grad
 
     ! create matrix holding the back transformation (G_P_inu)
     ALLOCATE(matrix_P_inu%matrix)
-    CALL cp_dbcsr_init(matrix_P_inu%matrix,error=error_sub)
-    CALL cp_dbcsr_create(matrix_P_inu%matrix,template=mo_coeff_o,error=error_sub)
+    CALL cp_dbcsr_init(matrix_P_inu%matrix,error=error)
+    CALL cp_dbcsr_create(matrix_P_inu%matrix,template=mo_coeff_o,error=error)
     IF (alpha_beta) THEN
        ALLOCATE(matrix_P_inu_beta%matrix)
-       CALL cp_dbcsr_init(matrix_P_inu_beta%matrix,error=error_sub)
-       CALL cp_dbcsr_create(matrix_P_inu_beta%matrix,template=mo_coeff_o_beta,error=error_sub)
+       CALL cp_dbcsr_init(matrix_P_inu_beta%matrix,error=error)
+       CALL cp_dbcsr_create(matrix_P_inu_beta%matrix,template=mo_coeff_o_beta,error=error)
     ENDIF
 
     ! non symmetric matrix
     ALLOCATE(matrix_P_munu_nosym%matrix)
-    CALL cp_dbcsr_init(matrix_P_munu_nosym%matrix,error=error_sub)
+    CALL cp_dbcsr_init(matrix_P_munu_nosym%matrix,error=error)
     CALL cp_dbcsr_create(matrix_P_munu_nosym%matrix,template=mat_munu%matrix,&
-                         matrix_type=dbcsr_type_no_symmetry,error=error_sub)
-    ! CALL cp_dbcsr_create(matrix_P_munu_nosym%matrix,template=mat_munu%matrix,error=error_sub)
+                         matrix_type=dbcsr_type_no_symmetry,error=error)
+    ! CALL cp_dbcsr_create(matrix_P_munu_nosym%matrix,template=mat_munu%matrix,error=error)
     ! CALL cp_dbcsr_copy(matrix_P_munu_nosym%matrix,mat_munu%matrix,&
-    !                    name="matrix_P_munu_nosym",error=error_sub)
+    !                    name="matrix_P_munu_nosym",error=error)
     !XXXXXX
-    ! CALL cp_dbcsr_desymmetrize(mat_munu%matrix,matrix_P_munu_nosym%matrix,error=error_sub)
+    ! CALL cp_dbcsr_desymmetrize(mat_munu%matrix,matrix_P_munu_nosym%matrix,error=error)
 
     ! create Lagrangian matrices in mixed AO/MO formalism
     ALLOCATE(Lag_mu_i_1%matrix)
-    CALL cp_dbcsr_init(Lag_mu_i_1%matrix,error=error_sub)
-    CALL cp_dbcsr_create(Lag_mu_i_1%matrix,template=mo_coeff_o,error=error_sub)
-    CALL cp_dbcsr_set(Lag_mu_i_1%matrix,0.0_dp,error=error_sub)
+    CALL cp_dbcsr_init(Lag_mu_i_1%matrix,error=error)
+    CALL cp_dbcsr_create(Lag_mu_i_1%matrix,template=mo_coeff_o,error=error)
+    CALL cp_dbcsr_set(Lag_mu_i_1%matrix,0.0_dp,error=error)
     IF (alpha_beta) THEN
        ALLOCATE(Lag_mu_i_1_beta%matrix)
-       CALL cp_dbcsr_init(Lag_mu_i_1_beta%matrix,error=error_sub)
-       CALL cp_dbcsr_create(Lag_mu_i_1_beta%matrix,template=mo_coeff_o_beta,error=error_sub)
-       CALL cp_dbcsr_set(Lag_mu_i_1_beta%matrix,0.0_dp,error=error_sub)
+       CALL cp_dbcsr_init(Lag_mu_i_1_beta%matrix,error=error)
+       CALL cp_dbcsr_create(Lag_mu_i_1_beta%matrix,template=mo_coeff_o_beta,error=error)
+       CALL cp_dbcsr_set(Lag_mu_i_1_beta%matrix,0.0_dp,error=error)
     ENDIF
 
     ALLOCATE(Lag_nu_a_2%matrix)
-    CALL cp_dbcsr_init(Lag_nu_a_2%matrix,error=error_sub)
-    CALL cp_dbcsr_create(Lag_nu_a_2%matrix,template=mo_coeff_v,error=error_sub)
-    CALL cp_dbcsr_set(Lag_nu_a_2%matrix,0.0_dp,error=error_sub)
+    CALL cp_dbcsr_init(Lag_nu_a_2%matrix,error=error)
+    CALL cp_dbcsr_create(Lag_nu_a_2%matrix,template=mo_coeff_v,error=error)
+    CALL cp_dbcsr_set(Lag_nu_a_2%matrix,0.0_dp,error=error)
     IF (alpha_beta) THEN
        ALLOCATE(Lag_nu_a_2_beta%matrix)
-       CALL cp_dbcsr_init(Lag_nu_a_2_beta%matrix,error=error_sub)
-       CALL cp_dbcsr_create(Lag_nu_a_2_beta%matrix,template=mo_coeff_v_beta,error=error_sub)
-       CALL cp_dbcsr_set(Lag_nu_a_2_beta%matrix,0.0_dp,error=error_sub)
+       CALL cp_dbcsr_init(Lag_nu_a_2_beta%matrix,error=error)
+       CALL cp_dbcsr_create(Lag_nu_a_2_beta%matrix,template=mo_coeff_v_beta,error=error)
+       CALL cp_dbcsr_set(Lag_nu_a_2_beta%matrix,0.0_dp,error=error)
     ENDIF
 
     ALLOCATE(matrix_P_munu%matrix)
-    CALL cp_dbcsr_init(matrix_P_munu%matrix,error=error_sub)
+    CALL cp_dbcsr_init(matrix_P_munu%matrix,error=error)
     CALL cp_dbcsr_create(matrix_P_munu%matrix,template=mat_munu%matrix,&
-                         matrix_type=dbcsr_type_symmetric,error=error_sub)
-    ! CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
+                         matrix_type=dbcsr_type_symmetric,error=error)
+    ! CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error)
     ! CALL cp_dbcsr_copy(matrix_P_munu%matrix,mat_munu%matrix,&
-    !                    name="matrix_P_munu",error=error_sub)   
+    !                    name="matrix_P_munu",error=error)   
 
     ! wave function vector and supporting stuff
     ALLOCATE(wf_vector(dimen_RI),STAT=stat)
@@ -342,12 +341,12 @@ MODULE mp2_ri_grad
     NULLIFY(psi_L%pw)
     CALL pw_pool_create_pw(auxbas_pw_pool,psi_L%pw,&
                            use_data=REALDATA3D,&
-                           in_space=REALSPACE,error=error_sub)
+                           in_space=REALSPACE,error=error)
     IF (alpha_beta) THEN
        NULLIFY(psi_L_beta%pw)
        CALL pw_pool_create_pw(auxbas_pw_pool,psi_L_beta%pw,&
                               use_data=REALDATA3D,&
-                              in_space=REALSPACE,error=error_sub)
+                              in_space=REALSPACE,error=error)
     ENDIF
 
     ! get forces
@@ -364,12 +363,12 @@ MODULE mp2_ri_grad
       NULLIFY(temp_pw_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool,temp_pw_g%pw,&
                              use_data=COMPLEXDATA1D,&
-                             in_space=RECIPROCALSPACE,error=error_sub)
+                             in_space=RECIPROCALSPACE,error=error)
       DO i=1, 3
         NULLIFY(dvg(i)%pw)
         CALL pw_pool_create_pw(auxbas_pw_pool,dvg(i)%pw,&
                                use_data=COMPLEXDATA1D,&
-                               in_space=RECIPROCALSPACE,error=error_sub)
+                               in_space=RECIPROCALSPACE,error=error)
       END DO
     END IF
 
@@ -381,48 +380,48 @@ MODULE mp2_ri_grad
 
       ! first back-transformation a->nu
       CALL timeset(routineN//"_back_v",handle3)
-      CALL cp_dbcsr_set(matrix_P_inu%matrix,0.0_dp,error=error_sub)
+      CALL cp_dbcsr_set(matrix_P_inu%matrix,0.0_dp,error=error)
       CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v, G_P_ia(L_counter)%matrix, &
-                              0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter, error=error_sub)
+                              0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter, error=error)
       IF (alpha_beta) THEN
-         CALL cp_dbcsr_set(matrix_P_inu_beta%matrix,0.0_dp,error=error_sub)
+         CALL cp_dbcsr_set(matrix_P_inu_beta%matrix,0.0_dp,error=error)
          CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v_beta, G_P_ia_beta(L_counter)%matrix, &
-                          0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter, error=error_sub)
+                          0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter, error=error)
       ENDIF
       CALL timestop(handle3)
 
       ! second back-transformation i->mu
       CALL timeset(routineN//"_back_o",handle3)
-      CALL cp_dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp,error=error_sub)
+      CALL cp_dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp,error=error)
       CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_P_inu%matrix, mo_coeff_o, &
-                              0.0_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter, error=error_sub)
+                              0.0_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter, error=error)
       IF (alpha_beta) THEN
-         !CALL cp_dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp,error=error_sub)
+         !CALL cp_dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp,error=error)
          CALL cp_dbcsr_multiply("N", "T", 0.5_dp, matrix_P_inu_beta%matrix, mo_coeff_o_beta, &
-                              0.5_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter, error=error_sub)
+                              0.5_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter, error=error)
       ENDIF
 
       ! ! first back-transformation a->nu
       ! CALL timeset(routineN//"_back_v",handle3)
-      ! CALL cp_dbcsr_set(matrix_P_inu%matrix,0.0_dp,error=error_sub)
+      ! CALL cp_dbcsr_set(matrix_P_inu%matrix,0.0_dp,error=error)
       ! CALL cp_dbcsr_multiply("N", "T", 1.0_dp, G_P_ia(L_counter)%matrix, mo_coeff_v, &
-      !                         0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter, error=error_sub)
+      !                         0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter, error=error)
       ! CALL timestop(handle3)
 
       ! ! second back-transformation i->mu
       ! CALL timeset(routineN//"_back_o",handle3)
-      ! CALL cp_dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp,error=error_sub)
+      ! CALL cp_dbcsr_set(matrix_P_munu_nosym%matrix,0.0_dp,error=error)
       ! CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mo_coeff_o, matrix_P_inu%matrix, &
-      !                         0.0_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter, error=error_sub)
+      !                         0.0_dp, matrix_P_munu_nosym%matrix, filter_eps=eps_filter, error=error)
       ! symmetrize
-      CALL cp_dbcsr_set(matrix_P_munu%matrix,0.0_dp,error=error_sub)
+      CALL cp_dbcsr_set(matrix_P_munu%matrix,0.0_dp,error=error)
       CALL cp_dbcsr_transposed(matrix_P_munu%matrix,matrix_P_munu_nosym%matrix,&
-                               error=error_sub)
+                               error=error)
       CALL cp_dbcsr_add(matrix_P_munu%matrix,matrix_P_munu_nosym%matrix,&
                         alpha_scalar=2.0_dp,beta_scalar=2.0_dp,error=error)
       ! this is a trick to avoid that integrate_v_rspace starts to cry
       CALL cp_dbcsr_copy_into_existing(mat_munu%matrix, matrix_P_munu%matrix, error)
-      CALL cp_dbcsr_copy(matrix_P_munu%matrix,mat_munu%matrix,error=error_sub)
+      CALL cp_dbcsr_copy(matrix_P_munu%matrix,mat_munu%matrix,error=error)
 
       CALL timestop(handle3)
 
@@ -435,7 +434,7 @@ MODULE mp2_ri_grad
                                   qs_kind_set,cell,dft_control,particle_set,pw_env_sub,&
                                   basis_type="RI_AUX",&
                                   external_vector=wf_vector,&
-                                  error=error_sub)
+                                  error=error)
 
       rho_r%pw%cr3d = psi_L%pw%cr3d
       IF (alpha_beta) THEN
@@ -443,13 +442,13 @@ MODULE mp2_ri_grad
                                      qs_kind_set,cell,dft_control,particle_set, &
                                      pw_env_sub,basis_type='RI_AUX',&
                                      external_vector=wf_vector,&
-                                     error=error_sub)
+                                     error=error)
          rho_r%pw%cr3d = 0.50_dp*(rho_r%pw%cr3d + psi_L_beta%pw%cr3d)
       ENDIF
-      CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
-      CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
-      CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
-      CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error_sub)
+      CALL pw_transfer(rho_r%pw, rho_g%pw, error=error)
+      CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
+      CALL pw_transfer(pot_g%pw, rho_r%pw, error=error)
+      CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error)
       CALL timestop(handle3)
 
       IF(use_virial) THEN
@@ -460,8 +459,8 @@ MODULE mp2_ri_grad
         DO i=1, 3
           comp=0
           comp(i)=1 
-          CALL pw_copy(pot_g%pw, dvg(i)%pw, error=error_sub)
-          CALL pw_derive(dvg(i)%pw, comp, error=error_sub)
+          CALL pw_copy(pot_g%pw, dvg(i)%pw, error=error)
+          CALL pw_derive(dvg(i)%pw, comp, error=error)
         END DO
         CALL timestop(handle3)
       END IF
@@ -471,11 +470,11 @@ MODULE mp2_ri_grad
       CALL timeset(routineN//"_int_PQ",handle3)
       NULLIFY(rs_v)
       NULLIFY(rs_descs)
-      CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, error=error_sub)
+      CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, error=error)
       DO i=1,SIZE(rs_v)
-        CALL rs_grid_retain(rs_v(i)%rs_grid,error=error_sub)
+        CALL rs_grid_retain(rs_v(i)%rs_grid,error=error)
       END DO
-      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,error_sub)
+      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,error)
 
       offset=0
       DO iatom=1, natom
@@ -576,7 +575,7 @@ MODULE mp2_ri_grad
                                                calculate_forces=.TRUE.,&
                                                force_a=force_a, force_b=force_b, &
                                                use_virial=use_virial,my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
-                                               error=error_sub)
+                                               error=error)
 
            END DO
 
@@ -601,22 +600,22 @@ MODULE mp2_ri_grad
       END DO
 
       DO i=1,SIZE(rs_v)
-        CALL rs_grid_release(rs_v(i)%rs_grid, error=error_sub)
+        CALL rs_grid_release(rs_v(i)%rs_grid, error=error)
       END DO
       CALL timestop(handle3)
       ! here we are done with the 2 centers
      
       ! CALL cp_dbcsr_write_sparse_matrix(matrix_P_munu%matrix,4,12,qs_env,para_env_sub,&
-      !                                   output_unit=unit_nr,error=error_sub)
+      !                                   output_unit=unit_nr,error=error)
 
       ! integrate the potential of the single gaussian and update 
       ! 3-center forces
       CALL timeset(routineN//"_int",handle3)
-      CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error_sub)
+      CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp,error=error)
       CALL integrate_v_rspace(rho_r,hmat=mat_munu,pmat=matrix_P_munu,&
                               qs_env=qs_env,calculate_forces=.TRUE.,compute_tau=.FALSE.,gapw=.FALSE.,&
                               pw_env_external=pw_env_sub,&
-                              task_list_external=task_list_sub, error=error_sub)
+                              task_list_external=task_list_sub, error=error)
       CALL timestop(handle3) 
 
       ! update lagrangian
@@ -624,41 +623,41 @@ MODULE mp2_ri_grad
       ! first contract mat_munu with the half back transformed Gamma_i_nu
       ! in order to update Lag_mu_i_1
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu%matrix, &
-                             1.0_dp, Lag_mu_i_1%matrix, filter_eps=eps_filter, error=error_sub)
+                             1.0_dp, Lag_mu_i_1%matrix, filter_eps=eps_filter, error=error)
 
       IF (alpha_beta) THEN
          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu_beta%matrix, &
-                             1.0_dp, Lag_mu_i_1_beta%matrix, filter_eps=eps_filter, error=error_sub)
+                             1.0_dp, Lag_mu_i_1_beta%matrix, filter_eps=eps_filter, error=error)
       ENDIF
 
       ! transform first index of mat_munu and store the result into matrix_P_inu
-      CALL cp_dbcsr_set(matrix_P_inu%matrix,0.0_dp,error=error_sub)
+      CALL cp_dbcsr_set(matrix_P_inu%matrix,0.0_dp,error=error)
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
-                             0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter, error=error_sub)
+                             0.0_dp, matrix_P_inu%matrix, filter_eps=eps_filter, error=error)
 
       IF (alpha_beta) THEN
-         CALL cp_dbcsr_set(matrix_P_inu_beta%matrix,0.0_dp,error=error_sub)
+         CALL cp_dbcsr_set(matrix_P_inu_beta%matrix,0.0_dp,error=error)
          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o_beta, &
-                        0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter, error=error_sub)
+                        0.0_dp, matrix_P_inu_beta%matrix, filter_eps=eps_filter, error=error)
       ENDIF
 
       ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
       ! in order to update Lag_nu_a_2
       CALL cp_dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu%matrix, G_P_ia(L_counter)%matrix, &
-                             1.0_dp, Lag_nu_a_2%matrix, filter_eps=eps_filter, error=error_sub)
+                             1.0_dp, Lag_nu_a_2%matrix, filter_eps=eps_filter, error=error)
 
       IF (alpha_beta) THEN
          CALL cp_dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu_beta%matrix, &
                                G_P_ia_beta(L_counter)%matrix, 1.0_dp, Lag_nu_a_2_beta%matrix, &
-                               filter_eps=eps_filter, error=error_sub)
+                               filter_eps=eps_filter, error=error)
       ENDIF
 
       ! release the actual gamma_P_ia
-      CALL cp_dbcsr_release(G_P_ia(L_counter)%matrix,error=error_sub)
+      CALL cp_dbcsr_release(G_P_ia(L_counter)%matrix,error=error)
       DEALLOCATE(G_P_ia(L_counter)%matrix,STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       IF (alpha_beta) THEN
-         CALL cp_dbcsr_release(G_P_ia_beta(L_counter)%matrix,error=error_sub)
+         CALL cp_dbcsr_release(G_P_ia_beta(L_counter)%matrix,error=error)
          DEALLOCATE(G_P_ia_beta(L_counter)%matrix,STAT=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       ENDIF
@@ -676,24 +675,24 @@ MODULE mp2_ri_grad
                                     qs_kind_set,cell,dft_control,particle_set,pw_env_sub,&
                                     basis_type="RI_AUX",&
                                     external_vector=wf_vector,&
-                                    error=error_sub)
+                                    error=error)
         ! transfer to reciprocal space and calculate potential
         rho_r%pw%cr3d = psi_L%pw%cr3d
-        CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
-        CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
+        CALL pw_transfer(rho_r%pw, rho_g%pw, error=error)
+        CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
         ! update virial with volume term (first calculate hartree like energy (diagonal part of the virial))
         e_hartree=0.0_dp
         h_stress=0.0_dp
-        e_hartree=pw_integral_ab(temp_pw_g%pw, pot_g%pw, error=error_sub)
+        e_hartree=pw_integral_ab(temp_pw_g%pw, pot_g%pw, error=error)
         DO alpha=1, 3
           comp=0
           comp(alpha)=1
-          CALL pw_copy(pot_g%pw, rho_g%pw, error=error_sub)
-          CALL pw_derive(rho_g%pw, comp, error=error_sub)   
+          CALL pw_copy(pot_g%pw, rho_g%pw, error=error)
+          CALL pw_derive(rho_g%pw, comp, error=error)   
           h_stress(alpha,alpha)=-e_hartree
           DO beta=alpha, 3
             h_stress(alpha,beta)=h_stress(alpha,beta) &
-                       -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw, error=error_sub)/fourpi
+                       -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw, error=error)/fourpi
             h_stress (beta,alpha)=h_stress(alpha,beta)
           END DO
         END DO
@@ -709,13 +708,13 @@ MODULE mp2_ri_grad
                               total_rho=total_rho,&
                               task_list_external=task_list_sub,&
                               pw_env_external=pw_env_sub,&
-                              ks_env=ks_env,error=error_sub)
+                              ks_env=ks_env,error=error)
       ! calculate associated hartree potential
-      ! CALL pw_transfer(rho_r%pw, rho_g%pw, error=error_sub)
+      ! CALL pw_transfer(rho_r%pw, rho_g%pw, error=error)
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-      CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error_sub)
-      CALL pw_transfer(pot_g%pw, rho_r%pw, error=error_sub)
-      CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error_sub)
+      CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw,error=error)
+      CALL pw_transfer(pot_g%pw, rho_r%pw, error=error)
+      CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol, error=error)
       CALL timestop(handle3)
 
       IF(use_virial) THEN
@@ -724,16 +723,16 @@ MODULE mp2_ri_grad
         CALL timeset(routineN//"_Virial",handle3)
         e_hartree=0.0_dp
         h_stress=0.0_dp
-        e_hartree=pw_integral_ab(temp_pw_g%pw, pot_g%pw, error=error_sub)
+        e_hartree=pw_integral_ab(temp_pw_g%pw, pot_g%pw, error=error)
         DO alpha=1, 3
           comp=0
           comp(alpha)=1
-          CALL pw_copy(pot_g%pw, rho_g%pw, error=error_sub)
-          CALL pw_derive(rho_g%pw, comp, error=error_sub)
+          CALL pw_copy(pot_g%pw, rho_g%pw, error=error)
+          CALL pw_derive(rho_g%pw, comp, error=error)
           h_stress(alpha,alpha)=-e_hartree
           DO beta=alpha, 3
             h_stress(alpha,beta)=h_stress(alpha,beta) &
-                       -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw, error=error_sub)/fourpi
+                       -2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw, error=error)/fourpi
             h_stress (beta,alpha)=h_stress(alpha,beta)
           END DO
         END DO
@@ -744,11 +743,11 @@ MODULE mp2_ri_grad
       ! integrate potential with auxiliary basis function derivatives
       NULLIFY(rs_v)
       NULLIFY(rs_descs)
-      CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, error=error_sub)
+      CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v, error=error)
       DO i=1,SIZE(rs_v)
-        CALL rs_grid_retain(rs_v(i)%rs_grid,error=error_sub)
+        CALL rs_grid_retain(rs_v(i)%rs_grid,error=error)
       END DO
-      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,error_sub)
+      CALL potential_pw2rs(rs_v,rho_r,pw_env_sub,error)
 
       offset=0
       DO iatom=1, natom
@@ -862,7 +861,7 @@ MODULE mp2_ri_grad
                                                calculate_forces=.TRUE.,&
                                                force_a=force_a, force_b=force_b, &
                                                use_virial=use_virial,my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
-                                               error=error_sub)
+                                               error=error)
 
            END DO
 
@@ -886,7 +885,7 @@ MODULE mp2_ri_grad
       END DO
 
       DO i=1,SIZE(rs_v)
-        CALL rs_grid_release(rs_v(i)%rs_grid, error=error_sub)
+        CALL rs_grid_release(rs_v(i)%rs_grid, error=error)
       END DO
 
     END DO
@@ -897,29 +896,29 @@ MODULE mp2_ri_grad
 
     DEALLOCATE(wf_vector,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_L%pw,error=error_sub)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_L%pw,error=error)
 
     IF (alpha_beta) THEN
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_L_beta%pw,error=error_sub)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,psi_L_beta%pw,error=error)
     ENDIF
 
 
     IF(use_virial) THEN
-      CALL pw_pool_give_back_pw(auxbas_pw_pool,temp_pw_g%pw,error=error_sub)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool,temp_pw_g%pw,error=error)
       DO i=1, 3
-        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvg(i)%pw,error=error_sub)
+        CALL pw_pool_give_back_pw(auxbas_pw_pool,dvg(i)%pw,error=error)
       END DO
     END IF
 
-    CALL cp_dbcsr_release(matrix_P_inu%matrix,error=error_sub)
+    CALL cp_dbcsr_release(matrix_P_inu%matrix,error=error)
     DEALLOCATE(matrix_P_inu%matrix,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL cp_dbcsr_release(matrix_P_munu_nosym%matrix,error=error_sub)
+    CALL cp_dbcsr_release(matrix_P_munu_nosym%matrix,error=error)
     DEALLOCATE(matrix_P_munu_nosym%matrix,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    CALL cp_dbcsr_release(matrix_P_munu%matrix,error=error_sub)
+    CALL cp_dbcsr_release(matrix_P_munu%matrix,error=error)
     DEALLOCATE(matrix_P_munu%matrix,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -929,7 +928,7 @@ MODULE mp2_ri_grad
 
     ! Release G_P_ia_beta and and matrix_P_inu_beta
     IF (alpha_beta) THEN
-        CALL cp_dbcsr_release(matrix_P_inu_beta%matrix,error=error_sub)
+        CALL cp_dbcsr_release(matrix_P_inu_beta%matrix,error=error)
         DEALLOCATE(matrix_P_inu_beta%matrix,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DEALLOCATE(G_P_ia_beta,STAT=stat)
@@ -951,27 +950,27 @@ MODULE mp2_ri_grad
     ! Start with moving from the DBCSR to FM for the lagrangians
     NULLIFY(L1_mu_i, fm_struct_tmp)
     CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
-                             nrow_global=dimen,ncol_global=homo,error=error_sub)
-    CALL cp_fm_create(L1_mu_i, fm_struct_tmp,name="Lag_mu_i",error=error_sub)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error_sub)
-    CALL cp_fm_set_all(L1_mu_i,0.0_dp,error=error_sub)
-    CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1%matrix, fm=L1_mu_i, error=error_sub)
+                             nrow_global=dimen,ncol_global=homo,error=error)
+    CALL cp_fm_create(L1_mu_i, fm_struct_tmp,name="Lag_mu_i",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+    CALL cp_fm_set_all(L1_mu_i,0.0_dp,error=error)
+    CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1%matrix, fm=L1_mu_i, error=error)
 
     ! release Lag_mu_i_1
-    CALL cp_dbcsr_release(Lag_mu_i_1%matrix,error=error_sub)
+    CALL cp_dbcsr_release(Lag_mu_i_1%matrix,error=error)
     DEALLOCATE(Lag_mu_i_1%matrix,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     NULLIFY(L2_nu_a, fm_struct_tmp)
     CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
-                             nrow_global=dimen,ncol_global=virtual,error=error_sub)
-    CALL cp_fm_create(L2_nu_a, fm_struct_tmp,name="Lag_nu_a",error=error_sub)
-    CALL cp_fm_struct_release(fm_struct_tmp,error=error_sub)
-    CALL cp_fm_set_all(L2_nu_a,0.0_dp,error=error_sub)
-    CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2%matrix, fm=L2_nu_a, error=error_sub)
+                             nrow_global=dimen,ncol_global=virtual,error=error)
+    CALL cp_fm_create(L2_nu_a, fm_struct_tmp,name="Lag_nu_a",error=error)
+    CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+    CALL cp_fm_set_all(L2_nu_a,0.0_dp,error=error)
+    CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2%matrix, fm=L2_nu_a, error=error)
 
     ! release Lag_nu_a_2
-    CALL cp_dbcsr_release(Lag_nu_a_2%matrix,error=error_sub)
+    CALL cp_dbcsr_release(Lag_nu_a_2%matrix,error=error)
     DEALLOCATE(Lag_nu_a_2%matrix,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -982,27 +981,27 @@ MODULE mp2_ri_grad
        ! Start with moving from the DBCSR to FM for the lagrangians
        NULLIFY(L1_mu_i_beta, fm_struct_tmp)
        CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
-                                nrow_global=dimen,ncol_global=homo_beta,error=error_sub)
-       CALL cp_fm_create(L1_mu_i_beta, fm_struct_tmp,name="Lag_mu_i_beta",error=error_sub)
-       CALL cp_fm_struct_release(fm_struct_tmp,error=error_sub)
-       CALL cp_fm_set_all(L1_mu_i_beta,0.0_dp,error=error_sub)
-       CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1_beta%matrix, fm=L1_mu_i_beta, error=error_sub)
+                                nrow_global=dimen,ncol_global=homo_beta,error=error)
+       CALL cp_fm_create(L1_mu_i_beta, fm_struct_tmp,name="Lag_mu_i_beta",error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+       CALL cp_fm_set_all(L1_mu_i_beta,0.0_dp,error=error)
+       CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1_beta%matrix, fm=L1_mu_i_beta, error=error)
  
        ! release Lag_mu_i_1
-       CALL cp_dbcsr_release(Lag_mu_i_1_beta%matrix,error=error_sub)
+       CALL cp_dbcsr_release(Lag_mu_i_1_beta%matrix,error=error)
        DEALLOCATE(Lag_mu_i_1_beta%matrix,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
  
        NULLIFY(L2_nu_a_beta, fm_struct_tmp)
        CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
-                                nrow_global=dimen,ncol_global=virtual_beta,error=error_sub)
-       CALL cp_fm_create(L2_nu_a_beta, fm_struct_tmp,name="Lag_nu_a_beta",error=error_sub)
-       CALL cp_fm_struct_release(fm_struct_tmp,error=error_sub)
-       CALL cp_fm_set_all(L2_nu_a_beta,0.0_dp,error=error_sub)
-       CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2_beta%matrix, fm=L2_nu_a_beta, error=error_sub)
+                                nrow_global=dimen,ncol_global=virtual_beta,error=error)
+       CALL cp_fm_create(L2_nu_a_beta, fm_struct_tmp,name="Lag_nu_a_beta",error=error)
+       CALL cp_fm_struct_release(fm_struct_tmp,error=error)
+       CALL cp_fm_set_all(L2_nu_a_beta,0.0_dp,error=error)
+       CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2_beta%matrix, fm=L2_nu_a_beta, error=error)
  
        ! release Lag_nu_a_2
-       CALL cp_dbcsr_release(Lag_nu_a_2_beta%matrix,error=error_sub)
+       CALL cp_dbcsr_release(Lag_nu_a_2_beta%matrix,error=error)
        DEALLOCATE(Lag_nu_a_2_beta%matrix,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDIF
@@ -1012,12 +1011,12 @@ MODULE mp2_ri_grad
     IF (alpha_beta) factor = 0.50_dp
     
     CALL create_W_P(qs_env,mp2_env,mo_coeff,homo,virtual,dimen,para_env,para_env_sub,&
-                    Eigenval,L1_mu_i,L2_nu_a,error,error_sub,factor,.FALSE.)
+                    Eigenval,L1_mu_i,L2_nu_a,error,factor,.FALSE.)
     ! Alpha_beta_case                
     IF (alpha_beta) THEN
        CALL create_W_P(qs_env,mp2_env,mo_coeff_beta,homo_beta,virtual_beta,dimen,para_env, &
                        para_env_sub,Eigenval_beta,L1_mu_i_beta,L2_nu_a_beta, &
-                       error,error_sub,factor,.TRUE.)
+                       error,factor,.TRUE.)
     ENDIF
 
     CALL timestop(handle)
@@ -1038,12 +1037,11 @@ MODULE mp2_ri_grad
 !> \param L1_mu_i ...
 !> \param L2_nu_a ...
 !> \param error ...
-!> \param error_sub ...
 !> \param factor ...
 !> \param alpha_beta ...
 ! *****************************************************************************
   SUBROUTINE create_W_P(qs_env,mp2_env,mo_coeff,homo,virtual,dimen,para_env,para_env_sub,&
-                        Eigenval,L1_mu_i,L2_nu_a,error,error_sub,factor,alpha_beta)
+                        Eigenval,L1_mu_i,L2_nu_a,error,factor,alpha_beta)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -1051,7 +1049,7 @@ MODULE mp2_ri_grad
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     TYPE(cp_fm_type), POINTER                :: L1_mu_i, L2_nu_a
-    TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
+    TYPE(cp_error_type), INTENT(inout)       :: error
     REAL(KIND=dp)                            :: factor
     LOGICAL                                  :: alpha_beta
 
@@ -1105,19 +1103,19 @@ MODULE mp2_ri_grad
     NULLIFY(L_mu_q, fm_struct_tmp)
     CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
                              nrow_global=dimen,ncol_global=dimen,error=error)
-    CALL cp_fm_create(L_mu_q, fm_struct_tmp, name="Lag_mu_q",error=error_sub)
+    CALL cp_fm_create(L_mu_q, fm_struct_tmp, name="Lag_mu_q",error=error)
     CALL cp_fm_struct_release(fm_struct_tmp,error=error)
-    CALL cp_fm_set_all(L_mu_q, 0.0_dp,error=error_sub)
+    CALL cp_fm_set_all(L_mu_q, 0.0_dp,error=error)
 
     ! create all information array
     ALLOCATE(pos_info(0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     pos_info=0
     pos_info(para_env%mepos)=para_env_sub%mepos
     CALL mp_sum(pos_info,para_env%group)
 
     ALLOCATE(sub_proc_map(-para_env_sub%num_pe:2*para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     sub_proc_map=0
     DO i=0,para_env_sub%num_pe-1
       sub_proc_map(i)=i
@@ -1153,7 +1151,7 @@ MODULE mp2_ri_grad
                         col_indices=col_indices_1i,&
                         nrow_block=nrow_block_1i,&
                         ncol_block=ncol_block_1i,&
-                        error=error_sub)
+                        error=error)
     myprow_1i=L1_mu_i%matrix_struct%context%mepos(1)
     mypcol_1i=L1_mu_i%matrix_struct%context%mepos(2)
     nprow_1i =L1_mu_i%matrix_struct%context%num_pe(1)
@@ -1181,7 +1179,7 @@ MODULE mp2_ri_grad
                         col_indices=col_indices_2a,&
                         nrow_block=nrow_block_2a,&
                         ncol_block=ncol_block_2a,&
-                        error=error_sub)
+                        error=error)
     myprow_2a=L2_nu_a%matrix_struct%context%mepos(1)
     mypcol_2a=L2_nu_a%matrix_struct%context%mepos(2)
     nprow_2a =L2_nu_a%matrix_struct%context%num_pe(1)
@@ -1222,12 +1220,12 @@ MODULE mp2_ri_grad
       proc_map_ex(para_env_exchange%num_pe+i)=i
     END DO
     ALLOCATE(pos_info_ex(0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     pos_info_ex=0
     pos_info_ex(para_env%mepos)=para_env_exchange%mepos
     CALL mp_sum(pos_info_ex,para_env%group)
     ALLOCATE(sizes(2,0:para_env_exchange%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     sizes=0
     sizes(1,para_env_exchange%mepos)=nrow_local
     sizes(2,para_env_exchange%mepos)=ncol_local
@@ -1239,9 +1237,9 @@ MODULE mp2_ri_grad
     max_row_size=MAXVAL(sizes_1i(1,:))
     max_col_size=MAXVAL(sizes_1i(2,:))
     ALLOCATE(row_indeces_info_1i(2,max_row_size,0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(col_indeces_info_1i(2,max_col_size,0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     row_indeces_info_1i=0
     col_indeces_info_1i=0
     ! row
@@ -1271,9 +1269,9 @@ MODULE mp2_ri_grad
     max_row_size=MAXVAL(sizes_2a(1,:))
     max_col_size=MAXVAL(sizes_2a(2,:))
     ALLOCATE(row_indeces_info_2a(2,max_row_size,0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(col_indeces_info_2a(2,max_col_size,0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     row_indeces_info_2a=0
     col_indeces_info_2a=0
     ! row
@@ -1626,10 +1624,10 @@ MODULE mp2_ri_grad
 
     DEALLOCATE(proc_map_ex)
     ! release para_env_exchange
-    CALL cp_para_env_release(para_env_exchange,error=error_sub)
+    CALL cp_para_env_release(para_env_exchange,error=error)
 
-    CALL cp_fm_release(L1_mu_i,error=error_sub)
-    CALL cp_fm_release(L2_nu_a,error=error_sub)
+    CALL cp_fm_release(L1_mu_i,error=error)
+    CALL cp_fm_release(L2_nu_a,error=error)
     DEALLOCATE(pos_info_ex)
     DEALLOCATE(grid_2_mepos)
     DEALLOCATE(mepos_2_grid_1i)

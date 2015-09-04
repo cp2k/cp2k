@@ -53,8 +53,7 @@ MODULE cp_error_handling
   PUBLIC :: cp_assert, cp_a_l, cp_unimplemented_error
 
   !API
-  PUBLIC :: cp_error_init, cp_error_dealloc_ref, cp_error_set,&
-       cp_error_get, &
+  PUBLIC :: cp_error_init, cp_error_dealloc_ref, &
        cp_error_get_logger,&
        cp_error_message
 
@@ -110,7 +109,6 @@ MODULE cp_error_handling
 ! *****************************************************************************
   TYPE cp_error_type
      PRIVATE
-     LOGICAL :: initialized
      TYPE(cp_logger_type), POINTER :: logger => Null()
   END TYPE cp_error_type
 
@@ -138,7 +136,6 @@ CONTAINS
     TYPE(cp_error_type), INTENT(in), &
       OPTIONAL                               :: template_error
 
-    error%initialized=.TRUE.
     NULLIFY(error%logger)
     IF (PRESENT(template_error)) THEN
        error%logger => template_error%logger
@@ -151,35 +148,6 @@ CONTAINS
     END IF
   END SUBROUTINE cp_error_init
 
-! *****************************************************************************
-!> \brief routine to set the various components of the error structure
-!> \param error the error you want to change
-!> \param logger ...
-!> \param template_error gives the default values of logger, stop_level
-!>           and print_level (but not of level and error_nr)
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-!>      @version 2.2002
-! *****************************************************************************
-  SUBROUTINE cp_error_set(error,logger,template_error)
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
-    TYPE(cp_error_type), INTENT(in), &
-      OPTIONAL                               :: template_error
-
-    TYPE(cp_logger_type), POINTER            :: old_logger
-
-    old_logger => error%logger
-    IF (PRESENT(template_error)) THEN
-       error%logger => template_error%logger
-    END IF
-    IF (PRESENT(logger)) error%logger=>logger
-    IF (ASSOCIATED(error%logger)) THEN
-       CALL cp_logger_retain(error%logger)
-    END IF
-    CALL cp_logger_release(old_logger)
-  END SUBROUTINE cp_error_set
 
 ! *****************************************************************************
 !> \brief Deallocates the memory allocated by the error
@@ -206,35 +174,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    IF (.NOT.err_to_free%initialized) THEN
-       CALL cp_log(cp_get_default_logger(), CP_FAILURE_LEVEL,  &
-            'cp_error_handling:cp_error_dealloc_ref:1', &
-            'error structure not initialized')
-       CALL cp_error_common_stop('cp_error_reset',&
-            'error structure not initialized')
-    END IF
-    CALL cp_logger_release(err_to_free%logger)
+    IF(ASSOCIATED(err_to_free%logger))&
+      CALL cp_logger_release(err_to_free%logger)
   END SUBROUTINE cp_error_dealloc_ref
-
-! *****************************************************************************
-!> \brief returns the various attributes of the given error
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
-!> \param logger ...
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-!>      @version 1.2002
-! *****************************************************************************
-  SUBROUTINE cp_error_get(error,logger)
-    TYPE(cp_error_type), INTENT(inout)       :: error
-    TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_error_get', &
-      routineP = moduleN//':'//routineN
-
-    IF (PRESENT(logger)) logger=>cp_error_get_logger(error)
-  END SUBROUTINE cp_error_get
 
 ! *****************************************************************************
 !> \brief gets the logger of the given error.

@@ -84,7 +84,6 @@ MODULE mp2_ri_grad_util
 !> \param starts_B_virtual ...
 !> \param sub_proc_map ...
 !> \param error ...
-!> \param error_sub ...
 !> \param alpha_case ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
@@ -92,7 +91,7 @@ MODULE mp2_ri_grad_util
                             my_group_L_size,my_group_L_start,my_group_L_end,&
                             my_B_size,my_B_virtual_start,&
                             ends_array,ends_B_virtual,sizes_array,sizes_B_virtual,starts_array,starts_B_virtual,&
-                            sub_proc_map,error,error_sub,alpha_case)
+                            sub_proc_map,error,alpha_case)
 
     TYPE(mp2_type), POINTER                  :: mp2_env
     REAL(KIND=dp), ALLOCATABLE, &
@@ -104,7 +103,7 @@ MODULE mp2_ri_grad_util
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
       sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
       sub_proc_map
-    TYPE(cp_error_type), INTENT(inout)       :: error, error_sub
+    TYPE(cp_error_type), INTENT(inout)       :: error
     LOGICAL                                  :: alpha_case
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'complete_gamma', &
@@ -187,7 +186,7 @@ MODULE mp2_ri_grad_util
       rec_B_virtual_start=starts_B_virtual(proc_receive)
 
       ALLOCATE(BIb_C_rec(homo,rec_B_size,my_group_L_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       BIb_C_rec=0.0_dp
 
       CALL  mp_sendrecv(B_ia_Q,proc_send,&
@@ -237,7 +236,7 @@ MODULE mp2_ri_grad_util
       rec_B_virtual_start=starts_B_virtual(proc_receive)
 
       ALLOCATE(BIb_C_rec(homo,rec_B_size,my_group_L_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       BIb_C_rec=0.0_dp
 
       IF (alpha_case) THEN 
@@ -269,26 +268,26 @@ MODULE mp2_ri_grad_util
 
     ! create the processor map and size arrays
     ALLOCATE(proc_map(-para_env%num_pe:2*para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     proc_map=0
     ALLOCATE(sizes(2,0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     sizes=0
     ALLOCATE(starts(2,0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     starts=0
     ALLOCATE(ends(2,0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ends=0
 
     ALLOCATE(pos_info(0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     pos_info=0
     pos_info(para_env%mepos)=para_env_sub%mepos
     CALL mp_sum(pos_info,para_env%group)
 
     ALLOCATE(group_grid_2_mepos(0:para_env_sub%num_pe-1,0:ngroup-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     group_grid_2_mepos=0
     ALLOCATE(mepos_2_grid_group(0:para_env%num_pe-1,2),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -383,7 +382,7 @@ MODULE mp2_ri_grad_util
     ! since we will need (P|Q)^(-1/2) in the future, make a copy
     IF (alpha_case) THEN
        ALLOCATE(mp2_env%ri_grad%Gamma_PQ(my_P_size,my_group_L_size),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        mp2_env%ri_grad%Gamma_PQ(:,:)=mp2_env%ri_grad%PQ_half
        CALL array2fm(mp2_env%ri_grad%Gamma_PQ,dimen_RI,dimen_RI,para_env,blacs_env,proc_map,&
             my_P_start,my_P_end,&
@@ -393,7 +392,7 @@ MODULE mp2_ri_grad_util
             PQ_half,error)
     ELSE
        ALLOCATE(mp2_env%ri_grad%Gamma_PQ_beta(my_P_size,my_group_L_size),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error_sub,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        mp2_env%ri_grad%Gamma_PQ_beta(:,:)=mp2_env%ri_grad%PQ_half
        CALL array2fm(mp2_env%ri_grad%Gamma_PQ_beta,dimen_RI,dimen_RI,para_env,blacs_env,proc_map,&
             my_P_start,my_P_end,&
@@ -569,7 +568,7 @@ MODULE mp2_ri_grad_util
     CALL create_dbcsr_gamma(Gamma_2D,homo,virtual,dimen_ia,para_env_sub,sub_proc_map,&
                             my_ia_start,my_ia_end,my_group_L_size,&
                             sizes_ia,starts_ia,ends_ia,&
-                            mp2_env,error_sub,alpha_case)
+                            mp2_env,error,alpha_case)
 
 
     IF(.FALSE.) THEN

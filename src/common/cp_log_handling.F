@@ -62,7 +62,7 @@ MODULE cp_log_handling
   PRIVATE
 
   !API types
-  PUBLIC :: cp_logger_type
+  PUBLIC :: cp_logger_type, cp_logger_p_type
   !API parameter vars
   PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level, cp_fatal_level
   !API default loggers
@@ -154,6 +154,10 @@ MODULE cp_log_handling
      TYPE(cp_para_env_type), POINTER       :: para_env
      TYPE(cp_iteration_info_type), POINTER :: iter_info
   END TYPE cp_logger_type
+
+  TYPE cp_logger_p_type
+     TYPE(cp_logger_type), POINTER :: p
+  END TYPE cp_logger_p_type
 
 ! *****************************************************************************
   TYPE default_logger_stack_type
