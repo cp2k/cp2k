@@ -426,7 +426,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 ! *****************************************************************************
-    SUBROUTINE call_integrate
+    SUBROUTINE call_integrate()
 
 
       SELECT CASE(lp)
@@ -705,7 +705,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 ! *****************************************************************************
-    SUBROUTINE integrate_general_subpatch
+    SUBROUTINE integrate_general_subpatch()
     INTEGER                                  :: stat
     INTEGER, DIMENSION(2, 3)                 :: local_b
     INTEGER, DIMENSION(3)                    :: local_s, periodic

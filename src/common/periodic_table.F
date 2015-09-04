@@ -1326,7 +1326,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 ! *****************************************************************************
-  SUBROUTINE init_eheat
+  SUBROUTINE init_eheat()
     ! All values in kcal/mol
     ! Dummy
     ptable(0) % heat_of_formation = z
@@ -1509,7 +1509,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 ! *****************************************************************************
-  SUBROUTINE init_gratio
+  SUBROUTINE init_gratio()
     ! D. M. Granty and R. K. Harris, Encyclopedia of Nuclear
     ! Magnetic Resonance vol. 5 (Wiley, Chichester UK, 1996)
     !

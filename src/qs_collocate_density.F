@@ -3839,7 +3839,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 ! *****************************************************************************
-    SUBROUTINE collocate_general_subpatch
+    SUBROUTINE collocate_general_subpatch()
     INTEGER, DIMENSION(2, 3)                 :: local_b
     INTEGER, DIMENSION(3)                    :: local_s, periodic
     REAL(dp), &
@@ -3877,7 +3877,7 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 ! *****************************************************************************
-    SUBROUTINE collocate_general_wings
+    SUBROUTINE collocate_general_wings()
     INTEGER, DIMENSION(2, 3)                 :: local_b
     INTEGER, DIMENSION(3)                    :: periodic
     REAL(dp), &
