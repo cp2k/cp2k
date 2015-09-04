@@ -232,7 +232,7 @@ def parse_report(fn):
     m = re.search("\n-+ ?regtesting cp2k ?-+\n(.*)\n-+ Summary -+\n", report_txt, re.DOTALL)
     if(not m):
         print("Regtests not finished, skipping.")
-        return(None)
+        return values
 
     main_part = m.group(1)
     curr_dir = None
