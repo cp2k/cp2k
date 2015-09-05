@@ -1509,6 +1509,7 @@ MODULE dbcsr_mm_cannon
           CALL dbcsr_create(ums%mats(row_img, col_img), "imaged "//sm%name,&
                target_dist,&
                dbcsr_type_no_symmetry, array_data(sm%row_blk_size), array_data(sm%col_blk_size),&
+               sm%row_blk_size, sm%col_blk_size,&
                0,0, data_type,&
                max_rbs=sm%max_rbs,max_cbs=sm%max_cbs,&
                row_blk_offset=sm%row_blk_offset,col_blk_offset=sm%col_blk_offset,&

@@ -1581,7 +1581,8 @@ CONTAINS
 
     CALL dbcsr_create(matrix%matrix, name, dist,&
          matrix_type,&
-         row_blk_size, col_blk_size, nblks, nze, data_type, reuse=reuse,&
+         row_blk_size, col_blk_size, nblks=nblks, nze=nze, &
+         data_type=data_type, reuse=reuse,&
          reuse_arrays=reuse_arrays,&
          mutable_work=mutable_work, replication_type=replication_type,&
          error=dbcsr_error)

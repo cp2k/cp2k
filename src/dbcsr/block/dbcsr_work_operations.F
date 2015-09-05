@@ -142,6 +142,8 @@ CONTAINS
 !>                            symmetric, and 'A' for antisymmetric
 !> \param row_blk_size ...
 !> \param col_blk_size ...
+!> \param row_blk_size_obj ...
+!> \param col_blk_size_obj ...
 !> \param[in] nblks           (optional) number of blocks
 !> \param[in] nze             (optional) number of elements
 !> \param[in] data_type       type of data from 'rRcC' for single/double
@@ -169,7 +171,8 @@ CONTAINS
 !>                                 see dbcsr_types.F
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_new(matrix, name, dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, data_type,&
+       row_blk_size, col_blk_size, row_blk_size_obj, col_blk_size_obj,&
+       nblks, nze, data_type,&
        data_memory_type, index_memory_type,&
        max_rbs, max_cbs,&
        row_blk_offset, col_blk_offset,&
@@ -181,6 +184,9 @@ CONTAINS
     CHARACTER, INTENT(IN)                    :: matrix_type
     INTEGER, DIMENSION(:), INTENT(IN), &
       POINTER                                :: row_blk_size, col_blk_size
+    TYPE(array_i1d_obj), INTENT(IN), &
+      OPTIONAL                               :: row_blk_size_obj, &
+                                                col_blk_size_obj
     INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
     TYPE(dbcsr_memtype_type), INTENT(IN), &
       OPTIONAL                               :: data_memory_type, &
@@ -285,7 +291,12 @@ CONTAINS
     ! These are always invalidated.
     NULLIFY(matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, matrix%m%thr_c,&
          matrix%m%coo_l)
-    CALL array_new(matrix%m%row_blk_size, row_blk_size, gift=reuse_arrays)
+    IF (PRESENT(row_blk_size_obj)) THEN
+       matrix%m%row_blk_size = row_blk_size_obj
+       CALL array_hold(matrix%m%row_blk_size)
+    ELSE
+       CALL array_new(matrix%m%row_blk_size, row_blk_size, gift=reuse_arrays)
+    ENDIF
     IF (PRESENT(max_rbs)) THEN
        matrix%m%max_rbs = max_rbs
     ELSE IF (array_size (matrix%m%row_blk_size) .GT. 0) THEN
@@ -293,7 +304,13 @@ CONTAINS
     ELSE
        matrix%m%max_rbs = 0
     ENDIF
-    CALL array_new(matrix%m%col_blk_size, col_blk_size, gift=reuse_arrays)
+    IF (PRESENT(col_blk_size_obj)) THEN
+       matrix%m%col_blk_size = col_blk_size_obj
+       CALL array_hold(matrix%m%col_blk_size)
+    ELSE
+       CALL array_new(matrix%m%col_blk_size, col_blk_size, gift=reuse_arrays)
+    ENDIF
+    
     IF (PRESENT(max_cbs)) THEN
        matrix%m%max_cbs = max_cbs
     ELSE IF (array_size (matrix%m%col_blk_size) .GT. 0) THEN
@@ -621,6 +638,8 @@ CONTAINS
             matrix_type = new_matrix_type,&
             row_blk_size = new_row_blk_size,&
             col_blk_size = new_col_blk_size,&
+            row_blk_size_obj = template%m%row_blk_size,&
+            col_blk_size_obj = template%m%col_blk_size,&
             nblks = nblks, nze = nze,&
             data_type = new_data_type,&
             data_memory_type = new_data_memory_type,&
