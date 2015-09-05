@@ -5276,7 +5276,7 @@ MODULE dbcsr_mm_cannon
                            unmerged_indices(ki+2-index_offset)
                       ! Data offset
                       mimage%index(mimage%index(dbcsr_slot_size)+3) = &
-                           unmerged_indices(ki+2)+offset_data-1
+                           unmerged_indices(ki+2)+INT(offset_data)-1
                       ! increase meta size
                       mimage%index(dbcsr_slot_size) = mimage%index(dbcsr_slot_size)+3
                    ENDDO
