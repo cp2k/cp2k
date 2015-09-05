@@ -442,7 +442,8 @@ CONTAINS
 CPSourceFileRef,&
                only_ionode=.TRUE.)
        END IF
-       IF (diffmax > eps_spline ) THEN
+       ! accuracy is poor or we have found no points below max_energy, refine mesh
+       IF (diffmax > eps_spline .OR. diffmax < 0.0_dp ) THEN
           npoints   = CEILING(1.2_dp*REAL(npoints,KIND=dp))
        ELSE
           EXIT
