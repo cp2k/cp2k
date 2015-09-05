@@ -12,7 +12,7 @@ TMC_ana_density.inp                                   39
 # radial distribution function
 TMC_ana_G_R.inp                                       39
 # classical dipole moment writing out TMC restart file (no ana restart file)
-TMC_ana_dip_cl.inp                                    39
+TMC_ana_dip_cl.inp                                    39 4.0E-14
 # calculating the root mean squared deviation from the last cell and the average
 TMC_ana_deviation.inp                                 39
 # creating a not analyzed trajectory
