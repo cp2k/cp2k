@@ -3,7 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-NO2-EPR-1.inp                                         20
-NO2-EPR-2.inp                                         20
-NO2-EPR-3.inp                                         20
+NO2-EPR-1.inp                    20     2e-02                               
+NO2-EPR-2.inp                    20     2e-05                               
+NO2-EPR-3.inp                    20     3e-03                               
 #EOF
