@@ -9,7 +9,7 @@
 !> \author Teodoro Laino [tlaino] - University of Zurich
 !> \date 04.2008 [tlaino]
 ! *****************************************************************************
-INTERFACE check_rotmat_der
+INTERFACE 
    SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert, error)
      USE kinds,                           ONLY: dp
      USE semi_empirical_types,            ONLY: rotmat_type,&
@@ -22,7 +22,7 @@ INTERFACE check_rotmat_der
      LOGICAL, INTENT(IN)                      :: do_invert
      TYPE(cp_error_type), INTENT(inout)       :: error
    END SUBROUTINE check_rotmat_der
-END INTERFACE check_rotmat_der
+END INTERFACE 
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical NUCINT ssss
@@ -32,7 +32,7 @@ END INTERFACE check_rotmat_der
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-INTERFACE check_dssss_nucint_ana
+INTERFACE
   SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,&
        se_taper,error)
     USE kinds,                           ONLY: dp
@@ -49,7 +49,7 @@ INTERFACE check_dssss_nucint_ana
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
   END SUBROUTINE check_dssss_nucint_ana
-END INTERFACE check_dssss_nucint_ana
+END INTERFACE 
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical NUCINT core
@@ -59,7 +59,7 @@ END INTERFACE check_dssss_nucint_ana
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-INTERFACE check_dcore_nucint_ana
+INTERFACE 
   SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,se_int_control,&
        se_taper,error)
     USE kinds,                           ONLY: dp
@@ -76,7 +76,7 @@ INTERFACE check_dcore_nucint_ana
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
   END SUBROUTINE check_dcore_nucint_ana
-END INTERFACE check_dcore_nucint_ana
+END INTERFACE 
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical ROTNUC
@@ -86,7 +86,7 @@ END INTERFACE check_dcore_nucint_ana
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-INTERFACE check_drotnuc_ana
+INTERFACE 
    SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper,&
         e1b, e2a, de1b, de2a, error)
     USE kinds,                           ONLY: dp
@@ -106,7 +106,7 @@ INTERFACE check_drotnuc_ana
       INTENT(IN), OPTIONAL                   :: de1b, de2a
     TYPE(cp_error_type), INTENT(inout)       :: error
    END SUBROUTINE check_drotnuc_ana
-END INTERFACE check_drotnuc_ana
+END INTERFACE 
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical CORECORE
@@ -116,7 +116,7 @@ END INTERFACE check_drotnuc_ana
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-INTERFACE check_dcorecore_ana
+INTERFACE 
   SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control,&
        se_taper, enuc, denuc, error)
     USE kinds,                           ONLY: dp
@@ -136,7 +136,7 @@ INTERFACE check_dcorecore_ana
     TYPE(cp_error_type), INTENT(inout)       :: error
   END SUBROUTINE check_dcorecore_ana
 
-END INTERFACE check_dcorecore_ana
+END INTERFACE 
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical rot_2el_2c_first
@@ -146,7 +146,7 @@ END INTERFACE check_dcorecore_ana
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-INTERFACE rot_2el_2c_first_debug
+INTERFACE 
   SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper,&
        invert, ii, kk, v_d, error)
     USE kinds,                           ONLY: dp
@@ -165,7 +165,7 @@ INTERFACE rot_2el_2c_first_debug
       INTENT(IN)                             :: v_d
     TYPE(cp_error_type), INTENT(inout)       :: error
   END SUBROUTINE rot_2el_2c_first_debug
-END INTERFACE rot_2el_2c_first_debug
+END INTERFACE 
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical check_dterep_ana
@@ -175,7 +175,7 @@ END INTERFACE rot_2el_2c_first_debug
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-INTERFACE check_dterep_ana
+INTERFACE 
   SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,se_taper,lgrad,error)
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
@@ -191,7 +191,7 @@ INTERFACE check_dterep_ana
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
   END SUBROUTINE check_dterep_ana
-END INTERFACE check_dterep_ana
+END INTERFACE 
 
 ! *****************************************************************************
 !> \brief Check Numerical Vs Analytical check_rotint_ana
@@ -201,7 +201,7 @@ END INTERFACE check_dterep_ana
 !>      04.2008 created [tlaino]
 !> \author Teodoro Laino - Zurich University
 ! *****************************************************************************
-INTERFACE check_rotint_ana
+INTERFACE 
   SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper,error)
     USE kinds,                           ONLY: dp
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
@@ -219,4 +219,4 @@ INTERFACE check_rotint_ana
     TYPE(se_taper_type), POINTER             :: se_taper
     TYPE(cp_error_type), INTENT(inout)       :: error
   END SUBROUTINE check_rotint_ana
-END INTERFACE check_rotint_ana
+END INTERFACE 
