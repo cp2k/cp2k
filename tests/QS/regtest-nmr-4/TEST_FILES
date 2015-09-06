@@ -10,9 +10,9 @@ o2-gapw-uks-1.inp                                     14      6e-04             
 he-gapw-no-soft-1.inp                                 14    1.0E-14                   0.807283E-06
 c2h2_list-1.inp                                       14      2e-04             287.94999999999999
 no_list-1.inp                    14     1e-01                               
-h2o-no2-selected-states-1.inp    14     7e-04                               
+h2o-no2-selected-states-1.inp    14     2e-03                               
 h2o-no2-selected-states-2.inp    14     1e-04                               
-w2_3-selected-states-1.inp                            14      4e-05             364.09399999999999
+w2_3-selected-states-1.inp       14     1e-04             364.09399999999999
 w2_3-selected-states-2.inp                            14    1.0E-14                   0.169809E+04
 ch4-gapw-restart-1.inp                                14    1.0E-14                   0.332896E+03
 o2-gapw-uks-restart-1.inp                             14      5e-04             754.48400000000004

@@ -18,8 +18,8 @@ ch4-gapw-1-replicated.inp                             14    1.0E-14             
 no-gapw-1-distributed.inp        14     3e-02                               
 no-gapw-1-replicated.inp         14     3e-02                               
 w2_qmmm-1.inp                                         14      2e-04                        229.358
-w2_qmmm-2.inp                                         14      7e-05             230.05799999999999
-w2_qmmm-3.inp                                         14      8e-05             230.13999999999999
+w2_qmmm-2.inp                    14     2e-03             230.05799999999999
+w2_qmmm-3.inp                    14     4e-03             230.13999999999999
 ch4-gapw-gpw-1.inp                                    14    1.0E-14                   0.163314E+03
 no-gapw-gpw-1.inp                14     6e-03                               
 h2-gapw-1.inp                                         14    1.0E-14                   0.236339E+02
