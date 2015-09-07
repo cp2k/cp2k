@@ -1,6 +1,6 @@
 SiO2_lr_quad.inp                                      11      2e-12            -80.527386668852159
 #XTL file
-Al2O3.inp                                             11      6e-14
+Al2O3.inp                        11     1e-13                               
 #angvel_tol
 gly_noangvel.inp                                       2    1.0E-14            -0.496541901720E+02
 #extended cif test

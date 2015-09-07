@@ -156,7 +156,7 @@ QS/regtest-gpw-2-1
 Fist/regtest-10
 QS/regtest-rtp-1
 QS/regtest-nmr-3
-TMC/regtest                                                 parallel
+TMC/regtest                                                 parallel mpiranks>1
 QS/regtest-dft-vdw-corr-1
 QMMM/QS/regtest-2-swave
 FE/regtest-1
@@ -179,7 +179,7 @@ NEB/regtest-1
 Fist/regtest-gauss
 QS/regtest-properties/resp
 FE/regtest-3
-TMC/regtest_ana_post_proc                                   parallel
+TMC/regtest_ana_post_proc                                   parallel mpiranks>1
 SWARM/regtest-glbopt-1
 SE/regtest-3-1
 QS/regtest-lsroks
