@@ -313,7 +313,6 @@ CONTAINS
                                                 subsys_check
     REAL(KIND=dp)                            :: myt
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vec, work
-    TYPE(cp_error_type)                      :: sub_error
     TYPE(cp_parser_type), POINTER            :: cpparser
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(section_vals_type), POINTER         :: r_section, rep_sections, &
@@ -332,18 +331,16 @@ CONTAINS
                                  error=error)
 
        IF (r_file_path/=" ") THEN
-          CALL cp_error_init(sub_error,template_error=error)
           ! parse the input
           NULLIFY(default_units,restart_file)
-          CALL section_vals_create(restart_file,input_declaration, error=sub_error)
+          CALL section_vals_create(restart_file,input_declaration, error=error)
           NULLIFY(cpparser)
-          CALL parser_create(cpparser,file_name=r_file_path,para_env=para_env,error=sub_error)
-          CALL cp_unit_set_create(default_units, "OUTPUT",error=sub_error)
+          CALL parser_create(cpparser,file_name=r_file_path,para_env=para_env,error=error)
+          CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
           CALL section_vals_parse(restart_file,cpparser,root_section=.FALSE.,&
-               default_units=default_units,error=sub_error)
-          CALL cp_unit_set_release(default_units,error=sub_error)
-          CALL parser_release(cpparser,error=sub_error)
-          CALL cp_error_dealloc_ref(sub_error)
+               default_units=default_units,error=error)
+          CALL cp_unit_set_release(default_units,error=error)
+          CALL parser_release(cpparser,error=error)
 
           ! Restart and input files same number of force_env sections
           sections1  => section_vals_get_subs_vals(restart_file,"FORCE_EVAL",error=error)

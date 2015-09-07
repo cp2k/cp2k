@@ -155,7 +155,6 @@ PROGRAM cp2k_shell
   harsh=.FALSE.
   failure=.FALSE.
 
-  CALL cp_error_init(error)
   logger => cp_error_get_logger(error)
   para_env => logger%para_env
 

@@ -57,9 +57,6 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_block2d_s', &
       routineP = moduleN//':'//routineN
 
-    TYPE(cp_error_type)                      :: error
-
-    CALL cp_error_init (error)
     CALL dbcsr_reserve_block2d(matrix%matrix, row, col, block,&
          transposed, existed)
 
@@ -156,9 +153,6 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block2d_s', &
       routineP = moduleN//':'//routineN
 
-    TYPE(cp_error_type)                      :: error
-
-    CALL cp_error_init (error)
     CALL dbcsr_put_block(matrix%matrix, row, col, block,&
        summation=summation, scale=scale)
 
@@ -185,9 +179,6 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_put_block_s', &
       routineP = moduleN//':'//routineN
 
-    TYPE(cp_error_type)                      :: error
-
-    CALL cp_error_init (error)
     CALL dbcsr_put_block(matrix%matrix, row, col, block,&
        summation=summation, scale=scale)
 
@@ -246,9 +237,7 @@
       routineP = moduleN//':'//routineN
 
     LOGICAL                                   :: tr
-    TYPE(cp_error_type)                       :: error
 
-    CALL cp_error_init (error)
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
     CALL cp_assert(.NOT. tr, cp_fatal_level, cp_internal_error,&

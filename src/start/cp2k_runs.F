@@ -207,8 +207,6 @@ CONTAINS
 
     NULLIFY(globenv, force_env)
 
-    CALL cp_error_init(error)
-
     CALL cite_reference(Hutter2014)
 
     ! parse the input
@@ -242,7 +240,6 @@ CONTAINS
        ! XXXXXXXXX
        CALL section_vals_retain(input_file,error=error)
        CALL cp2k_init(para_env, output_unit, globenv, input_file_name=input_file_name)
-       CALL cp_error_init(suberror)
        CALL cp2k_read(root_section,para_env,globenv,error=error)
        CALL cp2k_setup(root_section,para_env, globenv,suberror)
     END IF
@@ -433,7 +430,6 @@ CONTAINS
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
        CALL globenv_release(globenv,error=error)
     ELSE
-       CALL cp_error_dealloc_ref(suberror)
        I_was_ionode=para_env%ionode
        CALL cp2k_finalize(root_section,para_env,globenv,error=error)
        CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
@@ -441,7 +437,6 @@ CONTAINS
        CALL globenv_release(globenv,error=error)
     END IF
 
-    CALL cp_error_dealloc_ref(error)
     CALL cp_para_env_release(para_env,error=error)
     cp2k_run_OK = .NOT. failure
 

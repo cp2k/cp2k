@@ -24,6 +24,8 @@ def main():
         output = ""
         for line in content.strip().split("\n"):
             line = line.strip()
+            if(line == "#EOF"):
+                continue
             if(line.startswith("#")):
                 output += line + "\n"
                 continue

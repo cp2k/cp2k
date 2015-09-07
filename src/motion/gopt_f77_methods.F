@@ -27,8 +27,8 @@
                                                create_averages,&
                                                release_averages
     USE cell_opt_utils,                  ONLY: get_dg_dh,&
-                                               gopt_new_error_create,&
-                                               gopt_new_error_release
+                                               gopt_new_logger_create,&
+                                               gopt_new_logger_release
     USE cell_types,                      ONLY: cell_type,&
                                                cell_copy,&
                                                cell_release,&
@@ -105,7 +105,7 @@
     TYPE(particle_list_type), POINTER        :: core_particles, particles,&
                                                 shell_particles
     TYPE(virial_type), POINTER               :: virial, virial_avg
-    TYPE(cp_error_type)                      :: new_error
+    TYPE(cp_logger_type), POINTER            :: new_logger
     CHARACTER(LEN=default_string_length)     :: project_name
     TYPE(average_quantities_type), POINTER   :: averages
     TYPE(section_vals_type), POINTER         :: work, avgs_section
@@ -120,6 +120,7 @@
     NULLIFY (shell_particles)
     NULLIFY (subsys)
     NULLIFY (virial)
+    NULLIFY (new_logger)
 
     CALL timeset(routineN,handle)
 
@@ -253,9 +254,10 @@ CPSourceFileRef,&
 CPSourceFileRef,&
                      only_ionode=.TRUE.)
                 ! Perform a geometry optimization
-                CALL gopt_new_error_create(new_error, gopt_env%force_env%root_section, para_env,&
+                CALL gopt_new_logger_create(new_logger, gopt_env%force_env%root_section, para_env,&
                      project_name, id_run=geo_opt_run, error=error)
-                CALL cp_geo_opt(gopt_env%force_env, gopt_env%globenv,eval_opt_geo=.FALSE.,error=new_error)
+                CALL cp_add_default_logger(new_logger)
+                CALL cp_geo_opt(gopt_env%force_env, gopt_env%globenv,eval_opt_geo=.FALSE.,error=error)
                 CALL force_env_get(gopt_env%force_env,potential_energy=potential_energy,error=error)
                 CALL cp_virial(virial, virial_avg)
              CASE(default_cell_md_id)
@@ -274,12 +276,13 @@ CPSourceFileRef,&
 CPSourceFileRef,&
                      only_ionode=.TRUE.)
                 ! Perform a molecular dynamics
-                CALL gopt_new_error_create(new_error, gopt_env%force_env%root_section, para_env,&
+                CALL gopt_new_logger_create(new_logger, gopt_env%force_env%root_section, para_env,&
                      project_name, id_run=mol_dyn_run, error=error)
+                CALL cp_add_default_logger(new_logger)
                 CALL create_averages(averages, avgs_section, virial_avg=.TRUE., force_env=gopt_env%force_env,&
                      error=error)
                 CALL qs_mol_dyn(gopt_env%force_env, gopt_env%globenv, averages, rm_restart_info=.FALSE.,&
-                                error=new_error)
+                                error=error)
                 ! Retrieve the average of the stress tensor and the average of the potential energy
                 potential_energy = averages%avepot
                 CALL cp_virial(averages%virial, virial_avg)
@@ -287,7 +290,8 @@ CPSourceFileRef,&
              CASE DEFAULT
                 CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
-             CALL gopt_new_error_release(new_error, gopt_env%force_env%root_section, para_env, project_name,&
+             CALL cp_rm_default_logger()
+             CALL gopt_new_logger_release(new_logger, gopt_env%force_env%root_section, para_env, project_name,&
                                          cell_opt_run, error)
              ! Update the virial
              CALL virial_update(virial_avg, subsys, para_env, error)

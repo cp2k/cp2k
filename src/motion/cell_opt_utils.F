@@ -43,8 +43,8 @@ MODULE cell_opt_utils
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cell_opt_utils'
 
-  PUBLIC :: get_ut_cell_matrix, get_dg_dh, gopt_new_error_create,&
-            gopt_new_error_release, read_external_press_tensor
+  PUBLIC :: get_ut_cell_matrix, get_dg_dh, gopt_new_logger_create,&
+            gopt_new_logger_release, read_external_press_tensor
 
 CONTAINS
 ! *****************************************************************************
@@ -76,8 +76,8 @@ CONTAINS
   END SUBROUTINE get_ut_cell_matrix
 
 ! *****************************************************************************
-!> \brief creates a new error used for cell optimization algorithm
-!> \param new_error ...
+!> \brief creates a new logger used for cell optimization algorithm
+!> \param new_logger ...
 !> \param root_section ...
 !> \param para_env ...
 !> \param project_name ...
@@ -85,9 +85,9 @@ CONTAINS
 !> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
-  SUBROUTINE gopt_new_error_create(new_error, root_section, para_env, project_name,&
+  SUBROUTINE gopt_new_logger_create(new_logger, root_section, para_env, project_name,&
        id_run, error)
-    TYPE(cp_error_type), INTENT(out)         :: new_error
+    TYPE(cp_logger_type), POINTER            :: new_logger
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     CHARACTER(len=default_string_length), &
@@ -95,7 +95,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: id_run
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_new_error_create', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_new_logger_create', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: c_val, input_file_path, &
@@ -103,13 +103,13 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: label
     INTEGER                                  :: i, lp, unit_nr
     LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: loc_logger, logger
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
 
     failure = .FALSE.
-    NULLIFY(loc_logger, logger, enum, keyword, section)
+    NULLIFY(new_logger, logger, enum, keyword, section)
     logger => cp_error_get_logger(error)
 
     CALL create_global_section(section,error=error)
@@ -136,25 +136,21 @@ CONTAINS
     ELSE
        unit_nr=-1
     END IF
-    CALL cp_logger_create(loc_logger, para_env=para_env, default_global_unit_nr=unit_nr, &
+    CALL cp_logger_create(new_logger, para_env=para_env, default_global_unit_nr=unit_nr, &
          close_global_unit_on_dealloc=.FALSE.)
     CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",c_val=c_val,error=error)
     IF (c_val/="") THEN
-       CALL cp_logger_set(loc_logger,local_filename=TRIM(c_val)//"_localLog")
+       CALL cp_logger_set(new_logger,local_filename=TRIM(c_val)//"_localLog")
     END IF
-    loc_logger%iter_info%project_name=c_val
+    new_logger%iter_info%project_name=c_val
     CALL section_vals_val_get(root_section,"GLOBAL%PRINT_LEVEL",&
-       i_val=loc_logger%iter_info%print_level,error=error)
+       i_val=new_logger%iter_info%print_level,error=error)
 
-    ! Initialize error
-    CALL cp_error_init(new_error,logger=loc_logger)
-    CALL cp_logger_release(loc_logger)
-
-  END SUBROUTINE gopt_new_error_create
+  END SUBROUTINE gopt_new_logger_create
 
 ! *****************************************************************************
-!> \brief releases a new error used for cell optimization algorithm
-!> \param new_error ...
+!> \brief releases a new logger used for cell optimization algorithm
+!> \param new_logger ...
 !> \param root_section ...
 !> \param para_env ...
 !> \param project_name ...
@@ -162,8 +158,8 @@ CONTAINS
 !> \param error ...
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! *****************************************************************************
-  SUBROUTINE gopt_new_error_release(new_error, root_section, para_env, project_name, id_run, error)
-    TYPE(cp_error_type), INTENT(inout)       :: new_error
+  SUBROUTINE gopt_new_logger_release(new_logger, root_section, para_env, project_name, id_run, error)
+    TYPE(cp_logger_type), POINTER            :: new_logger
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     CHARACTER(len=default_string_length), &
@@ -171,22 +167,20 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: id_run
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_new_error_release', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'gopt_new_logger_release', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    logger => cp_error_get_logger(new_error)
     IF (para_env%mepos==para_env%source) THEN
-       unit_nr = cp_logger_get_default_unit_nr(logger)
+       unit_nr = cp_logger_get_default_unit_nr(new_logger)
        CALL close_file(unit_number=unit_nr)
     END IF
-    CALL cp_error_dealloc_ref(new_error, error)
+    CALL cp_logger_release(new_logger)
     CALL section_vals_val_set(root_section,"GLOBAL%RUN_TYPE",i_val=id_run,error=error)
     CALL section_vals_val_set(root_section,"GLOBAL%PROJECT_NAME",c_val=project_name,error=error)
 
-  END SUBROUTINE gopt_new_error_release
+  END SUBROUTINE gopt_new_logger_release
 
 ! *****************************************************************************
 !> \brief Reads the external pressure tensor

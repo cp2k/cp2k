@@ -32,7 +32,7 @@ MODULE cp_error_handling
   USE cp_log_handling,                 ONLY: &
        CP_FAILURE_LEVEL, CP_FATAL_LEVEL, CP_NOTE_LEVEL, CP_WARNING_LEVEL, &
        cp_get_default_logger, cp_log, cp_logger_get_default_unit_nr, &
-       cp_logger_release, cp_logger_retain, cp_logger_type, cp_to_string
+       cp_logger_type, cp_to_string
   USE message_passing,                 ONLY: mp_abort
   USE termination,                     ONLY: print_message
   USE timings,                         ONLY: print_stack
@@ -44,7 +44,7 @@ MODULE cp_error_handling
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_error_handling'
 
   !API types
-  PUBLIC :: cp_error_type
+  PUBLIC :: cp_error_type, cp_error_get_logger
   !API parameters var
   PUBLIC :: cp_debug, cp_no_error, cp_caller_error, cp_wrong_args_error,&
        cp_precondition_failed, cp_internal_error, cp_postcondition_failed,&
@@ -53,9 +53,7 @@ MODULE cp_error_handling
   PUBLIC :: cp_assert, cp_a_l, cp_unimplemented_error
 
   !API
-  PUBLIC :: cp_error_init, cp_error_dealloc_ref, &
-       cp_error_get_logger,&
-       cp_error_message
+  PUBLIC :: cp_error_message
 
 #ifdef FD_DEBUG
   !! global variable to turn on/off the debugging, as i am lazy I use the
@@ -108,75 +106,10 @@ MODULE cp_error_handling
 !>      @version 2.2002
 ! *****************************************************************************
   TYPE cp_error_type
-     PRIVATE
-     TYPE(cp_logger_type), POINTER :: logger => Null()
+   ! empty :-)
   END TYPE cp_error_type
 
 CONTAINS
-! ================== error structure init/get/set ===================
-
-! *****************************************************************************
-!> \brief Initializes the error structure error.
-!>     The optional arguments initialize the values in the structure.
-!>     Default values: stop_level=2, logger=null (i.e. default logger)
-!> \param error the error that will be initialized
-!> \param logger the logger where errors are written (defaults to
-!>             the default logger)
-!> \param template_error an error that gives the default values for
-!>             the previous variables (useful to initialize an internal error)
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-!>      @version 2.2002
-! *****************************************************************************
-  SUBROUTINE cp_error_init(error, logger, template_error)
-
-    TYPE(cp_error_type), INTENT(out)         :: error
-    TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
-    TYPE(cp_error_type), INTENT(in), &
-      OPTIONAL                               :: template_error
-
-    NULLIFY(error%logger)
-    IF (PRESENT(template_error)) THEN
-       error%logger => template_error%logger
-    END IF
-    IF (PRESENT(logger)) THEN
-       error%logger => logger
-    END IF
-    IF (ASSOCIATED(error%logger)) THEN
-       CALL cp_logger_retain(error%logger)
-    END IF
-  END SUBROUTINE cp_error_init
-
-
-! *****************************************************************************
-!> \brief Deallocates the memory allocated by the error
-!> \param err_to_free the error that gets deallocated
-!> \param error variable to control error logging, stopping,...
-!>             see module cp_error_handling
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-!>      @version 1.2002
-!> \note
-!>      actually the error allocates no memory, and it is better if it
-!>      stays so even in the future, but I have written this routine
-!>      to remain consistent with the generic types
-! *****************************************************************************
-  SUBROUTINE cp_error_dealloc_ref(err_to_free, error)
-    TYPE(cp_error_type), INTENT(inout)       :: err_to_free
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_error_dealloc_ref', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-    IF(ASSOCIATED(err_to_free%logger))&
-      CALL cp_logger_release(err_to_free%logger)
-  END SUBROUTINE cp_error_dealloc_ref
 
 ! *****************************************************************************
 !> \brief gets the logger of the given error.
@@ -197,8 +130,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: res
 
     NULLIFY(res)
-    IF (PRESENT(error)) res=>error%logger
-    IF (.NOT.ASSOCIATED(res)) res => cp_get_default_logger()
+    res => cp_get_default_logger()
     IF (.NOT.ASSOCIATED(res)) THEN
        CALL cp_error_common_stop('cp_error_handling:cp_error_get_logger',&
             ' cp_default_logger is not associated')

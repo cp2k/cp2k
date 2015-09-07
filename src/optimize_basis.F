@@ -88,14 +88,12 @@ CONTAINS
     TYPE(basis_optimization_type)            :: opt_bas
 
     CALL timeset(routineN,handle)
-    CALL cp_error_init(error)
 
     CALL optimize_basis_init_read_input(opt_bas,root_section,para_env,error)
 
     CALL driver_para_opt_basis(opt_bas,input_declaration,para_env,error)
 
     CALL deallocate_basis_optimization_type(opt_bas)
-    CALL cp_error_dealloc_ref(error)
     CALL timestop(handle)
 
 
@@ -182,7 +180,6 @@ CONTAINS
     ALLOCATE(tot_time(opt_bas%ncombinations*opt_bas%ntraining_sets))
     ALLOCATE(matrix_s_inv(SIZE(opt_bas%comp_group(mp_id)%member_list)))
 
-    CALL cp_error_init(error)
     CALL cp_para_env_create(para_env, group=mpi_comm_opt,&
          owns_group=.FALSE.,error=error)
 
@@ -229,7 +226,6 @@ CONTAINS
      END DO
      DEALLOCATE(f_env_id); DEALLOCATE(tot_time); DEALLOCATE(matrix_S_inv) 
      CALL cp_para_env_release(para_env,error=error)
-     CALL cp_error_dealloc_ref(error)   
      CALL timestop(handle)
  
   END SUBROUTINE driver_optimization_para_low

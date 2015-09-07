@@ -82,9 +82,6 @@ PROGRAM cp2k
   ! output goes to the screen by default
   output_unit=default_output_unit
 
-  ! initialize with a default error (a proper error will be initialized later)
-  CALL cp_error_init(error)
-
   ! set default behaviour for the command line switches
   check      =.FALSE.
   manual     =.FALSE.

@@ -233,9 +233,6 @@ CONTAINS
        ! get runtime information
        CALL get_runtime_info
 
-       ! initialize with a default error (a proper error will be initialized later)
-       CALL cp_error_init(error)
-
        IF (init_mpi) THEN
           ! get the default system wide communicator
           CALL mp_world_init(mpi_comm_default)
@@ -337,7 +334,6 @@ CONTAINS
        IF (has_ma .OR. has_ma_topology) THEN
          CALL cp_ma_finalize_lib(error=error)
        ENDIF
-       CALL cp_error_init(error)
        CALL pw_cuda_finalize()
        DO ienv=n_f_envs,1,-1
           CALL destroy_force_env(f_envs(ienv)%f_env%id_nr,ierr=ierr)
@@ -502,7 +498,6 @@ CONTAINS
     NULLIFY(f_env)
     f_env_pos = get_pos_of_env(f_env_id)
     IF (f_env_pos<1) THEN
-       CALL cp_error_init(new_error)
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "invalid env_id "//cp_to_string(f_env_id),error=new_error,&
             failure=failure)
@@ -579,7 +574,6 @@ CONTAINS
        IF (PRESENT(ierr)) THEN
           ierr=0
        ENDIF
-       CALL cp_error_dealloc_ref(error)
        CALL cp_rm_default_logger()
        CALL rm_timer_env()
        CALL rm_mp_perf_env()
@@ -587,7 +581,6 @@ CONTAINS
        IF (PRESENT(ierr)) THEN
           ierr=0
        ENDIF
-       CALL cp_error_dealloc_ref(error)
     END IF
   END SUBROUTINE f_env_rm_defaults
 
@@ -717,7 +710,6 @@ CONTAINS
     logger => cp_get_default_logger()
     ! warning this is dangerous, I did not check that all the subfunctions
     ! support it, the program might crash upon error
-    CALL cp_error_init(error)
 
     NULLIFY(input_file)
     IF (PRESENT(input)) input_file => input
@@ -747,8 +739,6 @@ CONTAINS
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     root_section => input_file
     CALL section_vals_retain(root_section,error)
-    CALL cp_error_dealloc_ref(error)
-    CALL cp_error_init(error)
 
     IF (n_f_envs+1>SIZE(f_envs)) THEN
        f_envs_old => f_envs
@@ -997,7 +987,6 @@ CPSourceFileRef,&
     DEALLOCATE(f_env,stat=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     ierr=0
-    CALL cp_error_dealloc_ref(error)
   END SUBROUTINE destroy_force_env
 
 ! *****************************************************************************
@@ -1557,7 +1546,6 @@ CPSourceFileRef,&
          close_global_unit_on_dealloc=.FALSE.)
     CALL cp_add_default_logger(logger)
     CALL cp_logger_release(logger)
-    CALL cp_error_init(error)
 
     input_file => read_input(input_declaration, input_file_path,initial_variables=empty_initial_variables, &
                                             para_env=para_env,error=error)
@@ -1572,7 +1560,6 @@ CPSourceFileRef,&
     CALL cp_logger_release(logger)
     CALL cp_para_env_release(para_env,error=error)
     ierr = 0
-    CALL cp_error_dealloc_ref(error)
     CALL cp_rm_default_logger()
   END SUBROUTINE check_input
 
