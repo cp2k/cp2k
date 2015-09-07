@@ -53,7 +53,7 @@ uo2_shell_nve_zbl.inp                                  2    1.0E-14            -
 uo2_shell_nve_cascade.inp                              2    1.0E-14            -0.118497693908E+03
 # Geometry optimisation for core-shell model
 UO2-4x4x4-core-forces.inp                             43    1.0E-14                              0
-UO2-4x4x4-core-shell-debug.inp                        42      2e+00
+UO2-4x4x4-core-shell-debug.inp                        42      3e+00
 UO2-4x4x4-shell-forces.inp                            44    1.0E-14                              0
 # Automatic fitting of the BUCK4RANGES polynomials
 UO2-4x4x4-autofit.inp                                 11      1E-12            -948.24095020004961
