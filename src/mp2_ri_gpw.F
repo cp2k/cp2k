@@ -425,12 +425,12 @@ MODULE mp2_ri_gpw
       IF(do_alpha_beta) mem_for_iaK=mem_for_iaK+&
                         dimen_RI*REAL(homo_beta,KIND=dp)*(nmo-homo_beta)*8.0_dp/(1024_dp**2)
 
-      WRITE(unit_nr,'(T3,A,T67,F11.2,A3)') 'RI_INFO| Total memory for (ia|K) integrals:',&
+      WRITE(unit_nr,'(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for (ia|K) integrals:',&
                                            mem_for_iaK, ' MiB'
       IF(my_do_gw) THEN
         mem_for_iaK=dimen_RI*REAL(nmo,KIND=dp)*gw_corr_lev_total*8.0_dp/(1024_dp**2)
 
-        WRITE(unit_nr,'(T3,A,T67,F11.2,A3)') 'RI_INFO| Total memory for G0W0-(nm|K) integrals:',&
+        WRITE(unit_nr,'(T3,A,T66,F11.2,A4)') 'RI_INFO| Total memory for G0W0-(nm|K) integrals:',&
                                            mem_for_iaK, ' MiB'
       END IF
       CALL m_flush(unit_nr)
@@ -4107,7 +4107,7 @@ MODULE mp2_ri_gpw
     mem_min=mem_min+3.0_dp*MAXVAL(sizes_B_virtual)*REAL(dimen_RI,KIND=dp)*8.0_dp/(1024**2)
  
     IF((.NOT.my_open_shell_SS).AND.(.NOT.my_alpha_beta_case)) THEN
-      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Minimum required memory per MPI process:',&
+      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:',&
                                                           mem_min, ' MiB'
     END IF
    

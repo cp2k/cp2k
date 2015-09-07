@@ -239,7 +239,7 @@ MODULE mp2
        mp2_env%mp2_num_proc=para_env%num_pe
     ENDIF
     IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T76,I5)')     'Used number of processes per group:', mp2_env%mp2_num_proc
-    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Maximum allowed memory usage per MPI processes:',&
+    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T68,F9.2,A4)') 'Maximum allowed memory usage per MPI processes:',&
                                                     mp2_env%mp2_memory, ' MiB'
 
     IF((mp2_env%method.NE.mp2_method_gpw).AND.&
@@ -252,7 +252,7 @@ MODULE mp2
       mp2_env%mp2_memory=mp2_env%mp2_memory-mem_real
       IF(mp2_env%mp2_memory<0.0_dp) mp2_env%mp2_memory=1.0_dp
 
-      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'Available memory per MPI processes for MP2:',&
+      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T68,F9.2,A4)') 'Available memory per MPI processes for MP2:',&
                                                       mp2_env%mp2_memory, ' MiB'
     END IF
 
@@ -871,7 +871,7 @@ MODULE mp2
     max_set=SIZE(mp2_biel%index_table,2)
     minimum_memory_needed=(8*(max_set**4))/1024**2
     IF(minimum_memory_needed>mp2_env%mp2_memory) THEN
-      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T67,F12.6,A2)') 'Memory required below the minimum, new memory:',&
+      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T66,F12.6,A3)') 'Memory required below the minimum, new memory:',&
                                                           minimum_memory_needed,'MiB'
       mp2_env%mp2_memory=minimum_memory_needed
     END IF
@@ -971,7 +971,7 @@ MODULE mp2
                    ,my_I_batch_size)
     IF(max_batch_size<1) THEN
        max_batch_size=INT((8*(occ_i+1)*INT(dimen,KIND=int_8)**2/para_env%num_pe)/1024**2)
-       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T73,I6,A2)') 'More memory required, at least:',max_batch_size,'MiB'
+       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T72,I6,A3)') 'More memory required, at least:',max_batch_size,'MiB'
        max_batch_size=1
     END IF
 

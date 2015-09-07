@@ -260,13 +260,13 @@ MODULE rpa_ri_gpw
 
     mem_min=2.0_dp*REAL(homo,KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
  
-    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Minimum required memory per MPI process:',&
+    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:',&
                                                         mem_min, ' MiB'
    
     mem_real=allowed_memory-mem_real
     mem_real=MAX(mem_real,mem_min)
 
-    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T69,F9.2,A3)') 'RI_INFO| Available memory per MPI process:',&
+    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T68,F9.2,A4)') 'RI_INFO| Available memory per MPI process:',&
                                                         mem_real, ' MiB'
     
     mem_per_group=mem_real*para_env_sub%num_pe
