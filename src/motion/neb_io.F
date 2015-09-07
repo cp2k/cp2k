@@ -16,7 +16,6 @@
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
 MODULE neb_io
-
   USE cell_types,                      ONLY: cell_type
   USE cp2k_info,                       ONLY: get_runtime_info
   USE cp_files,                        ONLY: close_file,&
@@ -360,12 +359,15 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(ener,logger,neb_env%neb_section,&
                "ENERGY", error=error)
+
     ! Dump Restarts
+    CALL cp_add_default_logger(logger)
     CALL write_restart(force_env=neb_env%force_env,&
                        root_section=neb_env%root_section,&
                        coords=coords,&
                        vels=vels,&
                        error=error)
+    CALL cp_rm_default_logger()
 
     CALL timestop(handle)
 
@@ -483,7 +485,7 @@ CONTAINS
        DO i = 1, f_env%force_env%mixed_env%ngroups
           IF (MODULO(i-1,f_env%force_env%mixed_env%ngroups)==&
               f_env%force_env%mixed_env%group_distribution(f_env%force_env%mixed_env%para_env%mepos)) THEN
-             sub_logger => cp_error_get_logger(f_env%force_env%mixed_env%sub_error(i))
+             sub_logger => f_env%force_env%mixed_env%sub_logger(i)%p
              sub_logger%iter_info%project_name=replica_proj_name(1:lp)//"-r-"//TRIM(ADJUSTL(cp_to_string(i)))
 
              unit_nr = sub_logger%default_global_unit_nr

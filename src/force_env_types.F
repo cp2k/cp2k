@@ -196,26 +196,26 @@ CONTAINS
 
     INTEGER                                  :: i, my_group, stat
     LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: my_error
+    TYPE(cp_logger_type), POINTER            :: my_logger
 
     failure=.FALSE.
     IF (ASSOCIATED(force_env)) THEN
        CPPreconditionNoFail(force_env%ref_count>0,cp_failure_level,routineP,error)
        force_env%ref_count=force_env%ref_count-1
        IF (force_env%ref_count==0) THEN
-          force_env%ref_count=1
           ! Deallocate SUB_FORCE_ENV
           IF (ASSOCIATED(force_env%sub_force_env)) THEN
              DO i=1,SIZE(force_env%sub_force_env)
                 IF (.NOT.ASSOCIATED(force_env%sub_force_env(i)%force_env)) CYCLE
-                ! Use the proper error to deallocate..
-                my_error=error
+                ! Use the proper logger to deallocate..
                 IF (force_env%in_use==use_mixed_force) THEN
                    my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
-                   my_error = force_env%mixed_env%sub_error(my_group+1)
+                   my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
+                   CALL cp_add_default_logger(my_logger)
                 END IF
-                CALL force_env_release(force_env%sub_force_env(i)%force_env,&
-                     error=my_error)
+                CALL force_env_release(force_env%sub_force_env(i)%force_env,error=error)
+                IF (force_env%in_use==use_mixed_force) &
+                   CALL cp_rm_default_logger()
              END DO
              DEALLOCATE(force_env%sub_force_env,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -243,7 +243,6 @@ CONTAINS
           CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)
           CALL section_vals_release(force_env%force_env_section,error=error)
           CALL section_vals_release(force_env%root_section,error=error)
-          force_env%ref_count=0
           DEALLOCATE(force_env,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF

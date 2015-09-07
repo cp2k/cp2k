@@ -67,7 +67,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: group_partition, i_vals
     LOGICAL                                  :: failure, group_size_wish_set, &
                                                 ngroup_wish_set
-    TYPE(cp_logger_type), POINTER            :: loc_logger, logger
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -129,10 +129,10 @@ CONTAINS
        DEALLOCATE(group_partition,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    ! Allocate para_env and handle the several loggers and errors
+    ! Allocate para_env and handle the several loggers
     ALLOCATE(mixed_env%sub_para_env(mixed_env%ngroups),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(mixed_env%sub_error(mixed_env%ngroups),stat=stat)
+    ALLOCATE(mixed_env%sub_logger(mixed_env%ngroups),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(mixed_env%energies(n_subforce_eval),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -144,7 +144,7 @@ CONTAINS
           CALL cp_para_env_create(mixed_env%sub_para_env(i)%para_env,&
                group=mixed_env%new_group,&
                owns_group=.TRUE.,error=error)
-          ! Create sub_error
+          ! Create sub_logger
           IF (mixed_env%sub_para_env(i)%para_env%mepos==mixed_env%sub_para_env(i)%para_env%source) THEN
              ! Redirecting output of subforce_eval to file..
              CALL section_vals_val_get(root_section,"GLOBAL%PROJECT_NAME",&
@@ -160,27 +160,26 @@ CONTAINS
           ELSE
              unit_nr=-1
           END IF
-          CALL cp_logger_create(loc_logger,para_env=mixed_env%sub_para_env(i)%para_env,&
+          CALL cp_logger_create(mixed_env%sub_logger(i)%p,&
+               para_env=mixed_env%sub_para_env(i)%para_env,&
                default_global_unit_nr=unit_nr, &
                close_global_unit_on_dealloc=.FALSE.)
           ! Try to use better names for the local log if it is not too late
           CALL section_vals_val_get(root_section,"GLOBAL%OUTPUT_FILE_NAME",&
                c_val=c_val,error=error)
           IF (c_val/="") THEN
-             CALL cp_logger_set(loc_logger,&
+             CALL cp_logger_set(mixed_env%sub_logger(i)%p,&
                   local_filename=TRIM(c_val)//"_localLog")
           END IF
           CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",c_val=c_val,error=error)
           IF (c_val/="") THEN
-             CALL cp_logger_set(loc_logger,local_filename=TRIM(c_val)//"_localLog")
+             CALL cp_logger_set(mixed_env%sub_logger(i)%p,&
+                  local_filename=TRIM(c_val)//"_localLog")
           END IF
-          loc_logger%iter_info%project_name=c_val
+          mixed_env%sub_logger(i)%p%iter_info%project_name=c_val
           CALL section_vals_val_get(root_section,"GLOBAL%PRINT_LEVEL",&
-             i_val=loc_logger%iter_info%print_level,error=error)
+             i_val=mixed_env%sub_logger(i)%p%iter_info%print_level,error=error)
 
-          ! Initialize error
-          CALL cp_error_init(mixed_env%sub_error(i), logger=loc_logger)
-          CALL cp_logger_release(loc_logger)
        END IF
     END DO
 

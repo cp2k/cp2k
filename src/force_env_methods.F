@@ -1220,7 +1220,6 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(3)              :: dip_mix
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energies
     TYPE(cell_type), POINTER                 :: cell_mix
-    TYPE(cp_error_type)                      :: my_error
     TYPE(cp_logger_type), POINTER            :: logger, my_logger
     TYPE(cp_result_p_type), DIMENSION(:), &
       POINTER                                :: results
@@ -1287,26 +1286,26 @@ CPSourceFileRef,&
        IF (.NOT.ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
        ! From this point on the error is the sub_error
        my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
-       my_error = force_env%mixed_env%sub_error(my_group+1)
-       my_logger => cp_error_get_logger(my_error)
+       my_logger => force_env%mixed_env%sub_logger(my_group+1)%p
        ! Copy iterations info (they are updated only in the main mixed_env)
        CALL cp_iteration_info_copy_iter(logger%iter_info, my_logger%iter_info)
+       CALL cp_add_default_logger(my_logger)
 
        ! Get all available subsys
        CALL force_env_get(force_env=force_env%sub_force_env(iforce_eval)%force_env,&
-                          subsys=subsystems(iforce_eval)%subsys, error=my_error)
+                          subsys=subsystems(iforce_eval)%subsys, error=error)
 
        ! all force_env share the same cell
        CALL cp_subsys_set(subsystems(iforce_eval)%subsys, cell=cell_mix, error=error)
 
        ! Get available particles
        CALL cp_subsys_get(subsys=subsystems(iforce_eval)%subsys,&
-                          particles=particles(iforce_eval)%list,error=my_error)
+                          particles=particles(iforce_eval)%list,error=error)
 
        ! Get Mapping index array
        natom = SIZE(particles(iforce_eval)%list%els)
        CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, &
-            map_index, my_error)
+            map_index, error)
 
        ! Mapping particles from iforce_eval environment to the mixed env
        DO iparticle = 1, natom
@@ -1318,14 +1317,14 @@ CPSourceFileRef,&
        CALL force_env_calc_energy_force(force_env%sub_force_env(iforce_eval)%force_env,&
                                         calc_force=calculate_forces,&
                                         skip_external_control=.TRUE.,&
-                                        error=my_error)
+                                        error=error)
        ! Only the rank 0 process collect info for each computation
        IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
             force_env%sub_force_env(iforce_eval)%force_env%para_env%source) THEN
           CALL force_env_get(force_env%sub_force_env(iforce_eval)%force_env,&
-                             potential_energy=energy,error=my_error)
+                             potential_energy=energy,error=error)
           CALL cp_subsys_get(subsystems(iforce_eval)%subsys,&
-                             virial=loc_virial, results=loc_results, error=my_error)
+                             virial=loc_virial, results=loc_results, error=error)
           energies(iforce_eval)    = energy
           glob_natoms(iforce_eval) = natom
           CALL cp_virial(loc_virial, virials(iforce_eval)%virial)
@@ -1334,8 +1333,9 @@ CPSourceFileRef,&
        ! Deallocate map_index array
        IF (ASSOCIATED(map_index)) THEN
           DEALLOCATE(map_index, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,my_error,failure)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
+       CALL cp_rm_default_logger()
     END DO
 
     ! Handling Parallel execution

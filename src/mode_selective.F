@@ -91,11 +91,12 @@ CONTAINS
 !> \param calc_intens ...
 !> \param dx ...
 !> \param output_unit ...
+!> \param logger ...
 !> \param error ...
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
   SUBROUTINE ms_vb_anal(input,rep_env, para_env, globenv, particles,&
-                        nrep,calc_intens,dx,output_unit,error)
+                        nrep,calc_intens,dx,output_unit,logger,error)
     TYPE(section_vals_type), POINTER         :: input
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -106,6 +107,7 @@ CONTAINS
     LOGICAL                                  :: calc_intens
     REAL(KIND=dp)                            :: dx
     INTEGER                                  :: output_unit
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ms_vb_anal', &
@@ -154,7 +156,7 @@ CONTAINS
          particles,&
          mass,&
          dx,&
-         calc_intens,error)
+         calc_intens,logger,error)
     ncoord=3*natoms
     ALLOCATE(pos0(ncoord), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -213,7 +215,7 @@ CONTAINS
             mass,&
             converged,&
             dx,calc_intens,&
-            output_unit,error)
+            output_unit,logger,error)
        IF(converged)EXIT
        IF(calc_intens)THEN
           ALLOCATE(tmp_deriv(3,ms_vib%mat_size),stat=stat)
@@ -278,12 +280,13 @@ CONTAINS
 !> \param mass ...
 !> \param dx ...
 !> \param calc_intens ...
+!> \param logger ...
 !> \param error ...
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************
   SUBROUTINE MS_initial_moves(para_env, nrep , input, globenv ,ms_vib,particles ,&
                               mass, dx,&
-                              calc_intens, error)
+                              calc_intens, logger, error)
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER                                  :: nrep
     TYPE(section_vals_type), POINTER         :: input
@@ -294,6 +297,7 @@ CONTAINS
     REAL(Kind=dp), DIMENSION(:)              :: mass
     REAL(KIND=dp)                            :: dx
     LOGICAL                                  :: calc_intens
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'MS_initial_moves', &
@@ -456,7 +460,7 @@ CONTAINS
     CASE(ms_guess_molden)
        ms_vib%initial_guess=5
        ncoord=3*SIZE(particles)
-       CALL molden_guess(ms_vib_section,input,para_env,ms_vib,mass,ncoord,nrep,error)
+       CALL molden_guess(ms_vib_section,input,para_env,ms_vib,mass,ncoord,nrep,logger,error)
        ms_vib%mat_size=0
     END SELECT
     CALL mp_bcast(ms_vib%b_vec,para_env%source,para_env%group)
@@ -740,15 +744,17 @@ CONTAINS
 !> \param mass ...
 !> \param ncoord ...
 !> \param nrep ...
+!> \param logger ...
 !> \param error ...
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************
-  SUBROUTINE molden_guess(ms_vib_section,input,para_env,ms_vib,mass,ncoord,nrep,error)
+  SUBROUTINE molden_guess(ms_vib_section,input,para_env,ms_vib,mass,ncoord,nrep,logger,error)
     TYPE(section_vals_type), POINTER         :: ms_vib_section, input
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(ms_vib_type)                        :: ms_vib
     REAL(Kind=dp), DIMENSION(:)              :: mass
     INTEGER                                  :: ncoord, nrep
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'molden_guess', &
@@ -767,10 +773,7 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: modes
     REAL(KIND=dp), DIMENSION(3, ncoord/3)    :: pos
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
     output_unit = cp_logger_get_default_io_unit(logger)
 
     CALL section_vals_val_get(ms_vib_section,"RESTART_FILE_NAME",c_val=ms_filename,&
@@ -906,6 +909,7 @@ CONTAINS
 !> \param dx ...
 !> \param calc_intens ...
 !> \param output_unit_ms ...
+!> \param logger ...
 !> \param error ...
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************
@@ -913,7 +917,7 @@ CONTAINS
                                   particles,&
                                   mass, &
                                   converged,dx,&
-                                  calc_intens,output_unit_ms,error)
+                                  calc_intens,output_unit_ms,logger,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(ms_vib_type)                        :: ms_vib
     TYPE(section_vals_type), POINTER         :: input
@@ -925,6 +929,7 @@ CONTAINS
     REAL(KIND=dp)                            :: dx
     LOGICAL                                  :: calc_intens
     INTEGER                                  :: output_unit_ms
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'evaluate_H_update_b', &
@@ -1073,13 +1078,13 @@ CONTAINS
        IF(calc_intens)THEN
           CALL ms_out(output_unit_ms, converged, freq, criteria, ms_vib, &
                input, nrep,approx_H, eigenval, calc_intens, &
-               intensities=intensities, error=error)
+               intensities=intensities, logger=logger, error=error)
        ELSE
           CALL ms_out(output_unit_ms, converged, freq, criteria, ms_vib, &
-               input, nrep, approx_H, eigenval, calc_intens, error=error)
+               input, nrep, approx_H, eigenval, calc_intens, logger=logger, error=error)
        ENDIF
        CALL molden_out(input,particles,eigenval,tmp_b,intensities,calc_intens,&
-                       dump_only_positive=.TRUE.,error=error)
+                       dump_only_positive=.TRUE., logger=logger, error=error)
        IF (calc_intens) THEN
           DEALLOCATE(intensities,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1091,7 +1096,7 @@ CONTAINS
     ENDIF
 
     IF(.NOT.converged) CALL ms_out(output_unit_ms, converged, freq, criteria, &
-        ms_vib, input, nrep,approx_H, eigenval, calc_intens, error=error)
+        ms_vib, input, nrep,approx_H, eigenval, calc_intens, logger=logger, error=error)
 
     DEALLOCATE(freq,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1257,11 +1262,12 @@ CONTAINS
 !> \param eigenval ...
 !> \param calc_intens ...
 !> \param intensities ...
+!> \param logger ...
 !> \param error ...
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************
   SUBROUTINE ms_out(iw, converged, freq, criter, ms_vib, input, nrep, &
-    approx_H, eigenval, calc_intens, intensities, error)
+    approx_H, eigenval, calc_intens, intensities, logger, error)
 
     INTEGER                                  :: iw
     LOGICAL                                  :: converged
@@ -1274,6 +1280,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:)              :: eigenval
     LOGICAL                                  :: calc_intens
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: intensities
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ms_out', &
@@ -1283,11 +1290,8 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: crit_a, crit_b
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: residuum
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: ms_vib_section
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
     ms_vib_section => section_vals_get_subs_vals(input, &
         "VIBRATIONAL_ANALYSIS%MODE_SELECTIVE", error=error)
 

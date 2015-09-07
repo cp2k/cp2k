@@ -34,11 +34,12 @@ CONTAINS
 !> \param intensities ...
 !> \param calc_intens ...
 !> \param dump_only_positive ...
+!> \param logger ...
 !> \param error ...
 !> \author Florian Schiffmann 11.2007
 ! *****************************************************************************
   SUBROUTINE molden_out(input,particles,freq,eigen_vec,intensities,calc_intens,&
-             dump_only_positive,error)
+             dump_only_positive,logger,error)
 
     TYPE(section_vals_type), POINTER         :: input
     TYPE(particle_type), DIMENSION(:), &
@@ -48,6 +49,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: intensities
     LOGICAL                                  :: calc_intens, &
                                                 dump_only_positive
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'molden_out', &
@@ -56,10 +58,7 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: i, iw, j, k, l
     LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
     iw=cp_print_key_unit_nr(logger,input,"VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB",&
             extension=".mol",file_status='REPLACE',error=error)
 

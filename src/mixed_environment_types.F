@@ -68,7 +68,7 @@ MODULE mixed_environment_types
      INTEGER                                          :: new_group, ngroups
      INTEGER, DIMENSION(:), POINTER                   :: group_distribution
      TYPE (cp_para_env_p_type),DIMENSION(:), POINTER  :: sub_para_env
-     TYPE (cp_error_type), DIMENSION(:), POINTER      :: sub_error
+     TYPE (cp_logger_p_type), DIMENSION(:), POINTER   :: sub_logger
      REAL(KIND=dp), POINTER, DIMENSION(:)             :: val
      CHARACTER(LEN=default_string_length),&
           DIMENSION(:), POINTER                       :: par
@@ -206,7 +206,7 @@ CONTAINS
     NULLIFY (mixed_env%mixed_energy)
     NULLIFY (mixed_env%subsys)
     NULLIFY (mixed_env%sub_para_env)
-    NULLIFY (mixed_env%sub_error)
+    NULLIFY (mixed_env%sub_logger)
     NULLIFY (mixed_env%energies)
     NULLIFY (mixed_env%par)
     NULLIFY (mixed_env%val)
@@ -415,13 +415,13 @@ CONTAINS
           ngroups = SIZE(mixed_env%sub_para_env)
           DO i = 1, ngroups
              IF (ASSOCIATED(mixed_env%sub_para_env(i)%para_env)) THEN
-                CALL cp_error_dealloc_ref(mixed_env%sub_error(i), error)
+                CALL cp_logger_release(mixed_env%sub_logger(i)%p)
                 CALL cp_para_env_release(mixed_env%sub_para_env(i)%para_env,error=error)
              END IF
           END DO
           DEALLOCATE(mixed_env%sub_para_env, stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-          DEALLOCATE(mixed_env%sub_error, stat=stat)
+          DEALLOCATE(mixed_env%sub_logger, stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(mixed_env%energies, stat=stat)
           CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)

@@ -156,7 +156,7 @@ MODULE cp_log_handling
   END TYPE cp_logger_type
 
   TYPE cp_logger_p_type
-     TYPE(cp_logger_type), POINTER :: p
+     TYPE(cp_logger_type), POINTER :: p => Null()
   END TYPE cp_logger_p_type
 
 ! *****************************************************************************

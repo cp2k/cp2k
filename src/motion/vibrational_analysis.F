@@ -158,7 +158,7 @@ CONTAINS
        ! Decide which kind of Vibrational Analysis to perform
        IF (do_mode_tracking)THEN
           CALL ms_vb_anal(input,rep_env, para_env, globenv, particles,&
-                          nrep,calc_intens,dx,output_unit, error)
+                          nrep,calc_intens,dx,output_unit, logger, error)
           CALL f_env_rm_defaults(f_env,new_error,ierr)
        ELSE
           CALL get_moving_atoms(force_env=f_env%force_env,Ilist=Mlist,error=error)
@@ -424,7 +424,7 @@ CONTAINS
                 CALL vib_out(iw,nvib,D,konst,rmass,H_eigval2,particles,Mlist, intensities)
              END IF
              IF(.NOT.something_frozen) CALL molden_out(input,particles,H_eigval2,D,intensities,calc_intens,&
-                                            dump_only_positive=.FALSE.,error=error)
+                                            dump_only_positive=.FALSE.,logger=logger,error=error)
           ELSE
              IF (output_unit>0) THEN
                 WRITE(output_unit,'(T2,"VIB| No further vibrational info. Detected a single atom")')
