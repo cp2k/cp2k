@@ -82,6 +82,7 @@ MODULE rt_propagation_output
                                              realspace_grid_p_type
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
+  USE rt_propagation_utils,            ONLY: calculate_P_imaginary
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -240,6 +241,9 @@ CONTAINS
                 DO spin=1,nspin
                    CALL cp_dbcsr_init_p(P_im(spin)%matrix,error=error)
                    CALL cp_dbcsr_create(P_im(spin)%matrix,template=matrix_s(1)%matrix,matrix_type="N",error=error)
+                END DO
+                CALL calculate_P_imaginary(rtp,P_im,error=error)
+                DO spin=1,nspin
                    CALL rt_current(qs_env,P_im(spin)%matrix,dft_section,spin,error)
                 END DO
                 CALL cp_dbcsr_deallocate_matrix_set(P_im,error=error)

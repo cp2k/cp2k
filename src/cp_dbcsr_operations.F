@@ -506,7 +506,7 @@ CONTAINS
     ENDIF
   END SUBROUTINE match_col_sizes
 ! *****************************************************************************
-!> \brief performs the multiplication sparse_matrix*dense_mat*dens_mat^T
+!> \brief performs the multiplication sparse_matrix+dense_mat*dens_mat^T
 !>        if matrix_g is not explicitly given, matrix_v^T will be used
 !>        this can be important to save the necessary redistribute for a 
 !>        different matrix_g and increase performance.
@@ -515,7 +515,8 @@ CONTAINS
 !> \param matrix_g ...
 !> \param ncol ...
 !> \param alpha ...
-!> \param keep_sparsity ...
+!> \param keep_sparsity Determines if the sparsity of sparse_matrix is retained
+!>        by default it is TRUE
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_plus_fm_fm_t_native(sparse_matrix,matrix_v,matrix_g,ncol,&

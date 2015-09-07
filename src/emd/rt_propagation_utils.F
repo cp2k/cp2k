@@ -65,7 +65,8 @@ MODULE  rt_propagation_utils
   PUBLIC :: get_restart_wfn,&
             calc_S_derivs,&
             calc_update_rho,&
-            calc_update_rho_sparse
+            calc_update_rho_sparse,&
+            calculate_P_imaginary
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
 
@@ -423,7 +424,7 @@ MODULE  rt_propagation_utils
 
     IF(rtp%do_hfx)THEN
        CALL qs_rho_get(rho_struct=rho,rho_ao_im=rho_ao_im,error=error)
-       CALL calculate_P_imaginary(rtp, rho_ao_im, error)
+       CALL calculate_P_imaginary(rtp, rho_ao_im,keep_sparsity=.TRUE.,error=error)
        CALL qs_rho_set(rho, rho_ao_im=rho_ao_im, error=error)
     END IF
 
@@ -519,23 +520,29 @@ MODULE  rt_propagation_utils
 !> \brief ...
 !> \param rtp ...
 !> \param matrix_p_im ...
+!> \param keep_sparsity ...
 !> \param error ...
 ! *****************************************************************************
-  SUBROUTINE calculate_P_imaginary(rtp,matrix_p_im,error)
+  SUBROUTINE calculate_P_imaginary(rtp,matrix_p_im,keep_sparsity,error)
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p_im
+    LOGICAL, OPTIONAL                        :: keep_sparsity
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_P_imaginary', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, im, ncol, re
+    LOGICAL                                  :: my_keep_sparsity
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos
 
     CALL get_rtp(rtp=rtp,mos_new=mos,error=error)
+
+    my_keep_sparsity=.FALSE.
+    IF(PRESENT(keep_sparsity)) my_keep_sparsity = keep_sparsity
 
     DO i=1,SIZE(mos)/2
        re=2*i-1 ; im =2*i
@@ -546,6 +553,7 @@ MODULE  rt_propagation_utils
                                matrix_v=mos(im)%matrix,&
                                matrix_g=mos(re)%matrix,&
                                ncol=ncol,&
+                               keep_sparsity=my_keep_sparsity,&
                                alpha=alpha,error=error)
        ! It is actually complex conjugate not only transposed
        alpha=-alpha
@@ -553,6 +561,7 @@ MODULE  rt_propagation_utils
                         matrix_v=mos(re)%matrix,&
                         matrix_g=mos(im)%matrix,&
                         ncol=ncol,&
+                        keep_sparsity=my_keep_sparsity,&
                         alpha=alpha,error=error)
     END DO
   
