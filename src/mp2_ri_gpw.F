@@ -4284,8 +4284,6 @@ MODULE mp2_ri_gpw
 !  In alpha-beta case Y_j_aP_beta is sent and is received as Y_j_aP
 !
 
-    WRITE(*,*) 'ENTER UPDATE P_GAMMA'
-
     CALL timeset(routineN//"_Pia",handle)
     failure=.FALSE.
 ! Find out whether we have an alpha-beta case
