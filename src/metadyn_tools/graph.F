@@ -640,7 +640,7 @@ PROGRAM graph
         ELSE
            WRITE(out3_stride,'(A,i3)')TRIM(out3),ncount
         END IF
-        CALL open_file(unit_number=unit_nr,file_name=out3_stride)
+        CALL open_file(unit_number=unit_nr,file_name=out3_stride,file_action="WRITE",file_status="UNKNOWN",file_form="FORMATTED")
         ind   = 1
         CALL fes_only_write(ndim, fes,  ind,  ndim, ngrid, dp_grid, ndw, l_fes_int, unit_nr)
         CALL close_file(unit_nr)
