@@ -13,7 +13,7 @@ H2O-gapwxc-gth.inp                                     1      2e-13             
 # test with presence of soft S
 H2S-gapw.inp                                           1      3e-13            -11.268863261240719
 # tests GAPW  6-311++G(3df,3pd)
-HF_gapw_all_LB.inp                1     1e-12            -98.788147813994456
+HF_gapw_all_LB.inp                                     1      1e-12            -98.788147813994456
 # tests GAPW  6-311++G(3df,3pd) and LSD
 OF_gapw_all_lsd_LB.inp                                 1      9e-14            -174.10093736583187
 # keep special case alive

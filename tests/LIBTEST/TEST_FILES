@@ -14,16 +14,16 @@ eig.inp                                                0
 dbcsr_mm_blas.inp                                      0
 dbcsr_multistack.inp                                   0
 dbcsr_types.inp                                        0
-dbcsr_blocks_01.inp                                   58
-dbcsr_blocks_02.inp                                   58
-dbcsr_blocks_03.inp                                   58
-dbcsr_blocks_04.inp                                   58
-dbcsr_blocks_05.inp                                   58
-dbcsr_types_01.inp                                    58
-dbcsr_types_02.inp                                    58
-dbcsr_types_03.inp                                    58
-dbcsr_types_04.inp                                    58
-dbcsr_types_05.inp                                    58
+dbcsr_blocks_01.inp                                   58    1.0E-14             20978908949.261906
+dbcsr_blocks_02.inp                                   58    1.0E-14             21229174127.238159
+dbcsr_blocks_03.inp                                   58    1.0E-14             21561533688.640675
+dbcsr_blocks_04.inp                                   58    1.0E-14              21304439095.77774
+dbcsr_blocks_05.inp                                   58    1.0E-14             21455488291.450737
+dbcsr_types_01.inp                                    58    1.0E-14             272584373.29241335
+dbcsr_types_02.inp                                    58    1.0E-14             272584373.29241335
+dbcsr_types_03.inp                                    58    1.0E-14             272584373.29241335
+dbcsr_types_04.inp                                    58    1.0E-14             272584373.29241335
+dbcsr_types_05.inp                                    58    1.0E-14             272584373.29241335
 dbcsr_io_1.inp                                         0
-dbcsr_order_N.inp                                     58
+dbcsr_order_N.inp                                     58    1.0E-14             1910924.8949438382
 #EOF

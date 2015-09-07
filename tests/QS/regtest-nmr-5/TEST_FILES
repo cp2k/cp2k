@@ -3,8 +3,8 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-h2o-gapw-1.inp                   14     4e-04             458.21300000000002
-h2o-gapw-3.inp                   14     2e-03             68.856399999999994
+h2o-gapw-1.inp                                        14      4e-04             458.21300000000002
+h2o-gapw-3.inp                                        14      2e-03             68.856399999999994
 h2o-gapw-4.inp                                        14      1e-04             427.74799999999999
 o2-gapw-uks-1.inp                                     14      3E-04             754.42700000000002
 o2-gapw-uks-3.inp                                     14      2e-04             1068.3199999999999

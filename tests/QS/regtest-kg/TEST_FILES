@@ -1,19 +1,19 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-H2_MD.inp                                             11      7e-07
-H2_MD-2.inp                                           11      7e-07
-H2_MD-3.inp                                           11      7e-07
-H2-libxc.inp                                          11      5e-14
-H2-libxc-ot.inp                                       11      4e-14
-H2-libxc-diag.inp                                     11      5e-14
+H2_MD.inp                                             11      7e-07             -3.154884771619098
+H2_MD-2.inp                                           11      7e-07            -3.1548873963582911
+H2_MD-3.inp                                           11      7e-07            -2.1282196550651968
+H2-libxc.inp                                          11      5e-14            -3.0639455259826192
+H2-libxc-ot.inp                                       11      4e-14            -3.0639455258035309
+H2-libxc-diag.inp                                     11      5e-14            -3.0639455259860058
 geo-phase-1.inp                                       11      5e-07             -2.229647716115335
 geo-phase-2.inp                                        0
-H2_KG-1.inp                                           11      7e-07
-H2_KG-2.inp                                           11      1e-06
-H2_H2O-xcLC.inp                                       11      1e-10
-H2_H2O-xcLLP.inp                                      11      1e-10
-H2_H2O-xcPW86.inp                                     11      1e-10
-H2_H2O-xcPW91.inp                                     11      1e-10
-H2_H2O-xcT92.inp                                      11      1e-10
+H2_KG-1.inp                                           11      7e-07            -3.0857150864890102
+H2_KG-2.inp                                           11      1e-06            -3.2269982118329681
+H2_H2O-xcLC.inp                                       11      1e-10            -18.128250540244913
+H2_H2O-xcLLP.inp                                      11      1e-10            -18.127917783808059
+H2_H2O-xcPW86.inp                                     11      1e-10            -18.127360510720912
+H2_H2O-xcPW91.inp                                     11      1e-10            -18.126985946101961
+H2_H2O-xcT92.inp                                      11      1e-10            -18.128137231215568
 #EOF

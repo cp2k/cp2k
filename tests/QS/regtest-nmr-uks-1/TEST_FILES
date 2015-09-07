@@ -3,7 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-O2-UKS-NMR-1.inp                 14     2e-03                               
+O2-UKS-NMR-1.inp                                      14      2e-03                        681.255
 O2-UKS-NMR-2.inp                                      14      4e-04             681.84900000000005
 O2-UKS-NMR-3.inp                                      14      3e-04                        681.173
 O2-UKS-NMR-4.inp                                      14      2e-03             714.20500000000004

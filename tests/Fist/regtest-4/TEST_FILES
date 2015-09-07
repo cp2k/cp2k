@@ -70,5 +70,5 @@ nh3-meta-walks_1r.inp                                  2      4e-12          0.0
 nh3-meta-walks_2r.inp                                  2      7e-10           0.014663352649999999
 #Combine_colvar
 H2O-meta-combine.inp                                   2      3e-02               0.00104137484729
-lewis.inp                                              11     7e-10            -25.423499443424980
+lewis.inp                                             11      7e-10            -25.423499443424980
 #EOF

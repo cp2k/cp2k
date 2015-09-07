@@ -8,18 +8,18 @@
 # The whole TMC on the fly analysis is tested, average values and sums of results
 # testing the "on the fly" analysis tool starting to analyse the previous elements from directory and the new ones
 # density calculations
-TMC_ana_density.inp                                   39
+TMC_ana_density.inp                                   39    1.0E-14            0.12331219268613364
 # radial distribution function
-TMC_ana_G_R.inp                                       39
+TMC_ana_G_R.inp                                       39    1.0E-14           0.002560696691107978
 # classical dipole moment writing out TMC restart file (no ana restart file)
-TMC_ana_dip_cl.inp                                    39 4.0E-14
+TMC_ana_dip_cl.inp                                    39    4.0E-14            0.12598475574494472
 # calculating the root mean squared deviation from the last cell and the average
-TMC_ana_deviation.inp                                 39
+TMC_ana_deviation.inp                                 39    1.0E-14            0.31519140517024735
 # creating a not analyzed trajectory
 TMC_ana_create_traj_without_ana.inp                    0
 # testing the analysis starting with existing old trajectory
-TMC_ana_start_with_exist_traj.inp                     39
+TMC_ana_start_with_exist_traj.inp                     39    1.0E-14            0.49448804287808246
 # restarting with existing analysis restart file
-TMC_ana_restart.inp                                   39
+TMC_ana_restart.inp                                   39    1.0E-14            0.53023035795615681
 # restarting
 #EOF

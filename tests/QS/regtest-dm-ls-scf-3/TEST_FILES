@@ -1,17 +1,17 @@
 H2O-32-dftb-ls-7.inp                                  11      1e-14            -65.156509753649999
 H2O-32-dftb-ls-8.inp                                  11      1e-14            -65.156510038644626
 H2O-32-dftb-trs4-dyn.inp                              11      1e-14            -32.574186647231741
-H2_curvy-1.inp                                        11      1e-13
-H2_curvy-2.inp                                        11      2e-13
-H2_curvy-3.inp                                        11      1e-13
+H2_curvy-1.inp                                        11      1e-13            -27.808687287777047
+H2_curvy-2.inp                                        11      2e-13            -27.808687287777051
+H2_curvy-3.inp                                        11      1e-13            -27.808687287777047
 H2O-chebyshev-01.inp                                  11      1e-14            -32.574187802183182
-H2O-dft-ecube.inp                                     11      1e-13
-H2O-dipole.inp                                        39
-H2O-restart-write.inp                                 11      1e-13
-H2O-restart-read.inp                                  11      3e-13
-H2O-restart-read-curvy.inp                            11      2e-13
-H2O-curvy-prop.inp                                    11      1e-13
-H2O-dftb-tc2-1.inp                                    11      1e-13
+H2O-dft-ecube.inp                                     11      1e-13               -51.496123150109
+H2O-dipole.inp                                        39    1.0E-14            0.48621122999999999
+H2O-restart-write.inp                                 11      1e-13               -51.496123150109
+H2O-restart-read.inp                                  11      3e-13            -51.496123419141597
+H2O-restart-read-curvy.inp                            11      2e-13            -51.496124074418276
+H2O-curvy-prop.inp                                    11      1e-13            -17.163926787927892
+H2O-dftb-tc2-1.inp                                    11      1e-13            -65.156510340099089
 H2O-dftb-tc2-2.inp                                    11      1e-13            -65.156510335161130
 ch4_DIIS-TRS4.inp                                     11    1.0E-14             -7.995026750654139
 cho_DIIS-TRS4.inp                                     11    1.0E-14            -22.137028020218903
