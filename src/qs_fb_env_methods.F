@@ -26,20 +26,26 @@ MODULE qs_fb_env_methods
        cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_triangular_invert
+                                             cp_fm_symm,&
+                                             cp_fm_triangular_invert,&
+                                             cp_fm_triangular_multiply,&
+                                             cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+  USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                             cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
-  USE input_constants,                 ONLY: cholesky_inverse
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -85,8 +91,8 @@ MODULE qs_fb_env_methods
                                              get_mo_set,&
                                              init_mo_set,&
                                              mo_set_p_type,&
+                                             mo_set_type,&
                                              set_mo_set
-  USE qs_scf_methods,                  ONLY: eigensolver
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE string_utilities,                ONLY: compress,&
@@ -143,14 +149,13 @@ CONTAINS
     CHARACTER(len=2)                         :: spin_string
     CHARACTER(len=default_string_length)     :: name
     INTEGER :: filtered_nfullrowsORcols_total, handle, homo_filtered, ispin, &
-      lfomo_filtered, my_nmo, nelectron, nmo, nmo_filtered, nspin, &
+      lfomo_filtered, my_nmo, ndep, nelectron, nmo, nmo_filtered, nspin, &
       original_nfullrowsORcols_total, stat
     INTEGER, DIMENSION(:), POINTER           :: filtered_rowORcol_block_sizes,&
                                                 original_rowORcol_block_sizes
-    LOGICAL                                  :: collective_com, failure, &
-                                                use_jacobi
-    REAL(kind=dp) :: diis_error, eps_diis, fermi_level, filter_temp, &
-      flexible_electron_count, KTS_filtered, maxocc, mu_filtered
+    LOGICAL                                  :: collective_com, failure
+    REAL(kind=dp) :: diis_error, eps_diis, eps_eigval, fermi_level, &
+      filter_temp, flexible_electron_count, KTS_filtered, maxocc, mu_filtered
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
                                                 eigenvalues_filtered, occ, &
                                                 occ_filtered
@@ -164,7 +169,8 @@ CONTAINS
     TYPE(cp_dbcsr_type), POINTER             :: matrix_filtered_p
     TYPE(cp_fm_struct_type), POINTER         :: filter_fm_struct, fm_struct
     TYPE(cp_fm_type), POINTER :: fm_matrix_filter, fm_matrix_filtered_ks, &
-      fm_matrix_filtered_s, fm_matrix_work, mo_coeff, mo_coeff_filtered
+      fm_matrix_filtered_s, fm_matrix_ortho, fm_matrix_work, mo_coeff, &
+      mo_coeff_filtered
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fb_atomic_halo_list_obj)            :: atomic_halos
     TYPE(fb_trial_fns_obj)                   :: trial_fns
@@ -190,7 +196,7 @@ CONTAINS
     NULLIFY(fm_struct, filter_fm_struct)
     NULLIFY(fm_matrix_filter, fm_matrix_filtered_s, &
             fm_matrix_filtered_ks, fm_matrix_work, &
-            mo_coeff_filtered, mo_coeff)
+            fm_matrix_ortho, mo_coeff_filtered, mo_coeff)
     ! NULLIFY(sab_orb)
     CALL fb_atomic_halo_list_nullify(atomic_halos)
     CALL fb_trial_fns_nullify(trial_fns)
@@ -219,6 +225,7 @@ CONTAINS
     END DO
 
     eps_diis = scf_control%eps_diis
+    eps_eigval = scf_control%eps_eigval
 
     IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
        CALL qs_diis_b_step(scf_env%scf_diis_buffer, mos, scf_env%scf_work1, &
@@ -230,38 +237,18 @@ CONTAINS
        diis_step = .FALSE.
     END IF
 
-    ! IF ((scf_env%iter_count > 1).AND.&
-    !     (scf_env%iter_delta < scf_control%diagonalization%eps_jacobi)) THEN
-    !   use_jacobi = .TRUE.
-    ! ELSE
-    !   use_jacobi = .FALSE.
-    ! END IF
-    use_jacobi = .FALSE.
-
     IF (diis_step) THEN
        scf_env%iter_param = diis_error
-       IF (use_jacobi) THEN
-          scf_env%iter_method = "DIIS/Jacobi"
-       ELSE
-          scf_env%iter_method = "DIIS/Diag."
-       END IF
+       scf_env%iter_method = "DIIS/Filter"
     ELSE
-       IF(scf_env%mixing_method ==0) THEN
-          scf_env%iter_method = "NoMix/Diag."
-       ELSE IF(scf_env%mixing_method ==1) THEN
+       IF (scf_env%mixing_method == 0) THEN
+          scf_env%iter_method = "NoMix/Filter"
+       ELSE IF(scf_env%mixing_method == 1) THEN
           scf_env%iter_param = scf_env%p_mix_alpha
-          IF (use_jacobi) THEN
-             scf_env%iter_method = "P_Mix/Jacobi"
-          ELSE
-             scf_env%iter_method = "P_Mix/Diag."
-          END IF
-       ELSEIF(scf_env%mixing_method>1) THEN
+          scf_env%iter_method = "P_Mix/Filter"
+       ELSE IF(scf_env%mixing_method > 1) THEN
           scf_env%iter_param = scf_env%mixing_store%alpha
-          IF (use_jacobi) THEN
-             scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Jacobi"
-          ELSE
-             scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Diag."
-          END IF
+          scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Filter"
        END IF
     END IF
 
@@ -269,13 +256,8 @@ CONTAINS
     ! Construct Filter Matrix
     ! ----------------------------------------------------------------------
 
-    ! get filter temperature
     CALL fb_env_get(fb_env=fb_env, &
                     filter_temperature=filter_temp, &
-                    error=error)
-
-    ! get atomic halos
-    CALL fb_env_get(fb_env=fb_env, &
                     atomic_halos=atomic_halos, &
                     error=error)
 
@@ -486,6 +468,7 @@ CONTAINS
                       error=error)
     ! creaate work matrix
     CALL cp_fm_create(fm_matrix_work, fm_struct, name="FM_MATRIX_WORK", error=error)
+    CALL cp_fm_create(fm_matrix_ortho, fm_struct, name="FM_MATRIX_ORTHO", error=error)
     ! all fm matrices are created, so can release fm_struct
     CALL cp_fm_struct_release(fm_struct, error=error)
 
@@ -514,31 +497,21 @@ CONTAINS
        CALL copy_dbcsr_to_fm(matrix_filtered_s, fm_matrix_filtered_s, error=error)
        CALL copy_dbcsr_to_fm(matrix_filtered_ks, fm_matrix_filtered_ks, error=error)
 
-       ! now diagonalise
-
-       ! calculate S^(-1/2) (cholesky decomposition)
-       CALL cp_fm_cholesky_decompose(fm_matrix_filtered_s, error=error)
-       CALL cp_fm_triangular_invert(fm_matrix_filtered_s, error=error)
        ! setup matrix pools for the molecular orbitals
        CALL init_mo_set(mos_filtered(ispin)%mo_set,&
                         my_mpools%ao_mo_fm_pools(ispin)%pool,&
                         name="FILTERED_MOS",&
                         error=error)
-       ! initialise work matrix
-       CALL cp_fm_set_all(matrix=fm_matrix_work, alpha=0.0_dp, error=error)
-       ! diagonalise
 
-       ! At the moment, can only use cholesky_inverse with no jacobi
-!TODO:LT:2015/02/04: make it more flexible
-       scf_env%cholesky_method = cholesky_inverse
-       use_jacobi = .FALSE.
-       CALL eigensolver(matrix_ks_fm=fm_matrix_filtered_ks, &
-                        mo_set=mos_filtered(ispin)%mo_set, &
-                        ortho=fm_matrix_filtered_s, &
-                        work=fm_matrix_work,&
-                        cholesky_method=scf_env%cholesky_method, &
-                        use_jacobi=use_jacobi, &
-                        error=error)
+       ! now diagonalise
+       CALL fb_env_eigensolver(fm_matrix_filtered_ks, &
+                               fm_matrix_filtered_s, &
+                               mos_filtered(ispin)%mo_set, &
+                               fm_matrix_ortho, &
+                               fm_matrix_work, &
+                               eps_eigval, &
+                               ndep, &
+                               error)
     END DO ! ispin
 
     ! release temporary matrices
@@ -547,6 +520,7 @@ CONTAINS
     CALL cp_fm_release(fm_matrix_filtered_s, error=error)
     CALL cp_fm_release(fm_matrix_filtered_ks, error=error)
     CALL cp_fm_release(fm_matrix_work, error=error)
+    CALL cp_fm_release(fm_matrix_ortho, error=error)
 
     ! ----------------------------------------------------------------------
     ! Construct New Density Matrix
@@ -709,6 +683,113 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE fb_env_do_diag
+
+
+! *****************************************************************************
+!> \brief The main parallel eigensolver engine for filter matrix diagonalisation
+!> \param fm_KS : the BLACS distributed Kohn-Sham matrix, input only
+!> \param fm_S  : the BLACS distributed overlap matrix, input only
+!> \param mo_set : upon output contains the molecular orbitals (eigenvectors)
+!>                 and eigenvalues
+!> \param fm_ortho : one of the work matrices, on output, the BLACS distributed
+!>                   matrix for orthogalising the eigen problem. E.g. if using
+!>                   Cholesky inversse, then the upper triangle part contains
+!>                   the inverse of Cholesky U; if not using Cholesky, then it
+!>                   contains the S^-1/2.
+!> \param fm_work : work matrix used by eigen solver
+!> \param eps_eigval : used for quenching the small numbers when computing S^-1/2
+!>                     any values less than eps_eigval is truncated to zero.
+!> \param ndep : if the overlap is not positive definite, then ndep > 0,
+!>               and equals to the number of linear dependent basis functions
+!>               in the filtered basis set
+!> \param error : cp2k error container
+!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
+! *****************************************************************************
+  SUBROUTINE fb_env_eigensolver(fm_KS, fm_S, mo_set, fm_ortho, &
+                                fm_work, eps_eigval, ndep, error)
+    TYPE(cp_fm_type), POINTER                :: fm_KS, fm_S
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: fm_ortho, fm_work
+    REAL(KIND=dp), INTENT(IN)                :: eps_eigval
+    INTEGER, INTENT(OUT)                     :: ndep
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_eigensolver', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, info, nao, nmo
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+
+    CALL timeset(routineN, handle)
+
+    CALL get_mo_set(mo_set=mo_set, &
+                    nao=nao, &
+                    nmo=nmo, &
+                    eigenvalues=mo_eigenvalues, &
+                    mo_coeff=mo_coeff)
+    ndep = 0
+
+    ! first, obtain orthogonalisation (ortho) matrix
+    CALL cp_fm_to_fm(fm_S, fm_ortho, error=error)
+    CALL cp_fm_cholesky_decompose(fm_ortho, info_out=info, error=error)
+    IF (info == 0) THEN
+       ! we are able to use cholesky inverse method
+       CALL cp_fm_triangular_invert(fm_ortho, error=error)
+       ! solve eigen equation using inverse of cholesky U
+       CALL cp_fm_upper_to_full(fm_KS, fm_work, error=error)
+       CALL cp_fm_triangular_multiply(fm_ortho, &
+                                      fm_KS, &
+                                      side="R", &
+                                      transpose_tr=.FALSE., &
+                                      invert_tr=.FALSE., &
+                                      uplo_tr="U", &
+                                      n_rows=nao, &
+                                      n_cols=nao, &
+                                      alpha=1.0_dp, &
+                                      error=error)
+       CALL cp_fm_triangular_multiply(fm_ortho, &
+                                      fm_KS, &
+                                      side="L", &
+                                      transpose_tr=.TRUE., &
+                                      invert_tr=.FALSE., &
+                                      uplo_tr="U", &
+                                      n_rows=nao, &
+                                      n_cols=nao, &
+                                      alpha=1.0_dp, &
+                                      error=error)
+       CALL choose_eigv_solver(fm_KS, fm_work, mo_eigenvalues, error=error)
+       CALL cp_fm_triangular_multiply(fm_ortho, &
+                                      fm_work, &
+                                      side="L", &
+                                      transpose_tr=.FALSE., &
+                                      invert_tr=.FALSE., &
+                                      uplo_tr="U", &
+                                      n_rows=nao, &
+                                      n_cols=nmo, &
+                                      alpha=1.0_dp, &
+                                      error=error)
+       CALL cp_fm_to_fm(fm_work, mo_coeff, nmo, 1, 1)
+    ELSE
+       ! cholesky decomposition has failed, revert to calculating
+       ! ortho as S^-1/2 using diagonalisation of S, and solve
+       ! accordingly
+       CALL cp_fm_to_fm(fm_S, fm_ortho, error=error)
+       CALL cp_fm_power(fm_ortho, fm_work, -0.5_dp, &
+                        eps_eigval, ndep, error=error)
+       ! solve eigen equatoin using S^-1/2
+       CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, fm_KS, fm_ortho, &
+                       0.0_dp, fm_work, error=error)
+       CALL cp_gemm("T", "N", nao, nao, nao, 1.0_dp, fm_ortho, &
+                    fm_work, 0.0_dp, fm_KS, error=error)
+       CALL choose_eigv_solver(fm_KS, fm_work, mo_eigenvalues, error=error)
+       CALL cp_gemm("N", "N", nao, nmo, nao, 1.0_dp, fm_ortho, &
+                    fm_work, 0.0_dp, mo_coeff, error=error)
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE fb_env_eigensolver
 
 
 ! *****************************************************************************
