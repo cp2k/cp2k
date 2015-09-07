@@ -851,6 +851,9 @@ MODULE mp2_ri_gpw
 
     DO iproc=0, para_env_sub%num_pe-1
       itmp=get_limit(size_1,para_env_sub%num_pe,iproc)
+      IF (itmp(2) < itmp(1)) THEN
+         itmp(2) = itmp(1)
+      ENDIF
       starts_B(iproc)=itmp(1)
       ends_B(iproc)=itmp(2)
       sizes_B(iproc)=itmp(2)-itmp(1)+1
@@ -2952,6 +2955,7 @@ MODULE mp2_ri_gpw
               CALL dgemm('T','N',rec_B_size,my_B_size_beta,dimen_RI,1.0_dp,&
                          external_i_aL,dimen_RI,local_j_aL(:,:,jjB),dimen_RI,&
                          0.0_dp,local_ab(rec_B_virtual_start:rec_B_virtual_end,1:my_B_size_beta),rec_B_size)
+
               t_end=m_walltime()
               actual_flop_rate=2.0_dp*rec_B_size*my_B_size_beta*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
               my_flop_rate=my_flop_rate+actual_flop_rate
@@ -4279,6 +4283,8 @@ MODULE mp2_ri_gpw
 !
 !  In alpha-beta case Y_j_aP_beta is sent and is received as Y_j_aP
 !
+
+    WRITE(*,*) 'ENTER UPDATE P_GAMMA'
 
     CALL timeset(routineN//"_Pia",handle)
     failure=.FALSE.
