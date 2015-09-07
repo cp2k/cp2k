@@ -4,7 +4,7 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 NO2-EPR-1.inp                                         20      2e-02         -0.0013392899999999999
-NO2-EPR-2.inp                    20     2e-01         -0.0017388499999999999
-NO2-EPR-3.inp                                         20      5e-02                    -0.00140565
+NO2-EPR-2.inp                    20     7e-01         -0.0017388499999999999
+NO2-EPR-3.inp                    20     4e-01                    -0.00140565
 NO2-EPR-keys-1.inp                                    20      2e-02         -0.0013716100000000001
 #EOF

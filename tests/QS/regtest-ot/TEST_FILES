@@ -30,7 +30,7 @@ sic_ddapc_rt.inp                                       1      1E-11             
 # introduce coeff
 He2_ddapc_constraint-4.inp                             1      2e-12            -5.1130698445832703
 #test constraint on becke wight population
-H2-BECKE-MD.inp                                        1      3e-04            -1.2233386124261501
+H2-BECKE-MD.inp                   1     1e-03            -1.2233386124261501
 H2-diffBECKE-ET_coupling.inp                           1      1e-13              -1.24257949981589
 # just energy with sic
 sic_energy.inp                                         1    1.0E-14             -16.68885651999939

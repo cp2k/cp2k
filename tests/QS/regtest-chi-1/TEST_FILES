@@ -3,8 +3,8 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-H2O-chi-gpw-1.inp                                     16    1.0E-14                   0.212696E+03
-H2O-chi-gpw-2.inp                                     16    1.0E-14                   0.212696E+03
+H2O-chi-gpw-1.inp                16     1e-03                   0.212696E+03
+H2O-chi-gpw-2.inp                16     1e-03                   0.212696E+03
 O2-uks-chi-gpw-1.inp                                  16      5e-04                        102.375
 O2-uks-chi-gpw-2.inp                                  16      5e-04                        102.375
 #EOF

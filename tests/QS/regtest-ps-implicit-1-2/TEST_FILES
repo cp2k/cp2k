@@ -1,5 +1,5 @@
 Ar_mixed_periodic_planar.inp                           1      1e-04             -21.11373232604598
-Ar_mixed_periodic_cuboidal.inp                         1      1e-12             -21.07466726296222
+Ar_mixed_periodic_cuboidal.inp    1     4e-12             -21.07466726296222
 Ar_mixed_periodic_cylindrical.inp                      1      3e-12             -21.07466821856406
 Ar_neumann.inp                                         1      1e-12             -21.07467624808816
 #EOF
