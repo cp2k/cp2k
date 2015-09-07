@@ -1,5 +1,5 @@
 si8_noort_broy_wc_jacobi_all.inp                      23      2e-04                 121.0552249429
-si8_noort_broy_wc_jacobi_ene2.inp                     23      6e-10             46.988569892999998
+si8_noort_broy_wc_jacobi_ene2.inp   23     1e-09             46.988569892999998
 si8_noort_broy_wc_jacobi_ene1.inp                     23      7e-04             153.02482717820001
 si8_noort_broy_wc_direct_ene.inp                      23       2E-9             555.17721598330002
 #
