@@ -7,9 +7,9 @@ ch4-gapw-1.inp                                        14    1.0E-14             
 ch4-gapw-2.inp                                        14    1.0E-14                   0.333015E+03
 ch4-gapw-3.inp                                        14    1.0E-14                   0.333051E+03
 ch4-gapw-4.inp                                        14    1.0E-14                   0.333493E+03
-ch4-gapw-5.inp                                        14    1.0E-14                   0.290901E+03
+ch4-gapw-5.inp                                        14    2.0E-03                   0.290901E+03
 no-gapw-1.inp                    14     3e-02                               
-no-gapw-2.inp                                         14      2e-05
+no-gapw-2.inp                                         14      1e-04
 no-gapw-3.inp                                         14      2e-04
 no-gapw-4.inp                    14     3e-01                               
 no-gapw-5.inp                                         14      1e-03                        16357.4
@@ -17,12 +17,12 @@ ch4-gapw-1-distributed.inp                            14    1.0E-14             
 ch4-gapw-1-replicated.inp                             14    1.0E-14                   0.332896E+03
 no-gapw-1-distributed.inp        14     3e-02                               
 no-gapw-1-replicated.inp         14     3e-02                               
-w2_qmmm-1.inp                                         14      2e-04                        229.358
+w2_qmmm-1.inp                                         14      4e-03                        229.358
 w2_qmmm-2.inp                    14     2e-03             230.05799999999999
 w2_qmmm-3.inp                    14     4e-03             230.13999999999999
-ch4-gapw-gpw-1.inp                                    14    1.0E-14                   0.163314E+03
-no-gapw-gpw-1.inp                14     6e-03                               
+ch4-gapw-gpw-1.inp                                    14    2.0E-05                   0.163314E+03
+no-gapw-gpw-1.inp                14     8e-03                               
 h2-gapw-1.inp                                         14    1.0E-14                   0.236339E+02
-ch3m-gapw-1.inp                                       14      6e-04                        424.976
+ch3m-gapw-1.inp                                       14      3e-03                        424.976
 ch3p-gapw-1.inp                                       14      2e-04             692.08399999999995
 #EOF
