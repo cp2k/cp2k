@@ -3251,11 +3251,10 @@ CONTAINS
         WRITE(output_unit,*) "Running with ",nprocs
         WRITE(output_unit,*) "running messages with npow = ",npow
         WRITE(output_unit,*) "use MPI X in the input for larger (e.g. 6) of smaller (e.g. 3) messages"
-        IF (MODULO(nprocs,2).NE.0) THEN
-            WRITE(output_unit,*) "Testing only with an even number of tasks"
-            RETURN
-        ENDIF
+        IF (MODULO(nprocs,2).NE.0) WRITE(output_unit,*) "Testing only with an even number of tasks"
     ENDIF
+
+    IF (MODULO(nprocs,2).NE.0) RETURN
 
     ! equal loads
     Nloc=Ngrid/nprocs
