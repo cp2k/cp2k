@@ -1516,6 +1516,7 @@ MODULE dbcsr_mm_cannon
                thread_dist=sm%dist,&
                data_memory_type=data_memory_type,&
                index_memory_type=memtype_mpi_buffer,&
+               make_index=.FALSE.,&
                error=dbcsr_error)
           ums%mats(row_img, col_img)%m%negate_real = sm%negate_real
           ums%mats(row_img, col_img)%m%negate_imaginary = sm%negate_imaginary
@@ -4158,20 +4159,15 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_memtype_type), INTENT(IN)     :: data_memory_type
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
-    INTEGER, DIMENSION(:), POINTER           :: i1
-
     CALL dbcsr_init(matrix)
-    ! Dummy allocation only needed for NAG (at least for 5.1(327))
-    ALLOCATE(i1(10000))
     CALL dbcsr_create(matrix,&
          template = source_matrix,&
          name = TRIM("Buffer of "//TRIM(source_matrix%m%name)),&
          nblks = INT(index_size), nze = INT(data_size), &
          data_memory_type = data_memory_type,&
          index_memory_type = memtype_mpi_buffer,&
+         make_index=.FALSE.,&
          error = error)
-    ! Dummy allocation only needed for NAG (at least for 5.1(327))
-    DEALLOCATE(i1)
     CALL dbcsr_data_ensure_size (&
          matrix%m%data_area,&
          INT(data_size), nocopy=.TRUE.,error=error)
