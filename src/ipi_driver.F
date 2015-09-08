@@ -36,6 +36,8 @@ MODULE ipi_driver
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sync
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
@@ -98,10 +100,18 @@ MODULE ipi_driver
     INTEGER, INTENT(IN)                      :: psockfd
     REAL(KIND=dp), INTENT(IN)                :: fdata
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'writebuffer_d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
     REAL(KIND=C_DOUBLE), TARGET              :: cdata
 
-      cdata = fdata
-      CALL writebuffer_csocket(psockfd, c_loc(cdata), 8)
+    CALL timeset(routineN,handle)
+
+    cdata = fdata
+    CALL writebuffer_csocket(psockfd, c_loc(cdata), 8)
+
+    CALL timestop(handle)
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -112,10 +122,18 @@ MODULE ipi_driver
   SUBROUTINE writebuffer_i (psockfd, fdata)
     INTEGER, INTENT(IN)                      :: psockfd, fdata
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'writebuffer_i', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
     INTEGER(KIND=C_INT), TARGET              :: cdata
 
-      cdata = fdata
-      CALL writebuffer_csocket(psockfd, c_loc(cdata), 4)
+    CALL timeset(routineN,handle)
+
+    cdata = fdata
+    CALL writebuffer_csocket(psockfd, c_loc(cdata), 4)
+
+    CALL timestop(handle)
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -129,13 +147,21 @@ MODULE ipi_driver
     CHARACTER(LEN=*), INTENT(IN)             :: fstring
     INTEGER, INTENT(IN)                      :: plen
 
-    INTEGER                                  :: i
+    CHARACTER(len=*), PARAMETER :: routineN = 'writebuffer_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i
     CHARACTER(LEN=1, KIND=C_CHAR), TARGET    :: cstring(plen)
 
-      DO i = 1,plen
-         cstring(i) = fstring(i:i)
-      ENDDO
-      CALL writebuffer_csocket(psockfd, c_loc(cstring(1)), plen)
+    CALL timeset(routineN,handle)
+
+    DO i = 1,plen
+       cstring(i) = fstring(i:i)
+    ENDDO
+    CALL writebuffer_csocket(psockfd, c_loc(cstring(1)), plen)
+
+    CALL timestop(handle)
+
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -148,7 +174,16 @@ MODULE ipi_driver
     INTEGER, INTENT(IN)                      :: psockfd, plen
     REAL(KIND=dp), INTENT(IN), TARGET        :: fdata(plen)
 
-      CALL writebuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
+    CHARACTER(len=*), PARAMETER :: routineN = 'writebuffer_dv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
+    CALL writebuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
+
+    CALL timestop(handle)
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -160,10 +195,18 @@ MODULE ipi_driver
     INTEGER, INTENT(IN)                      :: psockfd
     REAL(KIND=dp), INTENT(OUT)               :: fdata
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
     REAL(KIND=C_DOUBLE), TARGET              :: cdata
 
-      CALL readbuffer_csocket(psockfd, c_loc(cdata), 8)
-      fdata=cdata
+    CALL timeset(routineN,handle)
+
+    CALL readbuffer_csocket(psockfd, c_loc(cdata), 8)
+    fdata=cdata
+
+    CALL timestop(handle)
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -175,10 +218,18 @@ MODULE ipi_driver
     INTEGER, INTENT(IN)                      :: psockfd
     INTEGER, INTENT(OUT)                     :: fdata
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_i', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
     INTEGER(KIND=C_INT), TARGET              :: cdata
 
-      CALL readbuffer_csocket(psockfd, c_loc(cdata), 4)
-      fdata = cdata
+    CALL timeset(routineN,handle)
+
+    CALL readbuffer_csocket(psockfd, c_loc(cdata), 4)
+    fdata = cdata
+
+    CALL timestop(handle)
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -192,15 +243,23 @@ MODULE ipi_driver
     CHARACTER(LEN=*), INTENT(OUT)            :: fstring
     INTEGER, INTENT(IN)                      :: plen
 
-    INTEGER                                  :: i
+    CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i
     CHARACTER(LEN=1, KIND=C_CHAR), TARGET    :: cstring(plen)
 
-      CALL readbuffer_csocket(psockfd, c_loc(cstring(1)), plen)
-      fstring=""   
-      WRITE(*,*) "READS", plen, cstring
-      DO i = 1,plen
-         fstring(i:i) = cstring(i)
-      ENDDO
+    CALL timeset(routineN,handle)
+
+    CALL readbuffer_csocket(psockfd, c_loc(cstring(1)), plen)
+    fstring=""   
+    WRITE(*,*) "READS", plen, cstring
+    DO i = 1,plen
+       fstring(i:i) = cstring(i)
+    ENDDO
+
+    CALL timestop(handle)
+
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -213,7 +272,17 @@ MODULE ipi_driver
     INTEGER, INTENT(IN)                      :: psockfd, plen
     REAL(KIND=dp), INTENT(OUT), TARGET       :: fdata(plen)
 
-      CALL readbuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
+    CHARACTER(len=*), PARAMETER :: routineN = 'readbuffer_dv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
+    CALL readbuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
+
+    CALL timestop(handle)
+
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -237,8 +306,9 @@ MODULE ipi_driver
 
     CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname
     CHARACTER(LEN=default_string_length)     :: header
-    INTEGER                                  :: drv_port, i_drv_unix, idir, &
-                                                ii, inet, ip, nat, socket
+    INTEGER                                  :: drv_port, handle, i_drv_unix, &
+                                                idir, ii, inet, ip, nat, &
+                                                socket
     LOGICAL                                  :: drv_unix, hasdata, ionode, &
                                                 should_stop
     REAL(KIND=dp)                            :: cellh(3,3), cellih(3,3), &
@@ -248,6 +318,9 @@ MODULE ipi_driver
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: drv_section, motion_section
     TYPE(virial_type), POINTER               :: virial
+
+    CALL timeset(routineN,handle)
+
 
 ! server address parsing
 ! buffers and temporaries for communication
@@ -382,6 +455,9 @@ MODULE ipi_driver
       ENDIF
     ENDDO driver_loop  
 #endif
+
+    CALL timestop(handle)
+
     
   END SUBROUTINE run_driver
 END MODULE ipi_driver
