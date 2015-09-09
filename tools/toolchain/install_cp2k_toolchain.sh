@@ -31,7 +31,7 @@ scotch_ver=6.0.0
 superlu_ver=3.3
 pexsi_ver=0.8.0
 plumed_ver=2.2b
-quip_ver=336cab5c03
+quip_ver=cc83ceea5776c40fcb5ab224a25ab04d62175449
 #binutils_ver=2.24
 binutils_ver=2.25
 #valgrind_ver=3.10.0
@@ -663,8 +663,12 @@ else
       wget http://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
       checksum QUIP-${quip_ver}.zip
       unzip QUIP-${quip_ver}.zip >& unzip.log
-      mv QUIP-public QUIP-${quip_ver}
       cd QUIP-${quip_ver}
+      # enable debug symbols
+      echo "F95FLAGS       += -g" >> arch/Makefile.linux_x86_64_gfortran
+      echo "F77FLAGS       += -g" >> arch/Makefile.linux_x86_64_gfortran
+      echo "CFLAGS         += -g" >> arch/Makefile.linux_x86_64_gfortran
+      echo "CPLUSPLUSFLAGS += -g" >> arch/Makefile.linux_x86_64_gfortran
       export QUIP_ARCH=linux_x86_64_gfortran
       # hit enter a few times to accept defaults
       echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
@@ -691,6 +695,7 @@ LIBS="${LIBS} -lstdc++ "
 # Flags which both gfortran and gcc understand.
 BASEFLAGS="IF_OMP(-fopenmp,)"
 BASEFLAGS="${BASEFLAGS} -march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
+BASEFLAGS="${BASEFLAGS} IF_VALGRIND(-mno-avx,)" #not supported by valgrind 3.10.1
 BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage, IF_DEBUG(-O1,-O3 -ffast-math))"
 BASEFLAGS="${BASEFLAGS} IF_DEBUG(-fsanitize=leak -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS,)"
 BASEFLAGS="${BASEFLAGS} \$(PROFOPT)"
@@ -738,9 +743,9 @@ gen_arch_file "local_cuda.sdbg"            "-DCUDA -DDEBUG -DOMP"
 gen_arch_file "local_cuda.pdbg"            "-DCUDA -DDEBUG -DOMP -DMPI"
 gen_arch_file "local_valgrind.sdbg"        "-DVALGRIND"
 gen_arch_file "local_valgrind.pdbg"        "-DVALGRIND -DMPI"
-gen_arch_file "local_coverage.sdbg"        "-DCOVERAGE -DDEBUG"
-gen_arch_file "local_coverage.pdbg"        "-DCOVERAGE -DDEBUG -DMPI"
-gen_arch_file "local_coverage_cuda.pdbg"   "-DCOVERAGE -DDEBUG -DMPI -DCUDA"
+gen_arch_file "local_coverage.sdbg"        "-DCOVERAGE"
+gen_arch_file "local_coverage.pdbg"        "-DCOVERAGE -DMPI"
+gen_arch_file "local_coverage_cuda.pdbg"   "-DCOVERAGE -DMPI -DCUDA"
 gen_arch_file "local_cuda_warn.psmp"       "-DCUDA -DMPI -DOMP -DWARNALL"
 
 echo "========================== usage ========================="
