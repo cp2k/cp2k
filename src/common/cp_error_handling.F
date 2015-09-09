@@ -107,6 +107,8 @@ MODULE cp_error_handling
 ! *****************************************************************************
   TYPE cp_error_type
    ! empty :-)
+   PRIVATE
+   INTEGER :: dummy = 42 ! ifort workaround
   END TYPE cp_error_type
 
 CONTAINS
