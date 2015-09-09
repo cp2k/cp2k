@@ -2641,8 +2641,6 @@ MODULE mp2_ri_gpw
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    WRITE(*,*)'ARE WE HERE AT ALL?'
-
     my_open_shell_SS=.FALSE.
     IF(PRESENT(open_shell_SS)) my_open_shell_SS=open_shell_SS
     
