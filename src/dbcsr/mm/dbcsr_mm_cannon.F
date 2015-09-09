@@ -1269,15 +1269,15 @@ MODULE dbcsr_mm_cannon
     DO i = 1, im
        DO j = 1, jm
           ! Convert to local-row index
-          IF (use_local_indexing) THEN
+          IF (use_local_indexing.OR.use_mpi_rma) THEN
              CALL dbcsr_make_index_local_row(m2s%mats(i,j), error=error)
           ENDIF
           ! Convert to list index
-          IF (use_list_indexing) THEN
+          IF (use_list_indexing.OR.use_mpi_rma) THEN
              CALL dbcsr_make_index_list(m2s%mats(i,j), thread_redist=thread_redist,&
                   error=error)
           ENDIF
-          IF (use_local_indexing .AND. .NOT. use_list_indexing) THEN
+          IF (use_local_indexing .AND. .NOT. use_list_indexing .AND. .NOT.use_mpi_rma) THEN
              CALL dbcsr_index_compact(m2s%mats(i,j), error=error)
           ENDIF
        ENDDO
@@ -3047,6 +3047,12 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_assert (right_set%mats(1,1)%m%list_indexing,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "RMA requires list indexing for right matrix!",__LINE__,error)
+    CALL dbcsr_assert (left_set%mats(1,1)%m%local_indexing,&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "RMA requires local indexing for left matrix!",__LINE__,error)
+    CALL dbcsr_assert (right_set%mats(1,1)%m%local_indexing,&
+         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+         "RMA requires local indexing for right matrix!",__LINE__,error)
     !
     ! Set up variables
     output_unit = default_output_unit
