@@ -40,8 +40,6 @@ lcov_ver=1.11
 #gcc_ver=4.9.2
 #gcc_ver=5.1.0
 gcc_ver=5.2.0
-# gcc_ver=master # will use gcc trunk as obtained from github (not intended for production)
-
 
 # parse options
 while [ $# -ge 1 ]; do
@@ -52,6 +50,8 @@ while [ $# -ge 1 ]; do
       mpichoice=openmpi;;
    --enable-tsan)
       enable_tsan=true;;
+   --enable-gcc-trunk)
+      gcc_ver=master;;
    -help|-h|--help)
       echo "Usage: install_cp2k_toolchain.sh [OPTIONS]"
       echo "Installs a well defined development environment for CP2K"
@@ -63,6 +63,7 @@ while [ $# -ge 1 ]; do
       echo "  --enable-tsan             compile entire toolchain with -fsanitize=thread. Default: off."
       echo "                            This is not for normal (production) use, but suitable for"
       echo "                            finding/testing/debugging threading issues during development."
+      echo "  --enable-gcc-trunk        use a non-released, development version of gcc for testing."
       echo ""
       echo "For more information visit: <http://cp2k.org>"
       exit 0;;
@@ -254,8 +255,10 @@ export CP2KINSTALLDIR=${INSTALLDIR}
 export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
 export TSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
 export CC=gcc
-export FC=gfortran
 export CXX=g++
+export FC=gfortran
+export F77=gfortran
+export F90=gfortran
 EOF
 SETUPFILE=${INSTALLDIR}/setup
 source ${SETUPFILE}
@@ -283,8 +286,8 @@ if [ "$mpichoice" == "openmpi" ]; then
       make -j $nprocs install >& install.log
       cd ..
    fi
+   DFLAGS="${FLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3,)"
    #extra libs needed to link with mpif90 also applications based on C++
-   FLAGS="${FLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3,)"
    LIBS="IF_MPI(-lmpi_cxx,) ${LIBS}"
 fi
 
@@ -466,10 +469,6 @@ LIBS="-lfftw3 IF_OMP(-lfftw3_omp,) ${LIBS}"
 
 
 echo "==================== Installing ELPA ====================="
-# elpa expect FC to be an mpi fortran compiler that's happy with long lines, and that a bunch of libs can be found
-#export FC="mpif90 -ffree-line-length-none"
-#export LDFLAGS="-L${INSTALLDIR}/lib"
-#export LIBS="-lscalapack -lreflapack -lrefblas"
 if [ -f elpa-${elpa_ver}.tar.gz ]; then
    echo "Installation already started, skipping it."
 else
@@ -480,14 +479,16 @@ else
    # need both flavors ?
    cp -rp elpa-${elpa_ver} elpa-${elpa_ver}_mt
 
+   # elpa expect FC to be an mpi fortran compiler that's happy with long lines, and that a bunch of libs can be found
+
    cd elpa-${elpa_ver}_mt
-   ./configure  --prefix=${INSTALLDIR} --enable-openmp=yes --with-generic --enable-shared=no >& config.log
+   FC="mpif90 -ffree-line-length-none" LDFLAGS="-L${INSTALLDIR}/lib" LIBS="-lscalapack -lreflapack -lrefblas" ./configure  --prefix=${INSTALLDIR} --enable-openmp=yes --with-generic --enable-shared=no >& config.log
    make -j $nprocs >&  make.log
    make install >& install.log
    cd ..
 
    cd elpa-${elpa_ver}
-   ./configure  --prefix=${INSTALLDIR} --enable-openmp=no --with-generic --enable-shared=no >& config.log
+   FC="mpif90 -ffree-line-length-none" LDFLAGS="-L${INSTALLDIR}/lib" LIBS="-lscalapack -lreflapack -lrefblas" ./configure  --prefix=${INSTALLDIR} --enable-openmp=no --with-generic --enable-shared=no >& config.log
    make -j $nprocs >&  make.log
    make install >& install.log
    cd ..
