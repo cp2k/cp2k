@@ -851,9 +851,9 @@ MODULE mp2_ri_gpw
 
     DO iproc=0, para_env_sub%num_pe-1
       itmp=get_limit(size_1,para_env_sub%num_pe,iproc)
-      IF (itmp(2) < itmp(1)) THEN
-         itmp(2) = itmp(1)
-      ENDIF
+      !IF (itmp(2) < itmp(1)) THEN
+      !   itmp(2) = itmp(1)
+      !ENDIF
       starts_B(iproc)=itmp(1)
       ends_B(iproc)=itmp(2)
       sizes_B(iproc)=itmp(2)-itmp(1)+1
@@ -2641,13 +2641,15 @@ MODULE mp2_ri_gpw
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
+    WRITE(*,*)'ARE WE HERE AT ALL?'
+
     my_open_shell_SS=.FALSE.
     IF(PRESENT(open_shell_SS)) my_open_shell_SS=open_shell_SS
     
     ! t_ab = amp_fac*(:,a|:,b)-(:,b|:,a)
     IF (calc_forces) amp_fac = 2.0_dp
     ! If we calculate the gradient we need to distinguish
-    ! a between alpha-alpha and beta-beta cases for UMP2
+    ! between alpha-alpha and beta-beta cases for UMP2
 
     my_alpha_alpha_case=.FALSE.
     my_beta_beta_case=.FALSE.
@@ -4794,10 +4796,13 @@ MODULE mp2_ri_gpw
         proc_receive=proc_map(para_env_exchange%mepos-proc_shift)
 
         send_L_size=sizes_array(proc_send)
-        ALLOCATE(BI_C_send(2*my_block_size,my_B_size,send_L_size),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        IF (alpha_beta) THEN
-           ALLOCATE(BI_C_send_beta(2*my_block_size,my_B_size_beta,send_L_size),STAT=stat)
+        IF (.NOT. alpha_beta) THEN
+           ALLOCATE(BI_C_send(2*my_block_size,my_B_size,send_L_size),STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ELSE
+           ALLOCATE(BI_C_send(my_block_size,my_B_size,send_L_size),STAT=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(BI_C_send_beta(my_block_size,my_B_size_beta,send_L_size),STAT=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ENDIF
         CALL timeset(routineN//"_comm2_w",handle2)
@@ -4830,11 +4835,11 @@ MODULE mp2_ri_gpw
                !$OMP END PARALLEL DO
             ELSE
                !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
-               !$OMP                           SHARED(start_point,end_point,Lstart_pos,Lend_pos,my_block_size,&
+               !$OMP                           SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
                !$OMP                                  BI_C_send_beta,jjB,my_B_size_beta,Y_j_aP)
                DO kkk=start_point, end_point
                  lll=kkk-start_point+Lstart_pos
-                 BI_C_send_beta(jjB+my_block_size,1:my_B_size_beta,kkk)=Y_j_aP(1:my_B_size_beta,lll,jjB)
+                 BI_C_send_beta(jjB,1:my_B_size_beta,kkk)=Y_j_aP(1:my_B_size_beta,lll,jjB)
                END DO
                !$OMP END PARALLEL DO
             ENDIF
@@ -4861,10 +4866,13 @@ MODULE mp2_ri_gpw
           rec_j=ij_map(ij_counter_rec,2)
           rec_block_size=ij_map(ij_counter_rec,3)
 
-          ALLOCATE(BI_C_rec(2*rec_block_size,my_B_size,my_group_L_size),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF (alpha_beta) THEN
-             ALLOCATE(BI_C_rec_beta(2*rec_block_size,my_B_size_beta,my_group_L_size),STAT=stat)
+          IF (.NOT. alpha_beta) THEN
+             ALLOCATE(BI_C_rec(2*rec_block_size,my_B_size,my_group_L_size),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ELSE
+             ALLOCATE(BI_C_rec(rec_block_size,my_B_size,my_group_L_size),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(BI_C_rec_beta(rec_block_size,my_B_size_beta,my_group_L_size),STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
 
@@ -4926,12 +4934,12 @@ MODULE mp2_ri_gpw
                   !$OMP END PARALLEL DO
               ELSE
                   !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
-                  !$OMP                           SHARED(start_point,end_point,rec_block_size,&
+                  !$OMP                           SHARED(start_point,end_point,&
                   !$OMP                         mp2_env,rec_j,jjB,my_B_size_beta,BI_C_rec_beta)
                   DO kkk=start_point, end_point
                        mp2_env%ri_grad%Gamma_P_ia_beta(rec_j+jjB-1,1:my_B_size_beta,kkk)=&
                        mp2_env%ri_grad%Gamma_P_ia_beta(rec_j+jjB-1,1:my_B_size_beta,kkk)+&
-                       BI_C_rec_beta(jjB+rec_block_size,1:my_B_size_beta,kkk)
+                       BI_C_rec_beta(jjB,1:my_B_size_beta,kkk)
                   END DO
                   !$OMP END PARALLEL DO
               ENDIF
@@ -4986,10 +4994,13 @@ MODULE mp2_ri_gpw
           rec_j=ij_map(ij_counter_rec,2)
           rec_block_size=ij_map(ij_counter_rec,3)
 
-          ALLOCATE(BI_C_rec(2*rec_block_size,my_B_size,my_group_L_size),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF (alpha_beta) THEN
-             ALLOCATE(BI_C_rec_beta(2*rec_block_size,my_B_size_beta,my_group_L_size),STAT=stat)
+          IF (.NOT. alpha_beta) THEN
+             ALLOCATE(BI_C_rec(2*rec_block_size,my_B_size,my_group_L_size),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ELSE   
+             ALLOCATE(BI_C_rec(rec_block_size,my_B_size,my_group_L_size),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ALLOCATE(BI_C_rec_beta(rec_block_size,my_B_size_beta,my_group_L_size),STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
 
@@ -5051,13 +5062,12 @@ MODULE mp2_ri_gpw
                  !$OMP END PARALLEL DO
               ELSE
                  !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
-                 !$OMP                        SHARED(start_point,end_point,rec_block_size,&
-                 !$OMP                      mp2_env,rec_j,jjB,my_B_size_beta,BI_C_rec_beta,&
-                 !$OMP                           alpha_alpha,beta_beta,open_shell)
+                 !$OMP                        SHARED(start_point,end_point,&
+                 !$OMP                      mp2_env,rec_j,jjB,my_B_size_beta,BI_C_rec_beta)
                  DO kkk=start_point, end_point
                    mp2_env%ri_grad%Gamma_P_ia_beta(rec_j+jjB-1,1:my_B_size_beta,kkk)=&
                    mp2_env%ri_grad%Gamma_P_ia_beta(rec_j+jjB-1,1:my_B_size_beta,kkk)+&
-                   BI_C_rec_beta(jjB+rec_block_size,1:my_B_size_beta,kkk)
+                   BI_C_rec_beta(jjB,1:my_B_size_beta,kkk)
                  END DO
                  !$OMP END PARALLEL DO
               ENDIF
@@ -5083,6 +5093,11 @@ MODULE mp2_ri_gpw
           CALL  mp_sendrecv(null_mat_send,proc_send,&
                             null_mat_rec,proc_receive,&
                             para_env_exchange%group)
+          IF (alpha_beta) THEN
+             CALL  mp_sendrecv(null_mat_send,proc_send,&
+                               null_mat_rec,proc_receive,&
+                               para_env_exchange%group)
+          ENDIF
 
         END IF
       END DO
