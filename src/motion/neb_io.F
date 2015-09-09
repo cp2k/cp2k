@@ -531,7 +531,7 @@ CONTAINS
     ! Setup new replica project name and output file
     replica_proj_name = rep_env%original_project_name
     ! Find padding
-    ndigits = CEILING(LOG10(REAL(n_rep,KIND=dp)))-&
+    ndigits = CEILING(LOG10(REAL(n_rep+1,KIND=dp)))-&
          CEILING(LOG10(REAL(j+1,KIND=dp)))
     padding = ""
     DO i = 1, ndigits
