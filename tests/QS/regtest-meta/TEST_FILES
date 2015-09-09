@@ -3,5 +3,5 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-H2O-IP-meta.inp                                        2      1e-11                 -17.1588389952
+H2O-IP-meta.inp                   2     2e-11                 -17.1588389952
 #EOF
