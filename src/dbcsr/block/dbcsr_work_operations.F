@@ -119,7 +119,8 @@ MODULE dbcsr_work_operations
 
   PUBLIC :: dbcsr_create, dbcsr_work_create, dbcsr_finalize, dbcsr_special_finalize
   PUBLIC :: dbcsr_add_wm_from_matrix,&
-            add_work_coordinate
+            add_work_coordinate,&
+            dbcsr_work_destroy_all
 
   INTERFACE dbcsr_create
      MODULE PROCEDURE dbcsr_create_new, dbcsr_create_template
