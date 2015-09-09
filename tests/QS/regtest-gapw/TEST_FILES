@@ -33,9 +33,9 @@ Be_GAPW.inp                                            1      7e-13             
 Na_atom.inp                                            1      5e-13            -154.80563524480456
 #
 h2o_dist.inp                                           1      3e-13            -17.105412108849169
-H2S-gapw-gop.inp                                       1      2e-13            -11.256673448643211
+H2S-gapw-gop.inp                  1     5e-13            -11.256673448643211
 H2S-gapw-ot.inp                                        1      1e-12             -11.03318707197139
-H2S-gapw-gop-ot.inp                                    1      1e-13             -11.25777226642027
+H2S-gapw-gop-ot.inp               1     3e-13             -11.25777226642027
 # XRD total density output to file
 xrd.inp                                                0
 #EOF
