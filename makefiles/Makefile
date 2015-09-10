@@ -315,7 +315,7 @@ else
 endif
 
 # this happens on stage 3
-makedep: $(ALL_SRC_FILES) $(ALL_PKG_FILES)
+makedep: $(ALL_SRC_FILES) $(ALL_PKG_FILES) dirs
 ifeq ($(LD_SHARED),)
 	@echo "Removing stale archives for $(ONEVERSION) ... "
 	@$(TOOLSRC)/build_utils/check_archives.py $(firstword $(AR)) $(SRCDIR) $(LIBDIR)
