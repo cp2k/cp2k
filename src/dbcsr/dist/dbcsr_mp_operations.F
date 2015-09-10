@@ -35,9 +35,8 @@ MODULE dbcsr_mp_operations
   USE kinds,                           ONLY: real_4,&
                                              real_8
   USE message_passing,                 ONLY: &
-       mp_address_kind, mp_allgather, mp_alltoall, mp_irecv, mp_isend, &
-       mp_rget, mp_type_descriptor_type, mp_type_make, mp_waitall, &
-       mp_win_create
+       mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_rget, &
+       mp_type_descriptor_type, mp_type_make, mp_waitall, mp_win_create
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -501,8 +500,7 @@ CONTAINS
     TYPE(dbcsr_data_obj), INTENT(IN)         :: base
     INTEGER, INTENT(IN)                      :: source
     INTEGER, INTENT(INOUT)                   :: win
-    INTEGER(kind=mp_address_kind), &
-      INTENT(IN), OPTIONAL                   :: disp
+    INTEGER, INTENT(IN), OPTIONAL            :: disp
     INTEGER, INTENT(OUT)                     :: request
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 

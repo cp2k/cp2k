@@ -69,7 +69,7 @@ MODULE dbcsr_data_methods
             dbcsr_scalar_get_type, dbcsr_scalar_set_type,&
             dbcsr_scalar_fill_all, dbcsr_scalar_get_value, &
             dbcsr_data_valid
-  PUBLIC :: dbcsr_data_init, dbcsr_data_new, dbcsr_data_copy, dbcsr_data_hold,&
+  PUBLIC :: dbcsr_data_init, dbcsr_data_new, dbcsr_data_transfer, dbcsr_data_hold,&
             dbcsr_data_release, dbcsr_data_get_size, dbcsr_data_get_type
   PUBLIC :: dbcsr_get_data,&
             dbcsr_data_set_pointer,&
@@ -82,9 +82,9 @@ MODULE dbcsr_data_methods
             dbcsr_get_data_p_d, dbcsr_get_data_p_z
   PUBLIC :: dbcsr_data_host2dev, dbcsr_data_dev2host
 
-  INTERFACE dbcsr_data_copy
-     MODULE PROCEDURE dbcsr_data_copy_frombuffer_obj
-     MODULE PROCEDURE dbcsr_data_copy_frombuffer_i
+  INTERFACE dbcsr_data_transfer
+     MODULE PROCEDURE dbcsr_data_transfer_frombuffer_obj
+     MODULE PROCEDURE dbcsr_data_transfer_frombuffer_i
   END INTERFACE
 
 CONTAINS
@@ -271,18 +271,16 @@ CONTAINS
 !> \param[in] size_data       data area size
 !> \param[in] displ           initial position in the data area
 ! *****************************************************************************
-  SUBROUTINE dbcsr_data_copy_frombuffer_obj (area, template_area, size_data, displ)
+  SUBROUTINE dbcsr_data_transfer_frombuffer_obj (area, template_area, size_data, displ)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     TYPE(dbcsr_data_obj), INTENT(IN)         :: template_area
-    INTEGER, INTENT(IN)                      :: size_data
-    INTEGER(kind=int_8), INTENT(IN)          :: displ
+    INTEGER, INTENT(IN)                      :: size_data, displ
 
     CHARACTER(len=*), PARAMETER :: &
-      routineN = 'dbcsr_data_copy_frombuffer_obj', &
+      routineN = 'dbcsr_data_transfer_frombuffer_obj', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
-    INTEGER(kind=int_8)                      :: displ_end
+    INTEGER                                  :: displ_end, error_handler
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -328,7 +326,7 @@ CONTAINS
        END SELECT
     ENDIF
     CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_data_copy_frombuffer_obj
+  END SUBROUTINE dbcsr_data_transfer_frombuffer_obj
 
 ! *****************************************************************************
 !> \brief Copy data from an input template int array
@@ -337,17 +335,16 @@ CONTAINS
 !> \param[in] size_data       data area size
 !> \param[in] displ           initial position in the data area
 ! *****************************************************************************
-  SUBROUTINE dbcsr_data_copy_frombuffer_i (area, template_area, size_data, displ)
+  SUBROUTINE dbcsr_data_transfer_frombuffer_i (area, template_area, size_data, displ)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     INTEGER, DIMENSION(:), INTENT(IN)        :: template_area
-    INTEGER, INTENT(IN)                      :: size_data
-    INTEGER(kind=int_8), INTENT(IN)          :: displ
+    INTEGER, INTENT(IN)                      :: size_data, displ
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copy_frombuffer_i', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_data_transfer_frombuffer_i', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
-    INTEGER(kind=int_8)                      :: displ_end
+    INTEGER                                  :: displ_end, error_handler
     TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
@@ -371,7 +368,7 @@ CONTAINS
     area%d%i4(displ:displ_end) = template_area(1:size_data)
 
     CALL dbcsr_error_stop(error_handler, error)
-  END SUBROUTINE dbcsr_data_copy_frombuffer_i
+  END SUBROUTINE dbcsr_data_transfer_frombuffer_i
 
 ! *****************************************************************************
 !> \brief Ensures a minimum size of a previously-setup data area.

@@ -2467,7 +2467,7 @@
   SUBROUTINE mp_rget_rv(base,source,win,disp,request)
     REAL(kind=real_4), DIMENSION(:), POINTER                      :: base
     INTEGER, INTENT(IN)                                 :: source, win
-    INTEGER(kind=mp_address_kind), INTENT(IN), OPTIONAL :: disp
+    INTEGER, INTENT(IN), OPTIONAL                       :: disp
     INTEGER, INTENT(OUT)                                :: request
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_rget_rv', &
@@ -2490,7 +2490,7 @@
     len = SIZE(base)
     disp_aint = 0
     IF (PRESENT(disp)) THEN
-       disp_aint = disp
+       disp_aint = INT(disp,KIND=mpi_address_kind)
     ENDIF
     IF (len>0) THEN
        lower1=LBOUND(base,1)
