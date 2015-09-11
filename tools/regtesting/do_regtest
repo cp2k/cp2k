@@ -446,7 +446,7 @@ function run_regtest_dir() {
         if (( $? )); then
            echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
            echo ${output_file} >>${error_description_file}
-           tail -n 40 ${output_file} >>${error_description_file}
+           tail -n 100 ${output_file} >>${error_description_file}
            # append an eventual valgrind report to the file
            grep "^==[0-9][0-9]*== " ${output_file} | head -n 20 >> ${error_description_file}
            echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
