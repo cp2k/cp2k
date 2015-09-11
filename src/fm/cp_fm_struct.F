@@ -710,11 +710,7 @@ SUBROUTINE cp_fm_struct_double(fmstruct,struct,context,col,row,error)
           newdim_col=0
        ELSE
           !Divide ncol_global by ncol_block and round up
-          IF(MOD(ncol_global,ncol_block)==0) THEN
-             nblocks=ncol_global/ncol_block
-          ELSE
-             nblocks=ncol_global/ncol_block+1
-          ENDIF
+          nblocks=(ncol_global+ncol_block-1)/ncol_block
           nfilled=MOD(nblocks,nprocs_col)
           nempty=MOD(nprocs_col-nfilled,nprocs_col)
           newdim_col=2*ncol_global+2*nempty*ncol_block+2*MOD(ncol_block-MOD(ncol_global,ncol_block),ncol_block)
@@ -726,11 +722,7 @@ SUBROUTINE cp_fm_struct_double(fmstruct,struct,context,col,row,error)
           newdim_row=0
        ELSE
           !Divide nrow_global by nrow_block and round up
-          IF(MOD(nrow_global,nrow_block)==0) THEN
-             nblocks=nrow_global/nrow_block
-          ELSE
-             nblocks=nrow_global/nrow_block+1
-          ENDIF
+          nblocks=(nrow_global+nrow_block-1)/nrow_block
           nfilled=MOD(nblocks,nprocs_row)
           nempty=MOD(nprocs_row-nfilled,nprocs_row)
           newdim_row=2*nrow_global+2*nempty*nrow_block+2*MOD(nrow_block-MOD(nrow_global,nrow_block),nrow_block)
