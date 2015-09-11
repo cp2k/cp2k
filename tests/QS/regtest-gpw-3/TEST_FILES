@@ -6,10 +6,10 @@
 # Martyna-Tuckerman 3D
 H+.inp                                                 1      3e-11           0.018426233707780001
 H+.TI.inp                                              1      3e-11           0.018426233707780001
-He2H-.inp                                              1      1e-08           -0.64219584186817003
+He2H-.inp                         1     3e-08           -0.64219584186817003
 # Bloechl decoupling technique
 H+-bloechl.inp                                         1      6e-11           0.018423285333850001
-He2H-bloechl-md.inp                                    1      2e-11           -0.53855807719486004
+He2H-bloechl-md.inp               1     2e-05           -0.53855807719486004
 He2H-bloechl.inp                                       1      8e-12           -0.33998448719952001
 H2O-bloechl.inp                                        1      1e-13             -17.15579833538235
 H2O-bloechl-Spl.inp                                    1      2e-14            -17.155785426599749
@@ -17,7 +17,7 @@ H2O-bloechl-restraint.inp                              1      3e-12             
 # S**2
 CN.inp                                                 4    1.0E-14                       0.751382
 # testing of distributed rs grids
-rsgrid-dist-1.inp                                      1      4e-14              -1.71460240489808
+rsgrid-dist-1.inp                 1     3e-11              -1.71460240489808
 #BSSE
 2H2O_bsse.inp                                          5    1.0E-14                      -0.000221
 2H2O_bsse_r.inp                                        5    1.0E-14                      -0.000221
@@ -42,12 +42,12 @@ N-ROKS.inp                                             1      2e-13             
 O2-ROKS.inp                                            1    1.0E-14             -31.86289250210089
 # Onsager Model
 H+solv1.inp                                            1      3e-12              -0.10460403923644
-H2O-solv.inp                                           1      1e-13             -14.76967241568809
-H2O-solv2.inp                                          1      1e-13             -14.76967241568809
+H2O-solv.inp                      1     3e-13             -14.76967241568809
+H2O-solv2.inp                     1     3e-13             -14.76967241568809
 #XC_FUN NONE
 H2O-xc_none.inp                                        1      5e-14             -13.34544335665420
 # ghost atom dynamics
-dynamics.inp                                           1      3e-11             -15.53409412609153
+dynamics.inp                      1     8e-09             -15.53409412609153
 # RESP charges
 CH3OH.inp                                              0
 # distributed non-ortho grids

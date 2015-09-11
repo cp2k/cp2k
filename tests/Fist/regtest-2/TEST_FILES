@@ -21,7 +21,7 @@ H2O-32_SPME_fixed.inp                                  2    1.0E-14            -
 H2O-32_SPME_fixed_mol.inp                              2    1.0E-14            -0.629346529701E+00
 nacl_wat.inp                                           2    1.0E-14            -0.911029622425E+01
 #Stress Tensor automatic debug
-H2O-ST_debug.inp                                      42      2e-03         1.9802000000000001e-06
+H2O-ST_debug.inp                 42     4e-03         1.9802000000000001e-06
 #new colvars (position diagonal and cross term)
 H2O-32_SPME_fixed_clv.inp                              2      5e-12        -8.0220274432699995e-05
 H2O-32_SPME_fixed_cross_clv.inp                        2    1.0E-14            -0.452324222648E-02

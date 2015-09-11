@@ -9,8 +9,8 @@ nh3-meta-2.inp                                         2    1.0E-14             
 ethene_colv0.inp                                       2      8e-10          0.0064638931085700003
 ethene_colv1.inp                                       2      8e-10          0.0064656266809200004
 ethene_colv1_npt.inp                                   2      4e-09               0.00171895688846
-ethene_colv2.inp                                       2      5e-11           0.017674386846599999
-ethene_colv2_npt.inp                                   2      3e-10          0.0039278397253399997
+ethene_colv2.inp                  2     2e-10           0.017674386846599999
+ethene_colv2_npt.inp              2     1e-09          0.0039278397253399997
 #
 # test restraints here
 # flexible partitioning
@@ -45,7 +45,7 @@ H2O-2-multi-pw.inp                                     2    1.0E-14            -
 # AMBER tests comparing energies w.r.t. AMBER.. differences of the order of 10^-6-10^-7 Hartree
 # see the h2o2_amber.inp for comments
 h2o2_amber.inp                                         2    1.0E-14             0.379102174525E-01
-gly_amber.inp                                          2      3e-12            -0.734794690516E-02
+gly_amber.inp                     2     1e-11            -0.734794690516E-02
 mol_amber.inp                                          2    1.0E-14            -0.785339124023E-02
 #RESPA_TEST
 acn_respa.inp                                          2    1.0E-14            -0.161228239673E+00

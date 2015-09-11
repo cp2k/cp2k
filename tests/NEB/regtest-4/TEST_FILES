@@ -3,7 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-NEB-MIXED.inp                                         10      2e-14            -25.757218922609201
+NEB-MIXED.inp                    10     8e-14            -25.757218922609201
 2gly_IT-NEB-CV.inp                                    10       1e-9            -1.7874528752835901
 2gly_IT-NEB-CV-res.inp                                10      2e-09              -1.79824935465504
 UO2-2x2x2-CI-NEB-core-shell.inp                       10      1e-11            -462.84379294835571

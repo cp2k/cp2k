@@ -6,7 +6,7 @@ multipole_dipole.dbg_f_real.inp                       11    1.0E-14             
 multipole_dipole.dbg_f_rec.inp                        11      6e-13           -0.38754686934573401
 multipole_quadrupole.dbg_f.inp                        11    1.0E-14             -0.964925621204285
 multipole_quadrupole.dbg_f_real.inp                   11      4e-14             -0.964925621217121
-multipole_quadrupole.dbg_f_rec.inp                    11      6e-13            -1.0264752856214729
+multipole_quadrupole.dbg_f_rec.inp   11     1e-12            -1.0264752856214729
 #
 deca_ala_avg2.inp                                      2    1.0E-14                 -1.04640393141
 deca_ala_noavg.inp                                     2    1.0E-14            -1.0361509045299999
@@ -15,7 +15,7 @@ multipole_ch_dip.dbg_st.inp                           42    1.0E-14             
 multipole_ch_dip_qu.dbg_st.inp                        42      6e-03         3.6300000000000001e-08
 multipole_ch_qu.dbg_st.inp                            42      4e-03         5.1399999999999997e-08
 multipole_charge.dbg_st.inp                           42    1.0E-14                   0.0000000017
-multipole_dip_qu.dbg_st.inp                           42    1.0E-14                   0.0000000326
+multipole_dip_qu.dbg_st.inp      42     6e-03                   0.0000000326
 multipole_dipole.dbg_st.inp                           42    1.0E+00                   0.0000000107
 multipole_quadrupole.dbg_st.inp                       42      7e-03         5.7900000000000002e-08
 # charge array
