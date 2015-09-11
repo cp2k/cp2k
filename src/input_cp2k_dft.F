@@ -7441,7 +7441,8 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="ORTHONORMAL",&
-         description="Performs rtp in the orthonormal basis, currently only works with density propagation",&
+         description="Performs rtp in the orthonormal basis. This keyword is only intended for development purposes."//&
+         "It should not be used outside code development",&
          usage="ORTHONORMAL",&
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
