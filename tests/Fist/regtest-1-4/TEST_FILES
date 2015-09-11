@@ -1,6 +1,6 @@
 multipole_dip_qu.dbg_f.inp                            11      9e-14              0.045112539846754
 multipole_dip_qu.dbg_f_real.inp                       11      9e-14           0.045112873818485999
-multipole_dip_qu.dbg_f_rec.inp                        11      2e-13            -2.0682219291060728
+multipole_dip_qu.dbg_f_rec.inp   11     4e-13            -2.0682219291060728
 multipole_dipole.dbg_f.inp                            11    1.0E-14             -0.386352316921446
 multipole_dipole.dbg_f_real.inp                       11    1.0E-14             -0.386351982869722
 multipole_dipole.dbg_f_rec.inp                        11      6e-13           -0.38754686934573401
@@ -11,7 +11,7 @@ multipole_quadrupole.dbg_f_rec.inp   11     1e-12            -1.0264752856214729
 deca_ala_avg2.inp                                      2    1.0E-14                 -1.04640393141
 deca_ala_noavg.inp                                     2    1.0E-14            -1.0361509045299999
 # multipole stress tensor
-multipole_ch_dip.dbg_st.inp                           42    1.0E-14                   0.0000000140
+multipole_ch_dip.dbg_st.inp      42     1e-02                   0.0000000140
 multipole_ch_dip_qu.dbg_st.inp                        42      6e-03         3.6300000000000001e-08
 multipole_ch_qu.dbg_st.inp                            42      4e-03         5.1399999999999997e-08
 multipole_charge.dbg_st.inp                           42    1.0E-14                   0.0000000017

@@ -9,8 +9,8 @@ nh3-meta-2.inp                                         2    1.0E-14             
 ethene_colv0.inp                                       2      8e-10          0.0064638931085700003
 ethene_colv1.inp                                       2      8e-10          0.0064656266809200004
 ethene_colv1_npt.inp                                   2      4e-09               0.00171895688846
-ethene_colv2.inp                  2     2e-10           0.017674386846599999
-ethene_colv2_npt.inp              2     1e-09          0.0039278397253399997
+ethene_colv2.inp                  2     3e-10           0.017674386846599999
+ethene_colv2_npt.inp              2     3e-09          0.0039278397253399997
 #
 # test restraints here
 # flexible partitioning
@@ -18,8 +18,8 @@ H2O-32_SPME_fp.inp                                     2    1.0E-14            -
 # dist and bend
 H2O-restraint.inp                                      2    1.0E-14             0.160734238008E-02
 # torsion
-ethene-restraint.inp                                   2      7e-12         0.00081393113312400005
-ethene-restraint2.inp                                  2      5e-11             0.813931133125E-03
+ethene-restraint.inp              2     1e-10         0.00081393113312400005
+ethene-restraint2.inp             2     1e-10             0.813931133125E-03
 #next two are a double crossed check
 ethene-no-restraint.inp                                2      2e-12         0.00080042617086399995
 ethene-ck-restraint.inp                                2      2e-12         0.00080042617086399995

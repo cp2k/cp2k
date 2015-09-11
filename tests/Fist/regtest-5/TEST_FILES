@@ -20,8 +20,8 @@ N3dye_vib_restart_vec4.inp                            18    1.0E-14             
 #new linear scaling/fastest/more robust topology generator
 JAC_gen.inp                                            2    1.0E-14            -125.33168188099999
 arginine.inp                                           2      4e-11                  0.10945072437
-arginine0.inp                                          2    1.0E-14             0.115267385339E+00
-arginine_crossC.inp                                    2    1.0E-14             0.115267385339E+00
+arginine0.inp                     2     3e-11             0.115267385339E+00
+arginine_crossC.inp               2     3e-11             0.115267385339E+00
 #new reordering algorithm
 water_reord.inp                                        2    1.0E-14             0.183700943310E-02
 phenobenz.inp                                          2      1e-10            0.21873884825500001

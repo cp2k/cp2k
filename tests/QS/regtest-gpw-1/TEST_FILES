@@ -25,7 +25,7 @@ Ar-11.inp                                              1      2e-13            -
 # b97grimme and electronic kineitc energy
 Ar-13.inp                                              1      8e-13            -21.198877719987479
 # different pseudo style
-K2.inp                                                 1      1e-12              -0.37652979110029
+K2.inp                            1     8e-12              -0.37652979110029
 H2.inp                                                 1    1.0E-14              -1.06345574964568
 # printing of structure data
 H2O-geoopt.inp                                         1      4e-14             -17.15265558923487
