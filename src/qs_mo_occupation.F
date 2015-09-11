@@ -426,7 +426,8 @@ CONTAINS
       el_count = SUM( mo_set%occupation_numbers(1:nomo))
       IF(el_count>xas_nelectron) mo_set%occupation_numbers(nomo) = mo_set%occupation_numbers(nomo) - (el_count-xas_nelectron)
       el_count = SUM( mo_set%occupation_numbers(1:nomo))
-      CPPrecondition((el_count==xas_nelectron),cp_failure_level,routineP,error,failure)
+      is_large=ABS(el_count-xas_nelectron)>xas_nelectron*EPSILON(el_count)
+      CPPrecondition(.NOT.is_large,cp_failure_level,routineP,error,failure)
     ELSE
      IF (MODULO(mo_set%nelectron,INT(mo_set%maxocc)) == 0) THEN
         nomo = NINT(mo_set%nelectron/mo_set%maxocc)

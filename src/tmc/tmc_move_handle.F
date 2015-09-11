@@ -353,10 +353,10 @@ CONTAINS
     END IF
     mv_prob_sum = SUM(tmc_params%move_types%mv_weight(:))
     flag = .TRUE.
-    CPPostcondition(ABS(mv_prob_sum-1.0_dp).LT.0.01,cp_failure_level,routineP,error,failure=flag)
+    CPPostcondition(ABS(mv_prob_sum-1.0_dp).LT.0.01_dp,cp_failure_level,routineP,error,failure=flag)
     IF(ASSOCIATED(tmc_params%nmc_move_types)) THEN
       mv_prob_sum = SUM(tmc_params%nmc_move_types%mv_weight(:))
-      CPPostcondition(mv_prob_sum.EQ.1.0,cp_failure_level,routineP,error,failure=flag)
+      CPPostcondition(ABS(mv_prob_sum-1.0_dp)<10*EPSILON(1.0_dp),cp_failure_level,routineP,error,failure=flag)
     END IF
   END SUBROUTINE read_init_move_types
 
