@@ -43,7 +43,7 @@ H2OFe-5_75-6.inp                                       2    1.0E-14            -
 #general mapping
 H2OFe-5_75-7.inp                                       2    1.0E-14            -0.506501402353E+01
 #target two different molecule name (same nature)
-water_3_dist_2_restr.inp                               2    1.0E-14             0.705966204146E-03
+water_3_dist_2_restr.inp          2     3e-12             0.705966204146E-03
 # check charges of Ti in the dumped topology
 interface.inp                                          2    1.0E-14            -0.582242994901E+00
 # silent in parallel
