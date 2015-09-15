@@ -2438,8 +2438,10 @@ CONTAINS
 
      ALLOCATE(extra_nblks(job_count))
      ALLOCATE(extra_darea_size(job_count))
-     CALL cumsum_l(INT((/0,proc_nblks(1:job_count-1)/),kind=int_8),extra_nblks)
-     CALL cumsum_l(INT((/0,proc_darea_sizes(1:job_count-1)/),kind=int_8),extra_darea_size)
+     IF (job_count>0) THEN 
+       CALL cumsum_l(INT((/0,proc_nblks(1:job_count-1)/),kind=int_8),extra_nblks)
+       CALL cumsum_l(INT((/0,proc_darea_sizes(1:job_count-1)/),kind=int_8),extra_darea_size)
+     ENDIF
 
      i = 0
      DO ind = 1, job_count*nblkrows_total
@@ -2609,15 +2611,17 @@ CONTAINS
     SUBROUTINE cumsum_l(arr,cumsum)
     INTEGER(kind=int_8), DIMENSION(:), &
       INTENT(IN)                             :: arr
-    INTEGER(kind=int_8), &
-      DIMENSION(SIZE(arr)), INTENT(OUT)      :: cumsum
+    INTEGER(kind=int_8), DIMENSION(:), &
+      INTENT(OUT)                            :: cumsum
 
     INTEGER                                  :: i
 
+      IF (SIZE(cumsum)>0) THEN
         cumsum(1)=arr(1)
-        DO i=2,SIZE(arr)
+        DO i=2,SIZE(cumsum)
           cumsum(i)=cumsum(i-1)+arr(i)
         END DO
+      ENDIF
     END SUBROUTINE cumsum_l
   END SUBROUTINE dbcsr_datablock_redistribute
 
