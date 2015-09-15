@@ -843,8 +843,8 @@ CONTAINS
 
 !$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(mos_new,V_mats,ncol_local,i)
        DO icol_local=1,ncol_local
-          mos_new(1)%matrix%local_data(:,icol_local)=-V_mats(i)%matrix%local_data(:,icol_local)
-          V_mats(i)%matrix%local_data(:,icol_local)=V_mats(i)%matrix%local_data(:,icol_local+ncol_local)
+          mos_new(1)%matrix%local_data(:,icol_local)=V_mats(i)%matrix%local_data(:,icol_local)
+          V_mats(i)%matrix%local_data(:,icol_local)=-V_mats(i)%matrix%local_data(:,icol_local+ncol_local)
           V_mats(i)%matrix%local_data(:,icol_local+ncol_local)=mos_new(1)%matrix%local_data(:,icol_local)
        END DO
 
