@@ -78,6 +78,10 @@ while [ $# -ge 1 ]; do
    shift
 done
 
+# disable known conflicts
+if $enable_tsan ; then
+   openblas_ver=
+fi
 
 # helper routine to check integrity of downloaded files
 checksum() {
@@ -311,26 +315,30 @@ if [ "$mpichoice" == "mpich" ]; then
    DFLAGS="${DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3,)"
 fi
 
-
 echo "================= Installing openblas ==================="
-if [ -f xianyi-OpenBLAS-${openblas_ver}.zip ]; then
-   echo "Installation already started, skipping it."
+if [ "x${openblas_ver}" == "x" ]; then
+   echo "skipping openblas"
+   LIBS="-lreflapack -lrefblas ${LIBS}"
 else
-   wget http://www.cp2k.org/static/downloads/xianyi-OpenBLAS-${openblas_ver}.zip
-   checksum xianyi-OpenBLAS-${openblas_ver}.zip
-   unzip xianyi-OpenBLAS-${openblas_ver}.zip >& unzip.log
-   cd xianyi-OpenBLAS-*
-   # we install both the serial and the omp threaded version.
-   # Unfortunately, neither is thread-safe (i.e. the CP2K ssmp and psmp version need to link to something else, the omp version is unused)
-   make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.serial.log
-   make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.serial.log
-   # make clean >& clean.log
-   # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} >& make.omp.log
-   # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} install >& install.omp.log
-   cd ..
+   if [ -f xianyi-OpenBLAS-${openblas_ver}.zip ]; then
+      echo "Installation already started, skipping it."
+   else
+      wget http://www.cp2k.org/static/downloads/xianyi-OpenBLAS-${openblas_ver}.zip
+      checksum xianyi-OpenBLAS-${openblas_ver}.zip
+      unzip xianyi-OpenBLAS-${openblas_ver}.zip >& unzip.log
+      cd xianyi-OpenBLAS-*
+      # we install both the serial and the omp threaded version.
+      # Unfortunately, neither is thread-safe (i.e. the CP2K ssmp and psmp version need to link to something else, the omp version is unused)
+      make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.serial.log
+      make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.serial.log
+      # make clean >& clean.log
+      # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} >& make.omp.log
+      # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} install >& install.omp.log
+      cd ..
+   fi
+   # currently openblas is not thread safe (neither serial nor omp version),
+   LIBS="IF_VALGRIND(-lreflapack -lrefblas, IF_OMP(-lreflapack -lrefblas,-lopenblas_serial)) ${LIBS}"
 fi
-# currently openblas is not thread safe (neither serial nor omp version),
-LIBS="IF_VALGRIND(-lreflapack -lrefblas, IF_OMP(-lreflapack -lrefblas,-lopenblas_serial)) ${LIBS}"
 
 echo "================= Installing libsmm ==================="
 if $enable_tsan ; then
