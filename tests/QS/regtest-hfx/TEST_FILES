@@ -12,6 +12,7 @@ H2O_pw.inp                                            22    1.0E-14             
 4H2O-mix-disk-ram-on-the-fly.inp                       1      2e-13            -301.75610687334415
 H2O-hfx-emd.inp                                        2    1.0E-14            -0.168759280408E+02
 H2O-hfx-emd-restart.inp                                2      1E-11            -0.168759280409E+02
+H2O-hfx-emd-ngs.inp                                    2    1.0E-14            -0.154149024935E+02
 H2O-hfx-atprop.inp                                     1      8e-14            -16.955115129211752
 H2O-hfx-ls-emd.inp                                     2    1.0E-14            -0.168398028193E+02
 H2O-hfx-ls-rtp.inp                                     1    1.0E-14                 -16.8398077850
