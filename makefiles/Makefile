@@ -12,7 +12,7 @@ SHELL = /bin/sh
 # also works fine
 #
 CP2KHOME     := $(abspath $(PWD)/..)
-ARCH         := $(shell $(CP2KHOME)/tools/build_utils/get_arch_code)
+ARCH         := local
 export VERSION=sopt
 
 MAKEFILE     := $(CP2KHOME)/makefiles/Makefile
