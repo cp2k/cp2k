@@ -14,11 +14,12 @@ CPP      = cpp -C -P -traditional-cpp
 FC       = mpixlf95_r
 LD       = mpixlf95_r
 AR       = ar -r
+LIBXC_INCLUDE=$(HOME)/libxc-2.2.2-install/include
 DFLAGS   = -D__FFTW3 -D__parallel -D__SCALAPACK -D__LIBINT -D__LIBXC2
-CPPFLAGS = $(DFLAGS) -I$(FFTW3_INCLUDE)
+CPPFLAGS = $(DFLAGS) -I$(FFTW3_INCLUDE) -I$(LIBXC_INCLUDE)
 FCFLAGS  = -O3 -qstrict -q64 -qarch=qp -qtune=qp \
            -I/opt/ibmmath/essl/5.1/include/ \
-           -I$(LAPACK_INCLUDE) -I$(FFTW3_INCLUDE)
+           -I$(LAPACK_INCLUDE) -I$(FFTW3_INCLUDE) -I$(LIBXC_INCLUDE)
 LDFLAGS  = $(FCFLAGS) -Wl,--allow-multiple-definition
 LIBS     = -L$(LIBINT_LIB) -lderiv -lint \
            -L$(FFTW3_LIB) -lfftw3 \
