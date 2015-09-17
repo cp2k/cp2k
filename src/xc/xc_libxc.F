@@ -42,9 +42,9 @@
 !> \author F. Tran
 ! *****************************************************************************
 MODULE xc_libxc
-#if defined (__LIBXC)
-This version of CP2K ONLY works with libxc versions 2 or 3
-#endif
+! #if defined (__LIBXC)
+! This version of CP2K ONLY works with libxc versions 2 or 3
+! #endif
 #if defined __LIBXC2 || __LIBXC3
   USE bibliography,                    ONLY: Marques2012,&
                                              cite_reference
