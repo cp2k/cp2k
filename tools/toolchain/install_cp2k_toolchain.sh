@@ -436,7 +436,7 @@ else
    make install >& install.log
    cd ..
 fi
-DFLAGS="${DFLAGS} -D__LIBXC2"
+DFLAGS="${DFLAGS} -D__LIBXC"
 LIBS="-lxcf90 -lxc ${LIBS}"
 
 
@@ -663,7 +663,6 @@ LIBS="IF_MPI(-lpexsi_linux_v${pexsi_ver},) ${LIBS}"
 echo "==================== Installing QUIP ================="
 if $enable_tsan ; then
    echo "TSAN build ... will not use QUIP"
-   libsmm=""
 else
    if [ -f QUIP-${quip_ver}.zip  ]; then
       echo "Installation already started, skipping it."
