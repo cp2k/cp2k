@@ -32,6 +32,10 @@ Flag PARAMS_IN_SMEM_OPT not mentioned in INSTALL
 Flag PARAMS_IN_SMEM_OPT not mentioned in cp2k_flags()
 Flag USE_NATIVE_64 not mentioned in INSTALL
 Flag USE_NATIVE_64 not mentioned in cp2k_flags()
+Flag XC_MAJOR_VERSION not mentioned in INSTALL
+Flag XC_MAJOR_VERSION not mentioned in cp2k_flags()
+Flag XC_MINOR_VERSION not mentioned in INSTALL
+Flag XC_MINOR_VERSION not mentioned in cp2k_flags()
 Flag __ACC not mentioned in INSTALL
 Flag __ACC_MIC not mentioned in INSTALL
 Flag __ACC_MIC not mentioned in cp2k_flags()
@@ -487,9 +491,7 @@ xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd"
 xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_debug"
 xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_test_lsd"
-xc_f90_lib_m.F: Copyright banner malformed
-xc_f90_types_m.F: Copyright banner malformed
-xc_libxc.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
+xc_libxc_wrap.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 xc_pade.F: Unused dummy argument ‘derivative_set’ at (1) [-Wunused-dummy-argument]
 xc_write_output.F: Routine XC_F90_VERSION called with an implicit interface.
 xml_parser.F: Copyright banner malformed
