@@ -773,10 +773,11 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword,name="FUNCTIONAL",&
-         description="names of the functionals, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_functionals ."//&
-                     "The precise list of available functionals depends on the version of libxc interfaced (currently 2.2.2).",&
-         usage=usage,&
-         type_of_var=char_t,n_var=-1,error=error)
+         description="names of the functionals, see also "//&
+         "http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_functionals ."//&
+         "The precise list of available functionals depends on "//&
+         "the version of libxc interfaced (currently 2.2.2).",&
+         usage=usage,type_of_var=char_t,n_var=-1,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword,name="SCALE",&
