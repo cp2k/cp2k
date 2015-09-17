@@ -106,6 +106,7 @@ CONTAINS
     qmmm_link_imomm  = .FALSE.
     qmmm_added_chrg  = .FALSE.
     logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_io_unit(logger)
     NULLIFY(subsys_mm, subsys_qm, subsys, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
     NULLIFY(force_env_section, print_key, results_qmmm, results_qm, results_mm)
 
@@ -137,8 +138,8 @@ CONTAINS
        DO ip=1, SIZE(particles_qm)
           check = (DOT_PRODUCT(qm_cell%h_inv(j,:),particles_qm(ip)%r) >= 0.0) .AND. &
                   (DOT_PRODUCT(qm_cell%h_inv(j,:),particles_qm(ip)%r) <= 1.0)
-          IF (logger%para_env%ionode .AND. .NOT. check) THEN
-            WRITE (unit=*, fmt='("ip, j, pos, lat_pos ",2I6,6F12.5)') ip, j, &
+          IF (output_unit>0 .AND. .NOT. check) THEN
+            WRITE (unit=output_unit, fmt='("ip, j, pos, lat_pos ",2I6,6F12.5)') ip, j, &
                particles_qm(ip)%r, DOT_PRODUCT(qm_cell%h_inv(j,:),particles_qm(ip)%r)
           ENDIF
           CALL cp_assert(check, cp_failure_level, cp_assertion_failed, routinep,&
