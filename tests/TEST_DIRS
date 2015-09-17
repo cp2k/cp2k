@@ -25,9 +25,9 @@ QS/regtest-gpw-2-3
 QS/regtest-gpw-3
 QS/regtest-tddfpt
 QS/regtest-gpw-1                                            libint 
-QS/regtest-dft-vdw-corr-3                                   libxc2 
+QS/regtest-dft-vdw-corr-3                                   libxc 
 QS/regtest-ps-implicit-2-2
-QS/regtest-libxc                                            libxc2 libint 
+QS/regtest-libxc                                            libxc libint 
 QS/regtest-hfx                                              libint 
 DFTB/regtest-scc
 QMMM/SE/regtest-force-mixing
@@ -36,7 +36,7 @@ QS/regtest-kp-1
 QS/regtest-xc
 QMMM/QS/regtest-1
 QS/regtest-ps-implicit-1-2
-QS/regtest-kg                                               libxc2 
+QS/regtest-kg                                               libxc 
 QS/regtest-gpw-6-2
 QS/regtest-gpw-5
 QS/regtest-almo-2
@@ -84,7 +84,7 @@ QS/regtest-admm-dm                                          libint
 QS/regtest-admm-2                                           libint 
 QS/regtest-double-hybrid-1                                  libint 
 QS/regtest-lrigpw
-QS/regtest-dft-vdw-corr-2                                   libxc2 
+QS/regtest-dft-vdw-corr-2                                   libxc 
 QS/regtest-gpw-2-2
 QS/regtest-almo-1
 ATOM/regtest-1

@@ -182,7 +182,7 @@ CONTAINS
        CALL section_vals_val_set(functionals,"LIBXC%_SECTION_PARAMETERS_",& !60%LDA
             l_val=.TRUE.,error=error)
        CALL section_vals_val_set(functionals,"LIBXC%FUNCTIONAL",&
-            c_val="XC_LDA_C_PW",error=error)
+            c_val="LDA_C_PW",error=error)
        CALL section_vals_val_set(functionals,"LIBXC%SCALE",&
             r_val=0.6001664769_dp,error=error)
 

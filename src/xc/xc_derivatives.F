@@ -30,6 +30,10 @@ MODULE xc_derivatives
   USE xc_ke_gga,                       ONLY: ke_gga_info,&
                                              ke_gga_lda_eval,&
                                              ke_gga_lsd_eval
+  USE xc_libxc,                        ONLY: libxc_lda_eval,&
+                                             libxc_lda_info,&
+                                             libxc_lsd_eval,&
+                                             libxc_lsd_info
   USE xc_lyp,                          ONLY: lyp_lda_eval,&
                                              lyp_lda_info,&
                                              lyp_lsd_eval,&
@@ -42,12 +46,6 @@ MODULE xc_derivatives
                                              optx_lda_info,&
                                              optx_lsd_eval,&
                                              optx_lsd_info
-#if defined __LIBXC2 || __LIBXC3
-  USE xc_libxc,                        ONLY: libxc_lda_eval,&
-                                             libxc_lda_info,&
-                                             libxc_lsd_eval,&
-                                             libxc_lsd_info
-#endif
   USE xc_pade,                         ONLY: pade,&
                                              pade_lda_pw_eval,&
                                              pade_lsd_pw_eval
@@ -84,10 +82,6 @@ MODULE xc_derivatives
   USE xc_xalpha,                       ONLY: xalpha_info,&
                                              xalpha_lda_eval,&
                                              xalpha_lsd_eval
-  USE xc_xbeef   ,                     ONLY: xbeef_lda_eval,&
-                                             xbeef_lda_info,&
-                                             xbeef_lsd_eval,&
-                                             xbeef_lsd_info
   USE xc_xbecke88,                     ONLY: xb88_lda_eval,&
                                              xb88_lda_info,&
                                              xb88_lsd_eval,&
@@ -104,6 +98,10 @@ MODULE xc_derivatives
                                              xbecke_roussel_lda_info,&
                                              xbecke_roussel_lsd_eval,&
                                              xbecke_roussel_lsd_info
+  USE xc_xbeef,                        ONLY: xbeef_lda_eval,&
+                                             xbeef_lda_info,&
+                                             xbeef_lsd_eval,&
+                                             xbeef_lsd_info
   USE xc_xbr_pbe_lda_hole_t_c_lr,      ONLY: xbr_pbe_lda_hole_tc_lr_lda_eval,&
                                              xbr_pbe_lda_hole_tc_lr_lda_info,&
                                              xbr_pbe_lda_hole_tc_lr_lsd_eval,&
@@ -240,7 +238,6 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         CALL optx_lda_info(reference,shortform,needs,max_deriv,error=error)
      ENDIF
   CASE("LIBXC","KE_LIBXC")
-#if defined __LIBXC2 || __LIBXC3
      IF (lsd) THEN
         CALL libxc_lsd_info(functional,reference,shortform,needs,max_deriv,&
              ifunc_name,error=error)
@@ -248,10 +245,6 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         CALL libxc_lda_info(functional,reference,shortform,needs,max_deriv,&
              ifunc_name,error=error)
      ENDIF
-#else
-     CALL stop_program(routineN,moduleN,__LINE__,&
-        "In order to use libxc you need to download and install it")
-#endif
   CASE("CS1")
      IF (lsd) THEN
         CALL cs1_lsd_info(reference,shortform,needs,max_deriv,error=error)
@@ -484,16 +477,11 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         CALL optx_lda_eval(rho_set,deriv_set,deriv_order,functional,error=error)
      ENDIF
   CASE("LIBXC","KE_LIBXC")
-#if defined __LIBXC2 || __LIBXC3
      IF (lsd) THEN
         CALL libxc_lsd_eval(rho_set,deriv_set,deriv_order,functional,ifunc_name,error=error)
      ELSE
         CALL libxc_lda_eval(rho_set,deriv_set,deriv_order,functional,ifunc_name,error=error)
      ENDIF
-#else
-     CALL stop_program(routineN,moduleN,__LINE__,&
-        "In order to use libxc you need to download and install it")
-#endif
   CASE("CS1")
      IF (lsd) THEN
         CALL cs1_lsd_eval(rho_set,deriv_set,deriv_order,error=error)

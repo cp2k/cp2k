@@ -270,15 +270,15 @@ CONTAINS
 
     CALL create_libxc_section(subsection, "LIBXC",&
          "Uses functionals from LIBXC, see also "//&
-         "http://www.tddft.org/programs/octopus/wiki/index.php/Libxc ",&
-         "FUNCTIONAL XC_GGA_X_PBE XC_GGA_C_PBE", error)
+         "http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_functionals ",&
+         "FUNCTIONAL GGA_X_PBE GGA_C_PBE", error)
     CALL section_add_subsection(section,subsection,error=error)
     CALL section_release(subsection,error=error)
 
     CALL create_libxc_section(subsection, "KE_LIBXC",&
          "To be used for KG runs. Uses kinetic energy functionals from LIBXC, "//&
-         "see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc ",&
-         "FUNCTIONAL XC_GGA_K_LLP", error)
+         "see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_functionals ",&
+         "FUNCTIONAL GGA_K_LLP", error)
     CALL section_add_subsection(section,subsection,error=error)
     CALL section_release(subsection,error=error)
 
@@ -773,8 +773,8 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword,name="FUNCTIONAL",&
-         description="names of the functionals, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc:manual ."//&
-                     "The precise list of available functionals depends on the version of libxc interfaced (currently 2.0.1).",&
+         description="names of the functionals, see also http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_functionals ."//&
+                     "The precise list of available functionals depends on the version of libxc interfaced (currently 2.2.2).",&
          usage=usage,&
          type_of_var=char_t,n_var=-1,error=error)
     CALL section_add_keyword(section,keyword,error=error)

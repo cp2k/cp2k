@@ -102,11 +102,11 @@ CONTAINS
 #if defined(__FFTW3)
     flags=TRIM(flags)//" fftw3"
 #endif
-#if defined(__LIBXC2)
-    flags=TRIM(flags)//" libxc2"
+#if defined(__LIBXC2) || defined(__LIBXC3)
+#define __LIBXC
 #endif
-#if defined(__LIBXC3)
-    flags=TRIM(flags)//" libxc3"
+#if defined(__LIBXC)
+    flags=TRIM(flags)//" libxc"
 #endif
 #if defined(__LIBPEXSI)
     flags=TRIM(flags)//" pexsi"
