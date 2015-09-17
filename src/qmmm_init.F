@@ -53,7 +53,7 @@ MODULE qmmm_init
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
   USE qmmm_per_elpot,                  ONLY: qmmm_ewald_potential_init,&
                                              qmmm_per_potential_init
-  USE qmmm_types,                      ONLY: add_set_type,&
+  USE qmmm_types_low,                  ONLY: add_set_type,&
                                              create_add_set_type,&
                                              qmmm_env_mm_type,&
                                              qmmm_env_qm_type,&
@@ -82,7 +82,6 @@ MODULE qmmm_init
             move_or_add_atoms,&
             setup_origin_mm_cell
 
-!***
 CONTAINS
 
 ! *****************************************************************************
@@ -607,8 +606,7 @@ CONTAINS
           CALL cp_assert(tmp_radius>0.0_dp,cp_failure_level,cp_assertion_failed,routineP,&
                "SPHERICAL_CUTOFF(1) > 20*SPHERICAL_CUTOFF(1)! Please correct parameters for "//&
                "the Spherical Cutoff in order to satisfy the previous condition!"//&
-CPSourceFileRef,&
-               error,failure)
+               CPSourceFileRef,error,failure)
        END IF
        !
        ! Initialization of arrays and core_charge_radius...
@@ -689,8 +687,7 @@ CPSourceFileRef,&
     ELSE
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
           "QMMM section not present in input file!"//&
-CPSourceFileRef,&
-          error,failure)
+          CPSourceFileRef,error,failure)
     ENDIF
     !
     ! Build MM atoms list
@@ -747,7 +744,7 @@ CPSourceFileRef,&
        CASE(do_qmmm_image_iter)
          qmmm_env%image_charge_pot%coeff_iterative=.TRUE.
        END SELECT
-     
+
        CALL section_vals_val_get(image_charge_section,"RESTART_IMAGE_MATRIX",&
                                 l_val=qmmm_env%image_charge_pot%image_restart,&
                                 error=error)
@@ -1558,7 +1555,7 @@ CPSourceFileRef,&
    ELSE
      qmmm_env%image_charge_pot%state_image_matrix = calc_always
    ENDIF
-      
+
    END SUBROUTINE setup_image_atom_list
 
 ! *****************************************************************************

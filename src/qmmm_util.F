@@ -9,12 +9,12 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qmmm_util
-  USE cell_types,                      ONLY: cell_copy,&
-                                             cell_type
+  USE cell_types,                      ONLY: cell_type
   USE cp_subsys_types,                 ONLY: cp_subsys_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type,&
-                                             use_qmmm
+  USE fist_environment_types,          ONLY: fist_env_get
+  USE force_env_types,                 ONLY: force_env_type,&
+                                             use_qmmm,&
+                                             use_qmmmx
   USE input_constants,                 ONLY: do_qmmm_wall_none,&
                                              do_qmmm_wall_quadratic,&
                                              do_qmmm_wall_reflective
@@ -27,11 +27,7 @@ MODULE qmmm_util
   USE particle_methods,                ONLY: write_fist_particle_coordinates,&
                                              write_qs_particle_coordinates
   USE particle_types,                  ONLY: particle_type
-  USE qmmm_types,                      ONLY: fist_subsys,&
-                                             force_mixing_core_subsys,&
-                                             force_mixing_extended_subsys,&
-                                             primary_subsys,&
-                                             qs_subsys
+  USE qmmm_types,                      ONLY: qmmm_env_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env
   USE qs_kind_types,                   ONLY: qs_kind_type
@@ -55,33 +51,41 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Apply QM quadratic walls in order to avoid QM atoms escaping from
 !>      the QM Box
-!> \param force_env ...
+!> \param qmmm_env ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
 !> \par History
 !>      02.2008 created
 !> \author Benjamin G Levine
 ! *****************************************************************************
-  SUBROUTINE apply_qmmm_walls(force_env, error)
-    TYPE(force_env_type), POINTER            :: force_env
+  SUBROUTINE apply_qmmm_walls(qmmm_env, error)
+    TYPE(qmmm_env_type), POINTER             :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_walls', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iwall_type
-    LOGICAL                                  :: explicit, failure
-    TYPE(section_vals_type), POINTER         :: walls_section
+    LOGICAL                                  :: do_qmmm_force_mixing, &
+                                                explicit, failure
+    TYPE(section_vals_type), POINTER         :: qmmmx_section, walls_section
 
     failure         = .FALSE.
-    walls_section => section_vals_get_subs_vals(force_env%root_section,&
-        "FORCE_EVAL%QMMM%WALLS",error=error)
+    walls_section => section_vals_get_subs_vals(qmmm_env%qs_env%input,"QMMM%WALLS",error=error)
+    qmmmx_section => section_vals_get_subs_vals(qmmm_env%qs_env%input,"QMMM%FORCE_MIXING",error=error)
+    CALL section_vals_get(qmmmx_section,explicit=do_qmmm_force_mixing,error=error)
     CALL section_vals_get(walls_section, explicit=explicit, error=error)
     IF (explicit) THEN
        CALL section_vals_val_get(walls_section,"TYPE",i_val=iwall_type,error=error)
        SELECT CASE(iwall_type)
        CASE(do_qmmm_wall_quadratic)
-          CALL apply_qmmm_walls_quadratic(force_env, walls_section, error)
+          IF(do_qmmm_force_mixing) THEN
+            CALL cp_assert(.FALSE., cp_warning_level,cp_assertion_failed,routineP,&
+            "Quadratic walls for QM/MM are not implemented (or useful), when "//&
+            "force mixing is active.  Skipping!"//CPSourceFileRef)
+          ELSE
+            CALL apply_qmmm_walls_quadratic(qmmm_env, walls_section, error)
+          ENDIF
        CASE(do_qmmm_wall_reflective)
           ! Do nothing.. reflective walls are applied directly in the integrator
        END SELECT
@@ -119,104 +123,103 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: walls_section
 
     failure         = .FALSE.
-    SELECT CASE(force_env%in_use)
-    CASE(use_qmmm)
-       NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm, qm_cell, mm_cell,&
-            walls_section)
-       walls_section => section_vals_get_subs_vals(force_env%root_section,"FORCE_EVAL%QMMM%WALLS",error=error)
-       CALL section_vals_get(walls_section, explicit=explicit, error=error)
-       IF (explicit) THEN
-          NULLIFY(list)
-          CALL section_vals_val_get(walls_section,"WALL_SKIN",r_vals=list,error=error)
-          CALL section_vals_val_get(walls_section,"TYPE",i_val=iwall_type,error=error)
-          skin(:) = list(:)
-       ELSE
-          ![NB]
-          iwall_type=do_qmmm_wall_reflective
-          skin(:) = 0.0_dp
-       END IF
-       CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-       CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
-       CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm, qm_cell, mm_cell,&
+         walls_section)
 
-       IF (force_env%qmmm_env%do_force_mixing) THEN
-          CALL cp_assert(iwall_type == do_qmmm_wall_none, &
-            cp_warning_level,cp_assertion_failed,routineP,&
-            "Reflective walls for QM/MM are not implemented (or useful) when "//&
-            "force mixing is active.  Skipping!"//CPSourceFileRef)
-          RETURN
-       END IF
-   
-       CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
-                          cell=mm_cell,subsys=subsys_mm,error=error)
-       CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
-                          cell=qm_cell,subsys=subsys_qm,error=error)
-       qm_atom_index   => force_env%qmmm_env%qm_atom_index
-       CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
+    IF(force_env%in_use/=use_qmmm .AND. force_env%in_use/=use_qmmmx) RETURN
 
-       qm_cell_diag = (/qm_cell%hmat(1,1),&
-                        qm_cell%hmat(2,2),&
-                        qm_cell%hmat(3,3)/)
-       particles_mm => subsys_mm%particles%els
-       DO ip=1,SIZE(qm_atom_index)
-          qm_index = qm_atom_index(ip)
-          coord = particles_mm(qm_index)%r
-          IF (ANY(coord<skin).OR.ANY(coord>(qm_cell_diag-skin))) THEN
-             IF (explicit) THEN
-                IF (iwall_type==do_qmmm_wall_reflective) THEN
-                   ! Apply Walls
-                   is_x(1) = (coord(1)<skin(1))
-                   is_x(2) = (coord(1)>(qm_cell_diag(1)-skin(1)))
-                   is_y(1) = (coord(2)<skin(2))
-                   is_y(2) = (coord(2)>(qm_cell_diag(2)-skin(2)))
-                   is_z(1) = (coord(3)<skin(3))
-                   is_z(2) = (coord(3)>(qm_cell_diag(3)-skin(3)))
-                   IF (ANY(is_x)) THEN
-                      ! X coordinate
-                      IF      (is_x(1)) THEN
-                         particles_mm(qm_index)%v(1) =  ABS(particles_mm(qm_index)%v(1))
-                      ELSE IF (is_x(2)) THEN
-                         particles_mm(qm_index)%v(1) =  -ABS(particles_mm(qm_index)%v(1))
-                      END IF
+    walls_section => section_vals_get_subs_vals(force_env%root_section,"FORCE_EVAL%QMMM%WALLS",error=error)
+    CALL section_vals_get(walls_section, explicit=explicit, error=error)
+    IF (explicit) THEN
+       NULLIFY(list)
+       CALL section_vals_val_get(walls_section,"WALL_SKIN",r_vals=list,error=error)
+       CALL section_vals_val_get(walls_section,"TYPE",i_val=iwall_type,error=error)
+       skin(:) = list(:)
+    ELSE
+       ![NB]
+       iwall_type=do_qmmm_wall_reflective
+       skin(:) = 0.0_dp
+    END IF
+
+    IF (force_env%in_use==use_qmmmx) THEN
+       CALL cp_assert(iwall_type == do_qmmm_wall_none, &
+         cp_warning_level,cp_assertion_failed,routineP,&
+         "Reflective walls for QM/MM are not implemented (or useful) when "//&
+         "force mixing is active.  Skipping!"//CPSourceFileRef)
+       RETURN
+    END IF
+
+
+    ! from here on we can be sure that it's conventional QM/MM
+    CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    CALL fist_env_get(force_env%qmmm_env%fist_env,cell=mm_cell,subsys=subsys_mm,error=error)
+    CALL get_qs_env(force_env%qmmm_env%qs_env,cell=qm_cell,cp_subsys=subsys_qm,error=error)
+    qm_atom_index   => force_env%qmmm_env%qm%qm_atom_index
+    CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
+
+    qm_cell_diag = (/qm_cell%hmat(1,1),&
+                     qm_cell%hmat(2,2),&
+                     qm_cell%hmat(3,3)/)
+    particles_mm => subsys_mm%particles%els
+    DO ip=1,SIZE(qm_atom_index)
+       qm_index = qm_atom_index(ip)
+       coord = particles_mm(qm_index)%r
+       IF (ANY(coord<skin).OR.ANY(coord>(qm_cell_diag-skin))) THEN
+          IF (explicit) THEN
+             IF (iwall_type==do_qmmm_wall_reflective) THEN
+                ! Apply Walls
+                is_x(1) = (coord(1)<skin(1))
+                is_x(2) = (coord(1)>(qm_cell_diag(1)-skin(1)))
+                is_y(1) = (coord(2)<skin(2))
+                is_y(2) = (coord(2)>(qm_cell_diag(2)-skin(2)))
+                is_z(1) = (coord(3)<skin(3))
+                is_z(2) = (coord(3)>(qm_cell_diag(3)-skin(3)))
+                IF (ANY(is_x)) THEN
+                   ! X coordinate
+                   IF      (is_x(1)) THEN
+                      particles_mm(qm_index)%v(1) =  ABS(particles_mm(qm_index)%v(1))
+                   ELSE IF (is_x(2)) THEN
+                      particles_mm(qm_index)%v(1) =  -ABS(particles_mm(qm_index)%v(1))
                    END IF
-                   IF (ANY(is_y)) THEN
-                      ! Y coordinate
-                      IF      (is_y(1)) THEN
-                         particles_mm(qm_index)%v(2) =  ABS(particles_mm(qm_index)%v(2))
-                      ELSE IF (is_y(2)) THEN
-                         particles_mm(qm_index)%v(2) =  -ABS(particles_mm(qm_index)%v(2))
-                      END IF
+                END IF
+                IF (ANY(is_y)) THEN
+                   ! Y coordinate
+                   IF      (is_y(1)) THEN
+                      particles_mm(qm_index)%v(2) =  ABS(particles_mm(qm_index)%v(2))
+                   ELSE IF (is_y(2)) THEN
+                      particles_mm(qm_index)%v(2) =  -ABS(particles_mm(qm_index)%v(2))
                    END IF
-                   IF (ANY(is_z)) THEN
-                      ! Z coordinate
-                      IF      (is_z(1)) THEN
-                         particles_mm(qm_index)%v(3) =  ABS(particles_mm(qm_index)%v(3))
-                      ELSE IF (is_z(2)) THEN
-                         particles_mm(qm_index)%v(3) =  -ABS(particles_mm(qm_index)%v(3))
-                      END IF
+                END IF
+                IF (ANY(is_z)) THEN
+                   ! Z coordinate
+                   IF      (is_z(1)) THEN
+                      particles_mm(qm_index)%v(3) =  ABS(particles_mm(qm_index)%v(3))
+                   ELSE IF (is_z(2)) THEN
+                      particles_mm(qm_index)%v(3) =  -ABS(particles_mm(qm_index)%v(3))
                    END IF
-                ENDIF
-             ELSE
-                ! Otherwise print a warning and continue crossing cp2k's finger..
-                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                "One or few QM atoms are within the SKIN of the quantum box. Check your run "//&
-                "and you may possibly consider: the activation of the QMMM WALLS "//&
-                "around the QM box, switching ON the centering of the QM box or increase "//&
-                "the size of the QM cell. CP2K CONTINUE but results could be meaningless. "//&
-                CPSourceFileRef,&
-                only_ionode=.TRUE.)
-             END IF
+                END IF
+             ENDIF
+          ELSE
+             ! Otherwise print a warning and continue crossing cp2k's finger..
+             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+             "One or few QM atoms are within the SKIN of the quantum box. Check your run "//&
+             "and you may possibly consider: the activation of the QMMM WALLS "//&
+             "around the QM box, switching ON the centering of the QM box or increase "//&
+             "the size of the QM cell. CP2K CONTINUE but results could be meaningless. "//&
+             CPSourceFileRef,&
+             only_ionode=.TRUE.)
           END IF
-       END DO
-    END SELECT
+       END IF
+    END DO
 
   END SUBROUTINE apply_qmmm_walls_reflective
 
 ! *****************************************************************************
 !> \brief Apply QM quadratic walls in order to avoid QM atoms escaping from
 !>      the QM Box
-!> \param force_env ...
+!> \param qmmm_env ...
 !> \param walls_section ...
 !> \param error variable to control error logging, stopping,...
 !>        see module cp_error_handling
@@ -224,8 +227,8 @@ CONTAINS
 !>      02.2008 created
 !> \author Benjamin G Levine
 ! *****************************************************************************
-  SUBROUTINE apply_qmmm_walls_quadratic(force_env, walls_section, error)
-    TYPE(force_env_type), POINTER            :: force_env
+  SUBROUTINE apply_qmmm_walls_quadratic(qmmm_env, walls_section, error)
+    TYPE(qmmm_env_type), POINTER             :: qmmm_env
     TYPE(section_vals_type), POINTER         :: walls_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -248,25 +251,13 @@ CONTAINS
     NULLIFY(list)
     CALL section_vals_val_get(walls_section,"WALL_SKIN",r_vals=list,error=error)
     CALL section_vals_val_get(walls_section,"K",r_val=k,error=error)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    IF (force_env%qmmm_env%do_force_mixing) THEN
-       CALL cp_assert(.FALSE., &
-          cp_warning_level,cp_assertion_failed,routineP,&
-          "Quadratic walls for QM/MM are not implemented (or useful), when "//&
-          "force mixing is active.  Skipping!"//CPSourceFileRef)
-       RETURN
-    END IF
+    CALL fist_env_get(qmmm_env%fist_env,cell=mm_cell,subsys=subsys_mm,error=error)
+    CALL get_qs_env(qmmm_env%qs_env,cell=qm_cell,cp_subsys=subsys_qm,error=error)
 
-    CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
-                       cell=mm_cell,subsys=subsys_mm,error=error)
-    CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
-                       cell=qm_cell,subsys=subsys_qm,error=error)
-
-    qm_atom_index   => force_env%qmmm_env%qm_atom_index
+    qm_atom_index   => qmmm_env%qm%qm_atom_index
     CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
 
     skin(:) = list(:)
@@ -328,14 +319,14 @@ CONTAINS
        ENDIF
     ENDDO
 
-    CALL get_qs_env(qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env, energy=energy,error=error)
+    CALL get_qs_env(qs_env=qmmm_env%qs_env, energy=energy,error=error)
     energy%total = energy%total + wallenergy
 
   END SUBROUTINE apply_qmmm_walls_quadratic
 
-  ! wrap positions (with mm periodicity)
+
 ! *****************************************************************************
-!> \brief ...
+!> \brief wrap positions (with mm periodicity)
 !> \param subsys_mm ...
 !> \param mm_cell ...
 !> \param subsys_qm ...
@@ -410,114 +401,22 @@ CONTAINS
     DEALLOCATE(saved_pos)
   END SUBROUTINE apply_qmmm_unwrap
 
-! *****************************************************************************
-!> \brief Apply translation to the full system in order to center the QM
-!>      system into the QM box
-!> \param force_env ...
-!> \param error variable to control error logging, stopping,...
-!>        see module cp_error_handling
-!> \par History
-!>      08.2007 created [tlaino] - Zurich University
-!> \author Teodoro Laino
-! *****************************************************************************
-  SUBROUTINE apply_qmmm_translate(force_env,error)
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_error_type), INTENT(inout)       :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_translate', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: ip
-    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: failure
-    REAL(dp), POINTER                        :: charges(:)
-    TYPE(cell_type), POINTER                 :: cell_core, cell_extended
-    TYPE(cp_subsys_type), POINTER            :: subsys_core, subsys_extended, &
-                                                subsys_fist, subsys_qs
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particles_core, &
-                                                particles_extended, &
-                                                particles_mm, particles_qm
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
-    TYPE(section_vals_type), POINTER         :: subsys_section
-
-    NULLIFY(qs_kind_set)
-
-    SELECT CASE(force_env%in_use)
-
-    CASE(use_qmmm)
-      IF (SIZE(force_env%sub_force_env) == 1) THEN
-        CALL apply_qmmm_translate_low(force_env%sub_force_env(primary_subsys)%force_env,error)
-      ELSE IF (SIZE(force_env%sub_force_env) == 2) THEN
-        ! want to center extended, and make core consistent with that
-        CALL apply_qmmm_translate_low(force_env%sub_force_env(force_mixing_extended_subsys)%force_env,error)
-
-        ! translate core fist particles
-        CALL force_env_get(force_env%sub_force_env(force_mixing_extended_subsys)%force_env,&
-                          subsys=subsys_extended,cell=cell_extended,error=error)
-        CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env,&
-                          subsys=subsys_core,cell=cell_core,error=error)
-        particles_extended => subsys_extended%particles%els
-        particles_core => subsys_core%particles%els
-        DO ip=1,SIZE(particles_extended)
-           particles_core(ip)%r = particles_extended(ip)%r
-        END DO
-        CALL cell_copy(cell_extended, cell_core, error)
-
-        ! also update core QM particles (like in apply_qmmm_translate_low)
-        CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
-                         subsys=subsys_fist,error=error)
-        CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
-                         subsys=subsys_qs,error=error)
-        qm_atom_index   => force_env%sub_force_env(force_mixing_core_subsys)%force_env%qmmm_env%qm_atom_index
-        particles_qm => subsys_qs%particles%els
-        particles_mm => subsys_fist%particles%els
-        CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
-        DO ip=1,SIZE(qm_atom_index)
-           particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
-        END DO
-
-        IF (debug_this_module) THEN
-          CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
-                            subsys=subsys_core,cell=cell_core,error=error)
-          particles_core => subsys_core%particles%els
-          subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
-                                                              "SUBSYS",error=error)
-          CALL get_qs_env(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
-                          qs_kind_set=qs_kind_set,error=error)
-          CALL write_qs_particle_coordinates(particles_core,qs_kind_set,subsys_section,&
-                                             "QM/MM core calc first QM, then MM (0 charges)",error)
-          CALL force_env_get(force_env%sub_force_env(force_mixing_core_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
-                            subsys=subsys_core,cell=cell_core,error=error)
-          particles_core => subsys_core%particles%els
-          ALLOCATE(charges(SIZE(particles_core)))
-          charges = 0.0_dp
-          CALL write_fist_particle_coordinates(particles_core,subsys_section,charges,error)
-          DEALLOCATE(charges)
-        ENDIF
-
-      ELSE
-         CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-      ENDIF
-    END SELECT
-  END SUBROUTINE apply_qmmm_translate
 
 ! *****************************************************************************
 !> \brief Apply translation to the full system in order to center the QM
 !>      system into the QM box
-!> \param force_env ...
+!> \param qmmm_env ...
 !> \param error variable to control error logging, stopping,... 
 !>        see module cp_error_handling 
 !> \par History
 !>      08.2007 created [tlaino] - Zurich University
 !> \author Teodoro Laino
 ! *****************************************************************************
-  SUBROUTINE apply_qmmm_translate_low(force_env,error)
-    TYPE(force_env_type), POINTER            :: force_env
+  SUBROUTINE apply_qmmm_translate(qmmm_env,error)
+    TYPE(qmmm_env_type), POINTER             :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_translate_low', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'apply_qmmm_translate', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: bigger_ip, i_dim, ip, max_ip, &
@@ -539,140 +438,131 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
 
-    SELECT CASE(force_env%in_use)
-    CASE(use_qmmm)
-       failure         = .FALSE.
-       logger => cp_error_get_logger(error)
-       NULLIFY(subsys_mm, subsys_qm, qm_atom_index, particles_mm, particles_qm,&
-               subsys_section, qm_cell, mm_cell, qs_kind_set)
+    failure         = .FALSE.
+    logger => cp_error_get_logger(error)
+    NULLIFY(subsys_mm, subsys_qm, qm_atom_index, particles_mm, particles_qm,&
+            subsys_section, qm_cell, mm_cell, qs_kind_set)
 
-       CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
-       CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
-       CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-       CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
-                          cell=mm_cell,subsys=subsys_mm,error=error)
-       CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
-                          cell=qm_cell,subsys=subsys_qm,error=error)
-       qm_atom_index   => force_env%qmmm_env%qm_atom_index
-       CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
+    CALL fist_env_get(qmmm_env%fist_env,cell=mm_cell,subsys=subsys_mm,error=error)
+    CALL get_qs_env(qmmm_env%qs_env,cell=qm_cell,cp_subsys=subsys_qm,error=error)
+    qm_atom_index   => qmmm_env%qm%qm_atom_index
+    CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
 
-       particles_qm => subsys_qm%particles%els
-       particles_mm => subsys_mm%particles%els
-       IF (.NOT.force_env%qmmm_env%center_qm_subsys0) force_env%qmmm_env%do_translate = .FALSE.
-       IF (force_env%qmmm_env%do_translate) THEN
-          IF (.NOT. force_env%qmmm_env%center_qm_subsys_pbc_aware) THEN
-             ! naive coordinate based min-max
-             min_coord       =  HUGE(0.0_dp)
-             max_coord       = -HUGE(0.0_dp)
-             DO ip=1,SIZE(qm_atom_index)
-                min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
-                max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
-             END DO
-          ELSE
-             !! periodic based min max (uses complex number based mean)
-             center_p = qmmm_pbc_aware_mean(particles_mm, mm_cell, qm_atom_index)
-             ALLOCATE(avoid(SIZE(qm_atom_index)))
-             DO i_dim=1, 3
-                IF (mm_cell%perd(i_dim) /= 1) THEN
-                  ! find absolute min and max positions (along i_dim direction) in lattice coordinates
-                  min_coord_lat(i_dim) = HUGE(0.0_dp)
-                  max_coord_lat(i_dim) = -HUGE(0.0_dp)
-                  DO ip=1, SIZE(qm_atom_index)
-                    lat_p = MATMUL(mm_cell%h_inv, particles_mm(qm_atom_index(ip))%r)
-                    min_coord_lat(i_dim)=MIN(lat_p(i_dim), min_coord_lat(i_dim))
-                    max_coord_lat(i_dim)=MAX(lat_p(i_dim), max_coord_lat(i_dim))
-                  END DO
-                ELSE
-                  ! find min_ip closest to (pbc-aware) mean pos
-                  avoid = .FALSE.
-                  min_ip = qmmm_find_closest(particles_mm, mm_cell, qm_atom_index, avoid, center_p, i_dim, 0)
-                  avoid(min_ip) = .TRUE.
-                  ! find max_ip closest to min_ip
-                  max_ip = qmmm_find_closest(particles_mm, mm_cell, qm_atom_index, avoid, &
-                           particles_mm(qm_atom_index(min_ip))%r, i_dim, 0, lat_dv)
-                  avoid(max_ip) = .TRUE.
-                  ! switch min and max if necessary
-                  IF (lat_dv < 0.0) THEN
-                    tmp_ip = min_ip
-                    min_ip = max_ip
-                    max_ip = tmp_ip
-                  ENDIF
-                  ! loop over all other atoms
-                  DO WHILE (.NOT. ALL(avoid))
-                    ! find smaller below min, bigger after max
-                    smaller_ip = qmmm_find_closest(particles_mm, mm_cell, qm_atom_index,&
-                                 avoid, particles_mm(qm_atom_index(min_ip))%r, i_dim, -1, smaller_lat_dv)
-                    bigger_ip = qmmm_find_closest(particles_mm, mm_cell, qm_atom_index,&
-                                 avoid, particles_mm(qm_atom_index(max_ip))%r, i_dim, 1, bigger_lat_dv)
-                    ! move min or max, not both
-                    IF (ABS(smaller_lat_dv) < ABS(bigger_lat_dv)) THEN
-                       min_ip = smaller_ip
-                       avoid(min_ip) = .TRUE.
-                    ELSE
-                       max_ip = bigger_ip
-                       avoid(max_ip) = .TRUE.
-                    END IF
-                  END DO
-                  ! find min and max coordinates in lattice positions (i_dim ! only)
-                  lat_dv3 = qmmm_lat_dv(mm_cell, particles_mm(qm_atom_index(min_ip))%r, particles_mm(qm_atom_index(max_ip))%r)
-                  IF (lat_dv3(i_dim) < 0.0_dp) lat_dv3(i_dim) = lat_dv3(i_dim) + 1.0_dp
-                  lat_min = MATMUL(mm_cell%h_inv, particles_mm(qm_atom_index(min_ip))%r)
-                  min_coord_lat(i_dim) = lat_min(i_dim)
-                  max_coord_lat(i_dim) = lat_min(i_dim) + lat_dv3(i_dim)
-                END IF ! periodic
-             END DO ! i_dim
-             ! min and max coordinates from lattice positions to Cartesian
-             min_coord = MATMUL(mm_cell%hmat, min_coord_lat)
-             max_coord = MATMUL(mm_cell%hmat, max_coord_lat)
-             DEALLOCATE(avoid)
-          END IF ! pbc aware center
-          transl_v = (max_coord + min_coord) / 2.0_dp
-
-          !
-          ! The first time we always translate all the system in order
-          ! to centre the QM system in the box.
-          !
-          transl_v(:) = transl_v(:) - SUM(qm_cell%hmat, 2)/2.0_dp
-
-          IF (ANY(force_env%qmmm_env%utrasl /= 1.0_dp)) THEN
-             transl_v = REAL( FLOOR(transl_v/force_env%qmmm_env%utrasl),KIND=dp) *&
-                  force_env%qmmm_env%utrasl
-          END IF
-          force_env%qmmm_env%transl_v = force_env%qmmm_env%transl_v + transl_v
-          particles_mm => subsys_mm%particles%els
-          DO ip=1,subsys_mm%particles%n_els
-             particles_mm(ip)%r = particles_mm(ip)%r - transl_v
+    particles_qm => subsys_qm%particles%els
+    particles_mm => subsys_mm%particles%els
+    IF (.NOT.qmmm_env%qm%center_qm_subsys0) qmmm_env%qm%do_translate = .FALSE.
+    IF (qmmm_env%qm%do_translate) THEN
+       IF (.NOT. qmmm_env%qm%center_qm_subsys_pbc_aware) THEN
+          ! naive coordinate based min-max
+          min_coord       =  HUGE(0.0_dp)
+          max_coord       = -HUGE(0.0_dp)
+          DO ip=1,SIZE(qm_atom_index)
+             min_coord=MIN(min_coord,particles_mm(qm_atom_index(ip))%r)
+             max_coord=MAX(max_coord,particles_mm(qm_atom_index(ip))%r)
           END DO
-          unit_nr=cp_logger_get_default_io_unit(logger)
-          IF (unit_nr>0) WRITE (unit=unit_nr,fmt='(/1X,A)')&
-               " Translating the system in order to center the QM fragment in the QM box."
-          IF (.NOT.force_env%qmmm_env%center_qm_subsys) force_env%qmmm_env%do_translate = .FALSE.
+       ELSE
+          !! periodic based min max (uses complex number based mean)
+          center_p = qmmm_pbc_aware_mean(particles_mm, mm_cell, qm_atom_index)
+          ALLOCATE(avoid(SIZE(qm_atom_index)))
+          DO i_dim=1, 3
+             IF (mm_cell%perd(i_dim) /= 1) THEN
+               ! find absolute min and max positions (along i_dim direction) in lattice coordinates
+               min_coord_lat(i_dim) = HUGE(0.0_dp)
+               max_coord_lat(i_dim) = -HUGE(0.0_dp)
+               DO ip=1, SIZE(qm_atom_index)
+                 lat_p = MATMUL(mm_cell%h_inv, particles_mm(qm_atom_index(ip))%r)
+                 min_coord_lat(i_dim)=MIN(lat_p(i_dim), min_coord_lat(i_dim))
+                 max_coord_lat(i_dim)=MAX(lat_p(i_dim), max_coord_lat(i_dim))
+               END DO
+             ELSE
+               ! find min_ip closest to (pbc-aware) mean pos
+               avoid = .FALSE.
+               min_ip = qmmm_find_closest(particles_mm, mm_cell, qm_atom_index, avoid, center_p, i_dim, 0)
+               avoid(min_ip) = .TRUE.
+               ! find max_ip closest to min_ip
+               max_ip = qmmm_find_closest(particles_mm, mm_cell, qm_atom_index, avoid, &
+                        particles_mm(qm_atom_index(min_ip))%r, i_dim, 0, lat_dv)
+               avoid(max_ip) = .TRUE.
+               ! switch min and max if necessary
+               IF (lat_dv < 0.0) THEN
+                 tmp_ip = min_ip
+                 min_ip = max_ip
+                 max_ip = tmp_ip
+               ENDIF
+               ! loop over all other atoms
+               DO WHILE (.NOT. ALL(avoid))
+                 ! find smaller below min, bigger after max
+                 smaller_ip = qmmm_find_closest(particles_mm, mm_cell, qm_atom_index,&
+                              avoid, particles_mm(qm_atom_index(min_ip))%r, i_dim, -1, smaller_lat_dv)
+                 bigger_ip = qmmm_find_closest(particles_mm, mm_cell, qm_atom_index,&
+                              avoid, particles_mm(qm_atom_index(max_ip))%r, i_dim, 1, bigger_lat_dv)
+                 ! move min or max, not both
+                 IF (ABS(smaller_lat_dv) < ABS(bigger_lat_dv)) THEN
+                    min_ip = smaller_ip
+                    avoid(min_ip) = .TRUE.
+                 ELSE
+                    max_ip = bigger_ip
+                    avoid(max_ip) = .TRUE.
+                 END IF
+               END DO
+               ! find min and max coordinates in lattice positions (i_dim ! only)
+               lat_dv3 = qmmm_lat_dv(mm_cell, particles_mm(qm_atom_index(min_ip))%r, particles_mm(qm_atom_index(max_ip))%r)
+               IF (lat_dv3(i_dim) < 0.0_dp) lat_dv3(i_dim) = lat_dv3(i_dim) + 1.0_dp
+               lat_min = MATMUL(mm_cell%h_inv, particles_mm(qm_atom_index(min_ip))%r)
+               min_coord_lat(i_dim) = lat_min(i_dim)
+               max_coord_lat(i_dim) = lat_min(i_dim) + lat_dv3(i_dim)
+             END IF ! periodic
+          END DO ! i_dim
+          ! min and max coordinates from lattice positions to Cartesian
+          min_coord = MATMUL(mm_cell%hmat, min_coord_lat)
+          max_coord = MATMUL(mm_cell%hmat, max_coord_lat)
+          DEALLOCATE(avoid)
+       END IF ! pbc aware center
+       transl_v = (max_coord + min_coord) / 2.0_dp
+
+       !
+       ! The first time we always translate all the system in order
+       ! to centre the QM system in the box.
+       !
+       transl_v(:) = transl_v(:) - SUM(qm_cell%hmat, 2)/2.0_dp
+
+       IF (ANY(qmmm_env%qm%utrasl /= 1.0_dp)) THEN
+          transl_v = REAL( FLOOR(transl_v/qmmm_env%qm%utrasl),KIND=dp) *&
+               qmmm_env%qm%utrasl
        END IF
+       qmmm_env%qm%transl_v = qmmm_env%qm%transl_v + transl_v
        particles_mm => subsys_mm%particles%els
-       DO ip=1,SIZE(qm_atom_index)
-          particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
+       DO ip=1,subsys_mm%particles%n_els
+          particles_mm(ip)%r = particles_mm(ip)%r - transl_v
        END DO
+       unit_nr=cp_logger_get_default_io_unit(logger)
+       IF (unit_nr>0) WRITE (unit=unit_nr,fmt='(/1X,A)')&
+            " Translating the system in order to center the QM fragment in the QM box."
+       IF (.NOT.qmmm_env%qm%center_qm_subsys) qmmm_env%qm%do_translate = .FALSE.
+    END IF
+    particles_mm => subsys_mm%particles%els
+    DO ip=1,SIZE(qm_atom_index)
+       particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
+    END DO
 
-       subsys_section => section_vals_get_subs_vals(force_env%force_env_section, &
-                                                    "SUBSYS",error=error)
+    subsys_section => section_vals_get_subs_vals(qmmm_env%qs_env%input, "SUBSYS",error=error)
 
-       CALL get_qs_env(qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
-                       qs_kind_set=qs_kind_set,error=error)
-       CALL write_qs_particle_coordinates(particles_qm,qs_kind_set,subsys_section,"QM/MM first QM, then MM (0 charges)",error)
-       ALLOCATE(charges(SIZE(particles_mm)))
-       charges = 0.0_dp
-       CALL write_fist_particle_coordinates(particles_mm,subsys_section,charges,error)
-       DEALLOCATE(charges)
+    CALL get_qs_env(qs_env=qmmm_env%qs_env,qs_kind_set=qs_kind_set,error=error)
+    CALL write_qs_particle_coordinates(particles_qm,qs_kind_set,subsys_section,"QM/MM first QM, then MM (0 charges)",error)
+    ALLOCATE(charges(SIZE(particles_mm)))
+    charges = 0.0_dp
+    CALL write_fist_particle_coordinates(particles_mm,subsys_section,charges,error)
+    DEALLOCATE(charges)
 
-    END SELECT
 
-  END SUBROUTINE apply_qmmm_translate_low
+  END SUBROUTINE apply_qmmm_translate
 
-  ! pbc-aware mean QM atom position
+
 ! *****************************************************************************
-!> \brief ...
+!> \brief pbc-aware mean QM atom position
 !> \param particles_mm ...
 !> \param mm_cell ...
 !> \param qm_atom_index ...
@@ -698,9 +588,9 @@ CONTAINS
                                    REAL(LOG(mean_z)/(CMPLX(0.0_dp,1.0_dp,KIND=dp)*2.0_dp*pi), dp))
   END FUNCTION
 
-  ! minimum image lattice coordinates difference vector
+
 ! *****************************************************************************
-!> \brief ...
+!> \brief minimum image lattice coordinates difference vector
 !> \param mm_cell ...
 !> \param p1 ...
 !> \param p2 ...
@@ -719,10 +609,10 @@ CONTAINS
       qmmm_lat_dv = qmmm_lat_dv - FLOOR(qmmm_lat_dv)
   END FUNCTION qmmm_lat_dv
 
-  ! find closest QM particle, in position/negative direction if dir is 1 or -1,
-  ! respectively
+
 ! *****************************************************************************
-!> \brief ...
+!> \brief find closest QM particle, in position/negative direction
+!>        if dir is 1 or -1, respectively
 !> \param particles_mm ...
 !> \param mm_cell ...
 !> \param qm_atom_index ...

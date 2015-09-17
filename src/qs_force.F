@@ -48,7 +48,8 @@ MODULE qs_force
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_external_potential,           ONLY: external_c_potential,&
                                              external_e_potential
   USE qs_force_types,                  ONLY: allocate_qs_force,&
@@ -89,9 +90,37 @@ MODULE qs_force
 
 ! *** Public subroutines ***
 
-  PUBLIC :: qs_forces
+  PUBLIC :: qs_forces, qs_calc_energy_force
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param calc_force ...
+!> \param consistent_energies ...
+!> \param linres ...
+!> \param error ...
+! *****************************************************************************
+  SUBROUTINE qs_calc_energy_force(qs_env,calc_force,consistent_energies,linres,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL                                  :: calc_force, &
+                                                consistent_energies, linres
+    TYPE(cp_error_type), INTENT(inout)       :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_calc_energy_force', &
+      routineP = moduleN//':'//routineN
+
+    qs_env%linres_run = linres
+    CALL set_qs_env(qs_env,error=error)
+    IF (calc_force) THEN
+       CALL qs_forces(qs_env, error=error)
+    ELSE
+       CALL qs_energies(qs_env, calc_forces=.FALSE.,&
+            consistent_energies=consistent_energies, error=error)
+    END IF
+    CALL get_qs_env(qs_env,error=error)
+  END SUBROUTINE qs_calc_energy_force
 
 ! *****************************************************************************
 !> \brief   Calculate the Quickstep forces.

@@ -51,7 +51,7 @@ MODULE  qmmm_image_charge
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_release
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
   USE qs_collocate_density,            ONLY: calculate_rho_metal,&
                                              calculate_rho_single_gaussian
   USE qs_energy_types,                 ONLY: qs_energy_type

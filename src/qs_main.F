@@ -23,7 +23,7 @@ MODULE qs_main
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
   USE qs_environment,                  ONLY: qs_init
   USE qs_environment_types,            ONLY: qs_env_create,&
                                              qs_env_release,&

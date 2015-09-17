@@ -48,7 +48,7 @@ MODULE force_fields
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop

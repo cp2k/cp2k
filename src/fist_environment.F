@@ -66,7 +66,7 @@ MODULE fist_environment
                                              write_particle_distances,&
                                              write_structure_data
   USE particle_types,                  ONLY: particle_type
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"

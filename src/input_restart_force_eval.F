@@ -183,7 +183,7 @@ CONTAINS
 
        ALLOCATE(work(3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       work = force_env%qmmm_env%transl_v
+       work = force_env%qmmm_env%qm%transl_v
        CALL section_vals_val_set(qmmm_section,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work,error=error)
     END SELECT
 

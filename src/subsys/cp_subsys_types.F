@@ -272,6 +272,7 @@ CONTAINS
        subsys%particles => particles
     END IF
     IF (PRESENT(local_particles)) THEN
+       !CALL mp_abort()
        CALL distribution_1d_retain(local_particles,error=error)
        CALL distribution_1d_release(subsys%local_particles,error=error)
        subsys%local_particles => local_particles

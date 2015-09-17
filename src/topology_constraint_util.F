@@ -52,7 +52,7 @@ MODULE topology_constraint_util
                                              set_molecule
   USE particle_types,                  ONLY: particle_type
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop

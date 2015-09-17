@@ -27,7 +27,7 @@ MODULE qmmm_elpot
   USE memory_utilities,                ONLY: reallocate
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
-  USE qmmm_types,                      ONLY: qmmm_Pot_Type,&
+  USE qmmm_types_low,                  ONLY: qmmm_Pot_Type,&
                                              qmmm_pot_p_type
 #include "./common/cp_common_uses.f90"
 

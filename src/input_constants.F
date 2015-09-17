@@ -43,10 +43,11 @@ MODULE input_constants
                                               do_et_ddapc=1,&
                                               do_et_becke=2
   ! Method Names
-  INTEGER, PARAMETER, PUBLIC               :: do_qs=1,&
-                                              do_fist=2,&
-                                              do_qmmm=4,&
-                                              do_eip=5,&
+  INTEGER, PARAMETER, PUBLIC               :: do_qs   =1,&
+                                              do_fist =2,&
+                                              do_qmmm =3,&
+                                              do_qmmmx=4,&
+                                              do_eip  =5,&
                                               do_mixed=6
 
   ! QMMM

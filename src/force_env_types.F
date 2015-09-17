@@ -45,12 +45,12 @@ MODULE force_env_types
   USE mixed_environment_types,         ONLY: get_mixed_env,&
                                              mixed_env_release,&
                                              mixed_environment_type
-  USE qmmm_types,                      ONLY: fist_subsys,&
-                                             force_mixing_extended_subsys,&
-                                             primary_subsys,&
-                                             qmmm_env_qm_release,&
-                                             qmmm_env_qm_type,&
-                                             qs_subsys
+  USE qmmm_types,                      ONLY: qmmm_env_get,&
+                                             qmmm_env_release,&
+                                             qmmm_env_type
+  USE qmmmx_types,                     ONLY: qmmmx_env_get,&
+                                             qmmmx_env_release,&
+                                             qmmmx_env_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
@@ -68,16 +68,18 @@ MODULE force_env_types
   INTEGER, PARAMETER, PUBLIC :: use_fist_force = 501, &
                                 use_qs_force   = 502, &
                                 use_qmmm       = 503, &
-                                use_eip_force  = 504, &
-                                use_mixed_force= 505
+                                use_qmmmx      = 504, &
+                                use_eip_force  = 505, &
+                                use_mixed_force= 506
+
 
   CHARACTER(LEN=10), DIMENSION(501:506), PARAMETER, PUBLIC :: &
        use_prog_name = (/&
        "FIST  ", &
        "QS    ", &
        "QMMM  ", &
+       "QMMMX ", &
        "EIP   ", &
-       "EP    ", &
        "MIXED "/)
 
   PUBLIC :: force_env_type,&
@@ -130,7 +132,8 @@ MODULE force_env_types
      TYPE ( global_environment_type ), POINTER           :: globenv
      TYPE ( cp_para_env_type ), POINTER                  :: para_env
      TYPE ( force_env_p_type ), DIMENSION(:), POINTER    :: sub_force_env
-     TYPE ( qmmm_env_qm_type ), POINTER                  :: qmmm_env
+     TYPE ( qmmm_env_type ), POINTER                     :: qmmm_env
+     TYPE ( qmmmx_env_type ), POINTER                    :: qmmmx_env
      TYPE ( mixed_environment_type ), POINTER            :: mixed_env
      TYPE ( section_vals_type), POINTER                  :: force_env_section
      TYPE ( section_vals_type), POINTER                  :: root_section
@@ -240,7 +243,8 @@ CONTAINS
           CPAssert(.NOT.ASSOCIATED(force_env%mixed_env),cp_warning_level,routineP,error,failure)
           CALL meta_env_release(force_env%meta_env,error=error)
           CALL fp_env_release(force_env%fp_env,error=error)
-          CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)
+          CALL qmmm_env_release(force_env%qmmm_env,error=error)
+          CALL qmmmx_env_release(force_env%qmmmx_env,error=error)
           CALL section_vals_release(force_env%force_env_section,error=error)
           CALL section_vals_release(force_env%root_section,error=error)
           DEALLOCATE(force_env,stat=stat)
@@ -268,6 +272,7 @@ CONTAINS
 !> \param cell ...
 !> \param sub_force_env ...
 !> \param qmmm_env ...
+!> \param qmmmx_env ...
 !> \param eip_env ...
 !> \param globenv ...
 !> \param input ...
@@ -285,7 +290,7 @@ CONTAINS
   RECURSIVE SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, &
        meta_env, fp_env, subsys, para_env, potential_energy, additional_potential, &
        kinetic_energy, harmonic_shell, kinetic_shell, cell, sub_force_env,&
-       qmmm_env, eip_env, globenv, input, force_env_section, &
+       qmmm_env, qmmmx_env, eip_env, globenv, input, force_env_section, &
        method_name_id, root_section, mixed_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
@@ -303,8 +308,8 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(force_env_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: sub_force_env
-    TYPE(qmmm_env_qm_type), OPTIONAL, &
-      POINTER                                :: qmmm_env
+    TYPE(qmmm_env_type), OPTIONAL, POINTER   :: qmmm_env
+    TYPE(qmmmx_env_type), OPTIONAL, POINTER  :: qmmmx_env
     TYPE(eip_environment_type), OPTIONAL, &
       POINTER                                :: eip_env
     TYPE(global_environment_type), &
@@ -321,11 +326,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cur_subsys
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eip_kinetic_energy, &
-                                                eip_potential_energy, &
-                                                penergy_mm, penergy_qm
+                                                eip_potential_energy
     TYPE(cp_subsys_type), POINTER            :: subsys_tmp
     TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
@@ -378,36 +381,17 @@ CONTAINS
        IF (PRESENT(kinetic_energy)) kinetic_energy = eip_kinetic_energy
        CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
     CASE (use_qmmm)
-         IF (PRESENT(kinetic_energy)) THEN
-            CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
-                               kinetic_energy=kinetic_energy,&
-                               error=error)
-         END IF
-         IF (PRESENT(subsys)) THEN
-            CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env,&
-                               subsys=subsys, error=error)
-         ENDIF
-         IF (PRESENT(potential_energy)) THEN
-              ! get the underlying energies from primary subsys.  This is the only subsys
-              ! for conventional QM/MM, and force-mixing knows to put relevant energy there.
-              IF (SIZE(force_env%sub_force_env) == 1) THEN
-                cur_subsys = primary_subsys
-              ELSE IF (force_env%qmmm_env%do_force_mixing .AND. SIZE(force_env%sub_force_env) == 2) THEN ! force mixing
-                cur_subsys = force_mixing_extended_subsys
-              ELSE
-                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                      routineP,"bad number of sub_force_envs (or do_force_mixing setting) getting qmmm potential energy "//&
-                      CPSourceFileRef,&
-                      error,failure)
-              ENDIF
-              CALL force_env_get(force_env%sub_force_env(cur_subsys)%force_env%sub_force_env(fist_subsys)%force_env,&
-                                 potential_energy=penergy_mm,&
-                                 error=error)
-              CALL force_env_get(force_env%sub_force_env(cur_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
-                                 potential_energy=penergy_qm,&
-                                 error=error)
-              potential_energy = penergy_qm+penergy_mm
-         ENDIF
+       CALL qmmm_env_get(force_env%qmmm_env,&
+                         subsys=subsys,&
+                         potential_energy=potential_energy,&
+                         kinetic_energy=kinetic_energy,&
+                         error=error)
+    CASE (use_qmmmx)
+       CALL qmmmx_env_get(force_env%qmmmx_env,&
+                          subsys=subsys,&
+                          potential_energy=potential_energy,&
+                          kinetic_energy=kinetic_energy,&
+                          error=error)
     CASE (use_mixed_force)
        CPPrecondition(ASSOCIATED(force_env%mixed_env),cp_failure_level,routineP,error,failure)
 !          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
@@ -471,6 +455,7 @@ CONTAINS
     IF (PRESENT(meta_env)) meta_env => force_env%meta_env
     IF (PRESENT(sub_force_env)) sub_force_env => force_env%sub_force_env
     IF (PRESENT(qmmm_env))      qmmm_env      => force_env%qmmm_env
+    IF (PRESENT(qmmmx_env))     qmmmx_env     => force_env%qmmmx_env
     IF (PRESENT(mixed_env))     mixed_env     => force_env%mixed_env
     IF (PRESENT(globenv))       globenv       => force_env%globenv
     IF (PRESENT(root_section))  root_section  => force_env%root_section

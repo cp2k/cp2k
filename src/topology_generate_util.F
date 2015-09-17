@@ -38,7 +38,7 @@ MODULE topology_generate_util
                                              deallocate_particle_set,&
                                              particle_type
   USE periodic_table,                  ONLY: get_ptable_info
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id

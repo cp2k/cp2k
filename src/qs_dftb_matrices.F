@@ -63,7 +63,7 @@ MODULE qs_dftb_matrices
                                              do_ewald_none,&
                                              do_ewald_pme,&
                                              do_ewald_spme
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
+  USE qmmm_types_low,                  ONLY: qmmm_env_qm_type,&
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qmmm_util,                       ONLY: spherical_cutoff_factor

@@ -36,8 +36,6 @@ MODULE qs_linres_module
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE qmmm_types,                      ONLY: primary_subsys,&
-                                             qs_subsys
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -132,11 +130,9 @@ CONTAINS
 
     SELECT CASE(force_env%in_use)
     CASE(use_qs_force)
-       CALL force_env_get(force_env,&
-                          qs_env=qs_env,error=error)
+       CALL force_env_get(force_env,qs_env=qs_env,error=error)
     CASE(use_qmmm)
-       CALL force_env_get(force_env%sub_force_env(primary_subsys)%force_env%sub_force_env(qs_subsys)%force_env,&
-                          qs_env=qs_env,error=error)
+       qs_env => force_env%qmmm_env%qs_env
     CASE DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,"Doesnt recognize this force_env.")
     END SELECT

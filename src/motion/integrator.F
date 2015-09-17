@@ -80,8 +80,8 @@ MODULE integrator
                                              update_particle_set
   USE physcon,                         ONLY: bohr,&
                                              femtoseconds
-  USE qmmm_update,                     ONLY: qmmm_update_force_mixing_env
   USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
+  USE qmmmx_update,                    ONLY: qmmmx_update_force_env
   USE qs_environment_types,            ONLY: get_qs_env
   USE reftraj_types,                   ONLY: reftraj_type
   USE reftraj_util,                    ONLY: compute_msd_reftraj
@@ -559,7 +559,7 @@ CONTAINS
 
        ![NB] let nve work with force mixing which does not have consistent energies and forces
        CALL force_env_calc_energy_force(force_env,require_consistent_energy_force=.FALSE.,error=error)
-       
+
        IF(ehrenfest_md)THEN
           CALL rt_prop_output(force_env%qs_env,ehrenfest,delta_iter=force_env%qs_env%rtp%delta_iter,error=error)
        ENDIF
@@ -1154,7 +1154,7 @@ CONTAINS
     END IF
 
     ![ADAPT] update input structure with new coordinates, make new labels
-    CALL qmmm_update_force_mixing_env(force_env, force_env%root_section, error=error)
+    CALL qmmmx_update_force_env(force_env, force_env%root_section, error=error)
 
     ![NB] recreate pointers changed by creation of new subsys in qmmm_update_force_mixing_env
     ![NB] ugly hack, which is why adaptivity isn't implemented in most other ensembles
@@ -1721,7 +1721,7 @@ CPSourceFileRef,&
     END IF
 
     ![ADAPT] update input structure with new coordinates, make new labels
-    CALL qmmm_update_force_mixing_env(force_env, force_env%root_section, error=error)
+    CALL qmmmx_update_force_env(force_env, force_env%root_section, error=error)
     ! no pointers into force_env%subsys to update
 
     ! Task to perform on the reference trajectory

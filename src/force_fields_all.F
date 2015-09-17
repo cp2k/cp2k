@@ -74,7 +74,7 @@ MODULE force_fields_all
                                              particle_type
   USE physcon,                         ONLY: bohr
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
   USE shell_potential_types,           ONLY: shell_create,&
                                              shell_kind_type,&
                                              shell_release

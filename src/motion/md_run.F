@@ -391,7 +391,8 @@ CONTAINS
        ELSE
           ![NB] Lets let all methods, even ones without consistent energies, succeed here.
           !     They'll fail in actual integrator if needed
-          CALL force_env_calc_energy_force (force_env, calc_force=.TRUE., require_consistent_energy_force=.FALSE., error=error)
+          ! consistent_energies=.FALSE. by default
+          CALL force_env_calc_energy_force (force_env, calc_force=.TRUE., error=error)
        END IF
 
        IF(ASSOCIATED(force_env%qs_env))THEN

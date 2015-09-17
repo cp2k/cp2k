@@ -43,7 +43,6 @@
                                                pack_subsys_particles,&
                                                unpack_subsys_particles
     USE dimer_methods,                   ONLY: cp_eval_at_ts
-    
     USE force_env_methods,               ONLY: force_env_calc_energy_force
     USE force_env_types,                 ONLY: force_env_get,&
                                                force_env_get_nparticle

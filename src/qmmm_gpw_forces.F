@@ -59,7 +59,7 @@ MODULE qmmm_gpw_forces
                                              qmmm_elec_with_gaussian_LG,&
                                              qmmm_elec_with_gaussian_LR
   USE qmmm_se_forces,                  ONLY: deriv_se_qmmm_matrix
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
+  USE qmmm_types_low,                  ONLY: qmmm_env_qm_type,&
                                              qmmm_per_pot_p_type,&
                                              qmmm_per_pot_type,&
                                              qmmm_pot_p_type,&

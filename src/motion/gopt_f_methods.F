@@ -32,7 +32,9 @@ MODULE gopt_f_methods
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_get_natom,&
                                              force_env_get_nparticle,&
-                                             force_env_type
+                                             force_env_type,&
+                                             use_qmmm,&
+                                             use_qmmmx
   USE gopt_f_types,                    ONLY: gopt_f_type
   USE gopt_param_types,                ONLY: gopt_param_type
   USE input_constants,                 ONLY: default_cell_direct_id,&
@@ -54,6 +56,7 @@ MODULE gopt_f_methods
   USE particle_methods,                ONLY: write_structure_data
   USE particle_types,                  ONLY: particle_type
   USE qmmm_util,                       ONLY: apply_qmmm_translate
+  USE qmmmx_util,                      ONLY: apply_qmmmx_translate
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
 #include "../common/cp_common_uses.f90"
@@ -105,7 +108,10 @@ CONTAINS
     CASE (default_minimization_method_id,default_ts_method_id)
       CALL force_env_get(gopt_env%force_env,subsys=subsys,error=error)
       ! before starting we handle the case of translating coordinates (QM/MM)
-      CALL apply_qmmm_translate(gopt_env%force_env,error=error)
+      IF(gopt_env%force_env%in_use == use_qmmm)&
+         CALL apply_qmmm_translate(gopt_env%force_env%qmmm_env,error=error)
+      IF(gopt_env%force_env%in_use == use_qmmmx)&
+         CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env,error=error)
       nparticle = force_env_get_nparticle(gopt_env%force_env,error)
       ALLOCATE (x0(3*nparticle),STAT=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -117,7 +123,10 @@ CONTAINS
          ! Store reference cell
          gopt_env%h_ref = cell%hmat
          ! before starting we handle the case of translating coordinates (QM/MM)
-         CALL apply_qmmm_translate(gopt_env%force_env,error=error)
+         IF(gopt_env%force_env%in_use == use_qmmm)&
+            CALL apply_qmmm_translate(gopt_env%force_env%qmmm_env,error=error)
+         IF(gopt_env%force_env%in_use == use_qmmmx)&
+            CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env,error=error)
          nparticle = force_env_get_nparticle(gopt_env%force_env,error)
          ALLOCATE (x0(3*nparticle+6),STAT=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

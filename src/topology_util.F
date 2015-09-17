@@ -26,7 +26,7 @@ MODULE topology_util
                                              charmm_map,&
                                              gromos_map
   USE periodic_table,                  ONLY: get_ptable_info
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
   USE string_table,                    ONLY: id2str,&
                                              str2id
   USE string_utilities,                ONLY: uppercase

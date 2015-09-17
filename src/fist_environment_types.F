@@ -57,7 +57,7 @@ MODULE fist_environment_types
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE qmmm_types,                      ONLY: qmmm_env_mm_create,&
+  USE qmmm_types_low,                  ONLY: qmmm_env_mm_create,&
                                              qmmm_env_mm_release,&
                                              qmmm_env_mm_retain,&
                                              qmmm_env_mm_type

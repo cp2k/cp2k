@@ -25,7 +25,7 @@ MODULE qmmm_se_forces
   USE message_passing,                 ONLY: mp_sum
   USE multipole_types,                 ONLY: do_multipole_none
   USE particle_types,                  ONLY: particle_type
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
+  USE qmmm_types_low,                  ONLY: qmmm_env_qm_type,&
                                              qmmm_pot_p_type,&
                                              qmmm_pot_type
   USE qmmm_util,                       ONLY: spherical_cutoff_factor

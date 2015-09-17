@@ -26,7 +26,7 @@ MODULE qs_ks_qmmm_methods
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
                                              pw_p_type
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env

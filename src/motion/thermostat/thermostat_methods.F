@@ -63,7 +63,7 @@ MODULE thermostat_methods
                                              molecule_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE qmmm_types,                      ONLY: qmmm_env_type
   USE simpar_types,                    ONLY: simpar_type
   USE thermostat_types,                ONLY: allocate_thermostats,&
                                              create_thermostat_type,&
@@ -135,7 +135,7 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(qmmm_env_type), POINTER             :: qmmm_env
     TYPE(section_vals_type), POINTER :: adiabatic_fast_section, &
       adiabatic_slow_section, barostat_section, print_section, &
       region_section_fast, region_section_slow, region_sections, &
@@ -204,12 +204,12 @@ CONTAINS
             CALL setup_adiabatic_thermostat_info(thermostats%thermostat_info_fast,  &
                  molecule_kinds_new%els, local_molecules, molecules_new, particles, &
                  region, simpar%ensemble, region_sections=region_section_fast,  &
-                 qmmm_env=qmmm_env, error=error)
+                 qmmm_env=qmmm_env%qm, error=error)
 
             CALL setup_adiabatic_thermostat_info(thermostats%thermostat_info_slow, &
                  molecule_kinds_new%els, local_molecules, molecules_new, particles,&
                  region, simpar%ensemble, region_sections=region_section_slow,  &
-                 qmmm_env=qmmm_env, error=error)
+                 qmmm_env=qmmm_env%qm, error=error)
 
 
            ! Initialize or possibly restart Nose on Particles
@@ -241,7 +241,7 @@ CPSourceFileRef,&
             molecules_new=molecules_new, gci=gci, particles=particles, error=error)
     CALL compute_degrees_of_freedom(thermostats, cell, simpar, molecule_kinds_new%els,&
          local_molecules, molecules_new, particles, print_section, region_sections, gci,&
-         region, qmmm_env, error)
+         region, qmmm_env%qm, error)
 
     ! Particles
     ! For constant temperature ensembles the thermostat is activated by default
@@ -313,7 +313,7 @@ CPSourceFileRef,&
              CALL section_vals_val_get(thermo_shell_section,"REGION",i_val=region,error=error)
              CALL setup_thermostat_info(thermostats%thermostat_info_shell, molecule_kinds_new%els,&
                   local_molecules, molecules_new, particles, region, simpar%ensemble, shell=shell_adiabatic,&
-                  region_sections=region_sections, qmmm_env=qmmm_env, error=error)
+                  region_sections=region_sections, qmmm_env=qmmm_env%qm, error=error)
              IF (shell_adiabatic) THEN
                 ! Initialize thermostat
                 IF (thermostats%thermostat_shell%type_of_thermostat == do_thermo_nose) THEN

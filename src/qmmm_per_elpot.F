@@ -39,7 +39,7 @@ MODULE qmmm_per_elpot
                                              do_ewald_spme
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
-  USE qmmm_types,                      ONLY: qmmm_per_pot_p_type,&
+  USE qmmm_types_low,                  ONLY: qmmm_per_pot_p_type,&
                                              qmmm_per_pot_type,&
                                              qmmm_pot_p_type
 #include "./common/cp_common_uses.f90"

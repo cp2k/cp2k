@@ -69,7 +69,7 @@ MODULE force_fields_util
                                              molecule_type
   USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE particle_types,                  ONLY: particle_type
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_program

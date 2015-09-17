@@ -10,8 +10,7 @@
 !> \author Alin M Elena
 ! *****************************************************************************
 MODULE tamc_run
-!!!!!!!!!!
-!!!!!!!!!! integrators
+
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE averages_types,                  ONLY: average_quantities_type

@@ -100,7 +100,6 @@ MODULE fist_force
 
 CONTAINS
 
-
 ! *****************************************************************************
 !> \brief Calculates the total potential energy, total force, and the
 !>      total pressure tensor from the potentials
@@ -196,6 +195,7 @@ CONTAINS
          molecule_kind_set,molecule_set,particle_set, print_section,&
          shell, shell_particle_set, core_particle_set, thermo, multipoles,&
          e_coulomb, pv_coulomb)
+
     mm_section => section_vals_get_subs_vals(force_env_section,"MM",error=error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%DERIVATIVES",&
          extension=".mmLog",error=error)

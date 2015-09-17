@@ -39,7 +39,7 @@ MODULE topology_coordinate_util
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              particle_type
   USE physcon,                         ONLY: massunit
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id

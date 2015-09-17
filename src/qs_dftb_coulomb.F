@@ -68,7 +68,7 @@ MODULE qs_dftb_coulomb
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
   USE qs_dftb3_methods,                ONLY: build_dftb3_diagonal
   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param

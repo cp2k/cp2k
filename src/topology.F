@@ -44,7 +44,7 @@ MODULE topology
   USE particle_types,                  ONLY: particle_type
   USE qmmm_topology_util,              ONLY: qmmm_connectivity_control,&
                                              qmmm_coordinate_control
-  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
