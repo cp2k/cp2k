@@ -1805,9 +1805,10 @@ CPSourceFileRef,&
          fm%matrix_struct%descriptor, &
          newdat(1,1),1,1,desc,ictxt_loc)
 
-
    ALLOCATE(vecbuf(nrow_global*max_block),STAT=istat)
    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+   vecbuf=HUGE(1.0_dp) ! init for valgrind
+
    DO i=1,ncol_global,MAX(max_block,1)
       i_block=MIN(max_block,ncol_global-i+1)
       CALL infog2l(1,i,desc,nprow,npcol,myprow,mypcol,&
