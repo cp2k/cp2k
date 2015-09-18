@@ -49,7 +49,7 @@ MODULE thermostat_utils
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: femtoseconds
-  USE qmmm_types_low,                  ONLY: qmmm_env_qm_type
+  USE qmmm_types,                      ONLY: qmmm_env_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_program
@@ -165,7 +165,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: print_section, region_sections
     TYPE(global_constraint_type), POINTER    :: gci
     INTEGER, INTENT(IN)                      :: region
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(qmmm_env_type), POINTER             :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_degrees_of_freedom', &
@@ -255,7 +255,7 @@ CONTAINS
     INTEGER, INTENT(INOUT), OPTIONAL         :: nfree
     LOGICAL, INTENT(IN), OPTIONAL            :: shell
     TYPE(section_vals_type), POINTER         :: region_sections
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(qmmm_env_type), POINTER             :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: &
@@ -450,7 +450,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(qmmm_env_type), POINTER             :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_adiabatic_region_info', &
@@ -593,7 +593,7 @@ CONTAINS
     INTEGER, INTENT(INOUT), OPTIONAL         :: nfree
     LOGICAL, INTENT(IN), OPTIONAL            :: shell
     TYPE(section_vals_type), POINTER         :: region_sections
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(qmmm_env_type), POINTER             :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_thermostat_info', &
@@ -745,7 +745,7 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set(:)
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(qmmm_env_type), POINTER             :: qmmm_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_defined_region_info', &
@@ -901,7 +901,7 @@ CONTAINS
   SUBROUTINE setup_thermostat_subsys(region_sections, qmmm_env, thermolist,&
        molecule_set, subsys_qm, ig, sum_of_thermostats, nregions, error)
     TYPE(section_vals_type), POINTER         :: region_sections
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+    TYPE(qmmm_env_type), POINTER             :: qmmm_env
     INTEGER, DIMENSION(:), POINTER           :: thermolist
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
@@ -932,17 +932,17 @@ CONTAINS
                               n_rep_val=nrep,explicit=explicit,error=error)
     IF (nrep==1 .AND. explicit) THEN
        IF (ASSOCIATED(qmmm_env)) THEN
-          atom_index1          => qmmm_env%mm_atom_index
+          atom_index1          => qmmm_env%qm%mm_atom_index
           IF (subsys_qm) THEN
-             atom_index1       => qmmm_env%qm_atom_index
+             atom_index1       => qmmm_env%qm%qm_atom_index
           END IF
           CALL section_vals_val_get(region_sections,TRIM(label1),i_val=thermo1,i_rep_section=ig,error=error)
           SELECT CASE(thermo1)
           CASE(do_constr_atomic)
              DO i = 1, SIZE(atom_index1)
                 ipart = atom_index1(i)
-                IF (subsys_qm.AND.qmmm_env%qmmm_link.AND.ASSOCIATED(qmmm_env%mm_link_atoms)) THEN
-                   IF (ANY(ipart==qmmm_env%mm_link_atoms)) CYCLE
+                IF (subsys_qm.AND.qmmm_env%qm%qmmm_link.AND.ASSOCIATED(qmmm_env%qm%mm_link_atoms)) THEN
+                   IF (ANY(ipart==qmmm_env%qm%mm_link_atoms)) CYCLE
                 END IF
                 IF (thermolist(ipart)==HUGE(0)) THEN
                    thermolist(ipart) = ig
