@@ -146,11 +146,6 @@ CONTAINS
     flags=TRIM(flags)//" pw_cuda"
 #endif
 
-#if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET || __HWLOC || __LIBNUMA
-    flags=TRIM(flags)//" macharch"
-#endif
-
-
 #if defined __HAS_smm_vec
    flags=TRIM(flags)//" smm_vec"
 #endif

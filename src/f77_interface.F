@@ -200,10 +200,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'init_cp2k', &
       routineP = moduleN//':'//routineN
- 
-#if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET
-    CHARACTER                                :: strategy
-#endif
 
     INTEGER                                  :: mpi_comm_default, stat, &
                                                 unit_nr
