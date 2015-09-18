@@ -665,10 +665,17 @@ CONTAINS
         buggy(:) = (/ XC_HYB_MGGA_X_M11, XC_MGGA_X_M11_L, XC_MGGA_X_MS2H /)
 #endif
      CASE ("3.x.x")
-        nbuggy = 0; ALLOCATE(buggy(nbuggy))
+        nbuggy = 0
      CASE default
-        CALL stop_program(routineN,moduleN,__LINE__,&
-           "This version ("//TRIM(libxc_version)//") is new/unknown and not supported.")
+        nbuggy = 0
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                " This version ("//TRIM(libxc_version)//") of LibXC is new or unknown."//&
+                " ======== Please check the results carefully. ========    "//&
+                " More informations on bugfixes can be found at: "//&
+                " http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_changes"//&
+                " Calculation continues using unsupported LibXC version. "//&
+                CPSourceFileRef,&
+                only_ionode=.TRUE.)
     END SELECT
 
     DO i=1,nbuggy
