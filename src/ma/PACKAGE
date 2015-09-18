@@ -1,4 +1,0 @@
-{
-"description": "process pinning and rank reordering",
-"requires": ["../common", "../dbcsrwrap", "../machine", "../base", "../mpiwrap" ]
-}

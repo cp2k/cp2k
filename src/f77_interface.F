@@ -27,14 +27,6 @@ MODULE f77_interface
   USE cp_files,                        ONLY: init_preconnection_list,&
                                              open_file
   USE cp_log_handling,                 ONLY: cp_logger_retain
-  USE cp_ma_interface,                 ONLY: cp_ma_default_affinity,&
-                                             cp_ma_finalize_lib,&
-                                             cp_ma_init_lib,&
-                                             cp_ma_mpi_reorder_strategy,&
-                                             cp_ma_mpi_reordering,&
-                                             cp_ma_set_mpi_reordering,&
-                                             has_ma,&
-                                             has_ma_topology
   USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
@@ -161,10 +153,8 @@ MODULE f77_interface
   TYPE(cp_para_env_type), POINTER, SAVE :: default_para_env
   LOGICAL, SAVE :: module_initialized=.FALSE.
   INTEGER, SAVE :: last_f_env_id=0, n_f_envs=0
-  INTEGER       :: mpi_mapping_method
 
   PUBLIC :: default_para_env
-  PUBLIC :: init_f77_default
   PUBLIC :: init_cp2k, finalize_cp2k
   PUBLIC :: create_force_env, destroy_force_env, set_pos, get_pos,&
             get_force, calc_energy_force, get_energy, get_stress_tensor,&
@@ -173,17 +163,6 @@ MODULE f77_interface
             f_env_get_from_id,&
             set_vel, do_shake, set_cell, get_cell, get_result_r1
 CONTAINS
-
-! ****************************************************************************
-!> \brief set the default mpi reordering method
-!> \param mapping_method the selected method
-!> \author Christiane Pousa Ribeiro
-! *****************************************************************************
- SUBROUTINE init_f77_default(mapping_method)
-    INTEGER, INTENT(IN)                      :: mapping_method
-
-   mpi_mapping_method = mapping_method
- END SUBROUTINE init_f77_default
 
 ! *****************************************************************************
 !> \brief returns the position of the force env corresponding to the given id
@@ -250,11 +229,6 @@ CONTAINS
        CALL add_mp_perf_env()
        CALL add_timer_env()
        
-#if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET
-       CALL cp_ma_mpi_reorder_strategy(mpi_mapping_method,strategy)
-       CALL cp_ma_mpi_reordering(mpi_comm_default,mp_reorder=strategy, error=error)
-#endif
-
        ! re-create the para_env and log with correct (reordered) ranks
        NULLIFY(default_para_env)
        CALL cp_para_env_create(default_para_env, group=mpi_comm_default, &
@@ -276,17 +250,6 @@ CONTAINS
        CPPostconditionNoErr(stat==0,cp_fatal_level,routineP)
        module_initialized=.TRUE.
        ierr=0
-
-#if defined __GEMINI || __SEASTAR || __BLUEGENE || __NET
-     CALL cp_ma_set_mpi_reordering(strategy)
-#endif
-
-       ! Initialize the MA_ARCH configuration
-       IF (has_ma) THEN
-         CALL cp_ma_init_lib(init_mpi,group=mpi_comm_default,error=error)
-         !default binding only if mpi_init - all MPI tasks will be present
-         CALL cp_ma_default_affinity(init_mpi)
-       ENDIF
 
        !   *** Initialize mathematical constants ***
        CALL init_periodic_table()
@@ -337,9 +300,6 @@ CONTAINS
     ELSE
        ! Finalize the DBCSR configuration
        CALL cp_dbcsr_finalize_lib (group=default_para_env%group, output_unit=0, error=error)
-       IF (has_ma .OR. has_ma_topology) THEN
-         CALL cp_ma_finalize_lib(error=error)
-       ENDIF
        CALL pw_cuda_finalize()
        DO ienv=n_f_envs,1,-1
           CALL destroy_force_env(f_envs(ienv)%f_env%id_nr,ierr=ierr)

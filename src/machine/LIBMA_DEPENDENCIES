@@ -1,4 +1,0 @@
-ma_hwloc.o: ma_hwloc.c ma_hwloc.h
-ma_linux.o: ma_linux.c ma_linux.h
-ma_components.o: ma_components.h
-ma_topology_cray.o: ma_topology_cray.c ma_topology_cray.h

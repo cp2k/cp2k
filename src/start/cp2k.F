@@ -49,8 +49,7 @@ PROGRAM cp2k
   USE f77_interface,                   ONLY: check_input,&
                                              default_para_env,&
                                              finalize_cp2k,&
-                                             init_cp2k,&
-                                             init_f77_default
+                                             init_cp2k
   USE input_constants,                 ONLY: id_development_version
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_section_types,             ONLY: section_release,&
@@ -67,12 +66,11 @@ PROGRAM cp2k
   IMPLICIT NONE
 
   CHARACTER(LEN=default_path_length)   :: input_file_name,output_file_name,&
-                                          arg_att, mpi_mapping
+                                          arg_att
   CHARACTER(LEN=default_string_length) :: dev_flag
-  INTEGER                              :: output_unit,l,mpi_mapping_method
+  INTEGER                              :: output_unit,l
   INTEGER                              :: ierr, n_arg, i_arg
-  LOGICAL                              :: check, manual, usage, echo_input, command_line_error,&
-                                          has_mpi_mapping
+  LOGICAL                              :: check, manual, usage, echo_input, command_line_error
   LOGICAL                              :: run_it, force_run, has_input, xml, print_version, print_license
   TYPE(section_type), POINTER          :: input_declaration
   TYPE(cp_error_type)                  :: error
@@ -88,15 +86,12 @@ PROGRAM cp2k
   usage      =.FALSE.
   echo_input =.FALSE.
   has_input  =.FALSE.
-  has_mpi_mapping =.FALSE.
   run_it     =.TRUE.
   force_run  =.FALSE.
   print_version =.FALSE.
   print_license =.FALSE.
   command_line_error=.FALSE.
   xml = .FALSE.
-  mpi_mapping = "-1"
-  mpi_mapping_method = -1 
   input_file_name  = "Missing input file name"   ! no default
   output_file_name = "__STD_OUT__"               ! by default we go to std_out
 
@@ -137,19 +132,6 @@ PROGRAM cp2k
         CASE("-help","--help","-h")
            usage=.TRUE.
            run_it=.FALSE.
-        CASE("-mpi-mapping","--mpi-mapping")
-           i_arg=i_arg+1
-           CALL m_getarg(i_arg,arg_att)
-           ! argument does not start with a - it is a reordering
-           IF (.NOT. arg_att(1:1)=="-") THEN
-              mpi_mapping=arg_att
-              has_mpi_mapping=.TRUE.
-           ELSE
-              WRITE (output_unit,"(/,T2,A)")&
-               "ERROR: The MPI mapping "//TRIM(arg_att)//" starts with -"
-              command_line_error=.TRUE.
-              EXIT arg_loop
-           ENDIF
         CASE("-i")
            i_arg=i_arg+1
            CALL m_getarg(i_arg,arg_att)
@@ -202,11 +184,6 @@ PROGRAM cp2k
        command_line_error = .TRUE.
      END IF
 
-  ! do the initial setup of cp2k, provides a default_para_env
-  IF (has_mpi_mapping) THEN
-    READ(mpi_mapping(1:1),*) mpi_mapping_method
-  ENDIF
-    CALL init_f77_default(mapping_method=mpi_mapping_method) 
     CALL init_cp2k(init_mpi=.TRUE.,ierr=ierr)
 
 
