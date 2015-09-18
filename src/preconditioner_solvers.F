@@ -358,12 +358,12 @@ CONTAINS
              CALL cp_dbcsr_create(dbcsr_matrix, "transfered_matrix", &
                   cp_dbcsr_distribution(template_mat), dbcsr_type_no_symmetry, &
                   cp_dbcsr_row_block_sizes(template_mat), cp_dbcsr_col_block_sizes(template_mat), &
-                  0, 0, dbcsr_type_real_4, error=error)
+                  nze=0, data_type=dbcsr_type_real_4, error=error)
           ELSE
              CALL cp_dbcsr_create(dbcsr_matrix, "preconditioner_env%dbcsr_matrix", &
                   cp_dbcsr_distribution(template_mat), dbcsr_type_no_symmetry, &
                   cp_dbcsr_row_block_sizes(template_mat), cp_dbcsr_col_block_sizes(template_mat), &
-                  0, 0, dbcsr_type_real_default, error=error)
+                  nze=0, data_type=dbcsr_type_real_default, error=error)
           ENDIF
        ENDIF
 !       CALL cp_fm_create(fm_tmp, matrix_struct=fm_matrix%matrix_struct, error=error)

@@ -270,7 +270,7 @@ CONTAINS
             name="OP_P", &
             dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
             row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-            nblks=0, nze=0, mutable_work=.TRUE., &
+            nze=0, mutable_work=.TRUE., &
             error=error)
        CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix,sab_orb,error=error)
        !

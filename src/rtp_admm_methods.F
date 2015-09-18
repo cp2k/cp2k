@@ -19,9 +19,9 @@ MODULE rtp_admm_methods
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_desymmetrize, &
        cp_dbcsr_distribution, cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
-       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
+       cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t
@@ -578,7 +578,7 @@ CONTAINS
          cp_dbcsr_distribution(matrix_ks(ispin)%matrix), cp_dbcsr_get_matrix_type(matrix_ks_aux_fit(ispin)%matrix),&
          cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix),&
          cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
-         cp_dbcsr_get_num_blocks(matrix_ks(ispin)%matrix), cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix),&
+         cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix),&
          cp_dbcsr_get_data_type(matrix_ks(ispin)%matrix), error=error)
 
     CALL cp_dbcsr_copy(matrix_k_tilde, matrix_ks(ispin)%matrix, error=error)

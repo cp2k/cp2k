@@ -1538,7 +1538,6 @@ CONTAINS
 !> \param matrix_type ...
 !> \param row_blk_size ...
 !> \param col_blk_size ...
-!> \param nblks ...
 !> \param nze ...
 !> \param data_type ...
 !> \param reuse ...
@@ -1548,7 +1547,7 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_create_new(matrix, name, dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, data_type, reuse,&
+       row_blk_size, col_blk_size, nze, data_type, reuse,&
        reuse_arrays, mutable_work, replication_type, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     CHARACTER(len=*), INTENT(IN)             :: name
@@ -1556,7 +1555,7 @@ CONTAINS
     CHARACTER, INTENT(IN)                    :: matrix_type
     INTEGER, DIMENSION(:), INTENT(IN), &
       POINTER                                :: row_blk_size, col_blk_size
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
+    INTEGER, INTENT(IN), OPTIONAL            :: nze, data_type
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reuse_arrays, &
                                                 mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
@@ -1569,7 +1568,7 @@ CONTAINS
 
     CALL dbcsr_create(matrix%matrix, name, dist,&
          matrix_type,&
-         row_blk_size, col_blk_size, nblks=nblks, nze=nze, &
+         row_blk_size, col_blk_size, nze=nze, &
          data_type=data_type, reuse=reuse,&
          reuse_arrays=reuse_arrays,&
          mutable_work=mutable_work, replication_type=replication_type,&
@@ -1588,7 +1587,6 @@ CONTAINS
 !> \param matrix_type ...
 !> \param row_blk_size ...
 !> \param col_blk_size ...
-!> \param nblks ...
 !> \param nze ...
 !> \param data_type ...
 !> \param reuse_arrays ...
@@ -1598,7 +1596,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_create_template(matrix, name, template,&
        dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, data_type,&
+       row_blk_size, col_blk_size, nze, data_type,&
        reuse_arrays, mutable_work, replication_type, error)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: name
@@ -1608,7 +1606,7 @@ CONTAINS
     CHARACTER, INTENT(IN), OPTIONAL          :: matrix_type
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL, POINTER                      :: row_blk_size, col_blk_size
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
+    INTEGER, INTENT(IN), OPTIONAL            :: nze, data_type
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse_arrays, mutable_work
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
     TYPE(cp_error_type), INTENT(INOUT)       :: error
@@ -1621,7 +1619,7 @@ CONTAINS
     CALL dbcsr_create(matrix%matrix, template%matrix,&
          name=name, dist=dist, matrix_type=matrix_type,&
          row_blk_size=row_blk_size, col_blk_size=col_blk_size,&
-         nblks=nblks, nze=nze, data_type=data_type,&
+         nze=nze, data_type=data_type,&
          reuse_arrays=reuse_arrays, mutable_work=mutable_work,&
          replication_type=replication_type,&
          error=dbcsr_error)

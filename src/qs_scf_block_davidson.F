@@ -644,11 +644,11 @@ CONTAINS
       CALL cp_dbcsr_init_p(matrix_hc,error=error)
       CALL cp_dbcsr_create(matrix_hc,"matrix_hc",cp_dbcsr_distribution(mo_coeff_b),&
          dbcsr_type_no_symmetry,cp_dbcsr_row_block_sizes(mo_coeff_b),&
-         cp_dbcsr_col_block_sizes(mo_coeff_b),0,0,dbcsr_type_real_default,error=error)
+         cp_dbcsr_col_block_sizes(mo_coeff_b),nze=0,data_type=dbcsr_type_real_default,error=error)
       CALL cp_dbcsr_init_p(matrix_sc,error=error)
       CALL cp_dbcsr_create(matrix_sc,"matrix_sc",cp_dbcsr_distribution(mo_coeff_b),&
          dbcsr_type_no_symmetry,cp_dbcsr_row_block_sizes(mo_coeff_b),&
-         cp_dbcsr_col_block_sizes(mo_coeff_b),0,0,dbcsr_type_real_default,error=error)
+         cp_dbcsr_col_block_sizes(mo_coeff_b),nze=0,data_type=dbcsr_type_real_default,error=error)
 
       CALL cp_dbcsr_get_info(mo_coeff_b,nfullrows_total=n,nfullcols_total=k)
       CALL cp_dbcsr_multiply('n','n',1.0_dp,matrix_h,mo_coeff_b,0.0_dp,matrix_hc,last_column=k,error=error)
@@ -673,7 +673,7 @@ CONTAINS
       CALL cp_dbcsr_init_p(matrix_z,error=error)
       CALL cp_dbcsr_create(matrix_z,"matrix_z",cp_dbcsr_distribution(mo_coeff_b),&
            dbcsr_type_no_symmetry,cp_dbcsr_row_block_sizes(mo_coeff_b),&
-           cp_dbcsr_col_block_sizes(mo_coeff_b),0,0,dbcsr_type_real_default,error=error)
+           cp_dbcsr_col_block_sizes(mo_coeff_b),nze=0,data_type=dbcsr_type_real_default,error=error)
       CALL cp_dbcsr_copy(matrix_z,matrix_sc,error=error)
       CALL cp_dbcsr_scale_by_vector(matrix_z,ritz_coeff,side='right',error=error)
       CALL cp_dbcsr_add(matrix_z,matrix_hc,-1.0_dp,1.0_dp,error=error)
@@ -792,7 +792,7 @@ CONTAINS
         CALL cp_dbcsr_init_p(c_out,error=error)
         CALL cp_dbcsr_create(c_out,"c_out",cp_dbcsr_distribution(matrix_s),&
              dbcsr_type_symmetric,cp_dbcsr_row_block_sizes(matrix_s),&
-             cp_dbcsr_col_block_sizes(matrix_s),0,0,dbcsr_type_real_default,error=error)
+             cp_dbcsr_col_block_sizes(matrix_s),nze=0,data_type=dbcsr_type_real_default,error=error)
 
         ! allocate mo_conv sparse
         CALL cp_dbcsr_init_p(mo_conv,error=error)
@@ -887,7 +887,7 @@ CONTAINS
       CALL cp_dbcsr_init_p(matrix_pz,error=error)
       CALL cp_dbcsr_create(matrix_pz,"matrix_pz",cp_dbcsr_distribution(matrix_z),&
            dbcsr_type_no_symmetry,cp_dbcsr_row_block_sizes(matrix_z),&
-           cp_dbcsr_col_block_sizes(matrix_z),0,0,dbcsr_type_real_default,error=error)
+           cp_dbcsr_col_block_sizes(matrix_z),nze=0,data_type=dbcsr_type_real_default,error=error)
 
       IF(do_apply_preconditioner) THEN
         IF(preconditioner%in_use/=0) THEN

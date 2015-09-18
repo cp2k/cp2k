@@ -39,10 +39,9 @@ MODULE qs_integrate_potential_product
        cp_dbcsr_add_block_node, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
        cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_block_p, &
-       cp_dbcsr_get_data_size, cp_dbcsr_get_matrix_type, &
-       cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_p_type, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_type, cp_dbcsr_work_create, &
-       dbcsr_distribution_has_threads
+       cp_dbcsr_get_data_size, cp_dbcsr_get_matrix_type, cp_dbcsr_init, &
+       cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
+       cp_dbcsr_work_create, dbcsr_distribution_has_threads
   USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_constants,                 ONLY: do_admm_exch_scaling_merlot
@@ -384,8 +383,7 @@ CONTAINS
           CALL cp_dbcsr_create(dhmat(img)%matrix, 'LocalH', &
                cp_dbcsr_distribution (href),&
                cp_dbcsr_get_matrix_type (href), cp_dbcsr_row_block_sizes(href),&
-               cp_dbcsr_col_block_sizes(href), cp_dbcsr_get_num_blocks(href),&
-               cp_dbcsr_get_data_size(href),&
+               cp_dbcsr_col_block_sizes(href), cp_dbcsr_get_data_size(href),&
                error=error)
        END DO
     END IF

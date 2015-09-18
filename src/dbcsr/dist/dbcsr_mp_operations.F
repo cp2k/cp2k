@@ -471,8 +471,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     SELECT CASE (dbcsr_data_get_type (base))
-    CASE (dbcsr_type_int_4)
-       CALL mp_win_create (base%d%i4, comm, win)
     CASE (dbcsr_type_real_4)
        CALL mp_win_create (base%d%r_sp, comm, win)
     CASE (dbcsr_type_real_8)
@@ -508,8 +506,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     SELECT CASE (dbcsr_data_get_type (base))
-    CASE (dbcsr_type_int_4)
-       CALL mp_rget (base%d%i4, source, win, disp, request)
     CASE (dbcsr_type_real_4)
        CALL mp_rget (base%d%r_sp, source, win, disp, request)
     CASE (dbcsr_type_real_8)

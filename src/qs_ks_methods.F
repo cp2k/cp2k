@@ -1718,7 +1718,7 @@ CONTAINS
                dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric,&
                row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
                col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
-               nblks=0, nze=0, error=error)
+               nze=0, error=error)
              CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_ks(ispin,ic)%matrix,sab_orb,error=error)
              CALL cp_dbcsr_set(matrixkp_ks(ispin,ic)%matrix,0.0_dp,error=error)
           ENDDO
@@ -1748,7 +1748,7 @@ CONTAINS
                   dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
                   row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
                   col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
-                  nblks=0, nze=0, error=error)
+                  nze=0, error=error)
              CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit(ispin)%matrix,sab_aux_fit,&
                   error=error)
              CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp,error=error)
@@ -1767,7 +1767,7 @@ CONTAINS
                   dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
                   row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
                   col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
-                  nblks=0, nze=0, error=error)
+                  nze=0, error=error)
              CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_dft(ispin)%matrix,sab_aux_fit,&
                   error=error)
              CALL cp_dbcsr_set(matrix_ks_aux_fit_dft(ispin)%matrix,0.0_dp,error=error)
@@ -1786,7 +1786,7 @@ CONTAINS
                   dist=cp_dbcsr_distribution(refmatrix), matrix_type=dbcsr_type_symmetric, &
                   row_blk_size=cp_dbcsr_row_block_sizes(refmatrix),&
                   col_blk_size=cp_dbcsr_col_block_sizes(refmatrix),&
-                  nblks=0, nze=0, error=error)
+                  nze=0, error=error)
              CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks_aux_fit_hfx(ispin)%matrix,sab_aux_fit,&
                   error=error)
              CALL cp_dbcsr_set(matrix_ks_aux_fit_hfx(ispin)%matrix,0.0_dp,error=error)

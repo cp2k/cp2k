@@ -409,7 +409,6 @@ CONTAINS
                          matrix_type=dbcsr_type_no_symmetry, &
                          row_blk_size=filtered_rowORcol_block_sizes, &
                          col_blk_size=filtered_rowORcol_block_sizes, &
-                         nblks=0, &
                          nze=0, &
                          error=error)
     CALL cp_dbcsr_finalize(matrix_filtered_ks, error=error)
@@ -430,7 +429,6 @@ CONTAINS
                          matrix_type=dbcsr_type_no_symmetry, &
                          row_blk_size=filtered_rowORcol_block_sizes, &
                          col_blk_size=filtered_rowORcol_block_sizes, &
-                         nblks=0, &
                          nze=0, &
                          error=error)
     CALL cp_dbcsr_finalize(matrix_filtered_s, error=error)
@@ -444,7 +442,6 @@ CONTAINS
                          matrix_type=dbcsr_type_no_symmetry, &
                          row_blk_size=original_rowORcol_block_sizes, &
                          col_blk_size=filtered_rowORcol_block_sizes, &
-                         nblks=0, &
                          nze=0, &
                          error=error)
     CALL cp_dbcsr_finalize(matrix_tmp, error=error)
@@ -551,7 +548,6 @@ CONTAINS
                          matrix_type=cp_dbcsr_get_matrix_type(scf_env%p_mix_new(1,1)%matrix), &
                          row_blk_size=filtered_rowORcol_block_sizes, &
                          col_blk_size=filtered_rowORcol_block_sizes, &
-                         nblks=0, &
                          nze=0, &
                          error=error)
     CALL cp_dbcsr_finalize(matrix_filtered_p, error=error)

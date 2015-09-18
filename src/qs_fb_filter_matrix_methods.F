@@ -181,7 +181,6 @@ CONTAINS
                          matrix_type=symmetry_string, &
                          row_blk_size=row_blk_size, &
                          col_blk_size=col_blk_size, &
-                         nblks=0, &
                          nze=0, &
                          error=error)
     DEALLOCATE(col_blk_size, STAT=stat)
@@ -361,7 +360,6 @@ CONTAINS
                          matrix_type=dbcsr_type_no_symmetry, &
                          row_blk_size=row_blk_size, &
                          col_blk_size=col_blk_size, &
-                         nblks=0, &
                          nze=0, &
                          error=error)
     DEALLOCATE(col_blk_size, STAT=stat)

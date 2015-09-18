@@ -28,9 +28,9 @@ MODULE qs_linres_current
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, &
        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_distribution, &
        cp_dbcsr_finalize, cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, &
-       cp_dbcsr_get_matrix_type, cp_dbcsr_get_num_blocks, cp_dbcsr_init, &
-       cp_dbcsr_p_type, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
-       cp_dbcsr_type, dbcsr_distribution_obj, dbcsr_type_antisymmetric, &
+       cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_p_type, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_distribution_obj, dbcsr_type_antisymmetric, &
        dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                              cp_dbcsr_sm_fm_multiply
@@ -318,7 +318,7 @@ CONTAINS
             name="density_matrix0", &
             dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry,&
             row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-            nblks=0, nze=0, mutable_work=.TRUE., &
+            nze=0, mutable_work=.TRUE., &
             error=error)
        CALL cp_dbcsr_alloc_block_from_nbl(density_matrix0(ispin)%matrix,sab_all,error=error)
        !
@@ -824,20 +824,20 @@ CONTAINS
        ENDIF
 
        CALL cp_dbcsr_create(deltajp_a(1)%matrix, ' deltajp_a ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
-            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a),&
+            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), &
             cp_dbcsr_get_data_size(mat_a),error=error)
             
        CALL cp_dbcsr_create(deltajp_b(1)%matrix, ' deltajp_b ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
-            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a),&
+            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), &
             cp_dbcsr_get_data_size(mat_a),error=error)
             
        CALL cp_dbcsr_create(deltajp_c(1)%matrix, ' deltajp_c ', cp_dbcsr_distribution (mat_a), cp_dbcsr_get_matrix_type (mat_a),&
-            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), cp_dbcsr_get_num_blocks(mat_a),&
+            cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a), &
             cp_dbcsr_get_data_size(mat_a),error=error)
             
        IF(do_igaim) CALL cp_dbcsr_create(deltajp_d(1)%matrix, ' deltajp_d ', cp_dbcsr_distribution (mat_a),&
             cp_dbcsr_get_matrix_type (mat_a),cp_dbcsr_row_block_sizes(mat_a),cp_dbcsr_col_block_sizes(mat_a),&
-            cp_dbcsr_get_num_blocks(mat_a), cp_dbcsr_get_data_size(mat_a),error=error)
+            cp_dbcsr_get_data_size(mat_a),error=error)
     ELSE
        deltajp_a(1)%matrix => mat_a !mat_jp
        deltajp_b(1)%matrix => mat_b !mat_jp_rii
@@ -2343,7 +2343,7 @@ CONTAINS
          name="op_mom", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-         nblks=0, nze=0, mutable_work=.TRUE., &
+         nze=0, mutable_work=.TRUE., &
          error=error)
     CALL cp_dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix,sab_all,error=error)
 
@@ -2374,7 +2374,7 @@ CONTAINS
          name="op_p_ao", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-         nblks=0, nze=0, mutable_work=.TRUE., &
+         nze=0, mutable_work=.TRUE., &
          error=error)
     CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb, error=error)
 
@@ -2797,7 +2797,7 @@ CONTAINS
          name="op_mom", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-         nblks=0, nze=0, mutable_work=.TRUE., &
+         nze=0, mutable_work=.TRUE., &
          error=error)
     CALL cp_dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix,sab_all,error=error)
 
@@ -2828,7 +2828,7 @@ CONTAINS
          name="op_p_ao", &
          dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric,&
          row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-         nblks=0, nze=0, mutable_work=.TRUE., &
+         nze=0, mutable_work=.TRUE., &
          error=error)
     CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb, error=error)
 

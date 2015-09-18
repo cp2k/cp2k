@@ -767,7 +767,7 @@ CONTAINS
             name=TRIM(name), &
             dist=dbcsr_dist, matrix_type=symmetry_string,&
             row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-            nblks=0, nze=0, error=error)
+            nze=0, error=error)
        CALL cp_dbcsr_alloc_block_from_nbl(matrix_s(i)%matrix,sab_nl,error)
      END DO
      
@@ -877,7 +877,7 @@ CONTAINS
                name=TRIM(name), &
                dist=dbcsr_dist, matrix_type=symmetry_string,&
                row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-               nblks=0, nze=0, error=error)
+               nze=0, error=error)
           CALL cp_dbcsr_alloc_block_from_nbl(matrix_s(i1,i2)%matrix,sab_nl,error)
        END DO
     END DO

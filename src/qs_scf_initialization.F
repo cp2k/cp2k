@@ -535,7 +535,7 @@ CONTAINS
              CALL cp_dbcsr_create(mo_derivs(ispin)%matrix, "mo_derivs",&
                   cp_dbcsr_distribution(mo_coeff_b), dbcsr_type_no_symmetry,&
                   cp_dbcsr_row_block_sizes(mo_coeff_b), cp_dbcsr_col_block_sizes(mo_coeff_b),&
-                  0, 0, dbcsr_type_real_default, error=error)
+                  nze=0, data_type=dbcsr_type_real_default, error=error)
           ENDDO
           CALL set_qs_env(qs_env,mo_derivs=mo_derivs,error=error)
        ENDIF

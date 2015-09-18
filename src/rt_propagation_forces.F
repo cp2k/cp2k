@@ -19,11 +19,11 @@ MODULE  rt_propagation_forces
        cp_dbcsr_col_block_sizes, cp_dbcsr_copy, cp_dbcsr_create, &
        cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, &
        cp_dbcsr_get_block_p, cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
-       cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_type, dbcsr_create_dist_r_unrot, dbcsr_distribution_obj, &
+       cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_type, &
+       dbcsr_create_dist_r_unrot, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                              cp_dbcsr_sm_fm_multiply
@@ -168,7 +168,7 @@ MODULE  rt_propagation_forces
        CALL cp_dbcsr_init(db_mos_re, error)
        CALL cp_dbcsr_create(db_mos_re, "D", dist, dbcsr_type_no_symmetry, &
             cp_dbcsr_row_block_sizes(SinvB(ispin)%matrix), col_blk_size,&
-            0, 0, error=error)
+            nze=0, error=error)
        CALL cp_dbcsr_init(db_mos_im, error)
        CALL cp_dbcsr_create(db_mos_im,template=db_mos_re, error=error)
        CALL cp_dbcsr_init(db_mo_tmp1, error)
@@ -516,7 +516,6 @@ MODULE  rt_propagation_forces
          cp_dbcsr_distribution(matrix_s_aux_fit(1)%matrix), dbcsr_type_no_symmetry, &
          cp_dbcsr_row_block_sizes(matrix_s_aux_fit(1)%matrix),&
          cp_dbcsr_col_block_sizes(matrix_s_aux_fit(1)%matrix), &
-         cp_dbcsr_get_num_blocks(matrix_s_aux_fit(1)%matrix), &
          cp_dbcsr_get_data_size(matrix_s_aux_fit(1)%matrix),&
          cp_dbcsr_get_data_type(matrix_s_aux_fit(1)%matrix), &
          error=error)

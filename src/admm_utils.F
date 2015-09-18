@@ -15,9 +15,9 @@ MODULE admm_utils
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_add, cp_dbcsr_col_block_sizes, cp_dbcsr_copy, &
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix, cp_dbcsr_distribution, &
-       cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, &
-       cp_dbcsr_get_num_blocks, cp_dbcsr_init, cp_dbcsr_row_block_sizes, &
-       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_symmetric
+       cp_dbcsr_get_data_size, cp_dbcsr_get_data_type, cp_dbcsr_init, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_type_symmetric
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE input_constants,                 ONLY: do_admm_purify_cauchy,&
@@ -68,7 +68,7 @@ MODULE admm_utils
            CALL cp_dbcsr_init (work, error)
            CALL cp_dbcsr_create(work, 'work', &
                 cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix),&
-                cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_num_blocks(ks_matrix), &
+                cp_dbcsr_col_block_sizes(ks_matrix), &
                 cp_dbcsr_get_data_size(ks_matrix),&
                 cp_dbcsr_get_data_type(ks_matrix), error=error)
 
@@ -100,7 +100,7 @@ MODULE admm_utils
            CALL cp_dbcsr_init (work, error)
            CALL cp_dbcsr_create(work, 'work', &
                 cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix),&
-                cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_num_blocks(ks_matrix), cp_dbcsr_get_data_size(ks_matrix),&
+                cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_data_size(ks_matrix),&
                 cp_dbcsr_get_data_type(ks_matrix), error=error)
 
            CALL cp_dbcsr_copy(work, ks_matrix, error=error)
@@ -158,7 +158,7 @@ MODULE admm_utils
            CALL cp_dbcsr_init (work, error)
            CALL cp_dbcsr_create(work, 'work', &
                 cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix),&
-                cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_num_blocks(ks_matrix), cp_dbcsr_get_data_size(ks_matrix),&
+                cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_data_size(ks_matrix),&
                 cp_dbcsr_get_data_type(ks_matrix), error=error)
 
            CALL cp_dbcsr_copy(work, ks_matrix, error=error)
@@ -184,7 +184,7 @@ MODULE admm_utils
            CALL cp_dbcsr_init (work, error)
            CALL cp_dbcsr_create(work, 'work', &
                 cp_dbcsr_distribution(ks_matrix), dbcsr_type_symmetric, cp_dbcsr_row_block_sizes(ks_matrix),&
-                cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_num_blocks(ks_matrix), cp_dbcsr_get_data_size(ks_matrix),&
+                cp_dbcsr_col_block_sizes(ks_matrix), cp_dbcsr_get_data_size(ks_matrix),&
                 cp_dbcsr_get_data_type(ks_matrix), error=error)
 
            CALL cp_dbcsr_copy(work, ks_matrix, error=error)

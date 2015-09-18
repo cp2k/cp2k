@@ -1189,7 +1189,7 @@ CONTAINS
     CALL mp_file_close(thefile)
 
     CALL dbcsr_create (matrix_new, matrix_name, distribution, matrix_type, &
-                       row_blk_size, col_blk_size, nblks=nblks, nze=darea_size, & 
+                       row_blk_size, col_blk_size, nze=darea_size, & 
                        data_type=data_type, error=error)
     CALL dbcsr_datablock_redistribute (dblk, row_p, col_i, blk_p, proc_nblks, proc_darea_sizes, matrix_new, error)
 

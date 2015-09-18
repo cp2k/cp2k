@@ -829,7 +829,7 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos,error)
                dist=cp_dbcsr_distribution(matrix_s(1)%matrix), matrix_type=dbcsr_type_symmetric,&
                row_blk_size=cp_dbcsr_row_block_sizes(matrix_s(1)%matrix), &
                col_blk_size=cp_dbcsr_col_block_sizes(matrix_s(1)%matrix), &
-               nblks=0, nze=0, error=error)
+               nze=0, error=error)
           CALL cp_dbcsr_alloc_block_from_nbl(subspace_env%p_matrix_store(i)%matrix,&
                sab_orb, error=error)
           CALL cp_dbcsr_set(subspace_env%p_matrix_store(i)%matrix,0.0_dp,error=error)

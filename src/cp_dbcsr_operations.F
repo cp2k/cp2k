@@ -425,7 +425,7 @@ CONTAINS
        CALL cp_dbcsr_init(in, error)
        CALL cp_dbcsr_create(in, "D", dist_right_in, dbcsr_type_no_symmetry, &
             cp_dbcsr_row_block_sizes(matrix), col_blk_size_right_in,&
-            0, 0, error=error)
+            nze=0, error=error)
 
        CALL cp_dbcsr_init(out, error)
        CALL cp_dbcsr_distribution_new (product_dist,&
@@ -445,7 +445,7 @@ CONTAINS
 
        CALL cp_dbcsr_create(out, "D", product_dist, dbcsr_type_no_symmetry, &
             cp_dbcsr_row_block_sizes(matrix), col_blk_size_right_out,&
-            0, 0, error=error)
+            nze=0, error=error)
 
        CALL copy_fm_to_dbcsr(fm_in, in, error=error)
        IF(ncol.NE.k_out.OR.my_beta.NE.0.0_dp) &
@@ -573,8 +573,8 @@ CONTAINS
        DEALLOCATE(col_dist_left)
        CALL cp_dbcsr_init (mat_v, error)
        CALL cp_dbcsr_create(mat_v, "DBCSR matrix_v", dist_left, dbcsr_type_no_symmetry,&
-            cp_dbcsr_row_block_sizes (sparse_matrix), col_blk_size_left, 0, 0,&
-            cp_dbcsr_get_data_type (sparse_matrix), error=error)
+            cp_dbcsr_row_block_sizes (sparse_matrix), col_blk_size_left, nze=0,&
+            data_type=cp_dbcsr_get_data_type (sparse_matrix), error=error)
        CALL copy_fm_to_dbcsr(matrix_v, mat_v, error=error)
        CALL cp_dbcsr_verify_matrix(mat_v, error)
        !
@@ -764,7 +764,7 @@ CONTAINS
     ! Create the block-cyclic DBCSR matrix
     CALL cp_dbcsr_init (bc_mat, error)
     CALL cp_dbcsr_create (bc_mat, "Block-cyclic "//cp_dbcsr_name(matrix), bc_dist,&
-         cp_dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0,&
+         cp_dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, nze=0,&
          reuse_arrays=.TRUE., data_type=cp_dbcsr_get_data_type(matrix),error=error)
 
     !call dbcsr_finalize (bc_mat)
@@ -950,7 +950,7 @@ CONTAINS
     IF(fm%use_sp)data_type=dbcsr_type_real_4
     CALL cp_dbcsr_init (bc_mat, error)
     CALL cp_dbcsr_create (bc_mat, "Block-cyclic ", bc_dist,&
-         dbcsr_type_no_symmetry, row_blk_size, col_blk_size, 0, 0,&
+         dbcsr_type_no_symmetry, row_blk_size, col_blk_size, nze=0,&
          reuse_arrays=.TRUE., data_type=data_type,error=error)
 
     !call dbcsr_finalize (bc_mat)
@@ -1137,8 +1137,8 @@ CONTAINS
     ! Create the block-cyclic DBCSR matrix
     CALL cp_dbcsr_init (bc_mat, error)
     CALL cp_dbcsr_create (bc_mat, "Block-cyclic "//cp_dbcsr_name(matrix), bc_dist,&
-         cp_dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, 0, 0,&
-         dbcsr_type_complex_8,reuse_arrays=.TRUE.,error=error) ! type hard coded !
+         cp_dbcsr_get_matrix_type(matrix), row_blk_size, col_blk_size, nze=0,&
+         data_type=dbcsr_type_complex_8,reuse_arrays=.TRUE.,error=error) ! type hard coded !
     !call dbcsr_finalize (bc_mat)
     CALL dbcsr_distribution_release (bc_dist)
     NULLIFY(col_blk_size,row_blk_size)
@@ -1288,7 +1288,7 @@ CONTAINS
     row_blk_size_tmp => row_blk_size
     col_blk_size_tmp => col_blk_size
     CALL cp_dbcsr_create (bc_mat, "Block-cyclic"//cp_dbcsr_name(matrix), bc_dist,&
-         dbcsr_type_no_symmetry, row_blk_size_tmp, col_blk_size_tmp, 0, 0,&
+         dbcsr_type_no_symmetry, row_blk_size_tmp, col_blk_size_tmp, nze=0, &
          reuse_arrays=.TRUE.,error=error)
     CALL dbcsr_distribution_release (bc_dist)
     CALL cp_dbcsr_complete_redistribute (matrix, bc_mat, error=error)
@@ -1434,7 +1434,7 @@ CONTAINS
     row_blk_size_tmp => row_blk_size
     col_blk_size_tmp => col_blk_size
     CALL cp_dbcsr_create (bc_mat, "Block-cyclic"//cp_dbcsr_name(matrix), bc_dist,&
-         dbcsr_type_no_symmetry, row_blk_size_tmp, col_blk_size_tmp, 0, 0, cp_dbcsr_get_data_type(matrix),&
+         dbcsr_type_no_symmetry, row_blk_size_tmp, col_blk_size_tmp, nze=0, data_type=cp_dbcsr_get_data_type(matrix),&
          reuse_arrays=.TRUE.,error=error)
     CALL dbcsr_distribution_release (bc_dist)
     CALL cp_dbcsr_complete_redistribute (matrix, bc_mat, error=error)
@@ -1665,7 +1665,7 @@ CONTAINS
     CALL cp_dbcsr_init(matrix, error)
     CALL cp_dbcsr_create(matrix, "D", dist_right_in, dbcsr_type_no_symmetry, &
          cp_dbcsr_row_block_sizes(template), col_blk_size_right_in,&
-         0, 0, cp_dbcsr_get_data_type(template), error=error)
+         nze=0, data_type=cp_dbcsr_get_data_type(template), error=error)
 
     CALL copy_fm_to_dbcsr(fm_in, matrix, error=error)
     DEALLOCATE(col_blk_size_right_in)
@@ -1724,7 +1724,7 @@ CONTAINS
          reuse_arrays=.TRUE.)
 
     CALL cp_dbcsr_create(matrix, "m_n_template", dist_m_n, mysym,&
-            row_blk_size, col_blk_size, 0, 0, my_data_type,&
+            row_blk_size, col_blk_size, nze=0, data_type=my_data_type,&
             reuse_arrays=.TRUE.,error=error)
     CALL dbcsr_distribution_release(dist_m_n)
 
@@ -1775,7 +1775,7 @@ CONTAINS
          col_cluster_dist)
 
     CALL cp_dbcsr_create(matrix, "m_n_template", dist_m_n, mysym,&
-            cp_dbcsr_row_block_sizes(template), col_blk_size, 0, 0, my_data_type, error=error)
+            cp_dbcsr_row_block_sizes(template), col_blk_size, nze=0, data_type=my_data_type, error=error)
 
     DEALLOCATE(col_dist,col_blk_size)
     CALL dbcsr_distribution_release(dist_m_n)

@@ -37,7 +37,7 @@ MODULE dbcsr_work_operations
        dbcsr_data_get_memory_type, dbcsr_data_get_size, &
        dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_hold, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
-       dbcsr_data_set_size_referenced, dbcsr_get_data_p_c, &
+       dbcsr_data_set_size_referenced, dbcsr_data_valid, dbcsr_get_data_p_c, &
        dbcsr_get_data_p_d, dbcsr_get_data_p_s, dbcsr_get_data_p_z
   USE dbcsr_data_operations,           ONLY: dbcsr_data_copyall,&
                                              dbcsr_sort_data,&
@@ -145,10 +145,10 @@ CONTAINS
 !> \param col_blk_size ...
 !> \param row_blk_size_obj ...
 !> \param col_blk_size_obj ...
-!> \param[in] nblks           (optional) number of blocks
 !> \param[in] nze             (optional) number of elements
 !> \param[in] data_type       type of data from 'rRcC' for single/double
 !>                            precision real/complex, default is 'R'
+!> \param data_buffer ...
 !> \param[in] data_memory_type     (optional) allocate indices and data using
 !>                            special memory
 !> \param[in] index_memory_type     (optional) allocate indices using
@@ -174,7 +174,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_new(matrix, name, dist, matrix_type,&
        row_blk_size, col_blk_size, row_blk_size_obj, col_blk_size_obj,&
-       nblks, nze, data_type,&
+       nze, data_type, data_buffer,&
        data_memory_type, index_memory_type,&
        max_rbs, max_cbs,&
        row_blk_offset, col_blk_offset,&
@@ -190,7 +190,9 @@ CONTAINS
     TYPE(array_i1d_obj), INTENT(IN), &
       OPTIONAL                               :: row_blk_size_obj, &
                                                 col_blk_size_obj
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
+    INTEGER, INTENT(IN), OPTIONAL            :: nze, data_type
+    TYPE(dbcsr_data_obj), INTENT(IN), &
+      OPTIONAL                               :: data_buffer
     TYPE(dbcsr_memtype_type), INTENT(IN), &
       OPTIONAL                               :: data_memory_type, &
                                                 index_memory_type
@@ -208,8 +210,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: matrix_type_l
-    INTEGER                                  :: error_handler, my_nblks, &
-                                                my_nze
+    INTEGER                                  :: error_handler, my_nze
     INTEGER, DIMENSION(:), POINTER           :: vec_col_blk_offset, &
                                                 vec_row_blk_offset
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
@@ -261,6 +262,15 @@ CONTAINS
     ELSE
        matrix%m%data_type = dbcsr_type_real_default
     ENDIF
+
+    matrix%m%data_memory_type = dbcsr_memtype_default
+    IF (PRESENT (data_memory_type)) &
+       matrix%m%data_memory_type = data_memory_type
+
+    matrix%m%index_memory_type = dbcsr_memtype_default
+    IF (PRESENT (index_memory_type)) &
+       matrix%m%index_memory_type = index_memory_type
+
     IF (hijack) THEN
        ! Release/deallocate elements that are replaced or not needed
        ! by the new matrix. This is similar to what dbcsr_destroy
@@ -289,7 +299,22 @@ CONTAINS
        ! Invalidate index
        NULLIFY(matrix%m%index)
        ! Invalidate data
-       CALL dbcsr_data_init (matrix%m%data_area)
+       IF (PRESENT(data_buffer)) THEN
+          CALL dbcsr_assert(dbcsr_data_valid(data_buffer), dbcsr_failure_level,&
+               dbcsr_wrong_args_error, routineN,&
+               "Input data buffer not valid.",&
+               __LINE__, error=error)
+          CALL dbcsr_assert (matrix%m%data_type, "EQ",&
+               data_buffer%d%data_type,&
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Input buffer data type different by matrix data type.",&
+               __LINE__, error=error)
+          matrix%m%data_memory_type = data_buffer%d%memory_type
+          matrix%m%data_area = data_buffer
+          CALL dbcsr_data_hold(matrix%m%data_area)
+       ELSE
+          CALL dbcsr_data_init (matrix%m%data_area)
+       ENDIF
     ENDIF
     ! These are always invalidated.
     NULLIFY(matrix%m%row_p, matrix%m%col_i, matrix%m%blk_p, matrix%m%thr_c,&
@@ -387,17 +412,8 @@ CONTAINS
     matrix%m%nfullrows_local = new_meta(dbcsr_slot_nfullrows_local)
     matrix%m%nfullcols_local = new_meta(dbcsr_slot_nfullcols_local)
     my_nze = 0; IF (PRESENT (nze)) my_nze = nze
-    my_nblks = 0; IF (PRESENT (nblks)) my_nblks = nblks
     matrix%m%nblks = 0
     matrix%m%nze = 0
-
-    matrix%m%data_memory_type = dbcsr_memtype_default
-    IF (PRESENT (data_memory_type)) &
-       matrix%m%data_memory_type = data_memory_type
-
-    matrix%m%index_memory_type = dbcsr_memtype_default
-    IF (PRESENT (index_memory_type)) &
-       matrix%m%index_memory_type = index_memory_type
 
     IF (PRESENT (replication_type)) THEN
        CALL dbcsr_assert (replication_type .EQ. dbcsr_repl_none&
@@ -417,9 +433,11 @@ CONTAINS
     !
     ! Setup a matrix from scratch
     IF (.NOT. hijack) THEN
-       CALL dbcsr_data_new (matrix%m%data_area, matrix%m%data_type, my_nze,&
-            memory_type=matrix%m%data_memory_type)
-       CALL dbcsr_data_set_size_referenced (matrix%m%data_area, 0)
+       IF (.NOT.PRESENT(data_buffer)) THEN
+          CALL dbcsr_data_new (matrix%m%data_area, matrix%m%data_type, my_nze,&
+               memory_type=matrix%m%data_memory_type)
+          CALL dbcsr_data_set_size_referenced (matrix%m%data_area, 0)
+       ENDIF
        !
        NULLIFY (matrix%m%index)
        CALL ensure_array_size (matrix%m%index, lb=1, ub=dbcsr_num_slots,&
@@ -488,9 +506,9 @@ CONTAINS
 !> \param matrix_type ...
 !> \param row_blk_size ...
 !> \param col_blk_size ...
-!> \param nblks ...
 !> \param nze ...
 !> \param data_type ...
+!> \param data_buffer ...
 !> \param data_memory_type ...
 !> \param index_memory_type ...
 !> \param max_rbs ...
@@ -504,8 +522,8 @@ CONTAINS
 !> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_template(matrix, template, name, dist, matrix_type,&
-       row_blk_size, col_blk_size, nblks, nze, data_type,&
-       data_memory_type, index_memory_type,&
+       row_blk_size, col_blk_size, nze, data_type,&
+       data_buffer, data_memory_type, index_memory_type,&
        max_rbs, max_cbs,&
        row_blk_offset, col_blk_offset,&
        reuse_arrays, mutable_work, make_index, replication_type, error)
@@ -517,7 +535,9 @@ CONTAINS
     CHARACTER, INTENT(IN), OPTIONAL          :: matrix_type
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL, POINTER                      :: row_blk_size, col_blk_size
-    INTEGER, INTENT(IN), OPTIONAL            :: nblks, nze, data_type
+    INTEGER, INTENT(IN), OPTIONAL            :: nze, data_type
+    TYPE(dbcsr_data_obj), INTENT(IN), &
+      OPTIONAL                               :: data_buffer
     TYPE(dbcsr_memtype_type), INTENT(IN), &
       OPTIONAL                               :: data_memory_type, &
                                                 index_memory_type
@@ -632,8 +652,9 @@ CONTAINS
             matrix_type = new_matrix_type,&
             row_blk_size = new_row_blk_size,&
             col_blk_size = new_col_blk_size,&
-            nblks = nblks, nze = nze,&
+            nze = nze,&
             data_type = new_data_type,&
+            data_buffer = data_buffer,&
             data_memory_type = new_data_memory_type,&
             index_memory_type = new_index_memory_type,&
             max_rbs=new_max_rbs, max_cbs=new_max_cbs,&
@@ -650,8 +671,9 @@ CONTAINS
             col_blk_size = new_col_blk_size,&
             row_blk_size_obj = template%m%row_blk_size,&
             col_blk_size_obj = template%m%col_blk_size,&
-            nblks = nblks, nze = nze,&
+            nze = nze,&
             data_type = new_data_type,&
+            data_buffer = data_buffer,&
             data_memory_type = new_data_memory_type,&
             index_memory_type = new_index_memory_type,&
             max_rbs=new_max_rbs, max_cbs=new_max_cbs,&

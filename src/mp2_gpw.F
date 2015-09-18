@@ -377,7 +377,7 @@ MODULE mp2_gpw
                name="(ai|munu)",&
                dist=dbcsr_dist_sub, matrix_type=dbcsr_type_symmetric,&
                row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-               nblks=0, nze=0, error=error)
+               nze=0, error=error)
     CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix,sab_orb_sub,error)
     DEALLOCATE(row_blk_sizes)
 
@@ -694,7 +694,7 @@ MODULE mp2_gpw
           !            matrix_type=dbcsr_type_symmetric,&
           !            ! matrix_type=dbcsr_type_no_symmetry,&
           !            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-          !            nblks=0, nze=0, error=error)
+          !            nze=0, error=error)
           ! CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix,sab_orb_sub,error)
           ! CALL array_release (row_blk_sizes)
 
