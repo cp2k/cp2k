@@ -10,7 +10,7 @@
 #
 CC       = mpixlc_r
 CXX      = mpixlcxx_r
-CPP      = cpp -C -P -traditional-cpp
+CPP      = cpp -P -traditional-cpp
 FC       = mpixlf95_r
 LD       = mpixlf95_r
 AR       = ar -r

@@ -15,7 +15,7 @@ LD       = mpixlf95_r
 AR       = ar -r
 
 DFLAGS   = -D__AIX -D__FFTW3 -D__FFTSG -D__parallel -D__BLACS -D__SCALAPACK 
-CPPFLAGS = -C $(DFLAGS) -P -traditional -I/bglocal/cn/pub/FFTW/3.3.2/include 
+CPPFLAGS = $(DFLAGS) -P -traditional -I/bglocal/cn/pub/FFTW/3.3.2/include 
 FCFLAGS  = -O3 -qhot -g -qsmp=omp -qstrict -qarch=qp -qtune=qp -qmaxmem=-1 \
            -I/bgsys/ibm_essl/prod/opt/ibmmath/essl/5.1/include \
            -I/bglocal/cn/pub/LAPACK/3.4.2/include -I/bglocal/cn/pub/FFTW/3.3.3/include 
