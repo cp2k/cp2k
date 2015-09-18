@@ -128,30 +128,6 @@ Note that you should **NOT** use libinit-1.1.3.
     underscore for linking C subroutines.
   * USE -D__CUDA_PROFILING to turn on Nvidia Tools Extensions.
 
-==== 2i. Machine architecture abstraction (optional) ====
-  * Use the -D__HWLOC or -D__LIBNUMA to compile with hwloc or libnuma support
-    for machine architecture and process/threads/memory
-    placement  and visualization. It is necessary to link with -lhwloc or -lnuma.
-  * Machine architecture visualization is supported only with hwloc.
-    Process/threads/memory placement and visualization is supported by both.
-  * Note that it is not possible to use at same time hwloc and libnuma.
-  * Consult cp2k/src/machine/README for more information.
-
-==== 2j. Process mapping (optional) ====
-  * Use the target machine flag (see 3b) to compile with topology support.
-  * Consult cp2k/src/machine/README for more information.
-  * You can also define the strategy to be used using as a command line,
-    with -mpi-mapping [1,2,3,4,5,6,7].
-
-^ No. ^         Strategy            ^
-|  1  | SMP-style rank ordering     |
-|  2  | file based rank ordering    |
-|  3  | hilbert space-filling curve |
-|  4  | peano space-fillinng curve  |
-|  5  | round-robin rank ordering   |
-|  6  | hilbert-peano               |
-|  7  | cannon pattern mapping      |
-
 ==== 2k. libxc (optional) ====
   * The version 2.1.0 (or later) of libxc needs to be downloaded
     (http://www.tddft.org/programs/octopus/wiki/index.php/Libxc) and installed.
@@ -257,12 +233,6 @@ The following flags should be present (or not) in the arch file
   * -D__FFTW3 FFTW version 3 is recommended
   * -D__PW_CUDA CUDA FFT and associated gather/scatter on the GPU
   * -D__MKL link the MKL library for linear algebra and/or FFT
-
-various network interconnections:
-  * -D__GEMINI
-  * -D__SEASTAR
-  * -D__BLUEGENE
-  * -D__NET
 
   * with -D__GRID_CORE=X (with X=1..6) specific optimized core routines can
     be selected.  Reasonable defaults are provided (see cp2k/src/grid/collocate_fast.f90)
