@@ -66,10 +66,6 @@ MODULE environment
                                              m_flush_internal,&
                                              m_memory_details,&
                                              m_procrun
-  USE machine_architecture_types,      ONLY: group,&
-                                             has_ma,&
-                                             local,&
-                                             threads
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
                                              mp_external_timeset,&
@@ -528,7 +524,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: trace_routines
     INTEGER :: i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, &
       nforce_eval, num_threads, output_unit, print_level, trace_max, unit_nr
-
     INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, &
       Cached, Cached_avr, Cached_max, Cached_min, MemFree, MemFree_avr, &
       MemFree_max, MemFree_min, MemLikelyFree, MemLikelyFree_avr, &
@@ -537,8 +532,8 @@ CONTAINS
       SReclaimable, SReclaimable_avr, SReclaimable_max, SReclaimable_min
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: ata, do_echo_all_hosts, efl, &
-                                                explicit, failure, trace, &
-                                                trace_master, time_mpi
+                                                explicit, failure, time_mpi, &
+                                                trace, trace_master
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum1, enum2
     TYPE(keyword_type), POINTER              :: keyword
