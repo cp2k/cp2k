@@ -3476,6 +3476,7 @@ MODULE dbcsr_mm_cannon
        CALL rma_buffers_init(rma_buffers_orig,data_type,&
                              left_data_size,right_data_size,&
                              left_meta_size,right_meta_size,&
+                             memtype_mpi_buffer,&
                              error=error)
        !
        DO v_ri = 1, right_row_nimages
@@ -3656,6 +3657,7 @@ MODULE dbcsr_mm_cannon
        CALL rma_buffers_init(rma_buffers_2,data_type,&
                              left_max_data_size,right_max_data_size,&
                              left_max_meta_size,right_max_meta_size,&
+                             memtype_abpanel_2, &
                              left_offset_data_2,right_offset_data_2,&
                              left_buffer,right_buffer,&
                              trs_stackbuf_2,&
@@ -3696,6 +3698,7 @@ MODULE dbcsr_mm_cannon
     CALL rma_buffers_init(rma_buffers_1,data_type,&
                           left_max_data_size,right_max_data_size,&
                           left_max_meta_size,right_max_meta_size,&
+                          memtype_abpanel_1, &
                           left_offset_data_1,right_offset_data_1,&
                           left_set,right_set,&
                           trs_stackbuf_1,&
@@ -4170,7 +4173,8 @@ MODULE dbcsr_mm_cannon
     INTEGER, INTENT(IN), OPTIONAL            :: data_size
     TYPE(dbcsr_data_obj), INTENT(IN), &
       OPTIONAL                               :: data_buffer
-    TYPE(dbcsr_memtype_type), INTENT(IN)     :: data_memory_type
+    TYPE(dbcsr_memtype_type), INTENT(IN), &
+      OPTIONAL                               :: data_memory_type
     TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CALL dbcsr_init(matrix)
@@ -4259,7 +4263,6 @@ MODULE dbcsr_mm_cannon
        CALL setup_buffer_matrix(images(v_ki),&
             source_matrix, index_size_merged(v_ki), &
             data_buffer=data_buffer, &
-            data_memory_type=memtype_abpanel_2, &
             error=error)
     ENDDO
   END SUBROUTINE setup_buffer_matrices_images
@@ -5134,6 +5137,7 @@ MODULE dbcsr_mm_cannon
 !> \param right_data_size ...
 !> \param left_meta_size ...
 !> \param right_meta_size ...
+!> \param data_memory_type ...
 !> \param left_offset_data ...
 !> \param right_offset_data ...
 !> \param left_buffer ...
@@ -5145,6 +5149,7 @@ MODULE dbcsr_mm_cannon
   SUBROUTINE rma_buffers_init(buffer, data_type, &
                               left_data_size, right_data_size, &
                               left_meta_size, right_meta_size, &
+                              data_memory_type, &                              
                               left_offset_data, right_offset_data, &
                               left_buffer,right_buffer, &
                               trs_stackbuf, &
@@ -5154,6 +5159,7 @@ MODULE dbcsr_mm_cannon
                                                 right_data_size, &
                                                 left_meta_size, &
                                                 right_meta_size
+    TYPE(dbcsr_memtype_type), INTENT(IN)     :: data_memory_type
     INTEGER, ALLOCATABLE, DIMENSION(:), &
       INTENT(IN), OPTIONAL, TARGET           :: left_offset_data, &
                                                 right_offset_data
@@ -5167,10 +5173,10 @@ MODULE dbcsr_mm_cannon
        ! First initialization
        CALL dbcsr_data_init(buffer%left_data)
        CALL dbcsr_data_new(buffer%left_data,data_type=data_type,&
-                           data_size=left_data_size,memory_type=memtype_mpi_buffer)
+                           data_size=left_data_size,memory_type=data_memory_type)
        CALL dbcsr_data_init(buffer%right_data)
        CALL dbcsr_data_new(buffer%right_data,data_type=data_type,&
-                           data_size=right_data_size,memory_type=memtype_mpi_buffer)
+                           data_size=right_data_size,memory_type=data_memory_type)
        buffer%is_valid = .TRUE.
     ELSE
        CALL dbcsr_data_ensure_size(buffer%left_data,left_data_size,nocopy=.TRUE.,error=error)
