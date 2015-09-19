@@ -3935,8 +3935,6 @@ MODULE dbcsr_mm_cannon
        !
        IF (mm_driver==mm_driver_acc) THEN
           CALL dbcsr_data_host2dev(rma_buffers_calc%right_data, error)
-          CALL acc_transpose_blocks(rma_buffers_calc%right_buffer%mats(1, 1), &
-               rma_buffers_calc%trs_stackbuf, error)
           CALL dbcsr_data_host2dev(rma_buffers_calc%left_data, error)
        ENDIF
        !
@@ -3948,6 +3946,11 @@ MODULE dbcsr_mm_cannon
                   nodata=.TRUE., error=error)
              CALL dbcsr_print(rma_buffers_calc%left_buffer%mats(1, v_ki),&
                   nodata=.TRUE., error=error)
+          ENDIF
+          !
+          IF (mm_driver==mm_driver_acc) THEN
+             CALL acc_transpose_blocks(rma_buffers_calc%right_buffer%mats(v_ki, 1), &
+                  rma_buffers_calc%trs_stackbuf, error)
           ENDIF
           !
           IF (otf_filtering) THEN
