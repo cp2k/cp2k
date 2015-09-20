@@ -96,7 +96,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
 #if defined (__PLUMED_CP2K) || defined (__PLUMED2)
     INTEGER                                  :: natom_plumed
@@ -166,8 +165,7 @@ CONTAINS
     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                    routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
                    " not compiled with plumed support."//&
-                   CPSourceFileRef,&
-                   failure)
+                   CPSourceFileRef)
 #endif
 
     CALL timestop(handle)
@@ -217,7 +215,6 @@ END SUBROUTINE
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, plumed_itimes
-    LOGICAL                                  :: failure
 #if defined (__PLUMED_CP2K) || defined (__PLUMED2)
     INTEGER                                  :: i_part, natom_plumed
     TYPE(cell_type), POINTER                 :: cell
@@ -240,7 +237,6 @@ END SUBROUTINE
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     ! Apply Metadynamics
     IF (ASSOCIATED(force_env%meta_env)) THEN
         IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
@@ -347,8 +343,7 @@ END SUBROUTINE
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                    routineP,"Requested to use plumed for metadynamics, but cp2k was"//&
                    " not compiled with plumed support."//&
-                   CPSourceFileRef,&
-                   failure)
+                   CPSourceFileRef)
 #endif
 
 
@@ -395,7 +390,7 @@ END SUBROUTINE
 
     INTEGER                                  :: handle, i, i_c, icolvar, ii, &
                                                 iwall
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(kind=dp)                            :: check_val, diff_ss, dt, &
                                                 ekin_w, fac_t, fft, norm, &
                                                 rval, scal, scalf, ss0_test, &
@@ -409,7 +404,6 @@ END SUBROUTINE
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: ss0_section, vvp_section
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env)
     meta_env => force_env%meta_env
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
@@ -661,13 +655,11 @@ END SUBROUTINE
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_c
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: diff_ss, dt, fft, sigma
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(metavar_type), POINTER              :: cv
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env,cv)
     meta_env => force_env%meta_env
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
@@ -719,13 +711,11 @@ END SUBROUTINE
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_c
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dt
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(metavar_type), POINTER              :: cv
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env,cv)
     meta_env => force_env%meta_env
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
@@ -764,13 +754,11 @@ END SUBROUTINE
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, i_c, iw
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: diff_ss, temp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(metavar_type), POINTER              :: cv
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env,cv)
     meta_env => force_env%meta_env
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
@@ -868,7 +856,7 @@ END SUBROUTINE
                                                 intermeta_steps, iter_nr, iw, &
                                                 n_colvar, n_hills_start, &
                                                 n_step, stat
-    LOGICAL                                  :: failure, force_gauss
+    LOGICAL                                  :: force_gauss
     REAL(KIND=dp)                            :: cut_func, dfunc, diff, dp2, &
                                                 frac, slow_growth, &
                                                 V_now_here, V_to_fes, wtww, ww
@@ -882,7 +870,6 @@ END SUBROUTINE
 
     CALL timeset(routineN,handle)
 
-    failure   = .FALSE.
     NULLIFY(hills_env, multiple_walkers, logger, colvars, ddp, local_last_hills)
     hills_env => meta_env%hills_env
     logger    => cp_get_default_logger()
