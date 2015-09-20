@@ -68,7 +68,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="ATOM",&
          description="Section handling input for atomic calculations.",&
          n_keywords=1, n_subsections=1, repeats=.FALSE.)
@@ -206,7 +206,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
          description="Section of possible print options specific of the ATOM code.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -340,7 +340,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="AE_BASIS",&
          description="Section of basis set information for all-electron calculations.",&
          n_keywords=0, n_subsections=0, repeats=.FALSE.)
@@ -364,7 +364,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PP_BASIS",&
          description="Section of basis set information for pseudopotential calculations.",&
          n_keywords=0, n_subsections=0, repeats=.FALSE.)
@@ -390,7 +390,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section))
     NULLIFY(keyword)
 
     CALL keyword_create(keyword, name="BASIS_TYPE",&
@@ -554,7 +554,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(subsection,keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="METHOD",&
          description="Section of information on method to use.",&
          n_keywords=0, n_subsections=2, repeats=.TRUE.)
@@ -643,7 +643,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(subsection,keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="ZMP",&
           description="Section used to specify ZMP Potentials.",&
           n_keywords=3, n_subsections=0, repeats=.FALSE.)
@@ -697,7 +697,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RESTART",&
           description="Section used to specify the restart option in the ZMP"//&
                       "procedure, and the file that must be read.",&
@@ -730,7 +730,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXTERNAL_VXC",&
           description="Section used to specify exernal VXC Potentials.",&
           n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -768,7 +768,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="OPTIMIZATION",&
          description="Section of information on optimization thresholds and algorithms.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -823,7 +823,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="POTENTIAL",&
          description="Section of information on potential.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)

@@ -89,8 +89,8 @@ SUBROUTINE qs_diis_b_retain(diis_buffer)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(diis_buffer),cp_failure_level,routineP,failure)
-  CPPreconditionNoFail(diis_buffer%ref_count>0,cp_failure_level,routineP)
+  CPASSERT(ASSOCIATED(diis_buffer))
+  CPASSERT(diis_buffer%ref_count>0)
   diis_buffer%ref_count=diis_buffer%ref_count+1
 END SUBROUTINE qs_diis_b_retain
 
@@ -113,12 +113,12 @@ SUBROUTINE qs_diis_b_release(diis_buffer)
   failure=.FALSE.
 
   IF (ASSOCIATED(diis_buffer)) THEN
-     CPPreconditionNoFail(diis_buffer%ref_count>0,cp_failure_level,routineP)
+     CPASSERT(diis_buffer%ref_count>0)
      diis_buffer%ref_count=diis_buffer%ref_count-1
      IF (diis_buffer%ref_count<1) THEN
         IF (ASSOCIATED(diis_buffer%b_matrix)) THEN
            DEALLOCATE(diis_buffer%b_matrix,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(diis_buffer%error)) THEN
            DO j=1,SIZE(diis_buffer%error,2)
@@ -127,7 +127,7 @@ SUBROUTINE qs_diis_b_release(diis_buffer)
               END DO
            END DO
            DEALLOCATE(diis_buffer%error,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(diis_buffer%parameter)) THEN
            DO j=1,SIZE(diis_buffer%parameter,2)
@@ -136,10 +136,10 @@ SUBROUTINE qs_diis_b_release(diis_buffer)
               END DO
            END DO
            DEALLOCATE(diis_buffer%parameter,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         DEALLOCATE(diis_buffer,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
   END IF
 END SUBROUTINE qs_diis_b_release
@@ -167,7 +167,7 @@ SUBROUTINE qs_diis_b_release_sparse(diis_buffer)
   IF (ASSOCIATED(diis_buffer)) THEN
         IF (ASSOCIATED(diis_buffer%b_matrix)) THEN
            DEALLOCATE(diis_buffer%b_matrix,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(diis_buffer%error)) THEN
            DO j=1,SIZE(diis_buffer%error,2)
@@ -177,7 +177,7 @@ SUBROUTINE qs_diis_b_release_sparse(diis_buffer)
               END DO
            END DO
            DEALLOCATE(diis_buffer%error,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(diis_buffer%parameter)) THEN
            DO j=1,SIZE(diis_buffer%parameter,2)
@@ -187,10 +187,10 @@ SUBROUTINE qs_diis_b_release_sparse(diis_buffer)
               END DO
            END DO
            DEALLOCATE(diis_buffer%parameter,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         DEALLOCATE(diis_buffer,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
   END IF
 END SUBROUTINE qs_diis_b_release_sparse
 

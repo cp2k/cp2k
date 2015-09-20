@@ -154,31 +154,31 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
         cons_info%nconst_g33 = ncons
         !
         ALLOCATE(cons_info%const_g33_mol(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g33_molname(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g33_a(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g33_b(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g33_c(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g33_dab(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g33_dac(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g33_dbc(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%g33_intermolecular(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%g33_restraint(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%g33_k0(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%g33_exclude_qm(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%g33_exclude_mm(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ig = 1, ncons
            CALL check_restraint(g3x3_section,&
                                 is_restraint=cons_info%g33_restraint(ig), &
@@ -215,11 +215,11 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
                    c_val=cons_info%const_g33_molname(ig))
            END IF
            IF  ((cons_info%const_g33_mol(ig)/=0).AND.(cons_info%const_g33_molname(ig)/="UNDEF")) THEN
-              CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
            END IF
            IF  ((cons_info%const_g33_mol(ig)==0).AND.(cons_info%const_g33_molname(ig)=="UNDEF").AND.&
                 (.NOT.cons_info%g33_intermolecular(ig))) THEN
-              CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
            END IF
            CALL section_vals_val_get(g3x3_section,"ATOMS",i_rep_section=ig,&
                 i_vals=ilist)
@@ -241,39 +241,39 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
         cons_info%nconst_g46 = ncons
         !
         ALLOCATE(cons_info%const_g46_mol(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g46_molname(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g46_a(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g46_b(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g46_c(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g46_d(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g46_dab(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g46_dac(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g46_dbc(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g46_dad(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g46_dbd(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_g46_dcd(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%g46_intermolecular(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%g46_restraint(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%g46_k0(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%g46_exclude_qm(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%g46_exclude_mm(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ig = 1, ncons
            CALL check_restraint(g4x6_section,&
                                 is_restraint=cons_info%g46_restraint(ig), &
@@ -310,11 +310,11 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
                    c_val=cons_info%const_g46_molname(ig))
            END IF
            IF  ((cons_info%const_g46_mol(ig)/=0).AND.(cons_info%const_g46_molname(ig)/="UNDEF")) THEN
-              CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
            END IF
            IF  ((cons_info%const_g46_mol(ig)==0).AND.(cons_info%const_g46_molname(ig)=="UNDEF").AND.&
                 (.NOT.cons_info%g46_intermolecular(ig))) THEN
-              CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
            END IF
            CALL section_vals_val_get(g4x6_section,"ATOMS",i_rep_section=ig,&
                 i_vals=ilist)
@@ -339,31 +339,31 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
         cons_info%nconst_vsite = ncons
         !
         ALLOCATE(cons_info%const_vsite_mol(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_vsite_molname(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_vsite_a(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_vsite_b(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_vsite_c(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_vsite_d(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_vsite_wbc(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_vsite_wdc(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%vsite_intermolecular(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%vsite_restraint(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%vsite_k0(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%vsite_exclude_qm(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%vsite_exclude_mm(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ig = 1, ncons
            CALL check_restraint(vsite_section,&
                                 is_restraint=cons_info%vsite_restraint(ig), &
@@ -400,11 +400,11 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
                    c_val=cons_info%const_vsite_molname(ig))
            END IF
            IF  ((cons_info%const_vsite_mol(ig)/=0).AND.(cons_info%const_vsite_molname(ig)/="UNDEF")) THEN
-              CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
            END IF
            IF  ((cons_info%const_vsite_mol(ig)==0).AND.(cons_info%const_vsite_molname(ig)=="UNDEF").AND.&
                 (.NOT.cons_info%vsite_intermolecular(ig))) THEN
-              CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
            END IF
            CALL section_vals_val_get(vsite_section,"ATOMS",i_rep_section=ig,&
                 i_vals=ilist)
@@ -425,25 +425,25 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
         isize  = 0
         msize  = 0
         ALLOCATE(cons_info%fixed_atoms(isize),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%fixed_type(isize),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%fixed_restraint(isize),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%fixed_k0(isize),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%fixed_molnames(msize),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%fixed_mol_type(isize),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%fixed_mol_restraint(msize),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%fixed_mol_k0(msize),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%fixed_exclude_qm(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%fixed_exclude_mm(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ig = 1, ncons
            isize_old  = isize
            msize_old  = msize
@@ -509,7 +509,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
            CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",i_rep_section=ig,&
                                      n_rep_val=nrep,explicit=explicit)
            IF (nrep==1 .AND. explicit) THEN
-              CPPostcondition(cons_info%freeze_mm==do_constr_none,cp_failure_level,routineP,failure)
+              CPASSERT(cons_info%freeze_mm==do_constr_none)
               CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",i_val=cons_info%freeze_mm,&
                    i_rep_section=ig)
               cons_info%freeze_mm_type = itype
@@ -517,7 +517,7 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
            CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",i_rep_section=ig,&
                 n_rep_val=nrep,explicit=explicit)
            IF (nrep==1 .AND. explicit) THEN
-              CPPostcondition(cons_info%freeze_qm==do_constr_none,cp_failure_level,routineP,failure)
+              CPASSERT(cons_info%freeze_qm==do_constr_none)
               CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",i_val=cons_info%freeze_qm,&
                    i_rep_section=ig)
               cons_info%freeze_qm_type = itype
@@ -550,29 +550,29 @@ SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section)
         topology%const_colv = .TRUE.
         DO ig = 1, ncons
            CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar)
-           CPPostcondition(icolvar<=SIZE(colvar_p),cp_failure_level,routineP,failure)
+           CPASSERT(icolvar<=SIZE(colvar_p))
         END DO
         cons_info%nconst_colv = ncons
         ALLOCATE(cons_info%const_colv_mol(ncons), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_colv_molname(ncons), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_colv_target(ncons), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%const_colv_target_growth(ncons), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%colvar_set(ncons), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%colv_intermolecular(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%colv_restraint(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%colv_k0(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%colv_exclude_qm(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(cons_info%colv_exclude_mm(ncons),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ig = 1, ncons
            CALL check_restraint(collective_section,&
                                 is_restraint=cons_info%colv_restraint(ig), &

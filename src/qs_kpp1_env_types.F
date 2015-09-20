@@ -107,7 +107,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(kpp1_env)) THEN
-       CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(kpp1_env%ref_count>0)
        kpp1_env%ref_count=kpp1_env%ref_count-1
        IF (kpp1_env%ref_count<1) THEN
           IF (ASSOCIATED(kpp1_env%v_rspace)) THEN
@@ -115,7 +115,7 @@ CONTAINS
                 CALL pw_release(kpp1_env%v_rspace(ispin)%pw)
              END DO
              DEALLOCATE(kpp1_env%v_rspace,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(kpp1_env%v_ao)) THEN
              DO ispin=1,SIZE(kpp1_env%v_ao)
@@ -124,11 +124,11 @@ CONTAINS
                 END IF
              END DO
              DEALLOCATE(kpp1_env%v_ao, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(kpp1_env%drho_r)) THEN
              DEALLOCATE(kpp1_env%drho_r, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
              CALL xc_dset_release(kpp1_env%deriv_set)
@@ -140,18 +140,18 @@ CONTAINS
           END IF
           IF (ASSOCIATED(kpp1_env%spin_pot)) THEN
              DEALLOCATE(kpp1_env%spin_pot, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(kpp1_env%grad_pot)) THEN
              DEALLOCATE(kpp1_env%grad_pot, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(kpp1_env%ndiag_term)) THEN
              DEALLOCATE(kpp1_env%ndiag_term, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(kpp1_env, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(kpp1_env)
@@ -174,8 +174,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,failure)
-    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpp1_env))
+    CPASSERT(kpp1_env%ref_count>0)
     kpp1_env%ref_count=kpp1_env%ref_count+1
   END SUBROUTINE kpp1_retain
 

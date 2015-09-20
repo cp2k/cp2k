@@ -129,10 +129,10 @@ CONTAINS
 
     CALL section_vals_val_get(optx_params,"scale_x",r_val=sx)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
+    CPASSERT(ASSOCIATED(deriv_set))
+    CPASSERT(deriv_set%ref_count>0)
     CALL xc_rho_set_get(rho_set,rho=rho,&
          norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
          drho_cutoff=epsilon_drho)
@@ -201,10 +201,10 @@ CONTAINS
 
     CALL section_vals_val_get(optx_params,"scale_x",r_val=sx)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
+    CPASSERT(ASSOCIATED(deriv_set))
+    CPASSERT(deriv_set%ref_count>0)
     CALL xc_rho_set_get(rho_set,rhoa=rho(1)%array,rhob=rho(2)%array,&
                         norm_drhoa=ndrho(1)%array, &
                         norm_drhob=ndrho(2)%array,rho_cutoff=epsilon_rho,&

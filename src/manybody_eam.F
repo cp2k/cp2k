@@ -81,15 +81,15 @@ CONTAINS
          r_last_update_pbc=r_last_update_pbc, eam_data=eam_data)
     nkinds = SIZE(potparm%pot, 1)
     ALLOCATE(eam_kinds_index(nkinds,nkinds),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     eam_kinds_index = -1
     DO ikind = 1, nkinds
        DO jkind = ikind, nkinds
           DO i = 1, SIZE(potparm%pot(ikind,jkind)%pot%type)
              IF (potparm%pot(ikind,jkind)%pot%type(i)==ea_type) THEN
                 ! At the moment we allow only 1 EAM per each kinds pair..
-                CPPostcondition(eam_kinds_index(ikind,jkind)==-1,cp_failure_level,routineP,failure)
-                CPPostcondition(eam_kinds_index(jkind,ikind)==-1,cp_failure_level,routineP,failure)
+                CPASSERT(eam_kinds_index(ikind,jkind)==-1)
+                CPASSERT(eam_kinds_index(jkind,ikind)==-1)
                 eam_kinds_index(ikind,jkind) = i
                 eam_kinds_index(jkind,ikind) = i
                 do_eam = .TRUE.
@@ -103,7 +103,7 @@ CONTAINS
     IF (do_eam) THEN
        IF (.NOT. ASSOCIATED(eam_data)) THEN
           ALLOCATE(eam_data(nparticle),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL fist_nonbond_env_set (fist_nonbond_env,  eam_data=eam_data)
        ENDIF
        DO i=1,nparticle
@@ -118,7 +118,7 @@ CONTAINS
        CALL cite_reference(Foiles1986)
        NULLIFY(eam_a, eam_b)
        ALLOCATE ( rho(nparticle), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        rho = 0._dp
        ! Starting the force loop
        DO ilist=1,nonbonded%nlists
@@ -160,10 +160,10 @@ CONTAINS
        END DO
 
        DEALLOCATE (rho,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     DEALLOCATE (eam_kinds_index, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
 
   END SUBROUTINE density_nonbond

@@ -116,15 +116,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(qs_environment_type), POINTER       :: qs_env
 
     CALL timeset(routineN,handle)
 
     NULLIFY(qs_env)
 
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count>0)
 
     SELECT CASE(force_env%in_use)
     CASE(use_qs_force)
@@ -292,7 +291,7 @@ CONTAINS
          extension=".linresLog")
     NULLIFY(dft_control, linres_control, loc_section, rho, mos, matrix_ks, rho_ao)
 
-    CPPrecondition(.NOT.ASSOCIATED(p_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(p_env))
 
     CALL linres_control_create(linres_control)
     CALL set_qs_env(qs_env=qs_env, linres_control=linres_control)

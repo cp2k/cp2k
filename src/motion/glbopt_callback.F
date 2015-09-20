@@ -57,8 +57,8 @@ MODULE glbopt_callback
     TYPE(md_ener_type), POINTER              :: md_ener
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(mdctrl_data), cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(md_env), cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mdctrl_data))
+    CPASSERT(ASSOCIATED(md_env))
 
     iw = mdctrl_data%output_unit
 

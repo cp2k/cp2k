@@ -101,10 +101,10 @@ CONTAINS
 
     CALL get_qs_env(qs_env, transport_env=transport_env, input=input)
 
-    CPPostcondition(.NOT.ASSOCIATED(transport_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(transport_env))
 
     ALLOCATE(transport_env,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL transport_init_read_input(input,transport_env)
     CALL cp_dbcsr_init(transport_env%template_matrix_sym)
     CALL cp_dbcsr_init(transport_env%template_matrix_nosym)

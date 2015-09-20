@@ -622,26 +622,26 @@ CONTAINS
     IF ( qs_ot_env % settings % do_ener ) THEN
        ncoef = k
        ALLOCATE ( qs_ot_env % ener_x ( ncoef  ), STAT = istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
           ALLOCATE(qs_ot_env%ener_h_e( m_diis, ncoef ), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           ALLOCATE(qs_ot_env%ener_h_x( m_diis, ncoef ), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
 
        ALLOCATE ( qs_ot_env%ener_gx ( ncoef  ), STAT = istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        IF (qs_ot_env%use_gx_old) THEN
           ALLOCATE ( qs_ot_env%ener_gx_old ( ncoef  ), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
 
        IF (qs_ot_env%use_dx) THEN
           ALLOCATE ( qs_ot_env%ener_dx ( ncoef ), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           qs_ot_env%ener_dx = 0.0_dp
        ENDIF
     ENDIF
@@ -737,22 +737,22 @@ CONTAINS
 
     IF (qs_ot_env%settings%do_ener) THEN
        DEALLOCATE ( qs_ot_env % ener_x, STAT=istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DEALLOCATE ( qs_ot_env % ener_gx, STAT=istat )
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        IF (qs_ot_env%settings%ot_method.EQ."DIIS") THEN
           DEALLOCATE (qs_ot_env % ener_h_x, STAT=istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           DEALLOCATE (qs_ot_env % ener_h_e, STAT=istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        IF (qs_ot_env%use_dx) THEN
           DEALLOCATE ( qs_ot_env % ener_dx, STAT=istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        IF (qs_ot_env%use_gx_old) THEN
           DEALLOCATE ( qs_ot_env % ener_gx_old, STAT=istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
     END IF
 
@@ -935,7 +935,7 @@ CONTAINS
     CALL section_vals_val_get(ot_section,"NONDIAG_ENERGY_STRENGTH",&
            r_val=settings%nondiag_energy_strength)
     ! not yet fully implemented
-    CPPostcondition(.NOT.settings%do_ener,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.settings%do_ener)
 
     ! write OT output
 

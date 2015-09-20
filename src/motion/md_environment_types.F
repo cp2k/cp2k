@@ -113,7 +113,7 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE(md_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     last_md_env_id=last_md_env_id+1
     md_env%id_nr=last_md_env_id
     md_env%ref_count=1
@@ -134,13 +134,13 @@ CONTAINS
     md_env%para_env => para_env
     CALL cp_para_env_retain(md_env%para_env)
     ALLOCATE( md_env%itimes, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE( md_env%constant, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE( md_env%used_time, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE( md_env%t, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     md_env%itimes         = -1
     md_env%constant       = 0.0_dp
     md_env%used_time      = 0.0_dp
@@ -172,8 +172,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(md_env),cp_failure_level,routineP,failure)
-    CPPrecondition(md_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(md_env))
+    CPASSERT(md_env%ref_count>0)
     md_env%ref_count=md_env%ref_count+1
   END SUBROUTINE md_env_retain
 
@@ -198,19 +198,19 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(md_env)) THEN
-       CPPrecondition(md_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(md_env%ref_count>0)
        md_env%ref_count=md_env%ref_count-1
        IF (md_env%ref_count==0) THEN
           CALL fe_env_release( md_env%fe_env)
           CALL cp_para_env_release(md_env%para_env)
           DEALLOCATE( md_env%itimes , stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE( md_env%constant , stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE( md_env%used_time , stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE( md_env%t , stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
           NULLIFY(md_env%cell)
           NULLIFY(md_env%simpar)
@@ -222,7 +222,7 @@ CONTAINS
           CALL release_averages(md_env%averages)
           CALL release_thermal_regions(md_env%thermal_regions)
           DEALLOCATE(md_env,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE md_env_release
@@ -296,7 +296,7 @@ CONTAINS
 
     failure = .FALSE.
     check = ASSOCIATED(md_env)
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     IF (PRESENT(itimes)) itimes => md_env%itimes
     IF (PRESENT(fe_env)) fe_env => md_env%fe_env
     IF (PRESENT(constant)) constant => md_env%constant
@@ -400,7 +400,7 @@ CONTAINS
 
     failure = .FALSE.
     check = ASSOCIATED(md_env)
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     IF(PRESENT (init)) md_env%init = init
     IF(PRESENT (first_time)) md_env%first_time = first_time
     IF (PRESENT(ehrenfest_md)) md_env%ehrenfest_md=ehrenfest_md

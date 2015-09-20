@@ -360,7 +360,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(md_section,"BAROSTAT%TEMPERATURE",n_rep_val=n_rep)
        IF (n_rep/=0) THEN
           CALL section_vals_val_get(md_section,"BAROSTAT%TEMPERATURE",r_val=simpar%temp_baro_ext)
-          CPPostcondition(simpar%temp_baro_ext>=0.0_dp,cp_failure_level,routineP,failure)
+          CPASSERT(simpar%temp_baro_ext>=0.0_dp)
        END IF
 
        ! Setup Barostat Thermostat
@@ -550,11 +550,11 @@ CPSourceFileRef,&
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%nhc))
           CALL lnhc_barostat ( thermostat%nhc, npt, group)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Apply CSVR Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%csvr))
           CALL csvr_barostat ( thermostat%csvr, npt, group)
        END IF
     END IF
@@ -607,24 +607,24 @@ CPSourceFileRef,&
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%nhc))
           CALL lnhc_particles(thermostat%nhc,molecule_kind_set,molecule_set,&
                particle_set,local_molecules,group,shell_adiabatic,shell_particle_set,&
                core_particle_set, vel, shell_vel, core_vel)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Apply CSVR Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%csvr))
           CALL csvr_particles(thermostat%csvr,molecule_kind_set,molecule_set,&
                particle_set,local_molecules,group,shell_adiabatic,shell_particle_set,&
                core_particle_set, vel, shell_vel, core_vel)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_al) THEN  
           ! Apply AD_LANGEVIN Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%al),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%al))
           CALL al_particles(thermostat%al,force_env,molecule_kind_set,molecule_set,&
                particle_set,local_molecules, local_particles, group, vel)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
          ! Apply GLE Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%gle),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%gle))
           CALL gle_particles(thermostat%gle,molecule_kind_set,molecule_set,&
                particle_set,local_molecules,group,shell_adiabatic,shell_particle_set,&
                core_particle_set, vel, shell_vel, core_vel)
@@ -671,12 +671,12 @@ CPSourceFileRef,&
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%nhc))
           CALL lnhc_shells(thermostat%nhc, atomic_kind_set, particle_set, local_particles, &
                group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Apply CSVR Thermostat
-          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%csvr))
           CALL csvr_shells(thermostat%csvr, atomic_kind_set, particle_set, local_particles, &
                group, shell_particle_set, core_particle_set, vel, shell_vel, core_vel)
        END IF

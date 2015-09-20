@@ -84,7 +84,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(work_section,force_env)
-    CPPrecondition (ASSOCIATED(md_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(md_env))
 
     CALL get_md_env(md_env=md_env, force_env=force_env, para_env=para_env,&
          simpar=simpar)
@@ -110,12 +110,12 @@ CONTAINS
        ! Allocate the (local) data structures for the Wiener process
 
        ALLOCATE(local_particles%local_particle_set(nparticle_kind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        DO iparticle_kind=1,nparticle_kind
           nparticle_local = local_particles%n_el(iparticle_kind)
           ALLOCATE (local_particles%local_particle_set(iparticle_kind)%rng(nparticle_local),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO iparticle_local=1,nparticle_local
              NULLIFY (local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)%stream)
           END DO
@@ -125,7 +125,7 @@ CONTAINS
        ! quite fast and in this way a broadcast is avoided.
 
        ALLOCATE (seed(3,2,nparticle),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        seed(:,:,1) = initial_seed
        DO iparticle=2,nparticle
@@ -151,7 +151,7 @@ CONTAINS
        END DO
 
        DEALLOCATE (seed,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! Possibly restart Wiener process
        NULLIFY (work_section)
@@ -192,7 +192,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition (ASSOCIATED(distribution_1d),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(distribution_1d))
 
     IF (ASSOCIATED(work_section)) THEN
       CALL section_vals_get(work_section,explicit=explicit)
@@ -254,7 +254,7 @@ CONTAINS
     ! quite fast and in this way a broadcast is avoided.
 
     ALLOCATE (seed(3,2,meta_env%n_colvar),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     seed(:,:,1) = initial_seed
     DO i_c=2,meta_env%n_colvar
@@ -272,7 +272,7 @@ CONTAINS
             extended_precision=.TRUE., seed=seed(:,:,i_c))
     END DO
     DEALLOCATE (seed,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE create_wiener_process_cv
 

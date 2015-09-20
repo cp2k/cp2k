@@ -96,7 +96,7 @@ CONTAINS
     NULLIFY(matrix_q, p_in)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(p_out),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_out))
     NULLIFY(matrix_q, p_in)
     p_in => rho_ao
     matrix_q => p_delta
@@ -160,7 +160,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(mixing_store),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mixing_store))
     NULLIFY(auxbas_pw_pool, dft_control, pw_env, rho_atom, rho_g, rho_r, tot_rho_r)
 
     CALL get_qs_env(qs_env, dft_control=dft_control, pw_env=pw_env)
@@ -168,7 +168,7 @@ CONTAINS
 
     nspin = SIZE(rho_g,1)
     ng = SIZE(rho_g(1)%pw%pw_grid%gsq)
-    CPPrecondition((ng == SIZE(mixing_store%rhoin(1)%cc)),cp_failure_level,routineP,failure)
+    CPASSERT((ng == SIZE(mixing_store%rhoin(1)%cc)))
 
     alpha = mixing_store%alpha
     gapw = dft_control%qs_control%gapw
@@ -228,18 +228,18 @@ CONTAINS
           CALL gmix_potential_only(qs_env,mixing_store, rho)
           mixing_store%iter_method= "Kerker"
        ELSEIF(mixing_method==pulay_mixing_nr) THEN
-          CPPrecondition(.NOT. gapw,cp_failure_level,routineP,failure)
+          CPASSERT(.NOT. gapw)
           CALL pulay_mixing(mixing_store, rho, para_env)
           mixing_store%iter_method= "Pulay"
        ELSEIF(mixing_method==broyden_mixing_nr) THEN
           CALL broyden_mixing(qs_env,mixing_store, rho, para_env)
           mixing_store%iter_method= "Broy."
        ELSEIF(mixing_method==broyden_mixing_new_nr) THEN
-          CPPrecondition(.NOT. gapw,cp_failure_level,routineP,failure)
+          CPASSERT(.NOT. gapw)
           CALL broyden_mixing_new(mixing_store, rho, para_env)
           mixing_store%iter_method= "Broy."
        ELSEIF(mixing_method==multisecant_mixing_nr) THEN
-          CPPrecondition(.NOT. gapw,cp_failure_level,routineP,failure)
+          CPASSERT(.NOT. gapw)
           CALL multisecant_mixing(mixing_store, rho, para_env)
           mixing_store%iter_method= "MSec."
        END IF
@@ -298,8 +298,8 @@ CONTAINS
       POINTER                                :: rho_atom
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(mixing_store%rhoin),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(mixing_store%kerker_factor),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mixing_store%rhoin))
+    CPASSERT(ASSOCIATED(mixing_store%kerker_factor))
 
     CALL timeset(routineN,handle)
     NULLIFY(cc_new, dft_control, rho_g)
@@ -384,8 +384,8 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(mixing_store%res_buffer),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(mixing_store%rhoin_buffer),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mixing_store%res_buffer))
+    CPASSERT(ASSOCIATED(mixing_store%rhoin_buffer))
     NULLIFY(rho_g)
     CALL timeset(routineN,handle)
 
@@ -406,26 +406,26 @@ CONTAINS
 
     nb1 = nb + 1
     ALLOCATE(a(nb1,nb1), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     a=0.0_dp
     ALLOCATE(b(nb1,nb1), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     b=0.0_dp
     ALLOCATE(c(nb,nb), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     c=0.0_dp
     ALLOCATE(c_inv(nb,nb), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     c_inv=0.0_dp
     ALLOCATE(alpha_c(nb), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     alpha_c=0.0_dp
     norm_c_inv = 0.0_dp
     ALLOCATE(ev(nb1), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ev=0.0_dp
     ALLOCATE(cc_mix(ng), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO ispin = 1,nspin
       mixing_store%res_buffer(ib,ispin)%cc(:) = CMPLX(0._dp,0._dp,KIND=dp)
@@ -519,15 +519,15 @@ CONTAINS
     END DO ! ispin
 
     DEALLOCATE(a, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(b, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(ev, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(cc_mix, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(c,c_inv,alpha_c, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -574,10 +574,10 @@ CONTAINS
       POINTER                                :: rho_atom
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(mixing_store%res_buffer),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(mixing_store%rhoin),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(mixing_store%rhoin_old),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(mixing_store%drho_buffer),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mixing_store%res_buffer))
+    CPASSERT(ASSOCIATED(mixing_store%rhoin))
+    CPASSERT(ASSOCIATED(mixing_store%rhoin_old))
+    CPASSERT(ASSOCIATED(mixing_store%drho_buffer))
     NULLIFY(dft_control, rho_g)
     CALL timeset(routineN,handle)
 
@@ -605,19 +605,19 @@ CONTAINS
 !dbg
 
     ALLOCATE(a(ib-1,ib-1), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     a=0.0_dp
     ALLOCATE(b(ib-1,ib-1), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     b=0.0_dp
     ALLOCATE(c(ib-1), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     c=0.0_dp
     ALLOCATE(g(ib-1), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     g=0.0_dp
     ALLOCATE(res_rho(ng), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     IF(gapw) THEN
       CALL get_qs_env(qs_env=qs_env,&
@@ -819,7 +819,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(a,b,c,g,res_rho, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -862,7 +862,7 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(mixing_store%rhoin_buffer),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mixing_store%rhoin_buffer))
 
     CALL timeset(routineN,handle)
 
@@ -890,32 +890,32 @@ CONTAINS
     ibb = MIN(mixing_store%ncall+1,nbuffer)
 
     ALLOCATE(res_rho(ng), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(res_rho_p(ng), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     IF(ib>1) THEN
       ALLOCATE(a(ib-1,ib-1), STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       a=0.0_dp
       ALLOCATE(b(ib-1,ib-1), STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       b=0.0_dp
       ALLOCATE(bq(ib-1,ib-1), STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       bq=0.0_dp
       ALLOCATE(tmp(ng), STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(delta_res_p(ng),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
 
     p_metric => mixing_store%p_metric
     weight => mixing_store%weight
-    CPPrecondition(ASSOCIATED(mixing_store%delta_res),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mixing_store%delta_res))
     delta_res => mixing_store%delta_res
-    CPPrecondition(ASSOCIATED(mixing_store%u_vec),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mixing_store%u_vec))
     u_vec => mixing_store%u_vec
-    CPPrecondition(ASSOCIATED(mixing_store%z_vec),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mixing_store%z_vec))
     z_vec => mixing_store%z_vec
 
     delta_rhog = 0.0_dp
@@ -1229,12 +1229,12 @@ CONTAINS
     END DO  ! ispin
     IF(ib>1) THEN
       DEALLOCATE(a,b,bq, STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       DEALLOCATE(delta_res_p,tmp, STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
     DEALLOCATE(res_rho,res_rho_p, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -1289,7 +1289,7 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(mixing_store),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mixing_store))
 
     CALL timeset(routineN,handle)
 
@@ -1304,7 +1304,7 @@ CONTAINS
 
     nspin = SIZE(rho_g,1)
     ! not implemented for large grids.
-    CPPrecondition(rho_g(1)%pw%pw_grid%ngpts<HUGE(ng_global),cp_failure_level,routineP,failure)
+    CPASSERT(rho_g(1)%pw%pw_grid%ngpts<HUGE(ng_global))
     ng_global = INT(rho_g(1)%pw%pw_grid%ngpts)
     ng = SIZE(mixing_store%rhoin_buffer(1,1)%cc)
     alpha=mixing_store%alpha
@@ -1360,46 +1360,46 @@ CONTAINS
     ! allocate temporary arrays
     ! step_matrix  S ngxnb
     ALLOCATE(step_matrix(ng,nb),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ! res_matrix Y  ngxnb
     ALLOCATE(res_matrix(ng,nb),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ! matrix A  nbxnb
     ALLOCATE(a_matrix(nb,ng_global),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ! PSI nb vector of norms
     ALLOCATE(norm_res(nb),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(norm_res_low(nb),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(norm_res_up(nb),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! matrix B   nbxnb
     ALLOCATE(b_matrix(nb,nb),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ! matrix B_inv   nbxnb
     ALLOCATE(binv_matrix(nb,nb),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ALLOCATE(gn_global(ng_global),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(res_matrix_global(ng_global),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     IF(use_zgemm) THEN
       ALLOCATE(sa(ng,ng_global),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(ya(ng,ng_global),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
     IF(use_zgemm_rev) THEN
       ALLOCATE(tmp_vec(nb),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
     ALLOCATE(pgn(ng),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(ugn(ng),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
 
     DO ispin = 1,nspin
@@ -1617,27 +1617,27 @@ CONTAINS
 
     ! Deallocate  temporary arrays
     DEALLOCATE(step_matrix,res_matrix, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(norm_res, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(norm_res_up, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(norm_res_low, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(a_matrix,b_matrix,binv_matrix, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(ugn,pgn, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     IF(use_zgemm) THEN
       DEALLOCATE(sa,ya, STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
     IF(use_zgemm_rev) THEN
       DEALLOCATE(tmp_vec, STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
     DEALLOCATE(gn_global,res_matrix_global, STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -1735,7 +1735,7 @@ CONTAINS
                ENDDO
             ENDDO
          END IF
-         CPPrecondition(ASSOCIATED(mixing_store),cp_failure_level,routineP,failure)
+         CPASSERT(ASSOCIATED(mixing_store))
       END IF
     END IF
 
@@ -1755,12 +1755,12 @@ CONTAINS
         natom = SIZE(rho_atom)
         IF(.NOT. ASSOCIATED(mixing_store%paw)) THEN
           ALLOCATE(mixing_store%paw(natom),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           mixing_store%paw = .FALSE.
           ALLOCATE(mixing_store%cpc_h_in(natom,nspins),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(mixing_store%cpc_s_in(natom,nspins),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ispin = 1,nspins
             DO iat = 1,natom
                NULLIFY(mixing_store%cpc_h_in(iat,ispin)%r_coef)
@@ -1776,7 +1776,7 @@ CONTAINS
            .OR. mixing_method==multisecant_mixing_nr ) THEN
       IF(.NOT. ASSOCIATED(mixing_store%rhoin_buffer)) THEN
         ALLOCATE(mixing_store%rhoin_buffer(nbuffer,nspins), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ispin = 1,nspins
           DO i = 1,nbuffer
             NULLIFY(mixing_store%rhoin_buffer(i,ispin)%cc)
@@ -1789,7 +1789,7 @@ CONTAINS
     IF (mixing_method>=pulay_mixing_nr) THEN
       IF(.NOT. ASSOCIATED(mixing_store%res_buffer)) THEN
         ALLOCATE(mixing_store%res_buffer(nbuffer,nspins), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ispin = 1,nspins
           DO i = 1,nbuffer
             NULLIFY(mixing_store%res_buffer(i,ispin)%cc)
@@ -1802,7 +1802,7 @@ CONTAINS
     IF (mixing_method==pulay_mixing_nr) THEN
       IF(.NOT. ASSOCIATED(mixing_store%pulay_matrix)) THEN
         ALLOCATE(mixing_store%pulay_matrix(nbuffer,nbuffer),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
       END IF
 
     END IF
@@ -1816,9 +1816,9 @@ CONTAINS
       END IF
       IF(.NOT. ASSOCIATED(mixing_store%drho_buffer)) THEN
         ALLOCATE(mixing_store%drho_buffer(nbuffer,nspins), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(mixing_store%last_res(nspins), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ispin = 1,nspins
           DO i = 1,nbuffer
            NULLIFY(mixing_store%drho_buffer(i,ispin)%cc)
@@ -1829,9 +1829,9 @@ CONTAINS
       IF(dft_control%qs_control%gapw) THEN
         IF(.NOT. ASSOCIATED(mixing_store%cpc_h_old)) THEN
           ALLOCATE(mixing_store%cpc_h_old(natom,nspins),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(mixing_store%cpc_s_old(natom,nspins),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ispin = 1,nspins
             DO iat = 1,natom
                NULLIFY(mixing_store%cpc_h_old(iat,ispin)%r_coef)
@@ -1841,13 +1841,13 @@ CONTAINS
         END IF
         IF(.NOT. ASSOCIATED(mixing_store%dcpc_h_in)) THEN
           ALLOCATE(mixing_store%dcpc_h_in(nbuffer,natom,nspins),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
           ALLOCATE(mixing_store%dcpc_s_in(nbuffer,natom,nspins),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
           ALLOCATE(mixing_store%cpc_h_lastres(natom,nspins),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
           ALLOCATE(mixing_store%cpc_s_lastres(natom,nspins),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
           DO ispin = 1,nspins
             DO iat = 1,natom
               DO i = 1,nbuffer
@@ -1865,17 +1865,17 @@ CONTAINS
     IF (mixing_method==broyden_mixing_new_nr) THEN
       IF(.NOT. ASSOCIATED(mixing_store%u_vec)) THEN
         ALLOCATE(mixing_store%last_res(nspins), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(mixing_store%delta_res(nbuffer-1,nspins), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(mixing_store%u_vec(nbuffer-1,nspins), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(mixing_store%z_vec(nbuffer-1,nspins), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(mixing_store%weight(nbuffer,nspins), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(mixing_store%fmat(nbuffer-1,nbuffer-1,nspins), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ispin = 1,nspins
         DO i = 1,nbuffer-1
            NULLIFY(mixing_store%delta_res(i,ispin)%cc)
@@ -1891,7 +1891,7 @@ CONTAINS
     IF (mixing_method==multisecant_mixing_nr) THEN
       IF(.NOT. ASSOCIATED(mixing_store%norm_res_buffer)) THEN
         ALLOCATE(mixing_store%norm_res_buffer(nbuffer,nspins), STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
       END IF
     END IF
 
@@ -1955,11 +1955,11 @@ CONTAINS
 
     IF(.NOT. ASSOCIATED(mixing_store%kerker_factor)) THEN
       ALLOCATE(mixing_store%kerker_factor(ng),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
     IF(.NOT. ASSOCIATED(mixing_store%special_metric)) THEN
       ALLOCATE(mixing_store%special_metric(ng),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
     beta = mixing_store%beta
     kmin = 0.1_dp
@@ -1986,7 +1986,7 @@ CONTAINS
         IF(.NOT. ASSOCIATED(mixing_store%rhoin_buffer(1,ispin)%cc)) THEN
            DO ib = 1,nbuffer
               ALLOCATE(mixing_store%rhoin_buffer(ib,ispin)%cc(ng),STAT=istat)
-              CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+              CPASSERT(istat==0)
             END DO
          END IF
          mixing_store%rhoin_buffer(1,ispin)%cc(1:ng) = &
@@ -1996,7 +1996,7 @@ CONTAINS
         IF(.NOT. ASSOCIATED(mixing_store%res_buffer(1,ispin)%cc)) THEN
           DO ib = 1,nbuffer
             ALLOCATE(mixing_store%res_buffer(ib,ispin)%cc(ng),STAT=istat)
-            CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
           END DO
         END IF
       END IF
@@ -2023,9 +2023,9 @@ CONTAINS
          IF(ASSOCIATED(mixing_store%cpc_s_in)) THEN
            IF(.NOT. ASSOCIATED(mixing_store%cpc_s_in(iat,ispin)%r_coef)) THEN
               ALLOCATE(mixing_store%cpc_s_in(iat,ispin)%r_coef(n1,n2),STAT=istat)
-              CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+              CPASSERT(istat==0)
               ALLOCATE(mixing_store%cpc_h_in(iat,ispin)%r_coef(n1,n2),STAT=istat)
-              CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+              CPASSERT(istat==0)
            END IF
            mixing_store%cpc_h_in(iat,ispin)%r_coef = rho_atom(iat)%cpc_h(ispin)%r_coef
            mixing_store%cpc_s_in(iat,ispin)%r_coef = rho_atom(iat)%cpc_s(ispin)%r_coef
@@ -2045,10 +2045,10 @@ CONTAINS
          IF(.NOT. ASSOCIATED(mixing_store%drho_buffer(1,ispin)%cc)) THEN
            DO ib = 1,nbuffer
              ALLOCATE(mixing_store%drho_buffer(ib,ispin)%cc(ng),STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
            END DO
            ALLOCATE(mixing_store%last_res(ispin)%cc(ng),STAT=istat)
-           CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
          END IF
          DO ib = 1,nbuffer
             mixing_store%drho_buffer(ib,ispin)%cc = CMPLX(0.0_dp,0.0_dp,kind=dp)
@@ -2071,14 +2071,14 @@ CONTAINS
            IF(.NOT. ASSOCIATED(mixing_store%dcpc_s_in(1,iat,ispin)%r_coef)) THEN
              DO ib = 1,nbuffer
                ALLOCATE(mixing_store%dcpc_h_in(ib,iat,ispin)%r_coef(n1,n2),STAT=istat)
-               CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+               CPASSERT(istat==0)
                ALLOCATE(mixing_store%dcpc_s_in(ib,iat,ispin)%r_coef(n1,n2),STAT=istat)
-               CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+               CPASSERT(istat==0)
              END DO
              ALLOCATE(mixing_store%cpc_h_lastres(iat,ispin)%r_coef(n1,n2),STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              ALLOCATE(mixing_store%cpc_s_lastres(iat,ispin)%r_coef(n1,n2),STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
            END IF
            DO ib = 1,nbuffer
              mixing_store%dcpc_h_in(ib,iat,ispin)%r_coef = 0.0_dp
@@ -2093,7 +2093,7 @@ CONTAINS
 
        IF(.NOT. ASSOCIATED(mixing_store%p_metric)) THEN
          ALLOCATE(mixing_store%p_metric(ng),STAT=istat)
-         CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
               bconst = mixing_store%bconst
               g2min = 1.E30_dp
               DO ig = 1,ng
@@ -2120,19 +2120,19 @@ CONTAINS
          IF(.NOT. ASSOCIATED(mixing_store%u_vec(1,ispin)%cc)) THEN
             DO ib = 1,nbuffer-1
               ALLOCATE(mixing_store%delta_res(ib,ispin)%cc(ng),STAT=istat)
-              CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+              CPASSERT(istat==0)
               ALLOCATE(mixing_store%u_vec(ib,ispin)%cc(ng),STAT=istat)
-               CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+               CPASSERT(istat==0)
               ALLOCATE(mixing_store%z_vec(ib,ispin)%cc(ng),STAT=istat)
-              CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+              CPASSERT(istat==0)
             END DO
             ALLOCATE(mixing_store%last_res(ispin)%cc(ng),STAT=istat)
-            CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
          END IF
        END DO
        IF(.NOT. ASSOCIATED(mixing_store%p_metric)) THEN
          ALLOCATE(mixing_store%p_metric(ng),STAT=istat)
-         CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          bconst = mixing_store%bconst
          g2min = 1.E30_dp
          DO ig = 1,ng
@@ -2151,7 +2151,7 @@ CONTAINS
     ELSEIF(mixing_method==multisecant_mixing_nr) THEN
       IF(.NOT. ASSOCIATED(mixing_store%ig_global_index)) THEN
          ALLOCATE(mixing_store%ig_global_index(ng),STAT=istat)
-         CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
       END IF
       mixing_store%ig_global_index = 0
       ig_count = 0

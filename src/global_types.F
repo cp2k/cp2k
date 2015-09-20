@@ -103,9 +103,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(globenv),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(globenv))
     ALLOCATE(globenv,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     last_globenv_id=last_globenv_id+1
     globenv%id_nr=last_globenv_id
     globenv%ref_count=1
@@ -136,8 +136,8 @@ SUBROUTINE globenv_retain(globenv)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,failure)
-  CPPrecondition(globenv%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(globenv))
+  CPASSERT(globenv%ref_count>0)
   globenv%ref_count=globenv%ref_count+1
 END SUBROUTINE globenv_retain
 
@@ -158,14 +158,14 @@ SUBROUTINE globenv_release(globenv)
   failure=.FALSE.
 
   IF (ASSOCIATED(globenv)) THEN
-     CPPrecondition(globenv%ref_count>0,cp_failure_level,routineP,failure)
+     CPASSERT(globenv%ref_count>0)
      globenv%ref_count=globenv%ref_count-1
      IF (globenv%ref_count==0) THEN
         IF (ASSOCIATED(globenv%gaussian_rng_stream)) THEN
           CALL delete_rng_stream(globenv%gaussian_rng_stream)
         END IF
         DEALLOCATE(globenv,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
   END IF
   NULLIFY(globenv)

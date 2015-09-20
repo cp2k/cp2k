@@ -55,9 +55,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(staging_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(staging_env))
     ALLOCATE(staging_env,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     last_staging_id=last_staging_id+1
     staging_env%id_nr=last_staging_id
     staging_env%ref_count=1
@@ -93,11 +93,11 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(staging_env)) THEN
-     CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,failure)
+     CPASSERT(staging_env%ref_count>0)
      staging_env%ref_count=staging_env%ref_count-1
      IF (staging_env%ref_count==0) THEN
         DEALLOCATE(staging_env,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
     END IF
     NULLIFY(staging_env)
@@ -119,8 +119,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,failure)
-    CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(staging_env))
+    CPASSERT(staging_env%ref_count>0)
     staging_env%ref_count=staging_env%ref_count+1
     RETURN
   END SUBROUTINE staging_retain
@@ -164,7 +164,7 @@ CONTAINS
     IF (PRESENT(mass_beads).OR.PRESENT(mass_fict)) THEN
 
        ALLOCATE(scal(staging_env%p),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        DO iseg=1,staging_env%nseg
           DO i=1,staging_env%j ! check order!!!
              scal(staging_env%j*(iseg-1)+i)=REAL(i,dp)/REAL(MAX(1,i-1),dp)
@@ -217,8 +217,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,failure)
-    CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(staging_env))
+    CPASSERT(staging_env%ref_count>0)
     ux=x
     DO s=0,staging_env%nseg-1
        DO k=2,staging_env%j
@@ -256,13 +256,13 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,failure)
-    CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(staging_env))
+    CPASSERT(staging_env%ref_count>0)
     j=staging_env%j
     const=REAL(j-1,dp)/REAL(j,dp)
     const2=1._dp/REAL(j,dp)
     ALLOCATE(iii(staging_env%nseg),jjj(staging_env%nseg),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i=1,staging_env%nseg
        iii(i)=staging_env%j*(i-1)+1 !first el
     END DO
@@ -310,12 +310,12 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(staging_env),cp_failure_level,routineP,failure)
-    CPPrecondition(staging_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(staging_env))
+    CPASSERT(staging_env%ref_count>0)
     const=REAL(staging_env%j-1,dp)/REAL(staging_env%j,dp)
     ALLOCATE(iii(staging_env%j),jjj(staging_env%j),&
          kkk(staging_env%j),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ist=1,staging_env%j-1
        iii(ist)=(ist-1)*staging_env%j+1 ! first el
        jjj(ist)=iii(ist)+staging_env%j-1 ! last el
@@ -374,7 +374,7 @@ CONTAINS
 
     ALLOCATE(iii(staging_env%nseg),jjj(staging_env%nseg),&
          kkk(staging_env%nseg),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO ist=1,staging_env%nseg
        iii(ist)=(ist-1)*staging_env%j+1 ! first el

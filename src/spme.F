@@ -162,25 +162,25 @@ CONTAINS
 
     n = o_spline
     ALLOCATE ( rhos(n,n,n), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL rs_grid_create (rden, rs_desc)
     CALL rs_grid_set_box ( grid_spme, rs=rden)
     CALL rs_grid_zero ( rden )
 
     ALLOCATE ( center(3, npart), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL get_center ( particle_set, box, center, npts, n )
     IF(PRESENT(shell_particle_set).AND.(PRESENT(core_particle_set))) THEN
-       CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,failure)
-       CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(shell_particle_set))
+       CPASSERT(ASSOCIATED(core_particle_set))
        nshell=SIZE(shell_particle_set)
        ncore =SIZE(core_particle_set)
-       CPPostcondition(nshell==ncore,cp_failure_level,routineP,failure)
+       CPASSERT(nshell==ncore)
        ALLOCATE ( shell_center ( 3, nshell ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_center ( shell_particle_set, box, shell_center, npts, n )
        ALLOCATE ( core_center ( 3, nshell ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_center ( core_particle_set, box, core_center, npts, n )
     END IF
 
@@ -365,7 +365,7 @@ CONTAINS
     ! move derivative of potential to real space grid and
     ! multiply by charge function in g-space
     ALLOCATE ( drpot(1:3), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, 3
        CALL rs_grid_create( drpot(i)%rs_grid, rs_desc)
        CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid)
@@ -449,20 +449,20 @@ CONTAINS
          CALL rs_grid_release ( drpot(i)%rs_grid)
       END DO
       DEALLOCATE ( drpot, STAT = stat )
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
 
     DEALLOCATE ( rhos, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE ( center, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(ALLOCATED(shell_center)) THEN
        DEALLOCATE ( shell_center, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ALLOCATED(core_center)) THEN
        DEALLOCATE ( core_center, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL timestop(handle)
 
@@ -536,13 +536,13 @@ CONTAINS
 
     n = o_spline
     ALLOCATE ( rhos(n,n,n), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL rs_grid_create (rden, rs_desc)
     CALL rs_grid_set_box ( grid_spme, rs=rden)
     CALL rs_grid_zero ( rden )
 
     ALLOCATE ( center(3, npart_a), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL get_center ( particle_set_a, box, center, npts, n )
 
     !-------------- DENSITY CALCULATION ----------------
@@ -559,7 +559,7 @@ CONTAINS
        CALL dg_sum_patch ( rden, rhos, center(:,p1) )
     END DO
     DEALLOCATE ( center, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !----------- END OF DENSITY CALCULATION -------------
 
     CALL pw_pool_create_pw ( pw_pool, rhob_r, use_data = REALDATA3D, &
@@ -583,7 +583,7 @@ CONTAINS
 
     !-------------- POTENTAIL AT ATOMIC POSITIONS -------
     ALLOCATE ( center(3, npart_b), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL get_center ( particle_set_b, box, center, npts, n )
     rpot => rden
     phi_g%cc = phi_g%cc * green%p3m_charge%cr
@@ -608,9 +608,9 @@ CONTAINS
     CALL rs_grid_release (rden)
 
     DEALLOCATE ( rhos, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE ( center, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
 
   END SUBROUTINE spme_potential
@@ -689,13 +689,13 @@ CONTAINS
 
     n = o_spline
     ALLOCATE ( rhos(n,n,n), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL rs_grid_create (rden, rs_desc)
     CALL rs_grid_set_box ( grid_spme, rs=rden)
     CALL rs_grid_zero ( rden )
 
     ALLOCATE ( center(3, npart_a), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL get_center ( particle_set_a, box, center, npts, n )
 
     !-------------- DENSITY CALCULATION ----------------
@@ -712,7 +712,7 @@ CONTAINS
        CALL dg_sum_patch ( rden, rhos, center(:,p1) )
     END DO
     DEALLOCATE ( center, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !----------- END OF DENSITY CALCULATION -------------
 
     CALL pw_pool_create_pw ( pw_pool, rhob_r, use_data = REALDATA3D, &
@@ -743,7 +743,7 @@ CONTAINS
     ! move derivative of potential to real space grid and
     ! multiply by charge function in g-space
     ALLOCATE ( drpot(1:3), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, 3
        CALL rs_grid_create( drpot(i)%rs_grid, rs_desc)
        CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid)
@@ -754,7 +754,7 @@ CONTAINS
     END DO
     !----------------- FORCE CALCULATION ----------------
     ALLOCATE ( center(3, npart_b), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL get_center ( particle_set_b, box, center, npts, n )
     ipart = 0
     DO
@@ -775,7 +775,7 @@ CONTAINS
          CALL rs_grid_release ( drpot(i)%rs_grid)
       END DO
       DEALLOCATE ( drpot, STAT = stat )
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
     CALL pw_pool_give_back_pw ( pw_pool, phi_g)
     CALL pw_pool_give_back_pw ( pw_pool, rhob_g)
@@ -783,9 +783,9 @@ CONTAINS
     CALL rs_grid_release (rden)
 
     DEALLOCATE ( rhos, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE ( center, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
 
   END SUBROUTINE spme_forces

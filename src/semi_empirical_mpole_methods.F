@@ -76,7 +76,7 @@ CONTAINS
     TYPE(semi_empirical_mpole_type), POINTER :: mpole
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(mpoles),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(mpoles))
     ! If there are atomic orbitals proceed with the expansion in multipoles
     natorb = se_parameter%natorb
     IF (natorb/=0) THEN
@@ -155,7 +155,7 @@ CONTAINS
 
        IF (method == do_method_pnnl) THEN
           ! No d-function for Schenter type integrals
-          CPPostcondition(natorb<=4,cp_failure_level,routineP,failure)
+          CPASSERT(natorb<=4)
 
           M0 = 0.0_dp
           M1 = 0.0_dp
@@ -295,18 +295,18 @@ CONTAINS
     CALL nddo_mpole_create(nddo_mpole)
     ! Allocate Global Arrays
     ALLOCATE(nddo_mpole%charge(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(nddo_mpole%dipole(3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(nddo_mpole%quadrupole(3,3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(nddo_mpole%efield0(  natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(nddo_mpole%efield1(3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(nddo_mpole%efield2(9,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 

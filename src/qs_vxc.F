@@ -138,8 +138,8 @@ CONTAINS
     CALL timeset( routineN ,handle)
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(vxc_rho))
+    CPASSERT(.NOT.ASSOCIATED(vxc_tau))
     NULLIFY(dft_control, pw_env, auxbas_pw_pool, xc_pw_pool, vdw_pw_pool, cell, my_vxc_rho, &
             tmp_pw, tmp_g, tmp_g2, my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace, &
             rho_m_gspace, rho_nlcc, rho_nlcc_g,rho_struct_r,rho_struct_g,tau_struct_r)
@@ -177,7 +177,7 @@ CONTAINS
 
     vdW_nl = (vdw==xc_vdw_fun_nonloc)
     ! this combination has not been investigated 
-    CPPrecondition(.NOT.(do_adiabatic_rescaling .AND. vdW_nl),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.(do_adiabatic_rescaling .AND. vdW_nl))
     ! are the necessary inputs available
     IF(.NOT.(PRESENT(dispersion_env) .AND. PRESENT(edisp))) THEN
        vdW_nl = .FALSE.
@@ -187,7 +187,7 @@ CONTAINS
     IF (myfun/=xc_none .OR. vdW_nl) THEN
 
        ! test if the real space density is available
-       CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(rho_struct))
        CALL cp_assert( dft_control%nspins == 1 .OR. dft_control%nspins == 2,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "nspins must be 1 or 2",failure)
@@ -203,11 +203,11 @@ CONTAINS
           ! all fine
        CASE ( sic_mauri_spz, sic_ad )
           ! no idea yet what to do here in that case
-          CPPrecondition(.NOT.tau_r_valid ,cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.tau_r_valid)
        CASE ( sic_mauri_us )
           my_scaling=1.0_dp-dft_control%sic_scaling_b
           ! no idea yet what to do here in that case
-          CPPrecondition(.NOT.tau_r_valid ,cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.tau_r_valid)
        CASE ( sic_eo )
           ! NOTHING TO BE DONE
        CASE DEFAULT
@@ -225,7 +225,7 @@ CONTAINS
        uf_grid = .NOT. pw_grid_compare(auxbas_pw_pool%pw_grid,xc_pw_pool%pw_grid)
 
        ALLOCATE(rho_r(dft_control%nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF (.not.uf_grid) THEN
           DO ispin=1,dft_control%nspins
              rho_r(ispin)%pw => rho_struct_r(ispin)%pw
@@ -233,7 +233,7 @@ CONTAINS
 
           IF (tau_r_valid) THEN
              ALLOCATE(tau(dft_control%nspins),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DO ispin=1,dft_control%nspins
                 tau(ispin)%pw => tau_struct_r(ispin)%pw
              END DO
@@ -243,15 +243,15 @@ CONTAINS
           ! be useful so if we have it, we pass it in
           IF ( rho_g_valid ) THEN
              ALLOCATE(rho_g(dft_control%nspins),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DO ispin=1,dft_control%nspins
                 rho_g(ispin)%pw => rho_struct_g(ispin)%pw
              END DO
           END IF
        ELSE
-          CPPrecondition(rho_g_valid,cp_failure_level,routineP,failure)
+          CPASSERT(rho_g_valid)
           ALLOCATE(rho_g(dft_control%nspins),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ispin=1,dft_control%nspins
              CALL pw_pool_create_pw(xc_pw_pool,rho_g(ispin)%pw,&
                   in_space=RECIPROCALSPACE, use_data=COMPLEXDATA1D)
@@ -329,7 +329,7 @@ CONTAINS
        IF (vdW_nl) THEN
           CALL get_ks_env(ks_env=ks_env, para_env=para_env)
           ! no SIC functionals allowed
-          CPPrecondition(dft_control%sic_method_id==sic_none,cp_failure_level,routineP,failure)
+          CPASSERT(dft_control%sic_method_id==sic_none)
           ! 
           CALL pw_env_get(pw_env,vdw_pw_pool=vdw_pw_pool)
           IF(my_just_energy) THEN
@@ -370,21 +370,21 @@ CONTAINS
        ! pw -> coeff
        IF (ASSOCIATED(my_vxc_rho)) THEN
           ALLOCATE(vxc_rho(dft_control%nspins),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ispin=1,dft_control%nspins
              vxc_rho(ispin)%pw => my_vxc_rho(ispin)%pw
           END DO
           DEALLOCATE(my_vxc_rho,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(my_vxc_tau)) THEN
           ALLOCATE(vxc_tau(dft_control%nspins),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ispin=1,dft_control%nspins
              vxc_tau(ispin)%pw => my_vxc_tau(ispin)%pw
           END DO
           DEALLOCATE(my_vxc_tau,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        ! compute again the xc but now for Exc(m,o) and the opposite sign
@@ -421,7 +421,7 @@ CONTAINS
                   pw_pool=xc_pw_pool)
           ELSE
              ! virial untested
-             CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,failure)
+             CPASSERT(.NOT.compute_virial)
              CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                   rho_g=rho_g,tau=tau,exc=exc_m,&
                   xc_section=xc_section,&
@@ -441,7 +441,7 @@ CONTAINS
              CALL pw_release(my_vxc_rho(1)%pw)
              CALL pw_release(my_vxc_rho(2)%pw)
              DEALLOCATE(my_vxc_rho,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
 
           DO ispin=1,2
@@ -494,7 +494,7 @@ CONTAINS
                      pw_pool=xc_pw_pool)
              ELSE
                 ! virial untested
-                CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,failure)
+                CPASSERT(.NOT.compute_virial)
                 CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                      rho_g=rho_g,tau=tau,exc=exc_m,&
                      xc_section=xc_section,&
@@ -512,7 +512,7 @@ CONTAINS
                 CALL pw_release(my_vxc_rho(1)%pw)
                 CALL pw_release(my_vxc_rho(2)%pw)
                 DEALLOCATE(my_vxc_rho,stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              ENDIF
           ENDDO
 
@@ -540,7 +540,7 @@ CONTAINS
                   pw_pool=xc_pw_pool)
           ELSE
              ! virial untested
-             CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,failure)
+             CPASSERT(.NOT.compute_virial)
              CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                   rho_g=rho_g,tau=tau,exc=exc_m,&
                   xc_section=xc_section,&
@@ -559,7 +559,7 @@ CONTAINS
              CALL pw_release(my_vxc_rho(1)%pw)
              CALL pw_release(my_vxc_rho(2)%pw)
              DEALLOCATE(my_vxc_rho)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
 
        ENDIF
@@ -618,7 +618,7 @@ CONTAINS
 
        END IF
        DEALLOCATE(rho_r,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
        IF (ASSOCIATED(rho_g)) THEN
           IF (uf_grid) THEN
              DO ispin=1,SIZE(rho_g)
@@ -626,7 +626,7 @@ CONTAINS
              END DO
           END IF
           DEALLOCATE(rho_g,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(tau)) THEN
           IF (uf_grid) THEN
@@ -635,7 +635,7 @@ CONTAINS
              END DO
           END IF
           DEALLOCATE(tau,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
 
     END IF

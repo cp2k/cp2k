@@ -50,12 +50,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, l
-    LOGICAL                                  :: failure
 
     param%parameterization = "UZH.00.00"
     SELECT CASE (TRIM(param%key))
     CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     CASE ("XX")
        param%defined          = .TRUE.
     CASE ("H")

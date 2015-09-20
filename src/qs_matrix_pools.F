@@ -95,8 +95,8 @@ SUBROUTINE mpools_retain(mpools)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(mpools),cp_failure_level,routineP,failure)
-  CPPreconditionNoFail(mpools%ref_count>0,cp_failure_level,routineP)
+  CPASSERT(ASSOCIATED(mpools))
+  CPASSERT(mpools%ref_count>0)
   mpools%ref_count=mpools%ref_count+1
 END SUBROUTINE mpools_retain
 
@@ -119,7 +119,7 @@ SUBROUTINE mpools_release(mpools)
   failure=.FALSE.
 
   IF (ASSOCIATED(mpools)) THEN
-     CPPreconditionNoFail(mpools%ref_count>0,cp_failure_level,routineP)
+     CPASSERT(mpools%ref_count>0)
      mpools%ref_count=mpools%ref_count-1
      IF (mpools%ref_count==0) THEN
         CALL fm_pools_dealloc(mpools%ao_mo_fm_pools)
@@ -132,7 +132,7 @@ SUBROUTINE mpools_release(mpools)
           CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools)
         END IF
         DEALLOCATE(mpools, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
   END IF
   NULLIFY(mpools)
@@ -167,8 +167,8 @@ SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
   failure=.FALSE.
   NULLIFY(new_fm_pools )
 
-  CPPrecondition(ASSOCIATED(mpools),cp_failure_level,routineP,failure)
-  CPPrecondition(mpools%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(mpools))
+  CPASSERT(mpools%ref_count>0)
   IF (PRESENT(ao_mo_fm_pools)) THEN
     IF (ASSOCIATED(ao_mo_fm_pools)) THEN
       CALL fm_pools_copy(ao_mo_fm_pools,new_fm_pools)
@@ -288,7 +288,7 @@ SUBROUTINE mpools_create(mpools)
   failure=.FALSE.
 
   ALLOCATE(mpools, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   NULLIFY(mpools%ao_ao_fm_pools, mpools%ao_mo_fm_pools, &
        mpools%mo_mo_fm_pools, mpools%ao_mosub_fm_pools, &
        mpools%mosub_mosub_fm_pools)
@@ -345,7 +345,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      IF(nmosub(1) > 0) prepare_subset = .TRUE.
   END IF
 
-  CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(mos))
   IF (.NOT.ASSOCIATED(mpools)) THEN
      CALL mpools_create(mpools)
   END IF
@@ -359,7 +359,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      END IF
      IF (.NOT.ASSOCIATED(mpools%ao_mo_fm_pools)) THEN
         ALLOCATE(mpools%ao_mo_fm_pools(nspins), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ispin=1,nspins
            NULLIFY(mpools%ao_mo_fm_pools(ispin)%pool)
         END DO
@@ -372,7 +372,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      END IF
      IF (.NOT.ASSOCIATED(mpools%ao_ao_fm_pools)) THEN
         ALLOCATE(mpools%ao_ao_fm_pools(nspins), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ispin=1,nspins
            NULLIFY(mpools%ao_ao_fm_pools(ispin)%pool)
         END DO
@@ -385,7 +385,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
      END IF
      IF (.NOT.ASSOCIATED(mpools%mo_mo_fm_pools)) THEN
         ALLOCATE(mpools%mo_mo_fm_pools(nspins), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ispin=1,nspins
            NULLIFY(mpools%mo_mo_fm_pools(ispin)%pool)
         END DO
@@ -400,7 +400,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
        END IF
        IF (.NOT.ASSOCIATED(mpools%ao_mosub_fm_pools)) THEN
           ALLOCATE(mpools%ao_mosub_fm_pools(nspins), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ispin=1,nspins
              NULLIFY(mpools%ao_mosub_fm_pools(ispin)%pool)
           END DO
@@ -413,7 +413,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
        END IF
        IF (.NOT.ASSOCIATED(mpools%mosub_mosub_fm_pools)) THEN
           ALLOCATE(mpools%mosub_mosub_fm_pools(nspins), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ispin=1,nspins
              NULLIFY(mpools%mosub_mosub_fm_pools(ispin)%pool)
           END DO

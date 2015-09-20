@@ -108,7 +108,7 @@ CONTAINS
 
         natom = SIZE(particle_set)
         ALLOCATE(coord(3,natom),z(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
 
         DO i=1,natom
           CALL get_atomic_kind(particle_set(i)%atomic_kind, z=z(i))
@@ -143,11 +143,11 @@ CONTAINS
           csymm = mol_sym%point_group_symbol
           CALL uppercase(csymm)
           check = TRIM(ADJUSTL(csymm)) == TRIM(ADJUSTL(esymm))
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
         END IF
 
         DEALLOCATE(coord,z,weight,atype,element,STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
 
         CALL release_molsym(mol_sym)
 
@@ -158,7 +158,7 @@ CONTAINS
 
         natom = SIZE(particle_set)
         ALLOCATE(coord(3,natom),z(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
 
         DO i=1,natom
           CALL get_atomic_kind(particle_set(i)%atomic_kind, z=z(i))
@@ -190,7 +190,7 @@ CONTAINS
           csym2 = pgrd(crys_sym%indpg)
           CALL uppercase(csym2)
           check = (TRIM(ADJUSTL(csym1)) == TRIM(ADJUSTL(esymm))).OR.(TRIM(ADJUSTL(csym2)) == TRIM(ADJUSTL(esymm)))
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
         END IF
 
         CALL release_csym_type(crys_sym)

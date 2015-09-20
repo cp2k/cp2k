@@ -115,7 +115,7 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     ! check hash table size, if too small rehash in a larger table
     IF (hash_table%obj%nelements*ENLARGE_RATIO .GE. &
         hash_table%obj%nmax) THEN
@@ -124,7 +124,7 @@ CONTAINS
     END IF
     ! find the right slot for the given key
     islot = fb_hash_table_linear_probe(hash_table, key)
-    CPPostcondition(islot>0, cp_failure_level, routineP,failure)
+    CPASSERT(islot>0)
     ! we are adding a new entry only if islot points to an empty slot,
     ! otherwise just change the val of the existing entry
     IF (hash_table%obj%table(islot)%key == EMPTY_KEY) THEN
@@ -167,9 +167,9 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = .NOT. fb_hash_table_has_data(hash_table)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     ALLOCATE(hash_table%obj, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(hash_table%obj%table)
     hash_table%obj%nmax = 0
     hash_table%obj%nelements = 0
@@ -206,7 +206,7 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     found = .FALSE.
     val = 0
     islot = fb_hash_table_linear_probe(hash_table, key)
@@ -251,7 +251,7 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     my_nmax = hash_table%obj%nmax
     IF (PRESENT(nmax)) my_nmax = nmax
     ! table length should always be power of 2. Find the least
@@ -264,13 +264,13 @@ CONTAINS
     IF (ASSOCIATED(hash_table%obj%table)) THEN
        IF (SIZE(hash_table%obj%table) .NE. my_nmax) THEN
           DEALLOCATE(hash_table%obj%table, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(hash_table%obj%table(my_nmax), STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
     ELSE
        ALLOCATE(hash_table%obj%table(my_nmax), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     END IF
     hash_table%obj%nmax = my_nmax
     hash_table%obj%prime = fb_hash_table_matching_prime(my_nmax)
@@ -323,7 +323,7 @@ CONTAINS
        my_nmax = hash_table%obj%nmax
     END IF
     ALLOCATE(tmp_table(hash_table%obj%nmax), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     tmp_table(:) = hash_table%obj%table(:)
     CALL fb_hash_table_release(hash_table)
     CALL fb_hash_table_create(hash_table=hash_table, &
@@ -336,7 +336,7 @@ CONTAINS
        END IF
     END DO
     DEALLOCATE(tmp_table, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE fb_hash_table_rehash
 
 ! *****************************************************************************
@@ -356,17 +356,17 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(hash_table%obj)) THEN
        check_ok = hash_table%obj%ref_count > 0
-       CPPreconditionNoFail(check_ok, cp_failure_level, routineP)
+       CPASSERT(check_ok)
        hash_table%obj%ref_count = hash_table%obj%ref_count - 1
        IF (hash_table%obj%ref_count == 0) THEN
           hash_table%obj%ref_count = 1
           IF (ASSOCIATED(hash_table%obj%table)) THEN
              DEALLOCATE(hash_table%obj%table, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+             CPASSERT(stat==0)
           END IF
           hash_table%obj%ref_count = 0
           DEALLOCATE(hash_table%obj, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
     ELSE
        NULLIFY(hash_table%obj)
@@ -391,7 +391,7 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     islot = fb_hash_table_linear_probe(hash_table, key)
     ! we are only removing an entry if the key is found
     IF (islot > 0) THEN
@@ -426,9 +426,9 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = ASSOCIATED(hash_table%obj)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = hash_table%obj%ref_count > 0
-    CPPreconditionNoFail(check_ok, cp_failure_level, routineP)
+    CPASSERT(check_ok)
     hash_table%obj%ref_count = hash_table%obj%ref_count + 1
   END SUBROUTINE fb_hash_table_retain
 
@@ -451,7 +451,7 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     IF (PRESENT(nelements)) nelements = hash_table%obj%nelements
     IF (PRESENT(nmax)) nmax = hash_table%obj%nmax
     IF (PRESENT(prime)) prime = hash_table%obj%prime

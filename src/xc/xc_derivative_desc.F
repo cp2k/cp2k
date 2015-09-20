@@ -91,7 +91,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(deriv_array, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
   END SUBROUTINE standardize_derivative_desc
 
@@ -109,7 +109,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, nderiv, stat
-    LOGICAL                                  :: failure
 
     nderiv=0
     DO i=1,LEN(deriv_desc)
@@ -119,7 +118,7 @@ CONTAINS
     END DO
 
     ALLOCATE(res(nderiv),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     nderiv=0
     DO i=1,LEN(deriv_desc)

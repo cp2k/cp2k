@@ -120,7 +120,7 @@ CONTAINS
     local_molecules => qs_loc_env%local_molecules
     nstate = SIZE ( center, 2 )
     ALLOCATE(wfc_to_atom_map(nstate),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
     nkind = SIZE (local_molecules%n_el)
@@ -135,13 +135,13 @@ CONTAINS
           natom_max = natom_max + natom
           IF (.NOT.ASSOCIATED(molecule_set(i)%lmi)) THEN
              ALLOCATE(molecule_set(i)%lmi,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              NULLIFY(molecule_set(i)%lmi%states)
           ENDIF
           molecule_set(i)%lmi%nstates=0
           IF(ASSOCIATED(molecule_set(i)%lmi%states)) THEN
              DEALLOCATE(molecule_set(i)%lmi%states,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
        END DO
     END DO
@@ -151,10 +151,10 @@ CONTAINS
     CALL mp_max(natom_max,para_env%group)
 
     ALLOCATE(r(3,natom_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(distance(natom_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     !Zero all the stuff
     r(:,:) = 0.0_dp
@@ -368,12 +368,12 @@ CONTAINS
     !---------------------------------------------------------------------------
 
     DEALLOCATE(distance,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(r,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(wfc_to_atom_map,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE wfc_to_molecule
   !------------------------------------------------------------------------------

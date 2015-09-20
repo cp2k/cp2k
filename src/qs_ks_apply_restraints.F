@@ -79,7 +79,7 @@ CONTAINS
 
     IF(dft_control%qs_control%becke_restraint)THEN
        ! Test no k-points
-       CPPrecondition(SIZE(matrix_s,2)==1,cp_failure_level,routineP,failure)
+       CPASSERT(SIZE(matrix_s,2)==1)
        !***** Check if becke potential is needed to constrain charges *****
        becke => dft_control%qs_control%becke_control
        IF(becke%need_pot.OR.calculate_forces)THEN
@@ -167,7 +167,7 @@ CONTAINS
     IF (dft_control%qs_control%mulliken_restraint) THEN
 
        ! Test no k-points
-       CPPrecondition(SIZE(matrix_s,2)==1,cp_failure_level,routineP,failure)
+       CPASSERT(SIZE(matrix_s,2)==1)
 
        CALL qs_rho_get(rho, rho_ao=rho_ao)
 
@@ -209,7 +209,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs, smat
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -222,12 +221,12 @@ CONTAINS
 
     IF (dft_control%qs_control%s2_restraint) THEN
        ! Test no k-points
-       CPPrecondition(SIZE(matrix_s,2)==1,cp_failure_level,routineP,failure)
+       CPASSERT(SIZE(matrix_s,2)==1)
        ! adds s2_restraint energy and orbital derivatives
-       CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,failure)
-       CPPrecondition(qs_env%requires_mo_derivs,cp_failure_level,routineP,failure)
+       CPASSERT(dft_control%nspins == 2)
+       CPASSERT(qs_env%requires_mo_derivs)
        ! forces are not implemented (not difficult, but ... )
-       CPPrecondition(.NOT. calculate_forces, cp_failure_level,routineP,failure)
+       CPASSERT(.NOT. calculate_forces)
        CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
 
        ALLOCATE(fm_mo_derivs(SIZE(mo_derivs,1)))!fm->dbcsr

@@ -95,16 +95,16 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT. ASSOCIATED(reftraj),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT. ASSOCIATED(reftraj))
     ALLOCATE(reftraj, stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     reftraj%ref_count = 1
 
     NULLIFY(reftraj%info)
     NULLIFY(reftraj%msd)
 
     ALLOCATE(reftraj%info, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     NULLIFY(reftraj%info%traj_parser)
     NULLIFY(reftraj%info%cell_parser)
 
@@ -148,7 +148,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(reftraj)) THEN
-       CPPrecondition(reftraj%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(reftraj%ref_count>0)
        reftraj%ref_count=reftraj%ref_count+1
     END IF
 
@@ -173,41 +173,41 @@ CONTAINS
 
     failure=.FALSE.
     IF(ASSOCIATED(reftraj)) THEN
-       CPPrecondition(reftraj%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(reftraj%ref_count>0)
        reftraj%ref_count=reftraj%ref_count-1
        IF(reftraj%ref_count<1) THEN
           CALL parser_release(reftraj%info%traj_parser)
           CALL parser_release(reftraj%info%cell_parser)
           IF(ASSOCIATED(reftraj%info)) THEN
              DEALLOCATE (reftraj%info, STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
           END IF
           IF(ASSOCIATED(reftraj%msd)) THEN
              DEALLOCATE(reftraj%msd%ref0_pos,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              IF(reftraj%msd%msd_kind) THEN
                  DEALLOCATE(reftraj%msd%val_msd_kind,STAT=istat)
-                 CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(istat==0)
              END IF
              IF(reftraj%msd%msd_molecule) THEN
                  DEALLOCATE(reftraj%msd%val_msd_molecule,STAT=istat)
-                 CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(istat==0)
                  DEALLOCATE(reftraj%msd%ref0_com_molecule,STAT=istat)
-                 CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(istat==0)
              END IF
              IF(reftraj%msd%disp_atom) THEN
                  DEALLOCATE(reftraj%msd%disp_atom_index,STAT=istat)
-                 CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(istat==0)
                  DEALLOCATE(reftraj%msd%disp_atom_dr,STAT=istat)
-                 CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(istat==0)
              END IF
 
              DEALLOCATE (reftraj%msd, STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
           END IF
 
           DEALLOCATE( reftraj , stat=istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
 
     END IF

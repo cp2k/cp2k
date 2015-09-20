@@ -145,8 +145,8 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
-  CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(pw_env))
+  CPASSERT(pw_env%ref_count>0)
   IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
   IF (PRESENT(rs_descs)) rs_descs => pw_env%rs_descs
   IF (PRESENT(rs_grids)) rs_grids => pw_env%rs_grids
@@ -186,8 +186,8 @@ SUBROUTINE pw_env_retain(pw_env)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
-  CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(pw_env))
+  CPASSERT(pw_env%ref_count>0)
   pw_env%ref_count=pw_env%ref_count+1
 END SUBROUTINE pw_env_retain
 
@@ -213,7 +213,7 @@ SUBROUTINE pw_env_release(pw_env, kg)
   my_kg = .FALSE.
   IF(PRESENT(kg)) my_kg = kg
   IF (ASSOCIATED(pw_env)) THEN
-     CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,failure)
+     CPASSERT(pw_env%ref_count>0)
      pw_env%ref_count=pw_env%ref_count-1
      IF (pw_env%ref_count<1) THEN
         CALL pw_poisson_release(pw_env%poisson_env)
@@ -221,22 +221,22 @@ SUBROUTINE pw_env_release(pw_env, kg)
         IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
            IF(my_kg) THEN
              DEALLOCATE (pw_env%gridlevel_info%cutoff,STAT=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
              CALL section_vals_release(pw_env%gridlevel_info%print_section)
              DEALLOCATE (pw_env%gridlevel_info%count,STAT=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
            ELSE
              CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info)
            END IF
            DEALLOCATE(pw_env%gridlevel_info,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(pw_env%cube_info)) THEN
            DO igrid_level=1,SIZE(pw_env%cube_info)
               CALL destroy_cube_info(pw_env%cube_info(igrid_level))
            END DO
            DEALLOCATE(pw_env%cube_info,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         CALL pw_pool_release(pw_env%xc_pw_pool)
         CALL pw_pool_release(pw_env%vdw_pw_pool)
@@ -245,20 +245,20 @@ SUBROUTINE pw_env_release(pw_env, kg)
             CALL rs_grid_release_descriptor(pw_env%rs_descs(i)%rs_desc)
           END DO
           DEALLOCATE(pw_env%rs_descs, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(pw_env%rs_grids)) THEN
           DO i=1, SIZE(pw_env%rs_grids)
             CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid)
           END DO
           DEALLOCATE(pw_env%rs_grids, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(pw_env%lgrid)) THEN
           CALL lgrid_release(pw_env%lgrid)
         END IF
         DEALLOCATE(pw_env, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
     END IF
   END IF
   NULLIFY(pw_env)
@@ -281,7 +281,7 @@ SUBROUTINE pw_env_flush_cache(pw_env)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(pw_env))
   IF (ASSOCIATED(pw_env%pw_pools)) THEN
      CALL pw_pools_flush_cache(pw_env%pw_pools)
   END IF

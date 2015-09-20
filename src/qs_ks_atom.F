@@ -168,7 +168,7 @@ CONTAINS
     factor = 1.0_dp
     IF (my_tddft) THEN
        IF (nspins == 1) factor = 2.0_dp
-       CPPostcondition(nimages==1,cp_failure_level,routineP,failure)
+       CPASSERT(nimages==1)
     END IF
 
     ! kpoint images
@@ -189,28 +189,28 @@ CONTAINS
 
     ALLOCATE (C_int_h(max_gau*max_nsgf),C_int_s(max_gau*max_nsgf),coc(max_gau*max_gau),&
               a_matrix(max_gau,max_gau),p_matrix(max_nsgf,max_nsgf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     lC_int = max_gau
     ALLOCATE(mat_h(nspins),mat_p(nspins), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ispin = 1,nspins
       NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
     END DO
 
     IF(forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
       ALLOCATE(dCPC_h(max_gau,max_gau),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(dCPC_s(max_gau,max_gau),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ldCPC = max_gau
       ALLOCATE(PC_h(max_nsgf,max_gau,nspins),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(PC_s(max_nsgf,max_gau,nspins),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       lPC = max_nsgf
       use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     END IF
@@ -250,7 +250,7 @@ CONTAINS
     END DO
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -271,7 +271,7 @@ CONTAINS
 
        IF(nimages>1) THEN
           img = cell_to_index(cell_b(1),cell_b(2),cell_b(3))
-          CPPostcondition(img > 0,cp_failure_level,routineP,failure)
+          CPASSERT(img > 0)
        ELSE
           img = 1
        END IF
@@ -415,15 +415,15 @@ CONTAINS
     END DO
 
     DEALLOCATE(basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(mat_h,mat_p,C_int_h,C_int_s,a_matrix,p_matrix,coc,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     IF(forces) THEN
        DEALLOCATE (atom_of_kind,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DEALLOCATE(DCPC_h,dCPC_s,PC_h,PC_s,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
     CALL timestop(handle)

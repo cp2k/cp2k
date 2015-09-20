@@ -101,9 +101,9 @@ CONTAINS
                             natoms=natoms_in_halo, &
                             halo_atoms=halo_atoms)
     check_ok = SIZE(blk_row_start) .GE. (natoms_in_halo + 1)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = SIZE(blk_col_start) .GE. (natoms_in_halo + 1)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     blk_row_start = 0
     blk_col_start = 0
     nrows = 0
@@ -213,13 +213,13 @@ CONTAINS
 
     ! allocate temporary arrays for send
     ALLOCATE(send_sizes(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_pair_count(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_pair_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_send, &
@@ -232,17 +232,17 @@ CONTAINS
                                              send_pair_disps)
     ! allocate send buffer
     ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! allocate temporary arrays for recv
     ALLOCATE(recv_sizes(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_pair_count(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_pair_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_recv, &
@@ -255,7 +255,7 @@ CONTAINS
                                              recv_pair_disps)
     ! allocate recv buffer
     ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ! do packing
     DO ipe = 1, numprocs
        ! need to reuse send_sizes as an accumulative displacement, so recalculate
@@ -291,15 +291,15 @@ CONTAINS
 
     ! cleanup temporary arrays no longer needed
     DEALLOCATE(send_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_pair_count, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_pair_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! do unpacking
     DO ipe = 1, numprocs
@@ -318,11 +318,11 @@ CONTAINS
           CALL fb_atomic_halo_atom_global2halo(atomic_halo, &
                                                iatom, iatom_in_halo, &
                                                found)
-          CPPostcondition(found, cp_failure_level, routineP,failure)
+          CPASSERT(found)
           CALL fb_atomic_halo_atom_global2halo(atomic_halo, &
                                                jatom, jatom_in_halo, &
                                                found)
-          CPPostcondition(found, cp_failure_level, routineP,failure)
+          CPASSERT(found)
           ! put block into the full conventional matrix
           DO jj = 1, ncols_blk
              DO ii = 1, nrows_blk
@@ -339,15 +339,15 @@ CONTAINS
 
     ! cleanup rest of the temporary arrays
     DEALLOCATE(recv_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_pair_count, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_pair_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_com_atom_pairs_release(atom_pairs_send)
     CALL fb_com_atom_pairs_release(atom_pairs_recv)
 
@@ -401,9 +401,9 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_storage)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = fb_atomic_halo_has_data(atomic_halo)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
 
     NULLIFY(halo_atoms, blk_p)
 
@@ -530,7 +530,7 @@ CONTAINS
     ntasks_recv = natoms_in_halo*natoms_in_halo
 
     ALLOCATE(tasks_recv(TASK_N_RECORDS,ntasks_recv), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! now that tasks_recv has been allocated, generate the tasks
     itask = 1
@@ -728,7 +728,7 @@ CONTAINS
        ntasks_recv = ntasks_recv + natoms_in_halo*natoms_in_halo
     END DO
     ALLOCATE(tasks_recv(TASK_N_RECORDS,ntasks_recv), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! now that tasks_recv has been allocated, generate the tasks
 

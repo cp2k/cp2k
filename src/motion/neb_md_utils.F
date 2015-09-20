@@ -197,7 +197,7 @@ CONTAINS
        CALL section_vals_val_get(tc_section,"TEMPERATURE",r_val=ext_temp)
        CALL section_vals_val_get(tc_section,"TEMP_TOL",r_val=temp_tol)
        ALLOCATE(temperatures(SIZE(vels%wrk,2)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Computes temperatures
        CALL get_temperatures(vels,particle_set,temperatures,factor=1.0_dp)
        ! Possibly rescale
@@ -219,7 +219,7 @@ CONTAINS
           END DO
        END IF
        DEALLOCATE(temperatures,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     ! Annealing
     CALL section_vals_get(vc_section,explicit=explicit)

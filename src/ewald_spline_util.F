@@ -98,9 +98,9 @@ CONTAINS
     !
     ! Setting Up Fit Procedure
     !
-    CPPrecondition(.NOT.ASSOCIATED(pw_grid),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(pw_pool),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(coeff),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(pw_grid))
+    CPASSERT(.NOT.ASSOCIATED(pw_pool))
+    CPASSERT(.NOT.ASSOCIATED(coeff))
     NULLIFY(cell, pw)
 
     CALL cell_create(cell, hmat=hmat, periodic=(/1,1,1/))
@@ -160,7 +160,7 @@ CONTAINS
       ks, Lg_loc_max, Lg_loc_min, max_iter, my_i, my_j, my_k, n1, n2, n3, &
       n_extra, NLg_loc, nxlim, nylim, nzlim, precond_kind, stat
     INTEGER, DIMENSION(2, 3)                 :: gbo
-    LOGICAL                                  :: failure, success
+    LOGICAL                                  :: success
     REAL(KIND=dp)                            :: dr1, dr2, dr3, eps_r, eps_x, &
                                                 xs1, xs2, xs3
     REAL(KIND=dp), ALLOCATABLE :: cos_gx(:,:), cos_gy(:,:), cos_gz(:,:), &
@@ -197,17 +197,17 @@ CONTAINS
     iii = 0
      !NB allocate temporaries for Cos refactoring
      ALLOCATE(cos_gx(SIZE(Lg),gbo(1,1):gbo(2,1)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(sin_gx(SIZE(Lg),gbo(1,1):gbo(2,1)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(cos_gy(SIZE(Lg),gbo(1,2):gbo(2,2)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(sin_gy(SIZE(Lg),gbo(1,2):gbo(2,2)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(cos_gz(SIZE(Lg),gbo(1,3):gbo(2,3)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(sin_gz(SIZE(Lg),gbo(1,3):gbo(2,3)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      !NB precalculate Cos(gx*xs1) etc for Cos refactoring
      DO k=gbo(1,3), gbo(2,3)
        my_k  = k-gbo(1,3)
@@ -254,9 +254,9 @@ CONTAINS
        act_ny = MIN(gbo(2,2),nylim)-gbo(1,2)+1
        !NB temporaries for DGEMM use
        ALLOCATE(lhs(act_nx,NLg_loc),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(rhs(act_ny,NLg_loc),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! do cos(gx) cos(gy+gz) term
        DO i=gbo(1,1), gbo(2,1)
@@ -292,22 +292,22 @@ CONTAINS
 
        !NB deallocate temporaries for DGEMM use
        DEALLOCATE(lhs,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(rhs,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        !NB deallocate temporaries for Cos refactoring
        DEALLOCATE(cos_gx,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(sin_gx,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(cos_gy,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(sin_gy,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(cos_gz,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(sin_gz,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        !NB parallelization
     ELSE ! no work for this node, just zero contribution
        grid%cr3d(gbo(1,1):nxlim,gbo(1,2):nylim,gbo(1,3):nzlim) = 0.0_dp
@@ -348,7 +348,7 @@ CONTAINS
             linOp=spl3_pbc,preconditioner=precond, pool=pw_pool, &
             eps_r=eps_r,eps_x=eps_x,&
             max_iter=max_iter)
-    CPPostconditionNoFail(success,cp_warning_level,routineP)
+    CPASSERT(success)
     CALL pw_spline_precond_release(precond)
     !
     ! Check for the interpolation Spline

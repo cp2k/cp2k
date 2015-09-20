@@ -91,7 +91,7 @@ CONTAINS
 
     failure =.FALSE.
     check = .NOT.ASSOCIATED(barostat)
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     barostat_section => section_vals_get_subs_vals(md_section,"BAROSTAT")
     CALL section_vals_get(barostat_section, explicit=explicit)
     IF (simpar%ensemble == npt_i_ensemble .OR. &
@@ -101,7 +101,7 @@ CONTAINS
         simpar%ensemble == nph_uniaxial_ensemble .OR. &
         simpar%ensemble == nph_uniaxial_damped_ensemble) THEN
        ALLOCATE(barostat, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        last_barostat_id_nr = last_barostat_id_nr + 1
        barostat%id_nr      = last_barostat_id_nr
        barostat%ref_count  =  1
@@ -156,7 +156,7 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     IF (ASSOCIATED(barostat)) THEN
-       CPPrecondition(barostat%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(barostat%ref_count>0)
        barostat%ref_count=barostat%ref_count+1
     END IF
   END SUBROUTINE retain_barostat_type
@@ -180,16 +180,16 @@ CPSourceFileRef,&
     failure =.FALSE.
     IF (ASSOCIATED(barostat)) THEN
        check = barostat%ref_count>0
-       CPPrecondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        barostat%ref_count=barostat%ref_count-1
        IF (barostat%ref_count<1) THEN
           IF ( ASSOCIATED ( barostat%npt ) ) THEN
              DEALLOCATE (barostat%npt , stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           NULLIFY(barostat%section)
           DEALLOCATE(barostat, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
 

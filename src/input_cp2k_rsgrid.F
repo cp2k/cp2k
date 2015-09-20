@@ -49,7 +49,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RS_GRID",&
          description="Set options that influence how the realspace grids are being distributed in parallel runs.",&
          n_keywords=5, n_subsections=0, repeats=.TRUE.)

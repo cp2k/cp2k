@@ -156,7 +156,7 @@ CONTAINS
     natom = SIZE(particle_set)
 
     ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
     IF (calculate_forces) THEN
@@ -185,7 +185,7 @@ CONTAINS
     ldai = ncoset(maxl+nder+1)
 
     ALLOCATE (basis_set_list(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -197,7 +197,7 @@ CONTAINS
 
     ! build the matrix
     ALLOCATE (row_blk_sizes(natom),col_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes)
     CALL get_particle_set(particle_set, qs_kind_set, nsgf=col_blk_sizes)
@@ -205,7 +205,7 @@ CONTAINS
     CALL cp_dbcsr_allocate_matrix_set(matrix_kg,1)
 
     ALLOCATE(matrix_kg(1)%matrix, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL cp_dbcsr_init(matrix_kg(1)%matrix)
     CALL cp_dbcsr_create(matrix=matrix_kg(1)%matrix, &
              name="Nonadditive kinetic energy potential", &
@@ -245,16 +245,16 @@ CONTAINS
     CALL neighbor_list_iterator_create(ap_iterator,sac_kin,search=.TRUE.)
 
     ALLOCATE(hab(ldsab,ldsab,maxnset,maxnset),work(ldsab,ldsab*maxder),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ldai = ncoset(2*maxlgto+2*nder)
     ALLOCATE (ppl_work(ldai,ldai,MAX(maxder,2*maxlgto+2*nder+1)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (calculate_forces) THEN
        ALLOCATE(pab(maxco,maxco,maxnset,maxnset),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ldai = ncoset(maxlgto)
        ALLOCATE (ppl_fwork(ldai,ldai,maxder),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     last_iatom = 0
@@ -273,7 +273,7 @@ CONTAINS
        atom_b = atom_of_kind(jatom)
        imol = atom_to_molecule(iatom)
        jmol = atom_to_molecule(jatom)
-       CPPostcondition(imol==jmol,cp_failure_level,routineP,failure)
+       CPASSERT(imol==jmol)
 
        ! basis ikind
        first_sgfa   =>  basis_set_a%first_sgf
@@ -328,7 +328,7 @@ CONTAINS
           CALL cp_dbcsr_get_block_p(matrix_kg(1)%matrix,irow,icol,h_block,found)
           IF(ASSOCIATED(h_block)) THEN
           IF (calculate_forces) THEN
-             CPPrecondition(SIZE(matrix_p,2)==1,cp_failure_level,routineP,failure)
+             CPASSERT(SIZE(matrix_p,2)==1)
              NULLIFY(p_block)
              CALL cp_dbcsr_get_block_p(matrix_p(1,1)%matrix,irow,icol,p_block,found)
              IF(ASSOCIATED(p_block)) THEN
@@ -374,7 +374,7 @@ CONTAINS
                alpha=alpha,cval=cval,ngau=ngau,npol=npol,radius=radius)
           nct = npol
           ALLOCATE(ccval(npol,ngau),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ccval(1:npol,1:ngau) = TRANSPOSE(cval(1:ngau,1:npol))
 
           CALL nl_set_sub_iterator(ap_iterator,ikind,kkind,iatom)
@@ -455,7 +455,7 @@ CONTAINS
              END DO
           END DO
           DEALLOCATE(ccval,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END DO
 
        ! *** Contract integrals
@@ -492,11 +492,11 @@ CONTAINS
     CALL neighbor_list_iterator_release(ap_iterator)
 
     DEALLOCATE(hab,work,ppl_work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (calculate_forces) THEN
        DEALLOCATE(pab,ppl_fwork,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
 !$OMP END PARALLEL
@@ -509,7 +509,7 @@ CONTAINS
     kg_env%tnadd_mat => matrix_kg
 
     DEALLOCATE (atom_of_kind,basis_set_list,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (calculate_forces) THEN
        ! *** If LSD, then recover alpha density and beta density     ***

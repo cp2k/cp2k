@@ -159,7 +159,7 @@ CONTAINS
 
 
     nm = (6 + 11*nmoments + 6*nmoments**2 + nmoments**3)/6 - 1
-    CPPostcondition(SIZE(moments)>=nm,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(moments)>=nm)
 
     NULLIFY (qs_kind_set,particle_set,sab_orb,cell)
     CALL get_qs_env(qs_env=qs_env,&
@@ -176,21 +176,21 @@ CONTAINS
                              maxco=maxco, maxsgf=maxsgf)
 
     ALLOCATE (mab(maxco,maxco,nm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     mab(:,:,:) = 0.0_dp
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     work(:,:) = 0.0_dp
 
     ALLOCATE (mint(nm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO i=1,nm
       NULLIFY (mint(i)%block)
     END DO
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -331,14 +331,14 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (mab,basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (work,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO i=1,nm
       NULLIFY (mint(i)%block)
     END DO
     DEALLOCATE (mint,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -437,21 +437,21 @@ CONTAINS
                              maxco=maxco, maxsgf=maxsgf)
 
     ALLOCATE (mab(maxco,maxco,nm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     mab(:,:,:) = 0.0_dp
 
     ALLOCATE (work(maxco,maxsgf),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     work(:,:) = 0.0_dp
 
     ALLOCATE (mint(nm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO i=1,nm
       NULLIFY (mint(i)%block)
     END DO
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -592,14 +592,14 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (mab,basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (work,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO i=1,nm
       NULLIFY (mint(i)%block)
     END DO
     DEALLOCATE (mint,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -666,17 +666,17 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set, maxco=ldwork)
     ldab = ldwork
     ALLOCATE(cosab(ldab,ldab),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(sinab(ldab,ldab),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(work(ldwork,ldwork),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -736,7 +736,7 @@ CONTAINS
             row=irow,col=icol,BLOCK=sblock,found=found)
        IF(ASSOCIATED(cblock).AND..NOT.ASSOCIATED(sblock).OR.&
           .NOT.ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        ENDIF
 
        IF(ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN
@@ -775,13 +775,13 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE(cosab,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(sinab,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(work,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -850,7 +850,7 @@ CONTAINS
     TYPE(rt_prop_type), POINTER              :: rtp
 
      failure = .FALSE.
-     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(qs_env))
 
     IF(ASSOCIATED(qs_env%ls_scf_env)) THEN
       IF(unit_number > 0) WRITE(unit_number,*) "Periodic moment calculation not implemented in linear scaling code"
@@ -868,15 +868,15 @@ CONTAINS
      ! rmom(:,2)=nuclear
      ! rmom(:,1)=total
      ALLOCATE (rmom(nm+1,3),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      ALLOCATE (rlab(nm+1),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      rmom = 0.0_dp
      rlab = ""
      IF(magnetic) THEN
         nm=3
         ALLOCATE (mmom(nm),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
         mmom = 0._dp
      END IF
 
@@ -907,11 +907,11 @@ CONTAINS
      CALL cp_dbcsr_set(sinmat,0.0_dp)
 
      ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      ALLOCATE ( opvec( dft_control%nspins ), STAT = istat )
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      nmotot = 0
      DO ispin = 1, dft_control%nspins
        NULLIFY(tmp_fm_struct,mo_coeff)
@@ -1213,12 +1213,12 @@ CONTAINS
      END IF
 
      DEALLOCATE (rmom,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      DEALLOCATE (rlab,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      IF(magnetic) THEN
         DEALLOCATE ( mmom, STAT = istat )
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
      END IF
 
      CALL cp_dbcsr_deallocate_matrix ( cosmat)
@@ -1232,11 +1232,11 @@ CONTAINS
        END DO
      END DO
      DEALLOCATE ( op_fm_set, STAT = istat )
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      DEALLOCATE ( opvec, STAT = istat )
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      DEALLOCATE ( eigrmat, STAT = istat )
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
 
      CALL timestop(handle)
 
@@ -1416,7 +1416,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
 
 
     CALL timeset(routineN,handle)
@@ -1433,7 +1433,7 @@ CONTAINS
     CALL cp_dbcsr_allocate_matrix_set(moments,nm)
     DO i=1,nm
        ALLOCATE(moments(i)%matrix,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL cp_dbcsr_init(moments(i)%matrix)
        CALL cp_dbcsr_copy(moments(i)%matrix,matrix_s(1)%matrix,"Moments")
        CALL cp_dbcsr_set(moments(i)%matrix,0.0_dp)
@@ -1456,9 +1456,9 @@ CONTAINS
 
     nm = SIZE(moments)
     ALLOCATE (rmom(nm+1,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (rlab(nm+1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     rmom=0.0_dp
     rlab = ""
 
@@ -1485,7 +1485,7 @@ CONTAINS
        CALL build_local_magmom_matrix(qs_env,magmom,nmom,ref_point=rcc)
        nm = SIZE(magmom)
        ALLOCATE (mmom(nm),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DO i = 1, SIZE(magmom)
           strace = 0._dp
           DO ispin=1,dft_control%nspins
@@ -1538,12 +1538,12 @@ CONTAINS
     END IF
 
     DEALLOCATE (rmom,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (rlab,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     IF (magnetic) THEN
        DEALLOCATE (mmom,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
     CALL timestop(handle)

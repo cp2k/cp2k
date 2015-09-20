@@ -94,7 +94,7 @@ CONTAINS
     my_n = MIN(fm_matrix%matrix_struct%nrow_global,&
          fm_matrix%matrix_struct%ncol_global)
     IF (PRESENT(n)) THEN
-       CPPrecondition(n<=my_n,cp_failure_level,routineP,failure)
+       CPASSERT(n<=my_n)
        my_n=n
     END IF
 
@@ -120,7 +120,7 @@ CONTAINS
 
 #endif
 
-    CPPostcondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
 
     CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 
@@ -179,7 +179,7 @@ CONTAINS
     my_n = MIN(fm_matrix%matrix_struct%nrow_global,&
          fm_matrix%matrix_struct%ncol_global)
     IF (PRESENT(n)) THEN
-       CPPrecondition(n<=my_n,cp_failure_level,routineP,failure)
+       CPASSERT(n<=my_n)
        my_n=n
     END IF
 
@@ -206,7 +206,7 @@ CONTAINS
 
 #endif
 
-    CPPostcondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
 
     IF(upper_to_full) THEN
        CALL cp_fm_create(fm_matrix_tmp,fm_matrix%matrix_struct,name="fm_matrix_tmp")
@@ -304,7 +304,7 @@ CPSourceFileRef,&
 
 #endif
 
-    CPPostcondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
 
     CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 

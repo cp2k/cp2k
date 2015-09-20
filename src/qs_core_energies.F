@@ -275,14 +275,14 @@ CONTAINS
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     ALLOCATE (alpha(nkind),radius(nkind),zeff(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     alpha(:) = 0.0_dp
     radius(:) = 0.0_dp
     zeff(:) = 0.0_dp
 
     IF (calculate_forces) THEN
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
     END IF
 
@@ -339,10 +339,10 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE (alpha,radius,zeff,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     CALL mp_sum(ecore_overlap,group)

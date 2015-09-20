@@ -222,7 +222,7 @@ MODULE rpa_ri_gpw
           IF(ierr==0) EXIT
         END DO
       END IF
-      CPPostcondition(num_integ_points>=1,cp_failure_level,routineP,failure)
+      CPASSERT(num_integ_points>=1)
     ELSE
       num_integ_points=mp2_env%ri_rpa%rpa_num_quad_points
       input_integ_group_size=mp2_env%ri_rpa%rpa_integ_group_size
@@ -649,19 +649,18 @@ MODULE rpa_ri_gpw
     INTEGER :: ia_global, iiB, iproc, itmp(2), jjB, occ_high, occ_low, &
       proc_receive, proc_send, proc_shift, rec_B_size, rec_B_virtual_end, &
       rec_B_virtual_start, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C_rec
 
     dimen_ia=homo*virtual
     ALLOCATE(sizes_ia(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     sizes_ia=0
     ALLOCATE(starts_ia(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     starts_ia=0
     ALLOCATE(ends_ia(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ends_ia=0
 
     DO iproc=0, para_env_sub%num_pe-1
@@ -677,7 +676,7 @@ MODULE rpa_ri_gpw
 
     ! reorder data
     ALLOCATE(BIb_C_2D(my_ia_size,my_group_L_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,ia_global) &
     !$OMP          SHARED(homo,my_B_size,virtual,my_B_virtual_start,my_ia_start,my_ia_end,BIb_C,BIb_C_2D,&
@@ -703,7 +702,7 @@ MODULE rpa_ri_gpw
       ! TODO: fix this more cleanly with a rewrite sending only needed data etc.
       ! TODO: occ_chunk should presumably be precomputed so that messages are limited to e.g. 100MiB.
       ALLOCATE(BIb_C_rec(my_group_L_size,rec_B_size,MIN(homo,occ_chunk)),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       DO occ_low=1,homo,occ_chunk
          occ_high=MIN(homo,occ_low+occ_chunk-1)
@@ -933,7 +932,7 @@ MODULE rpa_ri_gpw
 
     ! create the RPA proc_map
     ALLOCATE(RPA_proc_map(-para_env_RPA%num_pe:2*para_env_RPA%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     RPA_proc_map=0
     DO i=0,para_env_RPA%num_pe-1
       RPA_proc_map(i)=i
@@ -943,13 +942,13 @@ MODULE rpa_ri_gpw
 
     ! create the info array, first index: 1-> L info, 2-> ia info
     ALLOCATE(RPA_info_start(2,0:para_env_RPA%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     RPA_info_start=0
     ALLOCATE(RPA_info_end(2,0:para_env_RPA%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     RPA_info_end=0
     ALLOCATE(RPA_info_size(2,0:para_env_RPA%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     RPA_info_size=0
 
     RPA_info_start(1,para_env_RPA%mepos)=my_group_L_start
@@ -971,10 +970,10 @@ MODULE rpa_ri_gpw
       ! 0) create array with processes positions
       CALL timeset(routineN//"_info",handle3)
       ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       grid_2_mepos=0
       ALLOCATE(mepos_2_grid(0:para_env_RPA%num_pe-1,2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       mepos_2_grid=0
 
       grid_2_mepos(myprow,mypcol)=para_env_RPA%mepos
@@ -986,7 +985,7 @@ MODULE rpa_ri_gpw
 
       ! 1) loop over my local data and define a map for the proc to send data
       ALLOCATE(map_send_size(0:para_env_RPA%num_pe-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       map_send_size=0
       DO jjB=my_group_L_start, my_group_L_end
         send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
@@ -1001,11 +1000,11 @@ MODULE rpa_ri_gpw
 
       ! 2) loop over my local data of fm_mat_S and define a map for the proc from which rec data
       ALLOCATE(map_rec_size(0:para_env_RPA%num_pe-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       map_rec_size=0
       mepos_in_RPA_group=MOD(color_sub,integ_group_size)
       ALLOCATE(group_grid_2_mepos(0:para_env_sub%num_pe-1,0:integ_group_size-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       group_grid_2_mepos=0
       group_grid_2_mepos(para_env_sub%mepos,mepos_in_RPA_group)=para_env_RPA%mepos
       CALL mp_sum(group_grid_2_mepos,para_env_RPA%group)
@@ -1077,12 +1076,12 @@ MODULE rpa_ri_gpw
       END DO
 
       ALLOCATE(buffer_send(number_of_send),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       ! this array given a pair (ref_send_prow,ref_send_pcol) returns
       ! the position in the buffer_send associated to that process
       ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       grid_ref_2_send_pos=0
 
       send_counter=0
@@ -1094,7 +1093,7 @@ MODULE rpa_ri_gpw
           send_counter=send_counter+1
           ! prepare the sending buffer
           ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           buffer_send(send_counter)%msg=0.0_dp
           buffer_send(send_counter)%proc=proc_send
 
@@ -1124,7 +1123,7 @@ MODULE rpa_ri_gpw
       ! loop over the locally held data and fill the buffer_send
       ! for doing that we need an array index 
       ALLOCATE(iii_vet(number_of_send),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     
       iii_vet=0
       DO iiB=my_ia_start, my_ia_end
@@ -1159,7 +1158,7 @@ MODULE rpa_ri_gpw
       END DO
   
       ALLOCATE(buffer_rec(number_of_rec),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       rec_counter=0
       DO proc_shift=1, para_env_RPA%num_pe-1
@@ -1170,7 +1169,7 @@ MODULE rpa_ri_gpw
           rec_counter=rec_counter+1
           ! prepare the buffer for receive
           ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           buffer_rec(rec_counter)%msg=0.0_dp
           buffer_rec(rec_counter)%proc=proc_receive
 
@@ -1181,7 +1180,7 @@ MODULE rpa_ri_gpw
 
       ! 6) send data
       ALLOCATE(req_send(number_of_send),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       send_counter=0
       DO proc_shift=1, para_env_RPA%num_pe-1
         proc_send=RPA_proc_map(para_env_RPA%mepos+proc_shift)
@@ -1204,7 +1203,7 @@ MODULE rpa_ri_gpw
         my_num_row_blocks=my_num_row_blocks+1
       END DO
       ALLOCATE(blocks_ranges_row(2,my_num_row_blocks),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       blocks_ranges_row=0
       blocks_ranges_row(1,1)=row_indices(1)
       iii=1
@@ -1223,7 +1222,7 @@ MODULE rpa_ri_gpw
         my_num_col_blocks=my_num_col_blocks+1
       END DO
       ALLOCATE(blocks_ranges_col(2,my_num_col_blocks),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       blocks_ranges_col=0
       blocks_ranges_col(1,1)=col_indices(1)
       iii=1
@@ -1256,7 +1255,7 @@ MODULE rpa_ri_gpw
             END DO
           END DO
           ALLOCATE(index_col_rec(num_rec_cols),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           index_col_rec=0
           iii=0
           DO jjB=1, my_num_col_blocks
@@ -1380,7 +1379,7 @@ MODULE rpa_ri_gpw
         rec_ia_end=RPA_info_end(2,proc_receive)
 
         ALLOCATE(BIb_C_rec(rec_ia_size,rec_L_size),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         BIb_C_rec=0.0_dp
 
         CALL  mp_sendrecv(BIb_C_2D,proc_send_static,&
@@ -1401,7 +1400,7 @@ MODULE rpa_ri_gpw
 
         DEALLOCATE(BIb_C_2D)
         ALLOCATE(BIb_C_2D(rec_ia_size,rec_L_size),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         BIb_C_2D(:,:)=BIb_C_rec
 
         DEALLOCATE(BIb_C_rec)
@@ -1616,20 +1615,20 @@ MODULE rpa_ri_gpw
        PRESENT(fm_mat_Q_beta)) my_open_shell=.TRUE.
 
     ALLOCATE(tj(num_integ_points),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     tj=0.0_dp
     ALLOCATE(wj(num_integ_points),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     wj=0.0_dp
     ALLOCATE(Q_log(dimen_RI),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(trace_Qomega(dimen_RI),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   
     IF(do_minimax_quad) THEN
       ! MINIMAX quadrature
       ALLOCATE(x_tw(2*num_integ_points),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       x_tw=0.0_dp
   
       Emin=Eigenval(homo+1)-Eigenval(homo)
@@ -1721,11 +1720,11 @@ MODULE rpa_ri_gpw
       gw_corr_lev_tot=gw_corr_lev_occ+gw_corr_lev_virt
 
       ALLOCATE(Eigenval_scf(nmo),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Eigenval_scf(:) = Eigenval(:)
 
       ALLOCATE(Eigenval_last(nmo),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Eigenval_last(:) = Eigenval(:)
 
       ! in the case of HF_diag approach of X. Blase (PRB 83, 115103 (2011), Sec. IV), we subtract the
@@ -1741,11 +1740,11 @@ MODULE rpa_ri_gpw
       ! Eigenval for beta
       IF(my_open_shell) THEN
         ALLOCATE(Eigenval_scf_beta(nmo),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         Eigenval_scf_beta(:) = Eigenval_beta(:)
   
         ALLOCATE(Eigenval_last_beta(nmo),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         Eigenval_last_beta(:) = Eigenval_beta(:)
   
         ! in the case of HF_diag approach of X. Blase (PRB 83, 115103 (2011), Sec. IV), we subtract the
@@ -1771,12 +1770,12 @@ MODULE rpa_ri_gpw
       END IF
 
       ALLOCATE(vec_W_gw(dimen_nm_gw),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       vec_W_gw=0.0_dp
 
       IF(my_open_shell) THEN
         ALLOCATE(vec_W_gw_beta(dimen_nm_gw),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         vec_W_gw_beta=0.0_dp
       END IF 
  
@@ -1785,7 +1784,7 @@ MODULE rpa_ri_gpw
   
       ! fill the omega_frequency vector
       ALLOCATE(vec_omega_gw(num_integ_points),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       vec_omega_gw=0.0_dp
   
       DO jquad=1,num_integ_points
@@ -1808,18 +1807,18 @@ MODULE rpa_ri_gpw
   
       ! create new arrays containing omega values at which we calculate vec_Sigma_c_gw
       ALLOCATE(vec_omega_fit_gw(num_fit_points),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
  
       ALLOCATE(vec_omega_fit_gw_sign(num_fit_points),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
  
       ALLOCATE(vec_Sigma_c_gw(gw_corr_lev_tot,num_fit_points),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       vec_Sigma_c_gw=(0.0_dp,0.0_dp)
  
       IF(my_open_shell) THEN
         ALLOCATE(vec_Sigma_c_gw_beta(gw_corr_lev_tot,num_fit_points),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         vec_Sigma_c_gw_beta=(0.0_dp,0.0_dp)
       END IF
 
@@ -1837,45 +1836,45 @@ MODULE rpa_ri_gpw
       ! arrays storing the complex fit parameters a_0, a_1, b_1, a_2, b_2, ...
       num_var=2*num_poles+1
       ALLOCATE(Lambda(num_var),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Lambda=(0.0_dp,0.0_dp)
       ALLOCATE(Lambda_without_offset(num_var),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Lambda_without_offset=(0.0_dp,0.0_dp)
       ALLOCATE(Lambda_Re(num_var),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Lambda_Re=0.0_dp
       ALLOCATE(Lambda_Im(num_var),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Lambda_Im=0.0_dp
 
       ! arrays storing the correlation self-energy, stat. error and z-shot value
       ALLOCATE(vec_gw_energ(gw_corr_lev_tot),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       vec_gw_energ=0.0_dp
       ALLOCATE(vec_gw_energ_error_fit(gw_corr_lev_tot),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       vec_gw_energ_error_fit=0.0_dp
       ALLOCATE(z_value(gw_corr_lev_tot),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       z_value=0.0_dp
       ALLOCATE(m_value(gw_corr_lev_tot),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       m_value=0.0_dp
 
       ! the same for beta
       IF(my_open_shell) THEN
         ALLOCATE(vec_gw_energ_beta(gw_corr_lev_tot),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         vec_gw_energ_beta=0.0_dp
         ALLOCATE(vec_gw_energ_error_fit_beta(gw_corr_lev_tot),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         vec_gw_energ_error_fit_beta=0.0_dp
         ALLOCATE(z_value_beta(gw_corr_lev_tot),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         z_value_beta=0.0_dp
         ALLOCATE(m_value_beta(gw_corr_lev_tot),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         m_value_beta=0.0_dp
       END IF
  
@@ -2024,7 +2023,7 @@ MODULE rpa_ri_gpw
            CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia,alpha=alpha,matrix_a=fm_mat_S,&
                            ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm)
         CASE DEFAULT
-           CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END SELECT
         t_end=m_walltime()
   
@@ -2107,7 +2106,7 @@ MODULE rpa_ri_gpw
              CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia_beta,alpha=alpha,matrix_a=fm_mat_S_beta,&
                              ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm_beta)
           CASE DEFAULT
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END SELECT
           t_end=m_walltime()
           actual_flop_rate=2.0_dp*REAL(dimen_ia_beta,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
@@ -2150,7 +2149,7 @@ MODULE rpa_ri_gpw
   
         ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
         CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q, n=dimen_RI, info_out=info_chol)
-        CPPostcondition(info_chol==0,cp_failure_level,routineP,failure)
+        CPASSERT(info_chol==0)
   
         ! get info of cholesky_decomposed(fm_mat_Q)
         CALL cp_fm_get_info(matrix=fm_mat_Q,&
@@ -2547,13 +2546,13 @@ MODULE rpa_ri_gpw
     eps=1.0E-10_dp
 
     ALLOCATE(cottj(num_integ_points),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(tj(num_integ_points),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(wj(num_integ_points),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! calculate the cotangent of the abscissa tj
     DO jquad=1, num_integ_points
@@ -2574,7 +2573,7 @@ MODULE rpa_ri_gpw
 
     ! allocate the local buffer of iaia_RI integrals (dp kind)
     ALLOCATE(iaia_RI_dp(nrow_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     iaia_RI_dp=0.0_dp
 
     ! 2) perform the local multiplication SUM_K (ia|K)*(ia|K)
@@ -2609,7 +2608,7 @@ MODULE rpa_ri_gpw
 
     ! convert the iaia_RI_dp into double-double precision
     ALLOCATE(iaia_RI(nrow_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO iiB=1, nrow_local
       iaia_RI(iiB)=iaia_RI_dp(iiB)
     END DO
@@ -2620,10 +2619,10 @@ MODULE rpa_ri_gpw
     ! orbital energy differences, M_ia is the diagonal of the full RPA 'excitation'
     ! matrix 
     ALLOCATE(D_ia(nrow_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(M_ia(nrow_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO iiB=1, nrow_local
       i_global=row_indices(iiB)
@@ -2665,7 +2664,7 @@ MODULE rpa_ri_gpw
                           col_indices=col_indices_beta)
 
       ALLOCATE(iaia_RI_dp_beta(nrow_local_beta),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       iaia_RI_dp_beta=0.0_dp
 
       DO jjB=1, ncol_local_beta
@@ -2682,17 +2681,17 @@ MODULE rpa_ri_gpw
       CALL mp_sum(iaia_RI_dp_beta,para_env_row_beta%group)
 
       ALLOCATE(iaia_RI_beta(nrow_local_beta),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DO iiB=1, nrow_local_beta
         iaia_RI_beta(iiB)=iaia_RI_dp_beta(iiB)
       END DO
       DEALLOCATE(iaia_RI_dp_beta)
 
       ALLOCATE(D_ia_beta(nrow_local_beta),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       ALLOCATE(M_ia_beta(nrow_local_beta),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       DO iiB=1, nrow_local_beta
         i_global=row_indices_beta(iiB)
@@ -2937,14 +2936,13 @@ MODULE rpa_ri_gpw
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:)                           :: Lambda_tmp
     INTEGER                                  :: handle, num_var, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: chi2, chi2_sum
 
       CALL timeset(routineN,handle)
 
       num_var=2*num_poles+1
       ALLOCATE(Lambda_tmp(num_var),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Lambda_tmp=(0.0_dp,0.0_dp)
       chi2_sum=0.0_dp
       re_unit=(1.0_dp,0.0_dp)
@@ -3189,7 +3187,7 @@ MODULE rpa_ri_gpw
                                                 jquad, kkk, n_level_gw_ref, &
                                                 num_var, stat, xpos
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    LOGICAL                                  :: could_exit, failure
+    LOGICAL                                  :: could_exit
     REAL(KIND=dp) :: chi2, chi2_old, e_fermi, gw_energ, Ldown, Lup, &
       range_step, ScalParam, sign_occ_virt, stat_error
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Lambda_Im, Lambda_Re, &
@@ -3203,20 +3201,20 @@ MODULE rpa_ri_gpw
 
       num_var=2*num_poles+1
       ALLOCATE(Lambda(num_var),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Lambda=(0.0_dp,0.0_dp)
       ALLOCATE(Lambda_without_offset(num_var),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Lambda_without_offset=(0.0_dp,0.0_dp)
       ALLOCATE(Lambda_Re(num_var),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Lambda_Re=0.0_dp
       ALLOCATE(Lambda_Im(num_var),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Lambda_Im=0.0_dp
 
       ALLOCATE(vec_omega_fit_gw_sign(num_fit_points),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       IF(n_level_gw<=gw_corr_lev_occ) THEN
         sign_occ_virt = -1.0_dp
@@ -3247,11 +3245,11 @@ MODULE rpa_ri_gpw
 
 
       ALLOCATE(mat_A_gw(num_poles+1,num_poles+1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(vec_b_gw(num_poles+1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(ipiv(num_poles+1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       mat_A_gw=(0.0_dp,0.0_dp)
       vec_b_gw=0.0_dp
       
@@ -3274,10 +3272,10 @@ MODULE rpa_ri_gpw
 
       ! Solve system of linear equations
       CALL ZGETRF(num_poles+1,num_poles+1,mat_A_gw,num_poles+1,ipiv,info)
-      CPPrecondition(info==0,cp_failure_level,routineP,failure)
+      CPASSERT(info==0)
 
       CALL ZGETRS('N',num_poles+1,1,mat_A_gw,num_poles+1,ipiv,vec_b_gw,num_poles+1,info)
-      CPPrecondition(info==0,cp_failure_level,routineP,failure)
+      CPASSERT(info==0)
 
       Lambda_Re(1)=REAL(vec_b_gw(1))
       Lambda_Im(1)=AIMAG(vec_b_gw(1))
@@ -3292,19 +3290,19 @@ MODULE rpa_ri_gpw
       DEALLOCATE(ipiv)
 
       ALLOCATE(mat_A_gw(num_var*2,num_var*2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(mat_B_gw(num_fit_points,num_var*2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(dLambda(num_fit_points),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(dLambda_2(num_fit_points),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(vec_b_gw(num_var*2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(vec_b_gw_copy(num_var*2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(ipiv(num_var*2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       ScalParam=0.01_dp
       Ldown=1.5_dp
@@ -3377,10 +3375,10 @@ MODULE rpa_ri_gpw
         CALL timeset(routineN//"_fit_lin_eq_2",handle4)
 
         CALL ZGETRF(2*num_var,2*num_var,mat_A_gw,2*num_var,ipiv,info)
-        CPPrecondition(info==0,cp_failure_level,routineP,failure)
+        CPASSERT(info==0)
 
         CALL ZGETRS('N',2*num_var,1,mat_A_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
-        CPPrecondition(info==0,cp_failure_level,routineP,failure)
+        CPASSERT(info==0)
 
         CALL timestop(handle4)
 
@@ -3523,11 +3521,11 @@ MODULE rpa_ri_gpw
 
       ! allocate N array containing the second derivatives of chi^2
       ALLOCATE(vec_N_gw(num_var*2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       vec_N_gw = 0.0_dp
 
       ALLOCATE(mat_N_gw(num_var*2,num_var*2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       mat_N_gw = 0.0_dp
 
       DO iii=1,num_var*2
@@ -3543,15 +3541,15 @@ MODULE rpa_ri_gpw
       END DO
 
       CALL DGETRF(2*num_var,2*num_var,mat_N_gw,2*num_var,ipiv,info)
-      CPPrecondition(info==0,cp_failure_level,routineP,failure)
+      CPASSERT(info==0)
 
       ! vec_b_gw is only working array
       CALL DGETRI(2*num_var,mat_N_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
-      CPPrecondition(info==0,cp_failure_level,routineP,failure)
+      CPASSERT(info==0)
 
 
       ALLOCATE(stat_errors(2*num_var),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       stat_errors=0.0_dp
 
       DO iii=1,2*num_var

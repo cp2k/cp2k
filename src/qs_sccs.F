@@ -219,10 +219,10 @@ CONTAINS
 
     sccs_control => dft_control%sccs_control
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rho_tot_gspace),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(v_hartree_gspace),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(v_sccs),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
+    CPASSERT(ASSOCIATED(rho_tot_gspace))
+    CPASSERT(ASSOCIATED(v_hartree_gspace))
+    CPASSERT(ASSOCIATED(v_sccs))
 
     IF (PRESENT(h_stress)) THEN
       calculate_stress_tensor = .TRUE.
@@ -301,7 +301,7 @@ CONTAINS
                     rho_r_sccs=rho_r_sccs)
 
     ! Retrieve the last rho_iter from the previous SCCS cycle if available
-    CPPrecondition(ASSOCIATED(rho_r_sccs),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_r_sccs))
     rho_iter_old => rho_r_sccs%pw
 
     ! Retrieve the total electronic density in r-space
@@ -990,9 +990,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(f),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(f))
+    CPASSERT(ASSOCIATED(pw_env))
+    CPASSERT(ASSOCIATED(para_env))
 
     ! Perform method specific setup
     SELECT CASE (method)

@@ -85,9 +85,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(mpole),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(mpole))
     ALLOCATE (mpole(ndim),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, ndim
        NULLIFY(mpole(i)%mpole)
        CALL semi_empirical_mpole_create(mpole(i)%mpole)
@@ -117,7 +117,7 @@ CONTAINS
           CALL semi_empirical_mpole_release(mpole(i)%mpole)
        END DO
        DEALLOCATE (mpole, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE semi_empirical_mpole_p_release
@@ -137,9 +137,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(mpole),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(mpole))
     ALLOCATE (mpole,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     mpole%task = .FALSE.
     mpole%indi = 0
     mpole%indj = 0
@@ -169,7 +169,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(mpole)) THEN
        DEALLOCATE (mpole, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE semi_empirical_mpole_release
@@ -189,9 +189,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(nddo_mpole),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(nddo_mpole))
     ALLOCATE (nddo_mpole,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(nddo_mpole%charge)
     NULLIFY(nddo_mpole%dipole)
     NULLIFY(nddo_mpole%quadrupole)
@@ -218,30 +218,30 @@ CONTAINS
     IF (ASSOCIATED(nddo_mpole)) THEN
        IF (ASSOCIATED(nddo_mpole%charge)) THEN
           DEALLOCATE(nddo_mpole%charge,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(nddo_mpole%dipole)) THEN
           DEALLOCATE(nddo_mpole%dipole,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(nddo_mpole%quadrupole)) THEN
           DEALLOCATE(nddo_mpole%quadrupole,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(nddo_mpole%efield0)) THEN
           DEALLOCATE(nddo_mpole%efield0,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(nddo_mpole%efield1)) THEN
           DEALLOCATE(nddo_mpole%efield1,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(nddo_mpole%efield2)) THEN
           DEALLOCATE(nddo_mpole%efield2,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE (nddo_mpole, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE nddo_mpole_release

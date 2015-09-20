@@ -77,7 +77,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="motion",&
          description="This section defines a set of tool connected with the motion of the nuclei.",&
          n_keywords=1, n_subsections=1, repeats=.FALSE.)
@@ -157,7 +157,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="mc",&
          description="This section sets parameters to set up a MonteCarlo calculation.",&
          n_keywords=10, n_subsections=2, repeats=.FALSE.)
@@ -376,7 +376,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="avbmc",&
          description="Parameters for Aggregation Volume Bias Monte Carlo (AVBMC) "//&
@@ -434,7 +434,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="move_probabilities",&
          description="Parameters for fraction of moves performed for each move type.",&
@@ -511,7 +511,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="mol_probabilities",&
          description="Probabilities of attempting various moves types on "//&
@@ -574,7 +574,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="BOX_PROBABILITIES",&
          description="Probabilities of attempting various moves types on "//&
@@ -617,7 +617,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="MOVE_UPDATES",&
          description="Frequency for updating move maximum displacements.",&
@@ -659,7 +659,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="max_displacements",&
          description="The maximum displacements for all attempted moves.",&
@@ -694,7 +694,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="mol_displacements",&
          description="Maximum displacements for every move type that requires "//&
@@ -757,7 +757,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="BOX_DISPLACEMENTS",&
          description="Maximum displacements for any move that is performed on each" // &
@@ -798,7 +798,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name=label, description=description,&
          n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
@@ -1440,7 +1440,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="FLEXIBLE_PARTITIONING",&
          description="This section sets up flexible_partitioning",&
          n_keywords=1, n_subsections=1, repeats=.FALSE.)
@@ -1541,7 +1541,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DRIVER",&
          description="This section defines the parameters needed to run in i-PI driver mode.",&
          n_keywords=3, n_subsections=0, repeats=.FALSE.)
@@ -1590,7 +1590,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PINT",&
          description="The section that controls a path integral run",&
          n_keywords=11, n_subsections=8, repeats=.FALSE.)
@@ -1872,9 +1872,9 @@ CONTAINS
                                                 subsubsection
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     IF (failure) THEN
-      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
     END IF
 
     CALL section_create(section,name="HELIUM",&

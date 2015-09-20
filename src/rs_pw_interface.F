@@ -89,7 +89,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(gridlevel_info, mgrid_gspace, mgrid_rspace, rs_descs, pw_pools)
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools)
 
     gridlevel_info=>pw_env%gridlevel_info
@@ -183,7 +183,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY(gridlevel_info, mgrid_gspace, mgrid_rspace, rs_descs, pw_pools)
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools)
 
 

@@ -266,7 +266,7 @@ CONTAINS
          matrix_vxc, vee, rho_nlcc, ks_env, &
          ks_matrix, rho, energy, rho_xc, rho_r, rho_ao, rho_core)
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
 
     logger => cp_get_default_logger()
     my_print = .TRUE.
@@ -320,11 +320,11 @@ CONTAINS
 
     nimages = dft_control%nimages
     nspins=dft_control%nspins
-    CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(ks_matrix,1)>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_h))
+    CPASSERT(ASSOCIATED(matrix_s))
+    CPASSERT(ASSOCIATED(rho))
+    CPASSERT(ASSOCIATED(pw_env))
+    CPASSERT(SIZE(ks_matrix,1)>0)
 
     ! Setup the possible usage of DDAPC charges
     do_ddapc = dft_control%qs_control%ddapc_restraint.OR.&
@@ -340,12 +340,12 @@ CONTAINS
 
     do_ppl = dft_control%qs_control%do_ppl_method == do_ppl_grid
     IF ( do_ppl ) THEN
-      CPPrecondition(.NOT.gapw,cp_failure_level,routineP,failure)
+      CPASSERT(.NOT.gapw)
       CALL get_qs_env ( qs_env=qs_env, vppl=vppl_rspace)
     END IF
 
     IF(gapw_xc) THEN
-      CPPrecondition(ASSOCIATED(rho_xc),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(rho_xc))
     END IF
 
     ! gets the tmp grids
@@ -478,7 +478,7 @@ CONTAINS
              IF (gapw) THEN
                 CALL get_qs_env(qs_env=qs_env,&
                      rho0_s_rs=rho0_s_rs)
-                CPPrecondition(ASSOCIATED(rho0_s_rs),cp_failure_level,routineP,failure)
+                CPASSERT(ASSOCIATED(rho0_s_rs))
                 ee_ener = ee_ener +  pw_integral_ab (rho0_s_rs%pw, vee%pw)
              END IF
           END IF
@@ -601,14 +601,14 @@ CONTAINS
        END IF !do_hfx
  
        IF(do_ppl .AND. calculate_forces)THEN
-          CPPrecondition(.NOT.gapw,cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.gapw)
           DO ispin=1,nspins
              CALL integrate_ppl_rspace(rho_r(ispin),qs_env)
           END DO
        END IF
 
        IF(ASSOCIATED(rho_nlcc) .AND. calculate_forces)THEN
-          CPPrecondition(.NOT.(gapw .OR. gapw_xc),cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.(gapw .OR. gapw_xc))
           DO ispin=1,nspins
              CALL integrate_rho_nlcc(v_rspace_new(ispin),qs_env)
              IF(dft_control%do_admm)CALL integrate_rho_nlcc(v_rspace_new_aux_fit(ispin),qs_env)
@@ -618,7 +618,7 @@ CONTAINS
        ! calculate KG correction
        IF (dft_control%qs_control%do_kg.AND.just_energy) THEN
 
-          CPPrecondition(nimages==1,cp_failure_level,routineP,failure)
+          CPASSERT(nimages==1)
           ksmat => ks_matrix(:,1)
           CALL kg_ekin_subset(qs_env, ksmat, gapw, gapw_xc, ekin_mol, &
                               calculate_forces)
@@ -664,7 +664,7 @@ CONTAINS
                 calculate_forces)
 
           IF (dft_control%qs_control%do_kg) THEN
-             CPPrecondition(nimages==1,cp_failure_level,routineP,failure)
+             CPASSERT(nimages==1)
              ksmat => ks_matrix(:,1)
              CALL kg_ekin_subset(qs_env, ksmat, gapw, gapw_xc, ekin_mol, &
                                  calculate_forces)
@@ -710,7 +710,7 @@ CONTAINS
 
        ! Add DFT+U contribution, if requested
        IF (dft_control%dft_plus_u) THEN
-          CPPrecondition(nimages==1,cp_failure_level,routineP,failure)
+          CPASSERT(nimages==1)
           IF (just_energy) THEN
              CALL plus_u(qs_env=qs_env)
           ELSE
@@ -749,7 +749,7 @@ CONTAINS
        ! right now this operation is only non-trivial because of occupation numbers and the restricted keyword
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy.AND..NOT.qs_env%run_rtp) THEN
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs)
-          CPPrecondition(nimages==1,cp_failure_level,routineP,failure)
+          CPASSERT(nimages==1)
           ksmat => ks_matrix(:,1)
           CALL calc_mo_derivatives(qs_env,ksmat,mo_derivs)
        ENDIF
@@ -859,7 +859,7 @@ CONTAINS
             matrix_p, poisson_env, pw_pools, v_rspace_new, v_tau_rspace, &
             atomic_kind_set, lri_env, lri_density, lri_v_int, v_hartree_rspace%pw,&
             virial)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
 
     my_print = .TRUE.
     IF(PRESENT(print_active)) my_print = print_active
@@ -881,8 +881,8 @@ CONTAINS
                     energy=energy)
 
     nspins=dft_control%nspins
-    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(ks_matrix)>0)
+    CPASSERT(ASSOCIATED(pw_env))
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -980,7 +980,7 @@ CONTAINS
        ENDDO
        IF(ASSOCIATED(v_rspace_new)) THEN
           DEALLOCATE(v_rspace_new,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        ENDIF
 
        ! *** LRIGPW forces
@@ -1045,7 +1045,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
-    LOGICAL                                  :: failure, my_skip
+    LOGICAL                                  :: my_skip
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core
@@ -1065,12 +1065,12 @@ CONTAINS
     IF (.NOT.my_skip) THEN
        IF(dft_control%qs_control%gapw) THEN
            IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-              CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(rho0_s_gs))
               CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw)
               CALL pw_axpy(rho_core%pw,rho_tot_gspace%pw)
               CALL pw_axpy(rho_g(1)%pw,rho_tot_gspace%pw)
            ELSE
-              CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(rho0_s_gs))
               CALL pw_copy(rho0_s_gs%pw,rho_tot_gspace%pw)
               CALL pw_axpy(rho_g(1)%pw,rho_tot_gspace%pw)
            END IF
@@ -1166,17 +1166,17 @@ CONTAINS
 
        IF (dft_control%restricted) THEN
            ! only the first mo_set are actual variables, but we still need both
-           CPPrecondition(ispin==1, cp_failure_level, routineP,failure)
-           CPPrecondition(SIZE(mo_array)==2, cp_failure_level, routineP,failure)
+           CPASSERT(ispin==1)
+           CPASSERT(SIZE(mo_array)==2)
            ! use a temporary array with the same size as the first spin for the second spin
 
            ! uniform_occupation is needed for this case, otherwise we can no
            ! reconstruct things in ot, since we irreversibly sum
            CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
-           CPPrecondition(uniform_occupation, cp_failure_level, routineP,failure)
+           CPASSERT(uniform_occupation)
            CALL get_mo_set(mo_set=mo_array(2)%mo_set,&
                 uniform_occupation=uniform_occupation)
-           CPPrecondition(uniform_occupation, cp_failure_level, routineP,failure)
+           CPASSERT(uniform_occupation)
 
            CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff_b=mo_coeff_b)
            CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(2)%matrix,mo_coeff_b,&
@@ -1239,7 +1239,7 @@ CONTAINS
        CALL timeset(routineN,handle)
     ENDIF
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&
@@ -1419,7 +1419,7 @@ CONTAINS
 
     ! scale every column with the occupation
     ALLOCATE(eigocc(mo_set%homo),stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO imo=1,mo_set%homo
        eigocc(imo) = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
@@ -1491,12 +1491,12 @@ CONTAINS
 
     CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers )
     ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     scaling_factor=2.0_dp*occupation_numbers
     CALL copy_dbcsr_to_fm(mo_deriv,weighted_vectors)
     CALL cp_fm_column_scale(weighted_vectors,scaling_factor)
     DEALLOCATE(scaling_factor,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! the convention seems to require the half here, the factor of two is presumably taken care of
     ! internally in qs_core_hamiltonian
@@ -1526,12 +1526,12 @@ CONTAINS
                                  gradient, ncol_global)
 
        ALLOCATE(scaling_factor(SIZE(occupation_numbers)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        scaling_factor=2.0_dp*occupation_numbers
        CALL copy_dbcsr_to_fm(mo_deriv,weighted_vectors)
        CALL cp_fm_column_scale(weighted_vectors,scaling_factor)
        DEALLOCATE(scaling_factor,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        WRITE(*,*) " maxabs difference ", MAXVAL(ABS(weighted_vectors%local_data-2.0_dp*gradient%local_data))
        CALL cp_fm_release(gradient)

@@ -174,11 +174,11 @@ CONTAINS
 
     ! for each global atom, build atomic halo and get the associated cost
     ALLOCATE(pair_radii(nkinds,nkinds), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_build_pair_radii(rcut, nkinds, pair_radii)
     CALL fb_atomic_halo_create(atomic_halo)
     ALLOCATE(cost_per_atom(natoms), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DO iatom = 1, natoms
        CALL fb_atomic_halo_init(atomic_halo)
        CALL fb_atomic_halo_build_halo_atoms(iatom, &
@@ -196,14 +196,14 @@ CONTAINS
        cost_per_atom(iatom) = fb_atomic_halo_cost(atomic_halo, particle_set, qs_kind_set)
     END DO
     DEALLOCATE(pair_radii, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_atomic_halo_release(atomic_halo)
 
     ! build the preferred_procs_set according to DBCSR mat H
     ALLOCATE(preferred_procs_set(natoms), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(common_set_ids(natoms), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_build_preferred_procs(mat_ks(1)%matrix, &
                                   natoms, &
                                   preferred_procs_set, &
@@ -214,12 +214,12 @@ CONTAINS
     ! the element to a processors using preferred_procs_set in a
     ! round-robin manner
     ALLOCATE(dist(nprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DO ipe = 1, nprocs
        CALL fb_distribution_init(dist=dist(ipe))
     END DO
     ALLOCATE(pos_in_preferred_list(n_common_sets), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     pos_in_preferred_list(:) = 0
     DO iatom = 1, natoms
        element%id = iatom
@@ -233,21 +233,21 @@ CONTAINS
     END DO
 
     DEALLOCATE(pos_in_preferred_list, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(common_set_ids, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(cost_per_atom, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! sort processors according to the overall cost of their assigned
     ! corresponding distribution
     ALLOCATE(cost_per_proc(nprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DO ipe = 1, nprocs
        cost_per_proc(ipe) = dist(ipe)%cost
     END DO
     ALLOCATE(pe(nprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL sort(cost_per_proc, nprocs, pe)
     ! now that cost_per_proc is sorted, ipe's no longer give mpi
     ! ranks, the correct one to use should be pe(ipe)
@@ -257,7 +257,7 @@ CONTAINS
     average_cost = SUM(cost_per_proc) / REAL(nprocs, dp)
 
     DEALLOCATE(cost_per_proc, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! loop over the processors, starting with the highest cost, move
     ! atoms one by one:
@@ -321,26 +321,26 @@ CONTAINS
     END DO ! ipe
 
     DEALLOCATE(pe, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DO ii = 1, SIZE(preferred_procs_set)
        CALL fb_preferred_procs_list_release(preferred_procs_set(ii))
     END DO
     DEALLOCATE(preferred_procs_set, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! generate local atoms from dist
     ALLOCATE(local_atoms_all(natoms), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(local_atoms_starts(nprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(local_atoms_sizes(nprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_distribution_to_local_atoms(dist, &
                                         local_atoms_all, &
                                         local_atoms_starts, &
                                         local_atoms_sizes)
     ALLOCATE(local_atoms(local_atoms_sizes(my_pe)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     lb = local_atoms_starts(my_pe)
     ub = local_atoms_starts(my_pe) + local_atoms_sizes(my_pe) - 1
     local_atoms(1:local_atoms_sizes(my_pe)) = local_atoms_all(lb:ub)
@@ -352,16 +352,16 @@ CONTAINS
     CALL fb_distribution_write_info(dist, scf_section)
 
     DEALLOCATE(local_atoms_all, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(local_atoms_starts, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(local_atoms_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DO ipe = 1, SIZE(dist)
        CALL fb_distribution_release(dist(ipe))
     END DO
     DEALLOCATE(dist, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -500,11 +500,11 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = natoms .LE. cp_dbcsr_nblkcols_total(dbcsr_mat)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = SIZE(preferred_procs_set) .GE. natoms
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = SIZE(common_set_ids) .GE. natoms
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
 
     CALL cp_dbcsr_get_info(dbcsr_mat, distribution=dbcsr_dist, proc_col_dist=col_dist)
     dbcsr_mp = dbcsr_distribution_mp(dbcsr_dist)
@@ -513,10 +513,10 @@ CONTAINS
     DO icol = 1, natoms
        IF (ASSOCIATED(preferred_procs_set(icol)%list)) THEN
           DEALLOCATE(preferred_procs_set(icol)%list, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
        ALLOCATE(preferred_procs_set(icol)%list(nprows), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        pcol = col_dist(icol)
        ! dbcsr prow and pcol counts from 0
        DO prow = 0, nprows-1
@@ -552,7 +552,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(preferred_procs_list%list)) THEN
        DEALLOCATE(preferred_procs_list%list, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE fb_preferred_procs_list_release
 
@@ -589,9 +589,9 @@ CONTAINS
     n_procs = SIZE(dist_set)
 
     check_ok = SIZE(local_atoms_starts) .GE. n_procs
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = SIZE(local_atoms_sizes) .GE. n_procs
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
 
     local_atoms(:) = 0
     local_atoms_starts(:) = 0
@@ -630,12 +630,12 @@ CONTAINS
     IF (PRESENT(nmax)) my_nmax = nmax
     IF (ASSOCIATED(dist%list)) THEN
        DEALLOCATE(dist%list, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     END IF
     NULLIFY(dist%list)
     IF (my_nmax .GT. 0) THEN
        ALLOCATE(dist%list(my_nmax), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        DO ii = 1, SIZE(dist%list)
           dist%list(ii)%id = 0
           dist%list(ii)%cost = 0.0_dp
@@ -668,11 +668,11 @@ CONTAINS
     IF (.NOT. ASSOCIATED(dist%list)) THEN
        my_nmax = MAX(nmax, 1)
        ALLOCATE(dist%list(my_nmax), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        my_nmax = MAX(nmax, dist%nelements)
        ALLOCATE(new_list(my_nmax), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        DO ii = 1, SIZE(new_list)
           new_list(ii)%id = 0
           new_list(ii)%cost = 0.0_dp
@@ -681,7 +681,7 @@ CONTAINS
           new_list(ii) = dist%list(ii)
        END DO
        DEALLOCATE(dist%list, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        dist%list => new_list
     END IF
   END SUBROUTINE fb_distribution_resize
@@ -785,7 +785,7 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = pos .GT. 0
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     IF (pos .LE. dist%nelements) THEN
        dist%cost = dist%cost - dist%list(pos)%cost
        DO ii = pos, dist%nelements-1
@@ -850,9 +850,9 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = ASSOCIATED(dist_from%list)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = pos .LE. dist_from%nelements
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     element = dist_from%list(pos)
     CALL fb_distribution_add(dist_to, element)
     CALL fb_distribution_remove(dist_from, pos)
@@ -880,7 +880,7 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = ASSOCIATED(dist_from%list)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     CALL fb_distribution_add(dist_to, element)
     CALL fb_distribution_remove(dist_from, element)
   END SUBROUTINE fb_distribution_move_el
@@ -903,7 +903,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(dist%list)) THEN
        DEALLOCATE(dist%list, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE fb_distribution_release
 

@@ -91,7 +91,7 @@ CONTAINS
              CALL calculate_dispersion_pairpot(qs_env,dispersion_env,&
                   energy%dispersion,calculate_forces)
           CASE DEFAULT
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
        END SELECT
     END IF
 
@@ -116,7 +116,7 @@ CONTAINS
                                                 iatom, ikind, istat, jatom, &
                                                 jkind, natom, nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: failure, use_virial
+    LOGICAL                                  :: use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: define_kind
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: rc_kind
     REAL(KIND=dp)                            :: a, b, c, devdw, dij, dr, eij, &
@@ -170,7 +170,7 @@ CONTAINS
                           force=force)
           natom = SIZE (particle_set)
           ALLOCATE (atom_of_kind(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
           use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
        ELSE
@@ -178,7 +178,7 @@ CONTAINS
        END IF
        nkind = SIZE(atomic_kind_set)
        ALLOCATE (define_kind(nkind),rc_kind(nkind),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DO ikind=1,nkind
           CALL get_qs_kind(qs_kind_set(ikind),dftb_parameter=dftb_kind_a)
           CALL get_dftb_atom_param(dftb_kind_a,defined=define_kind(ikind),rcdisp=rc_kind(ikind))
@@ -264,7 +264,7 @@ CONTAINS
 
        IF(calculate_forces) THEN
           DEALLOCATE (atom_of_kind,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
 
        ! set dispersion energy

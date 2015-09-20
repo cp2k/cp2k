@@ -94,7 +94,7 @@ CONTAINS
        CALL init_baro_map_info(map_info, number, nhc%loc_num_nhc)
 
        ALLOCATE ( nhc%nvt(nhc%nhc_len, nhc%loc_num_nhc), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Now that we know how many there are stick this into nhc % nkt
        ! (number of degrees of freedom times k_B T )
        DO i = 1, nhc%loc_num_nhc
@@ -216,9 +216,9 @@ CONTAINS
           nhc % nvt ( i, : ) % degrees_of_freedom = 1
        END DO
        DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( massive_atom_list, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! Let's clean the arrays
        map_info%s_kin   = 0.0_dp
@@ -290,7 +290,7 @@ CONTAINS
        simpar, number, region, gci, do_shell, thermostat_info%map_loc_thermo_gen,&
        sum_of_thermostats)
     ALLOCATE (nhc%nvt(nhc%nhc_len,number),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Now that we know how many there are stick this into nhc%nkt
     ! (number of degrees of freedom times k_B T for the first thermostat
@@ -391,9 +391,9 @@ CONTAINS
           nhc % nvt ( i, : ) % degrees_of_freedom = 1
        END DO
        DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( massive_atom_list, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! Let's clean the arrays
        map_info%s_kin   = 0.0_dp
@@ -493,9 +493,9 @@ CONTAINS
           nhc % nvt ( i, : ) % degrees_of_freedom = 1
        END DO
        DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( massive_atom_list, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! Let's clean the arrays
        map_info%s_kin   = 0.0_dp
@@ -568,7 +568,7 @@ CONTAINS
        sum_of_thermostats)
 
     ALLOCATE (nhc%nvt(nhc%nhc_len,number),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Now that we know how many there are stick this into nhc%nkt
     ! (number of degrees of freedom times k_B T for the first thermostat
@@ -659,9 +659,9 @@ CONTAINS
           nhc % nvt ( i, : ) % degrees_of_freedom = 1
        END DO
        DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( massive_shell_list, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! Let's clean the arrays
        map_info%s_kin   = 0.0_dp

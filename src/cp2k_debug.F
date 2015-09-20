@@ -237,14 +237,14 @@ CONTAINS
        IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
        np = subsys%particles%n_els
        ALLOCATE (analyt_forces(np,3),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO ip=1,np
           analyt_forces(ip,1:3) = particles(ip)%f(1:3)
        END DO
        ! Loop on atoms and coordinates
        IF (ASSOCIATED(numer_forces)) DEALLOCATE (numer_forces)
        ALLOCATE (numer_forces(subsys%particles%n_els,3),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        Atom: DO ip=1,np
           Coord: DO k=1,3
              numer_energy = 0.0_dp

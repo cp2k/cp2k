@@ -76,7 +76,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(wavelet, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     nx = pw_grid % npts ( 1 )
     ny = pw_grid % npts ( 2 )
@@ -164,7 +164,7 @@ CONTAINS
     z_dim=md2/nproc
     !!!!!!!!!      indicies y and z are interchanged    !!!!!!!
     ALLOCATE(wavelet%rho_z_sliced(md1,md3,z_dim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL createKernel(geocode,nx,ny,nz,hx,hy,hz,wavelet%itype_scf,iproc,nproc,wavelet%karray,&
                        pw_grid % para % rs_group)
@@ -202,7 +202,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(wavelet))
 
     nproc=PRODUCT(pw_grid % para % rs_dims)
     iproc=pw_grid % para % rs_mpo
@@ -379,7 +379,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(wavelet),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(wavelet))
 
     nproc=PRODUCT(pw_grid % para % rs_dims)
     iproc=pw_grid % para % rs_mpo

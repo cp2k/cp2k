@@ -65,7 +65,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RESP",&
          description="Requests a RESP fit of charges. When using a periodic "//&
          "Poisson solver and a periodic cell, the periodic RESP routines are "//&
@@ -156,7 +156,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CONSTRAINT",&
          description="specifies a linear constraint on the fitted charges."//&
                      "This can be used to give equal values to equivalent atoms." //&
@@ -216,7 +216,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RESTRAINT",&
          description="specifies a restraint on the fitted charges."//&
                      "This can be used to restrain values to zero." //&
@@ -276,7 +276,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="SPHERE_SAMPLING",&
          description="Specifies the parameter for sampling the RESP fitting points "//&
                      "for molecular structures, i.e. systems that do not involve " //&
@@ -377,7 +377,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="SLAB_SAMPLING",&
          description="Specifies the parameter for sampling the RESP fitting "//&
                      "points for slab-like periodic systems, i.e. systems that "//&
@@ -453,7 +453,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(print_key, keyword)
     CALL section_create(section,name="print",&
          description="Section of possible print options specific for the RESP code.",&

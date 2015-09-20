@@ -331,7 +331,7 @@ CONTAINS
     !    with the atom_name
     IF (topology%aa_element) THEN
        check = SIZE(topology%atom_info%id_element)==SIZE(topology%atom_info%id_atmname)
-       CPPostcondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        topology%atom_info%id_element = topology%atom_info%id_atmname
     END IF
 
@@ -351,7 +351,7 @@ CONTAINS
     CALL create_ff_map("GROMOS")
 
     ALLOCATE(elements(SIZE(topology%atom_info%id_element)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i=1,SIZE(elements)
        elements(i) = id2str(topology%atom_info%id_element(i))
     ENDDO
@@ -383,7 +383,7 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(elements,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL destroy_ff_map("GROMOS")
     CALL destroy_ff_map("CHARMM")
     CALL destroy_ff_map("AMBER")
@@ -596,7 +596,7 @@ CPSourceFileRef,&
        CALL read_coordinate_cp2k(topology,para_env,subsys_section)
     CASE DEFAULT
        ! We should never reach this point..
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     ! Parse &COORD section and in case overwrite
@@ -664,7 +664,7 @@ CPSourceFileRef,&
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_ref
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(cell_muc),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(cell_muc))
 
     CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL",&
                               i_vals=multiple_unit_cell)

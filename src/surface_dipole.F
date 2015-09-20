@@ -148,7 +148,7 @@ CONTAINS
       iup = wf_r%pw%pw_grid%bounds(2,idir_surfdip)
 
       ALLOCATE (rhoavsurf(ilow:iup),stat=stat)
-      CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       rhoavsurf = 0.0_dp
 
       bo => wf_r%pw%pw_grid%bounds_local
@@ -215,7 +215,7 @@ CONTAINS
      END DO 
 
      DEALLOCATE(rhoavsurf,stat=stat)
-     CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
 
 !    Calculation of the dipole potential as a function of the perpendicular coordinate
      CALL pw_zero(vdip_r%pw)

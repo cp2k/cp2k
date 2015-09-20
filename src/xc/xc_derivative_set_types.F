@@ -85,8 +85,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(pos,deriv_att,cr3d_ptr)
 
-    CPPrecondition(ASSOCIATED(derivative_set),cp_failure_level,routineP,failure)
-    CPPrecondition(derivative_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(derivative_set))
+    CPASSERT(derivative_set%ref_count>0)
 
     my_allocate_deriv=.FALSE.
     IF (PRESENT(allocate_deriv)) my_allocate_deriv=allocate_deriv
@@ -130,10 +130,10 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(pw_grid)
-    CPPrecondition(.not.ASSOCIATED(derivative_set),cp_failure_level,routineP,failure)
+    CPASSERT(.not.ASSOCIATED(derivative_set))
 
     ALLOCATE(derivative_set, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY(derivative_set%derivs)
     derivative_set%ref_count  = 1
@@ -149,7 +149,7 @@ CONTAINS
        END IF
     ELSE
        !FM ugly hack, should be replaced by a pool only for 3d arrays
-       CPPrecondition(PRESENT(local_bounds),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(local_bounds))
        CALL pw_grid_create(pw_grid,MPI_COMM_SELF)
        pw_grid%bounds_local=local_bounds
        NULLIFY(derivative_set%pw_pool)
@@ -178,8 +178,8 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(deriv_att,pos)
-    CPPrecondition(ASSOCIATED(derivative_set),cp_failure_level,routineP,failure)
-    CPPrecondition(derivative_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(derivative_set))
+    CPASSERT(derivative_set%ref_count>0)
 
     derivative_set%ref_count = derivative_set%ref_count - 1
     IF (derivative_set%ref_count == 0) THEN
@@ -191,7 +191,7 @@ CONTAINS
        CALL pw_pool_release(derivative_set%pw_pool)
 
        DEALLOCATE(derivative_set, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     NULLIFY(derivative_set)
 
@@ -214,8 +214,8 @@ SUBROUTINE xc_dset_retain(deriv_set)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-  CPPreconditionNoFail(deriv_set%ref_count>0,cp_failure_level,routineP)
+  CPASSERT(ASSOCIATED(deriv_set))
+  CPASSERT(deriv_set%ref_count>0)
   deriv_set%ref_count=deriv_set%ref_count+1
 END SUBROUTINE xc_dset_retain
 
@@ -237,7 +237,7 @@ SUBROUTINE xc_dset_zero_all(deriv_set)
   failure = .FALSE.
   NULLIFY(pos, deriv_att)
 
-  CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(deriv_set))
   pos => deriv_set%derivs
   DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att))
      deriv_att%deriv_data = 0.0_dp

@@ -127,9 +127,9 @@ SUBROUTINE pw_env_create(pw_env)
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(pw_env))
     ALLOCATE(pw_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,pw_env%poisson_env, &
          pw_env%cube_info, pw_env%rs_descs, pw_env%rs_grids, &
          pw_env%xc_pw_pool, pw_env%vdw_pw_pool, pw_env%lgrid, &
@@ -222,8 +222,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
                   input=input,&
                   dispersion_env=dispersion_env)
 
-  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
-  CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(pw_env))
+  CPASSERT(pw_env%ref_count>0)
   CALL pw_pool_release(pw_env%vdw_pw_pool)
   CALL pw_pool_release(pw_env%xc_pw_pool)
   CALL pw_pools_dealloc(pw_env%pw_pools)
@@ -232,25 +232,25 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
       CALL rs_grid_release_descriptor(pw_env%rs_descs(i)%rs_desc)
     END DO
     DEALLOCATE(pw_env%rs_descs,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END IF
   IF (ASSOCIATED(pw_env%rs_grids)) THEN
     DO i=1, SIZE(pw_env%rs_grids)
       CALL rs_grid_release(pw_env%rs_grids(i)%rs_grid)
     END DO
     DEALLOCATE(pw_env%rs_grids,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END IF
   CALL lgrid_release(pw_env%lgrid)
   IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
      CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info)
   ELSE
      ALLOCATE(pw_env%gridlevel_info,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   END IF
   IF(dft_control%qs_control%gapw) THEN
      CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
-     CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(rho0_mpole))
      CALL get_rho0_mpole(rho0_mpole=rho0_mpole,&
                       zet0_h=zet0,max_rpgf0_s=max_rpgf0_s)
   END IF
@@ -260,7 +260,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
         CALL destroy_cube_info(pw_env%cube_info(igrid_level))
      END DO
      DEALLOCATE(pw_env%cube_info,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+     CPASSERT(stat==0)
   END IF
   NULLIFY(pw_env%pw_pools, pw_env%cube_info)
 
@@ -272,7 +272,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
 
   IF (PRESENT(external_para_env)) THEN
      para_env=>external_para_env
-     CPPostcondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(para_env))
   ENDIF
   ! interpolation section
   pw_env%interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR")
@@ -299,7 +299,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
        print_section=print_section)
   ! init pw_grids and pools
   ALLOCATE(pw_pools(ngrid_level),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   IF (dft_control % qs_control % commensurate_mgrids) THEN
      ncommensurate=ngrid_level
@@ -364,7 +364,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
        xc_deriv_spline3_smooth,xc_deriv_nn10_smooth,xc_deriv_nn50_smooth)
       smooth_required=smooth_required.OR..TRUE.
   CASE DEFAULT
-      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
   END SELECT
   SELECT CASE(xc_smooth_method_id)
   CASE(xc_rho_no_smooth)
@@ -372,7 +372,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
   CASE(xc_rho_spline2_smooth,xc_rho_spline3_smooth,xc_rho_nn10,xc_rho_nn50)
       smooth_required=smooth_required.OR..TRUE.
   CASE DEFAULT
-      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
   END SELECT
   ! EPR, NMR, EFG can require splines. If the linres/EFG section is present we assume
   ! it could be on and splines might be used (not quite sure if this is due to their use of splines or something else)
@@ -480,7 +480,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
      END IF
   END IF
   IF (set_vdw_pool) THEN
-     CPPrecondition(ASSOCIATED(old_pw_grid),cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(old_pw_grid))
      CALL pw_grid_create(vdw_grid,para_env%group)
      CALL pw_grid_setup(my_cell%hmat,vdw_grid,grid_span=grid_span,&
           cutoff=dispersion_env%pw_cutoff,&
@@ -552,7 +552,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
 !
 
   ALLOCATE(radius(ngrid_level),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   CALL compute_max_radius(radius, pw_env, qs_env)
 
@@ -562,13 +562,13 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
 !
 !
   ALLOCATE(rs_descs(ngrid_level),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   ALLOCATE(rs_grids(ngrid_level),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   ALLOCATE (pw_env%cube_info(ngrid_level),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   higher_grid_layout=(/-1,-1,-1/)
 
   DO igrid_level=1,ngrid_level
@@ -597,7 +597,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
   pw_env%rs_grids => rs_grids
 
   DEALLOCATE(radius,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   ! Initialise the lgrids which may be used by OpenMP threads in QS routines
   ! (but don't yet allocate the lgrid, in case we don't need it)
@@ -769,7 +769,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env)
 
     IF(dft_control%qs_control%gapw) THEN
        CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
-       CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(rho0_mpole))
        CALL get_rho0_mpole(rho0_mpole=rho0_mpole,zet0_h=zet0,max_rpgf0_s=max_rpgf0_s)
     END IF
 
@@ -944,9 +944,9 @@ END SUBROUTINE compute_max_radius
 
     failure = .FALSE.
     NULLIFY(poisson_section)
-    CPPrecondition(.NOT.ASSOCIATED(mt_super_ref_pw_grid),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(xc_super_ref_pw_grid),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(super_ref_pw_grid),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(mt_super_ref_pw_grid))
+    CPASSERT(.NOT.ASSOCIATED(xc_super_ref_pw_grid))
+    CPASSERT(.NOT.ASSOCIATED(super_ref_pw_grid))
     poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON")
     CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val)
     !
@@ -987,7 +987,7 @@ END SUBROUTINE compute_max_radius
                odd=.FALSE.,fft_usage=.TRUE.,ncommensurate=0,icommensurate=1)
 
           ! bug appears for nn==no, also in old versions
-          CPPrecondition(ALL(nn>no),cp_failure_level,routineP,failure)
+          CPASSERT(ALL(nn>no))
           CALL pw_grid_setup(cell_ref%hmat, mt_super_ref_pw_grid, &
                cutoff=my_cutilev,spherical=spherical,fft_usage=.TRUE., &
                blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe,1/),&

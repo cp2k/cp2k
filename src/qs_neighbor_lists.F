@@ -139,23 +139,23 @@ CONTAINS
        NULLIFY (atom2d(ikind)%list)
        IF (ASSOCIATED(atom2d(ikind)%list_local_a_index)) THEN
           DEALLOCATE (atom2d(ikind)%list_local_a_index,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(atom2d(ikind)%list_local_b_index)) THEN
           DEALLOCATE (atom2d(ikind)%list_local_b_index,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(atom2d(ikind)%list_a_mol)) THEN
           DEALLOCATE (atom2d(ikind)%list_a_mol,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(atom2d(ikind)%list_b_mol)) THEN
           DEALLOCATE (atom2d(ikind)%list_b_mol,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(atom2d(ikind)%list_1d)) THEN
           DEALLOCATE (atom2d(ikind)%list_1d,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
     CALL timestop(handle)
@@ -219,7 +219,7 @@ CONTAINS
     nkind=SIZE(atomic_kind_set)
     natom=SIZE(particle_set)
     ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind)
 
@@ -252,7 +252,7 @@ CONTAINS
 
        nel = distribution_1d%n_el(ikind)
        ALLOCATE (atom2d(ikind)%list_1d(nel),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO iat=1,nel
          ia = distribution_1d%list(ikind)%array(iat)
          atom2d(ikind)%list_1d(iat) = atom_of_kind(ia)
@@ -278,15 +278,15 @@ CONTAINS
 
        IF ( orb_present(ikind) ) THEN
           ALLOCATE (listsort(natom_a),listindex(natom_a),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           listsort(1:natom_a) = atom2d(ikind)%list(1:natom_a)
           CALL sort(listsort,natom_a,listindex)
           ! Block rows
           IF (natom_local_a > 0) THEN
              ALLOCATE (atom2d(ikind)%list_local_a_index(natom_local_a),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE (atom2d(ikind)%list_a_mol(natom_local_a),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              atom2d(ikind)%list_a_mol(:) = 0
 
 
@@ -304,9 +304,9 @@ CONTAINS
           IF (natom_local_b > 0) THEN
 
              ALLOCATE (atom2d(ikind)%list_local_b_index(natom_local_b),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE (atom2d(ikind)%list_b_mol(natom_local_b),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              atom2d(ikind)%list_b_mol(:) = 0
 
              ! Build index vector for mapping
@@ -320,14 +320,14 @@ CONTAINS
           END IF
 
           DEALLOCATE (listsort,listindex,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
        END IF
 
     ENDDO
 
     DEALLOCATE (atom_of_kind,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -497,11 +497,11 @@ CONTAINS
 
     ALLOCATE (orb_present(nkind),aux_fit_present(nkind),aux_present(nkind),&
               default_present(nkind),core_present(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (orb_radius(nkind),aux_fit_radius(nkind),c_radius(nkind),&
               core_radius(nkind),calpha(nkind),zeff(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     orb_radius(:) = 0.0_dp
     aux_fit_radius(:) = 0.0_dp
     c_radius(:) = 0.0_dp
@@ -510,32 +510,32 @@ CONTAINS
     zeff(:) = 0.0_dp
 
     ALLOCATE (pair_radius(nkind,nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (gth_potential_present) THEN
        ALLOCATE (ppl_present(nkind),ppl_radius(nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ppl_radius = 0.0_dp
        ALLOCATE (ppnl_present(nkind),ppnl_radius(nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ppnl_radius = 0.0_dp
     END IF
 
     IF (paw_atom_present) THEN
        ALLOCATE (oce_present(nkind),oce_radius(nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        oce_radius = 0.0_dp
     END IF
 
     IF (all_potential_present) THEN
        ALLOCATE (all_present(nkind),all_pot_rad(nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        all_pot_rad = 0.0_dp
     END IF
 
     ! Initialize the local data structures
     ALLOCATE (atom2d(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL atom2d_build(atom2d,orb_radius,orb_present,distribution_1d,distribution_2d,&
                       atomic_kind_set,qs_kind_set,molecule_set,molecule_only,&
@@ -925,28 +925,28 @@ CONTAINS
     CALL atom2d_cleanup(atom2d)
 
     DEALLOCATE (atom2d,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (orb_present,default_present,core_present,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (orb_radius,aux_fit_radius,c_radius,core_radius,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (calpha,zeff,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (pair_radius,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (gth_potential_present) THEN
        DEALLOCATE (ppl_present,ppl_radius,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE (ppnl_present,ppnl_radius,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (paw_atom_present) THEN
        DEALLOCATE (oce_present,oce_radius,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
     IF (all_potential_present) THEN
        DEALLOCATE (all_present,all_pot_rad,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     CALL timestop(handle)
@@ -1038,7 +1038,7 @@ CONTAINS
            otype = 1 ! simple overlap
         CASE ("ABC")
            otype = 2 ! for three center operators
-           CPAssert(.NOT.my_molecular,cp_failure_level,routineP,failure)
+           CPASSERT(.NOT.my_molecular)
            my_symmetric = .FALSE.
         CASE ("ABBA")
            otype = 3 ! for separable nonlocal operators
@@ -1046,7 +1046,7 @@ CONTAINS
         CASE ("PP")
            otype = 4 ! simple atomic pair potential list
         CASE default
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
       END SELECT
     ELSE
       ! default is a simple AB neighbor list
@@ -1059,19 +1059,19 @@ CONTAINS
           CALL deallocate_neighbor_list_set(ab_list(iab)%neighbor_list_set)
        END DO
        DEALLOCATE (ab_list,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     nkind = SIZE(atom)
     ! Allocate and initialize the new neighbor list structure
     ALLOCATE (ab_list(nkind*nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO iab=1,SIZE(ab_list)
       NULLIFY (ab_list(iab)%neighbor_list_set)
     END DO
 
     ! Allocate and initialize the kind availability
     ALLOCATE (pres_a(nkind),pres_b(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
       pres_a(ikind) = ANY(pair_radius(ikind,:) > 0._dp)
       pres_b(ikind) = ANY(pair_radius(:,ikind) > 0._dp)
@@ -1080,7 +1080,7 @@ CONTAINS
     ! create a copy of the pbc'ed coordinates
     natom=SIZE(particle_set)
     ALLOCATE(r_pbc(3,natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i=1,natom
        r_pbc(1:3,i)=pbc(particle_set(i)%r(1:3),cell)
     ENDDO
@@ -1091,12 +1091,12 @@ CONTAINS
       maxat=MAX(maxat,SIZE(atom(ikind)%list))
     END DO
     ALLOCATE (index_list(maxat),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i=1,maxat
       index_list(i) = i
     END DO
     ALLOCATE (lista(nkind),listb(nkind),nlista(nkind),nlistb(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     nlista = 0
     nlistb = 0
     DO ikind=1,nkind
@@ -1128,7 +1128,7 @@ CONTAINS
           nlistb(ikind) = SIZE(atom(ikind)%list)
           listb(ikind)%list => index_list
         CASE default
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
       END SELECT
     END DO
 
@@ -1138,7 +1138,7 @@ CONTAINS
       maxat=MAX(maxat,nlista(ikind),nlistb(ikind))
     END DO
     ALLOCATE (kind_a(2*maxat),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Load informations about the simulation cell
     CALL get_cell(cell=cell,periodic=periodic,deth=deth)
@@ -1206,7 +1206,7 @@ CONTAINS
               DO i = 1,nsubcell(1)
                  maxat = subcell(i,j,k)%natom + subcell(i,j,k)%natom/10
                  ALLOCATE(subcell(i,j,k)%atom_list(maxat),stat=stat)
-                 CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
                  subcell(i,j,k)%natom   = 0
               END DO
            END DO
@@ -1350,17 +1350,17 @@ CONTAINS
       CASE (3)
          DO ikind=1,nkind
            DEALLOCATE(lista(ikind)%list,STAT=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+           CPASSERT(stat==0)
          END DO
       CASE default
-         CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+         CPASSERT(.FALSE.)
     END SELECT
     DEALLOCATE (kind_a,pres_a,pres_b,lista,listb,nlista,nlistb,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (index_list,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(r_pbc,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -1391,7 +1391,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(list),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(list))
 
     lista => atom(ikind)%list_local_a_index
     listb => atom(ikind)%list_local_b_index
@@ -1409,7 +1409,7 @@ CONTAINS
     END IF
 
     ALLOCATE(list(na+nb),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
     n = na
     IF(na.GT.0) list(1:na) = lista(1:na)
@@ -1500,12 +1500,12 @@ CONTAINS
 
     ! Allocate work storage
     ALLOCATE (nblock(npe),nelement(npe),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     nblock(:) = 0
     nelement(:) = 0
     nkind = SIZE(qs_kind_set)
     ALLOCATE (nnsgf(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     nnsgf = 1
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set)
@@ -1569,7 +1569,7 @@ CONTAINS
     ! Release work storage
 
     DEALLOCATE (nblock,nelement,nnsgf,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 

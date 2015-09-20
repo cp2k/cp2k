@@ -841,7 +841,7 @@ CONTAINS
         dft_control%qs_control%method_id == do_method_lrigpw .OR. &
         dft_control%qs_control%method_id == do_method_ofgpw) THEN
       ALLOCATE(dispersion_env,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       NULLIFY(xc_section)
       xc_section => section_vals_get_subs_vals(dft_section,"XC")
       CALL qs_dispersion_env_set(dispersion_env,xc_section)
@@ -857,7 +857,7 @@ CONTAINS
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
     ELSE IF (dft_control%qs_control%method_id == do_method_scptb) THEN
       ALLOCATE(dispersion_env,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ! set general defaults
       dispersion_env%doabc=.FALSE.
       dispersion_env%c9cnst=.FALSE.
@@ -886,7 +886,7 @@ CONTAINS
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
     ELSE IF (dft_control%qs_control%method_id == do_method_dftb) THEN
       ALLOCATE(dispersion_env,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ! set general defaults
       dispersion_env%doabc=.FALSE.
       dispersion_env%c9cnst=.FALSE.
@@ -915,7 +915,7 @@ CONTAINS
       CALL set_qs_env(qs_env, dispersion_env=dispersion_env)
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
       ALLOCATE(dispersion_env,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ! set general defaults
       dispersion_env%doabc=.FALSE.
       dispersion_env%c9cnst=.FALSE.
@@ -1136,7 +1136,7 @@ CONTAINS
       NULLIFY(mos)
     ELSE
       ALLOCATE (mos(dft_control%nspins),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       DO ispin=1,dft_control%nspins
          NULLIFY (mos(ispin)%mo_set)
          CALL allocate_mo_set(mo_set=mos(ispin)%mo_set,&
@@ -1156,7 +1156,7 @@ CONTAINS
       CALL get_qs_kind_set(qs_kind_set, nelectron=nelectron, nsgf=n_ao_aux_fit, &
                            basis_type="AUX_FIT")
       ALLOCATE (mos_aux_fit(dft_control%nspins),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
       DO ispin=1,dft_control%nspins
          NULLIFY (mos_aux_fit(ispin)%mo_set)

@@ -54,7 +54,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"TRANSPORT",&
          description="Specifies the parameters for transport, sets parameters for the OMEN code, "//&
                      "see also http://www.nano-tcad.ethz.ch/ ",&

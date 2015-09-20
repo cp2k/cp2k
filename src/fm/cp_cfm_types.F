@@ -101,9 +101,9 @@ CONTAINS
 CPSourceFileRef)
 #endif
 
-    CPPrecondition(ASSOCIATED(matrix_struct),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_struct))
     ALLOCATE(matrix,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     context => matrix_struct%context
     matrix%matrix_struct => matrix_struct
     CALL cp_fm_struct_retain(matrix%matrix_struct)
@@ -119,7 +119,7 @@ CPSourceFileRef)
     nrow_local=matrix_struct%local_leading_dimension
     ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
     ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL dcopy(2*nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
 ! matrix%local_data(:,:) = 0.0_dp
@@ -145,8 +145,8 @@ CPSourceFileRef)
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,failure)
-    CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix))
+    CPASSERT(matrix%ref_count>0)
     matrix%ref_count=matrix%ref_count+1
   END SUBROUTINE cp_cfm_retain
 
@@ -166,17 +166,17 @@ CPSourceFileRef)
     failure=.FALSE.
 
     IF (ASSOCIATED(matrix)) THEN
-       CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(matrix%ref_count>0)
        matrix%ref_count=matrix%ref_count-1
        IF (matrix%ref_count<1) THEN
           IF (ASSOCIATED(matrix%local_data)) THEN
              DEALLOCATE(matrix%local_data,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           matrix%name=""
           CALL cp_fm_struct_release(matrix%matrix_struct)
           DEALLOCATE(matrix,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(matrix)
@@ -387,7 +387,7 @@ CPSourceFileRef)
        IF (.NOT.ASSOCIATED(row_indices)) THEN
           ALLOCATE(matrix%matrix_struct%row_indices &
                (matrix%matrix_struct%nrow_locals(myprow)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           row_indices => matrix%matrix_struct%row_indices
 #ifdef __SCALAPACK
           DO i=1,SIZE(row_indices)
@@ -408,7 +408,7 @@ CPSourceFileRef)
        IF (.NOT.ASSOCIATED(col_indices)) THEN
           ALLOCATE(matrix%matrix_struct%col_indices &
                (matrix%matrix_struct%ncol_locals(mypcol)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           col_indices => matrix%matrix_struct%col_indices
 #ifdef __SCALAPACK
           DO i=1,SIZE(col_indices)
@@ -476,7 +476,7 @@ CPSourceFileRef)
            source%local_data(1,1),1,1,source%matrix_struct%descriptor,1,&
            destination%local_data(1,1),1,1,destination%matrix_struct%descriptor,1)
 #else
-      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
 #endif
    END IF
   END SUBROUTINE cp_cfm_to_cfm_matrix

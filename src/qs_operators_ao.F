@@ -141,13 +141,13 @@ CONTAINS
     CALL init_orbital_pointers(ldai)
 
     ALLOCATE(rr_work(ldai,ldai,3),intab(maxco,maxco,3),work(maxco,maxsgf),integral(3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     rr_work(:,:,:) = 0.0_dp
     intab(:,:,:) = 0.0_dp
     work(:,:) = 0.0_dp
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -209,7 +209,7 @@ CONTAINS
              NULLIFY(integral(i)%block)
              CALL cp_dbcsr_get_block_p(matrix=matrix(i)%matrix,&
                   row=irow,col=icol,BLOCK=integral(i)%block,found=found)
-             CPPostcondition(ASSOCIATED(INTEGRAL(i)%block),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(INTEGRAL(i)%block))
           ENDDO
        END IF
 
@@ -275,7 +275,7 @@ CONTAINS
     ! *** Release work storage ***
 
     DEALLOCATE(intab,work,integral,basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
 !   *** Print the spin orbit matrix, if requested ***
 
@@ -516,13 +516,13 @@ CONTAINS
     CALL init_orbital_pointers(ldai)
 
     ALLOCATE(rr_work(ldai,ldai,3),intab(maxco,maxco,3),work(maxco,maxsgf),integral(3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     rr_work(:,:,:) = 0.0_dp
     intab(:,:,:) = 0.0_dp
     work(:,:) = 0.0_dp
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -586,7 +586,7 @@ CONTAINS
              NULLIFY(INTEGRAL(i)%block)
              CALL cp_dbcsr_get_block_p(matrix=matrix(i)%matrix,&
                   row=irow,col=icol,BLOCK=INTEGRAL(i)%block,found=found)
-             CPPostcondition(ASSOCIATED(INTEGRAL(i)%block),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(INTEGRAL(i)%block))
           ENDDO
        END IF
 
@@ -663,7 +663,7 @@ CONTAINS
     ! *** Release work storage ***
 
     DEALLOCATE(intab,work,integral,basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
 !   *** Print the spin orbit matrix, if requested ***
 
@@ -911,20 +911,20 @@ CONTAINS
     ldab = ldwork
 
     ALLOCATE(difab(ldab,ldab,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     difab(1:ldab,1:ldab,1:3) = 0.0_dp
     ALLOCATE(work(ldwork,ldwork),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     work(1:ldwork,1:ldwork) = 0.0_dp
     ALLOCATE (op_dip(3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO i = 1, 3
        NULLIFY (op_dip(i)%block)
     END DO
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -1003,7 +1003,7 @@ CONTAINS
             NULLIFY(op_dip(i)%block)
             CALL cp_dbcsr_get_block_p(matrix=op(i)%matrix,&
                  row=irow,col=icol,block=op_dip(i)%block,found=found)
-            CPPostcondition(ASSOCIATED(op_dip(i)%block),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(op_dip(i)%block))
          END DO
        END IF  ! new_atom_b
        rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -1094,10 +1094,10 @@ CONTAINS
        NULLIFY(op_dip(i)%block)
     END DO
     DEALLOCATE(op_dip, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE(difab,work,basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -1199,23 +1199,23 @@ CONTAINS
     ldab = ldwork
 
     M_dim = ncoset(order)-1
-    CPPostcondition(M_dim<=SIZE(op,1),cp_failure_level,routineP,failure)
+    CPASSERT(M_dim<=SIZE(op,1))
 
     ALLOCATE(mab(ldab,ldab,M_dim),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     mab(1:ldab,1:ldab,1:M_dim) = 0.0_dp
     ALLOCATE(work(ldwork,ldwork),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     work(1:ldwork,1:ldwork) = 0.0_dp
     ALLOCATE (op_dip(M_dim),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO imom = 1, M_dim
       NULLIFY (op_dip(imom)%block)
     END DO
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a)
@@ -1286,7 +1286,7 @@ CONTAINS
             NULLIFY(op_dip(imom)%block)
             CALL cp_dbcsr_get_block_p(matrix=op(imom)%matrix,&
                  row=irow,col=icol,block=op_dip(imom)%block,found=found)
-            CPPostcondition(ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(op_dip(imom)%block))
          END DO   ! imom
        END IF  ! new_atom_b
 
@@ -1350,10 +1350,10 @@ CONTAINS
        NULLIFY(op_dip(i)%block)
     END DO
     DEALLOCATE(op_dip, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE(mab,work,basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -1455,11 +1455,11 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(op),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(op_der),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(op))
+    CPASSERT(ASSOCIATED(op_der))
     !IF(.NOT.op_sm_der(1,1)%matrix%symmetry=="none") THEN
     IF(.NOT.cp_dbcsr_get_matrix_type(op_der(1,1)%matrix).EQ.dbcsr_type_no_symmetry) THEN
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
 
     NULLIFY (qs_kind, qs_kind_set)
@@ -1494,22 +1494,22 @@ CONTAINS
     ldab = ldwork
 
     M_dim = ncoset(order)-1
-    CPPostcondition(M_dim<=SIZE(op,1),cp_failure_level,routineP,failure)
+    CPASSERT(M_dim<=SIZE(op,1))
 
     ALLOCATE(mab(ldab,ldab,M_dim),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     mab(1:ldab,1:ldab,1:M_dim) = 0.0_dp
     ALLOCATE(difmab(ldab,ldab,M_dim,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     difmab(1:ldab,1:ldab,1:M_dim,1:3) = 0.0_dp
 
     ALLOCATE(work(ldwork,ldwork),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     work(1:ldwork,1:ldwork) = 0.0_dp
     ALLOCATE (op_dip(M_dim),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (op_dip_der(M_dim,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO imom = 1, M_dim
        NULLIFY (op_dip(imom)%block)
@@ -1519,7 +1519,7 @@ CONTAINS
     END DO
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a)
@@ -1591,14 +1591,14 @@ CONTAINS
                                     row=irow, col=icol,&
                                     block=op_dip(imom)%block,&
                                     found=op_found)
-CPPostcondition(op_found.and.ASSOCIATED(op_dip(imom)%block),cp_failure_level,routineP,failure)
+CPASSERT(op_found.and.ASSOCIATED(op_dip(imom)%block))
             DO idir = 1,3
               NULLIFY(op_dip_der(imom,idir)%block)
               CALL cp_dbcsr_get_block_p (matrix=op_der(imom,idir)%matrix,&
                                       row=irow, col=icol,&
                                       block=op_dip_der(imom,idir)%block,&
                                       found=op_der_found)
-CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_failure_level,routineP,failure)
+CPASSERT(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block))
            END DO  ! idir
          END DO   ! imom
        END IF  ! new_atom_b
@@ -1625,7 +1625,7 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
 
              ALLOCATE(mab_tmp(npgfa(iset)*ncoset(la_max(iset)+1),&
                       npgfb(jset)*ncoset(lb_max(jset)+1),ncoset(order)-1),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
 
              lda_min = MAX ( 0, la_min(iset)-1)
              ldb_min = MAX ( 0, lb_min(jset)-1)
@@ -1688,7 +1688,7 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
              END DO  ! imom
 
              DEALLOCATE(mab_tmp,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
            END IF  !  >= dab
 
          END DO ! jset
@@ -1702,10 +1702,10 @@ CPPostcondition(op_der_found.and.ASSOCIATED(op_dip_der(imom,idir)%block),cp_fail
        NULLIFY(op_dip(i)%block)
     END DO
     DEALLOCATE(op_dip,op_dip_der, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE(mab,difmab,work,basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 

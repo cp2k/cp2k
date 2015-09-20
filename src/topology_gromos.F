@@ -67,7 +67,7 @@ CONTAINS
       iresid, isolvent, itemp, itype, iw, jatom, natom, natom_prev, nbond, &
       nbond_prev, ncon, nsolute, nsolvent, ntype, offset, offset2, stat
     INTEGER, POINTER                         :: ba(:), bb(:), na(:)
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: ftemp
     REAL(KIND=dp), POINTER                   :: ac(:), am(:)
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -600,27 +600,27 @@ CONTAINS
           END IF
        ELSE
           IF(atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)) THEN
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END IF
        END IF
     END DO
 
     DEALLOCATE(namearray1,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(namearray2,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(na,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(am,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ac,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(ASSOCIATED(ba)) &
          DEALLOCATE(ba,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(ASSOCIATED(bb)) &
          DEALLOCATE(bb,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
@@ -648,7 +648,7 @@ CONTAINS
       DIMENSION(5)                           :: avail_section
     INTEGER                                  :: handle, istat, itemp, iw, &
                                                 natom, newsize
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: pfactor
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: velocity
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -774,7 +774,7 @@ CONTAINS
        END IF
     END IF
     DEALLOCATE(velocity,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL reallocate(atom_info%id_molname,1,natom)
     CALL reallocate(atom_info%id_resname,1,natom)

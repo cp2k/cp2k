@@ -140,7 +140,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(section_vals_type), POINTER         :: input, xc_fun_orig, xc_fun_tmp
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
 
     failure = .FALSE.
     NULLIFY(logger, scf_env, input, energy, matrix_ks, rho)

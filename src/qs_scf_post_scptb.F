@@ -108,7 +108,7 @@ CONTAINS
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,&
                        dft_control=dft_control, &

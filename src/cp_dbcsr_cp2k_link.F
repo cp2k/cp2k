@@ -300,7 +300,7 @@ CONTAINS
 
     symmetry = cp_dbcsr_get_matrix_type(matrix)
 
-    CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(sab_orb))
 
     CALL cp_dbcsr_finalize (matrix)
     ALLOCATE (rows(1), cols(1))
@@ -387,7 +387,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: npgf_a, npgf_b, nshell_a, &
                                                 nshell_b
     INTEGER, DIMENSION(:, :), POINTER        :: l_a, l_b
-    LOGICAL                                  :: do_symmetric, failure, found
+    LOGICAL                                  :: do_symmetric, found
     REAL(KIND=dp)                            :: dab, eps_pgf_orb, r_a, r_b
     REAL(KIND=dp), DIMENSION(3)              :: rab
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, zet_a, zet_b
@@ -415,7 +415,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(cp_dbcsr_has_symmetry(csr_sparsity),cp_failure_level,routineP,failure)
+    CPASSERT(cp_dbcsr_has_symmetry(csr_sparsity))
 
     CALL get_ks_env(ks_env,&
                     sab_orb=neighbour_list,&
@@ -429,9 +429,9 @@ CONTAINS
     nkind = SIZE(qs_kind_set)
     ALLOCATE (atom_of_kind(natom))
     CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
-    CPPrecondition(SIZE(neighbour_list) > 0,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(neighbour_list) > 0)
     CALL get_neighbor_list_set_p(neighbor_list_sets=neighbour_list,symmetric=do_symmetric)
-    CPPrecondition(do_symmetric,cp_failure_level,routineP,failure)
+    CPASSERT(do_symmetric)
     ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind))
     CALL basis_set_list_setup(basis_set_list_a,"ORB",qs_kind_set)
     CALL basis_set_list_setup(basis_set_list_b,"ORB",qs_kind_set)
@@ -485,7 +485,7 @@ CONTAINS
       CALL cp_dbcsr_get_block_p(matrix=csr_sparsity,row=irow,col=icol, &
                                 block=screen_blk,found=found)
 
-      CPPostcondition(found,cp_failure_level,routineP,failure)
+      CPASSERT(found)
 
       ! Distance between atoms a and b
       dab = SQRT(rab(1)**2+rab(2)**2+rab(3)**2)

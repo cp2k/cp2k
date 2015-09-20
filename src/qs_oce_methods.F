@@ -156,15 +156,15 @@ CONTAINS
     msab = MAX(maxnprja*ncoset(maxlprj),maxcob)
 
     ALLOCATE(c2s(lds,lds),STAT= istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(s(lds,lds,ncoset(nder+1)),STAT= istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(spa_sb(np_car,ntotsgfb), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(spa_tmp(msab,msab*maxder),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(ovs(np_sph,maxcob*nsetb*maxder),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     m1 = 0
     nsgf_cnt = 0
@@ -269,7 +269,7 @@ CONTAINS
     IF(sgf_hard_only.EQ.0) sgf_soft_only = .TRUE.
 
     DEALLOCATE(c2s,s,spa_sb,spa_tmp,ovs,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE build_oce_block
 
@@ -322,7 +322,7 @@ CONTAINS
                           local_oce_sphi_s=local_oce_s)
 
     ALLOCATE(prjloc_h(nseta*maxsoa,nsgfa),prjloc_s(nseta*maxsoa,nsgfa),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     prjloc_h = 0._dp
     prjloc_s = 0._dp
 
@@ -349,7 +349,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(prjloc_h,prjloc_s,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE build_oce_block_local
 
@@ -443,14 +443,14 @@ CONTAINS
       ldsab = MAX(maxco,ncoset(maxlprj),maxsgf,maxprj)
       ldai = ncoset(maxl+nder+1)
       ALLOCATE(sab(ldsab,ldsab*maxder),work(ldsab,ldsab*maxder),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       sab=0.0_dp
       ALLOCATE (ai_work(ldai,ldai,ncoset(nder+1)),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ai_work=0.0_dp
 
       ALLOCATE(oceh(maxder),oces(maxder),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       DO i=1,nkind*nkind
         NULLIFY(intac(i)%alist,intac(i)%asort,intac(i)%aindex)
@@ -512,7 +512,7 @@ CONTAINS
             intac(iac)%p_kind = jkind
             intac(iac)%nalist = nlist
             ALLOCATE(intac(iac)%alist(nlist),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
             DO i=1,nlist
                NULLIFY(intac(iac)%alist(i)%clist)
                intac(iac)%alist(i)%aatom  = 0
@@ -523,7 +523,7 @@ CONTAINS
             intac(iac)%alist(ilist)%aatom  = atom_a
             intac(iac)%alist(ilist)%nclist = nneighbor
             ALLOCATE(intac(iac)%alist(ilist)%clist(nneighbor),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
          END IF
 
          clist => intac(iac)%alist(ilist)%clist(jneighbor)
@@ -536,7 +536,7 @@ CONTAINS
          NULLIFY(clist%acint,clist%achint,clist%sgf_list)
 
          ALLOCATE(sgf_list(nsgfa),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
          at_a => qs_kind_set(jkind)
          at_b => qs_kind_set(ikind)
@@ -546,7 +546,7 @@ CONTAINS
          IF( local ) THEN
             DO i=1,maxder
                ALLOCATE(oceh(i)%block(nsobtot,nsgfa),oces(i)%block(nsobtot,nsgfa),STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
                oceh(i)%block=0._dp
                oces(i)%block=0._dp
             END DO
@@ -555,13 +555,13 @@ CONTAINS
             clist%sgf_soft_only = .FALSE.
             IF(nsgf_cnt > 0) THEN
                ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt),STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
                clist%acint(:,:,:)=0._dp
                clist%sgf_list(:)=HUGE(0)
-               CPPostcondition(nsgf_cnt == nsgfa,cp_failure_level,routineP,failure)
+               CPASSERT(nsgf_cnt == nsgfa)
                ! *** Special case: A=B
                ALLOCATE(clist%achint(nsgfa,nsobtot,maxder),STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
                clist%achint=0._dp
                clist%acint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oces(1)%block(1:nsobtot,1:nsgfa))
                clist%achint(1:nsgfa,1:nsobtot,1) = TRANSPOSE(oceh(1)%block(1:nsobtot,1:nsgfa))
@@ -571,12 +571,12 @@ CONTAINS
             ENDIF
             DO i=1,maxder
               DEALLOCATE(oceh(i)%block,oces(i)%block,STAT=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
             END DO
          ELSE
             DO i=1,maxder
                ALLOCATE(oces(i)%block(nsobtot,nsgfa),STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
                oces(i)%block=0._dp
             END DO
             CALL build_oce_block(oces,at_a,at_b,rab,nder,sgf_list,nsgf_cnt,sgf_soft_only,eps_fit)
@@ -584,7 +584,7 @@ CONTAINS
             clist%sgf_soft_only = sgf_soft_only
             IF(nsgf_cnt > 0) THEN
                ALLOCATE(clist%acint(nsgf_cnt,nsobtot,maxder),clist%sgf_list(nsgf_cnt),STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
                clist%acint(:,:,:)=0._dp
                clist%sgf_list(:)=HUGE(0)
                DO i=1,maxder
@@ -596,20 +596,20 @@ CONTAINS
             ENDIF
             DO i=1,maxder
               DEALLOCATE(oces(i)%block,STAT=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
             END DO
          END IF
 
          DEALLOCATE(sgf_list,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
      END DO
      CALL neighbor_list_iterator_release(nl_iterator)
 
      DEALLOCATE(sab,work,ai_work,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      DEALLOCATE(oceh,oces,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
 
      ! set up sort index
      CALL sap_sort(intac)

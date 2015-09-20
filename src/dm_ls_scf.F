@@ -190,7 +190,7 @@ CONTAINS
     ENDIF
 
     ALLOCATE(ls_scf_env,stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
 
     ! get basic quantities from the qs_env
@@ -212,7 +212,7 @@ CONTAINS
 
     ! initialize block to group to defined molecules
     ALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule(ls_scf_env%natoms),stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL molecule_of_atom(molecule_set,atom_to_mol=ls_scf_env%ls_mstruct%atom_to_molecule)
 
@@ -841,7 +841,7 @@ CONTAINS
         ls_scf_env%needs_s_inv=.FALSE.
         ls_scf_env%use_s_sqrt=.FALSE.
     CASE DEFAULT
-        CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
     END SELECT
 
     SELECT CASE(ls_scf_env%s_preconditioner_type)
@@ -937,7 +937,7 @@ CONTAINS
            CALL cite_reference(Lin2013)
            WRITE(unit_nr,'(T2,A,T38,A20)') "Purification method","PEXSI"
        CASE DEFAULT
-           CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
        END SELECT
 
        SELECT CASE(ls_scf_env%ls_mstruct%cluster_type)
@@ -1380,8 +1380,8 @@ CONTAINS
     IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') ""
 
     ! TODO: remove these limitations
-    CPPrecondition(.NOT.ls_scf_env%has_s_preconditioner,cp_failure_level,routineP,failure)
-    CPPrecondition(ls_scf_env%use_s_sqrt,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ls_scf_env%has_s_preconditioner)
+    CPASSERT(ls_scf_env%use_s_sqrt)
 
     nspin=ls_scf_env%nspins
 

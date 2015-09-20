@@ -77,8 +77,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(eigenvectors),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix))
+    CPASSERT(ASSOCIATED(eigenvectors))
 
     n = matrix%matrix_struct%nrow_global
     m => matrix%local_data
@@ -188,7 +188,7 @@ CONTAINS
 
     CALL cp_cfm_get_info(amatrix,nrow_global=nao)
     ALLOCATE (evals(nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ! Cholesky decompose S=U(T)U
     CALL cp_cfm_cholesky_decompose(bmatrix)
     ! Invert to get U^(-1)
@@ -205,7 +205,7 @@ CONTAINS
     eigenvalues(1:nmo) = evals(1:nmo)
 
     DEALLOCATE (evals,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 

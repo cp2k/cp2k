@@ -67,7 +67,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="constraint",&
          description="Section specifying information regarding how to impose constraints"// &
          " on the system.",&
@@ -168,7 +168,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY( keyword)
     CALL section_create(section,name="COLVAR_RESTART",&
          description="Specify restart position only for COLVAR restraints.",&
@@ -202,7 +202,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY( keyword)
     CALL section_create(section,name="FIX_ATOM_RESTART",&
          description="Specify restart position only for FIXED_ATOMS restraints.",&
@@ -236,7 +236,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section))
     NULLIFY(subsection, keyword)
     CALL section_create(subsection,name="RESTRAINT",&
          description="Activate and specify information on restraint instead of constraint",&
@@ -271,7 +271,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="COLLECTIVE",&
          description="Used to constraint collective (general) degrees of freedom, "//&
          "writing langrangian multipliers to file.",&
@@ -363,7 +363,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="fixed_atoms",&
          description="This section is used to constraint the overall atomic position (X,Y,Z). In case "//&
          "a restraint is specified the value of the TARGET is considered to be the value of the "//&
@@ -468,7 +468,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="g3x3",&
          description="This section is used to set 3x3 (3 atoms and 3 distances) constraints.",&
          n_keywords=3, n_subsections=0, repeats=.TRUE.)
@@ -545,7 +545,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="HBONDS",&
          description="This section is used to set bonds constraints involving Hydrogen atoms",&
          n_keywords=3, n_subsections=0, repeats=.FALSE.)
@@ -618,7 +618,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="g4x6",&
          description="This section is used to set 4x6 (4 atoms and 6 distances) constraints.",&
          n_keywords=3, n_subsections=0, repeats=.TRUE.)
@@ -695,7 +695,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="virtual_site",&
          description="This section is used to set a virtual interaction-site constraint.",&
          n_keywords=3, n_subsections=0, repeats=.TRUE.)

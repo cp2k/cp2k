@@ -106,14 +106,14 @@ CONTAINS
           END IF
           IF (ASSOCIATED(atomic_kind_set(ikind)%atom_list)) THEN
              DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+             CPASSERT(stat==0)
           END IF
           CALL shell_release(atomic_kind_set(ikind)%shell)
 
           CALL damping_p_release(atomic_kind_set(ikind)%damping)
        END DO
        DEALLOCATE (atomic_kind_set,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer atomic_kind_set is not associated and "//&
@@ -382,10 +382,10 @@ CONTAINS
           IF (n > 0) THEN
              IF (ASSOCIATED(atomic_kind%atom_list)) THEN
                 DEALLOCATE (atomic_kind%atom_list,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              ALLOCATE (atomic_kind%atom_list(n),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              atomic_kind%atom_list(:) = atom_list(:)
              atomic_kind%natom = n
           ELSE

@@ -327,11 +327,11 @@ CONTAINS
 
     natom = SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (last_sgf(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (nsgf(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     !   construction of
     CALL get_particle_set(particle_set, qs_kind_set,&
@@ -391,7 +391,7 @@ CONTAINS
           print_loc_section)
 
     DEALLOCATE (first_sgf, last_sgf, nsgf, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL cp_fm_release(opvec)
     CALL cp_print_key_finished_output(output_unit,logger,print_loc_section,"PROGRAM_RUN_INFO")
@@ -456,11 +456,11 @@ CONTAINS
     IF(unit_out_s>0 .AND. .NOT. my_only_init) WRITE(unit_out_s,'(i6,/,A)') nmoloc, TRIM(iter)
 
     CALL  cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates)
-    CPPrecondition(nstates>=nmoloc,cp_failure_level,routineP,failure)
+    CPASSERT(nstates>=nmoloc)
 
     centers => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
-    CPPrecondition(ASSOCIATED(centers),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(centers,2)==nmoloc,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(centers))
+    CPASSERT(SIZE(centers,2)==nmoloc)
     sum_spread_i  = 0.0_dp
     sum_spread_ii  = 0.0_dp
     DO istate=1,nmoloc
@@ -558,8 +558,8 @@ CONTAINS
     natom = SIZE(zij_fm_set,1)
 
     centers => qs_loc_env%localized_wfn_control%centers_set(ispin)%array
-    CPPrecondition(ASSOCIATED(centers),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(centers,2)==nstate,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(centers))
+    CPASSERT(SIZE(centers,2)==nstate)
 
     file_tmp = TRIM(qs_loc_env%tag_mo)//"_spreads_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
     unit_out_s = cp_print_key_unit_nr(logger,print_loc_section,"WANNIER_SPREADS",&
@@ -568,11 +568,11 @@ CONTAINS
     IF(unit_out_s>0) WRITE(unit_out_s,'(i6,/,A)') TRIM(iter)
 
     ALLOCATE (atom_of_state(nstate),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     atom_of_state = 0
 
     ALLOCATE(diag(nstate,natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     diag = 0.0_dp
 
     DO iatom = 1,natom
@@ -582,7 +582,7 @@ CONTAINS
     END DO
 
     ALLOCATE (Qii(nstate),ziimax(nstate),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ziimax = 0.0_dp
     Qii    = 0.0_dp
 
@@ -611,7 +611,7 @@ CONTAINS
     CALL cp_print_key_finished_output(unit_out_s,logger,print_loc_section,"WANNIER_SPREADS")
 
     DEALLOCATE(Qii,ziimax,atom_of_state,diag,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE centers_spreads_pipek
 
@@ -706,13 +706,13 @@ CONTAINS
           END IF
           !
           ALLOCATE ( op_fm_set( 2, dim_op), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           DO i = 1, dim_op
              DO j = 1, SIZE ( op_fm_set, 1 )
                 NULLIFY(op_fm_set(j,i)%matrix)
                 CALL cp_fm_create (op_fm_set(j,i)%matrix , tmp_fm_struct)
                 CALL cp_fm_get_info(op_fm_set(j,i)%matrix, nrow_global=nmosub)
-                CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,failure)
+                CPASSERT(nmo>=nmosub)
                 CALL cp_fm_set_all(op_fm_set(j,i)%matrix,0.0_dp)
              END DO
           END DO
@@ -729,7 +729,7 @@ CONTAINS
                 END DO
              END DO
              DEALLOCATE(op_fm_set,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
           END IF
 
        CASE(op_loc_boys)
@@ -753,7 +753,7 @@ CONTAINS
 
        IF(localized_wfn_control%set_of_states == state_loc_list) THEN
           ALLOCATE(vecbuffer(1,nao),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           nmosub = SIZE(localized_wfn_control%loc_states,1)
           imoloc = 0
           DO i = lb,ub
@@ -773,7 +773,7 @@ CONTAINS
              END IF
           END DO
           DEALLOCATE(vecbuffer,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
 
        ELSE
           nmosub = localized_wfn_control%nloc_states(ispin)
@@ -796,7 +796,7 @@ CONTAINS
           IF(ncubes > 0) THEN
              list_cubes_setup =.TRUE.
              ALLOCATE( list_cubes(ncubes),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              DO ir = 1,ncubes
                 list_cubes(ir) = bounds(1) + (ir-1)
              END DO
@@ -827,7 +827,7 @@ CONTAINS
              ncubes = localized_wfn_control%nloc_states(1)
              IF(ncubes>0) THEN
                 ALLOCATE(list_cubes(ncubes),STAT=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
              END IF
              DO i = 1, ncubes
                 list_cubes(i) = i
@@ -837,7 +837,7 @@ CONTAINS
           ncubes = SIZE(list_cubes)
           ncubes = MIN(ncubes,nmo)
           ALLOCATE(centers(6,ncubes),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           DO i = 1, ncubes
              istate = list_cubes(i)
              DO j = 1,localized_wfn_control%nloc_states(ispin)
@@ -862,9 +862,9 @@ CONTAINS
                ispin=ispin,file_position=my_pos)
 
           DEALLOCATE(centers,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           DEALLOCATE(list_cubes,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
     END DO  ! ispin
     first_time = .FALSE.

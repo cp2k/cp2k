@@ -75,7 +75,6 @@ CONTAINS
                                                 ipgf, istat, jpgf, la, lb, &
                                                 ldrr, lma, lmb, ma, mb, na, &
                                                 nb, ofa, ofb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, b, dsx, dsy, dsz, dtx, &
                                                 dty, dtz, f0, rab2, tab, xhi, &
                                                 zet
@@ -104,7 +103,7 @@ CONTAINS
 
     ! Allocate space for auxiliary integrals
     ALLOCATE(rr(0:ldrr-1,0:ldrr-1,3),tt(0:ldrr-1,0:ldrr-1,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! Number of integrals, check size of arrays
     ofa = ncoset(la_min-1)
@@ -112,13 +111,13 @@ CONTAINS
     na = ncoset(la_max) - ofa
     nb = ncoset(lb_max) - ofb
     IF (PRESENT(kab)) THEN
-       CPPrecondition((SIZE(kab,1) >= na*npgfa),cp_failure_level,routineP,failure)
-       CPPrecondition((SIZE(kab,2) >= nb*npgfb),cp_failure_level,routineP,failure)
+       CPASSERT((SIZE(kab,1) >= na*npgfa))
+       CPASSERT((SIZE(kab,2) >= nb*npgfb))
     END IF
     IF (PRESENT(dab)) THEN
-       CPPrecondition((SIZE(dab,1) >= na*npgfa),cp_failure_level,routineP,failure)
-       CPPrecondition((SIZE(dab,2) >= nb*npgfb),cp_failure_level,routineP,failure)
-       CPPrecondition((SIZE(dab,3) >= 3),cp_failure_level,routineP,failure)
+       CPASSERT((SIZE(dab,1) >= na*npgfa))
+       CPASSERT((SIZE(dab,2) >= nb*npgfb))
+       CPASSERT((SIZE(dab,3) >= 3))
     END IF
 
     ! Loops over all pairs of primitive Gaussian-type functions
@@ -230,7 +229,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(rr,tt,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE kinetic
 

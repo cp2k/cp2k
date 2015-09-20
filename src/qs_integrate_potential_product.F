@@ -219,13 +219,13 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! we test here if the provided operator matrices are consistent
-    CPPrecondition(PRESENT(hmat) .OR. PRESENT(hmat_kp),cp_failure_level,routineP,failure)
+    CPASSERT(PRESENT(hmat) .OR. PRESENT(hmat_kp))
     do_kp = .FALSE.
     IF(PRESENT(hmat_kp)) do_kp = .TRUE.
     IF(PRESENT(pmat)) THEN
-       CPPrecondition(PRESENT(hmat),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(hmat))
     ELSE IF(PRESENT(pmat_kp)) THEN
-       CPPrecondition(PRESENT(hmat_kp),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(hmat_kp))
     END IF
 
     failure=.FALSE.
@@ -270,7 +270,7 @@ CONTAINS
     END SELECT
     IF (my_gapw) task_list=>task_list_soft
     IF (PRESENT(task_list_external)) task_list=>task_list_external
-    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(task_list))
 
     ! the information on the grids is provided through pw_env
     ! pw_env has to be the parent env for the potential grid (input)
@@ -307,7 +307,7 @@ CONTAINS
     atom_pair_send=>task_list%atom_pair_send
     atom_pair_recv=>task_list%atom_pair_recv
 
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_v)
     DO i=1,SIZE(rs_v)
        CALL rs_grid_retain(rs_v(i)%rs_grid)
@@ -322,7 +322,7 @@ CONTAINS
 
     nimages = dft_control%nimages
     IF(nimages > 1) THEN
-       CPPrecondition(do_kp,cp_failure_level,routineP,failure)
+       CPASSERT(do_kp)
     END IF
     nkind = SIZE(qs_kind_set)
     natom = SIZE(particle_set)
@@ -330,7 +330,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
     END IF
 
@@ -360,7 +360,7 @@ CONTAINS
     ! initialize the working hmat structures
     h_duplicated = .FALSE.
     ALLOCATE(dhmat(nimages),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(do_kp) THEN
        DO img=1,nimages
           dhmat(img)%matrix => hmat_kp(img)%matrix
@@ -374,7 +374,7 @@ CONTAINS
        DO img=1,nimages
           NULLIFY(dhmat(img)%matrix)
           ALLOCATE(dhmat(img)%matrix,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL cp_dbcsr_init(dhmat(img)%matrix)
           CALL cp_dbcsr_create(dhmat(img)%matrix, 'LocalH', &
                cp_dbcsr_distribution (href),&
@@ -387,7 +387,7 @@ CONTAINS
     IF ( pab_required ) THEN
        ! initialize the working pmat structures
        ALLOCATE(deltap(nimages),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF(do_kp) THEN
           DO img=1,nimages
              deltap(img)%matrix => pmat_kp(img)%matrix
@@ -400,7 +400,7 @@ CONTAINS
           DO img=1,nimages
              NULLIFY(deltap(img)%matrix)
              ALLOCATE(deltap(img)%matrix,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              CALL cp_dbcsr_init(deltap(img)%matrix)
           END DO
           IF(do_kp) THEN
@@ -423,7 +423,7 @@ CONTAINS
     IF (pab_required) THEN
        CALL reallocate(pabt,1,maxco,1,maxco,0,nthread)
     ELSE
-       CPPrecondition(.NOT.calculate_forces,cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.calculate_forces)
     END IF
 
     NULLIFY(hdabt,hadbt,hdab,hadb)
@@ -453,7 +453,7 @@ CONTAINS
 
     IF (debug_this_module) THEN
        ALLOCATE(block_touched(natom,natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
 !$omp parallel default(none), &
@@ -513,7 +513,7 @@ CONTAINS
 
        CALL int2pair(tasks(3,itask),ilevel,img,iatom,jatom,iset,jset,ipgf,jpgf,&
                      nimages,natom,maxset,maxpgf)
-       CPPrecondition((img==1 .OR. do_kp),cp_failure_level,routineP,failure)
+       CPASSERT(img==1 .OR. do_kp)
 
        ! At the start of a block of tasks, get atom data (and kind data, if needed)
        IF (itask .EQ. task_list%taskstart(ipair,igrid_level) ) THEN
@@ -586,7 +586,7 @@ CONTAINS
           IF (pab_required) THEN
              CALL cp_dbcsr_get_block_p(matrix=deltap(img)%matrix,&
                   row=brow,col=bcol,BLOCK=p_block,found=found)
-             CPPostcondition(found,cp_failure_level,routineP,failure)
+             CPASSERT(found)
           END IF
 
           IF (calculate_forces) THEN
@@ -807,7 +807,7 @@ CONTAINS
 
     IF (debug_this_module) THEN
        DEALLOCATE(block_touched,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     IF ( h_duplicated ) THEN
@@ -819,7 +819,7 @@ CONTAINS
                natom, nimages, scatter, hmats=hmat_kp)
        ELSE
           ALLOCATE(htemp(1),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           htemp(1)%matrix => hmat%matrix
 
           CALL rs_distribute_matrix (rs_descs, dhmat, atom_pair_recv, atom_pair_send,&
@@ -827,7 +827,7 @@ CONTAINS
 
           NULLIFY(htemp(1)%matrix)
           DEALLOCATE(htemp,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        CALL cp_dbcsr_deallocate_matrix_set ( dhmat)
     ELSE
@@ -835,7 +835,7 @@ CONTAINS
           NULLIFY ( dhmat(img)%matrix )
        END DO
        DEALLOCATE(dhmat,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     IF ( pab_required ) THEN
@@ -846,18 +846,18 @@ CONTAINS
              NULLIFY ( deltap(img)%matrix )
           END DO
           DEALLOCATE(deltap,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
 
     !   *** Release work storage ***
 
     DEALLOCATE (habt,workt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF ( pab_required ) THEN
        DEALLOCATE (pabt,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     IF (ASSOCIATED(rs_v)) THEN
@@ -868,7 +868,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     CALL timestop(handle)

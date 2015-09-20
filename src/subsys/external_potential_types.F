@@ -262,7 +262,7 @@ CONTAINS
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY (potential%elec_conf)
 
@@ -290,7 +290,7 @@ CONTAINS
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     potential%apol = 0.0_dp
     potential%cpol = 0.0_dp
@@ -323,7 +323,7 @@ CONTAINS
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY (potential%alpha)
     NULLIFY (potential%cval)
@@ -355,7 +355,7 @@ CONTAINS
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY (potential%alpha_ppnl)
     NULLIFY (potential%cexp_ppl)
@@ -402,9 +402,9 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(potential)) THEN
        DEALLOCATE (potential%elec_conf,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE (potential,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "The pointer potential is not associated.")
@@ -431,7 +431,7 @@ CONTAINS
     IF (ASSOCIATED(potential)) THEN
        ! Nothing exciting here yet.
        DEALLOCATE (potential,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "The pointer potential is not associated.")
@@ -461,15 +461,15 @@ CONTAINS
 
        IF (ASSOCIATED(potential%alpha)) THEN
           DEALLOCATE (potential%alpha,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(potential%cval)) THEN
           DEALLOCATE (potential%cval,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        DEALLOCATE (potential,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
     ELSE
 
@@ -501,59 +501,59 @@ CONTAINS
     IF (ASSOCIATED(potential)) THEN
 
        DEALLOCATE (potential%elec_conf,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        !     *** Deallocate the parameters of the local part ***
 
        IF (ASSOCIATED(potential%cexp_ppl)) THEN
           DEALLOCATE (potential%cexp_ppl,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        !     *** Deallocate the parameters of the non-local part ***
        IF (ASSOCIATED(potential%alpha_ppnl)) THEN
           DEALLOCATE (potential%alpha_ppnl,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (potential%cprj,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (potential%cprj_ppnl,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (potential%hprj_ppnl,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (potential%nprj_ppnl,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (potential%vprj_ppnl,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(potential%alpha_lpot)) THEN
           DEALLOCATE (potential%alpha_lpot,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (potential%nct_lpot,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (potential%cval_lpot,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(potential%alpha_lsd)) THEN
           DEALLOCATE (potential%alpha_lsd,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (potential%nct_lsd,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (potential%cval_lsd,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(potential%alpha_nlcc)) THEN
           DEALLOCATE (potential%alpha_nlcc,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (potential%nct_nlcc,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (potential%cval_nlcc,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        DEALLOCATE (potential,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
 
        CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1231,7 +1231,7 @@ CONTAINS
              potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
 
              DEALLOCATE (elec_conf,STAT=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
 
              ! Read r(loc) to define the exponent of the core charge
              ! distribution and calculate the corresponding coefficient
@@ -1606,7 +1606,7 @@ CONTAINS
              potential%zeff = REAL(SUM(elec_conf),dp)+zeff_correction
 
              DEALLOCATE (elec_conf,STAT=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
 
              !         *** Read r(loc) to define the exponent of the core charge    ***
              !         *** distribution and calculate the corresponding coefficient ***
@@ -1679,7 +1679,7 @@ CONTAINS
              IF (read_from_input) THEN
                DO
                  is_ok=cp_sll_val_next(list,val)
-                 CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+                 CPASSERT(is_ok)
                  CALL val_get(val,c_val=line_att)
                  IF(INDEX(line_att,"LPOT") /= 0) THEN
                    potential%lpotextended = .TRUE.
@@ -1694,7 +1694,7 @@ CONTAINS
                    CALL reallocate(potential%cval_lpot,1,4,1,n)
                    DO ipot=1,potential%nexp_lpot
                       is_ok=cp_sll_val_next(list,val)
-                      CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+                      CPASSERT(is_ok)
                       CALL val_get(val,c_val=line_att)
                       READ(line_att,*) r
                       potential%alpha_lpot(ipot) = 0.5_dp/(r*r)
@@ -1719,7 +1719,7 @@ CONTAINS
                    CALL reallocate(potential%cval_nlcc,1,4,1,n)
                    DO ipot=1,potential%nexp_nlcc
                       is_ok=cp_sll_val_next(list,val)
-                      CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+                      CPASSERT(is_ok)
                       CALL val_get(val,c_val=line_att)
                       READ(line_att,*) potential%alpha_nlcc(ipot)
                       CALL remove_word(line_att)
@@ -1743,7 +1743,7 @@ CONTAINS
                    CALL reallocate(potential%cval_lsd,1,4,1,n)
                    DO ipot=1,potential%nexp_lsd
                       is_ok=cp_sll_val_next(list,val)
-                      CPPostcondition(is_ok, cp_failure_level, routineP,failure)
+                      CPASSERT(is_ok)
                       CALL val_get(val,c_val=line_att)
                       READ(line_att,*) r
                       potential%alpha_lsd(ipot) = 0.5_dp/(r*r)
@@ -1864,10 +1864,10 @@ CONTAINS
                                                  c_val=TRIM(line_att))
                      END DO
                    ELSE
-                     CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+                     CPASSERT(.FALSE.)
                    END IF
                  ELSE
-                   CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+                   CPASSERT(.FALSE.)
                  END IF
                END DO
              END IF
@@ -2013,7 +2013,7 @@ CONTAINS
                 CALL reallocate(potential%vprj_ppnl,1,nppnl,1,nppnl)
 
                 DEALLOCATE (hprj_ppnl,STAT=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              EXIT search_loop
           END IF

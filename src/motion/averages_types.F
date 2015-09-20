@@ -89,7 +89,7 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE (averages, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(averages%virial)
     NULLIFY(averages%avecolvar)
     NULLIFY(averages%aveMmatrix)
@@ -131,9 +131,9 @@ CONTAINS
        nint = 0
        IF (do_colvars) nint = number_of_colvar(force_env)
        ALLOCATE(averages%avecolvar(nint), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(averages%aveMmatrix(nint*nint), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, nint
           averages%avecolvar(i)         = 0.0_dp
        END DO
@@ -158,8 +158,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(averages),cp_failure_level,routineP,failure)
-    CPPrecondition(averages%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(averages))
+    CPASSERT(averages%ref_count>0)
     averages%ref_count=averages%ref_count+1
   END SUBROUTINE retain_averages
 
@@ -180,17 +180,17 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(averages)) THEN
-       CPPrecondition(averages%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(averages%ref_count>0)
        averages%ref_count=averages%ref_count-1
        IF (averages%ref_count==0) THEN
           CALL virial_release(averages%virial)
           IF (ASSOCIATED(averages%avecolvar)) THEN
              DEALLOCATE(averages%avecolvar, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(averages%aveMmatrix)) THEN
              DEALLOCATE(averages%aveMmatrix, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           ! Removes restart values from the corresponding restart section..
           work_section => section_vals_get_subs_vals(averages%averages_section,"RESTART_AVERAGES")
@@ -198,7 +198,7 @@ CONTAINS
           NULLIFY(averages%averages_section)
           !
           DEALLOCATE(averages,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
 
@@ -312,8 +312,8 @@ CONTAINS
                 IF (nint>0) THEN
                    CALL section_vals_val_get(restart_section,"AVE_COLVARS",r_vals=cvalues)
                    CALL section_vals_val_get(restart_section,"AVE_MMATRIX",r_vals=Mmatrix)
-                   CPPostcondition(nint==SIZE(cvalues),cp_failure_level,routineP,failure)
-                   CPPostcondition(nint*nint==SIZE(Mmatrix),cp_failure_level,routineP,failure)
+                   CPASSERT(nint==SIZE(cvalues))
+                   CPASSERT(nint*nint==SIZE(Mmatrix))
                    averages%avecolvar  = cvalues
                    averages%aveMmatrix = Mmatrix
                 END IF
@@ -393,17 +393,17 @@ CONTAINS
              ! Colvars
              IF (nint>0) THEN
                 ALLOCATE(cvalues(nint),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(Mmatrix(nint*nint),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 CALL get_clv_force(force_env, nsize_xyz=nat*3, nsize_int=nint, cvalues=cvalues,&
                      Mmatrix=Mmatrix)
                 CALL get_averages(averages%avecolvar, cvalues, delta_t)
                 CALL get_averages(averages%aveMmatrix, Mmatrix, delta_t)
                 DEALLOCATE(cvalues,stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 DEALLOCATE(Mmatrix,stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
           END SELECT
        END IF
@@ -499,7 +499,7 @@ CONTAINS
 
     failure = .FALSE.
     check = SIZE(avg)==SIZE(add)
-    CPPostcondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     DO i = 1, SIZE(avg)
        avg(i) = (avg(i)*REAL(delta_t-1,dp) + add(i))/REAL(delta_t,dp)
     END DO
@@ -527,9 +527,9 @@ CONTAINS
 
     failure = .FALSE.
     check = SIZE(avg,1)==SIZE(add,1)
-    CPPostcondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     check = SIZE(avg,2)==SIZE(add,2)
-    CPPostcondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     DO i = 1, SIZE(avg,2)
        DO j = 1, SIZE(avg,1)
           avg(j,i) = (avg(j,i)*REAL(delta_t-1,dp) + add(j,i))/REAL(delta_t,dp)

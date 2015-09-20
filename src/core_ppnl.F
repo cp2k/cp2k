@@ -162,7 +162,7 @@ CONTAINS
       dokp = (nimages > 1)
 
       ALLOCATE (atom_of_kind(natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
 
       IF (calculate_forces) THEN
@@ -193,7 +193,7 @@ CONTAINS
 
       !sap_int needs to be shared as multiple threads need to access this
       ALLOCATE(sap_int(nkind*nkind),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DO i=1,nkind*nkind
         NULLIFY(sap_int(i)%alist,sap_int(i)%asort,sap_int(i)%aindex)
         sap_int(i)%nalist=0
@@ -201,7 +201,7 @@ CONTAINS
 
       !set up direct access to basis and potential
       ALLOCATE(basis_set(nkind),potential(nkind),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DO ikind=1,nkind
          CALL get_qs_kind(qs_kind_set(ikind),basis_set=orb_basis_set)
          IF (ASSOCIATED(orb_basis_set)) THEN
@@ -236,10 +236,10 @@ CONTAINS
 !$    mepos=omp_get_thread_num()
 
       ALLOCATE(sab(ldsab,ldsab*maxder),work(ldsab,ldsab*maxder),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       sab=0.0_dp
       ALLOCATE (ai_work(ldai,ldai,ncoset(nder+1)),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ai_work=0.0_dp
 
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos)==0)
@@ -274,7 +274,7 @@ CONTAINS
             sap_int(iac)%p_kind = kkind
             sap_int(iac)%nalist = nlist
             ALLOCATE(sap_int(iac)%alist(nlist),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
             DO i=1,nlist
                NULLIFY(sap_int(iac)%alist(i)%clist)
                sap_int(iac)%alist(i)%aatom = 0
@@ -285,7 +285,7 @@ CONTAINS
             sap_int(iac)%alist(ilist)%aatom  = iatom
             sap_int(iac)%alist(ilist)%nclist = nneighbor
             ALLOCATE(sap_int(iac)%alist(ilist)%clist(nneighbor),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
             DO i=1,nneighbor
                sap_int(iac)%alist(ilist)%clist(i)%catom = 0
             END DO
@@ -298,7 +298,7 @@ CONTAINS
          clist%rac   = rac
          ALLOCATE(clist%acint(nsgfa,nppnl,maxder),&
                   clist%achint(nsgfa,nppnl,maxder),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          clist%acint=0._dp
          clist%achint=0._dp
          clist%nsgf_cnt = 0
@@ -345,7 +345,7 @@ CONTAINS
       END DO
 
       DEALLOCATE(sab,ai_work,work,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 !$OMP END PARALLEL
       CALL neighbor_list_iterator_release(nl_iterator)
 
@@ -485,9 +485,9 @@ CONTAINS
       CALL release_sap_int(sap_int)
 
       DEALLOCATE (atom_of_kind,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DEALLOCATE(basis_set,potential,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       IF (calculate_forces) THEN
          ! *** If LSD, then recover alpha density and beta density     ***

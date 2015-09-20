@@ -98,8 +98,8 @@ CONTAINS
       max_iter, natom, natomkind, nkind, nspins, precond_kind, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: efg_debug, efg_interpolation, &
-                                                failure, gapw, paw_atom, &
-                                                smoothing, success
+                                                gapw, paw_atom, smoothing, &
+                                                success
     REAL(KIND=dp)                            :: chk_spl, ecut, efg_units, &
                                                 efg_val, ehartree, eps_r, &
                                                 eps_x, f1, f2, sigma
@@ -178,8 +178,8 @@ CONTAINS
     ELSE
       smoothing = .TRUE.
     END IF
-    CPPostcondition(ecut > 0._dp,cp_failure_level,routineP,failure)
-    CPPostcondition(sigma > 0._dp,cp_failure_level,routineP,failure)
+    CPASSERT(ecut > 0._dp)
+    CPASSERT(sigma > 0._dp)
 
     unit_nr=cp_print_key_unit_nr(logger,dft_section,"PRINT%ELECTRIC_FIELD_GRADIENT",&
                extension=".efg",log_filename=.FALSE.)
@@ -207,25 +207,25 @@ CONTAINS
 
     natom = SIZE(particle_set,1)
     ALLOCATE (efg_tensor(3,3,natom),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     efg_tensor = 0._dp
     IF ( efg_debug ) THEN
       ALLOCATE (efg_pw(3,3,natom),STAT=istat )
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       efg_pw = 0._dp
     END IF
     ALLOCATE (efg_diagval(3,natom),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     efg_diagval = 0._dp
 
     ALLOCATE (vh0(1:natom,-2:2),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     vh0 = 0._dp
 
     ALLOCATE (dvr2(6),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (dvspl(6),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     !prepare calculation
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
@@ -284,7 +284,7 @@ CONTAINS
         success=find_coeffs(values=dvr2rs%pw,coeffs=dvspl(i)%pw,&
              linOp=spl3_pbc,preconditioner=precond,pool=auxbas_pw_pool, &
              eps_r=eps_r,eps_x=eps_x,max_iter=max_iter)
-        CPPostconditionNoFail(success,cp_warning_level,routineP)
+        CPASSERT(success)
         CALL pw_spline_precond_release(precond)
         CALL pw_pool_give_back_pw(auxbas_pw_pool,dvr2(i)%pw)
       END DO
@@ -410,19 +410,19 @@ CONTAINS
     END IF
 
     DEALLOCATE (efg_tensor,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     IF ( efg_debug ) THEN
       DEALLOCATE (efg_pw,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
 
     DEALLOCATE (vh0,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE (dvr2,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (dvspl,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -499,9 +499,9 @@ CONTAINS
     my_CG        => harmonics%my_CG
 
     ALLOCATE(CPC_sphere(nsoset(maxl),nsoset(maxl)),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     m1s = 0
     DO iset1 = 1,nset
@@ -509,7 +509,7 @@ CONTAINS
        DO iset2 = 1,nset
           CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                  max_s_harm,llmax,cg_list,cg_n_list,max_iso_not0_local)
-          CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,failure)
+          CPASSERT(max_iso_not0_local.LE.max_iso_not0)
 
           n1s = nsoset(lmax(iset1))
           DO ipgf1  = 1,npgf(iset1)
@@ -519,7 +519,7 @@ CONTAINS
              iso1_first = o2nindex(iso1_first)
              iso1_last  = o2nindex(iso1_last)
              i1 = iso1_last - iso1_first + 1
-             CPPrecondition(size1==i1,cp_failure_level,routineP,failure)
+             CPASSERT(size1==i1)
              i1 = nsoset(lmin(iset1)-1)+1
 
           n2s=nsoset(lmax(iset2))
@@ -530,7 +530,7 @@ CONTAINS
             iso2_first = o2nindex(iso2_first)
             iso2_last  = o2nindex(iso2_last)
             i2 = iso2_last - iso2_first + 1
-            CPPrecondition(size2==i2,cp_failure_level,routineP,failure)
+            CPASSERT(size2==i2)
             i2 = nsoset(lmin(iset2)-1)+1
 
             zet12 = zet(ipgf1,iset1)+zet(ipgf2,iset2)
@@ -592,9 +592,9 @@ CONTAINS
     CALL mp_sum(vlimit,para_env%group)
 
     DEALLOCATE(CPC_sphere,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(cg_list,cg_n_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE vlimit_atom
 

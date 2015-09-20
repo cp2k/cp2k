@@ -59,12 +59,12 @@ CONTAINS
     SELECT CASE(ff_type)
     CASE("AMBER")
        ALLOCATE(amber_map,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! allocate substructures
        ALLOCATE(amber_map%kind(amb_imax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(amber_map%element(amb_imax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        amber_map%kind=(/&
             "BR","C ","CA","CB","CC","CK","CM","CN","CQ","CR",&
@@ -81,12 +81,12 @@ CONTAINS
 
     CASE("CHARMM")
        ALLOCATE(charmm_map,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! allocate substructures
        ALLOCATE(charmm_map%kind(chm_imax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(charmm_map%element(chm_imax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        charmm_map%kind=(/&
             "CA  ","CAL ","C   ","CC  ","CD  ","CE  ","CEL ","CES ","CLA ","CL  ",&
@@ -116,12 +116,12 @@ CONTAINS
 
     CASE("GROMOS")
        ALLOCATE(gromos_map,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! allocate substructures
        ALLOCATE(gromos_map%kind(grm_imax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(gromos_map%element(grm_imax),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        gromos_map%kind=(/&
             "H1  ","CA  ","HA  ","SD  ","OG  ","CG  ","HD  ","SG  ",&
@@ -158,30 +158,30 @@ CONTAINS
     CASE("AMBER")
        ! deallocate substructures
        DEALLOCATE(amber_map%kind,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(amber_map%element,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! deallocate main
        DEALLOCATE(amber_map,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     CASE("CHARMM")
        ! deallocate substructures
        DEALLOCATE(charmm_map%kind,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(charmm_map%element,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! deallocate main
        DEALLOCATE(charmm_map,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     CASE("GROMOS")
        ! deallocate substructures
        DEALLOCATE(gromos_map%kind,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(gromos_map%element,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! deallocate main
        DEALLOCATE(gromos_map,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END SELECT
   END SUBROUTINE destroy_ff_map
 

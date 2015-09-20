@@ -166,17 +166,17 @@ CONTAINS
 
     CALL section_vals_val_get(vwn_params,"scale_c",r_val=sc)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
+    CPASSERT(ASSOCIATED(deriv_set))
+    CPASSERT(deriv_set%ref_count>0)
     CALL xc_rho_set_get(rho_set,rho=rho,&
          local_bounds=bo,rho_cutoff=epsilon_rho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
     CALL vwn_init(epsilon_rho, vwn_params)
 
     ALLOCATE ( x(npoints), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL calc_srs_pw ( rho, x, npoints )
 
     IF (order>=1) THEN
@@ -222,7 +222,7 @@ CONTAINS
     END IF
 
     DEALLOCATE(x,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
     CALL timestop(handle)
 
   END SUBROUTINE vwn_lda_eval
@@ -544,10 +544,10 @@ CONTAINS
 
     CALL section_vals_val_get(vwn_params,"scale_c",r_val=sc)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
+    CPASSERT(ASSOCIATED(deriv_set))
+    CPASSERT(deriv_set%ref_count>0)
     CALL xc_rho_set_get(rho_set,rhoa=rhoa,rhob=rhob,&
          local_bounds=bo,rho_cutoff=epsilon_rho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
@@ -555,7 +555,7 @@ CONTAINS
 
     IF (cp_debug) THEN
       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     ELSE
       dummy=> rhoa
     END IF
@@ -666,7 +666,7 @@ CONTAINS
 
     IF (cp_debug) THEN
       DEALLOCATE(dummy,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
     ELSE
       NULLIFY(dummy)
     END IF

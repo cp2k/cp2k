@@ -213,7 +213,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(lri_opt%ri_gcc_orig(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! *** get parameters 
     CALL get_optimization_parameter(lri_opt,lri_optbas_section,&
@@ -251,7 +251,7 @@ CONTAINS
       ! *** constraints on exponents
       IF(lri_opt%use_constraints) THEN
         ALLOCATE(zet_init(SIZE(x)),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         zet_init(:)=x 
       ELSE
         x(:)=SQRT(x)
@@ -401,7 +401,7 @@ CONTAINS
     ! nvar_exp: number of exponents that are variables
     nvar_exp= SIZE(x) - lri_opt%ncoeff
     ALLOCATE(zet_trans(nvar_exp),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
    
     ! *** update exponents 
     IF(lri_opt%opt_exps) THEN
@@ -450,7 +450,7 @@ CONTAINS
     ENDIF
 
     DEALLOCATE(zet_trans,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE update_exponents
 
 ! *****************************************************************************
@@ -477,7 +477,7 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE(zet_max(nvar),zet_min(nvar),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     
     zet_min(:) = zet_init(:)*(1.0_dp-lri_opt%scale_exp)
     zet_max(:) = zet_init(:)*(1.0_dp+lri_opt%scale_exp)
@@ -487,7 +487,7 @@ CONTAINS
     zet_trans= zet_min + (zet_max-zet_min)/(1+EXP(-a*(zet-zet_init)))
 
     DEALLOCATE(zet_max,zet_min,STAT=stat) 
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
 
   END SUBROUTINE transfer_exp
@@ -668,7 +668,7 @@ CONTAINS
             CALL cp_dbcsr_get_block_p(matrix=pmat,row=jatom,col=iatom,block=pbij,found=found)
             trans = .TRUE.
           END IF
-          CPPostcondition(found,cp_failure_level,routineP,failure)
+          CPASSERT(found)
  
           ! *** calculate integral of the square of exact density rhoexact_sq
           IF (trans) THEN  
@@ -800,10 +800,10 @@ CONTAINS
        ! build the overlap matrix
        IF(iatom == jatom) THEN
         ALLOCATE(smat(nfa,nfa),STAT=stat) 
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
        ELSE
         ALLOCATE(smat(nn,nn),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
        ENDIF
        smat(1:nfa,1:nfa) = lri_env%bas_prop(ikind)%ri_ovlp(1:nfa,1:nfa)
        IF(iatom /= jatom) THEN
@@ -815,7 +815,7 @@ CONTAINS
 
        IF(iatom==jatom) nn=nfa
        ALLOCATE(diag(nn),off_diag(nn-1),tau(nn-1),work(1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        diag=0.0_dp
        off_diag=0.0_dp
        tau=0.0_dp
@@ -832,7 +832,7 @@ CONTAINS
        lrii%cond_num=MAXVAL(ABS(diag))/MINVAL(ABS(diag))
        
        DEALLOCATE(diag,off_diag,smat,tau,work)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END DO 
 
     CALL neighbor_list_iterator_release(nl_iterator)

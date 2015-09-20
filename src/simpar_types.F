@@ -106,9 +106,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(simpar),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(simpar))
     ALLOCATE(simpar, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE create_simpar_type
 
 ! *****************************************************************************
@@ -126,9 +126,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(simpar))
     DEALLOCATE(simpar, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE release_simpar_type
 
 END MODULE simpar_types

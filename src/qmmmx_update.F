@@ -150,14 +150,14 @@ CONTAINS
       from_nparticle_kind, from_nparticle_local, handle, to_iparticle_global, &
       to_iparticle_kind, to_iparticle_local, to_nparticle_kind, &
       to_nparticle_local, tot_from_nparticle_local, tot_to_nparticle_local
-    LOGICAL                                  :: failure, found_it
+    LOGICAL                                  :: found_it
 
     CALL timeset(routineN,handle)
-    CPPrecondition (ASSOCIATED(from_local_particles),cp_failure_level,routineP,failure)
-    CPPrecondition (ASSOCIATED(to_local_particles),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(from_local_particles))
+    CPASSERT(ASSOCIATED(to_local_particles))
 
     IF (.NOT. ASSOCIATED(from_local_particles%local_particle_set)) RETURN
-    CPPrecondition (.NOT. ASSOCIATED(to_local_particles%local_particle_set),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT. ASSOCIATED(to_local_particles%local_particle_set))
 
     from_nparticle_kind = from_local_particle_kinds%n_els
     to_nparticle_kind = to_local_particle_kinds%n_els
@@ -171,7 +171,7 @@ CONTAINS
     DO to_iparticle_kind=1, to_nparticle_kind
       tot_to_nparticle_local = tot_to_nparticle_local + to_local_particles%n_el(to_iparticle_kind)
     END DO
-    CPPrecondition (tot_from_nparticle_local == tot_to_nparticle_local, cp_failure_level,routineP,failure)
+    CPASSERT(tot_from_nparticle_local == tot_to_nparticle_local)
 
     ALLOCATE(to_local_particles%local_particle_set(to_nparticle_kind))
     DO to_iparticle_kind=1, to_nparticle_kind
@@ -197,7 +197,7 @@ CONTAINS
                EXIT
              ENDIF
           END DO
-          CPPostcondition (found_it, cp_failure_level,routineP,failure)
+          CPASSERT(found_it)
 
        END DO ! to_iparticle_local
 

@@ -100,21 +100,21 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(spline_env)) THEN
-       CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(spline_env%ref_count>0)
        spline_env%ref_count=spline_env%ref_count-1
        IF (spline_env%ref_count<1) THEN
           DEALLOCATE (  spline_env % spltab, stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           DO i = 1, SIZE (  spline_env % spl_pp )
              spl_p => spline_env % spl_pp ( i ) % spl_p
              CALL spline_data_p_release ( spl_p)
           END DO
           DEALLOCATE (  spline_env % spl_pp, stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           NULLIFY ( spline_env % spltab )
           NULLIFY ( spline_env % spl_pp )
           DEALLOCATE (  spline_env , stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
 
@@ -137,21 +137,21 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(spline_data)) THEN
-       CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(spline_data%ref_count>0)
        spline_data%ref_count=spline_data%ref_count-1
        IF (spline_data%ref_count<1) THEN
           IF ( ASSOCIATED ( spline_data%y)) THEN
              DEALLOCATE (spline_data%y,STAT=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
              NULLIFY (spline_data%y)
           END IF
           IF ( ASSOCIATED ( spline_data%y2)) THEN
              DEALLOCATE (spline_data%y2,STAT=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
              NULLIFY (spline_data%y2)
           END IF
           DEALLOCATE (  spline_data, stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE spline_data_release
@@ -181,7 +181,7 @@ CONTAINS
        END DO
        IF (release_kind) THEN
           DEALLOCATE(spl_p, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
 
@@ -201,8 +201,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(spline_data),cp_failure_level,routineP,failure)
-    CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(spline_data))
+    CPASSERT(spline_data%ref_count>0)
     spline_data%ref_count=spline_data%ref_count+1
   END SUBROUTINE spline_data_retain
 
@@ -222,7 +222,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(spl_p),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(spl_p))
     DO i = 1, SIZE(spl_p)
        CALL spline_data_retain(spl_p(i)%spline_data)
     END DO
@@ -244,8 +244,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(spline_env),cp_failure_level,routineP,failure)
-    CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(spline_env))
+    CPASSERT(spline_env%ref_count>0)
     spline_env%ref_count=spline_env%ref_count+1
   END SUBROUTINE spline_env_retain
 
@@ -276,7 +276,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(spline_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY ( spline_env % spl_pp )
     NULLIFY ( spline_env % spltab )
     spline_env%ref_count=1
@@ -289,16 +289,16 @@ CONTAINS
        ntab = ( ntype * ntype + ntype ) / 2
     END IF
     ALLOCATE ( spline_env % spl_pp( ntab ),  stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE ( spline_env % spltab ( ntype, ntype ), stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO i = 1, ntab
        NULLIFY (spline_env%spl_pp( i )%spl_p)
        isize = 1
        ALLOCATE(spline_env%spl_pp(i)%spl_p(isize), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO j = 1, SIZE(spline_env%spl_pp(i)%spl_p)
           CALL spline_data_create (spline_env%spl_pp(i)%spl_p(j)%spline_data)
        END DO
@@ -325,17 +325,17 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPostcondition(ASSOCIATED(spl_p_source),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(spl_p_source))
     nsizes = SIZE(spl_p_source)
     IF (.NOT.ASSOCIATED(spl_p_dest)) THEN
        ALLOCATE(spl_p_dest(nsizes), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, nsizes
           NULLIFY(spl_p_dest(i)%spline_data)
        END DO
     ELSE
        nsized = SIZE(spl_p_dest)
-       CPPostcondition(nsizes==nsized,cp_failure_level,routineP,failure)
+       CPASSERT(nsizes==nsized)
        DO i = 1, nsizes
           CALL spline_data_release(spl_p_dest(i)%spline_data)
        END DO
@@ -362,7 +362,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPostcondition(ASSOCIATED(spline_data_source),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(spline_data_source))
     IF (.NOT.ASSOCIATED(spline_data_dest)) CALL spline_data_create(spline_data_dest)
 
     spline_data_dest%ref_count = spline_data_source%ref_count
@@ -375,12 +375,12 @@ CONTAINS
     spline_data_dest%xn        = spline_data_source%xn
     IF (ASSOCIATED(spline_data_source%y)) THEN
        ALLOCATE(spline_data_dest%y(SIZE(spline_data_source%y)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        spline_data_dest%y = spline_data_source%y
     END IF
     IF (ASSOCIATED(spline_data_source%y2)) THEN
        ALLOCATE(spline_data_dest%y2(SIZE(spline_data_source%y2)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        spline_data_dest%y2 = spline_data_source%y2
     END IF
   END SUBROUTINE spline_data_copy
@@ -402,7 +402,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(spline_data, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     spline_data%ref_count=1
     last_spline_data_id_nr=last_spline_data_id_nr+1
     spline_data%id_nr = last_spline_data_id_nr
@@ -429,18 +429,18 @@ CONTAINS
     IF (ASSOCIATED(spline_factor)) THEN
        IF (ASSOCIATED(spline_factor%rscale)) THEN
           DEALLOCATE(spline_factor%rscale,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(spline_factor%fscale)) THEN
           DEALLOCATE(spline_factor%fscale,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(spline_factor%dscale)) THEN
           DEALLOCATE(spline_factor%dscale,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE (spline_factor, stat=stat )
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE spline_factor_release
 
@@ -459,15 +459,15 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(spline_factor),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(spline_factor))
     ALLOCATE(spline_factor, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(spline_factor%rscale(1),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(spline_factor%fscale(1),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(spline_factor%dscale(1),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     spline_factor%rscale = 1.0_dp
     spline_factor%fscale = 1.0_dp
     spline_factor%dscale = 1.0_dp
@@ -498,8 +498,8 @@ CONTAINS
        isize = SIZE(spline_factor_source%rscale)
        jsize = SIZE(spline_factor_source%fscale)
        ksize = SIZE(spline_factor_source%dscale)
-       CPPrecondition(isize==jsize,cp_failure_level,routineP,failure)
-       CPPrecondition(isize==ksize,cp_failure_level,routineP,failure)
+       CPASSERT(isize==jsize)
+       CPASSERT(isize==ksize)
        CALL spline_factor_create(spline_factor_dest)
        spline_factor_dest%rscale = spline_factor_source%rscale
        spline_factor_dest%fscale = spline_factor_source%fscale

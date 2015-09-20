@@ -353,26 +353,26 @@ CONTAINS
 
          nsotot = maxso*nset
          ALLOCATE(gsph(nr,nsotot),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          ALLOCATE(gexp(nr),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          ALLOCATE(sqrtwr(nr),g0_h_w(nr,0:lmax_0),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
 
          NULLIFY(Vh1_h,Vh1_s)
          ALLOCATE(Vh1_h(nr,max_iso_not0),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          ALLOCATE(Vh1_s(nr,max_iso_not0),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
 
          ALLOCATE(aVh1b_hh(nsotot,nsotot),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          ALLOCATE(aVh1b_ss(nsotot,nsotot),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          ALLOCATE(aVh1b_00(nsotot,nsotot),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
 
          NULLIFY(Qlm_gg,g0_h)
          CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind, &
@@ -450,21 +450,21 @@ CONTAINS
          END DO  ! iat
 
          DEALLOCATE(aVh1b_hh,STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
          DEALLOCATE(aVh1b_ss,STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
          DEALLOCATE(aVh1b_00,STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
          DEALLOCATE(Vh1_h,Vh1_s, STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
          DEALLOCATE(cg_list,cg_n_list,STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
          DEALLOCATE(gsph,STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
          DEALLOCATE(gexp,STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
          DEALLOCATE(sqrtwr,g0_h_w,STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
 
       ELSE
 !===========   NO  PAW   ===============

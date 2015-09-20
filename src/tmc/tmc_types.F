@@ -188,13 +188,13 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(.NOT.ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(tmc_env))
 
     ALLOCATE(tmc_env,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(tmc_env%tmc_comp_set,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     tmc_env%tmc_comp_set%group_ener_size = 0 
     tmc_env%tmc_comp_set%group_ener_nr   = 0
@@ -214,7 +214,7 @@ CONTAINS
 
     ! initialize the parameter section
     ALLOCATE(tmc_env%params,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     tmc_env%params%task_type = task_type_MC
     ! dim_per_elem can be variable somewhen, 
@@ -261,8 +261,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPostcondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%params))
 
     DEALLOCATE(tmc_env%params%sub_box_size)
     IF(ASSOCIATED(tmc_env%params%Temp)) &
@@ -272,7 +272,7 @@ CONTAINS
     IF(ASSOCIATED(tmc_env%params%atoms)) &
       CALL deallocate_tmc_atom_type(tmc_env%params%atoms)
     DEALLOCATE(tmc_env%params,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL cp_para_env_release(tmc_env%tmc_comp_set%para_env_sub_group)
     CALL cp_para_env_release(tmc_env%tmc_comp_set%para_env_m_w)
@@ -284,10 +284,10 @@ CONTAINS
     CALL cp_para_env_release(tmc_env%tmc_comp_set%para_env_m_only)
 
     DEALLOCATE(tmc_env%tmc_comp_set,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(tmc_env,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -311,11 +311,11 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPostcondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
-    CPPostcondition(tmc_env%params%nr_temp.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%params))
+    CPASSERT(tmc_env%params%nr_temp.GT.0)
     
-    CPPostcondition(.NOT.ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(tmc_env%m_env))
 
     ALLOCATE(tmc_env%m_env)
     NULLIFY(tmc_env%m_env%gt_head, tmc_env%m_env%gt_act, tmc_env%m_env%tree_node_count, &
@@ -374,8 +374,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
 
     CALL clean_list(tmc_env%m_env%analysis_list)
     CALL clean_list(tmc_env%m_env%cancelation_list)
@@ -411,8 +411,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(tmc_env%w_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(.NOT.ASSOCIATED(tmc_env%w_env))
 
     ALLOCATE(tmc_env%w_env)
 
@@ -443,8 +443,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%w_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%w_env))
 
     DEALLOCATE(tmc_env%w_env)
 
@@ -466,16 +466,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_tmc_atom_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    CPPrecondition(.NOT.ASSOCIATED(atoms),cp_failure_level,routineP,failure)
-    CPPrecondition(nr_atoms.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(atoms))
+    CPASSERT(nr_atoms.GT.0)
 
     ALLOCATE(atoms(nr_atoms))
     atoms%name = ""
     atoms%mass = 0.0_dp
 
-    CPPostcondition(ASSOCIATED(atoms),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(atoms))
     
   END SUBROUTINE allocate_tmc_atom_type
 
@@ -491,13 +489,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_tmc_atom_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(atoms))
 
     DEALLOCATE(atoms)
 
-    CPPostcondition(.NOT.ASSOCIATED(atoms),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(atoms))
   END SUBROUTINE deallocate_tmc_atom_type
 
 END MODULE tmc_types

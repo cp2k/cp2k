@@ -63,8 +63,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(velocity_section),cp_failure_level,routineP,failure)
-    CPPrecondition(velocity_section%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(velocity_section))
+    CPASSERT(velocity_section%ref_count>0)
     section => velocity_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
@@ -73,7 +73,7 @@ CONTAINS
 
     ! At least one of the two arguments must be present..
     check = PRESENT(particles).NEQV.PRESENT(velocity)
-    CPPostcondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     IF(PRESENT(particles)) nloop = particles%n_els
     IF(PRESENT(velocity))  nloop = SIZE(velocity,2)
 
@@ -88,7 +88,7 @@ CONTAINS
     END IF
     DO irk=1,nloop
        ALLOCATE(vel(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Always stored in A.U.
        IF(PRESENT(particles)) vel = particles%els(irk)%v(1:3)*conv_factor
        IF(PRESENT(velocity))  vel = velocity(1:3,irk)*conv_factor

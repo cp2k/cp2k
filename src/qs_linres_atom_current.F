@@ -168,12 +168,12 @@ CONTAINS
                     para_env=para_env)
 
     !
-    CPPrecondition(ASSOCIATED(oce),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(oce))
     !
     CALL get_current_env(current_env=current_env,&
                      jrho1_atom_set=jrho1_atom_set)
     !
-    CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(jrho1_atom_set))
     !
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,&
                              maxsgf=max_nsgf,&
@@ -205,7 +205,7 @@ CONTAINS
              a_block(nspins),b_block(nspins),c_block(nspins),d_block(nspins),&
              jp_RARnu(nspins),jp2_RARnu(nspins),PC1(max_nsgf*max_gau),&
              CPC(max_gau*max_gau),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     ! Reset CJC coefficients and local density arrays
     DO ikind = 1 ,nkind
@@ -238,7 +238,7 @@ CONTAINS
     !
     ! Three centers
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -261,7 +261,7 @@ CONTAINS
           NULLIFY(jp_RARnu(ispin)%r_coef,jp2_RARnu(ispin)%r_coef)
           ALLOCATE(jp_RARnu(ispin)%r_coef(nsgfa,nsgfb),&
                    jp2_RARnu(ispin)%r_coef(nsgfa,nsgfb),STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDDO
 
        ! Take the block \mu\nu of jpab, jpab_ii and jpab_iii
@@ -436,13 +436,13 @@ CONTAINS
        ENDDO ! kkind
        DO ispin = 1,nspins
           DEALLOCATE(jp_RARnu(ispin)%r_coef,jp2_RARnu(ispin)%r_coef,STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDDO
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE(basis_set_list,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     ! parallel sum up
     nbr_dbl = 0.0_dp
@@ -465,7 +465,7 @@ CONTAINS
        bo = get_limit(nat,num_pe,mepos)
        !
        ALLOCATE(zero_coeff(nsoctot,nsoctot),STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DO iat = 1,nat
           iatom = atom_list(iat)
           is_not_associated = .NOT.ASSOCIATED(jrho1_atom_set(iatom)%cjc0_h(1)%r_coef)
@@ -529,7 +529,7 @@ CONTAINS
        ENDDO ! iat
        !
        DEALLOCATE(zero_coeff,STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        !
     ENDDO ! ikind
     !
@@ -543,7 +543,7 @@ CONTAINS
     ! clean up
     DEALLOCATE(a_matrix,b_matrix,c_matrix,d_matrix,PC1,CPC,a_block,b_block,c_block,d_block,&
                jp_RARnu,jp2_RARnu,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     CALL timestop(handle)
     !
@@ -632,7 +632,7 @@ CONTAINS
     !
     natom_tot = SIZE(jrho1_atom_set,1)
     ALLOCATE(is_set_to_0(natom_tot,nspins),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     is_set_to_0(:,:) = .FALSE.
 
     !
@@ -688,7 +688,7 @@ CONTAINS
                 cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),&
                 dacg_list(2,nsoset(maxl)**2,max_s_harm),dacg_n_list(max_s_harm),&
                 gauge_h(nr),gauge_s(nr),STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        !
        ! Compute the gauge
        SELECT CASE(current_env%gauge)
@@ -722,10 +722,10 @@ CONTAINS
           DO iset2 = 1,nset
              CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                     max_s_harm,lmax_expansion,cg_list,cg_n_list,max_iso_not0_local)
-             CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,failure)
+             CPASSERT(max_iso_not0_local.LE.max_iso_not0)
              CALL get_none0_cg_list(my_CG_dxyz_asym,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                     max_s_harm,lmax_expansion,dacg_list,dacg_n_list,damax_iso_not0_local)
-             CPPrecondition(damax_iso_not0_local.LE.damax_iso_not0,cp_failure_level,routineP,failure)
+             CPASSERT(damax_iso_not0_local.LE.damax_iso_not0)
 
              n1s = nsoset(lmax(iset1))
              DO ipgf1 = 1,npgf(iset1)
@@ -735,7 +735,7 @@ CONTAINS
                 iso1_first = o2nindex(iso1_first)
                 iso1_last  = o2nindex(iso1_last)
                 i1 = iso1_last - iso1_first + 1
-                CPPrecondition(size1==i1,cp_failure_level,routineP,failure)
+                CPASSERT(size1==i1)
                 i1 = nsoset(lmin(iset1)-1)+1
                 !
                 g1(1:nr) = EXP(-zet(ipgf1,iset1)*grid_atom%rad2(1:nr))
@@ -748,7 +748,7 @@ CONTAINS
                    iso2_first = o2nindex(iso2_first)
                    iso2_last  = o2nindex(iso2_last)
                    i2 = iso2_last - iso2_first + 1
-                   CPPrecondition(size2==i2,cp_failure_level,routineP,failure)
+                   CPASSERT(size2==i2)
                    i2 = nsoset(lmin(iset2)-1)+1
                    !
                    g2(1:nr) = EXP(-zet(ipgf2,iset2)*grid_atom%rad2(1:nr))
@@ -898,7 +898,7 @@ CONTAINS
                                   WRITE(*,*) 'iso1=',iso1,' iso2=',iso2,' iso=',iso,' icg=',icg
                                   WRITE(*,*) '.... will stop!'
                                ENDIF
-                               CPPrecondition(iso2>0.AND.iso1>0,cp_failure_level,routineP,failure)
+                               CPASSERT(iso2>0.AND.iso1>0)
                                !
                                l = indso(1,iso1) + indso(1,iso2)
                                IF(l.GT.lmax_expansion.OR.l.LT..0) THEN
@@ -906,7 +906,7 @@ CONTAINS
                                   WRITE(*,*) 'calculate_jrho_atom_rad: 1 lmax_expansion',lmax_expansion
                                   WRITE(*,*) '.... will stop!'
                                ENDIF
-                               CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,failure)
+                               CPASSERT(l<=lmax_expansion)
                                !------------------------------------------------------------------
                                ! P0
                                !
@@ -1012,7 +1012,7 @@ CONTAINS
                                   WRITE(*,*) 'iso1=',iso1,' iso2=',iso2,' iso=',iso,' icg=',icg
                                   WRITE(*,*) '.... will stop!'
                                ENDIF
-                               CPPrecondition(iso2>0.AND.iso1>0,cp_failure_level,routineP,failure)
+                               CPASSERT(iso2>0.AND.iso1>0)
                                !
                                l = indso(1,iso1) + indso(1,iso2)
                                IF(l.GT.lmax_expansion) THEN
@@ -1020,7 +1020,7 @@ CONTAINS
                                   WRITE(*,*) 'calculate_jrho_atom_rad: 1 lmax_expansion',lmax_expansion
                                   WRITE(*,*) '.... will stop!'
                                ENDIF
-                               CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,failure)
+                               CPASSERT(l<=lmax_expansion)
                                !------------------------------------------------------------------
                                ! Daij
                                !
@@ -1105,12 +1105,12 @@ CONTAINS
        DEALLOCATE(cjc0_h_block,cjc0_s_block,cjc_h_block,cjc_s_block,cjc_ii_h_block,cjc_ii_s_block,&
                   cjc_iii_h_block,cjc_iii_s_block,g1,g2,gg,gg_lm1,dgg_1,gauge_h,gauge_s,&
                   cg_list,cg_n_list,dacg_list,dacg_n_list,STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     ENDDO ! ikind
     !
     !
     DEALLOCATE(is_set_to_0,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     CALL timestop(handle)
     !
@@ -1162,41 +1162,41 @@ CONTAINS
             Fr_b_h,Fr_b_s,Fr_b_h_ii,Fr_b_s_ii,Fr_b_h_iii,Fr_b_s_iii,&
             a,slm)
     !
-    CPPrecondition(ASSOCIATED(jrho_h),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho_s),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(jrho_h))
+    CPASSERT(ASSOCIATED(jrho_s))
+    CPASSERT(ASSOCIATED(jrho1_atom))
     ! just to be sure...
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h(ispin)%r_coef),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s(ispin)%r_coef),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h(ispin)%r_coef),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s(ispin)%r_coef),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h_ii),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s_ii),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h_ii),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s_ii),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h_ii(ispin)%r_coef),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s_ii(ispin)%r_coef),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h_ii(ispin)%r_coef),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s_ii(ispin)%r_coef),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h_iii),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s_iii),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h_iii),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s_iii),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_h_iii(ispin)%r_coef),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_a_s_iii(ispin)%r_coef),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_h_iii(ispin)%r_coef),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(jrho1_atom%jrho_b_s_iii(ispin)%r_coef),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_a_h))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_a_s))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_b_h))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_b_s))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_a_h(ispin)%r_coef))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_a_s(ispin)%r_coef))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_b_h(ispin)%r_coef))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_b_s(ispin)%r_coef))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_a_h_ii))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_a_s_ii))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_b_h_ii))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_b_s_ii))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_a_h_ii(ispin)%r_coef))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_a_s_ii(ispin)%r_coef))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_b_h_ii(ispin)%r_coef))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_b_s_ii(ispin)%r_coef))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_a_h_iii))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_a_s_iii))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_b_h_iii))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_b_s_iii))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_a_h_iii(ispin)%r_coef))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_a_s_iii(ispin)%r_coef))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_b_h_iii(ispin)%r_coef))
+    CPASSERT(ASSOCIATED(jrho1_atom%jrho_b_s_iii(ispin)%r_coef))
     !
     !
     nr = grid_atom%nr
     na = grid_atom%ng_sphere
     max_max_iso_not0 = MAX(harmonics%max_iso_not0,harmonics%damax_iso_not0)
     ALLOCATE(g(3,nr,na),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !------------------------------------------------------------------
     !
     Fr_h => jrho1_atom%jrho_h(ispin)%r_coef
@@ -1290,7 +1290,7 @@ CONTAINS
     ENDDO ! ir
     !
     DEALLOCATE(g,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
   CONTAINS
     !
@@ -1408,7 +1408,7 @@ CONTAINS
 
     natm_tot = SIZE(particle_set)
     ALLOCATE(ratom(3,natm_tot),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     IF (gapw) THEN
        DO ikind = 1,nkind
@@ -1455,7 +1455,7 @@ CONTAINS
     END IF
 
     DEALLOCATE(ratom,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE calculate_jrho_atom
 

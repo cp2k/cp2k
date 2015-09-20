@@ -110,12 +110,12 @@ CONTAINS
     present_vel = PRESENT(vel)
     ndim = gle%ndim
     ALLOCATE (s_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     s_tmp = 0.0_dp
     ALLOCATE (e_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     ALLOCATE (h_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
 
     map_info => gle%map_info
@@ -177,7 +177,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(e_tmp,s_tmp,h_tmp,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
     CALL timestop(handle)
   END SUBROUTINE gle_particles
@@ -390,7 +390,7 @@ CONTAINS
       gle%loc_num_gle  = number
       gle%glob_num_gle = sum_of_thermostats
       mal_size = SIZE(massive_atom_list)
-      CPPrecondition(mal_size/=0,cp_fatal_level,routineP,failure)
+      CPASSERT(mal_size/=0)
       CALL gle_thermo_create(gle,  mal_size)
       gle%mal(1:mal_size) = massive_atom_list(1:mal_size)
 
@@ -425,9 +425,9 @@ CONTAINS
           END DO
        END IF
        DEALLOCATE (deg_of_freedom,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( massive_atom_list, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END SELECT
 
   END SUBROUTINE gle_to_particle_mapping

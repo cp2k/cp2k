@@ -104,8 +104,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(cell_in),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(cell_out),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(cell_in))
+    CPASSERT(ASSOCIATED(cell_out))
 
     cell_out%deth         = cell_in%deth
     cell_out%perd         = cell_in%perd
@@ -134,8 +134,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(cell_in),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(cell_out),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(cell_in))
+    CPASSERT(ASSOCIATED(cell_out))
 
     cell_out%deth         = cell_in%deth
     cell_out%perd         = cell_in%perd
@@ -313,7 +313,7 @@ CONTAINS
                                                 cos_gamma, eps, sin_gamma
 
     failure = .FALSE.
-    CPPrecondition(ALL(cell_angle/=0.0_dp),cp_failure_level,routineP,failure)
+    CPASSERT(ALL(cell_angle/=0.0_dp))
     eps = EPSILON(0.0_dp)
     cos_gamma = COS(cell_angle(3)); IF (ABS(cos_gamma)<eps) cos_gamma = 0.0_dp
     IF (ABS(ABS(cos_gamma)-1.0_dp)<eps) cos_gamma = SIGN(1.0_dp,cos_gamma)
@@ -788,9 +788,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(cell),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(cell))
     ALLOCATE (cell,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     last_cell_id = last_cell_id + 1
     cell%id_nr = last_cell_id
     cell%ref_count = 1
@@ -824,8 +824,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(cell))
+    CPASSERT(cell%ref_count>0)
     cell%ref_count=cell%ref_count+1
 
   END SUBROUTINE cell_retain
@@ -850,11 +850,11 @@ CONTAINS
     failure = .FALSE.
 
     IF (ASSOCIATED(cell)) THEN
-       CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(cell%ref_count>0)
        cell%ref_count=cell%ref_count-1
        IF (cell%ref_count==0) THEN
           DEALLOCATE(cell,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
        NULLIFY(cell)
     END IF

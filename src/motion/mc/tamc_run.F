@@ -222,8 +222,8 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 
 
 
-    CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(globenv))
+    CPASSERT(ASSOCIATED(force_env))
 
     failure=.FALSE.
     NULLIFY (particles, cell, simpar, itimes, used_time, subsys, &
@@ -326,7 +326,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
       NULLIFY(mc_env,mc_par,rng_stream_mc,MCaverages)
 
       CALL section_vals_get(force_env_section,n_repetition=isos)
-      CPPostconditionNoFail(isos==1,cp_warning_level,routineP)
+      CPASSERT(isos==1)
 ! set some values...will use get_globenv if that ever comes around
 
 ! initialize the random numbers
@@ -339,20 +339,20 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 
       NULLIFY(mc_section)
       ALLOCATE(mc_par, stat=isos) ! do not forget to clean this mess
-      CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+      CPASSERT(isos==0)
 
       mc_section => section_vals_get_subs_vals(force_env%root_section,&
          "MOTION%MC")
       CALL section_vals_val_get(mc_section,"ENSEMBLE",&
            c_val=ensemble)
-      CPPostcondition(str_comp(ensemble,"TRADITIONAL"),cp_failure_level,routineP,failure)
+      CPASSERT(str_comp(ensemble,"TRADITIONAL"))
       CALL section_vals_val_get(mc_section,"NSTEP",&
            i_val=nmccycles)
-      CPPostcondition(nmccycles>0,cp_failure_level,routineP,failure)
+      CPASSERT(nmccycles>0)
       CALL section_vals_val_get(mc_section,"IPRINT",&
            i_val=iprint)
       CALL section_vals_val_get(mc_section,"RANDOMTOSKIP",i_val=rand2skip)
-      CPPostcondition(rand2skip>=0,cp_failure_level,routineP,failure)
+      CPASSERT(rand2skip>=0)
       temp=cp_unit_from_cp2k(simpar%temp_ext,"K")
 !
 
@@ -519,23 +519,23 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
       CALL init_mc_moves(moves)
       CALL init_mc_moves(gmoves)
       ALLOCATE (r(1:3,SIZE(particles%els)),STAT=isos)
-      CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+      CPASSERT(isos==0)
 !       ALLOCATE (r_old(1:3,size(particles%els)),STAT=isos)
 !       CPPostcondition(isos==0,cp_failure_level,routineP,failure)
       CALL mc_averages_create(MCaverages)
     !!!!! some more buffers
  ! Allocate random number for Langevin Thermostat acting on COLVARS
       ALLOCATE (xieta(2*force_env%meta_env%n_colvar),STAT=isos)
-      CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+      CPASSERT(isos==0)
       xieta(:) = 0.0_dp
       ALLOCATE (An(force_env%meta_env%n_colvar),STAT=isos)
-      CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+      CPASSERT(isos==0)
       An(:) = 0.0_dp
       ALLOCATE (fz(force_env%meta_env%n_colvar),STAT=isos)
-      CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+      CPASSERT(isos==0)
       fz(:) = 0.0_dp
       ALLOCATE (zbuff(2*force_env%meta_env%n_colvar),STAT=isos)
-      CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+      CPASSERT(isos==0)
       zbuff(:) = 0.0_dp
 
     IF (output_unit>0)THEN
@@ -684,21 +684,21 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 !     ENDIF
     CALL MC_ENV_RELEASE(mc_env)
     DEALLOCATE(mc_par, stat=isos) ! do not forget to clean this mess
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     CALL MC_MOVES_RELEASE(moves)
     CALL MC_MOVES_RELEASE(gmoves)
     DEALLOCATE(r,STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
 !     DEALLOCATE(r_old,STAT=isos)
 !     CPPostcondition(isos==0,cp_failure_level,routineP,failure)
     DEALLOCATE(xieta,STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     DEALLOCATE(An,STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     DEALLOCATE(fz,STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     DEALLOCATE(zbuff,STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     CALL mc_averages_release(MCaverages)
     CALL timestop(handle)
 
@@ -1012,8 +1012,8 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
      nparticle    = particles%n_els
      particle_set => particles%els
      molecule_set => molecules%els
-     CPPrecondition(ASSOCIATED(force_env%meta_env),cp_failure_level,routineP,failure)
-     CPPrecondition(force_env%meta_env%langevin,cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(force_env%meta_env))
+     CPASSERT(force_env%meta_env%langevin)
    !    *** Velocity Verlet for Langevin *** v(t)--> v(t+1/2)
          !!!!!! noise xi is in the first half, eta in the second half
       DO ivar = 1 , force_env%meta_env%n_colvar
@@ -1258,7 +1258,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 
 
       ALLOCATE (hmc_ekin,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
 ! record the attempt
       moves%hmc%attempts=moves%hmc%attempts+1
@@ -1336,7 +1336,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
       ENDIF
 
       DEALLOCATE(hmc_ekin,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
 ! end the timing
       CALL timestop(handle)

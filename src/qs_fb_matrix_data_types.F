@@ -106,7 +106,7 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     ! check if we need to resize the blks array
     IF (matrix_data%obj%nblks*ENLARGE_RATIO .GE. &
         matrix_data%obj%nmax) THEN
@@ -123,16 +123,16 @@ CONTAINS
        ! matrix block aready stored, need to to reassign
        IF (ASSOCIATED(matrix_data%obj%blks(existing_ii)%p)) THEN
           DEALLOCATE(matrix_data%obj%blks(existing_ii)%p, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
        ALLOCATE(matrix_data%obj%blks(existing_ii)%p(nrows,ncols), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        matrix_data%obj%blks(existing_ii)%p(:,:) = blk(:,:)
     ELSE
        matrix_data%obj%nblks = matrix_data%obj%nblks + 1
        ii = matrix_data%obj%nblks
        ALLOCATE(matrix_data%obj%blks(ii)%p(nrows,ncols), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        matrix_data%obj%blks(ii)%p(:,:) = blk(:,:)
        ! record blk index in the index table
        CALL fb_hash_table_add(matrix_data%obj%ind, pair_ind, ii)
@@ -172,9 +172,9 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = .NOT. fb_matrix_data_has_data(matrix_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     ALLOCATE(matrix_data%obj, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_hash_table_nullify(matrix_data%obj%ind)
     NULLIFY(matrix_data%obj%blks)
     matrix_data%obj%nmax = 0
@@ -214,7 +214,7 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
     CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, ind_in_blk, found)
     IF (found) THEN
@@ -259,7 +259,7 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     my_nmax = matrix_data%obj%nmax
     IF (PRESENT(nmax)) my_nmax = nmax
     my_nmax = MAX(my_nmax, 1)
@@ -271,14 +271,14 @@ CONTAINS
        DO ii = 1, SIZE(matrix_data%obj%blks)
           IF (ASSOCIATED(matrix_data%obj%blks(ii)%p)) THEN
              DEALLOCATE(matrix_data%obj%blks(ii)%p, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+             CPASSERT(stat==0)
           END IF
        END DO
        DEALLOCATE(matrix_data%obj%blks, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     END IF
     ALLOCATE(matrix_data%obj%blks(my_nmax), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     matrix_data%obj%nmax = my_nmax
     ! nullify matrix blocks
     DO ii = 1, SIZE(matrix_data%obj%blks)
@@ -316,7 +316,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(matrix_data%obj)) THEN
        check_ok = matrix_data%obj%ref_count > 0
-       CPPreconditionNoFail(check_ok, cp_failure_level, routineP)
+       CPASSERT(check_ok)
        matrix_data%obj%ref_count = matrix_data%obj%ref_count - 1
        IF (matrix_data%obj%ref_count == 0) THEN
           matrix_data%obj%ref_count = 1
@@ -327,15 +327,15 @@ CONTAINS
              DO ii = 1, SIZE(matrix_data%obj%blks)
                 IF (ASSOCIATED(matrix_data%obj%blks(ii)%p)) THEN
                    DEALLOCATE(matrix_data%obj%blks(ii)%p, STAT=stat)
-                   CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+                   CPASSERT(stat==0)
                 END IF
              END DO
              DEALLOCATE(matrix_data%obj%blks, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+             CPASSERT(stat==0)
           END IF
           matrix_data%obj%ref_count = 0
           DEALLOCATE(matrix_data%obj, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
     ELSE
        NULLIFY(matrix_data%obj)
@@ -357,9 +357,9 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = ASSOCIATED(matrix_data%obj)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = matrix_data%obj%ref_count > 0
-    CPPreconditionNoFail(check_ok, cp_failure_level, routineP)
+    CPASSERT(check_ok)
     matrix_data%obj%ref_count = matrix_data%obj%ref_count + 1
   END SUBROUTINE fb_matrix_data_retain
 
@@ -383,14 +383,14 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     my_nmax = MAX(nmax, matrix_data%obj%nblks)
     ! resize the blks array, no need to reindex, as blks in the blks
     ! are always added to the array sequencially, and so their address
     ! do not change upon resizing.
     IF (ASSOCIATED(matrix_data%obj%blks)) THEN
        ALLOCATE(tmp_blks(matrix_data%obj%nblks), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        DO ii = 1, SIZE(tmp_blks)
           NULLIFY(tmp_blks(ii)%p)
        END DO
@@ -398,9 +398,9 @@ CONTAINS
           tmp_blks(ii)%p => matrix_data%obj%blks(ii)%p
        END DO
        DEALLOCATE(matrix_data%obj%blks, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(matrix_data%obj%blks(my_nmax), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        DO ii = 1, SIZE(matrix_data%obj%blks)
           NULLIFY(matrix_data%obj%blks(ii)%p)
        END DO
@@ -408,10 +408,10 @@ CONTAINS
           matrix_data%obj%blks(ii)%p => tmp_blks(ii)%p
        END DO
        DEALLOCATE(tmp_blks, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        ALLOCATE(matrix_data%obj%blks(my_nmax), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        DO ii = 1, SIZE(matrix_data%obj%blks)
           NULLIFY(matrix_data%obj%blks(ii)%p)
        END DO
@@ -443,14 +443,14 @@ CONTAINS
 
     failure = .FALSE.
     check_ok = fb_matrix_data_has_data(matrix_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     IF (PRESENT(nmax)) nmax = matrix_data%obj%nmax
     IF (PRESENT(nblks)) nblks = matrix_data%obj%nblks
     IF (PRESENT(nencode)) nencode = matrix_data%obj%nencode
     IF (PRESENT(blk_sizes)) THEN
        check_ok = (SIZE(blk_sizes, 1) .GE. matrix_data%obj%nblks .AND. &
                    SIZE(blk_sizes, 2) .GE. 2)
-       CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+       CPASSERT(check_ok)
        blk_sizes(:,:) = 0
        DO ii = 1, matrix_data%obj%nblks
           blk_sizes(ii,1) = SIZE(matrix_data%obj%blks(ii)%p, 1)

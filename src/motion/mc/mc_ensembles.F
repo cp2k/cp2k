@@ -198,23 +198,23 @@ CONTAINS
 
     ! allocate a whole bunch of stuff based on how many boxes we have
     ALLOCATE (force_env(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (bias_env(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (cell(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (particles_old(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (oldsys(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (averages(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (mc_par(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (pmvol_box(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (pmhmc_box(1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO ibox=1,nboxes
        CALL get_mc_env ( mc_env(ibox)%mc_env, &
@@ -252,9 +252,9 @@ CONTAINS
 
     ! allocate some stuff based on the number of molecule types we have
     ALLOCATE (moves(1:nmol_types,1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (move_updates(1:nmol_types,1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF(nboxes .GT. 1) THEN
        DO ibox=2,nboxes
@@ -281,7 +281,7 @@ CONTAINS
 
     ! allocate the particle positions array for broadcasting
     ALLOCATE (r_old(3,SUM(nunits_tot),1:nboxes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! figure out what the default write unit is
     iw = cp_logger_get_default_io_unit(logger)
@@ -350,7 +350,7 @@ CONTAINS
        IF(lbias) THEN
           ! determine the atom names of every particle
           ALLOCATE (atom_names_box(1:nunits_tot(ibox)),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
           atom_number=1
           DO imolecule=1,SUM(nchains(:,ibox))
@@ -378,7 +378,7 @@ CONTAINS
           ENDIF
           bias_energy(ibox)=last_bias_energy(ibox)
           DEALLOCATE(atom_names_box,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDIF
        lnew_bias_env=.FALSE.
 
@@ -534,7 +534,7 @@ CONTAINS
                 CALL force_env_release(bias_env(ibox)%force_env)
                 ! determine the atom names of every particle
                 ALLOCATE (atom_names_box(1:nunits_tot(ibox)),STAT=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 start_mol=1
                 DO jbox=1,ibox-1
                    start_mol=start_mol+SUM(nchains(:,jbox))
@@ -574,7 +574,7 @@ CONTAINS
                 ENDIF
                 bias_energy(ibox)=last_bias_energy(ibox)
                 DEALLOCATE(atom_names_box,STAT=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              ENDDO
           ENDIF
 
@@ -1002,7 +1002,7 @@ CONTAINS
                 ! we can get screwed up with the mc_molecule_info stuff (like in swap move)...
                 ! this is kind of ugly, with allocated and deallocating every time
                    ALLOCATE (r_temp(1:3,1:nunits_tot(ibox)),STAT=stat)
-                   CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
 
                    DO iunit=1,nunits_tot(ibox)
                       r_temp(1:3,iunit)=&
@@ -1034,7 +1034,7 @@ CONTAINS
                    ENDIF
 
                    DEALLOCATE (r_temp,STAT=stat)
-                   CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                 ENDIF
              ENDIF
           ENDDO
@@ -1152,29 +1152,29 @@ CONTAINS
     ENDDO
 
     DEALLOCATE(pmhmc_box,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(pmvol_box,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(r_old,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(force_env,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(bias_env,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (cell,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (particles_old,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (oldsys,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (averages,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (moves,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (move_updates,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (mc_par,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! end the timing
     CALL timestop(handle)
@@ -1240,9 +1240,9 @@ CONTAINS
 
     nintegral_divisions=3
     ALLOCATE (virial_cutoffs(1:nintegral_divisions),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (virial_stepsize(1:nintegral_divisions),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     virial_cutoffs(1)=8.0 ! first distance, in bohr
     virial_cutoffs(2)=13.0 ! second distance, in bohr
     virial_cutoffs(3)=22.0 ! maximum distance, in bohr
@@ -1259,15 +1259,15 @@ CONTAINS
 
     ! allocate a whole bunch of stuff based on how many boxes we have
     ALLOCATE (force_env(1:1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (cell(1:1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (particles(1:1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (subsys(1:1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (mc_par(1:1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL get_mc_env ( mc_env(1)%mc_env, &
          mc_par = mc_par(1)%mc_par,&
@@ -1296,7 +1296,7 @@ CONTAINS
 
     nvirial_temps=SIZE(virial_temps)
     ALLOCATE (BETA(1:nvirial_temps),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO itemp=1,nvirial_temps
        BETA(itemp) = 1 / virial_temps(itemp) / boltzmann * joule
@@ -1324,7 +1324,7 @@ CONTAINS
 
     ! store the coordinates of the molecules in an array so we can work with it
     ALLOCATE (r_old(1:3,1:nunits_tot(1)),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO iparticle=1,nunits_tot(1)
        r_old(1:3,iparticle)=&
@@ -1351,7 +1351,7 @@ CONTAINS
     ! we'll compute the average potential, and then integrate that, as opposed to
     ! integrating every orientation and then averaging
     ALLOCATE (mayer(1:nvirial_temps,1:nbins),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     mayer(:,:)=0.0_dp
 
@@ -1487,25 +1487,25 @@ CONTAINS
 
     ! deallocate some stuff
     DEALLOCATE(mc_par,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(subsys,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(force_env,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(particles,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(cell,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(virial_cutoffs,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(virial_stepsize,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(r_old,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(mayer,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(BETA,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE mc_compute_virial
 

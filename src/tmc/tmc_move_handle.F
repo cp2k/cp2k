@@ -335,10 +335,10 @@ CONTAINS
     END IF
     mv_prob_sum = SUM(tmc_params%move_types%mv_weight(:))
     flag = .TRUE.
-    CPPostcondition(ABS(mv_prob_sum-1.0_dp).LT.0.01_dp,cp_failure_level,routineP,failure=flag)
+    CPASSERT(ABS(mv_prob_sum-1.0_dp).LT.0.01_dp)
     IF(ASSOCIATED(tmc_params%nmc_move_types)) THEN
       mv_prob_sum = SUM(tmc_params%nmc_move_types%mv_weight(:))
-      CPPostcondition(ABS(mv_prob_sum-1.0_dp)<10*EPSILON(1.0_dp),cp_failure_level,routineP,failure=flag)
+      CPASSERT(ABS(mv_prob_sum-1.0_dp)<10*EPSILON(1.0_dp))
     END IF
   END SUBROUTINE read_init_move_types
 
@@ -360,8 +360,8 @@ CONTAINS
     INTEGER                                  :: atom_j, list_i, ref_k
     LOGICAL                                  :: found
 
-    CPPreconditionNoFail(ASSOCIATED(tmc_params),cp_failure_level,routineP)
-    CPPreconditionNoFail(ASSOCIATED(move_types),cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(tmc_params))
+    CPASSERT(ASSOCIATED(move_types))
 
     ! molecule moves need molecule info
     IF(move_types%mv_weight(mv_type_mol_trans).GT.0.0_dp .OR. &
@@ -438,7 +438,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_params))
     CALL move_types_release(tmc_params%move_types)
     IF(ASSOCIATED(tmc_params%nmc_move_types)) &
       CALL move_types_release(tmc_params%nmc_move_types)
@@ -482,8 +482,8 @@ CONTAINS
     subbox_out = .FALSE.
     type_title = .FALSE.
     failure    = .FALSE.
-    CPPrecondition(file_io.GT.0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%move_types),cp_failure_level,routineP,failure)
+    CPASSERT(file_io.GT.0)
+    CPASSERT(ASSOCIATED(tmc_params%move_types))
 
     FLUSH(file_io)
 
@@ -759,8 +759,8 @@ cp_warning_level,cp_assertion_failed,routineP,&
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.(PRESENT(pt_el).AND.PRESENT(subbox)),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(move_types))
+    CPASSERT(.NOT.(PRESENT(pt_el).AND.PRESENT(subbox)))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -773,7 +773,7 @@ cp_warning_level,cp_assertion_failed,routineP,&
     change_sb_type = 0
     ! updating probability of the trajectory 
     IF(PRESENT(pt_el)) THEN
-      CPPrecondition(ASSOCIATED(pt_el),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(pt_el))
       conf_moved = pt_el%mv_conf
       SELECT CASE(pt_el%stat)
       CASE(status_accepted_result)
@@ -798,12 +798,12 @@ cp_warning_level,cp_assertion_failed,routineP,&
     END IF 
 
     IF(PRESENT(elem)) THEN
-      CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(elem))
       !conf_moved = elem%sub_tree_nr
       conf_moved = elem%temp_created
       mv_type = elem%move_type
       ! for NMC prob update the acceptance is needed
-      CPPrecondition(PRESENT(acc),cp_failure_level,routineP,failure)
+      CPASSERT(PRESENT(acc))
       IF(PRESENT(subbox)) THEN
         ! only update subbox acceptance
         IF(acc) &
@@ -871,11 +871,11 @@ cp_warning_level,cp_assertion_failed,routineP,&
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
-    CPPrecondition(PRESENT(mv_counter).OR.PRESENT(subbox_counter),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(move_types))
+    CPASSERT(PRESENT(mv_counter).OR.PRESENT(subbox_counter))
  
     IF(PRESENT(mv_counter)) THEN
-       CPPrecondition(PRESENT(acc_counter),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(acc_counter))
        move_types%mv_count(:,:) = move_types%mv_count(:,:) + mv_counter(:,:)
        move_types%acc_count(:,:)= move_types%acc_count(:,:) + acc_counter(:,:) 
        IF(prob_opt) THEN
@@ -885,7 +885,7 @@ cp_warning_level,cp_assertion_failed,routineP,&
     END IF
  
     IF(PRESENT(subbox_counter)) THEN
-       CPPrecondition(PRESENT(subbox_acc_counter),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subbox_acc_counter))
        move_types%subbox_count(:,:)     = move_types%subbox_count(:,:) + subbox_counter(:,:)
        move_types%subbox_acc_count(:,:) = move_types%subbox_acc_count(:,:) + subbox_acc_counter(:,:)
     END IF
@@ -903,9 +903,7 @@ cp_warning_level,cp_assertion_failed,routineP,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'clear_move_probs', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(move_types))
 
     move_types%acc_prob(:,:) = 0.5_dp
     move_types%acc_count(:,:) = 0
@@ -936,8 +934,8 @@ cp_warning_level,cp_assertion_failed,routineP,&
     REAL(KIND=dp)                            :: rnd_mv, total_moves
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
-    CPPrecondition(rnd.GE.0.0_dp.AND.rnd.LT.1.0_dp,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(move_types))
+    CPASSERT(rnd.GE.0.0_dp.AND.rnd.LT.1.0_dp)
 
     CALL timeset(routineN,handle)
 

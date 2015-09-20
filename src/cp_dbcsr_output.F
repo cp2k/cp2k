@@ -107,7 +107,7 @@ CONTAINS
          ncol_global=ncol_global)
 
     ALLOCATE(matrix(nrow_global,ncol_global),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_fm_get_submatrix(blacs_matrix,matrix)
 
     ! *** Get the matrix dimension and check the optional arguments ***
@@ -144,7 +144,7 @@ CONTAINS
     ! *** Release work storage ***
     IF (ASSOCIATED(matrix)) THEN
        DEALLOCATE (matrix,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE write_fm_with_basis_info
@@ -253,7 +253,7 @@ CONTAINS
 
     IF (ASSOCIATED(matrix)) THEN
        DEALLOCATE (matrix,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE cp_dbcsr_write_sparse_matrix
@@ -295,7 +295,7 @@ CONTAINS
 
     !> this should be precomputed somewhere else
     ALLOCATE(r_offset(nblkrows_total),c_offset(nblkcols_total),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     r_offset(1) = 1
     DO row = 2,nblkrows_total
@@ -310,7 +310,7 @@ CONTAINS
     !<
 
     ALLOCATE (fm(nr,nc),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     fm(:,:) = 0.0_dp
 
@@ -326,7 +326,7 @@ CONTAINS
     CALL cp_dbcsr_iterator_stop(iter)
 
     DEALLOCATE(r_offset,c_offset,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -397,9 +397,9 @@ CONTAINS
       CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf)
 
       ALLOCATE (first_sgf(natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE (last_sgf(natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       CALL get_particle_set(particle_set, qs_kind_set,&
                             first_sgf=first_sgf,&
                             last_sgf=last_sgf)
@@ -478,9 +478,9 @@ CONTAINS
 
       WRITE (UNIT=output_unit,FMT="(/)")
       DEALLOCATE (first_sgf,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DEALLOCATE (last_sgf,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
 
     CALL mp_sync(group)
@@ -617,11 +617,11 @@ CONTAINS
 
     ! *** Allocate work storage ***
     ALLOCATE (nblock(npe),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     nblock(:) = 0
 
     ALLOCATE (nelement(npe),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     nelement(:) = 0
 
     nblock(mype) = cp_dbcsr_get_num_blocks(matrix)
@@ -688,10 +688,10 @@ CONTAINS
 
     ! *** Release work storage ***
     DEALLOCATE (nblock,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE (nelement,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 

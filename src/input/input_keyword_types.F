@@ -200,9 +200,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(keyword),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(keyword))
     ALLOCATE(keyword,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     keyword%ref_count=1
     last_keyword_id=last_keyword_id+1
     keyword%id_nr=last_keyword_id
@@ -210,14 +210,14 @@ CONTAINS
 
     IF (PRESENT(variants)) THEN
        ALLOCATE(keyword%names(SIZE(variants)+1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        keyword%names(1)=name
        DO i=1,SIZE(variants)
           keyword%names(i+1)=variants(i)
        END DO
     ELSE
        ALLOCATE(keyword%names(1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF (.not.failure) keyword%names(1)=name
     END IF
     DO i=1,SIZE(keyword%names)
@@ -225,7 +225,7 @@ CONTAINS
     END DO
 
     IF (PRESENT(usage)) THEN
-       CPPrecondition(LEN_TRIM(usage)<=LEN(keyword%usage),cp_failure_level,routineP,failure)
+       CPASSERT(LEN_TRIM(usage)<=LEN(keyword%usage))
        keyword%usage=usage
     ELSE
        keyword%usage=""
@@ -239,7 +239,7 @@ CONTAINS
 
     IF (PRESENT(citations)) THEN
        ALLOCATE(keyword%citations(SIZE(citations,1)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        keyword%citations=citations
     ELSE
        NULLIFY(keyword%citations)
@@ -254,12 +254,12 @@ CONTAINS
        IF (ASSOCIATED(enum)) CALL enum_retain(enum)
     END IF
     IF (PRESENT(enum_i_vals)) THEN
-       CPPrecondition(PRESENT(enum_c_vals),cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(enum_c_vals))
+       CPASSERT(.NOT.ASSOCIATED(keyword%enum))
        CALL enum_create(keyword%enum,c_vals=enum_c_vals,i_vals=enum_i_vals,&
             desc=enum_desc,strict=enum_strict)
     ELSE
-       CPPrecondition(.NOT.PRESENT(enum_c_vals),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.PRESENT(enum_c_vals))
     END IF
 
     NULLIFY(keyword%default_value, keyword%lone_keyword_value)
@@ -274,13 +274,13 @@ CONTAINS
        keyword%default_value => default_val
        IF (ASSOCIATED(default_val%enum)) THEN
           IF (ASSOCIATED(keyword%enum)) THEN
-             CPAssert(keyword%enum%id_nr==default_val%enum%id_nr,cp_failure_level,routineP,failure)
+             CPASSERT(keyword%enum%id_nr==default_val%enum%id_nr)
           ELSE
              keyword%enum => default_val%enum
              CALL enum_retain(keyword%enum)
           END IF
        ELSE
-          CPAssert(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.ASSOCIATED(keyword%enum))
        END IF
        CALL val_retain(default_val)
     END IF
@@ -343,7 +343,7 @@ CONTAINS
              CALL enum_retain(keyword%enum)
           END IF
        ELSE
-          CPAssert(.NOT.ASSOCIATED(keyword%enum),cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.ASSOCIATED(keyword%enum))
        END IF
     END IF
     IF (.NOT.ASSOCIATED(keyword%lone_keyword_value)) THEN
@@ -402,7 +402,7 @@ CONTAINS
        CASE(no_t)
           keyword%n_var=0
        CASE default
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
     END IF
     IF (PRESENT(n_var)) keyword%n_var=n_var
@@ -429,8 +429,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(keyword%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
     keyword%ref_count=keyword%ref_count+1
   END SUBROUTINE keyword_retain
 
@@ -450,11 +450,11 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(keyword)) THEN
-       CPPreconditionNoFail(keyword%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(keyword%ref_count>0)
        keyword%ref_count=keyword%ref_count-1
        IF (keyword%ref_count==0) THEN
           DEALLOCATE(keyword%names,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           DEALLOCATE(keyword%description)
           CALL val_release(keyword%default_value)
           CALL val_release(keyword%lone_keyword_value)
@@ -462,10 +462,10 @@ CONTAINS
           CALL cp_unit_release(keyword%unit)
           IF (ASSOCIATED(keyword%citations)) THEN
              DEALLOCATE(keyword%citations,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           ENDIF
           DEALLOCATE(keyword,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(keyword)
@@ -507,8 +507,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,failure)
-    CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
     IF (PRESENT(names)) names => keyword%names
     IF (PRESENT(usage)) usage=keyword%usage
     IF (PRESENT(description)) description=a2s(keyword%description)
@@ -543,8 +543,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,failure)
-    CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
     IF (.NOT. failure.AND.level>0.AND.(unit_nr>0)) THEN
        WRITE(unit_nr,"(a,a,a)") "                           ---",&
             TRIM(keyword%names(1)),"---"
@@ -607,7 +607,7 @@ CONTAINS
              CASE (no_t)
                 WRITE(unit_nr,"('  Non-standard type.')")
              CASE default
-                CPAssert(.FALSE.,cp_warning_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END SELECT
           END IF
           IF (keyword%type_of_var==enum_t) THEN
@@ -682,8 +682,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,failure)
-    CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
     WRITE(unit_nr,'(a)') '<TR><TD WITDH="20%">'// &
          '<A NAME="'//TRIM(keyword%names(1))//'"><u>'//TRIM(keyword%names(1))//'</u></A>'// &
          '<TD WIDTH="80%">'
@@ -737,7 +737,7 @@ CONTAINS
     CASE (no_t)
        WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a non-standard input type'
     CASE DEFAULT
-       CPAssert(.FALSE.,cp_warning_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     IF (keyword%repeats) THEN
        WRITE(unit_nr,"(', and may repeat')",ADVANCE="NO")
@@ -838,8 +838,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,failure)
-    CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
 
 
     ! Indentation for current level, next level, etc.
@@ -919,7 +919,7 @@ CONTAINS
        WRITE (UNIT=unit_number,FMT="(A)")&
             REPEAT(" ",l1)//"<DATA_TYPE kind=""non-standard type"">"
     CASE DEFAULT
-       CPAssert(.FALSE.,cp_warning_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     short_string = ""
@@ -1021,8 +1021,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,failure)
-    CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
 
 
     DO i=1,SIZE(keyword%names)

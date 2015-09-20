@@ -156,15 +156,15 @@ CPSourceFileRef)
 #endif
 
   ALLOCATE(fmstruct,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   fmstruct%nrow_block=optimal_blacs_row_block_size
   fmstruct%ncol_block=optimal_blacs_col_block_size
 
   IF (.NOT.PRESENT(template_fmstruct)) THEN
-     CPPrecondition(PRESENT(context),cp_failure_level,routineP,failure)
-     CPPrecondition(PRESENT(nrow_global),cp_failure_level,routineP,failure)
-     CPPrecondition(PRESENT(ncol_global),cp_failure_level,routineP,failure)
+     CPASSERT(PRESENT(context))
+     CPASSERT(PRESENT(nrow_global))
+     CPASSERT(PRESENT(ncol_global))
      fmstruct %local_leading_dimension = 1
   ELSE
      fmstruct%context => template_fmstruct%context
@@ -221,7 +221,7 @@ CPSourceFileRef)
 
   ALLOCATE(fmstruct%nrow_locals(0:(fmstruct%context%num_pe(1)-1)),&
        fmstruct%ncol_locals(0:(fmstruct%context%num_pe(2)-1)),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   IF (.NOT.PRESENT(template_fmstruct)) &
        fmstruct%first_p_pos=(/0,0/)
   IF (PRESENT(first_p_pos)) fmstruct%first_p_pos=first_p_pos
@@ -300,7 +300,7 @@ CPSourceFileRef,&
           fmstruct%ncol_block,fmstruct%first_p_pos(1),&
           fmstruct%first_p_pos(2),fmstruct%context%group,&
           fmstruct%local_leading_dimension,stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
 #endif
   END IF
 END SUBROUTINE cp_fm_struct_create
@@ -322,8 +322,8 @@ SUBROUTINE cp_fm_struct_retain(fmstruct)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,failure)
-  CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(fmstruct))
+  CPASSERT(fmstruct%ref_count>0)
   fmstruct%ref_count=fmstruct%ref_count+1
 END SUBROUTINE cp_fm_struct_retain
 
@@ -346,29 +346,29 @@ SUBROUTINE cp_fm_struct_release(fmstruct)
   failure=.FALSE.
 
   IF (ASSOCIATED(fmstruct)) THEN
-     CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,failure)
+     CPASSERT(fmstruct%ref_count>0)
      fmstruct%ref_count=fmstruct%ref_count-1
      IF (fmstruct%ref_count<1) THEN
         CALL cp_blacs_env_release(fmstruct%context)
         CALL cp_para_env_release(fmstruct%para_env)
         IF (ASSOCIATED(fmstruct%row_indices)) THEN
            DEALLOCATE(fmstruct%row_indices,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         ENDIF
         IF (ASSOCIATED(fmstruct%col_indices)) THEN
            DEALLOCATE(fmstruct%col_indices,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(fmstruct%nrow_locals)) THEN
            DEALLOCATE(fmstruct%nrow_locals,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(fmstruct%ncol_locals)) THEN
            DEALLOCATE(fmstruct%ncol_locals,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
         DEALLOCATE(fmstruct, stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+        CPASSERT(stat==0)
      END IF
   END IF
   NULLIFY(fmstruct)
@@ -396,10 +396,10 @@ FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2) RESULT(res)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(fmstruct1),cp_failure_level,routineP,failure)
-  CPPrecondition(ASSOCIATED(fmstruct2),cp_failure_level,routineP,failure)
-  CPPrecondition(fmstruct1%ref_count>0,cp_failure_level,routineP,failure)
-  CPPrecondition(fmstruct2%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(fmstruct1))
+  CPASSERT(ASSOCIATED(fmstruct2))
+  CPASSERT(fmstruct1%ref_count>0)
+  CPASSERT(fmstruct2%ref_count>0)
   IF (fmstruct1%id_nr==fmstruct2%id_nr) THEN
      res=.TRUE.
   ELSE
@@ -442,7 +442,7 @@ SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description)
      WRITE (unit=unit_nr,&
           fmt="('<cp_fm_struct>:{ id_nr=',i10,', ref_count=',i10,',')",&
           iostat=iostat) fmstruct%id_nr, fmstruct%ref_count
-     CPPostcondition(iostat==0,cp_warning_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="(' nrow_global=',i8,', ncol_global=',i8,',')",&
           iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
      WRITE (unit=unit_nr,fmt="(' nrow_block=',i8,', ncol_block=',i8,',')",&
@@ -574,8 +574,8 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,failure)
-  CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(fmstruct))
+  CPASSERT(fmstruct%ref_count>0)
   IF (PRESENT(para_env)) para_env => fmstruct%para_env
   IF (PRESENT(context)) context => fmstruct%context
   IF (PRESENT(descriptor)) descriptor = fmstruct%descriptor
@@ -605,7 +605,7 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
        ! the max should go away
        ALLOCATE(fmstruct%row_indices &
             (MAX(fmstruct%nrow_locals(myprow),1)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        row_indices => fmstruct%row_indices
 #ifdef __SCALAPACK
        DO i=1,SIZE(row_indices)
@@ -627,7 +627,7 @@ SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
     IF (.NOT.ASSOCIATED(col_indices)) THEN
        ALLOCATE(fmstruct%col_indices &
             (MAX(fmstruct%ncol_locals(mypcol),1)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        col_indices => fmstruct%col_indices
 #ifdef __SCALAPACK
        DO i=1,SIZE(col_indices)

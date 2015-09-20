@@ -83,7 +83,7 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE(multipoles, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     last_multipole_id_nr=last_multipole_id_nr+1
     multipoles%id_nr=last_multipole_id_nr
@@ -103,14 +103,14 @@ CONTAINS
     CASE(do_multipole_quadrupole)
        multipoles%task(1:3) = .TRUE.
     CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     nparticles = SIZE(particle_set)
     IF (multipoles%task(1)) THEN
        ALLOCATE(multipoles%charges(nparticles),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(multipoles%radii(nparticles),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Fill in charge array
        DO iparticle = 1, nparticles
           !atomic_kind =>
@@ -122,13 +122,13 @@ CONTAINS
     END IF
     IF (multipoles%task(2)) THEN
        ALLOCATE(multipoles%dipoles(3,nparticles),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Fill in dipole array (if specified)
        work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES%DIPOLES")
        CALL section_vals_get(work_section, explicit=explicit)
        IF (explicit) THEN
           CALL section_vals_val_get(work_section,"_DEFAULT_KEYWORD_",n_rep_val=n_rep)
-          CPPostcondition(n_rep==nparticles,cp_failure_level,routineP,failure)
+          CPASSERT(n_rep==nparticles)
           DO iparticle = 1, n_rep
              CALL section_vals_val_get(work_section,"_DEFAULT_KEYWORD_",i_rep_val=iparticle, r_vals=work)
              multipoles%dipoles(1:3,iparticle) = work
@@ -139,13 +139,13 @@ CONTAINS
     END IF
     IF (multipoles%task(3)) THEN
        ALLOCATE(multipoles%quadrupoles(3,3,nparticles),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Fill in quadrupole array (if specified)
        work_section => section_vals_get_subs_vals(subsys_section,"MULTIPOLES%QUADRUPOLES")
        CALL section_vals_get(work_section, explicit=explicit)
        IF (explicit) THEN
           CALL section_vals_val_get(work_section,"_DEFAULT_KEYWORD_",n_rep_val=n_rep)
-          CPPostcondition(n_rep==nparticles,cp_failure_level,routineP,failure)
+          CPASSERT(n_rep==nparticles)
           DO iparticle = 1, n_rep
              CALL section_vals_val_get(work_section,"_DEFAULT_KEYWORD_",i_rep_val=iparticle, r_vals=work)
              DO i = 1, 3
@@ -179,27 +179,27 @@ CONTAINS
 
     failure =.FALSE.
     IF (ASSOCIATED(multipoles)) THEN
-       CPPostcondition(multipoles%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(multipoles%ref_count>0)
        multipoles%ref_count=multipoles%ref_count-1
        IF (multipoles%ref_count==0) THEN
           IF (ASSOCIATED(multipoles%charges)) THEN
              DEALLOCATE(multipoles%charges, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(multipoles%radii)) THEN
              DEALLOCATE(multipoles%radii, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(multipoles%dipoles)) THEN
              DEALLOCATE(multipoles%dipoles, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(multipoles%quadrupoles)) THEN
              DEALLOCATE(multipoles%quadrupoles, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(multipoles, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE release_multipole_type
@@ -221,7 +221,7 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(multipoles)) THEN
-       CPPreconditionNoFail(multipoles%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(multipoles%ref_count>0)
        multipoles%ref_count=multipoles%ref_count+1
     END IF
   END SUBROUTINE retain_multipole_type

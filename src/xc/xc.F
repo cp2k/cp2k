@@ -129,10 +129,10 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(xc_section),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_r))
+    CPASSERT(ASSOCIATED(xc_section))
+    CPASSERT(.NOT.ASSOCIATED(vxc_rho))
+    CPASSERT(.NOT.ASSOCIATED(vxc_tau))
 
     CALL section_vals_val_get(xc_section,"FUNCTIONAL_ROUTINE",&
          i_val=f_routine)
@@ -211,7 +211,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
   bo = rho_r(1)%pw%pw_grid%bounds_local
 
   ALLOCATE(rho2_r(2), stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DO ispin=1,2
      NULLIFY(rho2_r(ispin)%pw)
      CALL pw_pool_create_pw(pw_pool,rho2_r(ispin)%pw,in_space=REALSPACE,&
@@ -229,7 +229,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
 
   IF (ASSOCIATED(tau)) THEN
      ALLOCATE(tau2(2),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      DO ispin=1,2
         NULLIFY(tau2(ispin)%pw)
         CALL pw_pool_create_pw(pw_pool,tau2(ispin)%pw,in_space=REALSPACE,&
@@ -434,10 +434,10 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
                 NULLIFY(deriv3,pot2,pot3)
              END IF
           ELSE
-             CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END IF
        CASE default
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
        CALL xc_derivative_get(deriv2,&
             deriv_data=pot2)
@@ -473,7 +473,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
        CASE(1)
           filename="e_"//TRIM(split_desc(1))//"-2.bindata"
        CASE default
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
        OPEN (unit=120,file=TRIM(filename),status="unknown",&
             access='sequential',&
@@ -493,10 +493,10 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
        END IF
     END DO
     DEALLOCATE(vxc_rho2,rho2_r,rho2_g, stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (ASSOCIATED(vxc_tau2)) THEN
        DEALLOCATE(vxc_tau2,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
 END SUBROUTINE xc_vxc_pw_create_test_lsd
@@ -632,7 +632,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
         CASE(1)
            filename="e_"//TRIM(split_desc(1))//".bindata"
         CASE default
-           CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END SELECT
         OPEN (unit=120,file=TRIM(filename),status="unknown",&
              access='sequential',&
@@ -704,7 +704,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
                           CASE(1)
                              filename=" e_"//TRIM(split_desc(1))
                           CASE default
-                             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                             CPASSERT(.FALSE.)
                           END SELECT
                           WRITE (unit=cp_logger_get_default_unit_nr(logger),&
                                fmt="(a,'=',e11.4)",advance="no") &
@@ -773,7 +773,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
                           CASE(1)
                              filename=" e_"//TRIM(split_desc(1))
                           CASE default
-                             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                             CPASSERT(.FALSE.)
                           END SELECT
                           WRITE (unit=cp_logger_get_default_unit_nr(logger),&
                                fmt="(a,'=',e11.4)",advance="no") &
@@ -839,9 +839,9 @@ SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
   CALL timeset(routineN,handle)
   failure=.FALSE.
 
-  CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-  CPPrecondition(.NOT.ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-  CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,failure)
+  CPASSERT(.NOT.ASSOCIATED(rho_set))
+  CPASSERT(.NOT.ASSOCIATED(deriv_set))
+  CPASSERT(ASSOCIATED(pw_pool))
 
   nspins=SIZE(rho_r)
   lsd=(nspins/=1)
@@ -910,7 +910,7 @@ END SUBROUTINE xc_rho_set_and_dset_create
       rho_smooth_cutoff, rho_smooth_cutoff_2, rho_smooth_cutoff_range_2
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pot),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pot))
     bo(1,:)=LBOUND(pot)
     bo(2,:)=UBOUND(pot)
     my_e_0_scale_factor=1.0_dp
@@ -921,7 +921,7 @@ END SUBROUTINE xc_rho_set_and_dset_create
 
     IF (rho_smooth_cutoff_range>0.0_dp) THEN
        IF (PRESENT(e_0)) THEN
-          CPPrecondition(ASSOCIATED(e_0),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(e_0))
           IF (ASSOCIATED(rho)) THEN
              !$omp parallel do default(none) shared(bo,e_0,pot,rho,&
              !$omp             rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2,&
@@ -1018,8 +1018,8 @@ END SUBROUTINE xc_rho_set_and_dset_create
                 END DO
              END DO
           ELSE
-             CPPrecondition(ASSOCIATED(rhoa),cp_failure_level,routineP,failure)
-             CPPrecondition(ASSOCIATED(rhob),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(rhoa))
+             CPASSERT(ASSOCIATED(rhob))
              !$omp parallel do default(none) shared(bo,pot,&
              !$omp             rho_cutoff,rho_smooth_cutoff,rho_smooth_cutoff_2,&
              !$omp             rho_smooth_cutoff_range_2,rhoa,rhob)&
@@ -1139,15 +1139,15 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
 
   pw_grid => rho_r(1)%pw%pw_grid
 
-  CPPrecondition(ASSOCIATED(xc_section),cp_failure_level,routineP,failure)
-  CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,failure)
-  CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,failure)
-  CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(xc_section))
+  CPASSERT(ASSOCIATED(pw_pool))
+  CPASSERT(.NOT.ASSOCIATED(vxc_rho))
+  CPASSERT(.NOT.ASSOCIATED(vxc_tau))
   nspins=SIZE(rho_r)
-  CPPrecondition(ASSOCIATED(rho_r(SIZE(rho_r))%pw),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(rho_r(SIZE(rho_r))%pw))
   lsd=(nspins/=1)
   IF (lsd) THEN
-     CPPrecondition(nspins==2,cp_failure_level,routineP,failure)
+     CPASSERT(nspins==2)
   END IF
 
   use_virial=compute_virial
@@ -1228,7 +1228,7 @@ CPSourceFileRef,&
 
   IF (.NOT.failure) THEN
      ALLOCATE(vxc_rho(nspins),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      DO ispin=1,nspins
         NULLIFY(vxc_rho(ispin)%pw)
      END DO
@@ -1330,8 +1330,8 @@ CPSourceFileRef,&
               END DO
            END DO
         ELSE
-           CPPrecondition(ASSOCIATED(drhoa),cp_failure_level,routineP,failure)
-           CPPrecondition(ASSOCIATED(drhob),cp_failure_level,routineP,failure)
+           CPASSERT(ASSOCIATED(drhoa))
+           CPASSERT(ASSOCIATED(drhob))
            !$omp parallel do default(none) shared(bo,deriv_data,drhoa,drhob,drho_cutoff)&
            !$omp             private(k,j,i,ndr)
            DO k = bo(1,3), bo(2,3)
@@ -1347,7 +1347,7 @@ CPSourceFileRef,&
         END IF
 
         IF (ASSOCIATED(drho).AND.ASSOCIATED(drho(1)%array)) THEN
-           CPPrecondition(ASSOCIATED(deriv_data),cp_failure_level,routineP,failure)
+           CPASSERT(ASSOCIATED(deriv_data))
            IF (use_virial) THEN
              CALL pw_pool_create_pw(pw_pool,virial_pw,&
                                     use_data=REALDATA3D,&
@@ -1374,7 +1374,7 @@ CPSourceFileRef,&
               CALL pw_create(pw_to_deriv_rho(idir)%pw,pw_grid=pw_grid,&
                    cr3d_ptr=drho(idir)%array,&
                    use_data=REALDATA3D,in_space=REALSPACE)
-              CPPrecondition(ASSOCIATED(drho(idir)%array),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(drho(idir)%array))
               !$omp parallel do default(none) shared(bo,deriv_data,drho,idir)&
               !$omp             private(k,j,i)
               DO k=bo(1,3),bo(2,3)
@@ -1447,7 +1447,7 @@ CPSourceFileRef,&
 
            deriv_att => xc_dset_get_derivative(deriv_set, norm_drho_spin_name(ispin))
            IF (ASSOCIATED(deriv_att)) THEN
-              CPPrecondition(lsd,cp_failure_level,routineP,failure)
+              CPASSERT(lsd)
               CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
               CALL pw_create(tmp_r,pw_grid,&
                    use_data=REALDATA3D,in_space=REALSPACE,&
@@ -1506,8 +1506,8 @@ CPSourceFileRef,&
               NULLIFY(tmp_r,deriv_att%deriv_data)
 
               DO idir=1,3
-                 CPPrecondition(ASSOCIATED(drho_spin(idir)%array),cp_failure_level,routineP,failure)
-                 CPPrecondition(ASSOCIATED(vxc_to_deriv(ispin)%pw%cr3d),cp_failure_level,routineP,failure)
+                 CPASSERT(ASSOCIATED(drho_spin(idir)%array))
+                 CPASSERT(ASSOCIATED(vxc_to_deriv(ispin)%pw%cr3d))
                  !$omp parallel do default(none) shared(bo,deriv_data,drho_spin,&
                  !$omp             ispin,idir,vxc_to_deriv,drho_cutoff)&
                  !$omp             private(k,j,i)
@@ -1592,7 +1592,7 @@ CPSourceFileRef,&
                     CALL pw_spline3_interpolate_values_g(tmp_g)
                     CALL pw_spline3_deriv_g ( tmp_g, idir=idir)
                  CASE default
-                    CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                  END SELECT
 
                  IF (zero_result .AND. idir==1) THEN
@@ -1633,7 +1633,7 @@ CPSourceFileRef,&
                          pw_out=tmp_r,coeffs=nn50_deriv_coeffs,&
                          idir=idir)
                  CASE default
-                    CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                  END SELECT
                  IF (dealloc_pw_to_deriv) THEN
                     CALL pw_pool_give_back_pw(pw_pool,pw_to_deriv(idir)%pw)
@@ -1654,17 +1654,17 @@ CPSourceFileRef,&
           IF(lsd) THEN
             IF( ispin == 1) THEN
               deriv_att => xc_dset_get_derivative(deriv_set, "(laplace_rhoa)")
-              CPPrecondition(ASSOCIATED(deriv_att),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(deriv_att))
               CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
             ELSE
               deriv_att => xc_dset_get_derivative(deriv_set, "(laplace_rhob)")
-              CPPrecondition(ASSOCIATED(deriv_att),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(deriv_att))
               CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
             END IF
 
           ELSE
             deriv_att => xc_dset_get_derivative(deriv_set, "(laplace_rho)")
-            CPPrecondition(ASSOCIATED(deriv_att),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(deriv_att))
             CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
           END IF
           DO idir=1,3
@@ -1690,7 +1690,7 @@ CPSourceFileRef,&
               CASE (xc_deriv_pw)
                 CALL pw_derive ( tmp_g, nd_laplace(:,idir))
               CASE default
-                CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
             END SELECT
             ! Add this to the potential
             CALL pw_pool_create_pw(pw_pool, tmp_r,&
@@ -1737,7 +1737,7 @@ CPSourceFileRef,&
               CALL pw_nn_smear_r(pw_in=vxc_rho(ispin)%pw,pw_out=tmp_r,&
                    coeffs=nn50_coeffs)
            CASE default
-              CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
            END SELECT
            deriv_data => vxc_rho(ispin)%pw%cr3d
            vxc_rho(ispin)%pw%cr3d => tmp_r%cr3d
@@ -1747,15 +1747,15 @@ CPSourceFileRef,&
      END DO
 
      DO idir=1,3
-        CPPostcondition(.NOT.ASSOCIATED(pw_to_deriv(idir)%pw),cp_warning_level,routineP,failure)
-        CPPostcondition(.NOT.ASSOCIATED(pw_to_deriv_rho(idir)%pw),cp_warning_level,routineP,failure)
+        CPASSERT(.NOT.ASSOCIATED(pw_to_deriv(idir)%pw))
+        CPASSERT(.NOT.ASSOCIATED(pw_to_deriv_rho(idir)%pw))
      END DO
 
      ! 0-deriv -> value of exc
      ! this has to be kept consistent with xc_exc_calc
      IF (n_deriv>0) THEN
         deriv_att => xc_dset_get_derivative(deriv_set, "")
-        CPPrecondition(ASSOCIATED(deriv_att),cp_failure_level,routineP,failure)
+        CPASSERT(ASSOCIATED(deriv_att))
         CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
 
         CALL pw_create(tmp_r,pw_grid,&
@@ -1786,7 +1786,7 @@ CPSourceFileRef,&
              error_level=cp_failure_level)
         END IF
         ALLOCATE(vxc_tau(nspins), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO ispin=1,nspins
            NULLIFY(vxc_tau(ispin)%pw)
         END DO
@@ -1814,7 +1814,7 @@ CPSourceFileRef,&
               CALL xc_derivative_get(deriv_att,deriv_data=deriv_data)
               IF (ASSOCIATED(vxc_tau(1)%pw)) THEN
                  DO ispin=1,2
-                    CPPrecondition(ASSOCIATED(vxc_tau(ispin)%pw),cp_failure_level,routineP,failure)
+                    CPASSERT(ASSOCIATED(vxc_tau(ispin)%pw))
                     tmp_cr3d => vxc_tau(ispin)%pw%cr3d
                     CALL daxpy(npoints,1.0_dp,deriv_data,1,tmp_cr3d,1)
                  END DO
@@ -1837,7 +1837,7 @@ CPSourceFileRef,&
            NULLIFY(deriv_att%deriv_data)
         END IF
         DO ispin=1,nspins
-           CPPostcondition(ASSOCIATED(vxc_tau(ispin)%pw),cp_failure_level,routineP,failure)
+           CPASSERT(ASSOCIATED(vxc_tau(ispin)%pw))
         END DO
      END IF
      CALL xc_dset_release(deriv_set)
@@ -2002,12 +2002,12 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
   my_gapw = .FALSE.
   IF (PRESENT(gapw)) my_gapw = gapw
 
-  CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-  CPPrecondition(ASSOCIATED(rho1_set),cp_failure_level,routineP,failure)
-  CPPrecondition(ASSOCIATED(v_xc),cp_failure_level,routineP,failure)
-  CPPrecondition(ASSOCIATED(xc_section),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(rho_set))
+  CPASSERT(ASSOCIATED(rho1_set))
+  CPASSERT(ASSOCIATED(v_xc))
+  CPASSERT(ASSOCIATED(xc_section))
   IF (my_gapw) THEN
-     CPPrecondition(PRESENT(vxg),cp_failure_level,routineP,failure)
+     CPASSERT(PRESENT(vxg))
   END IF
 
   CALL section_vals_val_get(xc_section,"XC_GRID%XC_DERIV",&
@@ -2019,7 +2019,7 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
   IF (PRESENT(tddfpt_fac)) fac=tddfpt_fac
 
   ALLOCATE(tmp_r(nspins), tmp_r2(nspins), tmp_a(nspins), tmp_b(nspins),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DO ispin=1, nspins
      NULLIFY(tmp_r(ispin)%pw, tmp_r2(ispin)%pw, tmp_a(ispin)%pw, tmp_b(nspins)%pw)
   END DO
@@ -2131,12 +2131,12 @@ CPSourceFileRef,&
               CALL pw_zero(tmp_r(ispin)%pw)
            ELSE
               ALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw, stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
               ALLOCATE(tmp_a(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
                    tmp_b(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
                    tmp_r(ispin)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
                    stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
               tmp_a(ispin)%pw%cr3d = 0.0_dp
               tmp_b(ispin)%pw%cr3d = 0.0_dp
            END IF
@@ -2749,9 +2749,9 @@ CPSourceFileRef,&
               CALL pw_pool_give_back_pw(pw_pool,tmp_r(ispin)%pw)
            ELSE
               DEALLOCATE(tmp_a(ispin)%pw%cr3d, tmp_b(ispin)%pw%cr3d, tmp_r(ispin)%pw%cr3d, stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
               DEALLOCATE(tmp_a(ispin)%pw, tmp_b(ispin)%pw, tmp_r(ispin)%pw, stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
            END IF
         END DO
 
@@ -2775,11 +2775,11 @@ CPSourceFileRef,&
            CALL pw_zero(v_drho%pw)
         ELSE
            ALLOCATE(v_drho%pw, stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+           CPASSERT(stat==0)
            ALLOCATE(v_drho%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
                 stat=stat)
            v_drho%pw%cr3d = 0.0_dp
-           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
      END IF
 
@@ -2886,10 +2886,10 @@ CPSourceFileRef,&
                    in_space = REALSPACE)
            ELSE
               ALLOCATE(tmp_r(1)%pw, stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
               ALLOCATE(tmp_r(1)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
                    stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
            END IF
 
            DO idir=1,3
@@ -2933,18 +2933,18 @@ CPSourceFileRef,&
               CALL pw_pool_give_back_pw(pw_pool,tmp_r(1)%pw)
            ELSE
               DEALLOCATE(tmp_r(1)%pw%cr3d, stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
               DEALLOCATE(tmp_r(1)%pw, stat=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
            END IF
         END IF
         IF (ASSOCIATED(pw_pool)) THEN
            CALL pw_pool_give_back_pw(pw_pool,v_drho%pw)
         ELSE
            DEALLOCATE(v_drho%pw%cr3d, stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+           CPASSERT(stat==0)
            DEALLOCATE(v_drho%pw, stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
 
      END IF
@@ -2952,7 +2952,7 @@ CPSourceFileRef,&
   END IF
 
   DEALLOCATE(tmp_r, tmp_r2, tmp_a, tmp_b, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   CALL timestop(handle)
 END SUBROUTINE xc_calc_2nd_deriv
@@ -2993,15 +2993,15 @@ END SUBROUTINE xc_calc_2nd_deriv
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(xc_section),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(rho_set))
+    CPASSERT(ASSOCIATED(xc_section))
+    CPASSERT(ASSOCIATED(pw_pool))
 
     nspins     = SIZE(rho_r)
     lsd = (nspins /= 1)
 
     ALLOCATE(rho_r_pw(nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ispin=1, nspins
        rho_r_pw(ispin)%pw => rho_r(ispin)%pw
     END DO
@@ -3012,7 +3012,7 @@ END SUBROUTINE xc_calc_2nd_deriv
        needs_basic_components=.TRUE.)
 
     DEALLOCATE(rho_r_pw, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL divide_by_norm_drho(deriv_set, rho_set, lsd)
 

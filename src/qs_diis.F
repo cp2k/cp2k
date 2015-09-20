@@ -99,7 +99,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(diis_buffer,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY (diis_buffer%b_matrix)
     NULLIFY (diis_buffer%error)
@@ -153,8 +153,8 @@ CONTAINS
 
     logger => cp_get_default_logger()
 
-    CPPrecondition(ASSOCIATED(diis_buffer),cp_failure_level,routineP,failure)
-    CPPrecondition(diis_buffer%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(diis_buffer))
+    CPASSERT(diis_buffer%ref_count>0)
 
     nbuffer = diis_buffer%nbuffer
 
@@ -562,8 +562,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(diis_buffer),cp_failure_level,routineP,failure)
-    CPPrecondition(diis_buffer%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(diis_buffer))
+    CPASSERT(diis_buffer%ref_count>0)
 
     diis_buffer%ncall = 0
 
@@ -852,8 +852,8 @@ CONTAINS
 
     logger => cp_get_default_logger()
 
-    CPPrecondition(ASSOCIATED(diis_buffer),cp_failure_level,routineP,failure)
-    CPPrecondition(diis_buffer%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(diis_buffer))
+    CPASSERT(diis_buffer%ref_count>0)
 
     nbuffer = diis_buffer%nbuffer
 
@@ -928,8 +928,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(diis_buffer),cp_failure_level,routineP,failure)
-    CPPrecondition(diis_buffer%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(diis_buffer))
+    CPASSERT(diis_buffer%ref_count>0)
 
     diis_buffer%ncall = 0
 
@@ -964,7 +964,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(diis_buffer,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY (diis_buffer%b_matrix)
     NULLIFY (diis_buffer%error)

@@ -327,7 +327,7 @@ CONTAINS
       CALL qs_loc_driver(qs_env,qs_loc_env,print_loc_section,myspin=1)
     END IF
 
-    CPPrecondition(ASSOCIATED(groundstate_coeff),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(groundstate_coeff))
     DO ispin = 1,nspins
       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b, nmo=nmo)
       CALL cp_fm_to_fm(mo_coeff,groundstate_coeff(ispin)%matrix,nmo,1,1)
@@ -366,9 +366,9 @@ CONTAINS
           ! Release what has to be released
           IF(ASSOCIATED(vecbuffer)) THEN
              DEALLOCATE(vecbuffer,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              DEALLOCATE(op_sm,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
           END IF
 
           DO ispin = 1,dft_control%nspins
@@ -406,9 +406,9 @@ CONTAINS
     END IF
 
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (op_sm(3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   ! copy the coefficients of the mos in a temporary fm with the right structure
     IF(transition_potential) THEN
@@ -448,7 +448,7 @@ CONTAINS
 
       CALL set_xas_env(xas_env=xas_env,xas_estate=state_to_be_excited)
       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
-      CPPrecondition(ASSOCIATED(excvec_coeff),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(excvec_coeff))
       CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,state_to_be_excited,&
            nao,1,transpose=.TRUE.)
       CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
@@ -553,9 +553,9 @@ CONTAINS
   ! Release what has to be released
     IF(ASSOCIATED(vecbuffer)) THEN
         DEALLOCATE(vecbuffer,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
         DEALLOCATE(op_sm,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
     END IF
 
     DO ispin = 1,dft_control%nspins
@@ -643,7 +643,7 @@ CONTAINS
     failure=.FALSE.
 
     n_mo(1:2) = 0
-    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(xas_env))
 
     IF(.NOT. failure) THEN
 
@@ -681,7 +681,7 @@ CONTAINS
       END IF
       nexc_atoms = xas_control%nexc_atoms
       ALLOCATE(xas_env%exc_atoms(nexc_atoms),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       xas_env%exc_atoms = xas_control%exc_atoms
       CALL set_xas_env(xas_env=xas_env,nexc_search=nexc_search,&
            nexc_atoms=nexc_atoms)
@@ -702,18 +702,18 @@ CONTAINS
       n_mo(1:2) = nmo
 
       ALLOCATE(xas_env%centers_wfn(3,nexc_search),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(xas_env%atom_of_state(nexc_search),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(xas_env%type_of_state(nexc_search),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(xas_env%state_of_atom(nexc_atoms),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(xas_env%mykind_of_atom(nexc_atoms),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       nkind = SIZE(atomic_kind_set,1)
       ALLOCATE(xas_env%mykind_of_kind(nkind),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       xas_env%mykind_of_kind = 0
 
       ! create a new matrix structure nao x 1
@@ -781,7 +781,7 @@ CONTAINS
         ncubes = bounds(2) - bounds(1)  + 1
         IF(ncubes > 0 ) THEN
           ALLOCATE( xas_control%list_cubes(ncubes),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
 
           DO ik = 1,ncubes
             xas_control%list_cubes(ik) = bounds(1) + (ik-1)
@@ -812,7 +812,7 @@ CONTAINS
           ncubes = MAX(10,xas_control%added_mos/10)
           ncubes = MIN(ncubes,xas_control%added_mos)
           ALLOCATE( xas_control%list_cubes(ncubes),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           DO ik = 1,ncubes
             xas_control%list_cubes(ik) = homo + ik
           END DO
@@ -829,7 +829,7 @@ CONTAINS
       CALL cp_fm_struct_release ( tmp_fm_struct)
 
       ALLOCATE (xas_env%groundstate_coeff(nspins), STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       DO ispin = 1,nspins
         NULLIFY(xas_env%groundstate_coeff(ispin)%matrix)
         CALL get_mo_set(mos(ispin)%mo_set,nao=nao,nmo=nmo)
@@ -843,7 +843,7 @@ CONTAINS
            ncol_global=nvirtual,para_env=para_env,&
            context=mo_coeff%matrix_struct%context)
       ALLOCATE (xas_env%dip_fm_set(2,3),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       DO i = 1,3
         DO j = 1,2
            NULLIFY(xas_env%dip_fm_set(j,i)%matrix)
@@ -855,7 +855,7 @@ CONTAINS
       !Array to store all the eigenstates: occupied and the required not occupied
       IF(nvirtual2 .GT. 0) THEN
         ALLOCATE(xas_env%unoccupied_evals(nvirtual2), STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
         NULLIFY(tmp_fm_struct)
         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
              ncol_global=nvirtual2,&
@@ -875,7 +875,7 @@ CONTAINS
 
       ! Array to store all the energies needed  for the spectrum
       ALLOCATE(xas_env%all_evals(nvirtual), STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
       IF(xas_control%dipole_form==xas_dip_len2) THEN
         CALL cp_dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3)
@@ -892,19 +892,19 @@ CONTAINS
          ! prepare for allocation
          natom = SIZE(particle_set,1)
          ALLOCATE (first_sgf(natom),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          ALLOCATE (last_sgf(natom),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          CALL get_particle_set(particle_set, qs_kind_set,&
               first_sgf=first_sgf,&
               last_sgf=last_sgf)
          ALLOCATE (row_blk_sizes(natom), STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
          DEALLOCATE (first_sgf,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          DEALLOCATE (last_sgf,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          !
          !
          CALL cp_dbcsr_allocate_matrix_set(xas_env%ostrength_sm,3)
@@ -974,7 +974,7 @@ CONTAINS
 !     Find core orbitals of right angular momentum
       ALLOCATE(kind_type_tmp(nkind),STAT=istat)
       ALLOCATE(kind_z_tmp(nkind),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       kind_type_tmp = 0
       kind_z_tmp = 0
       nk=0
@@ -1002,9 +1002,9 @@ CONTAINS
       END DO  ! iat
 
       ALLOCATE(xas_env%my_gto_basis(nk),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(xas_env%stogto_overlap(nk),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       DO ik = 1,nk
         NULLIFY(xas_env%my_gto_basis(ik)%gto_basis_set,sto_basis_set)
         ne = 0
@@ -1034,7 +1034,7 @@ CONTAINS
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,nsgf=nsgf_gto)
         CALL get_gto_basis_set(gto_basis_set=xas_env%my_gto_basis(ik)%gto_basis_set,nsgf=nsgf_sto)
         ALLOCATE(xas_env%stogto_overlap(ik)%array(nsgf_sto,nsgf_gto),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
 
         CALL calc_stogto_overlap(xas_env%my_gto_basis(ik)%gto_basis_set,orb_basis_set,&
              xas_env%stogto_overlap(ik)%array)
@@ -1042,7 +1042,7 @@ CONTAINS
 
       DEALLOCATE(nq,lq,sto_zet,STAT=istat)
       DEALLOCATE(kind_type_tmp,kind_z_tmp,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF  ! failure
 
   END SUBROUTINE xas_env_init
@@ -1102,7 +1102,7 @@ CONTAINS
     NULLIFY(all_evals,all_vectors,excvec_coeff)
     NULLIFY(mos,particle_set,sp_em,sp_ab)
     ALLOCATE (op_sm(3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL get_qs_env(qs_env=qs_env, &
          mos=mos,particle_set=particle_set)
@@ -1114,10 +1114,10 @@ CONTAINS
 
     nabs = nvirtual -lfomo + 1
     ALLOCATE (sp_em(6,homo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (sp_ab(6,nabs),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(excvec_coeff),cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
+    CPASSERT(ASSOCIATED(excvec_coeff))
 
     IF(.NOT. failure) THEN
 
@@ -1168,7 +1168,7 @@ CONTAINS
     END IF  ! failure
 
     DEALLOCATE (op_sm,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE cls_calculate_spectrum
 
@@ -1303,7 +1303,7 @@ CONTAINS
     ! one might like to calculate the centers of the xas orbital (without localizing them)
     ELSE
       ALLOCATE(centers(6,nstates),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       centers = 0.0_dp
     END IF
 
@@ -1319,7 +1319,7 @@ CONTAINS
          centers,print_key,my_mittle,state0=istate0,file_position=my_pos)
 
     DEALLOCATE(centers,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE xas_print_cubes
 
@@ -1378,15 +1378,15 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(fm_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(fm_set))
+    CPASSERT(ASSOCIATED(mos))
 
     NULLIFY(eigenvalues, occupation_numbers)
     CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation_numbers,&
          nao=nao, nmo=nmo, homo =homo, lfomo=lfomo)
     DO i=1,SIZE(fm_set,2)
       DO j = 1,SIZE(fm_set,1)
-         CPPrecondition(ASSOCIATED(fm_set(j,i)%matrix),cp_failure_level,routineP,failure)
+         CPASSERT(ASSOCIATED(fm_set(j,i)%matrix))
          CALL cp_fm_set_all(fm_set(j,i)%matrix, 0.0_dp)
          CALL cp_fm_set_all(fm_work, 0.0_dp)
          CALL cp_dbcsr_sm_fm_multiply(op_sm(j,i)%matrix,all_vectors,fm_work,ncol=nstate)
@@ -1477,15 +1477,15 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(fm_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(fm_set))
+    CPASSERT(ASSOCIATED(mos))
     NULLIFY(eigenvalues, occupation_numbers)
 
     CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,occupation_numbers=occupation_numbers,&
          nao=nao, nmo=nmo, homo =homo, lfomo=lfomo)
 
     DO i=1,SIZE(fm_set,2)
-       CPPrecondition(ASSOCIATED(fm_set(1,i)%matrix),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(fm_set(1,i)%matrix))
        CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp)
        CALL cp_fm_set_all(fm_work, 0.0_dp)
        CALL cp_dbcsr_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nstate)
@@ -1575,9 +1575,9 @@ CONTAINS
     maxl = MAX(maxla,maxlb)
 
     ALLOCATE(sab(ldsab,ldsab),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(work(ldsab,ldsab),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO iset=1,nseta
 
@@ -1600,7 +1600,7 @@ CONTAINS
     END DO  ! iset
 
     DEALLOCATE(sab,work,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE calc_stogto_overlap
 
@@ -1689,19 +1689,19 @@ CONTAINS
 
     ! scratch array for the state
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     natom = SIZE(particle_set)
 
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf)
     ALLOCATE (sto_state_overlap(nexc_search),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (max_overlap(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     max_overlap = 0.0_dp
     ALLOCATE (state_of_mytype(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     state_of_mytype = 0
     atom_of_state = 0
 
@@ -1778,15 +1778,15 @@ CONTAINS
     cell%perd(1:3) =  perd0(1:3)
 
     DEALLOCATE(vecbuffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (sto_state_overlap,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (max_overlap,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (state_of_mytype,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE cls_assign_core_states
 

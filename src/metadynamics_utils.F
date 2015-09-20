@@ -118,7 +118,7 @@ CONTAINS
           RETURN
        ENDIF
        metadyn_section => section_vals_get_subs_vals(fe_section,"METADYN")
-       CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP)
+       CPASSERT(.NOT.ASSOCIATED(meta_env))
 
        md_section => section_vals_get_subs_vals(root_section,"MOTION%MD")
        CALL section_vals_val_get(md_section,"TIMESTEP",r_val=dt)
@@ -177,7 +177,7 @@ CONTAINS
 
        !RG Adaptive hills
        CALL section_vals_val_get(metadyn_section,"STEP_START_VAL",i_val=meta_env%n_steps)
-       CPPreconditionNoFail(meta_env%n_steps>=0,cp_failure_level,routineP)
+       CPASSERT(meta_env%n_steps>=0)
        CALL section_vals_val_get(metadyn_section,"NHILLS_START_VAL",&
             i_val=meta_env%hills_env%n_hills)
        CALL section_vals_val_get(metadyn_section,"TEMPERATURE",r_val=meta_env%temp_wanted)
@@ -234,9 +234,9 @@ CPSourceFileRef,&
 
           ! Handle status and file names
           ALLOCATE(meta_env%multiple_walkers%walkers_status(meta_env%multiple_walkers%walkers_tot_nr),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+          CPASSERT(stat==0)
           ALLOCATE(meta_env%multiple_walkers%walkers_file_name(meta_env%multiple_walkers%walkers_tot_nr),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+          CPASSERT(stat==0)
           CALL section_vals_val_get(walkers_section,"WALKERS_STATUS",explicit=explicit)
           IF (explicit) THEN
              CALL section_vals_val_get(walkers_section,"WALKERS_STATUS",i_vals=walkers_status)
@@ -465,7 +465,7 @@ CPSourceFileRef,&
     IF (n_walls/=0) THEN
        metavar%do_wall = .TRUE.
        ALLOCATE(metavar%walls(n_walls),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        DO i = 1, n_walls
           CALL section_vals_val_get(wall_section,"TYPE",i_rep_section=i,i_val=metavar%walls(i)%id_type)
           CALL section_vals_val_get(wall_section,"POSITION",i_rep_section=i,r_val=metavar%walls(i)%pos)
@@ -571,11 +571,11 @@ CPSourceFileRef,&
     IF (MODULO(multiple_walkers%n_hills_local,multiple_walkers%walkers_freq_comm)==0) THEN
        ! Store colvars information
        ALLOCATE(ss0_save(n_colvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        ALLOCATE(delta_s_save(n_colvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        ALLOCATE(delta_s_ss0_buf(2,0:n_colvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        delta_s_ss0_buf=0
        DO i = 1, n_colvar
           ss0_save(i)     = colvars(i)%ss0
@@ -656,9 +656,9 @@ CPSourceFileRef,&
           colvars(i)%delta_s = delta_s_save(i)
        END DO
        DEALLOCATE(ss0_save,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(delta_s_save,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
     END IF
 
     CALL timestop(handle)
@@ -698,42 +698,42 @@ CPSourceFileRef,&
     NULLIFY(tmp, tnp)
     IF(SIZE(hills_env%ss_history,2)< n_hills+1)THEN
        ALLOCATE(tmp(n_colvar,n_hills+100), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        tmp(:,:n_hills)=hills_env%ss_history
        tmp(:,n_hills+1:)=0.0_dp
        DEALLOCATE(hills_env%ss_history,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        hills_env%ss_history => tmp
        NULLIFY(tmp)
     ENDIF
     IF(SIZE(hills_env%delta_s_history,2)< n_hills+1)THEN
        ALLOCATE(tmp(n_colvar,n_hills+100), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        tmp(:,:n_hills)=hills_env%delta_s_history
        tmp(:,n_hills+1:)=0.0_dp
        DEALLOCATE(hills_env%delta_s_history,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        hills_env%delta_s_history => tmp
        NULLIFY(tmp)
     ENDIF
     IF(SIZE(hills_env%ww_history)< n_hills+1)THEN
        ALLOCATE(tnp(n_hills+100), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        tnp(1:n_hills) = hills_env%ww_history
        tnp(n_hills+1:)= 0.0_dp
        DEALLOCATE(hills_env%ww_history,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        hills_env%ww_history => tnp
        NULLIFY(tnp)
     ENDIF
     IF(wtcontrol)THEN
        IF(SIZE(hills_env%invdt_history)< n_hills+1)THEN
           ALLOCATE(tnp(n_hills+100), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+          CPASSERT(stat==0)
           tnp(1:n_hills) = hills_env%invdt_history
           tnp(n_hills+1:)= 0.0_dp
           DEALLOCATE(hills_env%invdt_history,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+          CPASSERT(stat==0)
           hills_env%invdt_history => tnp
           NULLIFY(tnp)
        ENDIF
@@ -795,32 +795,32 @@ CPSourceFileRef,&
        CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",n_rep_val=ndum)
        ! ss_history, delta_s_history, ww_history, invdt_history : deallocate and reallocate with the proper size
        DEALLOCATE(ss_history,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(delta_s_history,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(ww_history,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        IF (wtcontrol) THEN
           DEALLOCATE(invdt_history,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+          CPASSERT(stat==0)
        ENDIF
        !
-       CPPostcondition(n_hills==ndum,cp_failure_level,routinep,failure)
+       CPASSERT(n_hills==ndum)
        ALLOCATE(ss_history(n_colvar,n_hills), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        ALLOCATE(delta_s_history(n_colvar,n_hills), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        ALLOCATE(ww_history(n_hills), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        IF (wtcontrol) THEN
           ALLOCATE(invdt_history(n_hills), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+          CPASSERT(stat==0)
        ENDIF
        !
        DO i = 1, n_hills
           CALL section_vals_val_get(hills_history,"_DEFAULT_KEYWORD_",&
                i_rep_val=i, r_vals=rvals)
-          CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,failure)
+          CPASSERT(SIZE(rvals)==n_colvar)
           ss_history(1:n_colvar,i)=rvals
        END DO
        !
@@ -829,11 +829,11 @@ CPSourceFileRef,&
        IF (explicit) THEN
           ! delta_s_history
           CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",n_rep_val=ndum)
-          CPPostcondition(n_hills==ndum,cp_failure_level,routinep,failure)
+          CPASSERT(n_hills==ndum)
           DO i = 1, n_hills
              CALL section_vals_val_get(hills_history,"_DEFAULT_KEYWORD_",&
                   i_rep_val=i, r_vals=rvals)
-             CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,failure)
+             CPASSERT(SIZE(rvals)==n_colvar)
              delta_s_history(1:n_colvar,i)=rvals
           END DO
        ELSE
@@ -855,11 +855,11 @@ CPSourceFileRef,&
           ! ww_history
           CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",&
                n_rep_val=ndum)
-          CPPostcondition(n_hills==ndum,cp_failure_level,routinep,failure)
+          CPASSERT(n_hills==ndum)
           DO i = 1, n_hills
              CALL section_vals_val_get(hills_history,"_DEFAULT_KEYWORD_",&
                   i_rep_val=i, r_val=rval)
-             CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,failure)
+             CPASSERT(SIZE(rvals)==n_colvar)
              ww_history(i)=rval
           END DO
        ELSE
@@ -878,11 +878,11 @@ CPSourceFileRef,&
              ! invdt_history
              CALL section_vals_val_get( hills_history,"_DEFAULT_KEYWORD_",&
                   n_rep_val=ndum)
-             CPPostcondition(n_hills==ndum,cp_failure_level,routinep,failure)
+             CPASSERT(n_hills==ndum)
              DO i = 1, n_hills
                 CALL section_vals_val_get(hills_history,"_DEFAULT_KEYWORD_",&
                      i_rep_val=i, r_val=rval)
-                CPPostcondition(SIZE(rvals)==n_colvar,cp_failure_level,routinep,failure)
+                CPASSERT(SIZE(rvals)==n_colvar)
                 invdt_history(i)=rval
              END DO
           ELSE

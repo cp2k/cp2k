@@ -200,7 +200,7 @@ CONTAINS
                 ! Do nothing..
              CASE DEFAULT
                 ! Never reach this point
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END SELECT
              ! Special case for EAM
              SELECT CASE(pot%type(k))
@@ -594,7 +594,7 @@ CPSourceFileRef,&
        END DO
     END DO
     ALLOCATE(tmp_index(ntype,ntype),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !
     nunique = 0
     tmp_index = HUGE(0)
@@ -642,11 +642,11 @@ CPSourceFileRef,&
        CASE (nn_type)
           nvar = nvar
        CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
        ! Setup a table of the indexes..
        ALLOCATE(my_index(ndim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        n  = 0
        nk = 0
        DO i = 1, ntype
@@ -661,7 +661,7 @@ CPSourceFileRef,&
        END DO
        IF (nvar /=0) THEN
           ALLOCATE(pot_par(ndim,nvar),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           n  = 0
           nk = 0
           DO i = 1, ntype
@@ -754,7 +754,7 @@ CPSourceFileRef,&
                    CASE (nn_type)
                       ! no checks
                    CASE DEFAULT
-                      CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                      CPASSERT(.FALSE.)
                    END SELECT
                    IF (ANY(potential_single_allocation==pot_target)) THEN
                       pot_par(nk,:) = REAL(pot_target, KIND=dp)
@@ -764,13 +764,13 @@ CPSourceFileRef,&
           END DO
           ! Main Sorting Loop
           ALLOCATE(Rwork(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(Iwork1(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(Iwork2(ndim),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(wtmp(nvar),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL sort(pot_par(:,1),ndim,Iwork1)
           ! Sort all the other components of the potential
           DO k = 2, nvar
@@ -822,18 +822,18 @@ CPSourceFileRef,&
              END DO
           END DO
           DEALLOCATE(wtmp,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(Iwork1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(Iwork2,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(Rwork,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           !
           ! Let's determine the number of unique potentials and tag them
           !
           ALLOCATE(Cwork(nvar),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           Cwork(:) = pot_par(1,:)
           locij = my_index(1)
           CALL get_indexes(locij,ntype,tmpij0)
@@ -898,16 +898,16 @@ CPSourceFileRef,&
              tmp_index(tmpij(2),tmpij(1))=nunique
           END DO
           DEALLOCATE(Cwork,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(pot_par,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ELSE
           nunique = nunique + 1
           CALL set_potparm_index(potparm, my_index, pot_target, ntype, tmpij,&
                atomic_kind_set, shift_cutoff, do_zbl)
        END IF
        DEALLOCATE(my_index,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END DO
     ! Multiple defined potential
     n = 0
@@ -927,7 +927,7 @@ CPSourceFileRef,&
     CALL spline_env_create(spline_env, ntype, nunique)
     spline_env%spltab=tmp_index
     DEALLOCATE(tmp_index,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE get_nonbond_storage
 
@@ -976,9 +976,9 @@ CPSourceFileRef,&
     nvalues = SIZE(my_index)
     IF ((pot_target==lj_type).OR.(pot_target==lj_charmm_type)) THEN
        ALLOCATE(sigma6(nvalues),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(wrk(nvalues),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        min_sigma6= HUGE(0.0_dp)
        m_epsilon =-HUGE(0.0_dp)
        DO i = 1, nvalues
@@ -987,7 +987,7 @@ CPSourceFileRef,&
           pot => potparm%pot(tmpij(1),tmpij(2))%pot
           ! Preliminary check..
           check = SIZE(pot%type)==1
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
 
           sigma6(i) = pot%set(1)%lj%sigma6
           l_epsilon = pot%set(1)%lj%epsilon
@@ -1003,9 +1003,9 @@ CPSourceFileRef,&
        IF (m_epsilon  == -HUGE(0.0_dp)) m_epsilon  = 0.0_dp
        IF (min_sigma6 ==  HUGE(0.0_dp)) min_sigma6 = 0.0_dp
        DEALLOCATE(sigma6,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(wrk,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        min_val = MINVAL(my_index(:))
     END IF
@@ -1036,7 +1036,7 @@ CPSourceFileRef,&
           pot => potparm%pot(tmpij(1),tmpij(2))%pot
 
           check = SIZE(pot%type)==1
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           ! Undef potential.. this will be used to compute the splines..
           IF ((pot_target==lj_type).OR.(pot_target==lj_charmm_type)) THEN
              l_sigma6 = pot%set(1)%lj%sigma6

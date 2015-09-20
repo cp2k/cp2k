@@ -77,8 +77,8 @@ CONTAINS
                                                 occ_b
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,failure)
-    CPPrecondition((SIZE(mo_array) == 2),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mo_array))
+    CPASSERT((SIZE(mo_array) == 2))
     CALL timeset(routineN,handle)
 
     NULLIFY(eigval_a,eigval_b,occ_a,occ_b)
@@ -88,9 +88,9 @@ CONTAINS
          occupation_numbers=occ_b)
     all_nmo = nmo_a+nmo_b
     ALLOCATE(all_eigval(all_nmo), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(all_occ(all_nmo), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(all_index(all_nmo), STAT=stat)
 
     all_eigval(1:nmo_a) = eigval_a(1:nmo_a)
@@ -218,9 +218,9 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mo_array))
     mo_set_a => mo_array(1)%mo_set
-    CPPrecondition(ASSOCIATED(mo_set_a),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mo_set_a))
     ! Fall back for the case that we have only one MO set
     IF (SIZE(mo_array) == 1) THEN
        IF (PRESENT(eval_deriv)) THEN
@@ -231,13 +231,13 @@ CONTAINS
        CALL timestop(handle)
        RETURN
     END IF
-    CPPrecondition((SIZE(mo_array) == 2),cp_failure_level,routineP,failure)
+    CPASSERT((SIZE(mo_array) == 2))
     mo_set_b => mo_array(2)%mo_set
 
     IF (smear%do_smear) THEN
        IF (smear%fixed_mag_mom < 0.0_dp) THEN
           IF (smear%fixed_mag_mom /= -1.0_dp) THEN
-             CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,failure)
+             CPASSERT(.NOT.(PRESENT(eval_deriv)))
              CALL set_mo_occupation_3(mo_array,smear=smear)
              CALL timestop(handle)
              RETURN
@@ -248,7 +248,7 @@ CONTAINS
              mo_set_a%n_el_f = nelec_f/2.0_dp + smear%fixed_mag_mom/2.0_dp
              mo_set_b%n_el_f = nelec_f/2.0_dp - smear%fixed_mag_mom/2.0_dp
           END IF
-          CPPrecondition(.NOT.(PRESENT(eval_deriv)),cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.(PRESENT(eval_deriv)))
           CALL set_mo_occupation_1(mo_set_a,smear=smear)
           CALL set_mo_occupation_1(mo_set_b,smear=smear)
        END IF
@@ -393,9 +393,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(mo_set%eigenvalues),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(mo_set%occupation_numbers),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mo_set))
+    CPASSERT(ASSOCIATED(mo_set%eigenvalues))
+    CPASSERT(ASSOCIATED(mo_set%occupation_numbers))
     mo_set%occupation_numbers(:) = 0.0_dp
 
     ! Quick return, if no electrons are available
@@ -417,7 +417,7 @@ CONTAINS
       IF(el_count>xas_nelectron) mo_set%occupation_numbers(nomo) = mo_set%occupation_numbers(nomo) - (el_count-xas_nelectron)
       el_count = SUM( mo_set%occupation_numbers(1:nomo))
       is_large=ABS(el_count-xas_nelectron)>xas_nelectron*EPSILON(el_count)
-      CPPrecondition(.NOT.is_large,cp_failure_level,routineP,failure)
+      CPASSERT(.NOT.is_large)
     ELSE
      IF (MODULO(mo_set%nelectron,INT(mo_set%maxocc)) == 0) THEN
         nomo = NINT(mo_set%nelectron/mo_set%maxocc)
@@ -432,8 +432,8 @@ CONTAINS
     END IF
     nmo  = SIZE(mo_set%eigenvalues)
 
-    CPPrecondition((nmo >= nomo),cp_failure_level,routineP,failure)
-    CPPrecondition((SIZE(mo_set%occupation_numbers) == nmo),cp_failure_level,routineP,failure)
+    CPASSERT(nmo >= nomo)
+    CPASSERT((SIZE(mo_set%occupation_numbers) == nmo))
 
     mo_set%homo = nomo
     mo_set%lfomo = nomo + 1
@@ -442,7 +442,7 @@ CONTAINS
     ! Check consistency of the array lengths
     IF (PRESENT(eval_deriv)) THEN
       equal_size = (SIZE(mo_set%occupation_numbers,1) == SIZE(eval_deriv,1))
-      CPPrecondition(equal_size,cp_failure_level,routineP,failure)
+      CPASSERT(equal_size)
     END IF
 
     ! Quick return, if no smearing information is supplied (TO BE FIXED, smear should become non-optional...)
@@ -487,7 +487,7 @@ CONTAINS
           ! could be a relatively large matrix, but one could get rid of it by never storing it
           ! we only need dE/df * df/de, one could equally parallelize over entries, this could become expensive
           ALLOCATE(dfde(nmo,nmo),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ! lengthscale could become a parameter, but this is pretty good
           lengthscale=10*smear%electronic_temperature
 
@@ -500,7 +500,7 @@ CONTAINS
           eval_deriv=MATMUL(TRANSPOSE(dfde),eval_deriv)
 
           DEALLOCATE(dfde,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
         END IF
 
         ! Find the lowest fractional occupied MO (LFOMO)
@@ -537,7 +537,7 @@ CONTAINS
 
       CASE (smear_energy_window)
         ! not implemented
-        CPPrecondition(.NOT.PRESENT(eval_deriv),cp_failure_level,routineP,failure)
+        CPASSERT(.NOT.PRESENT(eval_deriv))
 
         ! Define the energy window for the eigenvalues
         e1 = mo_set%eigenvalues(mo_set%homo) - 0.5_dp*smear%window_size
@@ -585,7 +585,7 @@ CONTAINS
 
       CASE (smear_list)
         equal_size = SIZE(mo_set%occupation_numbers,1)==SIZE(smear%list,1)
-        CPPrecondition(equal_size,cp_failure_level,routineP,failure)
+        CPASSERT(equal_size)
         mo_set%occupation_numbers = smear%list
         ! there is no dependence of the energy on the eigenvalues
         IF (PRESENT(eval_deriv)) THEN

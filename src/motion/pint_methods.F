@@ -152,9 +152,9 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(f_env,subsys,particles, nose_section, gle_section)
 
-    CPPrecondition(.NOT.ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,failure)
-    CPPrecondition(input%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(pint_env))
+    CPASSERT(ASSOCIATED(input))
+    CPASSERT(input%ref_count>0)
     NULLIFY(rep_env)
     pint_section => section_vals_get_subs_vals(input,"MOTION%PINT")
     CALL section_vals_val_get(pint_section,"p",i_val=nrep)
@@ -190,7 +190,7 @@ CONTAINS
     IF (.NOT. ASSOCIATED(rep_env)) RETURN
 
     ALLOCATE(pint_env,STAT=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     last_pint_id=last_pint_id+1
     pint_env%id_nr=last_pint_id
     pint_env%ref_count=1
@@ -248,7 +248,7 @@ CONTAINS
            pint_env%tv_old(pint_env%nnos,pint_env%p,pint_env%ndim),&
            pint_env%tv_new(pint_env%nnos,pint_env%p,pint_env%ndim),&
            pint_env%tf(pint_env%nnos,pint_env%p,pint_env%ndim), STAT=stat)
-        CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+        CPASSERT(stat==0)
         pint_env%tx       = 0._dp
         pint_env%tv       = 0._dp
         pint_env%tv_t     = 0._dp
@@ -276,7 +276,7 @@ CONTAINS
                            seed=seed)
 
     ALLOCATE(pint_env%e_pot_bead(pint_env%p),STAT=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     pint_env%e_pot_bead=0._dp
     pint_env%e_pot_h=0._dp
     pint_env%e_kin_beads=0._dp
@@ -301,7 +301,7 @@ CONTAINS
          pint_env%rtmp_ndim(pint_env%ndim),             &
          pint_env%rtmp_natom(pint_env%ndim/3),          &
          STAT=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     pint_env%x        = 0._dp
     pint_env%v        = 0._dp
     pint_env%f        = 0._dp
@@ -327,10 +327,10 @@ CONTAINS
        CALL normalmode_env_create(pint_env%normalmode_env,&
           transform_section,p=pint_env%p,kT=pint_env%kT)
        wrong_input=pint_env%nrespa*twopi/(SQRT(pint_env%p/pint_env%normalmode_env%modefactor)*pint_env%kT)/pint_env%dt>10
-       CPPostcondition(wrong_input,cp_warning_level,routineP,failure)
+       CPASSERT(wrong_input)
     END IF
     ALLOCATE(pint_env%mass(pint_env%ndim),STAT=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
          f_env=f_env,failure=failure)
     CALL force_env_get(force_env=f_env%force_env,subsys=subsys)
@@ -346,12 +346,12 @@ CONTAINS
        END DO
     END DO
     CALL f_env_rm_defaults(f_env,ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
     ALLOCATE(pint_env%Q(pint_env%p),&
          pint_env%mass_beads(pint_env%p,pint_env%ndim),&
          pint_env%mass_fict(pint_env%p,pint_env%ndim),STAT=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (pint_env%transform == transformation_stage) THEN
        CALL staging_init_masses(pint_env%staging_env,mass=pint_env%mass,&
             mass_beads=pint_env%mass_beads,mass_fict=pint_env%mass_fict,&
@@ -367,7 +367,7 @@ CONTAINS
     CALL section_vals_get(gle_section, explicit=explicit)
     IF(explicit) THEN
       ALLOCATE(pint_env%gle,stat=stat)
-      CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+      CPASSERT(stat==0)
       CALL gle_init(pint_env%gle, dt=pint_env%dt/pint_env%nrespa, temp=pint_env%kT,&
            section=gle_section)
       IF (pint_env%pimd_thermostat==thermostat_none .AND. pint_env%gle%ndim .GT. 0) THEN
@@ -378,7 +378,7 @@ CONTAINS
          pint_env%gle%loc_num_gle=pint_env%p*pint_env%ndim
          pint_env%gle%glob_num_gle=pint_env%gle%loc_num_gle
          ALLOCATE(pint_env%gle%map_info%index(pint_env%gle%loc_num_gle))
-         CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+         CPASSERT(stat==0)
          DO itmp = 1, pint_env%gle%loc_num_gle
              pint_env%gle%map_info%index(itmp)=itmp
          ENDDO
@@ -427,8 +427,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     pint_env%ref_count=pint_env%ref_count+1
     RETURN
   END SUBROUTINE pint_retain
@@ -452,7 +452,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(pint_env)) THEN
-      CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+      CPASSERT(pint_env%ref_count>0)
       pint_env%ref_count=pint_env%ref_count-1
       IF (pint_env%ref_count==0) THEN
         CALL rep_env_release(pint_env%replicas)
@@ -466,61 +466,61 @@ CONTAINS
         CALL delete_rng_stream(pint_env%randomG)
 
         DEALLOCATE(pint_env%mass,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%e_pot_bead,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
 
         DEALLOCATE(pint_env%x,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%v,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%f,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%external_f,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%mass_beads,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%mass_fict,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%ux,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%uv,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%uv_t,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%uv_new,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%uf,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%uf_h,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%rtmp_ndim,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(pint_env%rtmp_natom,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
 
         IF(pint_env%pimd_thermostat==thermostat_nose) THEN
           DEALLOCATE(pint_env%tx,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           DEALLOCATE(pint_env%tv,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           DEALLOCATE(pint_env%tv_t,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           DEALLOCATE(pint_env%tv_old,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           DEALLOCATE(pint_env%tv_new,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           DEALLOCATE(pint_env%tf,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
         ELSEIF(pint_env%pimd_thermostat==thermostat_gle) THEN
           CALL gle_dealloc(pint_env%gle)
         END IF
 
         DEALLOCATE(pint_env%Q,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
 
         DEALLOCATE(pint_env,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
 
       END IF
     END IF
@@ -555,16 +555,16 @@ CONTAINS
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
-  CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,failure)
-  CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,failure)
-  CPPrecondition(input%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(para_env))
+  CPASSERT(ASSOCIATED(input))
+  CPASSERT(para_env%ref_count>0)
+  CPASSERT(input%ref_count>0)
   NULLIFY(pint_env)
   logger => cp_get_default_logger()
    CALL pint_create(pint_env,input,input_declaration,para_env)
   IF (ASSOCIATED(pint_env)) THEN
      ALLOCATE(x1(pint_env%ndim,pint_env%p),stat=stat)
-     CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+     CPASSERT(stat==0)
      x1(:,:)=pint_env%x
      CALL pint_x2u(pint_env)
      pint_env%x=0._dp
@@ -635,10 +635,10 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,failure)
-    CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(input%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(para_env))
+    CPASSERT(ASSOCIATED(input))
+    CPASSERT(para_env%ref_count>0)
+    CPASSERT(input%ref_count>0)
 
     ! check if helium solvent is present
     NULLIFY(helium_section)
@@ -734,8 +734,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     IF ( failure ) THEN
       RETURN
     END IF
@@ -785,8 +785,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input_section
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     IF ( failure ) THEN
       RETURN
     END IF
@@ -808,7 +808,7 @@ CONTAINS
 
       NULLIFY(bx)
       ALLOCATE(bx(3*pint_env%p), STAT=istat)
-      CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+      CPASSERT(istat==0)
       NULLIFY (rng_gaussian)
       CALL section_vals_val_get(pint_env%input,&
            "MOTION%PINT%INIT%LEVY_SEED",i_val=input_seed)
@@ -862,7 +862,7 @@ CONTAINS
 
       CALL delete_rng_stream(rng_gaussian)
       DEALLOCATE(bx, STAT=istat)
-      CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+      CPASSERT(istat==0)
       done_levy = .TRUE.
     END IF
 
@@ -875,7 +875,7 @@ CONTAINS
       CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
            n_rep_val=n_rep_val)
       IF (n_rep_val>0) THEN
-        CPPrecondition(n_rep_val==1,cp_failure_level,routineP,failure)
+        CPASSERT(n_rep_val==1)
         CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
              r_vals=r_vals)
         CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
@@ -975,8 +975,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input_section
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     IF ( failure ) THEN
       RETURN
     END IF
@@ -1136,7 +1136,7 @@ CPSourceFileRef,&
       CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
            n_rep_val=n_rep_val)
       IF (n_rep_val>0) THEN
-        CPPrecondition(n_rep_val==1,cp_failure_level,routineP,failure)
+        CPASSERT(n_rep_val==1)
         CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
              r_vals=r_vals)
         CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
@@ -1219,8 +1219,8 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: input_section
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     IF ( failure ) THEN
       RETURN
     END IF
@@ -1247,7 +1247,7 @@ CPSourceFileRef,&
         CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
                                   n_rep_val=n_rep_val)
         IF (n_rep_val>0) THEN
-          CPPrecondition(n_rep_val==1,cp_failure_level,routineP,failure)
+          CPASSERT(n_rep_val==1)
           CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
                                     r_vals=r_vals)
           CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
@@ -1275,7 +1275,7 @@ CPSourceFileRef,&
         CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
                                   n_rep_val=n_rep_val)
         IF (n_rep_val>0) THEN
-          CPPrecondition(n_rep_val==1,cp_failure_level,routineP,failure)
+          CPASSERT(n_rep_val==1)
           CALL section_vals_val_get(input_section,"_DEFAULT_KEYWORD_",&
                                     r_vals=r_vals)
           CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
@@ -1332,8 +1332,8 @@ CPSourceFileRef,&
     REAL(kind=dp)                            :: e_h
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     CALL pint_x2u(pint_env)
     CALL pint_calc_uf_h(pint_env=pint_env,e_h=e_h)
     CALL pint_calc_f(pint_env)
@@ -1416,7 +1416,7 @@ CPSourceFileRef,&
     REAL(kind=dp)                            :: scal
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
 
     NULLIFY(pint_env%logger)
     pint_env%logger => cp_get_default_logger()
@@ -1504,7 +1504,7 @@ CPSourceFileRef,&
     time_start = m_walltime()
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
 
   rn=REAL(pint_env%nrespa,dp)
   dti=pint_env%dt/rn
@@ -1759,8 +1759,8 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     my_x => pint_env%x
     IF (PRESENT(x)) my_x => x
     my_f => pint_env%f
@@ -1809,8 +1809,8 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     res=-1.0_dp
     my_uv => pint_env%uv
     IF (PRESENT(uv)) my_uv => uv
@@ -1847,8 +1847,8 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     res=-1.0_dp
     res=0._dp
     DO idim=1,pint_env%ndim
@@ -1886,8 +1886,8 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     ekin=0._dp
     DO idim=1,pint_env%ndim
       DO ib=1,pint_env%p

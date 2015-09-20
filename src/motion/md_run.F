@@ -219,8 +219,8 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(globenv))
+    CPASSERT(ASSOCIATED(force_env))
 
     failure=.FALSE.
     NULLIFY (particles, cell, simpar, itimes, used_time, subsys, &

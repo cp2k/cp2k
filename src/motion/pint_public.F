@@ -52,7 +52,7 @@ MODULE pint_public
     REAL(kind=dp)                            :: tmass
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
 
     tmass = 0.0_dp
     com_r(:) = 0.0_dp
@@ -92,7 +92,7 @@ MODULE pint_public
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
 
     cntrd_r(:) = 0.0_dp
     natoms = pint_env%ndim/3

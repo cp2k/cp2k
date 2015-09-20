@@ -166,7 +166,7 @@ CONTAINS
     ! Initialize
     ! Allocate grids for the calculation of jrho and the shift
     ALLOCATE(shift_pw_gspace(3,nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ispin = 1,nspins
        DO idir = 1,3
           CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
@@ -247,7 +247,7 @@ CONTAINS
        ENDDO
     ENDDO
     DEALLOCATE(shift_pw_gspace,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     ! Finalize
     CALL timestop(handle)
@@ -346,12 +346,12 @@ CONTAINS
     !
     ALLOCATE(cs_loc_tmp(3,natom_tot),list_j(natom_tot),&
              dist_ij(3,natom_tot),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     cs_loc_tmp = 0.0_dp
     IF(do_nics) THEN
        ALLOCATE(cs_nics_loc_tmp(3,n_nics),list_nics_j(n_nics),&
                 dist_nics_ij(3,n_nics),STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        cs_nics_loc_tmp = 0.0_dp
     ENDIF
     !
@@ -497,7 +497,7 @@ CONTAINS
          & - nmr_env%shift_factor_gapw * cs_loc_tmp(:,:) / 2.0_dp
     !
     DEALLOCATE(cs_loc_tmp,list_j,dist_ij,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     IF(do_nics) THEN
        CALL mp_sum(cs_nics_loc_tmp,para_env%group)
@@ -505,7 +505,7 @@ CONTAINS
             & - nmr_env%shift_factor_gapw * cs_nics_loc_tmp(:,:) / 2.0_dp
        !
        DEALLOCATE(cs_nics_loc_tmp,list_nics_j,dist_nics_ij,STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     ENDIF
     !
     CALL timestop(handle)
@@ -563,7 +563,7 @@ CONTAINS
     NULLIFY (auxbas_pw_pool,precond)
     NULLIFY (cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
 
-    CPPrecondition(ASSOCIATED(shift_pw_rspace%pw),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(shift_pw_rspace%pw))
 
     interp_section =>  section_vals_get_subs_vals(nmr_section,&
                       "INTERPOLATOR")
@@ -586,7 +586,7 @@ CONTAINS
     success=find_coeffs(values=shift_pw_rspace%pw,coeffs=shiftspl%pw,&
            linOp=spl3_pbc,preconditioner=precond,pool=auxbas_pw_pool, &
            eps_r=eps_r,eps_x=eps_x,max_iter=max_iter)
-    CPPostconditionNoFail(success,cp_warning_level,routineP)
+    CPASSERT(success)
     CALL pw_spline_precond_release(precond)
 
     CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
@@ -664,7 +664,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     !
     NULLIFY(cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
-    CPPrecondition(ASSOCIATED(shift_pw_gspace%pw),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(shift_pw_gspace%pw))
     !
     CALL get_nmr_env(nmr_env=nmr_env, cs_atom_list=cs_atom_list,&
                      chemical_shift=chemical_shift,&
@@ -806,10 +806,10 @@ CONTAINS
     nat_print=SIZE(cs_atom_list,1)
 
     ALLOCATE(cs_tot(3,3,nat_print),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     IF(do_nics) THEN
        ALLOCATE(cs_nics_tot(3,3,n_nics),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     ENDIF
     ! Finalize Chi calculation
     ! Symmetrize
@@ -1041,10 +1041,10 @@ CONTAINS
     !
     ! clean up
     DEALLOCATE(cs_tot,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     IF(do_nics) THEN
        DEALLOCATE(cs_nics_tot,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     ENDIF
     !
 !100 FORMAT(A,1X,I5)

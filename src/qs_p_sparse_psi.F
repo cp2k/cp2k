@@ -138,8 +138,8 @@ SUBROUTINE p_proj_retain(p_proj)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,failure)
-  CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(p_proj))
+  CPASSERT(p_proj%ref_count>0)
   p_proj%ref_count=p_proj%ref_count+1
 END SUBROUTINE p_proj_retain
 
@@ -163,16 +163,16 @@ SUBROUTINE p_proj_release(p_proj)
   failure=.FALSE.
 
   IF (ASSOCIATED(p_proj)) THEN
-     CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,failure)
+     CPASSERT(p_proj%ref_count>0)
      p_proj%ref_count=p_proj%ref_count-1
      IF (p_proj%ref_count<1) THEN
         DEALLOCATE(p_proj%atoms,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+        CPASSERT(stat==0)
         DEALLOCATE(p_proj%proj_indexes,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+        CPASSERT(stat==0)
         p_proj%ref_count=0
         DEALLOCATE(p_proj, stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+        CPASSERT(stat==0)
      END IF
   END IF
 END SUBROUTINE p_proj_release
@@ -214,8 +214,8 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
   CALL timeset(routineN,handle)
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,failure)
-  CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(p_proj))
+  CPASSERT(p_proj%ref_count>0)
   CALL cp_fm_get_info(min_m, nrow_global=nrow_min, ncol_global=ncol_min)
   CALL cp_fm_get_info(full_m, nrow_global=nrow_full, ncol_global=ncol_full)
 
@@ -227,14 +227,14 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
   IF (PRESENT(ncol)) my_ncol=ncol
   blocksize=MIN(my_ncol,max_blocksize)
 
-  CPPrecondition(my_ncol>=0,cp_failure_level,routineP,failure)
-  CPPrecondition(my_start_col_min+my_ncol<ncol_min+2,cp_failure_level,routineP,failure)
-  CPPrecondition(my_start_col_full+my_ncol<ncol_full+2,cp_failure_level,routineP,failure)
-  CPPrecondition(nrow_min>=SIZE(p_proj%proj_indexes),cp_failure_level,routineP,failure)
+  CPASSERT(my_ncol>=0)
+  CPASSERT(my_start_col_min+my_ncol<ncol_min+2)
+  CPASSERT(my_start_col_full+my_ncol<ncol_full+2)
+  CPASSERT(nrow_min>=SIZE(p_proj%proj_indexes))
 
   ALLOCATE(tmp_min(blocksize,nrow_min), tmp_full(blocksize,nrow_full),&
        stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   DO icol=0,my_ncol-1,blocksize
      IF (icol+blocksize>my_ncol) blocksize=my_ncol-icol
@@ -253,7 +253,7 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
   END DO
 
   DEALLOCATE(tmp_min, tmp_full, stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+  CPASSERT(stat==0)
 
   CALL timestop(handle)
 END SUBROUTINE p_proj_transfer_blacs_to_f
@@ -293,14 +293,14 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol)
   failure=.FALSE.
   NULLIFY(row_indices,col_indices)
 
-  CPPrecondition(ASSOCIATED(p_proj),cp_failure_level,routineP,failure)
-  CPPrecondition(p_proj%ref_count>0,cp_failure_level,routineP,failure)
-  CPPrecondition(ASSOCIATED(full_m),cp_failure_level,routineP,failure)
-  CPPrecondition(full_m%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(p_proj))
+  CPASSERT(p_proj%ref_count>0)
+  CPASSERT(ASSOCIATED(full_m))
+  CPASSERT(full_m%ref_count>0)
   min_index=MINVAL(p_proj%proj_indexes)
   max_index=MAXVAL(p_proj%proj_indexes)
   ALLOCATE(keep_row(min_index:max_index),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   my_start_col=1
   IF (PRESENT(start_col)) my_start_col=start_col
@@ -328,7 +328,7 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol)
   END DO
 
   DEALLOCATE(keep_row,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+  CPASSERT(stat==0)
 
   CALL timestop(handle)
 END SUBROUTINE p_proj_restrain_f

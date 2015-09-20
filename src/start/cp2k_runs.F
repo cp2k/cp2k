@@ -277,7 +277,7 @@ CONTAINS
             output_unit=output_unit,&
             owns_out_unit=.FALSE.,&
             input=input_file,ierr=ierr)
-       CPAssert(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        CALL f_env_add_defaults(new_env_id,f_env,&
             failure=failure,handle=f_env_handle)
        force_env => f_env%force_env
@@ -292,7 +292,7 @@ CONTAINS
     CASE (do_tree_mc_ana)
        CALL do_analyze_files(input_declaration, root_section, para_env)
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     CALL section_vals_release(input_file)
 
@@ -329,7 +329,7 @@ CONTAINS
        CASE(energy_force_run)
           CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.)
        CASE default
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
        CALL cp_rm_iter_level(sublogger%iter_info,level_name="JUST_ENERGY",n_rlevel_att=iter_level)
     CASE (mol_dyn_run)
@@ -395,7 +395,7 @@ CONTAINS
     CASE (do_band)
        CALL neb(root_section,input_declaration,para_env,globenv)
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     !sample peak memory
@@ -419,14 +419,14 @@ CONTAINS
        force_env%globenv => globenv !mc
        CALL f_env_rm_defaults(f_env,ierr=ierr,&
             handle=f_env_handle)
-       CPAssert(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        CALL destroy_force_env(new_env_id,ierr=ierr)
-       CPAssert(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        CALL globenv_release(globenv)
     ELSE
        I_was_ionode=para_env%ionode
        CALL cp2k_finalize(root_section,para_env,globenv)
-       CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP)
+       CPASSERT(globenv%ref_count==1)
        CALL section_vals_release(root_section)
        CALL globenv_release(globenv)
     END IF
@@ -491,7 +491,7 @@ CONTAINS
     IF (output_unit>0) WRITE(output_unit,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
 
     ALLOCATE(farming_env,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL init_farming_env(farming_env)
     ! remember where we started
     CALL m_getcwd(farming_env%cwd)
@@ -506,7 +506,7 @@ CONTAINS
        ALLOCATE(master_slave_partition(0:1))
        master_slave_partition=(/1,para_env%num_pe-1/)
        ALLOCATE(group_distribution(0:para_env%num_pe-1),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        CALL mp_comm_split(para_env%group,slave_group,ngroups,group_distribution,&
                    n_subgroups=2, group_partition=master_slave_partition)
@@ -519,11 +519,11 @@ CONTAINS
            master=.TRUE.
            ! on the master node, num_slaves corresponds to the size of the master group
            ! due to the mp_environ call.
-           CPPostcondition(num_slaves==1,cp_failure_level,routineP,failure)
+           CPASSERT(num_slaves==1)
            num_slaves=para_env%num_pe-1
            slave_rank=-1
        ENDIF
-       CPPostcondition(num_slaves==para_env%num_pe-1,cp_failure_level,routineP,failure)
+       CPASSERT(num_slaves==para_env%num_pe-1)
     ELSE
        ! all processes are slaves
        IF (output_unit>0) WRITE(output_unit,FMT="(T2,A)") "FARMING| using a slave-only setup"
@@ -534,7 +534,7 @@ CONTAINS
 
     ! keep track of which para_env rank is which slave/master
     ALLOCATE(slave_distribution(0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     slave_distribution=0
     slave_distribution(para_env%mepos)=slave_rank
     CALL mp_sum(slave_distribution,para_env%group)
@@ -547,7 +547,7 @@ CONTAINS
     ! split the current communicator for the slaves
     ! in a new_group, new_size and new_rank according to the number of groups required according to the input
     ALLOCATE(group_distribution(0:num_slaves-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     group_distribution=-1
     IF (slave) THEN
         IF (farming_env%group_size_wish_set) THEN
@@ -559,7 +559,7 @@ CONTAINS
                    n_subgroups=farming_env%ngroup_wish,&
                    group_partition=farming_env%group_partition)
         ELSE
-           CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         ENDIF
         CALL mp_environ(new_size,new_rank,new_group)
     ENDIF
@@ -663,7 +663,7 @@ CONTAINS
           ENDDO
        ELSE ! master
           ALLOCATE(slave_status(0:ngroups-1),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           slave_status=slave_status_wait
           ijob_current=ijob_start-1
 
@@ -710,14 +710,14 @@ CONTAINS
                       WRITE(output_unit,FMT=*) ""
                       CALL m_flush(output_unit)
                    ENDIF
-                   CPPostcondition(todo.NE.do_deadlock,cp_failure_level,routineP,failure)
+                   CPASSERT(todo.NE.do_deadlock)
                ENDIF
              ENDIF
 
           ENDDO
 
           DEALLOCATE(slave_status,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
        ENDIF
     ELSE
@@ -776,9 +776,9 @@ CONTAINS
 
     ! and message passing deallocate structures
     DEALLOCATE(group_distribution,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(slave_distribution,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! clean the farming env
     CALL deallocate_farming_env(farming_env)
@@ -799,7 +799,7 @@ CONTAINS
 ! change to the new working directory
 
        CALL m_chdir(TRIM(farming_env%Job(i)%cwd),ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
 
        ! generate a fresh call to cp2k_run
        IF (new_rank == 0) THEN
@@ -848,7 +848,7 @@ CONTAINS
 
        ! change to the original working directory
        CALL m_chdir(TRIM(farming_env%cwd),ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
 
      END SUBROUTINE execute_job
   END SUBROUTINE farming_run
@@ -1036,9 +1036,9 @@ CONTAINS
       "<!DOCTYPE documentElement["
     DO i=1,SIZE(html_entity_table),2
        is = INDEX(html_entity_table(i),"&") + 1
-       CPPostcondition((is > 0),cp_failure_level,routineP,failure)
+       CPASSERT(is > 0)
        ie = INDEX(html_entity_table(i),";") - 1
-       CPPostcondition((ie >= is),cp_failure_level,routineP,failure)
+       CPASSERT(ie >= is)
        WRITE (UNIT=unit_number,FMT="(A)")&
         "<!ENTITY "//html_entity_table(i)(is:ie)//" """//TRIM(html_entity_table(i+1))//""">"
     END DO

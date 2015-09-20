@@ -310,7 +310,7 @@ CONTAINS
        END DO
     END IF
     ALLOCATE(hf_energy(n_rep_hf), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO irep = 1,n_rep_hf
 
        IF( do_adiabatic_rescaling .AND. hfx_treat_lsd_in_core)&
@@ -723,7 +723,7 @@ CONTAINS
           CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
                                     r_val=-hfx_fraction)
         CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
       END SELECT
 
       !** Now modify the functionals for the primary basis

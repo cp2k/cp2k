@@ -127,7 +127,7 @@ CONTAINS
 
     failure = .FALSE.
     IF (PRESENT(pab)) THEN
-      CPPostcondition(PRESENT(fs),cp_failure_level,routineP,failure)
+      CPASSERT(PRESENT(fs))
       IF (PRESENT(force_a)) THEN
         calculate_force_a = .TRUE.
       ELSE
@@ -167,7 +167,7 @@ CONTAINS
 
     ! precalculate indices for horizontal recursion
     ALLOCATE (iiap(ncoset(mmax),3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ma=0,mmax
        DO iax=0,ma
           DO iay=0,ma-iax
@@ -541,7 +541,7 @@ CONTAINS
     END DO
 
     DEALLOCATE (iiap,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE os_3center
 ! *****************************************************************************

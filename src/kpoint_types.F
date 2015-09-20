@@ -161,10 +161,10 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPAssert(.NOT.ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(kpoint))
 
     ALLOCATE(kpoint,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     kpoint%kp_scheme = ""
     kpoint%nkp_grid = 0
@@ -218,17 +218,17 @@ CONTAINS
 
        IF(ASSOCIATED(kpoint%xkp)) THEN
          DEALLOCATE(kpoint%xkp,STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+         CPASSERT(ierr==0)
          NULLIFY(kpoint%xkp)
        END IF
        IF(ASSOCIATED(kpoint%wkp)) THEN
          DEALLOCATE(kpoint%wkp,STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+         CPASSERT(ierr==0)
          NULLIFY(kpoint%wkp)
        END IF
        IF(ASSOCIATED(kpoint%kp_dist)) THEN
          DEALLOCATE(kpoint%kp_dist,STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+         CPASSERT(ierr==0)
        ENDIF
 
        CALL mpools_release(kpoint%mpools)
@@ -248,11 +248,11 @@ CONTAINS
              CALL kpoint_env_release(kpoint%kp_env(ik)%kpoint_env)
           END DO
           DEALLOCATE(kpoint%kp_env,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
        END IF
 
        DEALLOCATE(kpoint,STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+       CPASSERT(ierr==0)
        NULLIFY(kpoint)
 
     END IF
@@ -342,7 +342,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpoint))
 
     IF(PRESENT(kp_scheme)) kp_scheme = kpoint%kp_scheme
     IF(PRESENT(nkp_grid)) nkp_grid = kpoint%nkp_grid
@@ -463,7 +463,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpoint))
  
     IF(PRESENT(kp_scheme)) kpoint%kp_scheme = kp_scheme
     IF(PRESENT(nkp_grid)) kpoint%nkp_grid = nkp_grid
@@ -523,14 +523,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: reallist
 
     failure = .FALSE.
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpoint))
 
     CALL section_vals_get(kpoint_section,explicit=available)
 
     IF (available) THEN
        CALL section_vals_val_get(kpoint_section,"SCHEME",c_vals=tmpstringlist)
        nval = SIZE(tmpstringlist)
-       CPPrecondition(nval >= 1, cp_failure_level, routineP,failure)
+       CPASSERT(nval >= 1)
        kpoint%kp_scheme = tmpstringlist(1)
        CALL uppercase(kpoint%kp_scheme)
 
@@ -541,12 +541,12 @@ CONTAINS
           CASE ("GAMMA")
              ! do nothing
           CASE ("MONKHORST-PACK")
-             CPPrecondition(nval >= 4, cp_failure_level, routineP,failure)
+             CPASSERT(nval >= 4)
              DO i=2,4
                 READ(tmpstringlist(i),*) kpoint%nkp_grid(i-1)
              END DO
           CASE ("MACDONALD")
-             CPPrecondition(nval >= 7, cp_failure_level, routineP,failure)
+             CPASSERT(nval >= 7)
              DO i=2,4
                 READ(tmpstringlist(i),*) kpoint%nkp_grid(i-1)
              END DO
@@ -557,17 +557,17 @@ CONTAINS
              CALL section_vals_val_get(kpoint_section,"KPOINT", n_rep_val=n_rep)
              kpoint%nkp = n_rep
              ALLOCATE(kpoint%xkp(3,n_rep),kpoint%wkp(n_rep),STAT=ierr)
-             CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+             CPASSERT(ierr==0)
              DO i=1,n_rep
                 CALL section_vals_val_get(kpoint_section,"KPOINT", i_rep_val=i,&
                                   r_vals=reallist)
                 nval = SIZE(reallist)
-                CPPostcondition(nval>=4, cp_failure_level, routineP,failure)
+                CPASSERT(nval>=4)
                 kpoint%xkp(1:3,i) = reallist(1:3)
                 kpoint%wkp(i) = reallist(4)
              END DO
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+            CPASSERT(.FALSE.)
        END SELECT
 
        CALL section_vals_val_get(kpoint_section,"SYMMETRY",l_val=kpoint%symmetry)
@@ -583,7 +583,7 @@ CONTAINS
           CASE (use_complex_wfn)
              kpoint%use_real_wfn = .FALSE.
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+            CPASSERT(.FALSE.)
        END SELECT
 
     ELSE
@@ -610,7 +610,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpoint))
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -639,7 +639,7 @@ CONTAINS
           CASE ("GENERAL")
              WRITE (punit,'(A,T71,A10)') ' BRILLOUIN| K-point scheme ','   General'
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+            CPASSERT(.FALSE.)
        END SELECT
        IF(kpoint%kp_scheme /= "NONE") THEN
           IF (kpoint%symmetry) THEN
@@ -688,10 +688,10 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPAssert(.NOT.ASSOCIATED(kp_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(kp_env))
 
     ALLOCATE(kp_env,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     kp_env%nkpoint = 0
     kp_env%wkp     = 0.0_dp
@@ -729,7 +729,7 @@ CONTAINS
              END DO
           END DO
           DEALLOCATE(kp_env%mos,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
        END IF
 
        IF(ASSOCIATED(kp_env%pmat)) THEN
@@ -739,7 +739,7 @@ CONTAINS
              END DO
           END DO
           DEALLOCATE(kp_env%pmat,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
        END IF
 
        IF(ASSOCIATED(kp_env%wmat)) THEN
@@ -749,11 +749,11 @@ CONTAINS
              END DO
           END DO
           DEALLOCATE(kp_env%wmat,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
        END IF
 
        DEALLOCATE(kp_env,STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+       CPASSERT(ierr==0)
        NULLIFY(kp_env)
 
     END IF
@@ -786,7 +786,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPAssert(ASSOCIATED(kpoint_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpoint_env))
 
     IF(PRESENT(nkpoint)) nkpoint = kpoint_env%nkpoint
     IF(PRESENT(wkp)) wkp = kpoint_env%wkp

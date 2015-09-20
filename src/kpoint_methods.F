@@ -122,7 +122,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpoint))
 
     SELECT CASE (kpoint%kp_scheme)
        CASE ("NONE")
@@ -130,7 +130,7 @@ CONTAINS
        CASE ("GAMMA")
           kpoint%nkp = 1
           ALLOCATE(kpoint%xkp(3,1),kpoint%wkp(1),STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
           kpoint%xkp(1:3,1) = 0.0_dp
           kpoint%wkp(1) = 1.0_dp
        CASE ("MONKHORST-PACK","MACDONALD")
@@ -140,7 +140,7 @@ CONTAINS
              ! we set up a random molecule to avoid any possible symmetry
              natom = 10
              ALLOCATE(coord(3,natom),zeff(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
-             CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              DO i=1,natom
                 atype(i) = i
                 coord(1,i) = SIN(i*0.12345_dp)
@@ -150,7 +150,7 @@ CONTAINS
           ELSE
              natom = SIZE(particle_set)
              ALLOCATE(coord(3,natom),zeff(natom),weight(natom),atype(natom),element(natom),STAT=ierr)
-             CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              DO i=1,natom
                 CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind,kind_number=atype(i))
                 coord(1:3,i) = particle_set(i)%r(1:3)
@@ -181,12 +181,12 @@ CONTAINS
 
           CALL release_csym_type(crys_sym)
           DEALLOCATE(coord,zeff,weight,atype,element,STAT=ierr)
-          CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr==0)
 
        CASE ("GENERAL")
           ! do nothing
        CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+          CPASSERT(.FALSE.)
     END SELECT
 
     ! check for consistency of options
@@ -194,15 +194,15 @@ CONTAINS
        CASE ("NONE")
           ! don't use k-point code
        CASE ("GAMMA")
-          CPPostcondition(kpoint%nkp==1, cp_failure_level, routineP,failure)
-          CPPostcondition(SUM(ABS(kpoint%xkp))<=1.e-12_dp, cp_failure_level, routineP,failure)
-          CPPostcondition(kpoint%wkp(1)==1.0_dp, cp_failure_level, routineP,failure)
-          CPPostcondition(.NOT.kpoint%symmetry, cp_failure_level, routineP,failure)
+          CPASSERT(kpoint%nkp==1)
+          CPASSERT(SUM(ABS(kpoint%xkp))<=1.e-12_dp)
+          CPASSERT(kpoint%wkp(1)==1.0_dp)
+          CPASSERT(.NOT.kpoint%symmetry)
        CASE ("GENERAL")
-          CPPostcondition(.NOT.kpoint%symmetry, cp_failure_level, routineP,failure)
-          CPPostcondition(kpoint%nkp>=1, cp_failure_level, routineP,failure)
+          CPASSERT(.NOT.kpoint%symmetry)
+          CPASSERT(kpoint%nkp>=1)
        CASE ("MONKHORST-PACK","MACDONALD")
-          CPPostcondition(kpoint%nkp>=1, cp_failure_level, routineP,failure)
+          CPASSERT(kpoint%nkp>=1)
     END SELECT
     IF(kpoint%use_real_wfn) THEN
        ! what about inversion symmetry?
@@ -251,10 +251,10 @@ CPSourceFileRef,&
     TYPE(kpoint_env_type), POINTER           :: kp
 
     failure = .FALSE.
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpoint))
     para_env => kpoint%para_env
-    CPAssert(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
-    CPAssert(.NOT.ASSOCIATED(kpoint%kp_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(para_env))
+    CPASSERT(.NOT.ASSOCIATED(kpoint%kp_env))
 
     NULLIFY(kp_env)
     nkp = kpoint%nkp
@@ -262,7 +262,7 @@ CPSourceFileRef,&
     IF(npe == 1) THEN
        ! only one process availabe -> owns all kpoints
        ALLOCATE(kp_env(nkp),STAT=ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        DO ik=1,nkp
           NULLIFY(kp_env(ik)%kpoint_env)
           CALL kpoint_env_create(kp_env(ik)%kpoint_env)
@@ -273,7 +273,7 @@ CPSourceFileRef,&
           kp%is_local = .TRUE.
        END DO
        ALLOCATE(kpoint%kp_dist(2,1),STAT=ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        kpoint%kp_dist(1,1) = 1
        kpoint%kp_dist(2,1) = nkp
        kpoint%kp_range(1) = 1
@@ -305,19 +305,19 @@ CPSourceFileRef,&
        ELSE IF(kpoint%parallel_group_size > 0) THEN
           ngr = MIN(kpoint%parallel_group_size,npe)
        ELSE
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
        nkp_grp = npe/ngr
        ! processor dimensions
        dims(1)=ngr
        dims(2)=nkp_grp
-       CPPostcondition(MOD(nkp,nkp_grp)==0,cp_failure_level,routineP,failure)
+       CPASSERT(MOD(nkp,nkp_grp)==0)
        nkp_loc=nkp/nkp_grp
 
        IF ((dims(1)*dims(2)/=npe)) THEN
           message = "Number of processors is not divisible by the kpoint group size."
           CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
 
        NULLIFY(cart,para_env_full,para_env_kp,para_env_inter_kp)
@@ -349,14 +349,14 @@ CPSourceFileRef,&
 
        ! distribution of kpoints
        ALLOCATE(kpoint%kp_dist(2,nkp_grp),STAT=ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        DO igr = 1,nkp_grp
           kpoint%kp_dist(1:2,igr) = get_limit(nkp,nkp_grp,igr-1)
        END DO
        ! local kpoints
        kpoint%kp_range(1:2) = kpoint%kp_dist(1:2,para_env_inter_kp%mepos+1)
        ALLOCATE(kp_env(nkp_loc),STAT=ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        DO ik=1,nkp_loc
           NULLIFY(kp_env(ik)%kpoint_env)
           ikk = kpoint%kp_range(1) + ik -1
@@ -412,7 +412,7 @@ CPSourceFileRef,&
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
 
     failure = .FALSE.
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpoint))
 
     IF (ASSOCIATED(mos)) THEN
 
@@ -424,12 +424,12 @@ CPSourceFileRef,&
        nspin = SIZE(mos,1)
        nkp_loc = kpoint%kp_range(2) - kpoint%kp_range(1) + 1
        IF (nkp_loc > 0) THEN
-          CPAssert(SIZE(kpoint%kp_env)==nkp_loc,cp_failure_level,routineP,failure)
+          CPASSERT(SIZE(kpoint%kp_env)==nkp_loc)
           ! allocate the mo sets, correct number of kpoints (local), real/complex, spin
           DO ik=1,nkp_loc
              kp => kpoint%kp_env(ik)%kpoint_env
              ALLOCATE(kp%mos(nc,nspin),STAT=ierr)
-             CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              DO is=1,nspin
                 CALL get_mo_set(mos(is)%mo_set,nao=nao,nmo=nmo,nelectron=nelectron,&
                      n_el_f=n_el_f,maxocc=maxocc,flexible_electron_count=flexible_electron_count)
@@ -471,10 +471,10 @@ CPSourceFileRef,&
                    END DO
                 END DO
                 DEALLOCATE(kp%pmat,STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                CPASSERT(ierr==0)
              END IF
              ALLOCATE(kp%pmat(nc,nspin),STAT=ierr)
-             CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              DO is=1,nspin
                 DO ic=1,nc
                    CALL cp_fm_create(kp%pmat(ic,is)%matrix,matrix_struct)
@@ -488,10 +488,10 @@ CPSourceFileRef,&
                    END DO
                 END DO
                 DEALLOCATE(kp%wmat,STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                CPASSERT(ierr==0)
              END IF
              ALLOCATE(kp%wmat(nc,nspin),STAT=ierr)
-             CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              DO is=1,nspin
                 DO ic=1,nc
                    CALL cp_fm_create(kp%wmat(ic,is)%matrix,matrix_struct)
@@ -536,7 +536,7 @@ CPSourceFileRef,&
       DIMENSION(:), POINTER                  :: nl_iterator
 
     failure = .FALSE.
-    CPAssert(ASSOCIATED(kpoint),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpoint))
 
     ALLOCATE(list(3,125))
     list = 0
@@ -654,7 +654,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: iatom, ic, icol, irow, jatom
     INTEGER, DIMENSION(3)                    :: cell
-    LOGICAL                                  :: do_symmetric, failure, found, &
+    LOGICAL                                  :: do_symmetric, found, &
                                                 wfn_real_only
     REAL(KIND=dp)                            :: arg, coskl, fsym, sinkl
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cblock, rblock, rsblock
@@ -692,20 +692,20 @@ CPSourceFileRef,&
        ic = cell_to_index(cell(1),cell(2),cell(3))
        CALL cp_dbcsr_get_block_p(matrix=rsmat(ispin,ic)%matrix,row=irow,col=icol,&
                                  block=rsblock,found=found)
-       CPPostcondition(found,cp_failure_level,routineP,failure)
+       CPASSERT(found)
 
        IF(wfn_real_only) THEN
           CALL cp_dbcsr_get_block_p(matrix=rmatrix,row=irow,col=icol,&
                                     block=rblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,failure)
+          CPASSERT(found)
           rblock = rblock + coskl*rsblock
        ELSE
           CALL cp_dbcsr_get_block_p(matrix=rmatrix,row=irow,col=icol,&
                                     block=rblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,failure)
+          CPASSERT(found)
           CALL cp_dbcsr_get_block_p(matrix=cmatrix,row=irow,col=icol,&
                                     block=cblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,failure)
+          CPASSERT(found)
           rblock = rblock + coskl*rsblock
           cblock = cblock + sinkl*rsblock
        END IF
@@ -750,10 +750,10 @@ CPSourceFileRef,&
     CALL get_mo_set(mo_set,nmo=nmo,nelectron=nelectron)
     IF(nspin==2) THEN
        CALL get_mo_set(kp%mos(1,2)%mo_set,nmo=nb)
-       CPAssert(nmo==nb,cp_failure_level,routineP,failure)
+       CPASSERT(nmo==nb)
     END IF
     ALLOCATE(weig(nmo,nkp,nspin),wocc(nmo,nkp,nspin),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     weig = 0.0_dp
     wocc = 0.0_dp
     CALL get_kpoint_info(kpoint,kp_range=kp_range)
@@ -774,13 +774,13 @@ CPSourceFileRef,&
     CALL get_kpoint_info(kpoint,wkp=wkp)
     IF(smear%do_smear) THEN
        ! finite electronic temperature
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     ELSE
        ! fixed occupations (2/1)
        IF(nspin==1) THEN
           CALL Fermikp(wocc(:,:,1),mu,kTS,weig(:,:,1),nel,wkp,0.0_dp,2.0_dp)
        ELSE
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
     END IF
     DO ikpgr = 1,kplocal
@@ -795,7 +795,7 @@ CPSourceFileRef,&
     END DO
 
     DEALLOCATE(weig,wocc,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE kpoint_set_mo_occupation
 
@@ -944,7 +944,7 @@ CPSourceFileRef,&
 
     ! work storage
     ALLOCATE(rpmat,cpmat,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_init(rpmat)
     CALL cp_dbcsr_init(cpmat)
     CALL cp_dbcsr_create(rpmat,template=tempmat,matrix_type=dbcsr_type_symmetric)
@@ -977,7 +977,7 @@ CPSourceFileRef,&
             NULLIFY(kp)
           END IF
           ! collect this density matrix on all processors
-          CPPrecondition(SIZE(fmwork)>=nc,cp_failure_level,routineP,failure)
+          CPASSERT(SIZE(fmwork)>=nc)
           DO ic=1,nc
              IF(my_kpgrp) THEN
                 ! choose density matrix
@@ -1022,20 +1022,20 @@ CPSourceFileRef,&
 
              CALL cp_dbcsr_get_block_p(matrix=denmat(ispin,icell)%matrix,row=irow,col=icol,&
                                        block=dblock,found=found)
-             CPPostcondition(found,cp_failure_level,routineP,failure)
+             CPASSERT(found)
 
              IF(real_only) THEN
                 CALL cp_dbcsr_get_block_p(matrix=rpmat,row=irow,col=icol,&
                                           block=rblock,found=found)
-                CPPostcondition(found,cp_failure_level,routineP,failure)
+                CPASSERT(found)
                 dblock = dblock + coskl*rblock
              ELSE
                 CALL cp_dbcsr_get_block_p(matrix=rpmat,row=irow,col=icol,&
                                           block=rblock,found=found)
-                CPPostcondition(found,cp_failure_level,routineP,failure)
+                CPASSERT(found)
                 CALL cp_dbcsr_get_block_p(matrix=cpmat,row=irow,col=icol,&
                                           block=cblock,found=found)
-                CPPostcondition(found,cp_failure_level,routineP,failure)
+                CPASSERT(found)
                 dblock = dblock + coskl*rblock
                 dblock = dblock + sinkl*cblock
              END IF

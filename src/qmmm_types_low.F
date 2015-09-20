@@ -244,9 +244,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(qmmm_env))
     ALLOCATE(qmmm_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     qmmm_env%ref_count=1
     last_qmmm_env_id_nr=last_qmmm_env_id_nr+1
     qmmm_env%id_nr=last_qmmm_env_id_nr
@@ -260,7 +260,7 @@ CONTAINS
     qmmm_env%qmmm_link          = .FALSE.
     qmmm_env%use_qmmm_ff        = .FALSE.
     ALLOCATE(qmmm_env%inp_info, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL init_inp_info(qmmm_env%inp_info)
   END SUBROUTINE qmmm_env_mm_create
 
@@ -279,8 +279,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(qmmm_env))
+    CPASSERT(qmmm_env%ref_count>0)
     qmmm_env%ref_count=qmmm_env%ref_count+1
   END SUBROUTINE qmmm_env_mm_retain
 
@@ -301,37 +301,37 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(qmmm_env)) THEN
-       CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(qmmm_env%ref_count>0)
        qmmm_env%ref_count=qmmm_env%ref_count-1
        IF (qmmm_env%ref_count==0) THEN
           IF (ASSOCIATED(qmmm_env%qm_atom_index)) THEN
              DEALLOCATE(qmmm_env%qm_atom_index,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%qm_molecule_index)) THEN
              DEALLOCATE(qmmm_env%qm_molecule_index,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_link_atoms)) THEN
              DEALLOCATE(qmmm_env%mm_link_atoms,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_link_scale_factor)) THEN
              DEALLOCATE(qmmm_env%mm_link_scale_factor,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%fist_scale_charge_link)) THEN
              DEALLOCATE(qmmm_env%fist_scale_charge_link,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%inp_info)) THEN
              CALL deallocate_inp_info(qmmm_env%inp_info)
              DEALLOCATE(qmmm_env%inp_info,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
 
           DEALLOCATE(qmmm_env,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(qmmm_env)
@@ -352,9 +352,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(qmmm_env))
     ALLOCATE(qmmm_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     qmmm_env%ref_count=1
     last_qmmm_env_id_nr=last_qmmm_env_id_nr+1
     qmmm_env%id_nr=last_qmmm_env_id_nr
@@ -402,8 +402,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(qmmm_env))
+    CPASSERT(qmmm_env%ref_count>0)
     qmmm_env%ref_count=qmmm_env%ref_count+1
   END SUBROUTINE qmmm_env_qm_retain
 
@@ -424,51 +424,51 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(qmmm_env)) THEN
-       CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(qmmm_env%ref_count>0)
        qmmm_env%ref_count=qmmm_env%ref_count-1
        IF (qmmm_env%ref_count==0) THEN
           IF (ASSOCIATED(qmmm_env%qm_atom_index)) THEN
              DEALLOCATE(qmmm_env%qm_atom_index,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%maxradius)) THEN
              DEALLOCATE(qmmm_env%maxradius,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_atom_index)) THEN
              DEALLOCATE(qmmm_env%mm_atom_index,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_link_atoms)) THEN
              DEALLOCATE(qmmm_env%mm_link_atoms,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_atom_chrg)) THEN
              DEALLOCATE(qmmm_env%mm_atom_chrg,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_el_pot_radius)) THEN
              DEALLOCATE(qmmm_env%mm_el_pot_radius,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%mm_el_pot_radius_corr)) THEN
              DEALLOCATE(qmmm_env%mm_el_pot_radius_corr,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%pgfs)) THEN
              CALL pgfs_release(qmmm_env%pgfs)
              DEALLOCATE(qmmm_env%pgfs,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%Potentials)) THEN
              CALL qmmm_pot_type_dealloc(qmmm_env%Potentials)
              DEALLOCATE(qmmm_env%Potentials,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%Per_Potentials)) THEN
              CALL qmmm_per_pot_type_dealloc(qmmm_env%Per_Potentials)
              DEALLOCATE(qmmm_env%Per_Potentials,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qmmm_env%aug_pools)) THEN
              CALL pw_pools_dealloc(qmmm_env%aug_pools)
@@ -489,7 +489,7 @@ CONTAINS
              CALL ewald_pw_release(qmmm_env%ewald_pw)
           END IF
           DEALLOCATE(qmmm_env, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(qmmm_env)
@@ -515,18 +515,18 @@ CONTAINS
        IF (ASSOCIATED(pgfs(I)%pgf)) THEN
           IF (ASSOCIATED(pgfs(I)%pgf%Ak)) THEN
              DEALLOCATE(pgfs(I)%pgf%Ak,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(pgfs(I)%pgf%Gk)) THEN
              DEALLOCATE(pgfs(I)%pgf%Gk,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(pgfs(I)%pgf%grid_level)) THEN
              DEALLOCATE(pgfs(I)%pgf%grid_level,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(pgfs(I)%pgf,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+          CPASSERT(stat==0)
        END IF
     END DO
   END SUBROUTINE pgfs_release
@@ -547,21 +547,21 @@ CONTAINS
     IF (ASSOCIATED(qmmm_links%imomm)) THEN
        DO i = 1, SIZE(qmmm_links%imomm)
           IF (ASSOCIATED(qmmm_links%imomm(i)%link)) DEALLOCATE(qmmm_links%imomm(i)%link, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END DO
        DEALLOCATE(qmmm_links%imomm, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(qmmm_links%pseudo)) THEN
        DO i = 1, SIZE(qmmm_links%pseudo)
           IF (ASSOCIATED(qmmm_links%pseudo(i)%link)) DEALLOCATE(qmmm_links%pseudo(i)%link, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END DO
        DEALLOCATE(qmmm_links%pseudo, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+       CPASSERT(stat==0)
     END IF
     DEALLOCATE(qmmm_links, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
   END SUBROUTINE qmmm_links_dealloc
 
 ! ****************************************************************************
@@ -581,15 +581,15 @@ CONTAINS
          IF (ASSOCIATED(image_charge_pot%image_mm_list)) THEN
           IF(.NOT.image_charge_pot%all_mm) THEN
             DEALLOCATE(image_charge_pot%image_mm_list, stat=stat)
-            CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+            CPASSERT(stat==0)
           END IF
          END IF
          IF (ASSOCIATED(image_charge_pot%image_forcesMM)) THEN
              DEALLOCATE(image_charge_pot%image_forcesMM, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
          END IF
       DEALLOCATE(image_charge_pot, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+        CPASSERT(stat==0)
     END IF
   END SUBROUTINE qmmm_image_charge_dealloc
 
@@ -612,14 +612,14 @@ CONTAINS
        IF (ASSOCIATED(Potentials(I)%Pot)) THEN
           IF (ASSOCIATED(Potentials(I)%Pot%pot0_2)) THEN
              DEALLOCATE(Potentials(I)%Pot%pot0_2,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(Potentials(I)%Pot%mm_atom_index)) THEN
              DEALLOCATE(Potentials(I)%Pot%mm_atom_index,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(Potentials(I)%Pot,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END DO
 
@@ -644,37 +644,37 @@ CONTAINS
        IF (ASSOCIATED(Per_Potentials(I)%Pot)) THEN
           IF (ASSOCIATED(Per_Potentials(I)%Pot%LG)) THEN
              DEALLOCATE(Per_Potentials(I)%Pot%LG,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(Per_Potentials(I)%Pot%gx)) THEN
              DEALLOCATE(Per_Potentials(I)%Pot%gx,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(Per_Potentials(I)%Pot%gy)) THEN
              DEALLOCATE(Per_Potentials(I)%Pot%gy,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(Per_Potentials(I)%Pot%gz)) THEN
              DEALLOCATE(Per_Potentials(I)%Pot%gz,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(Per_Potentials(I)%Pot%mm_atom_index)) THEN
              DEALLOCATE(Per_Potentials(I)%Pot%mm_atom_index,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(Per_Potentials(I)%Pot%TabLR)) THEN
              CALL pw_pool_give_back_pw ( Per_Potentials(I)%Pot%pw_pool,  Per_Potentials(I)%Pot%TabLR)
           END IF
           IF (ASSOCIATED(Per_Potentials(I)%Pot%pw_pool)) THEN
              CALL pw_pool_release ( Per_Potentials(I)%Pot%pw_pool)
-             CPPostconditionNoFail(.NOT.ASSOCIATED(Per_Potentials(I)%Pot%pw_pool),cp_failure_level,routineP)
+             CPASSERT(.NOT.ASSOCIATED(Per_Potentials(I)%Pot%pw_pool))
           END IF
           IF (ASSOCIATED(Per_Potentials(I)%Pot%pw_grid)) THEN
              CALL pw_grid_release ( Per_Potentials(I)%Pot%pw_grid)
-             CPPostconditionNoFail(.NOT.ASSOCIATED(Per_Potentials(I)%Pot%pw_grid),cp_failure_level,routineP)
+             CPASSERT(.NOT.ASSOCIATED(Per_Potentials(I)%Pot%pw_grid))
           END IF
           DEALLOCATE(Per_Potentials(I)%Pot,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END DO
 
@@ -696,44 +696,44 @@ CONTAINS
     IF (ASSOCIATED(added_charges)) THEN
        IF (ASSOCIATED(added_charges%add_env)) THEN
           DEALLOCATE(added_charges%add_env, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(added_charges%added_particles)) THEN
           CALL deallocate_particle_set(added_charges%added_particles)
        END IF
        IF (ASSOCIATED(added_charges%mm_atom_index)) THEN
           DEALLOCATE(added_charges%mm_atom_index, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(added_charges%mm_atom_chrg)) THEN
           DEALLOCATE(added_charges%mm_atom_chrg, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(added_charges%mm_el_pot_radius)) THEN
           DEALLOCATE(added_charges%mm_el_pot_radius, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(added_charges%mm_el_pot_radius_corr)) THEN
           DEALLOCATE(added_charges%mm_el_pot_radius_corr, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(added_charges%Potentials)) THEN
           CALL qmmm_pot_type_dealloc(added_charges%Potentials)
           DEALLOCATE(added_charges%Potentials,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(added_charges%Per_Potentials)) THEN
           CALL qmmm_per_pot_type_dealloc(added_charges%Per_Potentials)
           DEALLOCATE(added_charges%Per_Potentials,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(added_charges%pgfs)) THEN
           CALL pgfs_release(added_charges%pgfs)
           DEALLOCATE(added_charges%pgfs,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE(added_charges, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE add_set_release
 
@@ -756,7 +756,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(added_charges)) CALL add_set_release(added_charges)
     ALLOCATE(added_charges, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
 
     NULLIFY(added_charges%add_env,&
             added_charges%mm_atom_index,&
@@ -774,16 +774,16 @@ CONTAINS
     ! Allocate leave out just potential and pgfs...
     !
     ALLOCATE(added_charges%add_env(ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
     CALL allocate_particle_set(added_charges%added_particles,ndim)
     ALLOCATE(added_charges%mm_atom_index(ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
     ALLOCATE(added_charges%mm_atom_chrg(ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
     ALLOCATE(added_charges%mm_el_pot_radius(ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
     ALLOCATE(added_charges%mm_el_pot_radius_corr(ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
   END SUBROUTINE create_add_set_type
 
 ! *****************************************************************************
@@ -803,7 +803,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(image_charge_pot)) CALL qmmm_image_charge_dealloc(image_charge_pot)
     ALLOCATE(image_charge_pot, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
 
     NULLIFY(image_charge_pot%image_mm_list,&
             image_charge_pot%particles_all,&

@@ -223,7 +223,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_grid))
 
     IF (PRESENT(border_points)) THEN
        border_size = border_points
@@ -232,7 +232,7 @@ CONTAINS
     END IF
 
     ALLOCATE(desc,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL mp_sync(pw_grid % para % group)
 
@@ -409,19 +409,19 @@ CONTAINS
 
           ! set up global info about the distribution
           ALLOCATE( desc % rank2coord(3,0:desc % group_size-1),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE( desc % coord2rank(0:desc % group_dim(1)-1,0:desc % group_dim(2)-1,0:desc % group_dim(3)-1),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE( desc % lb_global(3,0:desc % group_size-1),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE( desc % ub_global(3,0:desc % group_size-1),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE( desc % x2coord(desc % lb(1):desc % ub(1)),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE( desc % y2coord(desc % lb(2):desc % ub(2)),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE( desc % z2coord(desc % lb(3):desc % ub(3)),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
           DO i=0, desc% group_size - 1
              ! Calculate coordinates in a row-major order (to be SMP-friendly)
@@ -512,12 +512,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
     ALLOCATE(rs,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     last_rs_id = last_rs_id+1
     rs % id_nr = last_rs_id
@@ -561,13 +560,13 @@ CONTAINS
     ALLOCATE ( rs % r (rs % lb_local(1):rs % ub_local(1), &
                        rs % lb_local(2):rs % ub_local(2), &
                        rs % lb_local(3):rs % ub_local(3)), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE ( rs % px ( desc % npts ( 1 ) ), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE ( rs % py ( desc % npts ( 2 ) ), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE ( rs % pz ( desc % npts ( 3 ) ), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -747,7 +746,7 @@ CONTAINS
              IF (rs%desc%border == 0) THEN
                 CALL dcopy(SIZE(rs%r),rs%r,1,pw%cr3d,1)
              ELSE
-                CPPrecondition(LBOUND(pw%cr3d,3) .EQ. rs%lb_real(3),cp_failure_level,routineP,failure)
+                CPASSERT(LBOUND(pw%cr3d,3) .EQ. rs%lb_real(3))
                 !$omp parallel do default(none) shared(pw,rs)
                 DO i = rs%lb_real(3),rs%ub_real(3)
                    pw%cr3d(:,:,i) = rs%r(rs%lb_real(1):rs%ub_real(1),&
@@ -759,7 +758,7 @@ CONTAINS
              IF (rs%desc%border == 0) THEN
                 CALL copy_rc(rs%r,pw%cc3d)
              ELSE
-                CPPrecondition(LBOUND(pw%cr3d,3) .EQ. rs%lb_real(3),cp_failure_level,routineP,failure)
+                CPASSERT(LBOUND(pw%cr3d,3) .EQ. rs%lb_real(3))
                 !$omp parallel do default(none) shared(pw,rs)
                 DO i = rs%lb_real(3),rs%ub_real(3)
                    pw%cc3d(:,:,i) = CMPLX(rs%r(rs%lb_real(1):rs%ub_real(1),&
@@ -894,13 +893,13 @@ CONTAINS
     group = pw % pw_grid % para % rs_group
     mepos = pw % pw_grid % para % rs_mpo
     ALLOCATE ( rcount ( 0 : np - 1 ), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ip = 1, np
        rcount ( ip-1 ) = PRODUCT ( bo(2,:,ip) - bo(1,:,ip) + 1 )
     END DO
     nma = MAXVAL ( rcount ( 0 : np - 1 ) )
     ALLOCATE(sendbuf(nma),recvbuf(nma), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     sendbuf=1.0E99_dp ; recvbuf=1.0E99_dp ! init mpi'ed buffers to silence warnings under valgrind
     grid=>rs%r
 
@@ -1028,11 +1027,11 @@ CONTAINS
     END IF
 
     DEALLOCATE ( rcount, STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE ( sendbuf, STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE ( recvbuf, STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE rs_pw_transfer_replicated
 
@@ -1081,7 +1080,6 @@ CONTAINS
       lb_send, lb_send_down, lb_send_up, ub_recv, ub_recv_down, ub_recv_up, &
       ub_send, ub_send_down, ub_send_up
     INTEGER, DIMENSION(4)                    :: req
-    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(3)                    :: halo_swapped
     REAL(KIND=dp)                            :: pw_sum, rs_sum
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -1113,9 +1111,9 @@ CONTAINS
           IF ( rs % desc % perd (idir) .NE. 1) THEN
 
              ALLOCATE ( dshifts ( 0:rs % desc % neighbours (idir ) ), STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE ( ushifts ( 0:rs % desc % neighbours (idir ) ), STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
 
              ushifts = 0
              dshifts = 0
@@ -1171,14 +1169,14 @@ CONTAINS
                 ! post the recieve
                 ALLOCATE ( recv_buf_3d_down (lb_recv_down(1):ub_recv_down(1), &
                      lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3)),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 CALL mp_irecv (recv_buf_3d_down, source_down, rs % desc % group, req(1))
 
                 ! now allocate, pack and send the send buffer
                 nn = PRODUCT ( ub_send_down - lb_send_down + 1 )
                 ALLOCATE ( send_buf_3d_down ( lb_send_down(1):ub_send_down(1), &
                      lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ), STAT=stat )
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
 
 !$omp parallel default(none), &
 !$omp          private(lb,ub,my_id,num_threads), &
@@ -1233,14 +1231,14 @@ CONTAINS
                 ! post the recieve
                 ALLOCATE ( recv_buf_3d_up (lb_recv_up(1):ub_recv_up(1), &
                      lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3)),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 CALL mp_irecv(recv_buf_3d_up, source_up, rs % desc % group, req(2))
 
                 ! now allocate,pack and send the send buffer
                 nn = PRODUCT ( ub_send_up - lb_send_up + 1 )
                 ALLOCATE ( send_buf_3d_up ( lb_send_up(1):ub_send_up(1), &
                      lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ), STAT=stat )
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
 
 !$omp parallel default(none), &
 !$omp          private(lb,ub,my_id,num_threads), &
@@ -1288,7 +1286,7 @@ CONTAINS
 !$omp end parallel
                       END IF
                       DEALLOCATE( recv_buf_3d_down, STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                      CPASSERT(stat==0)
                    ELSE
 
                       ! only some procs may need later shifts
@@ -1312,7 +1310,7 @@ CONTAINS
 !$omp end parallel
                       END IF
                       DEALLOCATE( recv_buf_3d_up, STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                      CPASSERT(stat==0)
                    END IF
 
                 END DO
@@ -1322,15 +1320,15 @@ CONTAINS
                 CALL mp_waitall (req(3:4))
 
                 DEALLOCATE( send_buf_3d_down, STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 DEALLOCATE( send_buf_3d_up, STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END DO
 
              DEALLOCATE ( dshifts, STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE ( ushifts, STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
 
           END IF
 
@@ -1340,7 +1338,7 @@ CONTAINS
 
        ! This is the real redistribution
        ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:4 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! work out the pw grid points each proc holds
        DO i = 0, pw % pw_grid % para % group_size - 1
@@ -1351,17 +1349,17 @@ CONTAINS
        ENDDO
 
        ALLOCATE ( send_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( send_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( send_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( recv_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( recv_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( recv_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        send_tasks(:,1)=1
        send_tasks(:,2)=0
        send_tasks(:,3)=1
@@ -1450,12 +1448,12 @@ CONTAINS
           recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
        ENDDO
 
-       CPPrecondition(SUM(send_sizes)==PRODUCT(ub_recv - lb_recv + 1),cp_failure_level,routineP,failure)
+       CPASSERT(SUM(send_sizes)==PRODUCT(ub_recv - lb_recv + 1))
 
        ALLOCATE ( send_bufs ( 0:rs % desc % group_size - 1 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( recv_bufs ( 0:rs % desc % group_size - 1 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        DO i = 0, rs % desc % group_size - 1
          IF ( send_sizes(i) .NE. 0 ) THEN
@@ -1471,7 +1469,7 @@ CONTAINS
        END DO
 
        ALLOCATE (recv_reqs (0:rs % desc % group_size - 1), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        recv_reqs = mp_request_null
 
        DO i = 0, rs % desc % group_size - 1
@@ -1498,7 +1496,7 @@ CONTAINS
 !$omp end parallel do
 
        ALLOCATE (send_reqs (0:rs % desc % group_size - 1), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        send_reqs = mp_request_null
 
        DO i = 0, rs % desc % group_size - 1
@@ -1527,9 +1525,9 @@ CONTAINS
        CALL mp_waitall(send_reqs)
 
        DEALLOCATE ( recv_reqs, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( send_reqs, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        DO i = 0, rs % desc % group_size - 1
          IF ( ASSOCIATED(send_bufs(i)%array ) ) THEN
@@ -1541,21 +1539,21 @@ CONTAINS
        END DO
 
        DEALLOCATE ( send_bufs, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( recv_bufs, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( send_tasks, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( send_sizes, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( send_disps, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( recv_tasks, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( recv_sizes, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( recv_disps, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        IF (debug_this_module) THEN
           ! safety check, to be removed once we're absolute sure the routine is correct
@@ -1578,7 +1576,7 @@ CONTAINS
        ! This is the real redistribution
 
        ALLOCATE ( bounds ( 0:pw % pw_grid % para % group_size - 1, 1:4 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        DO i = 0, pw % pw_grid % para % group_size - 1
           bounds ( i , 1:2 ) = pw % pw_grid % para % bo (1:2,1,i,1)
@@ -1588,17 +1586,17 @@ CONTAINS
        ENDDO
 
        ALLOCATE ( send_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( send_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( send_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( recv_tasks ( 0:pw % pw_grid % para % group_size -1,1:6 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( recv_sizes ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( recv_disps ( 0:pw % pw_grid % para % group_size -1 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        send_tasks = 0
        send_tasks(:,1)=1
@@ -1700,12 +1698,12 @@ CONTAINS
           recv_disps(i) = recv_disps(i-1) + recv_sizes(i-1)
        ENDDO
 
-       CPPrecondition(SUM(recv_sizes)==PRODUCT(ub_recv - lb_recv + 1),cp_failure_level,routineP,failure)
+       CPASSERT(SUM(recv_sizes)==PRODUCT(ub_recv - lb_recv + 1))
 
        ALLOCATE ( send_bufs ( 0:rs % desc % group_size - 1 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( recv_bufs ( 0:rs % desc % group_size - 1 ), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        DO i = 0, rs % desc % group_size - 1
          IF ( send_sizes(i) .NE. 0 ) THEN
@@ -1721,7 +1719,7 @@ CONTAINS
        END DO
 
        ALLOCATE (recv_reqs (0:rs % desc % group_size - 1), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        recv_reqs = mp_request_null
 
        DO i = 0, rs % desc % group_size - 1
@@ -1748,7 +1746,7 @@ CONTAINS
 !$omp end parallel do
 
        ALLOCATE (send_reqs (0:rs % desc % group_size - 1), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        send_reqs = mp_request_null
 
        DO i = 0, rs % desc % group_size - 1
@@ -1778,9 +1776,9 @@ CONTAINS
        CALL mp_waitall(send_reqs)
 
        DEALLOCATE ( recv_reqs, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( send_reqs, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        DO i = 0, rs % desc % group_size - 1
          IF ( ASSOCIATED(send_bufs(i)%array ) ) THEN
@@ -1792,21 +1790,21 @@ CONTAINS
        END DO
 
        DEALLOCATE ( send_bufs, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( recv_bufs, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( send_tasks, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( send_sizes, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( send_disps, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( recv_tasks, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( recv_sizes, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE ( recv_disps, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! now pass wings around
        halo_swapped = .FALSE.
@@ -1816,9 +1814,9 @@ CONTAINS
           IF ( rs % desc % perd (idir) /= 1) THEN
 
              ALLOCATE ( dshifts ( 0:rs % desc % neighbours (idir ) ), STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE ( ushifts ( 0:rs % desc % neighbours (idir ) ), STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ushifts = 0
              dshifts = 0
 
@@ -1874,7 +1872,7 @@ CONTAINS
                 nn = PRODUCT ( ub_recv_down - lb_recv_down + 1 )
                 ALLOCATE ( recv_buf_3d_down ( lb_recv_down(1):ub_recv_down(1), &
                      lb_recv_down(2):ub_recv_down(2), lb_recv_down(3):ub_recv_down(3) ), STAT=stat )
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
 
                 ! recv buffer is now ready, so post the recieve
                 CALL mp_irecv (recv_buf_3d_down, source_down, rs % desc % group, req(1))
@@ -1883,7 +1881,7 @@ CONTAINS
                 nn = PRODUCT ( ub_send_down - lb_send_down + 1 )
                 ALLOCATE ( send_buf_3d_down ( lb_send_down(1):ub_send_down(1), &
                      lb_send_down(2):ub_send_down(2), lb_send_down(3):ub_send_down(3) ), STAT=stat )
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
 
 !$omp parallel default(none), &
 !$omp          private(lb,ub,my_id,num_threads), &
@@ -1939,7 +1937,7 @@ CONTAINS
                 nn = PRODUCT ( ub_recv_up - lb_recv_up + 1 )
                 ALLOCATE ( recv_buf_3d_up ( lb_recv_up(1):ub_recv_up(1), &
                      lb_recv_up(2):ub_recv_up(2), lb_recv_up(3):ub_recv_up(3) ), STAT=stat )
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
 
                 ! recv buffer is now ready, so post the recieve
 
@@ -1949,7 +1947,7 @@ CONTAINS
                 nn = PRODUCT ( ub_send_up - lb_send_up + 1 )
                 ALLOCATE ( send_buf_3d_up ( lb_send_up(1):ub_send_up(1), &
                      lb_send_up(2):ub_send_up(2), lb_send_up(3):ub_send_up(3) ), STAT=stat )
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
 
 !$omp parallel default(none), &
 !$omp          private(lb,ub,my_id,num_threads), &
@@ -1996,7 +1994,7 @@ CONTAINS
                       END IF
 
                       DEALLOCATE ( recv_buf_3d_down, STAT=stat )
-                      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                      CPASSERT(stat==0)
                    ELSE
 
                       ! only some procs may need later shifts
@@ -2019,22 +2017,22 @@ CONTAINS
                       END IF
 
                       DEALLOCATE ( recv_buf_3d_up, STAT=stat )
-                      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                      CPASSERT(stat==0)
                    END IF
                 END DO
 
                 CALL mp_waitall (req(3:4))
 
                 DEALLOCATE ( send_buf_3d_down, STAT=stat )
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 DEALLOCATE ( send_buf_3d_up, STAT=stat )
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END DO
 
              DEALLOCATE ( ushifts, STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE ( dshifts, STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
 
           halo_swapped (idir) = .TRUE.
@@ -2136,11 +2134,9 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_set_box', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rs),cp_failure_level,routineP,failure)
-    CPPrecondition(rs%desc % grid_id==pw_grid%id_nr,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_grid))
+    CPASSERT(ASSOCIATED(rs))
+    CPASSERT(rs%desc % grid_id==pw_grid%id_nr)
     rs % desc % dh = pw_grid%dh
     rs % desc % dh_inv = pw_grid%dh_inv
 
@@ -2163,8 +2159,8 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(rs_grid),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(rs_grid))
+    CPASSERT(rs_grid%ref_count>0)
     rs_grid%ref_count=rs_grid%ref_count+1
   END SUBROUTINE rs_grid_retain
 
@@ -2185,8 +2181,8 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(rs_desc),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(rs_desc%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(rs_desc))
+    CPASSERT(rs_desc%ref_count>0)
     rs_desc%ref_count=rs_desc%ref_count+1
   END SUBROUTINE rs_grid_retain_descriptor
 
@@ -2209,7 +2205,7 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     failure=.FALSE.
 
     IF (ASSOCIATED(rs_grid)) THEN
-       CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(rs_grid%ref_count>0)
        rs_grid%ref_count=rs_grid%ref_count-1
        IF (rs_grid%ref_count==0) THEN
 
@@ -2217,15 +2213,15 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
 
           allocated_rs_grid_count=allocated_rs_grid_count-1
           DEALLOCATE ( rs_grid % r, STAT=stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE ( rs_grid % px , STAT=stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE ( rs_grid % py , STAT=stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE ( rs_grid % pz , STAT=stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(rs_grid, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           NULLIFY(rs_grid)
        END IF
     END IF
@@ -2250,7 +2246,7 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
     failure=.FALSE.
 
     IF (ASSOCIATED(rs_desc)) THEN
-       CPPreconditionNoFail(rs_desc%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(rs_desc%ref_count>0)
        rs_desc%ref_count=rs_desc%ref_count-1
        IF (rs_desc%ref_count==0) THEN
 
@@ -2261,30 +2257,30 @@ SUBROUTINE rs_grid_mult_and_add ( rs1 ,rs2, rs3, scalar )
              CALL mp_comm_free ( rs_desc % group )
 
              DEALLOCATE ( rs_desc % virtual2real, STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE ( rs_desc % real2virtual, STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
 
           IF (rs_desc % distributed) THEN
              DEALLOCATE ( rs_desc % rank2coord , STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE ( rs_desc % coord2rank , STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE ( rs_desc % lb_global , STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE ( rs_desc % ub_global , STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE ( rs_desc % x2coord , STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE ( rs_desc % y2coord , STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE ( rs_desc % z2coord , STAT=stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
 
           DEALLOCATE(rs_desc, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           NULLIFY(rs_desc)
        END IF
     END IF

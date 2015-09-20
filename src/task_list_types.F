@@ -51,10 +51,9 @@ SUBROUTINE allocate_task_list(task_list)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure
 
   ALLOCATE(task_list,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   NULLIFY(task_list%tasks)
   NULLIFY(task_list%dist_ab)
@@ -79,38 +78,37 @@ SUBROUTINE deallocate_task_list(task_list)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure
 
   IF (ASSOCIATED(task_list%tasks)) THEN
      DEALLOCATE(task_list%tasks,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   ENDIF
   IF (ASSOCIATED(task_list%dist_ab)) THEN
      DEALLOCATE(task_list%dist_ab,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   ENDIF
   IF (ASSOCIATED(task_list%atom_pair_send)) THEN
      DEALLOCATE(task_list%atom_pair_send,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   ENDIF
   IF (ASSOCIATED(task_list%atom_pair_recv)) THEN
      DEALLOCATE(task_list%atom_pair_recv,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   ENDIF
   IF (ASSOCIATED(task_list%taskstart)) THEN
      DEALLOCATE(task_list%taskstart,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   ENDIF
   IF (ASSOCIATED(task_list%taskstop)) THEN
      DEALLOCATE(task_list%taskstop,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   ENDIF
   IF (ASSOCIATED(task_list%npairs)) THEN
      DEALLOCATE(task_list%npairs,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   ENDIF
 
   DEALLOCATE(task_list,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 END SUBROUTINE deallocate_task_list
 END MODULE task_list_types

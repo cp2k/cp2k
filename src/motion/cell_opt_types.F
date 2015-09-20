@@ -82,9 +82,9 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(cell_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(cell_env))
     ALLOCATE(cell_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(cell_env%ref_cell,cell,subsys,particles)
     cell_env%ref_count=1
     last_cell_opt_env_id=last_cell_opt_env_id+1
@@ -130,8 +130,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(cell_env),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(cell_env%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(cell_env))
+    CPASSERT(cell_env%ref_count>0)
     cell_env%ref_count=cell_env%ref_count+1
   END SUBROUTINE cell_opt_env_retain
 
@@ -153,12 +153,12 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(cell_env)) THEN
-       CPPreconditionNoFail(cell_env%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(cell_env%ref_count>0)
        cell_env%ref_count=cell_env%ref_count-1
        IF (cell_env%ref_count==0) THEN
           CALL cell_release(cell_env%ref_cell)
           DEALLOCATE(cell_env, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE cell_opt_env_release

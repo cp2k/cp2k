@@ -56,8 +56,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_section),cp_failure_level,routineP,failure)
-    CPPrecondition((rng_section%ref_count > 0),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_section))
+    CPASSERT(rng_section%ref_count > 0)
 
     NULLIFY (my_val,old_val,section,vals)
 

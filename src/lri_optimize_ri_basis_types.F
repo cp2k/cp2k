@@ -80,10 +80,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure
 
    ALLOCATE(lri_opt,STAT=stat)
-   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+   CPASSERT(stat==0)
 
    NULLIFY(lri_opt%ri_gcc_orig)
    NULLIFY(lri_opt%subset)
@@ -121,29 +120,29 @@ CONTAINS
      IF(ASSOCIATED(lri_opt%subset)) THEN
        DO i=1,SIZE(lri_opt%subset) 
          DEALLOCATE(lri_opt%subset(i)%ncont_l,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
        ENDDO 
        DEALLOCATE(lri_opt%subset,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
      ENDIF
      IF(ASSOCIATED(lri_opt%x)) THEN
        DEALLOCATE(lri_opt%x,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
      ENDIF
      IF(ASSOCIATED(lri_opt%zet_init)) THEN
        DEALLOCATE(lri_opt%zet_init,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
      ENDIF
      IF(ASSOCIATED(lri_opt%ri_gcc_orig)) THEN
        DO i=1,SIZE(lri_opt%ri_gcc_orig) 
          DEALLOCATE(lri_opt%ri_gcc_orig(i)%gcc_orig,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
        ENDDO
        DEALLOCATE(lri_opt%ri_gcc_orig,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
      ENDIF
      DEALLOCATE(lri_opt,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
    ENDIF
  END SUBROUTINE deallocate_lri_opt
 
@@ -178,7 +177,7 @@ CONTAINS
     nset     = SIZE(gto_basis_set%gcc,3)
 
     ALLOCATE(gcc_orig(maxpgf,maxshell,nset),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     gcc_orig = 0.0_dp
 
     DO iset=1,gto_basis_set%nset
@@ -199,13 +198,13 @@ CONTAINS
      CALL get_gto_basis_set(gto_basis_set=gto_basis_set,&
                             lmax=lmax,lmin=lmin) 
      ALLOCATE(lri_opt%subset(nset),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      DO iset=1,gto_basis_set%nset
         nl=lmax(iset)-lmin(iset)+1
         lri_opt%subset(iset)%nl=nl
         il=1
         ALLOCATE(lri_opt%subset(iset)%ncont_l(nl),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ncont_l => lri_opt%subset(iset)%ncont_l
         ncont_l=1
         DO ishell=2,gto_basis_set%nshell(iset)

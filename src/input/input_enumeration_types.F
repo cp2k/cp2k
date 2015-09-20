@@ -76,28 +76,28 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict)
 
   failure=.FALSE.
 
-  CPPrecondition(.NOT.ASSOCIATED(enum),cp_failure_level,routineP,failure)
-  CPPrecondition(SIZE(c_vals)==SIZE(i_vals),cp_failure_level,routineP,failure)
+  CPASSERT(.NOT.ASSOCIATED(enum))
+  CPASSERT(SIZE(c_vals)==SIZE(i_vals))
   ALLOCATE(enum,stat=stat)
-  CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+  CPASSERT(stat==0)
   last_enumeration_id=last_enumeration_id+1
   enum%id_nr=last_enumeration_id
   enum%ref_count=1
   ALLOCATE(enum%c_vals(SIZE(c_vals)),stat=stat)
-  CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+  CPASSERT(stat==0)
   DO i=1,SIZE(enum%c_vals)
      enum%c_vals(i)=c_vals(i)
      CALL uppercase(enum%c_vals(i))
   END DO
   ALLOCATE(enum%i_vals(SIZE(i_vals)),stat=stat)
-  CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+  CPASSERT(stat==0)
   enum%i_vals=i_vals
   enum%strict=.TRUE.
   IF (PRESENT(strict)) enum%strict=strict
   ALLOCATE(enum%desc(SIZE(c_vals)),stat=stat)
-  CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+  CPASSERT(stat==0)
   IF (PRESENT(desc)) THEN
-     CPPrecondition(SIZE(enum%desc)==SIZE(desc),cp_failure_level,routineP,failure)
+     CPASSERT(SIZE(enum%desc)==SIZE(desc))
      DO i=1,SIZE(enum%desc)
         n = LEN_TRIM(desc(i))
         ALLOCATE(enum%desc(i)%chars(n))
@@ -127,8 +127,8 @@ SUBROUTINE enum_retain(enum)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  CPPrecondition(ASSOCIATED(enum),cp_failure_level,routineP,failure)
-  CPPreconditionNoFail(enum%ref_count>0,cp_failure_level,routineP)
+  CPASSERT(ASSOCIATED(enum))
+  CPASSERT(enum%ref_count>0)
   enum%ref_count=enum%ref_count+1
   END SUBROUTINE enum_retain
 
@@ -148,20 +148,20 @@ SUBROUTINE enum_release(enum)
 
   failure=.FALSE.
   IF (ASSOCIATED(enum)) THEN
-       CPPreconditionNoFail(enum%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(enum%ref_count>0)
        enum%ref_count=enum%ref_count-1
        IF (enum%ref_count==0) THEN
           DEALLOCATE(enum%c_vals,stat=stat)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(enum%i_vals,stat=stat)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i=1, SIZE(enum%desc)
              DEALLOCATE(enum%desc(i)%chars)
           END DO
           DEALLOCATE(enum%desc,stat=stat)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(enum,stat=stat)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(enum)
@@ -187,8 +187,8 @@ FUNCTION enum_i2c(enum,i) RESULT(res)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(enum),cp_failure_level,routineP,failure)
-  CPPrecondition(enum%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(enum))
+  CPASSERT(enum%ref_count>0)
   res=" "
   found=.FALSE.
   DO j=1,SIZE(enum%i_vals)
@@ -234,8 +234,8 @@ FUNCTION enum_c2i(enum,c) RESULT(res)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(enum),cp_failure_level,routineP,failure)
-  CPPrecondition(enum%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(enum))
+  CPASSERT(enum%ref_count>0)
   upc=c
   CALL uppercase(upc)
   found=.FALSE.

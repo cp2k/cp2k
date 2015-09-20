@@ -143,12 +143,12 @@ CONTAINS
                     para_env=para_env,&
                     blacs_env=blacs_env)
 
-    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(matrixkp_s),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(atomic_kind_set))
+    CPASSERT(ASSOCIATED(qs_kind_set))
+    CPASSERT(ASSOCIATED(matrixkp_s))
+    CPASSERT(ASSOCIATED(particle_set))
+    CPASSERT(ASSOCIATED(rho))
+    CPASSERT(ASSOCIATED(scf_control))
 
     IF(SIZE(matrixkp_s,2) > 1) THEN
 
@@ -169,7 +169,7 @@ CONTAINS
 
        ! Provide an array to store the orbital populations for each spin
        ALLOCATE (orbpop(nsgf,nspin),STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
        orbpop(:,:) = 0.0_dp
 
        ! Write headline
@@ -244,7 +244,7 @@ CONTAINS
        CALL cp_fm_release(matrix=fm_work2)
        IF (ASSOCIATED(orbpop)) THEN
          DEALLOCATE (orbpop,STAT=stat)
-         CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+         CPASSERT(stat == 0)
        END IF
 
     END IF
@@ -320,11 +320,11 @@ CONTAINS
                     rho=rho,&
                     para_env=para_env)
 
-    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(atomic_kind_set))
+    CPASSERT(ASSOCIATED(qs_kind_set))
+    CPASSERT(ASSOCIATED(particle_set))
+    CPASSERT(ASSOCIATED(rho))
+    CPASSERT(ASSOCIATED(matrix_s))
 
     CALL qs_rho_get(rho, rho_ao_kp=matrix_p) ! Density matrices in sparse format
     nspin = SIZE(matrix_p,1)
@@ -333,14 +333,14 @@ CONTAINS
     CALL get_atomic_kind_set(atomic_kind_set,natom=natom)
     CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
     ALLOCATE (first_sgf_atom(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     first_sgf_atom(:) = 0
 
     CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf_atom)
 
     ! Provide an array to store the orbital populations for each spin
     ALLOCATE (orbpop(nsgf,nspin),STAT=stat)
-    CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(stat == 0)
     orbpop(:,:) = 0.0_dp
 
     ! Write headline
@@ -354,7 +354,7 @@ CONTAINS
     IF (print_level > 2) THEN
       sm_s => matrix_s(1,1)%matrix ! Overlap matrix in sparse format
       ALLOCATE (sm_ps,STAT=stat)
-      CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+      CPASSERT(stat == 0)
       headline = "MULLIKEN NET ATOMIC ORBITAL AND OVERLAP POPULATION MATRIX"
       CALL cp_dbcsr_init(sm_ps)
       CALL cp_dbcsr_copy(matrix_b=sm_ps,&
@@ -387,7 +387,7 @@ CONTAINS
                                    col=jatom,&
                                    block=ps_block,&
                                    found=found)
-            CPPostcondition(ASSOCIATED(ps_block),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(ps_block))
           END IF
 
           sgfb = first_sgf_atom(jatom)
@@ -439,11 +439,11 @@ CONTAINS
     IF (ASSOCIATED(sm_ps)) CALL cp_dbcsr_deallocate_matrix(sm_ps)
     IF (ASSOCIATED(orbpop)) THEN
       DEALLOCATE (orbpop,STAT=stat)
-      CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+      CPASSERT(stat == 0)
     END IF
     IF (ALLOCATED(first_sgf_atom)) THEN
       DEALLOCATE (first_sgf_atom,STAT=stat)
-      CPPostconditionNoFail((stat == 0),cp_warning_level,routineP)
+      CPASSERT(stat == 0)
     END IF
 
     IF (output_unit > 0) THEN
@@ -505,9 +505,9 @@ CONTAINS
     NULLIFY (orb_basis_set)
     NULLIFY (sgf_symbol)
 
-    CPPrecondition(ASSOCIATED(orbpop),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(orbpop))
+    CPASSERT(ASSOCIATED(atomic_kind_set))
+    CPASSERT(ASSOCIATED(particle_set))
 
     nspin = SIZE(orbpop,2)
 

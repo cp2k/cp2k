@@ -214,10 +214,10 @@ FUNCTION cp_sll_deriv_less_q(el1,el2) RESULT(res)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_deriv_less_q', &
       routineP = moduleN//':'//routineN
 
-  CPPreconditionNoFail(ASSOCIATED(el1),cp_failure_level,routineP)
-  CPPreconditionNoFail(ASSOCIATED(el1%split_desc),cp_failure_level,routineP)
-  CPPreconditionNoFail(ASSOCIATED(el2),cp_failure_level,routineP)
-  CPPreconditionNoFail(ASSOCIATED(el2%split_desc),cp_failure_level,routineP)
+  CPASSERT(ASSOCIATED(el1))
+  CPASSERT(ASSOCIATED(el1%split_desc))
+  CPASSERT(ASSOCIATED(el2))
+  CPASSERT(ASSOCIATED(el2%split_desc))
   res=SIZE(el1%split_desc)<SIZE(el2%split_desc).OR.&
       (SIZE(el1%split_desc)==SIZE(el2%split_desc).and.el1%desc<el2%desc)
 END FUNCTION
@@ -253,7 +253,7 @@ END FUNCTION
        IF (PRESENT(rest)) sll => rest
     ELSE
        ALLOCATE(sll, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        sll%first_el => first_el
        NULLIFY(sll%rest)
        IF (PRESENT(rest)) sll%rest => rest
@@ -301,7 +301,7 @@ END FUNCTION
     failure=.FALSE.
 
     DEALLOCATE(sll, stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE cp_sll_xc_deriv_dealloc_node
 
 ! ============= get/set ============
@@ -335,7 +335,7 @@ END FUNCTION
        IF (PRESENT(first_el)) THEN
           CALL cp_sll_xc_deriv_create(sll,first_el,rest)
        ELSE
-          CPAssert(.NOT.PRESENT(rest),cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.PRESENT(rest))
        END IF
     ELSE
        IF (PRESENT(first_el)) sll%first_el => first_el
@@ -371,7 +371,7 @@ END FUNCTION
     failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
-       CPPrecondition(.NOT.PRESENT(first_el),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.PRESENT(first_el))
        IF (PRESENT(rest)) NULLIFY(rest)
        IF (PRESENT(empty)) empty=.TRUE.
        IF (PRESENT(length)) length=0
@@ -404,7 +404,7 @@ END FUNCTION
     failure=.FALSE.
 
     IF (cp_debug) THEN
-       CPPrecondition(ASSOCIATED(sll),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(sll))
     END IF
 
     res => sll%first_el
@@ -536,14 +536,14 @@ END FUNCTION
     failure=.FALSE.
 
     IF (cp_debug) THEN
-       CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,failure)
+       CPASSERT(index>0.OR.index==-1)
     END IF
     IF (index==-1) THEN
        pos => cp_sll_xc_deriv_get_rest(sll, iter=-1)
     ELSE
        pos => cp_sll_xc_deriv_get_rest(sll, iter=index-1)
     END IF
-    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pos))
 
     res => pos%first_el
   END FUNCTION cp_sll_xc_deriv_get_el_at
@@ -578,7 +578,7 @@ END FUNCTION
     ELSE
        pos => cp_sll_xc_deriv_get_rest(sll, iter=index-1)
     END IF
-    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pos))
 
     pos%first_el => value
   END SUBROUTINE cp_sll_xc_deriv_set_el_at
@@ -707,7 +707,7 @@ END FUNCTION
        ELSE
           pos => cp_sll_xc_deriv_get_rest(sll, iter=index-2)
        END IF
-       CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(pos))
        CALL cp_sll_xc_deriv_insert_el(pos%rest,el)
     END IF
   END SUBROUTINE cp_sll_xc_deriv_insert_el_at
@@ -735,7 +735,7 @@ END FUNCTION
     failure=.FALSE.
 
     IF (cp_debug) THEN
-       CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,failure)
+       CPASSERT(index>0.OR.index==-1)
     END IF
     IF (index==1) THEN
        CALL cp_sll_xc_deriv_rm_first_el(sll)
@@ -745,7 +745,7 @@ END FUNCTION
        ELSE
           pos => cp_sll_xc_deriv_get_rest(sll, iter=index-2)
        END IF
-       CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(pos))
        CALL cp_sll_xc_deriv_rm_first_el(pos%rest)
     END IF
   END SUBROUTINE cp_sll_xc_deriv_rm_el_at
@@ -802,12 +802,12 @@ FUNCTION cp_sll_xc_deriv_to_array(sll) RESULT(res)
 
   len=cp_sll_xc_deriv_get_length(sll)
   ALLOCATE(res(len),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   iter => sll
   DO i=1,len
      res(i)%deriv => iter%first_el
      IF (.NOT.(cp_sll_xc_deriv_next(iter).OR.i==len)) THEN
-        CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
      END IF
   END DO
 END FUNCTION cp_sll_xc_deriv_to_array
@@ -908,9 +908,9 @@ SUBROUTINE cp_sll_xc_deriv_insert_ordered(sll,el,insert_equals,&
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_xc_deriv_next(iter),cp_failure_level,routineP,failure)
+        CPASSERT(cp_sll_xc_deriv_next(iter))
      END DO
-     CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(iter))
   END IF
 END SUBROUTINE cp_sll_xc_deriv_insert_ordered
 
@@ -993,9 +993,9 @@ USE xc_derivative_types, ONLY: xc_derivative_type,xc_derivative_p_type
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_xc_deriv_next(iter),cp_failure_level,routineP,failure)
+        CPASSERT(cp_sll_xc_deriv_next(iter))
      END DO
-     CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(iter))
   END IF
 END SUBROUTINE cp_sll_xc_deriv_insert_ordered2
 
@@ -1032,10 +1032,10 @@ END SUBROUTINE cp_sll_xc_deriv_insert_ordered2
 !       character(len=*),parameter :: routineN='cp_sll_deriv_less_q',&
 !           routineP=moduleN//':'//routineN
 !     
-!       CPPreconditionNoFail(associated(el1),cp_failure_level,routineP)
-!       CPPreconditionNoFail(associated(el1%split_desc),cp_failure_level,routineP)
-!       CPPreconditionNoFail(associated(el2),cp_failure_level,routineP)
-!       CPPreconditionNoFail(associated(el2%split_desc),cp_failure_level,routineP)
+!       CPASSERT(associated(el1))
+!       CPASSERT(associated(el1%split_desc))
+!       CPASSERT(associated(el2))
+!       CPASSERT(associated(el2%split_desc))
 !       res=size(el1%split_desc)<size(el2%split_desc).or.&
 !           (size(el1%split_desc)==size(el2%split_desc).and.el1%desc<el2%desc)
 !     end function

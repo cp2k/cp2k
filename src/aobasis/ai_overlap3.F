@@ -1068,16 +1068,16 @@ CONTAINS
     lc_min = MAX(0,lc_min_set-lci)
 
     ALLOCATE(s(ncoset(la_max), ncoset(lb_max),ncoset(lc_max)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     s=0._dp
     IF(PRESENT(sdabc)) THEN
      ALLOCATE(sda(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      sda=0._dp
     ENDIF
     IF(PRESENT(sabdc)) THEN
      ALLOCATE(sdc(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      sdc=0._dp
     ENDIF
 
@@ -1224,14 +1224,14 @@ CONTAINS
     END DO
 
     DEALLOCATE(s,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(PRESENT(sdabc)) THEN
      DEALLOCATE(sda,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
     ENDIF
     IF(PRESENT(sabdc)) THEN
      DEALLOCATE(sdc,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
     ENDIF
 
     CALL timestop(handle)
@@ -1382,16 +1382,16 @@ CONTAINS
     lc_min = MAX(0,lc_min_set-lci)
 
     ALLOCATE(s(ncoset(la_max), ncoset(lb_max),ncoset(lc_max)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     s=0._dp
     IF(PRESENT(sdabc)) THEN
      ALLOCATE(sda(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      sda=0._dp
     ENDIF
     IF(PRESENT(sabdc)) THEN
      ALLOCATE(sdc(ncoset(la_max), ncoset(lb_max),ncoset(lc_max),3),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      sdc=0._dp
     ENDIF
 
@@ -2273,14 +2273,14 @@ CONTAINS
     END DO
 
     DEALLOCATE(s,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(PRESENT(sdabc)) THEN
      DEALLOCATE(sda,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
     ENDIF
     IF(PRESENT(sabdc)) THEN
      DEALLOCATE(sdc,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
     ENDIF
 
     CALL timestop(handle)

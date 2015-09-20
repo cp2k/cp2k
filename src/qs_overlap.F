@@ -188,7 +188,7 @@ CONTAINS
         CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index)
         use_cell_mapping = (SIZE(cell_to_index) > 1)
      ELSE
-        CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
      END IF
 
      NULLIFY (atomic_kind_set)
@@ -203,7 +203,7 @@ CONTAINS
      nkind = SIZE(qs_kind_set)
 
      ALLOCATE (atom_of_kind(natom),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
 
      IF (PRESENT(calculate_forces)) THEN
@@ -220,15 +220,15 @@ CONTAINS
      maxder = ncoset(nder)
 
      ! check for symmetry
-     CPPrecondition(SIZE(sab_nl) > 0,cp_failure_level,routineP,failure)
+     CPASSERT(SIZE(sab_nl) > 0)
      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl,symmetric=do_symmetric)
      IF (do_symmetric) THEN
-       CPPrecondition(basis_type_a == basis_type_b,cp_failure_level,routineP,failure)
+       CPASSERT(basis_type_a == basis_type_b)
      END IF
 
      ! set up basis set lists
      ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      CALL basis_set_list_setup(basis_set_list_a,basis_type_a,qs_kind_set)
      CALL basis_set_list_setup(basis_set_list_b,basis_type_b,qs_kind_set)
 
@@ -252,20 +252,20 @@ CONTAINS
      IF (do_forces) THEN
         ! we need density matrix for forces
         IF(dokp) THEN
-           CPPrecondition(PRESENT(matrixkp_p),cp_failure_level,routineP,failure)
+           CPASSERT(PRESENT(matrixkp_p))
         ELSE
-           CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,failure)
+           CPASSERT(PRESENT(matrix_p))
         END IF
         nder = MAX(nder,1)
         ALLOCATE (pmat(ldsab,ldsab),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
      END IF
      maxder = ncoset(nder)
      ALLOCATE (oint(ldsab,ldsab,maxder),owork(ldsab,ldsab),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
 
      ALLOCATE (sint(maxs),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      DO i=1,maxs
        NULLIFY (sint(i)%block)
      END DO
@@ -305,7 +305,7 @@ CONTAINS
 
         IF(use_cell_mapping) THEN
            ic = cell_to_index(cell(1),cell(2),cell(3))
-           CPPostcondition(ic > 0,cp_failure_level,routineP,failure)
+           CPASSERT(ic > 0)
         ELSE
            ic = 1
         END IF
@@ -332,11 +332,11 @@ CONTAINS
            IF(dokp) THEN
               CALL cp_dbcsr_get_block_p(matrix=matrixkp_s(i,ic)%matrix,&
                    row=irow,col=icol,BLOCK=sint(i)%block,found=found)
-              CPPostcondition(found,cp_failure_level,routineP,failure)
+              CPASSERT(found)
            ELSE
               CALL cp_dbcsr_get_block_p(matrix=matrix_s(i)%matrix,&
                    row=irow,col=icol,BLOCK=sint(i)%block,found=found)
-              CPPostcondition(found,cp_failure_level,routineP,failure)
+              CPASSERT(found)
            END IF
         END DO
         IF (do_forces) THEN
@@ -344,11 +344,11 @@ CONTAINS
            IF(dokp) THEN
               CALL cp_dbcsr_get_block_p(matrix=matrixkp_p(1,ic)%matrix,&
                    row=irow,col=icol,block=p_block,found=found)
-              CPPostcondition(found,cp_failure_level,routineP,failure)
+              CPASSERT(found)
            ELSE
               CALL cp_dbcsr_get_block_p(matrix=matrix_p,row=irow,col=icol,&
                    block=p_block,found=found)
-              CPPostcondition(found,cp_failure_level,routineP,failure)
+              CPASSERT(found)
            END IF
         END IF
         trans = do_symmetric .AND. (iatom > jatom)
@@ -385,7 +385,7 @@ CONTAINS
                        lb_max(jset),lb_min(jset),npgfb(jset),rpgfb(:,jset),zetb(:,jset),&
                        rab,sab=oint(:,:,1),dab=oint(:,:,2:4),ddab=oint(:,:,5:10))
                CASE DEFAULT
-                  CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                  CPASSERT(.FALSE.)
             END SELECT
             IF (do_forces .AND. ASSOCIATED(p_block) .AND. ((iatom/=jatom) .OR. use_virial)) THEN
                ! Decontract P matrix block
@@ -434,19 +434,19 @@ CONTAINS
 
      ! *** Release work storage ***
      DEALLOCATE (atom_of_kind,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      DO i=1,maxs
         NULLIFY (sint(i)%block)
      END DO
      DEALLOCATE (sint,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      DEALLOCATE (basis_set_list_a,basis_set_list_b,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      DEALLOCATE (oint,owork,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      IF(do_forces) THEN
         DEALLOCATE (pmat,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
      END IF
 
      CALL timestop(handle)
@@ -528,7 +528,7 @@ CONTAINS
      nder = 1
 
      ! check for symmetry
-     CPPrecondition(SIZE(sab_nl) > 0,cp_failure_level,routineP,failure)
+     CPASSERT(SIZE(sab_nl) > 0)
      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl,symmetric=do_symmetric)
 
      CALL get_ks_env(ks_env=ks_env,virial=virial)
@@ -537,13 +537,13 @@ CONTAINS
      ! *** Allocate work storage ***
      ldsab = get_memory_usage(qs_kind_set,basis_type_a,basis_type_b)
      ALLOCATE (sab(ldsab,ldsab),pab(ldsab,ldsab),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      ALLOCATE (drab(ldsab,ldsab,3),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
 
      ! set up basis sets
      ALLOCATE (basis_set_list_a(nkind),basis_set_list_b(nkind),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      CALL basis_set_list_setup(basis_set_list_a,basis_type_a,qs_kind_set)
      CALL basis_set_list_setup(basis_set_list_b,basis_type_b,qs_kind_set)
 
@@ -655,9 +655,9 @@ CONTAINS
 
      ! *** Release work storage ***
      DEALLOCATE (sab,pab,drab,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      DEALLOCATE (basis_set_list_a,basis_set_list_b,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
 
      CALL timestop(handle)
 
@@ -719,7 +719,7 @@ CONTAINS
      maxs = SIZE(matrix_s)
 
      ALLOCATE (row_blk_sizes(natom),col_blk_sizes(natom), STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
 
      CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes,&
                            basis=basis_set_list_a)
@@ -754,7 +754,7 @@ CONTAINS
        CALL compress(name)
        CALL uppercase(name)
        ALLOCATE(matrix_s(i)%matrix, STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL cp_dbcsr_init(matrix_s(i)%matrix)
        CALL cp_dbcsr_create(matrix=matrix_s(i)%matrix, &
             name=TRIM(name), &
@@ -826,7 +826,7 @@ CONTAINS
     maxs2 = SIZE(matrix_s,2)
 
     ALLOCATE (row_blk_sizes(natom),col_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes,&
                           basis=basis_set_list_a)
@@ -862,7 +862,7 @@ CONTAINS
           CALL compress(name)
           CALL uppercase(name)
           ALLOCATE(matrix_s(i1,i2)%matrix, STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           CALL cp_dbcsr_init(matrix_s(i1,i2)%matrix)
           CALL cp_dbcsr_create(matrix=matrix_s(i1,i2)%matrix, &
                name=TRIM(name), &

@@ -158,9 +158,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(meta_env),cp_failure_level,routinep,failure)
+    CPASSERT(.NOT.ASSOCIATED(meta_env))
     ALLOCATE(meta_env,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     NULLIFY(meta_env%multiple_walkers,&
             meta_env%metadyn_section,&
             meta_env%time,&
@@ -187,22 +187,22 @@ CONTAINS
 
     ! Hills_env
     ALLOCATE(meta_env%hills_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     ALLOCATE(meta_env%hills_env%ss_history(n_colvar,0), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     ALLOCATE(meta_env%hills_env%delta_s_history(n_colvar,0), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     ALLOCATE(meta_env%hills_env%ww_history(0), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     ALLOCATE(meta_env%hills_env%invdt_history(0), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     meta_env%hills_env%n_hills = 0
     meta_env%hills_env%energy = 0.0_dp
     meta_env%hills_env%restart = .TRUE.
 
     ! Colvar
     ALLOCATE(meta_env%metavar(n_colvar), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     DO i = 1, n_colvar
        NULLIFY(meta_env%metavar(i)%walls)
        meta_env%metavar(i)%mass       = -HUGE(0.0_dp)
@@ -227,7 +227,7 @@ CONTAINS
          l_val=meta_env%do_multiple_walkers)
     IF (meta_env%do_multiple_walkers) THEN
        ALLOCATE(meta_env%multiple_walkers,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
 
        ! Walkers status and Walkers file name
        NULLIFY(meta_env%multiple_walkers%walkers_status,&
@@ -238,7 +238,7 @@ CONTAINS
     CALL section_vals_val_get(metadyn_section,"LANGEVIN",l_val=do_langevin)
     IF (do_langevin) THEN
        ALLOCATE (meta_env%rng(meta_env%n_colvar),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i=1,meta_env%n_colvar
           NULLIFY(meta_env%rng(meta_env%n_colvar)%stream)
        END DO
@@ -284,8 +284,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPreconditionNoFail(ASSOCIATED(meta_env),cp_failure_level,routineP)
-    CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(meta_env))
+    CPASSERT(meta_env%ref_count>0)
     meta_env%ref_count=meta_env%ref_count+1
   END SUBROUTINE meta_env_retain
 
@@ -305,7 +305,7 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(meta_env)) THEN
-       CPPreconditionNoFail(meta_env%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(meta_env%ref_count>0)
        meta_env%ref_count=meta_env%ref_count-1
        IF (meta_env%ref_count==0) THEN
           CALL cp_para_env_release(meta_env%para_env)
@@ -313,11 +313,11 @@ CONTAINS
              DO i = 1, SIZE(meta_env%metavar)
                 IF (ASSOCIATED(meta_env%metavar(i)%walls)) THEN
                    DEALLOCATE(meta_env%metavar(i)%walls,stat=stat)
-                   CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+                   CPASSERT(stat==0)
                 END IF
              END DO
              DEALLOCATE(meta_env%metavar,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
 
           ! Hills env
@@ -326,14 +326,14 @@ CONTAINS
           IF (ASSOCIATED(meta_env%multiple_walkers)) THEN
              IF (ASSOCIATED(meta_env%multiple_walkers%walkers_status)) THEN
                 DEALLOCATE(meta_env%multiple_walkers%walkers_status,stat=stat)
-                CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              IF (ASSOCIATED(meta_env%multiple_walkers%walkers_file_name)) THEN
                 DEALLOCATE(meta_env%multiple_walkers%walkers_file_name,stat=stat)
-                CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              DEALLOCATE(meta_env%multiple_walkers,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
 
           ! Langevin on COLVARS
@@ -344,12 +344,12 @@ CONTAINS
                 END IF
              END DO
              DEALLOCATE (meta_env%rng,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
           NULLIFY(meta_env%time)
           NULLIFY(meta_env%metadyn_section)
           DEALLOCATE(meta_env, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE meta_env_release
@@ -372,22 +372,22 @@ CONTAINS
     IF (ASSOCIATED(hills_env)) THEN
        IF (ASSOCIATED(hills_env%ss_history)) THEN
           DEALLOCATE(hills_env%ss_history,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(hills_env%delta_s_history)) THEN
           DEALLOCATE(hills_env%delta_s_history,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(hills_env%ww_history)) THEN
           DEALLOCATE(hills_env%ww_history,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(hills_env%invdt_history)) THEN
           DEALLOCATE(hills_env%invdt_history,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE(hills_env,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE hills_env_release
 

@@ -135,9 +135,9 @@ MODULE  rt_propagation_forces
                  SinvH=SinvH,SinvB=SinvB,mos_new=mos_new)
 
     ALLOCATE(tmp_dbcsr,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(rho_im_sparse,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_init(tmp_dbcsr)
     CALL cp_dbcsr_create(tmp_dbcsr,template=SinvH(1)%matrix)
     CALL cp_dbcsr_init(rho_im_sparse)
@@ -145,9 +145,9 @@ MODULE  rt_propagation_forces
 
     natom = SIZE(particle_set)
     ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (kind_of(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind,kind_of=kind_of)
 
@@ -204,13 +204,13 @@ MODULE  rt_propagation_forces
     CALL cp_dbcsr_release(tmp_dbcsr)     
     CALL cp_dbcsr_release(rho_im_sparse)     
     DEALLOCATE (atom_of_kind,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (kind_of,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(tmp_dbcsr,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(rho_im_sparse,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
      
     CALL timestop(handle)
 
@@ -269,26 +269,26 @@ MODULE  rt_propagation_forces
 
     natom = SIZE(particle_set)
     ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (kind_of(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind,kind_of=kind_of)
 
 
     NULLIFY(tmp)
     ALLOCATE(tmp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_init(tmp)
     CALL cp_dbcsr_create(tmp,template=SinvB(1)%matrix)
     NULLIFY(tmp2)
     ALLOCATE(tmp2,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_init(tmp2)
     CALL cp_dbcsr_create(tmp2,template=SinvB(1)%matrix)
     NULLIFY(tmp3)
     ALLOCATE(tmp3,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_init(tmp3)
     CALL cp_dbcsr_create(tmp3,template=SinvB(1)%matrix)
 
@@ -331,9 +331,9 @@ MODULE  rt_propagation_forces
     CALL cp_dbcsr_deallocate_matrix(tmp3)
 
     DEALLOCATE (atom_of_kind,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (kind_of,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -561,7 +561,7 @@ MODULE  rt_propagation_forces
        ! allocate force vector
        CALL get_qs_env(qs_env=qs_env,natom=natom)
        ALLOCATE(admm_force(3,natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        admm_force = 0.0_dp
        CALL build_overlap_force(ks_env, admm_force,&
             basis_type_a="AUX_FIT", basis_type_b="AUX_FIT", &
@@ -574,7 +574,7 @@ MODULE  rt_propagation_forces
                        force=force)
        CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set)
        DEALLOCATE(admm_force,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        
        ! *** Deallocated weighted density matrices
        CALL cp_dbcsr_deallocate_matrix(matrix_w_s)

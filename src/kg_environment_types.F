@@ -88,7 +88,7 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CPPostcondition(ASSOCIATED(kg_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kg_env))
 
     CALL section_vals_release(kg_env%xc_section_kg)
 
@@ -97,14 +97,14 @@ CONTAINS
          CALL deallocate_neighbor_list_set(kg_env%sab_orb_full(iab)%neighbor_list_set)
        END DO
        DEALLOCATE(kg_env%sab_orb_full,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     ENDIF
     IF (ASSOCIATED(kg_env%sac_kin)) THEN
        DO iab=1,SIZE(kg_env%sac_kin)
          CALL deallocate_neighbor_list_set(kg_env%sac_kin(iab)%neighbor_list_set)
        END DO
        DEALLOCATE(kg_env%sac_kin,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     END IF
 
     IF (ASSOCIATED(kg_env%tnadd_mat)) THEN
@@ -116,7 +116,7 @@ CONTAINS
           CALL deallocate_neighbor_list_set(kg_env%subset(isub)%sab_orb(iab)%neighbor_list_set)
        END DO
        DEALLOCATE(kg_env%subset(isub)%sab_orb,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
        CALL deallocate_task_list(kg_env%subset(isub)%task_list)
     END DO
 
@@ -128,7 +128,7 @@ CONTAINS
     IF (ASSOCIATED(kg_env%tnadd_mat)) CALL cp_dbcsr_deallocate_matrix_set(kg_env%tnadd_mat)
 
     DEALLOCATE(kg_env,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 

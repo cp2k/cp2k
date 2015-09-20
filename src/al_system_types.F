@@ -95,17 +95,17 @@ CONTAINS
       DIMENSION(:, :, :)                     :: seed
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(al),cp_fatal_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(al%nvt),cp_fatal_level,routineP,failure)
+    CPASSERT(ASSOCIATED(al))
+    CPASSERT(.NOT.ASSOCIATED(al%nvt))
     
     ALLOCATE ( al%nvt(al%loc_num_al),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, al%loc_num_al
        al%nvt(i)%chi = 0.0_dp
     END DO
     ! Initialize the gaussian stream random number
     ALLOCATE (seed(3,2,al%glob_num_al),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE al_thermo_create
 
@@ -128,7 +128,7 @@ CONTAINS
        CALL al_thermo_dealloc(al%nvt)
        CALL release_map_info_type(al%map_info)
        DEALLOCATE (al, STAT=stat)
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
 
   END SUBROUTINE al_dealloc
@@ -151,7 +151,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(nvt)) THEN
        DEALLOCATE (nvt, STAT=stat)
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
   END SUBROUTINE al_thermo_dealloc
   

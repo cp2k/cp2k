@@ -171,23 +171,23 @@ MODULE qs_rho_atom_methods
     my_CG_dxyz   => harmonics%my_CG_dxyz
 
     ALLOCATE(CPCH_sphere(nsoset(maxl),nsoset(maxl)),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(CPCS_sphere(nsoset(maxl),nsoset(maxl)),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(g1(nr),g2(nr),gg0(nr),gg(nr,0:2*maxl),dgg(nr,0:2*maxl),&
              gg_lm1(nr,0:2*maxl),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(erf_zet12(nr),vgg(nr,0:2*maxl,0:indso(1,max_iso_not0)),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(done_vgg(0:2*maxl,0:indso(1,max_iso_not0)),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(dd(nr),int1(nr),int2(nr),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),&
              dacg_list(2,nsoset(maxl)**2,max_s_harm),dacg_n_list(max_s_harm),&
              dbcg_list(2,nsoset(maxl)**2,max_s_harm),dbcg_n_list(max_s_harm),&
              STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO iat = bo(1),bo(2)
       iatom = atom_list(iat)
@@ -207,7 +207,7 @@ MODULE qs_rho_atom_methods
 
            CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                   max_s_harm,lmax_expansion,cg_list,cg_n_list,max_iso_not0_local)
-           CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,failure)
+           CPASSERT(max_iso_not0_local.LE.max_iso_not0)
            CALL get_none0_cg_list(my_CG_dxyz,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                   max_s_harm,lmax_expansion,dacg_list,dacg_n_list,damax_iso_not0_local)
            CALL get_none0_cg_list(my_dCG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
@@ -221,7 +221,7 @@ MODULE qs_rho_atom_methods
               iso1_first = o2nindex(iso1_first)
               iso1_last  = o2nindex(iso1_last)
               i1 = iso1_last - iso1_first + 1
-              CPPrecondition(size1==i1,cp_failure_level,routineP,failure)
+              CPASSERT(size1==i1)
               i1 = nsoset(lmin(iset1)-1)+1
 
               g1(1:nr) = EXP(-zet(ipgf1,iset1)*grid_atom%rad2(1:nr))
@@ -234,7 +234,7 @@ MODULE qs_rho_atom_methods
                  iso2_first = o2nindex(iso2_first)
                  iso2_last  = o2nindex(iso2_last)
                  i2 = iso2_last - iso2_first + 1
-                 CPPrecondition(size2==i2,cp_failure_level,routineP,failure)
+                 CPASSERT(size2==i2)
                  i2 = nsoset(lmin(iset2)-1)+1
 
                  g2(1:nr) = EXP(-zet(ipgf2,iset2)*grid_atom%rad2(1:nr))
@@ -288,7 +288,7 @@ MODULE qs_rho_atom_methods
                           iso2 = cg_list(2,icg,iso)
 
                           l = indso(1,iso1) + indso(1,iso2)
-                          CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,failure)
+                          CPASSERT(l<=lmax_expansion)
                           IF(.NOT. failure) THEN
 
                              IF(done_vgg(l,l_iso)) CYCLE
@@ -342,7 +342,7 @@ MODULE qs_rho_atom_methods
                                   - 2._dp*REAL(l2,dp)*zet(ipgf1,iset1) &
                                   + 4._dp*zet(ipgf1,iset1)*zet(ipgf2,iset2)*grid_atom%rad2(1:nr)
                              l = indso(1,iso1) + indso(1,iso2)
-                             CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,failure)
+                             CPASSERT(l<=lmax_expansion)
                              IF(.NOT. failure) THEN
                                 rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr,iso) =&
                                      rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr,iso) +&
@@ -398,7 +398,7 @@ MODULE qs_rho_atom_methods
                              iso1 = dacg_list(1,icg,iso)
                              iso2 = dacg_list(2,icg,iso)
                              l = indso(1,iso1) + indso(1,iso2)
-                             CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,failure)
+                             CPASSERT(l<=lmax_expansion)
                              IF(.NOT. failure) THEN
                                 DO j = 1,3
                                    rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef(1:nr,iso) =&
@@ -424,7 +424,7 @@ MODULE qs_rho_atom_methods
                              iso2 = dbcg_list(2,icg,iso)
 
                              l = indso(1,iso1) + indso(1,iso2)
-                             CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,failure)
+                             CPASSERT(l<=lmax_expansion)
                              IF(.NOT.failure) THEN
                                 rho_atom_set(iatom)%trho_rad_h(2,i)%r_coef(1:nr,iso) =&
                                      rho_atom_set(iatom)%trho_rad_h(2,i)%r_coef(1:nr,iso) +&
@@ -470,11 +470,11 @@ MODULE qs_rho_atom_methods
     END DO  ! iat
 
     DEALLOCATE(CPCH_sphere,CPCS_sphere,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(g1,g2,gg0,gg,gg_lm1,dgg,vgg,done_vgg,erf_zet12,int1,int2,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(cg_list,cg_n_list,dacg_list,dacg_n_list,dbcg_list,dbcg_n_list,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -572,7 +572,7 @@ MODULE qs_rho_atom_methods
     END IF
 
     ALLOCATE(p_block_spin(nspins),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ispin = 1,nspins
       NULLIFY(p_block_spin(ispin)%r_coef)
     END DO
@@ -582,7 +582,7 @@ MODULE qs_rho_atom_methods
 
     ALLOCATE (PC1(max_nsgf*max_gau),CPC(max_gau*max_gau),p_matrix(max_nsgf,max_nsgf),&
               STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     nkind = SIZE(atomic_kind_set)
 !   Inizialize to 0 the CPC coefficients and the local density arrays
@@ -612,7 +612,7 @@ MODULE qs_rho_atom_methods
     END DO ! ikind
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -643,7 +643,7 @@ MODULE qs_rho_atom_methods
 
        IF(nimages > 1) THEN
           img = cell_to_index(cell_b(1),cell_b(2),cell_b(3))
-          CPPostcondition(img > 0,cp_failure_level,routineP,failure)
+          CPASSERT(img > 0)
        ELSE
           img = 1
        END IF
@@ -753,7 +753,7 @@ MODULE qs_rho_atom_methods
     CALL neighbor_list_iterator_release(nl_iterator)
 
     ALLOCATE (kind_of(natom),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL get_atomic_kind_set(atomic_kind_set,kind_of=kind_of)
 
     DO iatom = 1,natom
@@ -773,7 +773,7 @@ MODULE qs_rho_atom_methods
     END DO
 
     DEALLOCATE(PC1,CPC,p_block_spin,p_matrix,kind_of,basis_set_list,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -840,7 +840,7 @@ MODULE qs_rho_atom_methods
     CALL reallocate(my_CG,1,max_s_set,1,max_s_set,1,max_s_harm)
 
     ALLOCATE(rga(lcleb,2),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO lc1 = 0,maxlgto
       DO  iso1=nsoset(lc1-1)+1,nsoset(lc1)
         l1 = indso(1,iso1)
@@ -888,7 +888,7 @@ MODULE qs_rho_atom_methods
       ENDDO    ! iso1
     ENDDO      ! lc1
     DEALLOCATE(rga,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL clebsch_gordon_deallocate()
 
 !   *** initialize the Lebedev grids ***
@@ -1011,13 +1011,13 @@ MODULE qs_rho_atom_methods
           !       *** allocate the radial density for each LM,for each atom ***
 
           ALLOCATE (rho_atom_set(iatom)%rho_rad_h(nspins),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           ALLOCATE (rho_atom_set(iatom)%rho_rad_s(nspins),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           ALLOCATE (rho_atom_set(iatom)%vrho_rad_h(nspins),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           ALLOCATE (rho_atom_set(iatom)%vrho_rad_s(nspins),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
 
           istat = 0
           DO ispin = 1,nspins
@@ -1037,7 +1037,7 @@ MODULE qs_rho_atom_methods
                     rho_atom_set(iatom)%rho_rad_h_d(3,nspins), &
                     rho_atom_set(iatom)%rho_rad_s_d(3,nspins), &
                     STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
 
           IF (paw_atom) THEN
              DO ispin = 1,nspins
@@ -1052,7 +1052,7 @@ MODULE qs_rho_atom_methods
                 ALLOCATE(rho_atom_set(iatom)%cpc_h(ispin)%r_coef(1:nsatbas,1:nsatbas), &
                          rho_atom_set(iatom)%cpc_s(ispin)%r_coef(1:nsatbas,1:nsatbas),&
                          STAT=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
 
                 rho_atom_set(iatom)%cpc_h(ispin)%r_coef = 0.0_dp
                 rho_atom_set(iatom)%cpc_s(ispin)%r_coef = 0.0_dp
@@ -1084,7 +1084,7 @@ MODULE qs_rho_atom_methods
           ALLOCATE (rho_atom_set(iatom)%ga_Vlocal_gb_h(nspins), &
                     rho_atom_set(iatom)%ga_Vlocal_gb_s(nspins), &
                     STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           IF (paw_atom) THEN
              DO ispin = 1,nspins
                 NULLIFY(rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef)
@@ -1141,7 +1141,7 @@ MODULE qs_rho_atom_methods
                   rho_atom_set(iatom)%vrho_rad_h(ispin)%r_coef(1:nr,1:max_iso_not0), &
                   rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef(1:nr,1:max_iso_not0), &
                   STAT=istat)
-         CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
 
          rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef=0.0_dp
          rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef=0.0_dp
@@ -1151,7 +1151,7 @@ MODULE qs_rho_atom_methods
          ALLOCATE(rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef(nr,max_iso_not0),&
                   rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef(nr,max_iso_not0),&
                   STAT=istat)
-         CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef = 0.0_dp
          rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef = 0.0_dp
 
@@ -1159,7 +1159,7 @@ MODULE qs_rho_atom_methods
            ALLOCATE(rho_atom_set(iatom)%trho_rad_h(j,ispin)%r_coef(nr,max_iso_not0),&
                     rho_atom_set(iatom)%trho_rad_s(j,ispin)%r_coef(nr,max_iso_not0),&
                     STAT=istat)
-           CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
            rho_atom_set(iatom)%trho_rad_h(j,ispin)%r_coef = 0.0_dp
            rho_atom_set(iatom)%trho_rad_s(j,ispin)%r_coef = 0.0_dp
          END DO
@@ -1170,7 +1170,7 @@ MODULE qs_rho_atom_methods
             ALLOCATE(rho_atom_set(iatom)%rho_rad_h_d(j,ispin)%r_coef(nr,max_iso_not0), &
                      rho_atom_set(iatom)%rho_rad_s_d(j,ispin)%r_coef(nr,max_iso_not0), &
                      STAT=istat)
-            CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
             rho_atom_set(iatom)%rho_rad_h_d(j,ispin)%r_coef = 0.0_dp
             rho_atom_set(iatom)%rho_rad_s_d(j,ispin)%r_coef = 0.0_dp
          END DO

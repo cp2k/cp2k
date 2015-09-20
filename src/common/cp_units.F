@@ -476,11 +476,11 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(unit),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(kind_id)<=cp_unit_max_kinds,cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(unit_id)<=cp_unit_max_kinds,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(unit))
+    CPASSERT(SIZE(kind_id)<=cp_unit_max_kinds)
+    CPASSERT(SIZE(unit_id)<=cp_unit_max_kinds)
     ALLOCATE(unit,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     unit%ref_count=1
     last_unit_id=last_unit_id+1
     unit%id_nr=last_unit_id
@@ -576,8 +576,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(unit),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(unit%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(unit))
+    CPASSERT(unit%ref_count>0)
     unit%ref_count=unit%ref_count+1
   END SUBROUTINE cp_unit_retain
 
@@ -600,11 +600,11 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(unit)) THEN
-       CPPreconditionNoFail(unit%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(unit%ref_count>0)
        unit%ref_count=unit%ref_count-1
        IF (unit%ref_count==0) THEN
           DEALLOCATE(unit,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE cp_unit_release
@@ -1177,7 +1177,7 @@ CONTAINS
     END SELECT
     IF (my_power/=1) THEN
        a=LEN_TRIM(res)
-       CPPrecondition(LEN(res)-a>=3,cp_failure_level,routineP,failure)
+       CPASSERT(LEN(res)-a>=3)
        WRITE (res(a+1:),"('^',i3)") my_power
        CALL compress(res,.TRUE.)
     END IF
@@ -1209,14 +1209,14 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(unit),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(unit))
     res=""
     pos=1
     my_accept_undefined=.FALSE.
     IF (PRESENT(accept_undefined)) my_accept_undefined=accept_undefined
     DO i=1,unit%n_kinds
-       CPPrecondition(unit%kind_id(i)/=0,cp_failure_level,routineP,failure)
-       CPPrecondition(pos<LEN(res),cp_failure_level,routineP,failure)
+       CPASSERT(unit%kind_id(i)/=0)
+       CPASSERT(pos<LEN(res))
        IF (failure) EXIT
        my_unit=unit%unit_id(i)
        has_defaults=.FALSE.
@@ -1226,7 +1226,7 @@ CONTAINS
              my_unit=defaults%units(unit%kind_id(i))%unit%unit_id(1)
           ELSE
              check = my_accept_undefined.OR.unit%kind_id(i)/=0
-             CPPrecondition(check,cp_failure_level,routineP,failure)
+             CPASSERT(check)
           END IF
        END IF
        IF (i > 1) THEN
@@ -1270,14 +1270,14 @@ CONTAINS
     my_power=1
     IF (PRESENT(power)) my_power=power
     res=value
-    CPPrecondition(ASSOCIATED(unit),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(unit))
     DO i_unit=1,unit%n_kinds
-       CPPrecondition(unit%kind_id(i_unit)>0,cp_failure_level,routineP,failure)
+       CPASSERT(unit%kind_id(i_unit)>0)
        my_basic_unit=unit%unit_id(i_unit)
        IF (my_basic_unit==0.AND.unit%kind_id(i_unit)/=cp_ukind_undef) THEN
-          CPPrecondition(PRESENT(defaults),cp_failure_level,routineP,failure)
+          CPASSERT(PRESENT(defaults))
           IF (failure) EXIT
-          CPPrecondition(ASSOCIATED(defaults),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(defaults))
           IF (failure) EXIT
           CALL cp_assert(ASSOCIATED(defaults%units(unit%kind_id(i_unit))%unit),&
                cp_failure_level,cp_assertion_failed,routineP,&
@@ -1440,9 +1440,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(unit_set),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(unit_set))
     ALLOCATE(unit_set,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     unit_set%ref_count=1
     last_unit_set_id=last_unit_set_id+1
     unit_set%id_nr=last_unit_set_id
@@ -1522,8 +1522,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(unit_set),cp_failure_level,routineP,failure)
-    CPPrecondition(unit_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(unit_set))
+    CPASSERT(unit_set%ref_count>0)
     unit_set%ref_count=unit_set%ref_count+1
   END SUBROUTINE cp_unit_set_retain
 
@@ -1544,14 +1544,14 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(unit_set)) THEN
-       CPPrecondition(unit_set%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(unit_set%ref_count>0)
        unit_set%ref_count=unit_set%ref_count-1
        IF (unit_set%ref_count == 0) THEN
           DO i = 1, SIZE(unit_set%units)
              CALL cp_unit_release(unit_set%units(i)%unit)
           END DO
           DEALLOCATE(unit_set,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE cp_unit_set_release

@@ -127,7 +127,7 @@ CONTAINS
       cluster_distr, cluster_distr_new, col_cluster_new, col_distr_new, &
       col_sizes_new, distr_new_array, row_cluster_new, row_distr_new, &
       row_sizes_new
-    LOGICAL                                  :: active, failure, tr
+    LOGICAL                                  :: active, tr
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_new_block
     TYPE(dbcsr_distribution_obj)             :: dist_new, dist_qs
 
@@ -209,8 +209,8 @@ CONTAINS
                 ENDDO
              END IF
           ELSE
-             CPErrorMessage(cp_failure_level,routineP,"Illegal distribution")
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPABORT("Illegal distribution")
+             CPASSERT(.FALSE.)
           ENDIF
           
        ELSE ! this dimension is not AO
@@ -246,14 +246,14 @@ CONTAINS
                    block_sizes_new(:)=almo_scf_env%nvirt_of_domain(:,spin_key)
                 ENDIF
              ELSE
-                CPErrorMessage(cp_failure_level,routineP,"Illegal distribution")
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPABORT("Illegal distribution")
+                CPASSERT(.FALSE.)
              ENDIF
              
           ELSE
  
-             CPErrorMessage(cp_failure_level,routineP,"Illegal dimension")
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPABORT("Illegal dimension")
+             CPASSERT(.FALSE.)
              
           ENDIF ! end choosing dim size (occ, virt)
       
@@ -388,7 +388,7 @@ CONTAINS
              IF (active) THEN
                 NULLIFY (p_new_block)
                 CALL cp_dbcsr_reserve_block2d(matrix_new, iblock_row, iblock_col, p_new_block)
-                CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+                CPASSERT(ASSOCIATED(p_new_block))
                 p_new_block(:,:) = 1.0_dp
              ENDIF
 
@@ -424,7 +424,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type)                      :: matrix_qs_nosym
 
     CALL timeset(routineN,handle)
@@ -455,7 +454,7 @@ CONTAINS
        CALL cp_dbcsr_release (matrix_qs_nosym)
 
     CASE DEFAULT 
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
     END SELECT
 
     CALL timestop(handle)
@@ -479,7 +478,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     ! RZK-warning if it's not a N(AO)xN(AO) matrix then stop
@@ -506,7 +504,7 @@ CONTAINS
           CALL cp_dbcsr_complete_redistribute(matrix_almo, matrix_qs, keep_sparsity=.TRUE.) 
 !       ENDIF
     CASE DEFAULT 
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
 !    IF (ls_mstruct%single_precision) THEN
@@ -536,7 +534,7 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspin, unit_nr
     INTEGER, DIMENSION(2)                    :: nelectron_spin
-    LOGICAL                                  :: failure, has_unit_metric
+    LOGICAL                                  :: has_unit_metric
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -586,7 +584,7 @@ CONTAINS
                     sab_orb=sab_orb)
 
     CALL qs_rho_get(rho, rho_ao=rho_ao)
-    CPPostcondition(ASSOCIATED(mscfg_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mscfg_env))
 
     nspin=dft_control%nspins
 
@@ -788,8 +786,8 @@ CONTAINS
                                                 domain_neighbor_list, &
                                                 domain_neighbor_list_excessive
     LOGICAL                                  :: already_listed, block_active, &
-                                                delayed_increment, failure, &
-                                                found, max_neig_fails, tr
+                                                delayed_increment, found, &
+                                                max_neig_fails, tr
     REAL(KIND=dp) :: contact1_radius, contact2_radius, distance, &
       distance_squared, overlap, r0, r1, s0, s1, trial_distance_squared
     REAL(KIND=dp), DIMENSION(3)              :: rab
@@ -1037,8 +1035,8 @@ CONTAINS
                       ELSE ! ao domains are atomic
    
                          ! ao domains are atomic / electron groups are molecular
-                         CPErrorMessage(cp_failure_level,routineP,"Illegal: atomic domains and molecular groups")
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                         CPABORT("Illegal: atomic domains and molecular groups")
+                         CPASSERT(.FALSE.)
    
                       ENDIF
                    
@@ -1048,8 +1046,8 @@ CONTAINS
                       IF (almo_scf_env%domain_layout_aos==almo_domain_layout_molecular) THEN
    
                          ! ao domains are molecular / electron groups are atomic
-                         CPErrorMessage(cp_failure_level,routineP,"Illegal: molecular domains and atomic groups")
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                         CPABORT("Illegal: molecular domains and atomic groups")
+                         CPASSERT(.FALSE.)
    
                       ELSE 
                          
@@ -1067,12 +1065,12 @@ CONTAINS
                       NULLIFY (p_new_block)
                       CALL cp_dbcsr_reserve_block2d(almo_scf_env%quench_t(ispin),&
                               iblock_row, iblock_col, p_new_block)
-                      CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+                      CPASSERT(ASSOCIATED(p_new_block))
                       p_new_block(:,:) = 1.0_dp
                       
                       IF (domain_map_local_entries.ge.max_domain_neighbors*almo_scf_env%ndomains) THEN
-                         CPErrorMessage(cp_failure_level,routineP,"weird... max_domain_neighbors is exceeded")
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                         CPABORT("weird... max_domain_neighbors is exceeded")
+                         CPASSERT(.FALSE.)
                       ENDIF
                       almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,1)=iblock_row
                       almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,2)=iblock_col
@@ -1105,8 +1103,8 @@ CONTAINS
    
                          ! ao domains are atomic / electron groups are molecular
                          ! overlap_between_atom_and_molecule(atom=domain_row,molecule=domain_col)
-                         CPErrorMessage(cp_failure_level,routineP,"atomic domains and molecular groups - NYI")
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                         CPABORT("atomic domains and molecular groups - NYI")
+                         CPASSERT(.FALSE.)
    
                       ENDIF
                    
@@ -1117,8 +1115,8 @@ CONTAINS
    
                          ! ao domains are molecular / electron groups are atomic
                          ! overlap_between_atom_and_molecule(atom=domain_col,molecule=domain_row)
-                         CPErrorMessage(cp_failure_level,routineP,"molecular domains and atomic groups - NYI")
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                         CPABORT("molecular domains and atomic groups - NYI")
+                         CPASSERT(.FALSE.)
    
                       ELSE 
                          
@@ -1163,7 +1161,7 @@ CONTAINS
                       NULLIFY (p_new_block)
                       CALL cp_dbcsr_reserve_block2d(almo_scf_env%quench_t(ispin),&
                               iblock_row, iblock_col, p_new_block)
-                      CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+                      CPASSERT(ASSOCIATED(p_new_block))
                       IF ( overlap.le.s0 ) THEN
                          p_new_block(:,:) = 1.0_dp
                          !WRITE(*,'(A15,2I7,3F8.3,E11.3)') "INTRA-BLOCKS: ",&
@@ -1176,8 +1174,8 @@ CONTAINS
                       
                       IF (ABS(p_new_block(1,1)).gt.ABS(almo_scf_env%eps_filter)) THEN
                          IF (domain_map_local_entries.ge.max_domain_neighbors*almo_scf_env%ndomains) THEN
-                            CPErrorMessage(cp_failure_level,routineP,"weird... max_domain_neighbors is exceeded")
-                            CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                            CPABORT("weird... max_domain_neighbors is exceeded")
+                            CPASSERT(.FALSE.)
                          ENDIF
                          almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,1)=iblock_row
                          almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,2)=iblock_col
@@ -1218,7 +1216,7 @@ CONTAINS
                                   ENDIF
                                ENDDO ! jatom
                             ENDDO ! iatom
-                            CPPrecondition(contact_atom_1.gt.0,cp_failure_level,routineP,failure)
+                            CPASSERT(contact_atom_1.gt.0)
                             distance=SQRT(distance_squared)
                          ENDIF
    
@@ -1226,8 +1224,8 @@ CONTAINS
    
                          ! ao domains are atomic / electron groups are molecular
                          !distance_between_atom_and_molecule(atom=domain_row,molecule=domain_col)
-                         CPErrorMessage(cp_failure_level,routineP,"atomic domains and molecular groups - NYI")
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                         CPABORT("atomic domains and molecular groups - NYI")
+                         CPASSERT(.FALSE.)
    
                       ENDIF
                    
@@ -1238,8 +1236,8 @@ CONTAINS
    
                          ! ao domains are molecular / electron groups are atomic
                          !distance_between_atom_and_molecule(atom=domain_col,molecule=domain_row)
-                         CPErrorMessage(cp_failure_level,routineP,"molecular domains and atomic groups - NYI")
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                         CPABORT("molecular domains and atomic groups - NYI")
+                         CPASSERT(.FALSE.)
    
                       ELSE 
                          
@@ -1299,7 +1297,7 @@ CONTAINS
                       NULLIFY (p_new_block)
                       CALL cp_dbcsr_reserve_block2d(almo_scf_env%quench_t(ispin),&
                               iblock_row, iblock_col, p_new_block)
-                      CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+                      CPASSERT(ASSOCIATED(p_new_block))
                       IF ( distance.le.r0 ) THEN
                          p_new_block(:,:) = 1.0_dp
                          !WRITE(*,'(A15,2I7,5F8.3,E11.3)') "INTRA-BLOCKS: ",&
@@ -1307,7 +1305,7 @@ CONTAINS
                          !   contact2_radius, r0, r1, distance, p_new_block(1,1)
                       ELSE
 ! remove the intermediate values from the quencher temporarily
-CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+CPASSERT(.FALSE.)
                          p_new_block(:,:) = 1.0_dp/(1.0_dp+EXP((r1-r0)/(r0-distance)+(r1-r0)/(r1-distance)))
                          !WRITE(*,'(A15,2I7,5F8.3,E11.3)') "INTER-BLOCKS: ",&
                          !   iblock_col, iblock_row, contact1_radius,&
@@ -1316,8 +1314,8 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
                       
                       IF (ABS(p_new_block(1,1)).gt.ABS(almo_scf_env%eps_filter)) THEN
                          IF (domain_map_local_entries.ge.max_domain_neighbors*almo_scf_env%ndomains) THEN
-                            CPErrorMessage(cp_failure_level,routineP,"weird... max_domain_neighbors is exceeded")
-                            CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                            CPABORT("weird... max_domain_neighbors is exceeded")
+                            CPASSERT(.FALSE.)
                          ENDIF
                          almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,1)=iblock_row
                          almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries+1,2)=iblock_col
@@ -1348,8 +1346,8 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
        ! check that both domain_map and quench_t have the same number of entries 
        nblks=cp_dbcsr_get_num_blocks(almo_scf_env%quench_t(ispin))
        IF (nblks.ne.domain_map_local_entries) THEN
-          CPErrorMessage(cp_failure_level,routineP,"number of blocks is wrong")
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPABORT("number of blocks is wrong")
+          CPASSERT(.FALSE.)
        ENDIF
 
        ! communicate local parts of the domain map
@@ -1439,8 +1437,8 @@ CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
                 domain_grid(grid1,0)=domain_grid(grid1,0)+1
              ELSE
                 ! should not be here - all records must be inserted
-                CPErrorMessage(cp_failure_level,routineP,"all records must be inserted")
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPABORT("all records must be inserted")
+                CPASSERT(.FALSE.)
              ENDIF
           ENDDO
           max_neig_fails=.FALSE.

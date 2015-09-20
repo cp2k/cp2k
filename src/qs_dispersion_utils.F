@@ -65,7 +65,7 @@ MODULE qs_dispersion_utils
     TYPE(section_vals_type), POINTER         :: nl_section, pp_section, &
                                                 vdw_section, xc_fun_section
 
-    CPPrecondition(ASSOCIATED(dispersion_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(dispersion_env))
     failure = .FALSE.
 
     ! set general defaults
@@ -94,7 +94,7 @@ MODULE qs_dispersion_utils
           CALL section_vals_val_get(pp_section, "SCALING" ,explicit=explicit)
           IF ( .NOT. explicit ) THEN
             CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL" ,explicit=exfun)
-            CPPostcondition(exfun,cp_failure_level,routineP,failure)
+            CPASSERT(exfun)
             CALL qs_scaling_init(dispersion_env%scaling,vdw_section)
           ELSE
             CALL section_vals_val_get(pp_section, "SCALING", r_val=dispersion_env%scaling)
@@ -117,7 +117,7 @@ MODULE qs_dispersion_utils
           END IF
           IF ( .NOT. explicit ) THEN
              CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL" ,explicit=exfun)
-             CPPostcondition(exfun,cp_failure_level,routineP,failure)
+             CPASSERT(exfun)
              IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 ) THEN
                 CALL qs_scaling_dftd3(dispersion_env%s6,dispersion_env%sr6,dispersion_env%s8,vdw_section)
              ELSE IF ( dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
@@ -267,7 +267,7 @@ MODULE qs_dispersion_utils
           SELECT CASE (dispersion_env%nl_type)
              CASE DEFAULT
                 ! unknown functional
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              CASE (vdw_nl_DRSLL)
                 WRITE (output_unit, &
                  fmt="(' vdW POTENTIAL| ','DRSLL Functional:           M. Dion et al, PRL 92: 246401 (2004)')")

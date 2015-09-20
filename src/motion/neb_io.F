@@ -94,7 +94,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: wrk_section
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(neb_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(neb_env))
     neb_env%istep = 0
     CALL section_vals_val_get(neb_section,"BAND_TYPE",i_val=neb_env%id_type)
     CALL section_vals_val_get(neb_section,"NUMBER_OF_REPLICA",i_val=neb_env%number_of_replica)
@@ -267,9 +267,9 @@ CONTAINS
        tc_section => section_vals_get_subs_vals(neb_env%neb_section,"OPTIMIZE_BAND%MD%TEMP_CONTROL")
        vc_section => section_vals_get_subs_vals(neb_env%neb_section,"OPTIMIZE_BAND%MD%VEL_CONTROL")
        ALLOCATE(temperatures(neb_env%number_of_replica),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(ekin(neb_env%number_of_replica),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_temperatures(vels,particle_set,temperatures,ekin=ekin)
        WRITE(output_unit,'(/)',ADVANCE="NO")
        WRITE(output_unit,FMT='(A,A)')' **************************************', &
@@ -340,9 +340,9 @@ CONTAINS
        WRITE(output_unit,FMT='(A,A)')' **************************************', &
             '*****************************************'
        DEALLOCATE(ekin,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(temperatures,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     ! Ener file
     ener = cp_print_key_unit_nr(logger,neb_env%neb_section,"ENERGY",&
@@ -493,7 +493,7 @@ CONTAINS
     END SELECT
 
     CALL f_env_rm_defaults(f_env=f_env,ierr=ierr,handle=handle2)
-    CPAssert(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     CALL timestop(handle)
 
   END SUBROUTINE handle_band_file_names
@@ -592,7 +592,7 @@ CONTAINS
     ! print footer
     CALL cp2k_footer(output_unit)
     CALL f_env_rm_defaults(f_env=f_env,ierr=ierr,handle=handle2)
-    CPAssert(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
   END SUBROUTINE neb_rep_env_map_info
 
 END MODULE neb_io

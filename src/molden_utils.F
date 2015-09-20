@@ -55,15 +55,14 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: i, iw, j, k, l
-    LOGICAL                                  :: failure
 
     iw=cp_print_key_unit_nr(logger,input,"VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB",&
             extension=".mol",file_status='REPLACE')
 
     IF(iw.GT.0)THEN
-       CPPostcondition(MOD(SIZE(eigen_vec,1),3)==0,cp_failure_level,routineP,failure)
-       CPPostcondition(SIZE(particles)==SIZE(eigen_vec,1)/3,cp_failure_level,routineP,failure)
-       CPPostcondition(SIZE(freq,1)==SIZE(eigen_vec,2),cp_failure_level,routineP,failure)
+       CPASSERT(MOD(SIZE(eigen_vec,1),3)==0)
+       CPASSERT(SIZE(particles)==SIZE(eigen_vec,1)/3)
+       CPASSERT(SIZE(freq,1)==SIZE(eigen_vec,2))
        WRITE(iw,'(T2,A)')"[Molden Format]"
        WRITE(iw,'(T2,A)')"[FREQ]"
        DO i=1,SIZE(freq,1)

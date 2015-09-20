@@ -153,12 +153,11 @@ CONTAINS
     INTEGER                                  :: handle, ifrag
     INTEGER, DIMENSION(2)                    :: matrix_size, offset, &
                                                 submatrix_size
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type)                      :: matrix_temp
 
     CALL timeset(routineN,handle)
 
-    CPPostcondition(iset.le.mscfg_max_moset_size,cp_failure_level,routineP,failure)
+    CPASSERT(iset.le.mscfg_max_moset_size)
     
     CALL cp_dbcsr_init(matrix_temp)
     CALL cp_dbcsr_create(matrix_temp,&
@@ -175,7 +174,7 @@ CONTAINS
 
     DO ifrag=1, mscfg_env%nfrags
 
-       CPPostcondition(iset.le.mscfg_env%nmosets_of_frag(ifrag),cp_failure_level,routineP,failure)
+       CPASSERT(iset.le.mscfg_env%nmosets_of_frag(ifrag))
        
        submatrix_size(1) = cp_dbcsr_nfullrows_total(mscfg_env%mos_of_frag(ifrag,iset))
        submatrix_size(2) = cp_dbcsr_nfullcols_total(mscfg_env%mos_of_frag(ifrag,iset))
@@ -194,8 +193,8 @@ CONTAINS
     ! is exactly the same as the size of the big matrix
     ! This is to prevent unexpected conversion errors
     ! If however such conversion is intended - remove these safeguards
-    CPPostcondition(offset(1).eq.matrix_size(1),cp_failure_level,routineP,failure)
-    CPPostcondition(offset(2).eq.matrix_size(2),cp_failure_level,routineP,failure)
+    CPASSERT(offset(1).eq.matrix_size(1))
+    CPASSERT(offset(2).eq.matrix_size(2))
     
     CALL cp_dbcsr_release(matrix_temp)
 
@@ -232,7 +231,6 @@ CONTAINS
       cluster_distr, cluster_distr_new, col_cluster_new, col_distr_new, &
       col_sizes_new, distr_new_array, row_cluster_new, row_distr_new, &
       row_sizes_new
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_p, p_new_block
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type)                      :: matrix_new
@@ -344,9 +342,9 @@ CONTAINS
                iblock_col+add_blocks_before(2),&
                p_new_block)
    
-       CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
-       CPPostcondition(SIZE(p_new_block,1).eq.SIZE(data_p,1),cp_failure_level,routineP,failure)
-       CPPostcondition(SIZE(p_new_block,2).eq.SIZE(data_p,2),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(p_new_block))
+       CPASSERT(SIZE(p_new_block,1).eq.SIZE(data_p,1))
+       CPASSERT(SIZE(p_new_block,2).eq.SIZE(data_p,2))
        
        p_new_block(:,:) = data_p(:,:)
    

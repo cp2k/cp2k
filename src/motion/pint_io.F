@@ -129,8 +129,8 @@ MODULE pint_io
     CALL timeset(routineN,handle1)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     IF (failure) THEN
       CALL timestop(handle1)
       RETURN
@@ -186,7 +186,7 @@ MODULE pint_io
           form="FORMATTED"
           ext=".xyz"
         CASE default
-          CPPostcondition(.FALSE.,cp_fatal_level,routineP,failure)
+          CPASSERT(.FALSE.)
       END SELECT
 
       NULLIFY(f_env,cell,subsys)
@@ -250,7 +250,7 @@ MODULE pint_io
       END IF
 
       CALL f_env_rm_defaults(f_env,ierr,handle)
-      CPAssert(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
 
     END DO
 
@@ -294,8 +294,8 @@ MODULE pint_io
     CALL timeset(routineN,handle1)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     IF (failure) THEN
       CALL timestop(handle1)
       RETURN
@@ -344,7 +344,7 @@ MODULE pint_io
           form="FORMATTED"
           ext=".xyz"
         CASE default
-          CPPostcondition(.FALSE.,cp_fatal_level,routineP,failure)
+          CPASSERT(.FALSE.)
       END SELECT
 
       NULLIFY(f_env,cell,subsys)
@@ -411,7 +411,7 @@ MODULE pint_io
       END DO
 
       CALL f_env_rm_defaults(f_env,ierr,handle)
-      CPAssert(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
 
     END DO
 
@@ -441,7 +441,7 @@ MODULE pint_io
     TYPE(section_vals_type), POINTER         :: print_key
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -512,8 +512,8 @@ MODULE pint_io
     TYPE(section_vals_type), POINTER         :: print_key
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     IF ( failure ) RETURN
 
     NULLIFY(print_key,logger)
@@ -601,7 +601,7 @@ MODULE pint_io
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -666,7 +666,7 @@ MODULE pint_io
     TYPE(section_vals_type), POINTER         :: print_key
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
 
     NULLIFY(logger)
     logger => cp_get_default_logger()

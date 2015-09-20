@@ -60,9 +60,9 @@ SUBROUTINE lgrid_create(lgrid,rs_descs)
 
   failure=.FALSE.
 
-  CPPrecondition(.NOT.ASSOCIATED(lgrid),cp_failure_level,routineP,failure)
+  CPASSERT(.NOT.ASSOCIATED(lgrid))
   ALLOCATE(lgrid, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   NULLIFY(lgrid%r)
   lgrid%ref_count=1
   ! Find the maximum number of grid points needed
@@ -90,8 +90,8 @@ SUBROUTINE lgrid_retain(lgrid)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,failure)
-  CPPrecondition(lgrid%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(lgrid))
+  CPASSERT(lgrid%ref_count>0)
   lgrid%ref_count=lgrid%ref_count+1
 END SUBROUTINE lgrid_retain
 
@@ -113,15 +113,15 @@ SUBROUTINE lgrid_release(lgrid)
 
   failure=.FALSE.
   IF (ASSOCIATED(lgrid)) THEN
-     CPPrecondition(lgrid%ref_count>0,cp_failure_level,routineP,failure)
+     CPASSERT(lgrid%ref_count>0)
      lgrid%ref_count=lgrid%ref_count-1
      IF (lgrid%ref_count<1) THEN
         IF (ASSOCIATED(lgrid%r)) THEN
            DEALLOCATE (lgrid%r,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         DEALLOCATE (lgrid,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         NULLIFY(lgrid)
      END IF
   END IF
@@ -145,8 +145,8 @@ SUBROUTINE lgrid_allocate_grid(lgrid, nthreads)
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(.NOT. ASSOCIATED(lgrid%r),cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(lgrid))
+    CPASSERT(.NOT. ASSOCIATED(lgrid%r))
     ALLOCATE(lgrid%r(lgrid%ldim*nthreads))
 END SUBROUTINE
 

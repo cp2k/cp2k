@@ -121,7 +121,7 @@ CONTAINS
     ddapc_size=0
 
     ! no k-points
-    CPPostcondition(SIZE(ks_matrix,2)==1,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(ks_matrix,2)==1)
 
     CALL get_qs_env(qs_env,&
                     v_hartree_rspace=v_hartree_rspace,&
@@ -131,9 +131,9 @@ CONTAINS
        ddapc_size=SIZE(dft_control%qs_control%ddapc_restraint_control)
        IF(SIZE(energy%ddapc_restraint).NE.ddapc_size)THEN
           DEALLOCATE(energy%ddapc_restraint,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(energy%ddapc_restraint(ddapc_size),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        DO i=1,SIZE(dft_control%qs_control%ddapc_restraint_control)
@@ -287,7 +287,7 @@ CONTAINS
                        particle_set=particle_set,&
                        cell=cell,&
                        super_cell=super_cell)
-       CPPostcondition(ASSOCIATED(qs_env%cp_ddapc_ewald),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(qs_env%cp_ddapc_ewald))
        poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON")
 
        density_fit_section =>section_vals_get_subs_vals(force_env_section,"DFT%DENSITY_FITTING")
@@ -351,12 +351,12 @@ CONTAINS
        END IF
        ! Clean the allocated arrays
        DEALLOCATE(charges, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(radii, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF (ASSOCIATED(dq)) THEN
           DEALLOCATE(dq, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        CALL cp_print_key_finished_output(iw,logger,multipole_section,&
             "PROGRAM_RUN_INFO")
@@ -466,12 +466,12 @@ CONTAINS
        END IF
        ! Clean the allocated arrays
        DEALLOCATE(charges, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(radii, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF (ASSOCIATED(dq)) THEN
           DEALLOCATE(dq, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        CALL cp_print_key_finished_output(iw,logger,restraint_section,&
             "PROGRAM_RUN_INFO")
@@ -579,12 +579,12 @@ CONTAINS
        END IF
        ! Clean the allocated arrays
        DEALLOCATE(charges, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(radii, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF (ASSOCIATED(dq)) THEN
           DEALLOCATE(dq, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        CALL cp_print_key_finished_output(iw,logger,solvation_section,&
             "PROGRAM_RUN_INFO")

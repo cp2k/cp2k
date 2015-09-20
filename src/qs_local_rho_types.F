@@ -227,7 +227,7 @@ MODULE qs_local_rho_types
     failure=.FALSE.
 
     ALLOCATE(local_rho_set, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY (local_rho_set%rho_atom_set)
     NULLIFY (local_rho_set%rho0_atom_set)
@@ -267,7 +267,7 @@ MODULE qs_local_rho_types
       ENDIF
 
       DEALLOCATE(local_rho_set,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE local_rho_set_release

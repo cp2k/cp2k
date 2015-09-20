@@ -132,17 +132,17 @@ SUBROUTINE ewald_pw_grid_update( ewald_pw, ewald_env, cell_hmat)
           poisson_env=poisson_env)
   CASE ( do_ewald_none )
   CASE default
-     CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+     CPASSERT(.FALSE.)
   END SELECT
   IF (ASSOCIATED(poisson_env)) THEN
      ALLOCATE(pw_pools(1),stat=stat)
-     CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+     CPASSERT(stat==0)
      pw_pools(1)%pool => pw_big_pool
      CALL pw_poisson_read_parameters(poisson_section, poisson_params)
      CALL pw_poisson_set(poisson_env,cell_hmat=cell_hmat,parameters=poisson_params,&
           use_level=1,pw_pools=pw_pools)
      DEALLOCATE(pw_pools,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+     CPASSERT(stat==0)
   END IF
 
 END SUBROUTINE ewald_pw_grid_update

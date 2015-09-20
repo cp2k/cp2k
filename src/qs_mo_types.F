@@ -111,7 +111,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE (mo_set_new,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     mo_set_new%maxocc = mo_set_old%maxocc
     mo_set_new%nelectron = mo_set_old%nelectron
@@ -139,11 +139,11 @@ CONTAINS
     mo_set_new%use_mo_coeff_b = mo_set_old%use_mo_coeff_b
 
     ALLOCATE (mo_set_new%eigenvalues(nmo),STAT=istat)
-    CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(istat == 0)
     mo_set_new%eigenvalues = mo_set_old%eigenvalues
 
     ALLOCATE (mo_set_new%occupation_numbers(nmo),STAT=istat)
-    CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(istat == 0)
     mo_set_new%occupation_numbers = mo_set_old%occupation_numbers
 
   END SUBROUTINE duplicate_mo_set
@@ -183,7 +183,7 @@ CONTAINS
     IF (ASSOCIATED(mo_set)) CALL deallocate_mo_set(mo_set)
 
     ALLOCATE (mo_set,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     mo_set%maxocc = maxocc
     mo_set%nelectron = nelectron
@@ -230,23 +230,23 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(mo_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(fm_pool),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(mo_set%eigenvalues),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(mo_set%occupation_numbers),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(mo_set%mo_coeff),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mo_set))
+    CPASSERT(ASSOCIATED(fm_pool))
+    CPASSERT(.NOT.ASSOCIATED(mo_set%eigenvalues))
+    CPASSERT(.NOT.ASSOCIATED(mo_set%occupation_numbers))
+    CPASSERT(.NOT.ASSOCIATED(mo_set%mo_coeff))
 
     CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,name=name)
     CALL cp_fm_get_info(mo_set%mo_coeff,nrow_global=nao,ncol_global=nmo)
-    CPPostcondition((nao >= mo_set%nao),cp_failure_level,routineP,failure)
-    CPPostcondition((nmo >= mo_set%nmo),cp_failure_level,routineP,failure)
+    CPASSERT(nao >= mo_set%nao)
+    CPASSERT(nmo >= mo_set%nmo)
 
     ALLOCATE (mo_set%eigenvalues(nmo),STAT=istat)
-    CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(istat == 0)
     mo_set%eigenvalues(:) = 0.0_dp
 
     ALLOCATE (mo_set%occupation_numbers(nmo),STAT=istat)
-    CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(istat == 0)
     ! Initialize MO occupations
     mo_set%occupation_numbers(:) =  0.0_dp
     ! Quick return, if no electrons are available
@@ -264,8 +264,8 @@ CONTAINS
         mo_set%occupation_numbers(nomo) = mo_set%nelectron -(nomo-1)* mo_set%maxocc
     END IF
 
-    CPPrecondition((nmo >= nomo),cp_failure_level,routineP,failure)
-    CPPrecondition((SIZE(mo_set%occupation_numbers) == nmo),cp_failure_level,routineP,failure)
+    CPASSERT(nmo >= nomo)
+    CPASSERT((SIZE(mo_set%occupation_numbers) == nmo))
 
     mo_set%homo = nomo
     mo_set%lfomo = nomo + 1
@@ -299,9 +299,9 @@ CONTAINS
     my_convert_dbcsr = .FALSE.
     IF(PRESENT(convert_dbcsr)) my_convert_dbcsr = convert_dbcsr
 
-    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(mo_array).EQ.2,cp_failure_level,routineP,failure)
-    CPPrecondition(mo_array(1)%mo_set%nmo>=mo_array(2)%mo_set%nmo,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mo_array))
+    CPASSERT(SIZE(mo_array).EQ.2)
+    CPASSERT(mo_array(1)%mo_set%nmo>=mo_array(2)%mo_set%nmo)
 
     ! first nmo_beta orbitals are copied from alpha to beta
     IF(my_convert_dbcsr) THEN!fm->dbcsr
@@ -365,16 +365,16 @@ CONTAINS
     IF (ASSOCIATED(mo_set)) THEN
       IF (ASSOCIATED(mo_set%eigenvalues)) THEN
         DEALLOCATE (mo_set%eigenvalues,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
       IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
         DEALLOCATE (mo_set%occupation_numbers,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
       CALL cp_fm_release(mo_set%mo_coeff)
       IF(ASSOCIATED(mo_set%mo_coeff_b)) CALL cp_dbcsr_release_p(mo_set%mo_coeff_b)
       DEALLOCATE (mo_set,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
 
   END SUBROUTINE deallocate_mo_set
@@ -479,7 +479,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
-    LOGICAL                                  :: failure
 
     IF (PRESENT(maxocc)) mo_set%maxocc = maxocc
     IF (PRESENT(homo)) mo_set%homo = homo
@@ -491,14 +490,14 @@ CONTAINS
     IF (PRESENT(eigenvalues)) THEN
       IF (ASSOCIATED(mo_set%eigenvalues)) THEN
         DEALLOCATE(mo_set%eigenvalues,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
       mo_set%eigenvalues => eigenvalues
     END IF
     IF (PRESENT(occupation_numbers)) THEN
       IF (ASSOCIATED(mo_set%occupation_numbers)) THEN
         DEALLOCATE(mo_set%occupation_numbers,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
       mo_set%occupation_numbers => occupation_numbers
     END IF

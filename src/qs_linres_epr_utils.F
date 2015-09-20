@@ -162,7 +162,7 @@ CONTAINS
     !ENDIF
     !
     ! check that the psi0 are localized and you have all the centers
-    CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,failure)
+    CPASSERT(linres_control%localized_psi0)
     IF(failure .AND. (output_unit>0)) THEN
        WRITE(output_unit,'(A)') &
             ' To get EPR parameters within PBC you need localized zero order orbitals '
@@ -194,7 +194,7 @@ CONTAINS
     !
     ! Bind
     ALLOCATE(epr_env%bind_set(3,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO i_B = 1,3
       DO idir = 1,3
         NULLIFY(epr_env%bind_set(idir,i_B)%rho, rho_r, rho_g)
@@ -210,7 +210,7 @@ CONTAINS
 
     ! Nabla_V_ks
     ALLOCATE(epr_env%nablavks_set(3,dft_control%nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO idir = 1,3
       DO ispin = 1,nspins
         NULLIFY(epr_env%nablavks_set(idir,ispin)%rho, rho_r, rho_g)
@@ -227,11 +227,11 @@ CONTAINS
 
     ! Initialize the g tensor components
     ALLOCATE(epr_env%g_total(3,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(epr_env%g_so(3,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(epr_env%g_soo(3,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     epr_env%g_total = 0.0_dp
     epr_env%g_zke = 0.0_dp
     epr_env%g_so = 0.0_dp
@@ -274,7 +274,7 @@ CONTAINS
            ENDDO
            ENDDO
            DEALLOCATE(epr_env%nablavks_set,STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
         END IF
         ! nablavks_atom_set
         IF(ASSOCIATED(epr_env%nablavks_atom_set)) THEN
@@ -293,27 +293,27 @@ CONTAINS
            ENDDO
            ENDDO
           DEALLOCATE(epr_env%bind_set,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
         ! bind_atom_set
         IF(ASSOCIATED(epr_env%bind_atom_set)) THEN
           DEALLOCATE(epr_env%bind_atom_set,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
         ! g_total
         IF(ASSOCIATED(epr_env%g_total)) THEN
           DEALLOCATE(epr_env%g_total,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
         ! g_so
         IF(ASSOCIATED(epr_env%g_so)) THEN
           DEALLOCATE(epr_env%g_so,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
         ! g_soo
         IF(ASSOCIATED(epr_env%g_soo)) THEN
           DEALLOCATE(epr_env%g_soo,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
       END IF  ! ref count
     END IF ! failure

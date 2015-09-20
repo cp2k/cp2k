@@ -137,8 +137,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_struct))
+    CPASSERT(rho_struct%ref_count>0)
     rho_struct%ref_count=rho_struct%ref_count+1
   END SUBROUTINE qs_rho_retain
 
@@ -162,7 +162,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(rho_struct)) THEN
-       CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(rho_struct%ref_count>0)
        rho_struct%ref_count=rho_struct%ref_count-1
        IF (rho_struct%ref_count<1) THEN
           CALL qs_rho_clear(rho_struct)
@@ -296,8 +296,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_struct))
+    CPASSERT(rho_struct%ref_count>0)
 
     IF (PRESENT(rho_ao))    rho_ao    => get_1d_pointer(rho_struct%rho_ao)
     IF (PRESENT(rho_ao_kp)) rho_ao_kp => get_2d_pointer(rho_struct%rho_ao)
@@ -376,8 +376,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_struct))
+    CPASSERT(rho_struct%ref_count>0)
 
     IF (PRESENT(rho_ao))    CALL set_1d_pointer(rho_struct%rho_ao, rho_ao)
     IF (PRESENT(rho_ao_kp)) CALL set_2d_pointer(rho_struct%rho_ao, rho_ao_kp)

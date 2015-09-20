@@ -59,9 +59,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_external_comm', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    CPPrecondition(in_external_master_id.GE.0,cp_failure_level,routineP,failure)
+    CPASSERT(in_external_master_id.GE.0)
 
     external_comm = comm
     external_master_id = in_external_master_id
@@ -70,7 +68,7 @@ CONTAINS
       scf_energy_message_tag = in_scf_energy_message_tag
     IF(PRESENT(in_exit_tag)) THEN
       ! the exit tag should be different from the mp_probe tag default
-      CPPrecondition(in_exit_tag.NE.-1,cp_failure_level,routineP,failure)
+      CPASSERT(in_exit_tag.NE.-1)
       exit_tag = in_exit_tag
     END IF
   END SUBROUTINE set_external_comm
@@ -207,7 +205,7 @@ CONTAINS
           my_start_time=globenv%cp2k_start_time
        ELSE
           ! If none of the two arguments is present abort.. This routine should always check about time.
-          CPPrecondition(.FALSE.,cp_fatal_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
 
        IF ( (.NOT.should_stop).AND.(my_target_time > 0.0_dp)) THEN

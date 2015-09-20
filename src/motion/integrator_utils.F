@@ -128,24 +128,24 @@ CONTAINS
     natoms = SIZE ( particle_set)
     idim = SIZE ( npt, 1)
     jdim = SIZE ( npt, 2)
-    CPPostcondition(.NOT.ASSOCIATED(old),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(old))
     ALLOCATE ( old, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE ( old%v ( natoms, 3 ), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     old%v = 0.0_dp
     ALLOCATE ( old%r ( natoms, 3 ), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     old%r = 0.0_dp
     ALLOCATE ( old%eps ( idim, jdim ),STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     old%eps = 0.0_dp
     ALLOCATE ( old%veps ( idim, jdim ),STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     old%veps = 0.0_dp
     ALLOCATE ( old%h(3, 3),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     old%h = 0.0_dp
 
   END SUBROUTINE allocate_old
@@ -170,26 +170,26 @@ CONTAINS
     IF (ASSOCIATED(old)) THEN
        IF (ASSOCIATED(old%v)) THEN
           DEALLOCATE ( old%v, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(old%r)) THEN
           DEALLOCATE ( old%r, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(old%eps)) THEN
           DEALLOCATE ( old%eps, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(old%veps)) THEN
           DEALLOCATE ( old%veps, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(old%h)) THEN
           DEALLOCATE ( old%h, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE ( old, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE deallocate_old
@@ -219,9 +219,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(tmp),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(tmp))
     ALLOCATE (tmp, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Nullify Components
     NULLIFY(tmp%pos)
@@ -234,10 +234,10 @@ CONTAINS
 
     !     *** Allocate work storage for positions and velocities ***
     ALLOCATE (tmp%pos(3,nparticle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (tmp%vel(3,nparticle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     tmp%pos(:,:) = 0.0_dp
     tmp%vel(:,:) = 0.0_dp
@@ -245,16 +245,16 @@ CONTAINS
     IF(shell_adiabatic) THEN
        !     *** Allocate work storage for positions and velocities ***
        ALLOCATE (tmp%shell_pos(3,nshell),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ALLOCATE (tmp%core_pos(3,nshell),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ALLOCATE (tmp%shell_vel(3,nshell),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ALLOCATE (tmp%core_vel(3,nshell),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        tmp%shell_pos(:,:) = 0.0_dp
        tmp%shell_vel(:,:) = 0.0_dp
@@ -316,7 +316,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPostcondition(ASSOCIATED(tmp),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmp))
     my_pos =.FALSE.
     my_vel =.FALSE.
     my_deall=.TRUE.
@@ -328,15 +328,15 @@ CONTAINS
     IF(my_pos) THEN
        CALL update_particle_set ( particle_set, para_env % group, pos = tmp%pos)
        DEALLOCATE (tmp%pos,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        IF(shell_adiabatic)THEN
           CALL update_particle_set ( shell_particle_set, para_env%group, pos=tmp%shell_pos)
           CALL update_particle_set ( core_particle_set, para_env%group, pos=tmp%core_pos)
           DEALLOCATE (tmp%shell_pos,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (tmp%core_pos,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
 
@@ -349,18 +349,18 @@ CONTAINS
        END IF
        IF(my_deall)THEN
           DEALLOCATE (tmp%vel,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           IF (shell_adiabatic) THEN
              DEALLOCATE (tmp%shell_vel,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE (tmp%core_vel,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
-          CPPostcondition(.NOT.ASSOCIATED(tmp%pos),cp_failure_level,routineP,failure)
-          CPPostcondition(.NOT.ASSOCIATED(tmp%shell_pos),cp_failure_level,routineP,failure)
-          CPPostcondition(.NOT.ASSOCIATED(tmp%core_pos),cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.ASSOCIATED(tmp%pos))
+          CPASSERT(.NOT.ASSOCIATED(tmp%shell_pos))
+          CPASSERT(.NOT.ASSOCIATED(tmp%core_pos))
           DEALLOCATE (tmp,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
 

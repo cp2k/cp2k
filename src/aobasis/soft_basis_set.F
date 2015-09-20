@@ -103,7 +103,7 @@ CONTAINS
        CALL reallocate(gcc,1,maxpgf,1,maxshell,1,nset)
 
        ALLOCATE(iset_s2h(nset),stat=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
 
        iset_s2h = 0
        iset_s = 0
@@ -265,9 +265,9 @@ CONTAINS
           CALL reallocate(soft_basis%m,1,nsgf)
           CALL reallocate(soft_basis%norm_cgf,1,ncgf)
           ALLOCATE (soft_basis%cgf_symbol(ncgf),STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE (soft_basis%sgf_symbol(nsgf),STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
 
           ncgf = 0
           nsgf = 0
@@ -302,12 +302,12 @@ CONTAINS
        ENDIF
 
        DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,iset_s2h,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     IF (.NOT. paw_atom) THEN
        DEALLOCATE (soft_basis,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        soft_basis => orb_basis
     END IF
 

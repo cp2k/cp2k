@@ -61,8 +61,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(qs_energy, thermo)
 
-    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
-    CPPrecondition(qmmm_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qmmm_env))
+    CPASSERT(qmmm_env%ref_count>0)
 
     IF (PRESENT(kinetic_energy)) THEN
         CALL fist_env_get(qmmm_env%fist_env,thermo=thermo)
@@ -97,7 +97,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(qmmm_env)) THEN
-       CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(qmmm_env%ref_count>0)
        qmmm_env%ref_count=qmmm_env%ref_count-1
        IF (qmmm_env%ref_count==0) THEN
           CALL qs_env_release(qmmm_env%qs_env)
@@ -124,8 +124,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(qmmm_env%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(qmmm_env))
+    CPASSERT(qmmm_env%ref_count>0)
     qmmm_env%ref_count=qmmm_env%ref_count+1
   END SUBROUTINE qmmm_env_retain
 

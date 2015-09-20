@@ -98,7 +98,7 @@ CONTAINS
     nspins    = dft_control%nspins
 
     ALLOCATE(ievals(n_ev), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     !---------------!
     ! initial guess !
@@ -113,7 +113,7 @@ CONTAINS
        CALL co_initial_guess(t_env%evecs, ievals, n_ev, qs_env)
     ELSE
        IF (output_unit>0) WRITE (output_unit,*) "LUMOS are needed in TDDFPT!"
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
     DO restarts=1, dft_control%tddfpt_control%n_restarts
        IF (iterative_solver(ievals, t_env, p_env, qs_env, ievals)) EXIT
@@ -144,7 +144,7 @@ CONTAINS
     ! cleanup !
     !---------!
     DEALLOCATE(ievals, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -259,22 +259,22 @@ CONTAINS
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, name=routineP//":R")
 
     ALLOCATE(evals_difference(n_ev), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(must_improve(n_ev), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(evals(max_kv, 0:max_kv), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(evals_tmp(max_kv), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(b(max_kv,nspins), Ab(max_kv,nspins), &
              Sb(max_kv,nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(kv_fm_struct(nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO spin=1, nspins
        NULLIFY (kv_fm_struct(spin)%struct)
@@ -377,7 +377,7 @@ CONTAINS
 
              ELSE
                 IF (output_unit>0) WRITE (output_unit,*) "unknown mode"
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END IF
 
           END IF
@@ -537,7 +537,7 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(b, Ab, Sb, evals, evals_tmp, evals_difference, must_improve, kv_fm_struct, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(X, R, b, Ab, Sb, kv_fm_struct)
 
     CALL timestop(handle)

@@ -100,7 +100,7 @@ CONTAINS
     NULLIFY(atprop)
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
     CALL get_qs_env(qs_env=qs_env,para_env=para_env,dft_control=dft_control,&
                     cell=cell,virial=virial,energy=energy,atprop=atprop)
 
@@ -124,12 +124,12 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,force=force)
        natom = SIZE (particle_set)
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
 
     ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
        CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind_a)
        scptb_kind_param(ikind)%scptb_param => scptb_kind_a
@@ -181,11 +181,11 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE (scptb_kind_param,scptb_defined,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (calculate_forces) THEN
        DEALLOCATE(atom_of_kind,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     CALL mp_sum(enuclear,para_env%group)

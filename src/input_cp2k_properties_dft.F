@@ -76,7 +76,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PROPERTIES",&
          description="This section is used to set up the PROPERTIES calculation.",&
          n_keywords=4, n_subsections=1, repeats=.FALSE.)
@@ -138,7 +138,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(keyword,subsection,print_key)
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="linres",&
          description="The linear response is used to calculate one of the "//&
          " following properties: nmr, epr, raman, ... ",&
@@ -280,7 +280,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(keyword,print_key, subsection)
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="current",&
          description="The induced current density is calculated by DFPT.",&
          n_keywords=4, n_subsections=1, repeats=.FALSE., &
@@ -474,7 +474,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(keyword,print_key, subsection)
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="nmr",&
          description="The chemical shift is calculated by DFPT.",&
          n_keywords=5, n_subsections=1, repeats=.FALSE., &
@@ -626,7 +626,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(keyword,print_key,subsection)
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="spinspin",&
          description="Compute indirect spin-spin coupling constants.",&
          n_keywords=5, n_subsections=1, repeats=.FALSE.)
@@ -733,7 +733,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(keyword,print_key, subsection, subsubsection)
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EPR",&
          description="The g tensor is calculated by DFPT ",&
          n_keywords=5, n_subsections=1, repeats=.FALSE., &
@@ -871,7 +871,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(keyword,print_key,subsection)
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="POLAR",&
          description="Compute polarizabilities.",&
          n_keywords=5, n_subsections=1, repeats=.FALSE., &
@@ -934,7 +934,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"ET_COUPLING",&
          description="specifies the two constraints/restraints for extracting ET coupling elements",&
          n_keywords=1, n_subsections=4, repeats=.FALSE.)
@@ -996,7 +996,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword, print_key)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,TRIM(ADJUSTL(section_name)),&
          description="Use DDAPC charges in a restraint (check code for details),"//&
          " section can be repeated, but only one constraint is possible at the moment.",&

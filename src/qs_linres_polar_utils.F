@@ -137,7 +137,7 @@ CONTAINS
     ! allocate the vectors
     ALLOCATE(psi0_order(nspins))
     ALLOCATE(psi1(nspins),h1_psi0(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ispin = 1,nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
        psi0_order(ispin)%matrix => mo_coeff
@@ -210,7 +210,7 @@ CONTAINS
        CALL cp_fm_release(h1_psi0(ispin)%matrix)
     ENDDO
     DEALLOCATE(psi1,h1_psi0,psi0_order,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
                                      "PRINT%PROGRAM_RUN_INFO")
@@ -280,7 +280,7 @@ CONTAINS
     !
     ! Initialize
     ALLOCATE ( polar_tmp( 3, 3), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     polar_tmp(:,:)=0.0_dp
 
     DO i = 1,3 ! directions of electric field
@@ -303,7 +303,7 @@ CONTAINS
     !
        IF(ASSOCIATED(polar_tmp)) THEN
          DEALLOCATE(polar_tmp, STAT = istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
        END IF
        
     ENDIF  !raman
@@ -470,13 +470,13 @@ CONTAINS
    !
    !
    ALLOCATE(polar_env%polar(3,3), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     polar_env%polar(:,:) = 0.0_dp
   !
       ! allocation
    ALLOCATE(polar_env%dBerry_psi0(3,nspins), &
            polar_env%psi1_dBerry(3,nspins), polar_env%mo_derivs(3,nspins), STAT=istat)
-   CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+   CPASSERT(istat==0)
    DO ispin = 1,nspins
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
       CALL cp_fm_get_info(mo_coeff,ncol_global=m,nrow_global=nao)
@@ -525,7 +525,7 @@ CONTAINS
     IF(polar_env%ref_count == 0 ) THEN
        IF(ASSOCIATED(polar_env%polar)) THEN
           DEALLOCATE(polar_env%polar,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        IF(ASSOCIATED(polar_env%dBerry_psi0)) THEN
           DO idir = 1,SIZE(polar_env%dBerry_psi0,1)
@@ -534,7 +534,7 @@ CONTAINS
              ENDDO
           ENDDO
           DEALLOCATE(polar_env%dBerry_psi0,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        IF(ASSOCIATED(polar_env%mo_derivs)) THEN
           DO idir = 1,SIZE(polar_env%mo_derivs,1)
@@ -543,7 +543,7 @@ CONTAINS
              ENDDO
           ENDDO
           DEALLOCATE(polar_env%mo_derivs,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        IF(ASSOCIATED(polar_env%psi1_dBerry)) THEN
           DO idir = 1,SIZE(polar_env%psi1_dBerry,1)
@@ -552,7 +552,7 @@ CONTAINS
              ENDDO
           ENDDO
           DEALLOCATE(polar_env%psi1_dBerry,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        !
 

@@ -192,7 +192,7 @@ CONTAINS
  
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=natom)
       ALLOCATE(atom_of_kind(natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
 
@@ -347,7 +347,7 @@ CONTAINS
       ENDDO
 
       DEALLOCATE(atom_of_kind,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
  
     ENDIF
 

@@ -97,8 +97,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,failure)
-    CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(poisson_env))
+    CPASSERT(poisson_env%ref_count>0)
 
     NULLIFY(pw_pool)
     IF (ASSOCIATED(poisson_env%pw_pools)) THEN
@@ -126,11 +126,11 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,failure)
-    CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(poisson_env%pw_pools),cp_failure_level,routineP,failure)
-    CPPrecondition(poisson_env%pw_level>=LBOUND(poisson_env%pw_pools,1),cp_failure_level,routineP,failure)
-    CPPrecondition(poisson_env%pw_level<=UBOUND(poisson_env%pw_pools,1),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(poisson_env))
+    CPASSERT(poisson_env%ref_count>0)
+    CPASSERT(ASSOCIATED(poisson_env%pw_pools))
+    CPASSERT(poisson_env%pw_level>=LBOUND(poisson_env%pw_pools,1))
+    CPASSERT(poisson_env%pw_level<=UBOUND(poisson_env%pw_pools,1))
     green => poisson_env%green_fft
     wavelet => poisson_env%wavelet
     rebuild=poisson_env%rebuild
@@ -165,7 +165,7 @@ CONTAINS
        CASE(pw_poisson_wavelet)
           rebuild=(poisson_env%parameters%wavelet_scf_type/=wavelet%itype_scf).OR.rebuild
        CASE default
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
     END IF
     IF (rebuild) THEN
@@ -195,9 +195,9 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,failure)
-    CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(poisson_env%pw_pools),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(poisson_env))
+    CPASSERT(poisson_env%ref_count>0)
+    CPASSERT(ASSOCIATED(poisson_env%pw_pools))
 
     IF (poisson_env%rebuild) THEN
         CALL pw_poisson_cleanup(poisson_env)
@@ -209,7 +209,7 @@ CONTAINS
                    mt_super_ref_pw_grid=poisson_env%mt_super_ref_pw_grid,&
                    dct_pw_grid=poisson_env%dct_aux_pw_grid)
         CASE (pw_poisson_wavelet)
-           CPPrecondition(ASSOCIATED(density%pw_grid),cp_failure_level,routineP,failure)
+           CPASSERT(ASSOCIATED(density%pw_grid))
            CALL ps_wavelet_create(poisson_env%parameters,poisson_env%wavelet,&
                                   density%pw_grid)
         CASE (pw_poisson_implicit)
@@ -225,7 +225,7 @@ CONTAINS
                    poisson_env%green_fft, poisson_env%implicit_env)
         CASE (pw_poisson_none)
         CASE default
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END SELECT
        poisson_env%rebuild=.FALSE.
     END IF
@@ -277,8 +277,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,failure)
-    CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(poisson_env))
+    CPASSERT(poisson_env%ref_count>0)
     CALL pw_poisson_rebuild(poisson_env,density)
     poisson_params => poisson_env%parameters
 
@@ -290,7 +290,7 @@ CONTAINS
     pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
     pw_grid => pw_pool % pw_grid
     IF ( PRESENT ( vhartree ) ) THEN
-       CPPrecondition(ASSOCIATED(vhartree),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(vhartree))
        CALL cp_assert(pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid),cp_assertion_failed,&
             cp_failure_level,routineP,&
             "vhartree has a different grid than the poisson solver",failure)
@@ -529,7 +529,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure, same
+    LOGICAL                                  :: same
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: tmp_pools
 
@@ -546,7 +546,7 @@ CONTAINS
     END IF
 
     IF (PRESENT(pw_pools)) THEN
-       CPPrecondition(ASSOCIATED(pw_pools),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(pw_pools))
        same=.FALSE.
        IF (ASSOCIATED(poisson_env%pw_pools)) THEN
           same=SIZE(poisson_env%pw_pools)==SIZE(pw_pools)

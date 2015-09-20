@@ -219,7 +219,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(optimizer,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(optimizer%kind_of_bound,&
             optimizer%i_work_array,&
             optimizer%isave,&
@@ -256,11 +256,11 @@ CONTAINS
        lenwa = 2*optimizer%m*n + 5*n + 11*optimizer%m*optimizer%m + 8*optimizer%m
        ALLOCATE (optimizer%kind_of_bound(n), optimizer%i_work_array(3*n),&
                  optimizer%isave(44), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE (optimizer%x(n), optimizer%lower_bound(n), &
                  optimizer%upper_bound(n), optimizer%gradient(n), &
                  optimizer%dsave(29), optimizer%work_array(lenwa), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        optimizer%x=x0
        optimizer%task='START'
        optimizer%wanted_relative_f_delta=wanted_relative_f_delta
@@ -285,10 +285,10 @@ CONTAINS
             optimizer%lower_bound, optimizer%upper_bound, optimizer%gradient,&
             optimizer%dsave, optimizer%work_array)
        ALLOCATE (optimizer%x(n),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        optimizer%x(:) = 0.0_dp
        ALLOCATE (optimizer%gradient(n),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        optimizer%gradient(:) = 0.0_dp
     END IF
     CALL mp_bcast(optimizer%x,optimizer%master,optimizer%para_env%group)
@@ -316,8 +316,8 @@ SUBROUTINE cp_opt_gopt_retain(optimizer)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,failure)
-  CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP)
+  CPASSERT(ASSOCIATED(optimizer))
+  CPASSERT(optimizer%ref_count>0)
   optimizer%ref_count=optimizer%ref_count+1
 END SUBROUTINE cp_opt_gopt_retain
 
@@ -342,51 +342,51 @@ SUBROUTINE cp_opt_gopt_release(optimizer)
   failure=.FALSE.
 
   IF (ASSOCIATED(optimizer)) THEN
-     CPPreconditionNoFail(optimizer%ref_count>0,cp_failure_level,routineP)
+     CPASSERT(optimizer%ref_count>0)
      optimizer%ref_count=optimizer%ref_count-1
      IF (optimizer%ref_count==0) THEN
         optimizer%status=6
         IF (ASSOCIATED(optimizer%kind_of_bound)) THEN
            DEALLOCATE(optimizer%kind_of_bound, stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(optimizer%i_work_array)) THEN
            DEALLOCATE(optimizer%i_work_array, stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(optimizer%isave)) THEN
            DEALLOCATE(optimizer%isave, stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(optimizer%x)) THEN
            DEALLOCATE(optimizer%x, stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(optimizer%lower_bound)) THEN
            DEALLOCATE(optimizer%lower_bound, stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(optimizer%upper_bound)) THEN
            DEALLOCATE(optimizer%upper_bound, stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(optimizer%gradient)) THEN
            DEALLOCATE(optimizer%gradient, stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(optimizer%dsave)) THEN
            DEALLOCATE(optimizer%dsave, stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(optimizer%work_array)) THEN
            DEALLOCATE(optimizer%work_array, stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         END IF
         CALL cp_para_env_release(optimizer%para_env)
         CALL gopt_f_release(optimizer%obj_funct)
         NULLIFY(optimizer%obj_funct)
         DEALLOCATE(optimizer, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
   END IF
   NULLIFY(optimizer)
@@ -453,8 +453,8 @@ END SUBROUTINE cp_opt_gopt_release
 
 !  call timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,failure)
-    CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(optimizer))
+    CPASSERT(optimizer%ref_count>0)
 
     IF (PRESENT(is_master)) is_master=optimizer%master==optimizer%para_env%mepos
     IF (PRESENT(master)) master=optimizer%master
@@ -488,8 +488,8 @@ END SUBROUTINE cp_opt_gopt_release
           IF (PRESENT(actual_projected_gradient))&
                actual_projected_gradient=optimizer%dsave(13)
        ELSE
-          CPPrecondition(.NOT.PRESENT(last_f),cp_warning_level,routineP,failure)
-          CPPrecondition(.NOT.PRESENT(actual_projected_gradient),cp_warning_level,routineP,failure)
+          CPASSERT(.NOT.PRESENT(last_f))
+          CPASSERT(.NOT.PRESENT(actual_projected_gradient))
        END IF
     ELSE
        CALL cp_assert(.NOT.(PRESENT(lower_bound).OR.&
@@ -551,12 +551,12 @@ CPSourceFileRef,&
     is_master=optimizer%master==optimizer%para_env%mepos
     IF (PRESENT(converged)) converged = optimizer%status==4
     ALLOCATE(xold(SIZE(optimizer%x)),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     xold = optimizer%x
     t_old = m_walltime()
 
-    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,failure)
-    CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(optimizer))
+    CPASSERT(optimizer%ref_count>0)
 
     IF (optimizer%status>=4) THEN
        CALL cp_assert(.FALSE.,level=cp_warning_level,&
@@ -745,7 +745,7 @@ CPSourceFileRef,&
          projected_gradient=optimizer%projected_gradient)
 
     DEALLOCATE(xold,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (PRESENT(f)) f=optimizer%f
     IF (PRESENT(last_f)) last_f=optimizer%last_f
     IF (PRESENT(projected_gradient)) &
@@ -778,13 +778,12 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_bcast_res', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(4)              :: results
 
 !  call timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,failure)
-    CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(optimizer))
+    CPASSERT(optimizer%ref_count>0)
 
     IF (optimizer%master==optimizer%para_env%mepos) THEN
        results=(/ REAL(optimizer%isave(30), kind=dp), &
@@ -841,8 +840,8 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     !call timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,failure)
-    CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(optimizer))
+    CPASSERT(optimizer%ref_count>0)
     CALL cp_opt_gopt_step(optimizer,n_iter=n_iter,f=f,&
          last_f=last_f, projected_gradient=projected_gradient,&
          converged=converged,geo_section=geo_section,&
@@ -872,8 +871,8 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     !  call timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,failure)
-    CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(optimizer))
+    CPASSERT(optimizer%ref_count>0)
 
     optimizer%task='STOPPED on user request'
     optimizer%status=4 ! normal exit

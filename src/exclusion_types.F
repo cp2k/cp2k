@@ -52,24 +52,24 @@ CONTAINS
          IF (ASSOCIATED(exclusions(iatom)%list_exclude_vdw,&
               exclusions(iatom)%list_exclude_ei)) THEN
             DEALLOCATE(exclusions(iatom)%list_exclude_vdw,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
          ELSE
             IF (ASSOCIATED(exclusions(iatom)%list_exclude_vdw)) THEN
                DEALLOCATE(exclusions(iatom)%list_exclude_vdw,STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
             END IF
             IF (ASSOCIATED(exclusions(iatom)%list_exclude_ei)) THEN
                DEALLOCATE(exclusions(iatom)%list_exclude_ei,STAT=stat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
             END IF
          ENDIF
          IF (ASSOCIATED(exclusions(iatom)%list_onfo)) THEN
            DEALLOCATE(exclusions(iatom)%list_onfo,stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+           CPASSERT(stat==0)
          ENDIF
       ENDDO
       DEALLOCATE(exclusions,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
    ENDIF
  END SUBROUTINE exclusion_release
 

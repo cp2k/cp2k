@@ -63,7 +63,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MIXED",&
          description="This section contains all information to run with a hamiltonian "//&
                      "defined by a mixing of force_evals",&
@@ -311,7 +311,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
          description="Section of possible print options in MIXED env.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)

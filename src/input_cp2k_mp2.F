@@ -67,7 +67,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"WF_CORRELATION",&
          description="Sets up the Wavefunction-based Correlation parameters if requested ",&
          n_keywords=8, n_subsections=6, repeats=.TRUE., &
@@ -226,7 +226,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DIRECT_CANONICAL",&
          description="Parameters influencing the direct canonical method",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -261,7 +261,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"RI_MP2",&
          description="Parameters influencing the RI MP2 method",&
          n_keywords=3, n_subsections=0, repeats=.FALSE., &
@@ -318,7 +318,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"OPT_RI_BASIS",&
          description="Parameters influencing the optimization of the RI MP2 basis. "//&
                      "Only exponents of non-contracted auxiliary basis can be optimized. "//&
@@ -403,7 +403,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"RI_LAPLACE",&
          description="Parameters influencing the RI-SOS-MP2-Laplace method",&
          n_keywords=2, n_subsections=0, repeats=.FALSE., &
@@ -449,7 +449,7 @@ CONTAINS
 
     failure=.FALSE.
     
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"RI_RPA",&
          description="Parameters influencing the RI RPA method",&
          n_keywords=2, n_subsections=1, repeats=.FALSE., &
@@ -540,7 +540,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"RI_G0W0",&
          description="Parameters influencing the RI-G0W0 method",&
          n_keywords=12, n_subsections=0, repeats=.FALSE., &
@@ -720,7 +720,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"WFC_GPW",&
          description="Parameters for the GPW approach in Wavefunction-based Correlation methods",&
          n_keywords=5, n_subsections=0, repeats=.FALSE.)
@@ -795,7 +795,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"CPHF",&
          description="Parameters influencing the solution of the Z-vector equations in MP2 gradients calculations.",&
          n_keywords=2, n_subsections=0, repeats=.FALSE., &
@@ -838,7 +838,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"INTERACTION_POTENTIAL",&
          description="Parameters the interaction potential in computing the biel integrals",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)

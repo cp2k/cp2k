@@ -1343,14 +1343,13 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
                                                 itype, iw, method_name_id, &
                                                 nmol_types, stop_num
     INTEGER, DIMENSION(:), POINTER           :: temp_i_array
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: temp_r_array
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: mc_section
 
 ! begin the timing of the subroutine
 
-    CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(input_file))
 
       CALL timeset(routineN,handle)
 

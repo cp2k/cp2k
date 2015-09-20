@@ -162,17 +162,17 @@ CONTAINS
           natoms=SIZE(Mlist)
           ncoord=natoms*3
           ALLOCATE(Clist(ncoord), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(mass(natoms), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(pos0(ncoord), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(Hessian(ncoord,ncoord),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           IF(calc_intens)THEN
              description='[DIPOLE]'
              ALLOCATE(tmp_dip(ncoord,3,2),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              tmp_dip=0._dp
           END IF
           Clist = 0
@@ -182,7 +182,7 @@ CONTAINS
              Clist((i-1)*3+2) = (imap-1)*3+2
              Clist((i-1)*3+3) = (imap-1)*3+3
              mass(i) = particles(imap)%atomic_kind%mass
-             CPPostcondition(mass(i)>0.0_dp,cp_failure_level,routineP,failure)
+             CPASSERT(mass(i)>0.0_dp)
              mass(i)= SQRT(mass(i))
              pos0((i-1)*3+1) = particles(imap)%r(1)
              pos0((i-1)*3+2) = particles(imap)%r(2)
@@ -195,7 +195,7 @@ CONTAINS
           IF (something_frozen) THEN
              nRotTrM = 0
              ALLOCATE(RotTrM(natoms*3,nRotTrM),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ELSE
              CALL rot_ana(particles,RotTrM,nRotTrM,print_section,&
                   keep_rotations,mass_weighted=.TRUE.,natoms=natoms)
@@ -349,24 +349,24 @@ CONTAINS
           END DO
           nvib = ncoord-nRotTrM
           ALLOCATE(H_eigval1(ncoord),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(H_eigval2(SIZE(D,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(Hint1(ncoord,ncoord),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(Hint2(SIZE(D,2),SIZE(D,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(rmass(SIZE(D,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(konst(SIZE(D,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           IF(calc_intens)THEN
              ALLOCATE(dip_deriv(3,SIZE(D,2)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              dip_deriv=0.0_dp
           END IF
           ALLOCATE(intensities(SIZE(D,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           intensities=  0._dp
           Hint1(:,:) = Hessian
           CALL diamat_all(Hint1,H_eigval1)
@@ -428,37 +428,37 @@ CONTAINS
           END IF
           ! Deallocate working arrays
           DEALLOCATE(Clist,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(Mlist,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(H_eigval1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(H_eigval2,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(Hint1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(Hint2,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(rmass,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(konst,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(mass, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(pos0, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(D,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(Hessian,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           IF(calc_intens)THEN
              DEALLOCATE(dip_deriv,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE(tmp_dip,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(intensities,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL f_env_rm_defaults(f_env,ierr)
        END IF
     END IF
@@ -516,15 +516,15 @@ CONTAINS
        nfixed_atoms_total = nfixed_atoms_total + nfixed_atoms
     END DO
     ndim = SIZE(particle_set)-nfixed_atoms_total
-    CPPostcondition(ndim>=0,cp_failure_level,routineP,failure)
+    CPASSERT(ndim>=0)
     ALLOCATE(Ilist(ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (nfixed_atoms_total/=0) THEN
        ALLOCATE(ifixd_list(nfixed_atoms_total),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(work(nfixed_atoms_total),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        nfixed_atoms_total = 0
        DO ikind = 1, nkind
           molecule_kind => molecule_kind_set(ikind)
@@ -553,9 +553,9 @@ CONTAINS
           END IF
        END DO Loop_count
        DEALLOCATE(ifixd_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(work,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        i    = 1
        ndim = 0
@@ -662,15 +662,15 @@ CONTAINS
     ! Generate the missing vectors of the orthogonal basis set
     nvib = 3*natoms-dof
     ALLOCATE(work(3*natoms),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(D(3*natoms,3*natoms),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Check First orthogonality in the first element of the basis set
     DO i = 1, dof
        D(:,i) = mat(:,i)
        DO j = i+1, dof
           norm = DOT_PRODUCT(mat(:,i),mat(:,j))
-          CPPostcondition(ABS(norm)<thrs_motion,cp_failure_level,routineP,failure)
+          CPASSERT(ABS(norm)<thrs_motion)
        END DO
     END DO
     ! Generate the nvib orthogonal vectors
@@ -678,7 +678,7 @@ CONTAINS
     ifound = 0
     DO WHILE (ifound /= nvib)
        iseq = iseq + 1
-       CPPostcondition(iseq<=3*natoms,cp_failure_level,routineP,failure)
+       CPASSERT(iseq<=3*natoms)
        work       = 0.0_dp
        work(iseq) = 1.0_dp
        ! Gram Schmidt orthogonalization
@@ -694,22 +694,22 @@ CONTAINS
           D(:,dof+ifound) = work / norm
        END IF
     END DO
-    CPPostcondition(dof+ifound==3*natoms,cp_failure_level,routineP,failure)
+    CPASSERT(dof+ifound==3*natoms)
     IF (my_full) THEN
        ALLOCATE(Dout(3*natoms,3*natoms),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        Dout = D
     ELSE
        ALLOCATE(Dout(3*natoms,nvib),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        Dout = D(:,dof+1:)
     END IF
     DEALLOCATE(work,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(D,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(mat,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE build_D_matrix
 

@@ -128,17 +128,17 @@ MODULE qs_efield_local
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control)
     NULLIFY (matrix_s)
     CALL get_qs_env(qs_env=qs_env,efield=efield,matrix_s=matrix_s)
     CALL init_efield_matrices(efield)
     ALLOCATE(dipmat(3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i=1,3
        ALLOCATE(dipmat(i)%matrix,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL cp_dbcsr_init(dipmat(i)%matrix)
        CALL cp_dbcsr_copy(dipmat(i)%matrix,matrix_s(1)%matrix,'DIP MAT')
        CALL cp_dbcsr_set(dipmat(i)%matrix,0.0_dp)
@@ -173,7 +173,7 @@ MODULE qs_efield_local
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, trans
+    LOGICAL                                  :: found, trans
     REAL(dp)                                 :: charge, ci(3), dab, &
                                                 ener_field, fdir, &
                                                 fieldpol(3), tmp
@@ -226,7 +226,7 @@ MODULE qs_efield_local
     IF (calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,force=force)
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_atomic_kind_set(atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
     ci = 0.0_dp
@@ -278,7 +278,7 @@ MODULE qs_efield_local
           natom = SIZE(particle_set)
 
           ALLOCATE (basis_set_list(nkind),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           DO ikind=1,nkind
              qs_kind => qs_kind_set(ikind)
              CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -348,7 +348,7 @@ MODULE qs_efield_local
              IF(SIZE(matrix_p) > 1) THEN
                 NULLIFY(p_block_b)
                 CALL cp_dbcsr_get_block_p(matrix_p(2)%matrix,irow,icol,p_block_b,found)
-                CPPostcondition(found,cp_failure_level,routineP,failure)
+                CPASSERT(found)
              END IF
              forcea = 0.0_dp
              forceb = 0.0_dp
@@ -363,7 +363,7 @@ MODULE qs_efield_local
                    ! Calculate the primitive integrals (da|O|b) and (a|O|db)
                    ldab = MAX(ncoa,ncob)
                    ALLOCATE (work(ldab,ldab),pmat(ncoa,ncob),STAT=istat)
-                   CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(istat==0)
                    ! Decontract P matrix block
                    pmat = 0.0_dp
                    DO i=1,SIZE(matrix_p)
@@ -394,7 +394,7 @@ MODULE qs_efield_local
                                      1,rac,rbc,pmat,forcea,forceb)
 
                    DEALLOCATE (work,pmat,STAT=istat)
-                   CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(istat==0)
                 END DO
              END DO
 
@@ -408,7 +408,7 @@ MODULE qs_efield_local
           END DO
           CALL neighbor_list_iterator_release(nl_iterator)
           DEALLOCATE (basis_set_list,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
 
     END IF
@@ -418,7 +418,7 @@ MODULE qs_efield_local
           CALL mp_sum(force(ikind)%efield,para_env%group)
        END DO
        DEALLOCATE (atom_of_kind,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
     CALL timestop(handle)

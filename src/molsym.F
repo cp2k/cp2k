@@ -135,11 +135,11 @@ CONTAINS
     IF ( ASSOCIATED(sym) ) CALL release_molsym(sym)
 
     ALLOCATE(sym,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
     ALLOCATE (sym%ain(natoms),sym%aw(natoms),sym%group_of(natoms),sym%llequatom(natoms),&
               sym%nequatom(natoms),sym%symequ_list(natoms),sym%ulequatom(natoms),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE create_molsym
 
@@ -158,39 +158,39 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(sym),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(sym))
 
     IF ( ASSOCIATED(sym%aw) ) THEN
       DEALLOCATE(sym%aw,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(sym%ain) ) THEN
       DEALLOCATE(sym%ain,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(sym%group_of) ) THEN
       DEALLOCATE(sym%group_of,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(sym%llequatom) ) THEN
       DEALLOCATE(sym%llequatom,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(sym%nequatom) ) THEN
       DEALLOCATE(sym%nequatom,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(sym%symequ_list) ) THEN
       DEALLOCATE(sym%symequ_list,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(sym%ulequatom) ) THEN
       DEALLOCATE(sym%ulequatom,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
     END IF
 
     DEALLOCATE(sym,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE release_molsym
 
@@ -231,7 +231,7 @@ CONTAINS
     sym%ncn = MAX(sym%ncn,n)
 
     ! Add the new Cn axis to the list sec
-    CPPrecondition(sym%nsec(n) < maxsec,cp_failure_level,routineP,failure)
+    CPASSERT(sym%nsec(n) < maxsec)
     sym%nsec(1) = sym%nsec(1) + 1
     sym%nsec(n) = sym%nsec(n) + 1
     sym%sec(:,sym%nsec(n),n) = d(:)
@@ -273,7 +273,7 @@ CONTAINS
     sym%nsn = MAX(sym%nsn,n)
 
     ! Add the new Sn axis to the list ses
-    CPPrecondition(sym%nses(n) < maxses,cp_failure_level,routineP,failure)
+    CPASSERT(sym%nses(n) < maxses)
     sym%nses(1) = sym%nses(1) + 1
     sym%nses(n) = sym%nses(n) + 1
     sym%ses(:,sym%nses(n),n) = d(:)
@@ -312,7 +312,7 @@ CONTAINS
     END DO
 
     ! Add the normal vector of the new mirror plane to the list sig
-    CPPrecondition(sym%nsig < maxsig,cp_failure_level,routineP,failure)
+    CPASSERT(sym%nsig < maxsig)
     sym%nsig = sym%nsig + 1
     sym%sig(:,sym%nsig) = d(:)
 
@@ -1765,7 +1765,7 @@ CONTAINS
     sym%tenvec(:,3) = vector_product(sym%tenvec(:,1),sym%tenvec(:,2))
 
     tt = SQRT(sym%tenval(1)**2 + sym%tenval(2)**2 + sym%tenval(3)**2)
-    CPPostcondition(tt /= 0,cp_failure_level,routineP,failure)
+    CPASSERT(tt /= 0)
 
   END SUBROUTINE tensor
 

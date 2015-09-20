@@ -85,7 +85,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE (rel_control,STAT=stat)
-    CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(stat == 0)
 
 
     ! Load the default values
@@ -120,9 +120,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rel_control),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rel_control))
 
-    CPPrecondition(rel_control%ref_count > 0,cp_failure_level,routineP,failure)
+    CPASSERT(rel_control%ref_count > 0)
     rel_control%ref_count = rel_control%ref_count + 1
 
   END SUBROUTINE rel_c_retain
@@ -150,11 +150,11 @@ CONTAINS
     failure = .FALSE.
 
     IF (ASSOCIATED(rel_control)) THEN
-      CPPrecondition(rel_control%ref_count>0,cp_failure_level,routineP,failure)
+      CPASSERT(rel_control%ref_count>0)
       rel_control%ref_count = rel_control%ref_count - 1
       IF (rel_control%ref_count < 1) THEN
         DEALLOCATE(rel_control,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+        CPASSERT(stat==0)
       END IF
     END IF
 
@@ -185,9 +185,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rel_control),cp_failure_level,routineP,failure)
-    CPPrecondition((rel_control%ref_count > 0),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(dft_section),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rel_control))
+    CPASSERT(rel_control%ref_count > 0)
+    CPASSERT(ASSOCIATED(dft_section))
 
 
     rel_section => section_vals_get_subs_vals(dft_section,"RELATIVISTIC")

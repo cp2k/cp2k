@@ -214,9 +214,9 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: dct_gf, gf
 
     failure = .FALSE.
-    CPPrecondition(.NOT.(ASSOCIATED(green)),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.(ASSOCIATED(green)))
     ALLOCATE(green, stat=stat)
-    CPPostcondition(stat == 0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat == 0)
     green%p3m=.FALSE.
     green%special_dimension = 0
     green%radius = 0.0_dp
@@ -282,7 +282,7 @@ CONTAINS
        CASE (3)
           green%method = PERIODIC3D
        CASE DEFAULT
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
     CASE (pw_poisson_mt)
        green%MT_rel_cutoff = poisson_params%mt_rel_cutoff
@@ -310,7 +310,7 @@ CONTAINS
                "Illegal combination of periodicity and Poisson solver (MT)",&
                failure=failure)
        CASE DEFAULT
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
     CASE (pw_poisson_implicit)
        green%method = PS_IMPLICIT
@@ -331,7 +331,7 @@ CONTAINS
           green%p3m_alpha = poisson_params%ewald_alpha
           n=green % p3m_order
           ALLOCATE ( green%p3m_coeff ( -(n-1):n-1, 0:n-1 ), stat = stat )
-          CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL spme_coeff_calculate ( n,  green%p3m_coeff )
           CALL pw_pool_create_pw ( pw_pool, green % p3m_charge, use_data=REALDATA1D, &
                in_space=RECIPROCALSPACE)
@@ -358,7 +358,7 @@ CONTAINS
        END SELECT
 
     CASE DEFAULT
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     ! initialize influence function
@@ -453,7 +453,7 @@ CONTAINS
        END IF
 
     CASE DEFAULT
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
   END SUBROUTINE pw_green_create
@@ -473,8 +473,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(gftype),cp_failure_level,routineP,failure)
-    CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gftype))
+    CPASSERT(gftype%ref_count>0)
     gftype%ref_count=gftype%ref_count+1
   END SUBROUTINE pw_green_retain
 
@@ -499,7 +499,7 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(gftype)) THEN
-       CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(gftype%ref_count>0)
        gftype%ref_count=gftype%ref_count-1
        IF (gftype%ref_count==0) THEN
           can_give_back=PRESENT(pw_pool)
@@ -524,7 +524,7 @@ CONTAINS
           IF (ASSOCIATED(gftype % p3m_coeff)) &
                DEALLOCATE ( gftype % p3m_coeff )
           DEALLOCATE(gftype, stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
+          CPASSERT(stat == 0)
        END IF
     END IF
     NULLIFY(gftype)
@@ -553,8 +553,8 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m_assign
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(gftype),cp_failure_level,routineP,failure)
-    CPPrecondition(gftype%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gftype))
+    CPASSERT(gftype%ref_count>0)
     n = gftype % p3m_order
 
     ! calculate the assignment function values
@@ -565,16 +565,16 @@ CONTAINS
        IF (LBOUND(gftype % p3m_bm2,2)/=MINVAL(lb(:)).OR.&
             UBOUND(gftype % p3m_bm2,2)/=MAXVAL(ub(:))) THEN
           DEALLOCATE(gftype % p3m_bm2,stat=ierr)
-          CPPostcondition(ierr==0,cp_fatal_level,routineP,failure)
+          CPASSERT(ierr==0)
        END IF
     END IF
     IF (.NOT.ASSOCIATED(gftype % p3m_bm2)) THEN
        ALLOCATE ( gftype % p3m_bm2 ( 3, MINVAL(lb(:)):MAXVAL(ub(:)) ), STAT = ierr )
-       CPPostcondition(ierr==0,cp_fatal_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
 
     ALLOCATE ( m_assign ( 0:n-2 ), STAT = ierr )
-    CPPostcondition(ierr==0,cp_fatal_level,routineP,failure)
+    CPASSERT(ierr==0)
     m_assign = 0.0_dp
     DO k = 0, n-2
        j = -(n-1) + 2 * k
@@ -602,7 +602,7 @@ CONTAINS
     END DO
 
     DEALLOCATE ( m_assign, STAT = ierr )
-    CPPostconditionNoFail(ierr==0,cp_warning_level,routineP)
+    CPASSERT(ierr==0)
   END SUBROUTINE influence_factor
 
 ! *****************************************************************************
@@ -659,9 +659,9 @@ END SUBROUTINE calc_p3m_charge
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(poisson_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(poisson_env))
     ALLOCATE(poisson_env,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     last_poisson_id=last_poisson_id+1
     poisson_env%id_nr=last_poisson_id
     poisson_env%ref_count=1
@@ -695,8 +695,8 @@ END SUBROUTINE calc_p3m_charge
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(poisson_env),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(poisson_env%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(poisson_env))
+    CPASSERT(poisson_env%ref_count>0)
     poisson_env%ref_count=poisson_env%ref_count+1
   END SUBROUTINE pw_poisson_retain
 
@@ -719,7 +719,7 @@ END SUBROUTINE calc_p3m_charge
 
     failure=.FALSE.
     IF (ASSOCIATED(poisson_env)) THEN
-       CPPrecondition(poisson_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(poisson_env%ref_count>0)
        poisson_env%ref_count=poisson_env%ref_count-1
        IF (poisson_env%ref_count==0) THEN
           IF (ASSOCIATED(poisson_env%pw_pools)) THEN
@@ -734,7 +734,7 @@ END SUBROUTINE calc_p3m_charge
           CALL pw_grid_release(poisson_env%dct_aux_pw_grid)
           CALL rs_grid_release(poisson_env%diel_rs_grid)
           DEALLOCATE(poisson_env,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
 
        END IF
     END IF

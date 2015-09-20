@@ -120,12 +120,12 @@ CONTAINS
                              shell_present=shell_present)
 
     particle_set => particles%els
-    CPPostcondition((SIZE(particle_set) == natom),cp_failure_level,routineP,failure)
+    CPASSERT((SIZE(particle_set) == natom))
     IF (shell_present) THEN
        core_particle_set => core_particles%els
-       CPPostcondition((SIZE(core_particle_set) == ncore),cp_failure_level,routineP,failure)
+       CPASSERT((SIZE(core_particle_set) == ncore))
        shell_particle_set => shell_particles%els
-       CPPostcondition((SIZE(shell_particle_set) == nshell),cp_failure_level,routineP,failure)
+       CPASSERT((SIZE(shell_particle_set) == nshell))
     END IF
     nparticle = natom + nshell
     molecule_kind_set => molecule_kinds%els
@@ -142,7 +142,7 @@ CONTAINS
        IF (.NOT.PRESENT(w)) THEN
           ! Allocate scratch array
           ALLOCATE (force(3,nparticle),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           force(:,:) = 0.0_dp
           DO i=1,SIZE(local_particles%n_el)
              nparticle_local = local_particles%n_el(i)
@@ -253,7 +253,7 @@ CONTAINS
              END IF
           END DO
           DEALLOCATE (force,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
 
@@ -459,7 +459,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(lfixd_list),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(lfixd_list))
     nsize = 0
     DO ikind = 1, nkind
        molecule_kind => molecule_kind_set(ikind)
@@ -470,13 +470,13 @@ CONTAINS
     END DO
     IF (nsize/=0) THEN
        ALLOCATE(fixed_atom_all(nsize), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(work0(nsize), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(work1(nsize), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(kind_index_all(nsize), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        nsize = 0
        DO ikind = 1, nkind
           molecule_kind => molecule_kind_set(ikind)
@@ -499,9 +499,9 @@ CONTAINS
           nparticle_local_all   = nparticle_local_all + local_particles%n_el(i)
        END DO
        ALLOCATE(local_particle_all(nparticle_local_all),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(work2(nparticle_local_all),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        nparticle_local_all = 0
        DO i = 1, SIZE(local_particles%n_el)
           nparticle_local   = local_particles%n_el(i)
@@ -529,7 +529,7 @@ CONTAINS
 
        ! Allocate local fixed atom array
        ALLOCATE(lfixd_list(ncnst),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! Fill array with constraints infos
        ncnst = 0
@@ -551,19 +551,19 @@ CONTAINS
 
        ! Deallocate working arrays
        DEALLOCATE(local_particle_all,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(work2,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(fixed_atom_all, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(work1, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(kind_index_all, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        ! Allocate local fixed atom array with dimension 0
        ALLOCATE(lfixd_list(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL timestop(handle)
   END SUBROUTINE create_local_fixd_list
@@ -584,9 +584,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(lfixd_list),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(lfixd_list))
     DEALLOCATE(lfixd_list, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE release_local_fixd_list
 
 END MODULE constraint_fxd

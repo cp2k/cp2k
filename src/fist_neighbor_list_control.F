@@ -181,7 +181,7 @@ CONTAINS
     ELSE
        ! There is no r_last_update to compare with. Neighbor lists from scratch.
        ALLOCATE (r_last_update(nparticle),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO iparticle=1,nparticle
           r_last_update(iparticle )%r=particle_set(iparticle)%r(:)
        END DO
@@ -197,15 +197,15 @@ CONTAINS
     ! Allocate the r_last_update_pbc, rshell_last_update_pbc, rcore_last_update_pbc
     IF (.NOT.ASSOCIATED(r_last_update_pbc)) THEN
        ALLOCATE (r_last_update_pbc(nparticle),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(shell_present .AND. .NOT.ASSOCIATED(rshell_last_update_pbc)) THEN
        ALLOCATE (rshell_last_update_pbc(nshell),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(shell_present .AND. .NOT.ASSOCIATED(rcore_last_update_pbc)) THEN
        ALLOCATE (rcore_last_update_pbc(nshell),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     ! update the neighbor lists
@@ -213,7 +213,7 @@ CONTAINS
        ! determine which pairs of atom kinds need full neighbor lists. Full
        ! means that atom a is in the neighbor list of atom b and vice versa.
        ALLOCATE(full_nl(nparticle_kind,nparticle_kind),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF (ASSOCIATED(potparm)) THEN
           DO ikind = 1, nparticle_kind
              DO jkind = ikind, nparticle_kind
@@ -276,7 +276,7 @@ CONTAINS
        CALL cp_print_key_finished_output(output_unit,logger,mm_section,&
             "PRINT%NEIGHBOR_LISTS")
        DEALLOCATE(full_nl,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     ! Store particle positions after the last update, translated to the

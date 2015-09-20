@@ -127,7 +127,7 @@ CONTAINS
     natoms=SIZE(particles)
     ncoord=3*natoms
     ALLOCATE(mass(3*natoms), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, natoms
        DO j=1,3
           mass((i-1)*3+j) = particles(i)%atomic_kind%mass
@@ -136,19 +136,19 @@ CONTAINS
     END DO
     ! Allocate working arrays
     ALLOCATE(ms_vib%delta_vec(ncoord,nrep),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ms_vib%b_vec(ncoord,nrep),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ms_vib%step_r(nrep),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ms_vib%step_b(nrep),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(calc_intens)THEN
        description='[DIPOLE]'
        ALLOCATE(tmp_dip(nrep,3,2),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(ms_vib%dip_deriv(3,nrep),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL MS_initial_moves( para_env, nrep , input, globenv,ms_vib,&
          particles,&
@@ -157,9 +157,9 @@ CONTAINS
          calc_intens,logger)
     ncoord=3*natoms
     ALLOCATE(pos0(ncoord), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ms_vib%ms_force(ncoord,nrep),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, natoms
        DO j=1,3
           pos0((i-1)*3+j) = particles((i))%r(j)
@@ -217,52 +217,52 @@ CONTAINS
        IF(converged)EXIT
        IF(calc_intens)THEN
           ALLOCATE(tmp_deriv(3,ms_vib%mat_size),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           tmp_deriv=ms_vib%dip_deriv
           DEALLOCATE(ms_vib%dip_deriv,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(ms_vib%dip_deriv(3,ms_vib%mat_size+nrep),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ms_vib%dip_deriv(:,1:ms_vib%mat_size)=tmp_deriv(:,1:ms_vib%mat_size)
           DEALLOCATE(tmp_deriv,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
     DEALLOCATE(ms_vib%ms_force, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(pos0, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ms_vib%step_r, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ms_vib%step_b, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ms_vib%b_vec, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ms_vib%delta_vec, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(mass, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ms_vib%b_mat, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ms_vib%s_mat, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(ms_vib%select_id==3)THEN
        DEALLOCATE(ms_vib%inv_atoms, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(ms_vib%eig_bfgs)) THEN
        DEALLOCATE(ms_vib%eig_bfgs, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(ms_vib%hes_bfgs)) THEN
        DEALLOCATE(ms_vib%hes_bfgs, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(calc_intens)THEN
        DEALLOCATE(ms_vib%dip_deriv,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(tmp_dip,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL timestop(handle)
   END SUBROUTINE ms_vb_anal
@@ -344,7 +344,7 @@ CONTAINS
        IF (jj.GE.1)THEN
           natoms=jj
           ALLOCATE(ms_vib%inv_atoms(natoms),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           jj = 0
           DO m=1,n_rep_val
              CALL section_vals_val_get(involved_at_section,"INVOLVED_ATOMS",i_rep_val=m,i_vals=tmplist)
@@ -383,14 +383,14 @@ CONTAINS
        IF (jj<1)THEN
           natoms=SIZE(particles)
           ALLOCATE(map_atoms(natoms),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO j=1,natoms
              map_atoms(j)=j
           END DO
        ELSE
           natoms=jj
           ALLOCATE(map_atoms(natoms),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           jj = 0
           DO m=1,n_rep_val
              CALL section_vals_val_get(ms_vib_section,"ATOMS",i_rep_val=m,i_vals=tmplist)
@@ -496,7 +496,6 @@ CONTAINS
     INTEGER                                  :: hesunit, i, j, jj, k, natoms, &
                                                 ncoord, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_val, norm
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -508,9 +507,9 @@ CONTAINS
     ncoord=3*natoms
 
     ALLOCATE(ms_vib%hes_bfgs(ncoord,ncoord),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ms_vib%eig_bfgs(ncoord),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF(para_env%mepos==para_env%source)THEN
        CALL section_vals_val_get(ms_vib_section,"RESTART_FILE_NAME",c_val=hes_filename)
@@ -518,9 +517,9 @@ CONTAINS
        CALL open_file(file_name=hes_filename,file_status="OLD",&
             file_form="UNFORMATTED", file_action="READ", unit_number=hesunit)
        ALLOCATE(tmp(ncoord),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(tmplist(ncoord),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! should use the cp_fm_read_unformatted...
        DO i=1,ncoord
@@ -572,18 +571,18 @@ CONTAINS
           ms_vib%delta_vec(i,:)=ms_vib%b_vec(i,:)/mass(i)
        END DO
        DEALLOCATE(tmp,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(tmplist,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     CALL mp_bcast(ms_vib%b_vec,para_env%source,para_env%group)
     CALL mp_bcast(ms_vib%delta_vec,para_env%source,para_env%group)
 
     DEALLOCATE(ms_vib%hes_bfgs,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ms_vib%eig_bfgs,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ms_vib%mat_size=0
 
   END SUBROUTINE bfgs_guess
@@ -621,7 +620,6 @@ CONTAINS
                                                 ncoord, output_unit, stat, &
                                                 statint
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ind
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenval
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: approx_H
@@ -634,7 +632,7 @@ CONTAINS
     ncoord=3*natoms
     IF(calc_intens)THEN
        DEALLOCATE(ms_vib%dip_deriv,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     IF(ionode)THEN
@@ -647,17 +645,17 @@ CONTAINS
             file_action="READ",&
             unit_number=hesunit)
        READ(UNIT=hesunit,IOSTAT=stat)mat
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ms_vib%mat_size=mat
     END IF
     CALL mp_bcast(ms_vib%mat_size,para_env%source,para_env%group)
     ALLOCATE(ms_vib%b_mat(ncoord,ms_vib%mat_size),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ms_vib%s_mat(ncoord,ms_vib%mat_size),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(calc_intens)THEN
        ALLOCATE(ms_vib%dip_deriv(3,ms_vib%mat_size+nrep),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ionode)THEN
        statint=0
@@ -679,11 +677,11 @@ CONTAINS
     CALL mp_bcast(ms_vib%s_mat,para_env%source,para_env%group)
     IF(calc_intens)CALL mp_bcast( ms_vib%dip_deriv ,para_env%source,para_env%group)
     ALLOCATE(approx_H(ms_vib%mat_size,ms_vib%mat_size),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(eigenval(ms_vib%mat_size),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ind(ms_vib%mat_size),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
 
     CALL dgemm('T','N',ms_vib%mat_size,ms_vib%mat_size,SIZE(ms_vib%s_mat,1),1._dp,ms_vib%b_mat,SIZE(ms_vib%b_mat,1),&
@@ -702,22 +700,22 @@ CONTAINS
        END DO
 
        DEALLOCATE(ms_vib%s_mat,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(ms_vib%b_mat,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF(calc_intens)THEN
           DEALLOCATE(ms_vib%dip_deriv,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(ms_vib%dip_deriv(3,nrep),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
     DEALLOCATE(approx_H,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(eigenval,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ind,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i=1,nrep
        ms_vib%delta_vec(:,i)= ms_vib%b_vec(:,i)/mass(:)
     END DO
@@ -754,7 +752,6 @@ CONTAINS
                                                 nvibs, output_molden, &
                                                 output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_val, norm
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: freq, tmp
     REAL(KIND=dp), ALLOCATABLE, &
@@ -788,7 +785,7 @@ CONTAINS
           istat=istat+stat
           IF(TRIM(ADJUSTL(info))=="[FR-COORD]")EXIT
 
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
           nvibs=nvibs+1
        END DO
@@ -800,9 +797,9 @@ CONTAINS
        istat=istat+stat
 
        ALLOCATE(freq(nvibs),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(modes(ncoord,nvibs),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        DO i=1,nvibs
           READ(iw,*,IOSTAT=stat)freq(i)
@@ -833,10 +830,10 @@ CONTAINS
        END IF
        !!!!!!!    select modes     !!!!!!
        ALLOCATE(tmp(nvibs),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        tmp(:) = 0.0_dp
        ALLOCATE(tmplist(nvibs),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF(ms_vib%select_id==1) my_val=ms_vib%sel_freq
        IF(ms_vib%select_id==2) my_val=(ms_vib%f_range(2)+ms_vib%f_range(1))*0.5_dp
        IF(ms_vib%select_id==1.OR.ms_vib%select_id==2)THEN
@@ -866,13 +863,13 @@ CONTAINS
        END DO
 
        DEALLOCATE(freq,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(modes,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(tmp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(tmplist,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
     END IF
     CALL mp_bcast(ms_vib%b_vec,para_env%source,para_env%group)
@@ -939,23 +936,23 @@ CONTAINS
      IF(ms_vib%mat_size.NE.0)THEN
 
        ALLOCATE(tmp_b(3*natoms,ms_vib%mat_size),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(tmp_s(3*natoms,ms_vib%mat_size),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        tmp_b(:,:)=ms_vib%b_mat
        tmp_s(:,:)=ms_vib%s_mat
 
        DEALLOCATE(ms_vib%b_mat,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(ms_vib%s_mat,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
 
     ALLOCATE(ms_vib%b_mat(3*natoms,ms_vib%mat_size+nrep),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ms_vib%s_mat(3*natoms,ms_vib%mat_size+nrep),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ms_vib%s_mat=0.0_dp
 
@@ -973,19 +970,19 @@ CONTAINS
 
     IF(ms_vib%mat_size.NE.0)THEN
        DEALLOCATE(tmp_s,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(tmp_b,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     ms_vib%mat_size=ms_vib%mat_size+nrep
 
     ALLOCATE(approx_H(ms_vib%mat_size,ms_vib%mat_size),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(H_save(ms_vib%mat_size,ms_vib%mat_size),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(eigenval(ms_vib%mat_size),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     !!!!!!!!!!!!  calculate the new derivativ and the approximate hessian
 
@@ -1003,9 +1000,9 @@ CONTAINS
 
     !!!!!!!!!!!! select eigenvalue(s) and vector(s) and calculate the new displacement vector
     ALLOCATE(ind(ms_vib%mat_size),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(residuum(SIZE(ms_vib%s_mat,1),nrep),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL select_vector(ms_vib,nrep,mass,ncoord,approx_H,eigenval,ind,residuum,criteria)
 
@@ -1026,7 +1023,7 @@ CONTAINS
     IF(MAXVAL(criteria(1,:)).LE.ms_vib%eps(1).AND.MAXVAL(criteria(2,:))&
          .LE.ms_vib%eps(2).OR.ms_vib%mat_size.GE.ncoord)converged=.TRUE.
     ALLOCATE(freq(nrep),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i=1,nrep
        freq(i)=SQRT(ABS(eigenval(ind(i)))*massunit)*vibfac
     END DO
@@ -1035,14 +1032,14 @@ CONTAINS
     IF(converged)THEN
        eigenval(:)=SIGN(1._dp,eigenval(:))*SQRT(ABS(eigenval(:))*massunit)*vibfac
        ALLOCATE(tmp_b(ncoord,ms_vib%mat_size),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        tmp_b=0._dp
        ALLOCATE(tmp_s(3,ms_vib%mat_size),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        tmp_s=0._dp
        IF(calc_intens)THEN
           ALLOCATE(intensities(ms_vib%mat_size),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           intensities=0._dp
        END IF
        DO i=1,ms_vib%mat_size
@@ -1071,27 +1068,27 @@ CONTAINS
                        dump_only_positive=.TRUE., logger=logger)
        IF (calc_intens) THEN
           DEALLOCATE(intensities,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE(tmp_b,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(tmp_s,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
 
     IF(.NOT.converged) CALL ms_out(output_unit_ms, converged, freq, criteria, &
         ms_vib, input, nrep,approx_H, eigenval, calc_intens, logger=logger)
 
     DEALLOCATE(freq,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(approx_H,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(eigenval,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(residuum,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ind,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
 
   END SUBROUTINE evaluate_H_update_b
@@ -1126,14 +1123,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, jj, k, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_val, norm
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: tmp_b
 
     ALLOCATE(tmp(ms_vib%mat_size),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     SELECT CASE(ms_vib%select_id)
     CASE(1)
@@ -1153,7 +1149,7 @@ CONTAINS
     CASE(3)
 
        ALLOCATE(tmp_b(ncoord,ms_vib%mat_size),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        tmp_b=0._dp
 
 
@@ -1188,7 +1184,7 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE(tmp_b,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END SELECT
 
     DO j=1,nrep
@@ -1228,7 +1224,7 @@ CONTAINS
     END DO
     ms_vib%b_vec=residuum
     DEALLOCATE(tmp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE select_vector
 
 ! *****************************************************************************
@@ -1267,7 +1263,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, msunit, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: crit_a, crit_b
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: residuum
     TYPE(section_vals_type), POINTER         :: ms_vib_section
@@ -1282,7 +1277,7 @@ CONTAINS
              WRITE(iw,'(T2,"MS| TRACKED FREQUENCY (",I0,") IS:",F12.6,3X,A)') i,freq(i),'cm-1'
           END DO
           ALLOCATE(residuum(SIZE(ms_vib%b_mat,1)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           WRITE ( iw, '( /, 1X, 79("-") )' )
           WRITE ( iw, '( 25X, A)' ) 'FREQUENCY AND CONVERGENCE LIST'
           IF(PRESENT(intensities))THEN
@@ -1319,7 +1314,7 @@ CONTAINS
              END IF
           END DO
           DEALLOCATE(residuum,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
           msunit = cp_print_key_unit_nr(logger, ms_vib_section, &
                "PRINT%MS_RESTART", extension=".bin", middle_name="MS_RESTART", &

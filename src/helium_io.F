@@ -87,7 +87,7 @@ MODULE helium_io
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -290,8 +290,8 @@ MODULE helium_io
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(helium%input),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
+    CPASSERT(ASSOCIATED(helium%input))
 
     my_energy => helium%energy_avrg
 
@@ -367,8 +367,8 @@ MODULE helium_io
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(helium%input),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
+    CPASSERT(ASSOCIATED(helium%input))
 
     NULLIFY(print_key,logger)
     print_key => section_vals_get_subs_vals(helium%input, &
@@ -413,8 +413,8 @@ MODULE helium_io
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(helium%input),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
+    CPASSERT(ASSOCIATED(helium%input))
 
     NULLIFY(print_key,logger)
     print_key => section_vals_get_subs_vals(helium%input, &
@@ -472,8 +472,8 @@ MODULE helium_io
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(helium%input),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
+    CPASSERT(ASSOCIATED(helium%input))
 
     NULLIFY(print_key,logger)
     print_key => section_vals_get_subs_vals(helium%input, &
@@ -538,8 +538,8 @@ MODULE helium_io
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(helium%input),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
+    CPASSERT(ASSOCIATED(helium%input))
 
     NULLIFY(print_key,logger)
     print_key => section_vals_get_subs_vals(helium%input, &
@@ -617,7 +617,7 @@ MODULE helium_io
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger,print_key)
     logger => cp_get_default_logger()
@@ -837,8 +837,8 @@ MODULE helium_io
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(helium%input),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
+    CPASSERT(ASSOCIATED(helium%input))
 
     NULLIFY(logger,print_key)
     logger => cp_get_default_logger()
@@ -901,8 +901,8 @@ MODULE helium_io
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(helium%input),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
+    CPASSERT(ASSOCIATED(helium%input))
 
     NULLIFY(logger,print_key)
     logger => cp_get_default_logger()
@@ -923,13 +923,13 @@ MODULE helium_io
         CALL mp_sum(message,logger%para_env%group)
       END DO
       itmp = logger%para_env%num_pe
-      CPPostcondition(itmp>0,cp_failure_level,routineP,failure)
+      CPASSERT(itmp>0)
       inv_norm = 1.0_dp / REAL(itmp,dp)
       helium%rho_inst(:,:,:,:) = helium%rho_inst(:,:,:,:) * inv_norm
 
       ! average over steps performed so far in this run
       nsteps = helium%current_step-helium%first_step
-      CPPostcondition(nsteps>0,cp_failure_level,routineP,failure)
+      CPASSERT(nsteps>0)
       inv_norm = 1.0_dp / REAL(nsteps,dp)
       helium%rho_inst(:,:,:,:) = helium%rho_inst(:,:,:,:) * inv_norm
 
@@ -1010,8 +1010,8 @@ MODULE helium_io
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(helium%input),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
+    CPASSERT(ASSOCIATED(helium%input))
 
     NULLIFY(logger,print_key)
     logger => cp_get_default_logger()
@@ -1066,7 +1066,7 @@ MODULE helium_io
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -1144,7 +1144,7 @@ MODULE helium_io
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
     logger => cp_get_default_logger()

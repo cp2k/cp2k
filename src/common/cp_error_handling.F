@@ -51,7 +51,7 @@ MODULE cp_error_handling
        cp_precondition_failed, cp_internal_error, cp_postcondition_failed,&
        cp_invariant_failed, cp_assertion_failed, cp_unimplemented_error_nr
   !API public routines
-  PUBLIC :: cp_assert, cp_a_l, cp_unimplemented_error
+  PUBLIC :: cp_assert, cp_unimplemented_error, cp__a, cp__b, cp__w
 
   !API
   PUBLIC :: cp_error_message
@@ -222,26 +222,54 @@ CONTAINS
   END SUBROUTINE cp_unimplemented_error
 
 ! *****************************************************************************
-!> \brief assert with linenumber (to be used with the assertion macros
-!>      to keep the line short)
-!> \param level ...
+!> \brief CPASSERT handler
 !> \param fromWhere ...
 !> \param lineNr ...
-!> \param failure ...
-!> \par History
-!>      12.2002 created [fawzi]
-!> \author fawzi
+!> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE cp_a_l(level, fromWhere, lineNr,failure)
-    INTEGER, INTENT(in)                      :: level
+  SUBROUTINE cp__a(fromWhere,lineNr)
     CHARACTER(len=*), INTENT(in)             :: fromWhere
     INTEGER, INTENT(in)                      :: lineNr
-    LOGICAL, INTENT(inout), OPTIONAL         :: failure
 
-    CALL cp_assert(.FALSE.,level=level,error_nr=cp_assertion_failed,&
-         fromWhere=fromWhere,&
-         message="condition FAILED at line "//TRIM(ADJUSTL(cp_to_string(lineNr))),&
-         failure=failure)
-  END SUBROUTINE cp_a_l
+    CALL cp_assert(.FALSE.,level=cp_failure_level,&
+         error_nr=cp_assertion_failed,&
+         fromWhere=fromWhere//":"//TRIM(ADJUSTL(cp_to_string(lineNr))),&
+         message="CPASSERT failed")
+  END SUBROUTINE cp__a
+
+! *****************************************************************************
+!> \brief CPABORT handler
+!> \param fromWhere ...
+!> \param lineNr ...
+!> \param message ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE cp__b(fromWhere,lineNr,message)
+    CHARACTER(len=*), INTENT(in)             :: fromWhere
+    INTEGER, INTENT(in)                      :: lineNr
+    CHARACTER(len=*), INTENT(in)             :: message
+
+    CALL cp_assert(.FALSE.,level=cp_failure_level,&
+         error_nr=cp_assertion_failed,&
+         fromWhere=fromWhere//":"//TRIM(ADJUSTL(cp_to_string(lineNr))),&
+         message=message)
+  END SUBROUTINE cp__b
+
+! *****************************************************************************
+!> \brief CPWARN handler
+!> \param fromWhere ...
+!> \param lineNr ...
+!> \param message ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE cp__w(fromWhere,lineNr,message)
+    CHARACTER(len=*), INTENT(in)             :: fromWhere
+    INTEGER, INTENT(in)                      :: lineNr
+    CHARACTER(len=*), INTENT(in)             :: message
+
+    CALL cp_error_message(level=cp_warning_level,&
+         fromWhere=fromWhere//":"//TRIM(ADJUSTL(cp_to_string(lineNr))),&
+         message=message)
+  END SUBROUTINE cp__w
 
 END MODULE cp_error_handling

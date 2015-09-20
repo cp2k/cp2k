@@ -178,10 +178,10 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(qs_loc_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(qs_loc_env))
 
     ALLOCATE(qs_loc_env,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     qs_loc_env%ref_count = 1
     qs_loc_env%tag_mo=""
@@ -217,7 +217,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure =.FALSE.
-    CPPrecondition(ASSOCIATED(qs_loc_env),cp_warning_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_loc_env))
 
     IF(ASSOCIATED(qs_loc_env%cell)) CALL cell_release(qs_loc_env%cell)
     IF(ASSOCIATED(qs_loc_env%local_molecules)) &
@@ -233,7 +233,7 @@ CONTAINS
           CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix)
        END DO
        DEALLOCATE(qs_loc_env%moloc_coeff,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
     IF(ASSOCIATED(qs_loc_env%op_fm_set)) THEN
@@ -243,7 +243,7 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE(qs_loc_env%op_fm_set,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
     IF(ASSOCIATED(qs_loc_env%op_sm_set)) THEN
@@ -253,11 +253,11 @@ CONTAINS
           ENDDO
        END DO
        DEALLOCATE(qs_loc_env%op_sm_set,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
     DEALLOCATE(qs_loc_env,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE qs_loc_env_destroy
 
@@ -282,7 +282,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(qs_loc_env)) THEN
-       CPPreconditionNoFail(qs_loc_env%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(qs_loc_env%ref_count>0)
        qs_loc_env%ref_count = qs_loc_env%ref_count -1
        IF (qs_loc_env%ref_count==0) THEN
           CALL qs_loc_env_destroy(qs_loc_env)
@@ -310,8 +310,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(qs_loc_env),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(qs_loc_env%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(qs_loc_env))
+    CPASSERT(qs_loc_env%ref_count>0)
     qs_loc_env%ref_count = qs_loc_env%ref_count +1
   END SUBROUTINE qs_loc_env_retain
 
@@ -335,9 +335,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(localized_wfn_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(localized_wfn_control))
     ALLOCATE(localized_wfn_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     localized_wfn_control%ref_count= 1
     localized_wfn_control%nloc_states=0
@@ -373,24 +373,24 @@ CONTAINS
 
     failure=.FALSE.
     IF(ASSOCIATED(localized_wfn_control)) THEN
-       CPPrecondition(localized_wfn_control%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(localized_wfn_control%ref_count>0)
        localized_wfn_control%ref_count=localized_wfn_control%ref_count-1
        IF (localized_wfn_control%ref_count==0) THEN
           IF (ASSOCIATED(localized_wfn_control%loc_states)) THEN
                DEALLOCATE(localized_wfn_control%loc_states,STAT=istat)
-               CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+               CPASSERT(istat==0)
           ENDIF
           IF (ASSOCIATED(localized_wfn_control%centers_set(1)%array)) THEN
                DEALLOCATE(localized_wfn_control%centers_set(1)%array,STAT=istat)
-               CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+               CPASSERT(istat==0)
           ENDIF
           IF (ASSOCIATED(localized_wfn_control%centers_set(2)%array)) THEN
                DEALLOCATE(localized_wfn_control%centers_set(2)%array,STAT=istat)
-               CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+               CPASSERT(istat==0)
           ENDIF
           localized_wfn_control%ref_count=0
           DEALLOCATE(localized_wfn_control,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
     END IF
   END SUBROUTINE localized_wfn_control_release
@@ -411,7 +411,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(localized_wfn_control),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(localized_wfn_control))
 
     localized_wfn_control%ref_count=localized_wfn_control%ref_count+1
   END SUBROUTINE localized_wfn_control_retain
@@ -465,7 +465,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure =.FALSE.
-    CPPrecondition(ASSOCIATED(qs_loc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_loc_env))
 
     IF (PRESENT(cell)) cell =>  qs_loc_env%cell
     IF (PRESENT(moloc_coeff)) moloc_coeff => qs_loc_env%moloc_coeff
@@ -529,7 +529,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure =.FALSE.
-    CPPrecondition(ASSOCIATED(qs_loc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_loc_env))
     IF (PRESENT(cell)) THEN
        CALL cell_retain(cell)
        CALL cell_release(qs_loc_env%cell)
@@ -560,7 +560,7 @@ CONTAINS
             CALL cp_fm_release(qs_loc_env%moloc_coeff(i)%matrix)
          END DO
          DEALLOCATE(qs_loc_env%moloc_coeff,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          NULLIFY(qs_loc_env%moloc_coeff)
        END IF
        qs_loc_env%moloc_coeff => moloc_coeff

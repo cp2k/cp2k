@@ -67,10 +67,10 @@ CONTAINS
     !
     ! setting ilast and ifirst for QM molecule
     !
-    CPPostcondition(SIZE(qmmm_env%qm_atom_index) /= 0,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(qmmm_env%qm_atom_index) /= 0)
     qmmm_index_in_range=(MAXVAL(qmmm_env%qm_atom_index)<=SIZE(topology%atom_info%id_atmname)) &
                         .AND.(MINVAL(qmmm_env%qm_atom_index)>0)
-    CPPostcondition(qmmm_index_in_range,cp_failure_level,routineP,failure)
+    CPASSERT(qmmm_index_in_range)
     DO iatm = 1, SIZE(qmmm_env%qm_atom_index)
        topology%atom_info%id_atmname(qmmm_env%qm_atom_index(iatm)) = str2id(s2s("_QM_"//&
             TRIM(id2str(topology%atom_info%id_atmname(qmmm_env%qm_atom_index(iatm))))))
@@ -149,7 +149,7 @@ CONTAINS
     END DO
     !
     ALLOCATE(qm_molecule_index(qm_mol_num), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     qm_mol_num    = 0
     DO imolecule=1,SIZE(molecule_set)
        IF (iw>0) WRITE(iw,*)"Entering molecule number ::",imolecule
@@ -176,7 +176,7 @@ CONTAINS
                      " no LINK section was provided in the Input file!",&
                      " This very probably can be identified as an error in the specified QM",&
                      " indexes or in a missing LINK section. Check your structure!"
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END IF
           END IF
           qm_molecule_index(qm_mol_num) = imolecule

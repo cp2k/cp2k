@@ -49,7 +49,7 @@ CONTAINS
           CALL cp_fm_release(matrixes(i)%matrix)
        END DO
        DEALLOCATE(matrixes,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE cp_fm_vect_dealloc
 
@@ -77,7 +77,7 @@ SUBROUTINE cp_fm_vect_copy(matrixes, copy)
   failure=.FALSE.
 
   ALLOCATE(copy(SIZE(matrixes)),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DO i=1,SIZE(matrixes)
      copy(i)%matrix => matrixes(i)%matrix
      CALL cp_fm_retain(matrixes(i)%matrix)

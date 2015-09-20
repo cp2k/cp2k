@@ -197,7 +197,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
      failure =.FALSE.
-     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(xas_env))
 
 
      IF(PRESENT(iter_count)) iter_count=xas_env%iter_count
@@ -278,7 +278,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(xas_env))
 
 
     IF (PRESENT(iter_count)) xas_env%iter_count = iter_count
@@ -327,7 +327,7 @@ CONTAINS
 
     failure=.FALSE.
     ALLOCATE(xas_env,STAT=istat)
-    CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+    CPASSERT(istat==0)
 
 
     xas_env%ref_count=1
@@ -370,29 +370,29 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(xas_env)) THEN
-       CPPreconditionNoFail(xas_env%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(xas_env%ref_count>0)
        xas_env%ref_count = xas_env%ref_count -1
        IF (xas_env%ref_count==0) THEN
 
          DEALLOCATE(xas_env%state_of_atom,xas_env%atom_of_state,STAT=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+         CPASSERT(istat==0)
          DEALLOCATE(xas_env%type_of_state,STAT=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+         CPASSERT(istat==0)
          DEALLOCATE(xas_env%mykind_of_atom,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          DEALLOCATE(xas_env%mykind_of_kind,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          DEALLOCATE(xas_env%exc_atoms,STAT=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+         CPASSERT(istat==0)
          DEALLOCATE(xas_env%centers_wfn,STAT=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+         CPASSERT(istat==0)
          IF(ASSOCIATED(xas_env%all_evals)) THEN
            DEALLOCATE(xas_env%all_evals,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+           CPASSERT(istat==0)
          END IF
          IF(ASSOCIATED(xas_env%unoccupied_evals)) THEN
            DEALLOCATE(xas_env%unoccupied_evals,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+           CPASSERT(istat==0)
          END IF
          IF(ASSOCIATED(xas_env%groundstate_coeff)) THEN
            DO i = 1,SIZE(xas_env%groundstate_coeff)
@@ -400,7 +400,7 @@ CONTAINS
                   xas_env%groundstate_coeff(i)%matrix)
            END DO
            DEALLOCATE(xas_env%groundstate_coeff,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+           CPASSERT(istat==0)
          END IF
          IF(ASSOCIATED(xas_env%dip_fm_set)) THEN
            DO i = 1,SIZE(xas_env%dip_fm_set,2)
@@ -409,7 +409,7 @@ CONTAINS
              END DO
            END DO
            DEALLOCATE(xas_env%dip_fm_set,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+           CPASSERT(istat==0)
          END IF
 
          IF(ASSOCIATED(xas_env%excvec_coeff)) THEN
@@ -443,7 +443,7 @@ CONTAINS
              CALL deallocate_gto_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
            END DO
            DEALLOCATE(xas_env%my_gto_basis,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+           CPASSERT(istat==0)
          END IF
 
          IF(ASSOCIATED(xas_env%stogto_overlap)) THEN
@@ -451,7 +451,7 @@ CONTAINS
              DEALLOCATE(xas_env%stogto_overlap(ik)%array)
            END DO
            DEALLOCATE(xas_env%stogto_overlap,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+           CPASSERT(istat==0)
          END IF
 
          CALL scf_env_release(xas_env%scf_env)
@@ -459,7 +459,7 @@ CONTAINS
 
 
          DEALLOCATE(xas_env,STAT=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+         CPASSERT(istat==0)
          NULLIFY(xas_env)
        END IF
     END IF
@@ -481,8 +481,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
-    CPPrecondition(xas_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(xas_env))
+    CPASSERT(xas_env%ref_count>0)
     xas_env%ref_count=xas_env%ref_count+1
   END SUBROUTINE xas_env_retain
 

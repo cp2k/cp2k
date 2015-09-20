@@ -125,9 +125,9 @@ CONTAINS
 
     failure = .FALSE.
     IF (PRESENT(pab)) THEN
-      CPPostcondition(PRESENT(force_a),cp_failure_level,routineP,failure)
-      CPPostcondition(PRESENT(force_b),cp_failure_level,routineP,failure)
-      CPPostcondition(PRESENT(fs),cp_failure_level,routineP,failure)
+      CPASSERT(PRESENT(force_a))
+      CPASSERT(PRESENT(force_b))
+      CPASSERT(PRESENT(fs))
       mmax = la_max_set + lb_max_set + 2
       force_a(:) = 0.0_dp
       force_b(:) = 0.0_dp
@@ -136,7 +136,7 @@ CONTAINS
     END IF
 
     ALLOCATE (auxint(0:mmax,npgfa*npgfb),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     auxint = 0._dp
 
     ! *** Calculate auxiliary integrals ***
@@ -170,7 +170,7 @@ CONTAINS
          rab,dab,rac,dac,rbc,dbc,vab,s,pab,force_a,force_b,fs)
 
     DEALLOCATE (auxint,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE ppl_integral
 ! *****************************************************************************

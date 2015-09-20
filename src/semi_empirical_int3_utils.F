@@ -144,7 +144,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
   END FUNCTION charg_int_3
 
 ! *****************************************************************************
@@ -180,7 +180,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
   END FUNCTION coeff_int_3
 
 ! *****************************************************************************
@@ -219,7 +219,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
   END FUNCTION dcharg_int_3
 
 END MODULE semi_empirical_int3_utils

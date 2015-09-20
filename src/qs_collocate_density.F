@@ -239,13 +239,13 @@ CONTAINS
 
       ni = ncoset(lmaxscp)
       ALLOCATE(pab(ni,1),STAT=ierr)
-      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
 
       nthread = 1
       ithread=0
 
       ALLOCATE(cores(natom),STAT=ierr)
-      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
       cores = 0
       npme = 0
 
@@ -292,7 +292,7 @@ CONTAINS
       END DO
 
       DEALLOCATE ( pab, cores, STAT=ierr )
-      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
 
     END DO
 
@@ -380,7 +380,7 @@ CONTAINS
 
          ni = ncoset(2*nc-2)
          ALLOCATE(pab(ni,1),STAT=ierr)
-         CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+         CPASSERT(ierr==0)
          pab = 0._dp
 
          nthread = 1
@@ -437,7 +437,7 @@ CONTAINS
                n = coset(2,2,2)
                pab(n,1) = 6._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
              CASE DEFAULT
-               CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+               CPASSERT(.FALSE.)
            END SELECT
          END DO
          IF (dft_control%nspins==2) pab=pab*0.5_dp
@@ -472,7 +472,7 @@ CONTAINS
          END DO
 
          DEALLOCATE ( pab, STAT=ierr )
-         CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+         CPASSERT(ierr==0)
 
       END DO
 
@@ -480,7 +480,7 @@ CONTAINS
 
     IF (ASSOCIATED(cores)) THEN
       DEALLOCATE (cores,STAT=ierr)
-      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
     END IF
 
     CALL rs_pw_transfer(rs_rho,rho_nlcc%pw,rs2pw)
@@ -561,7 +561,7 @@ CONTAINS
 
       ni = ncoset(2*lppl-2)
       ALLOCATE(pab(ni,1),STAT=ierr)
-      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
       pab = 0._dp
 
       nthread = 1
@@ -618,7 +618,7 @@ CONTAINS
             n = coset(2,2,2)
             pab(n,1) = 6._dp*cexp_ppl(4)
           CASE DEFAULT
-            CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+            CPASSERT(.FALSE.)
         END SELECT
       END DO
 
@@ -654,13 +654,13 @@ CONTAINS
       ENDIF
 
       DEALLOCATE ( pab, STAT=ierr )
-      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
 
     END DO
 
     IF (ASSOCIATED(cores)) THEN
       DEALLOCATE (cores,STAT=ierr)
-      CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
     END IF
 
     CALL rs_pw_transfer(rs_rho,vppl%pw,rs2pw)
@@ -693,7 +693,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, map_consistent
+    LOGICAL                                  :: map_consistent
     REAL(KIND=dp)                            :: eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r
@@ -743,7 +743,7 @@ CONTAINS
     gridlevel_info=>pw_env%gridlevel_info
 
     ! *** set up the pw multi-grids *** !
-    CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env=pw_env, rs_grids=rs_rho, pw_pools=pw_pools)
 
     CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
@@ -885,8 +885,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, map_consistent, &
-                                                map_it_here
+    LOGICAL                                  :: map_consistent, map_it_here
     REAL(KIND=dp)                            :: eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: aci
@@ -934,7 +933,7 @@ CONTAINS
     gridlevel_info=>pw_env%gridlevel_info
 
     ! *** set up the pw multi-grids *** !
-    CPPrecondition(ASSOCIATED(pw_env), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env=pw_env, rs_grids=rs_rho, pw_pools=pw_pools)
 
     CALL pw_pools_create_pws(pw_pools, mgrid_rspace, &
@@ -1695,7 +1694,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(PRESENT(matrix_p).OR.PRESENT(matrix_p_kp),cp_failure_level,routineP,failure)
+    CPASSERT(PRESENT(matrix_p).OR.PRESENT(matrix_p_kp))
     do_kp = PRESENT(matrix_p_kp)
 
     NULLIFY(qs_kind, cell, dft_control, orb_basis_set, deltap, &
@@ -1764,7 +1763,7 @@ CONTAINS
     END SELECT
 
     nimages = dft_control%nimages
-    CPPrecondition(nimages==1.OR.do_kp,cp_failure_level,routineP,failure)
+    CPASSERT(nimages==1.OR.do_kp)
 
     IF (PRESENT(pw_env_external)) pw_env => pw_env_external
     IF (PRESENT(task_list_external)) task_list=>task_list_external
@@ -1805,7 +1804,7 @@ CONTAINS
 
     ! get the task lists
     IF (my_soft) task_list=>task_list_soft
-    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(task_list))
     tasks  =>task_list%tasks
     dist_ab=>task_list%dist_ab
     atom_pair_send=>task_list%atom_pair_send
@@ -1813,12 +1812,12 @@ CONTAINS
     ntasks=task_list%ntasks
 
     ! *** set up the pw multi-grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho, lgrid=lgrid)
     ! *** set up the rs multi-grids
-    CPPrecondition(ASSOCIATED(rs_rho),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rs_descs),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(lgrid),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rs_rho))
+    CPASSERT(ASSOCIATED(rs_descs))
+    CPASSERT(ASSOCIATED(lgrid))
     distributed_rs_grids=.FALSE.
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -1846,7 +1845,7 @@ CONTAINS
     IF (distributed_rs_grids) THEN
        DO img=1,nimages
           ALLOCATE(deltap(img)%matrix,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL cp_dbcsr_init(deltap(img)%matrix)
        END DO
        ! this matrix has no strict sparsity pattern in parallel
@@ -1961,7 +1960,7 @@ CONTAINS
 
           CALL cp_dbcsr_get_block_p(matrix=deltap(img)%matrix,&
                row=brow,col=bcol,BLOCK=p_block,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,failure)
+          CPASSERT(found)
 
           iatom_old = iatom
           jatom_old = jatom
@@ -2150,11 +2149,11 @@ CONTAINS
           NULLIFY(deltap(img)%matrix)
        END DO
        DEALLOCATE (deltap,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
 
     DEALLOCATE (pabt,workt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL density_rs2pw(pw_env,rs_rho,rho,rho_gspace)
 
@@ -2241,7 +2240,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(PRESENT(matrix_p).OR.PRESENT(matrix_p_kp),cp_failure_level,routineP,failure)
+    CPASSERT(PRESENT(matrix_p).OR.PRESENT(matrix_p_kp))
     do_kp = PRESENT(matrix_p_kp)
 
     NULLIFY(qs_kind, cell, dft_control, orb_basis_set, deltap, &
@@ -2298,7 +2297,7 @@ CONTAINS
 
     ! find maximum numbers
     nimages = dft_control%nimages
-    CPPrecondition((nimages==1 .OR. do_kp),cp_failure_level,routineP,failure)
+    CPASSERT(nimages==1 .OR. do_kp)
 
     natoms = SIZE( particle_set )
     maxset=0
@@ -2320,7 +2319,7 @@ CONTAINS
 
     ! get the task lists
     IF (my_soft) task_list=>task_list_soft
-    CPPrecondition(ASSOCIATED(task_list),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(task_list))
     tasks  =>task_list%tasks
     dist_ab=>task_list%dist_ab
     atom_pair_send=>task_list%atom_pair_send
@@ -2328,7 +2327,7 @@ CONTAINS
     ntasks=task_list%ntasks
 
     ! *** set up the rs multi-grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
     DO igrid_level=1,gridlevel_info%ngrid_levels
       CALL rs_grid_retain(rs_rho(igrid_level)%rs_grid)
@@ -2342,7 +2341,7 @@ CONTAINS
     ! distributed rs grids require a matrix that will be changed
     ! whereas this is not the case for replicated grids
     ALLOCATE(deltap(nimages),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (distributed_rs_grids) THEN
        DO img=1,nimages
           CALL cp_dbcsr_init(deltap(img)%matrix)
@@ -2438,7 +2437,7 @@ CONTAINS
 
           CALL cp_dbcsr_get_block_p(matrix=deltap(img)%matrix,&
                row=brow,col=bcol,BLOCK=p_block,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,failure)
+          CPASSERT(found)
 
           iatom_old = iatom
           jatom_old = jatom
@@ -2556,11 +2555,11 @@ CONTAINS
           NULLIFY(deltap(img)%matrix)
        END DO
        DEALLOCATE (deltap,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
 
     DEALLOCATE (pabt,workt,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -2668,7 +2667,7 @@ CONTAINS
     ENDIF
 
     ! *** set up the pw multi-grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env, rs_grids=rs_rho, pw_pools=pw_pools, &
         cube_info=cube_info, gridlevel_info=gridlevel_info)
 
@@ -2929,7 +2928,7 @@ CONTAINS
     IF(PRESENT(use_subpatch)) THEN
        IF(use_subpatch)THEN
          subpatch_collocate = .TRUE.
-         CPPrecondition(PRESENT(subpatch_pattern),cp_failure_level,routineP,failure)
+         CPASSERT(PRESENT(subpatch_pattern))
        ENDIF
     ENDIF
 
@@ -3015,7 +3014,7 @@ CONTAINS
         o2_local=0
         pab_local=pab_local * 0.5_dp
     CASE(FUNC_ADBmDAB)
-        CPPrecondition(PRESENT(idir),cp_failure_level,routineP,failure)
+        CPASSERT(PRESENT(idir))
         la_max_local=la_max+1
         la_min_local=MAX(la_min-1,0)
         lb_max_local=lb_max+1
@@ -3047,7 +3046,7 @@ CONTAINS
         o1_local=0
         o2_local=0
     CASE(FUNC_DABpADB)
-        CPPrecondition(PRESENT(idir),cp_failure_level,routineP,failure)
+        CPASSERT(PRESENT(idir))
         la_max_local=la_max+1
         la_min_local=MAX(la_min-1,0)
         lb_max_local=lb_max+1
@@ -3170,8 +3169,8 @@ CONTAINS
         o1_local=0
         o2_local=0
     CASE(FUNC_ARDBmDARB)
-        CPPrecondition(PRESENT(idir),cp_failure_level,routineP,failure)
-        CPPrecondition(PRESENT(ir),cp_failure_level,routineP,failure)
+        CPASSERT(PRESENT(idir))
+        CPASSERT(PRESENT(ir))
         la_max_local=la_max+1
         la_min_local=MAX(la_min-1,0)
         lb_max_local=lb_max+2
@@ -3204,7 +3203,7 @@ CONTAINS
         o1_local=0
         o2_local=0
     CASE(FUNC_ARB)
-        CPPrecondition(PRESENT(ir),cp_failure_level,routineP,failure)
+        CPASSERT(PRESENT(ir))
         la_max_local=la_max
         la_min_local=la_min
         lb_max_local=lb_max+1
@@ -3239,7 +3238,7 @@ CONTAINS
         o1_local=o1
         o2_local=o2
     CASE DEFAULT
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
     END SELECT
 
     ng(:) = rsgrid%desc%npts(:)
@@ -3443,7 +3442,7 @@ CONTAINS
         offset=MODULO(cubecenter(i)+lb_cube(i)+rsgrid%desc%lb(i)-rsgrid%lb_local(i),ng(i))+1-lb_cube(i)
         ! check for out of bounds
         IF (ub_cube(i)+offset>UBOUND(grid,i).OR.lb_cube(i)+offset<LBOUND(grid,i)) THEN
-           CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         ENDIF
         DO ig=lb_cube(i),ub_cube(i)
            map(ig,i) = ig+offset
@@ -3878,7 +3877,7 @@ CONTAINS
 
 ! still hard-wired (see MODULO)
 
-      CPPostcondition(ALL(rsgrid % desc % perd==1),cp_failure_level,routineP,failure)
+      CPASSERT(ALL(rsgrid % desc % perd==1))
 
       CALL return_cube_nonortho(cube_info,radius,index_min,index_max,rp)
 

@@ -104,18 +104,18 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed, my_seed
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(csvr),cp_fatal_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(csvr%nvt),cp_fatal_level,routineP,failure)
+    CPASSERT(ASSOCIATED(csvr))
+    CPASSERT(.NOT.ASSOCIATED(csvr%nvt))
 
     ALLOCATE ( csvr%nvt(csvr%loc_num_csvr),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, csvr%loc_num_csvr
        csvr%nvt(i)%thermostat_energy = 0.0_dp
        NULLIFY(csvr%nvt(i)%gaussian_rng_stream)
     END DO
     ! Initialize the gaussian stream random number
     ALLOCATE (seed(3,2,csvr%glob_num_csvr),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     initial_seed = next_rng_seed()
 
     seed(:,:,1) = initial_seed
@@ -134,7 +134,7 @@ CONTAINS
             seed=my_seed)
     END DO
     DEALLOCATE (seed,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE csvr_thermo_create
 
@@ -157,7 +157,7 @@ CONTAINS
        CALL csvr_thermo_dealloc(csvr%nvt)
        CALL release_map_info_type(csvr%map_info)
        DEALLOCATE (csvr, STAT=stat)
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
 
   END SUBROUTINE csvr_dealloc
@@ -185,7 +185,7 @@ CONTAINS
           ENDIF
        END DO
        DEALLOCATE (nvt, STAT=stat)
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
   END SUBROUTINE csvr_thermo_dealloc
 

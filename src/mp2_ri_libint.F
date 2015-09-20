@@ -202,9 +202,9 @@ MODULE mp2_ri_libint
 
     nkind = SIZE(qs_kind_set,1)
     ALLOCATE(RI_basis_parameter(nkind), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(basis_S0(nkind), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     max_set = 0
     DO ikind = 1,nkind
       NULLIFY(atom_kind)
@@ -314,7 +314,7 @@ MODULE mp2_ri_libint
         END DO
       END DO
       ALLOCATE(RI_basis_parameter(ikind)%sphi_ext(max_coeff,0:max_am_kind, max_pgf_kind, nseta), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       RI_basis_parameter(ikind)%sphi_ext = 0.0_dp
     END DO 
 
@@ -388,44 +388,44 @@ MODULE mp2_ri_libint
     ! RI basis 
     DO i=1,SIZE(RI_basis_parameter)
        DEALLOCATE(RI_basis_parameter(i)%nsgfl,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(RI_basis_parameter(i)%sphi_ext,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END DO
     DEALLOCATE(RI_basis_parameter,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! S0 basis
     DO i=1, SIZE(basis_S0)
        DEALLOCATE(basis_S0(i)%set_radius,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(basis_S0(i)%lmax,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(basis_S0(i)%lmin,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(basis_S0(i)%npgf,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(basis_S0(i)%nsgf,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(basis_S0(i)%nshell,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(basis_S0(i)%pgf_radius,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(basis_S0(i)%sphi,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(basis_S0(i)%zet,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(basis_S0(i)%first_sgf,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(basis_S0(i)%nl,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(basis_S0(i)%nsgfl,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(basis_S0(i)%sphi_ext,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END DO
     DEALLOCATE(basis_S0,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE release_RI_basis_set 
 
@@ -502,8 +502,7 @@ MODULE mp2_ri_libint
     INTEGER, DIMENSION(:, :), POINTER, SAVE  :: shm_is_assoc_atomic_block
     INTEGER, DIMENSION(:, :, :, :), POINTER  :: shm_set_offset
     INTEGER, SAVE                            :: shm_number_of_p_entries
-    LOGICAL                                  :: do_periodic, failure, &
-                                                treat_lsd_in_core
+    LOGICAL                                  :: do_periodic, treat_lsd_in_core
     LOGICAL, DIMENSION(:, :), POINTER        :: shm_atomic_pair_list
     REAL(KIND=dp) :: cartesian_estimate, coeffs_kind_max0, &
       compression_factor, compression_factor_disk, eps_schwarz, eps_storage, &
@@ -684,7 +683,7 @@ MODULE mp2_ri_libint
     natom = SIZE(particle_set,1)
 
     ALLOCATE(kind_of(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
@@ -712,24 +711,24 @@ MODULE mp2_ri_libint
     ENDDO
     !! Allocate the arrays for the integrals.
     ALLOCATE(primitive_integrals(nsgf_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     primitive_integrals = 0.0_dp
 
     ALLOCATE(ee_work(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_work2(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_buffer1(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_buffer2(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     nspins = dft_control%nspins
 
     ALLOCATE(max_contraction(max_set,natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     max_contraction=0.0_dp
     max_pgf = 0
@@ -755,19 +754,19 @@ MODULE mp2_ri_libint
     ! ** Allocate buffers for pgf_lists
     nneighbors = SIZE(actual_x_data%neighbor_cells)
     ALLOCATE(pgf_list_ij(max_pgf**2), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(pgf_list_kl(max_pgf**2), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(pgf_product_list(nneighbors**3), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(nimages(max_pgf**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO i=1,max_pgf**2
       ALLOCATE(pgf_list_ij(i)%image_list(nneighbors), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(pgf_list_kl(i)%image_list(nneighbors), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END DO
 
     ! ** Set pointers
@@ -803,7 +802,7 @@ MODULE mp2_ri_libint
 
     !!! Helper array to map local basis function indeces to global ones
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     last_sgf_global(0)=0
     DO iatom=1,natom
       ikind = kind_of(iatom)
@@ -849,7 +848,7 @@ MODULE mp2_ri_libint
 
     ! start computing the L matrix
     ALLOCATE(L_full_matrix(RI_dimen,RI_dimen), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     L_full_matrix=0.0_dp
 
     counter_L_blocks=0
@@ -1046,7 +1045,7 @@ MODULE mp2_ri_libint
 
     info_chol=0
     CALL cp_fm_cholesky_decompose(matrix=fm_matrix_L, n=RI_dimen, info_out=info_chol)
-    CPPostcondition(info_chol==0,cp_failure_level,routineP,failure)
+    CPASSERT(info_chol==0)
 
     ! triangual invert
     CALL cp_fm_triangular_invert(matrix_a=fm_matrix_L,uplo_tr='U')
@@ -1062,11 +1061,11 @@ MODULE mp2_ri_libint
     END DO
 
     ALLOCATE(list_kl%elements(natom**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     coeffs_kind_max0=MAXVAL(screen_coeffs_kind(:,:)%x(2))
     ALLOCATE(set_list_kl((max_set*natom)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     !! precalculate maximum density matrix elements in blocks
     actual_x_data%pmax_block = 0.0_dp
@@ -1093,7 +1092,7 @@ MODULE mp2_ri_libint
      virtual=dimen-occupied
 
      ALLOCATE(Lai(RI_dimen,virtual,occupied),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      Lai=0.0_dp
 
      DO iatom=1, natom
@@ -1146,7 +1145,7 @@ MODULE mp2_ri_libint
          L_B_i_end=RI_index_table(iatom,iset)+nsgfa(iset)-1
 
          ALLOCATE(BI1(dimen,dimen,nsgfa(iset)),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          BI1=0.0_dp
 
          DO i_list_kl=1,list_kl%n_element
@@ -1227,7 +1226,7 @@ MODULE mp2_ri_libint
 
              IF(ALLOCATED(MNRS)) DEALLOCATE(MNRS)
              ALLOCATE(MNRS(nsgfd(lset),nsgfc(kset),nsgfa(iset)),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
 
              MNRS=0.0_dp
  
@@ -1339,30 +1338,30 @@ MODULE mp2_ri_libint
     ! END DO
 
     DEALLOCATE(set_list_kl, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO i=1,max_pgf**2
       DEALLOCATE(pgf_list_ij(i)%image_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DEALLOCATE(pgf_list_kl(i)%image_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END DO
 
     DEALLOCATE(pgf_list_ij, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(pgf_list_kl, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(pgf_product_list, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(max_contraction, kind_of, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(nimages, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF(mp2_env%potential_parameter%potential_type == do_mp2_potential_TShPSC) THEN
       init_TShPSC_lmax = -1

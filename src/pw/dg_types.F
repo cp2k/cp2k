@@ -78,7 +78,7 @@ CONTAINS
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
 
     ALLOCATE ( dg, stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+    CPASSERT(istat==0)
     NULLIFY ( dg_rho0 )
     CALL dg_rho0_create ( dg_rho0)
     dg % dg_rho0 => dg_rho0
@@ -107,8 +107,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(dg),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(dg%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(dg))
+    CPASSERT(dg%ref_count>0)
     dg%ref_count=dg%ref_count+1
   END SUBROUTINE dg_retain
 
@@ -133,12 +133,12 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(dg)) THEN
-       CPPreconditionNoFail(dg%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(dg%ref_count>0)
        dg%ref_count=dg%ref_count-1
        IF (dg%ref_count==0) THEN
           CALL dg_rho0_release ( dg % dg_rho0)
           DEALLOCATE (  dg, stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(dg)

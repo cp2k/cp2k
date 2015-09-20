@@ -142,8 +142,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(subsys))
+    CPASSERT(subsys%ref_count>0)
     subsys%ref_count=subsys%ref_count+1
   END SUBROUTINE cp_subsys_retain
 
@@ -161,7 +161,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (ASSOCIATED(subsys)) THEN
-       CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(subsys%ref_count>0)
        subsys%ref_count=subsys%ref_count-1
        IF (subsys%ref_count==0) THEN
           CALL atomic_kind_list_release(subsys%atomic_kinds)
@@ -243,8 +243,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,failure)
-    CPPrecondition(subsys%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(subsys))
+    CPASSERT(subsys%ref_count>0)
     IF (PRESENT(multipoles)) THEN
        CALL retain_multipole_type(multipoles)
        CALL release_multipole_type(subsys%multipoles)
@@ -287,7 +287,7 @@ CONTAINS
        subsys%para_env => para_env
     END IF
     IF (PRESENT(colvar_p)) THEN
-       CPPrecondition(.NOT.ASSOCIATED(subsys%colvar_p),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.ASSOCIATED(subsys%colvar_p))
        subsys%colvar_p=>colvar_p
     ENDIF
     IF (PRESENT(shell_particles)) THEN
@@ -305,7 +305,7 @@ CONTAINS
        END IF
     END IF
     IF (PRESENT(gci)) THEN
-       CPPrecondition(.NOT.ASSOCIATED(subsys%gci),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.ASSOCIATED(subsys%gci))
        subsys%gci => gci
     ENDIF
     IF (PRESENT(results)) THEN
@@ -415,8 +415,8 @@ CONTAINS
     n_core = 0
     n_shell = 0
 
-    CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,failure)
-    CPPrecondition(subsys%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(subsys))
+    CPASSERT(subsys%ref_count>0)
 
     IF (PRESENT(ref_count)) ref_count = subsys%ref_count
     IF (PRESENT(atomic_kinds)) atomic_kinds => subsys%atomic_kinds
@@ -443,18 +443,18 @@ CONTAINS
 
     IF (PRESENT(natom).OR.PRESENT(nparticle).OR.PRESENT(nshell)) THEN
        ! An atomic particle set should be present in each subsystem at the moment
-       CPPrecondition(ASSOCIATED(subsys%particles),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(subsys%particles))
        n_atom = subsys%particles%n_els
        ! Check if we have other kinds of particles in this subsystem
        IF (ASSOCIATED(subsys%shell_particles)) THEN
           n_shell = subsys%shell_particles%n_els
-          CPPrecondition(ASSOCIATED(subsys%core_particles),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(subsys%core_particles))
           n_core = subsys%core_particles%n_els
           ! The same number of shell and core particles is assumed
-          CPPrecondition((n_core == n_shell),cp_failure_level,routineP,failure)
+          CPASSERT(n_core == n_shell)
        ELSE IF (ASSOCIATED(subsys%core_particles)) THEN
           ! This case should not occur at the moment
-          CPPrecondition(ASSOCIATED(subsys%shell_particles),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(subsys%shell_particles))
        ELSE
           n_core = 0
           n_shell = 0
@@ -500,10 +500,10 @@ CONTAINS
                                                 shell_particles
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(subsys))
 
     IF (PRESENT(s)) THEN
-      CPPrecondition(PRESENT(cell),cp_failure_level,routineP,failure)
+      CPASSERT(PRESENT(cell))
     END IF
 
     NULLIFY (core_particles)
@@ -522,7 +522,7 @@ CONTAINS
     ! Pack forces
 
     IF (PRESENT(f)) THEN
-      CPPrecondition((SIZE(f) >= nsize),cp_failure_level,routineP,failure)
+      CPASSERT((SIZE(f) >= nsize))
       j = 0
       DO iatom=1,natom
         shell_index = particles%els(iatom)%shell_index
@@ -548,7 +548,7 @@ CONTAINS
     ! Pack coordinates
 
     IF (PRESENT(r)) THEN
-      CPPrecondition((SIZE(r) >= nsize),cp_failure_level,routineP,failure)
+      CPASSERT((SIZE(r) >= nsize))
       j = 0
       DO iatom=1,natom
         shell_index = particles%els(iatom)%shell_index
@@ -573,8 +573,8 @@ CONTAINS
     ! Pack as scaled coordinates
 
     IF (PRESENT(s)) THEN
-      CPPrecondition((SIZE(s) >= nsize),cp_failure_level,routineP,failure)
-      CPPrecondition(PRESENT(cell),cp_failure_level,routineP,failure)
+      CPASSERT((SIZE(s) >= nsize))
+      CPASSERT(PRESENT(cell))
       j = 0
       DO iatom=1,natom
         shell_index = particles%els(iatom)%shell_index
@@ -602,7 +602,7 @@ CONTAINS
     ! Pack velocities
 
     IF (PRESENT(v)) THEN
-      CPPrecondition((SIZE(v) >= nsize),cp_failure_level,routineP,failure)
+      CPASSERT((SIZE(v) >= nsize))
       j = 0
       DO iatom=1,natom
         shell_index = particles%els(iatom)%shell_index
@@ -659,7 +659,7 @@ CONTAINS
                                                 shell_particles
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(subsys))
 
     NULLIFY (core_particles)
     NULLIFY (particles)
@@ -677,7 +677,7 @@ CONTAINS
     ! Unpack forces
 
     IF (PRESENT(f)) THEN
-      CPPrecondition((SIZE(f) >= nsize),cp_failure_level,routineP,failure)
+      CPASSERT((SIZE(f) >= nsize))
       IF (PRESENT(fscale)) THEN
         my_fscale = fscale
       ELSE
@@ -707,7 +707,7 @@ CONTAINS
     ! Unpack coordinates
 
     IF (PRESENT(r)) THEN
-      CPPrecondition((SIZE(r) >= nsize),cp_failure_level,routineP,failure)
+      CPASSERT((SIZE(r) >= nsize))
       j = 0
       DO iatom=1,natom
         shell_index = particles%els(iatom)%shell_index
@@ -738,8 +738,8 @@ CONTAINS
     ! Unpack scaled coordinates
 
     IF (PRESENT(s)) THEN
-      CPPrecondition((SIZE(s) >= nsize),cp_failure_level,routineP,failure)
-      CPPrecondition(PRESENT(cell),cp_failure_level,routineP,failure)
+      CPASSERT((SIZE(s) >= nsize))
+      CPASSERT(PRESENT(cell))
       j = 0
       DO iatom=1,natom
         shell_index = particles%els(iatom)%shell_index
@@ -773,7 +773,7 @@ CONTAINS
     ! Unpack velocities
 
     IF (PRESENT(v)) THEN
-      CPPrecondition((SIZE(v) >= nsize),cp_failure_level,routineP,failure)
+      CPASSERT((SIZE(v) >= nsize))
       j = 0
       DO iatom=1,natom
         shell_index = particles%els(iatom)%shell_index

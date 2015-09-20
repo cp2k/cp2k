@@ -244,44 +244,44 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%elec_conf)) THEN
              DEALLOCATE (qs_kind_set(ikind)%elec_conf,STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+             CPASSERT(stat==0)
           END IF
 
           IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u)) THEN
              IF (ASSOCIATED(qs_kind_set(ikind)%dft_plus_u%orbitals)) THEN
                 DEALLOCATE (qs_kind_set(ikind)%dft_plus_u%orbitals,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              DEALLOCATE (qs_kind_set(ikind)%dft_plus_u,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
 
           IF (ASSOCIATED(qs_kind_set(ikind)%dispersion)) THEN
              DEALLOCATE (qs_kind_set(ikind)%dispersion,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%addel)) THEN
              DEALLOCATE (qs_kind_set(ikind)%addel,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%naddel)) THEN
              DEALLOCATE (qs_kind_set(ikind)%naddel,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%laddel)) THEN
              DEALLOCATE (qs_kind_set(ikind)%laddel,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qs_kind_set(ikind)%reltmat)) THEN
              DEALLOCATE (qs_kind_set(ikind)%reltmat,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
 
           CALL remove_basis_set_container(qs_kind_set(ikind)%basis_sets)
 
        END DO
        DEALLOCATE (qs_kind_set,STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer qs_kind_set is not associated and "//&
@@ -1007,12 +1007,11 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: basis_type
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: tmp_basis_set
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(qs_kind),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_kind))
 
     IF (ASSOCIATED(qs_kind%gth_potential)) THEN
        CALL init_potential(qs_kind%gth_potential)
@@ -1289,7 +1288,7 @@ CONTAINS
                              explicit=explicit,&
                              n_rep_val=nb_rep)
        IF(.NOT.explicit) nb_rep = 0
-       CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,failure)
+       CPASSERT(nb_rep<=maxbas)
        DO i=1,nb_rep
           CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
                keyword_name="BASIS_SET",i_rep_val=i,c_vals=tmpstringlist)
@@ -1301,7 +1300,7 @@ CONTAINS
              basis_set_type(i) = tmpstringlist(1)
              basis_set_name(i) = tmpstringlist(2)
           ELSE
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END IF
        END DO
 
@@ -1316,7 +1315,7 @@ CONTAINS
             keyword_name="AUX_FIT_BASIS_SET", c_val=aux_fit_basis_set_name)
        IF(aux_fit_basis_set_name /= "") THEN
           nb_rep = nb_rep + 1
-          CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,failure)
+          CPASSERT(nb_rep<=maxbas)
           basis_set_type(nb_rep) = "AUX_FIT"
           basis_set_name(nb_rep) = aux_fit_basis_set_name
        END IF
@@ -1324,7 +1323,7 @@ CONTAINS
             keyword_name="AUX_BASIS_SET", c_val=aux_basis_set_name)
        IF(aux_basis_set_name /= "") THEN
           nb_rep = nb_rep + 1
-          CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,failure)
+          CPASSERT(nb_rep<=maxbas)
           basis_set_type(nb_rep) = "AUX"
           basis_set_name(nb_rep) = aux_basis_set_name
        END IF
@@ -1332,7 +1331,7 @@ CONTAINS
             keyword_name="LRI_BASIS_SET", c_val=lri_basis_set_name)
        IF(lri_basis_set_name /= "") THEN
           nb_rep = nb_rep + 1
-          CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,failure)
+          CPASSERT(nb_rep<=maxbas)
           basis_set_type(nb_rep) = "LRI"
           basis_set_name(nb_rep) = lri_basis_set_name
        END IF
@@ -1340,7 +1339,7 @@ CONTAINS
             keyword_name="RI_AUX_BASIS_SET", c_val=ri_aux_basis_set_name)
        IF(ri_aux_basis_set_name /= "") THEN
           nb_rep = nb_rep + 1
-          CPPostcondition(nb_rep<=maxbas,cp_failure_level,routineP,failure)
+          CPASSERT(nb_rep<=maxbas)
           basis_set_type(nb_rep) = "RI_AUX"
           basis_set_name(nb_rep) = ri_aux_basis_set_name
        END IF
@@ -1430,15 +1429,15 @@ CONTAINS
               NULLIFY(add_el)
               CALL section_vals_val_get(spin_section,&
                    keyword_name="NEL",i_vals=add_el)
-              CPPrecondition(ASSOCIATED(add_el),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(add_el))
               ALLOCATE(qs_kind%addel(SIZE(add_el),2),STAT=stat)
               qs_kind%addel =0
               qs_kind%addel(1:SIZE(add_el),1) = add_el(1:SIZE(add_el))
               NULLIFY(add_el)
               CALL section_vals_val_get(spin_section,&
                    keyword_name="L",i_vals=add_el)
-              CPPrecondition(ASSOCIATED(add_el),cp_failure_level,routineP,failure)
-              CPPrecondition(SIZE(add_el)==SIZE( qs_kind%addel,1),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(add_el))
+              CPASSERT(SIZE(add_el)==SIZE( qs_kind%addel,1))
               ALLOCATE(qs_kind%laddel(SIZE(add_el),2),STAT=stat)
               qs_kind%laddel =0
               qs_kind%laddel(1:SIZE(add_el),1) = add_el(1:SIZE(add_el))
@@ -1464,13 +1463,13 @@ CONTAINS
             NULLIFY(add_el)
             CALL section_vals_val_get(spin_section,&
                  keyword_name="NEL",i_vals=add_el)
-            CPPrecondition(SIZE(add_el)==SIZE( qs_kind%addel,1),cp_failure_level,routineP,failure)
+            CPASSERT(SIZE(add_el)==SIZE( qs_kind%addel,1))
             qs_kind%addel(1:SIZE(add_el),2) = add_el(1:SIZE(add_el))
             qs_kind%addel(:,:) = qs_kind%addel(:,:)
             NULLIFY(add_el)
             CALL section_vals_val_get(spin_section,&
                  keyword_name="L",i_vals=add_el)
-            CPPrecondition(SIZE(add_el)==SIZE( qs_kind%addel,1),cp_failure_level,routineP,failure)
+            CPASSERT(SIZE(add_el)==SIZE( qs_kind%addel,1))
             qs_kind%laddel(1:SIZE(add_el),2) = add_el(1:SIZE(add_el))
 
             CALL section_vals_val_get(spin_section,&
@@ -1498,7 +1497,7 @@ CONTAINS
                                  l_val=section_enabled)
        IF (section_enabled) THEN
           ALLOCATE (qs_kind%dft_plus_u,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           NULLIFY (qs_kind%dft_plus_u%orbitals)
           CALL section_vals_val_get(dft_plus_u_section,&
                                     keyword_name="L",&
@@ -1543,7 +1542,7 @@ CONTAINS
                             "DFT+U| Invalid number of ORBITALS specified: 1 to 2*L+1 integer numbers are expected",&
                             failure)
              ALLOCATE (qs_kind%dft_plus_u%orbitals(norbitals),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              qs_kind%dft_plus_u%orbitals(:) = orbitals(:)
              NULLIFY (orbitals)
              DO m=1,norbitals
@@ -1634,7 +1633,7 @@ CONTAINS
              do_method_pm3, do_method_pm6, do_method_mndod, do_method_pnnl )
           ! Setup proper semiempirical parameters
           check = .NOT.ASSOCIATED(qs_kind%se_parameter)
-          CPPostcondition(check, cp_failure_level, routineP,failure)
+          CPASSERT(check)
           CALL semi_empirical_create(qs_kind%se_parameter)
           ! Check if we allow p-orbitals on H
           SELECT CASE(z)
@@ -1659,7 +1658,7 @@ CONTAINS
           ! Do nothing at this stage.. The initialization of the parameters will be done
           ! later
        CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
 
        check = ((potential_name /= '').OR.explicit_potential)
@@ -1895,28 +1894,28 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_qs_kind', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: defined, failure
+    LOGICAL                                  :: defined
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
     TYPE(scptb_parameter_type), POINTER      :: scptb_parameter
     TYPE(semi_empirical_type), POINTER       :: se_parameter
 
     IF (dft_control%qs_control%semi_empirical) THEN
        CALL get_qs_kind(qs_kind,se_parameter=se_parameter)
-       CPPostcondition(ASSOCIATED(se_parameter),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(se_parameter))
        CALL get_se_param(se_parameter,defined=defined)
-       CPPostcondition(defined,cp_failure_level,routineP,failure)
+       CPASSERT(defined)
        CALL write_se_param(se_parameter,subsys_section)
     ELSE IF (dft_control%qs_control%dftb) THEN
        CALL get_qs_kind(qs_kind,dftb_parameter=dftb_parameter)
-       CPPostcondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(dftb_parameter))
        CALL get_dftb_atom_param(dftb_parameter,defined=defined)
-       CPPostcondition(defined,cp_failure_level,routineP,failure)
+       CPASSERT(defined)
        CALL write_dftb_atom_param(dftb_parameter,subsys_section)
     ELSE IF (dft_control%qs_control%scptb) THEN
        CALL get_qs_kind(qs_kind,scptb_parameter=scptb_parameter)
-       CPPostcondition(ASSOCIATED(scptb_parameter),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(scptb_parameter))
        CALL get_scptb_parameter(scptb_parameter,defined=defined)
-       CPPostcondition(defined,cp_failure_level,routineP,failure)
+       CPASSERT(defined)
        CALL write_scptb_parameter(scptb_parameter,subsys_section)
     END IF
 
@@ -2152,7 +2151,7 @@ CONTAINS
              END IF
           END IF
        ELSE
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
 
     END IF
@@ -2196,7 +2195,7 @@ CONTAINS
              CALL write_qs_kind(qs_kind,ikind,output_unit)
           END DO
        ELSE
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
     END IF
 
@@ -2280,7 +2279,7 @@ CONTAINS
 
           END DO
        ELSE
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
     END IF
 

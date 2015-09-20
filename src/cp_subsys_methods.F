@@ -109,7 +109,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stress_tensor
-    LOGICAL :: atomic_energy, atomic_stress, failure, my_use_motion_section, &
+    LOGICAL :: atomic_energy, atomic_stress, my_use_motion_section, &
       pv_availability, pv_diagonal, pv_numerical
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -127,7 +127,7 @@ CONTAINS
                                                 my_force_env_section, &
                                                 my_subsys_section
 
-    CPPostcondition(.NOT.ASSOCIATED(subsys),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(subsys))
     ALLOCATE(subsys)
 
     CALL cp_para_env_retain(para_env)
@@ -207,8 +207,8 @@ CONTAINS
     subsys%atprop%energy = atomic_energy
     CALL section_vals_val_get(my_force_env_section,"PROPERTIES%ATOMIC%PRESSURE",l_val=atomic_stress)
     IF (atomic_stress) THEN
-       CPPrecondition(pv_availability,cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT.pv_numerical,cp_failure_level,routineP,failure)
+       CPASSERT(pv_availability)
+       CPASSERT(.NOT.pv_numerical)
     END IF
     subsys%atprop%stress = atomic_stress
 
@@ -235,7 +235,7 @@ CONTAINS
     failure=.FALSE.
     CALL section_vals_get(colvar_section,n_repetition=ncol)
     ALLOCATE(subsys%colvar_p(ncol),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ig= 1, ncol
        NULLIFY(subsys%colvar_p(ig)%colvar)
        CALL colvar_read(subsys%colvar_p(ig)%colvar,ig,colvar_section, subsys%para_env)
@@ -301,8 +301,8 @@ CONTAINS
     NULLIFY(mol_kinds,mols,particles,atomic_kinds, atomic_kind_set, particle_set, &
          molecule_kind_set,molecule_set,particles,atomic_kinds)
 
-    CPPrecondition(.NOT.ASSOCIATED(small_subsys),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(big_subsys),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(small_subsys))
+    CPASSERT(ASSOCIATED(big_subsys))
     CALL cp_assert(big_subsys%para_env%group==small_para_env%group, &
          cp_failure_level, cp_assertion_failed, routineP, &
          "big_subsys%para_env%group==small_para_env%group",failure)
@@ -326,17 +326,17 @@ CONTAINS
     !-----------------------------------------------------------------------------
     nat=SIZE(sub_atom_index)
     topology%natoms=nat
-    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%r),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_atmname),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_molname),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%id_resname),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_mass),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(topology%atom_info%atm_charge),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(topology%atom_info%r))
+    CPASSERT(.NOT.ASSOCIATED(topology%atom_info%id_atmname))
+    CPASSERT(.NOT.ASSOCIATED(topology%atom_info%id_molname))
+    CPASSERT(.NOT.ASSOCIATED(topology%atom_info%id_resname))
+    CPASSERT(.NOT.ASSOCIATED(topology%atom_info%atm_mass))
+    CPASSERT(.NOT.ASSOCIATED(topology%atom_info%atm_charge))
     ALLOCATE(topology%atom_info%r(3,nat),topology%atom_info%id_atmname(nat),&
          topology%atom_info%id_molname(nat),topology%atom_info%id_resname(nat),&
          topology%atom_info%id_element(nat), topology%atom_info%atm_mass(nat),&
          topology%atom_info%atm_charge(nat),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL cp_subsys_get(big_subsys, particles=particles)
     DO iat=1,nat

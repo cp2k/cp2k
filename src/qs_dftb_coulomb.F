@@ -188,7 +188,7 @@ CONTAINS
 
     natom = SIZE(mcharge)
     ALLOCATE(gmcharge(natom,nmat),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     gmcharge = 0._dp
 
     CALL get_qs_env(qs_env,&
@@ -204,7 +204,7 @@ CONTAINS
     END IF
 
     ALLOCATE(mcin(natom,1),mcout(natom,1),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     mcin(:,1) = mcharge(:)
 
     DO i=1,nmat
@@ -214,7 +214,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(mcin,mcout,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     IF ( calculate_forces .AND. use_virial ) THEN
        CALL cp_dbcsr_iterator_start(iter, gamma_matrix(1)%matrix)
@@ -260,8 +260,8 @@ CONTAINS
       CASE DEFAULT
         CALL cp_unimplemented_error(routineP,"Invalid Ewald type")
       CASE(do_ewald_none)
-        CPErrorMessage(cp_failure_level,routineP,"Not allowed with DFTB")
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+        CPABORT("Not allowed with DFTB")
+        CPASSERT(.FALSE.)
       CASE(do_ewald_ewald)
         CALL cp_unimplemented_error(routineP,&
              "Standard Ewald not implemented in DFTB")
@@ -292,7 +292,7 @@ CONTAINS
           END DO
         END DO
       END DO
-      CPPostcondition(.NOT.use_virial,cp_failure_level,routineP,failure)
+      CPASSERT(.NOT.use_virial)
     END IF
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -326,7 +326,7 @@ CONTAINS
 
     IF ( calculate_forces ) THEN
       ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                kind_of=kind_of,&
@@ -377,7 +377,7 @@ CONTAINS
             ic = 1
          ELSE
             ic = cell_to_index(cellind(1),cellind(2),cellind(3))
-            CPPostcondition(ic > 0,cp_failure_level,routineP,failure)
+            CPASSERT(ic > 0)
          END IF
 
          gmij = 0.5_dp*(gmcharge(iatom,1)+gmcharge(jatom,1))
@@ -385,12 +385,12 @@ CONTAINS
          NULLIFY(sblock)
          CALL cp_dbcsr_get_block_p(matrix=matrix_s(1,ic)%matrix,&
               row=irow,col=icol,block=sblock,found=found)
-         CPPostcondition(found,cp_failure_level,routineP,failure)
+         CPASSERT(found)
          DO is=1,SIZE(ks_matrix,1)
             NULLIFY(ksblock)
             CALL cp_dbcsr_get_block_p(matrix=ks_matrix(is,ic)%matrix,&
                  row=irow,col=icol,block=ksblock,found=found)
-            CPPostcondition(found,cp_failure_level,routineP,failure)
+            CPASSERT(found)
             ksblock = ksblock - gmij*sblock
          END DO
 
@@ -403,12 +403,12 @@ CONTAINS
             NULLIFY(pblock)
             CALL cp_dbcsr_get_block_p(matrix=matrix_p(1,ic)%matrix,&
                  row=irow,col=icol,block=pblock,found=found)
-            CPPostcondition(found,cp_failure_level,routineP,failure)
+            CPASSERT(found)
             DO i=1,3
                NULLIFY(dsblock)
                CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i,ic)%matrix,&
                     row=irow,col=icol,block=dsblock,found=found)
-               CPPostcondition(found,cp_failure_level,routineP,failure)
+               CPASSERT(found)
                fi = -2.0_dp*gmij*SUM(pblock*dsblock)
                force(ikind)%rho_elec(i,atom_i) = force(ikind)%rho_elec(i,atom_i) + fi
                force(jkind)%rho_elec(i,atom_j) = force(jkind)%rho_elec(i,atom_j) - fi
@@ -448,10 +448,10 @@ CONTAINS
 
     IF ( calculate_forces ) THEN
       DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
     DEALLOCATE(gmcharge,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -528,7 +528,7 @@ CONTAINS
 
     natom = SIZE(mcharge)
     ALLOCATE(gmcharge(natom,nmat),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     gmcharge = 0._dp
 
     CALL get_qs_env(qs_env,&
@@ -545,9 +545,9 @@ CONTAINS
 
     ! Qm-QM long range correction for QMMM calculations
     ! no atomic energy evaluation
-    CPPrecondition(.NOT.atprop%energy,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.atprop%energy)
     ! no stress tensor possible for QMMM
-    CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.use_virial)
     qmmm_env_qm => qs_env%qmmm_env_qm
     ewald_env => qmmm_env_qm%ewald_env
     ewald_pw => qmmm_env_qm%ewald_pw
@@ -595,8 +595,8 @@ CONTAINS
     CASE DEFAULT
        CALL cp_unimplemented_error(routineP,"Invalid Ewald type")
     CASE(do_ewald_none)
-       CPErrorMessage(cp_failure_level,routineP,"Not allowed with DFTB")
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("Not allowed with DFTB")
+       CPASSERT(.FALSE.)
     CASE(do_ewald_ewald)
        CALL cp_unimplemented_error(routineP,&
             "Standard Ewald not implemented in DFTB")
@@ -620,7 +620,7 @@ CONTAINS
     !
     IF ( calculate_forces ) THEN
        ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 kind_of=kind_of,&
                                 atom_of_kind=atom_of_kind)
@@ -674,10 +674,10 @@ CONTAINS
 
     IF ( calculate_forces ) THEN
       DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
     DEALLOCATE(gmcharge,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -757,14 +757,14 @@ CONTAINS
 
     n = o_spline
     ALLOCATE ( rhos ( n, n, n ), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL rs_grid_create(rden, rs_desc)
     CALL rs_grid_set_box ( grid_spme, rs=rden)
     CALL rs_grid_zero ( rden )
 
     ALLOCATE ( center ( 3, npart ), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL get_center ( particle_set, box, center, npts, n )
 
     !-------------- DENSITY CALCULATION ----------------
@@ -900,7 +900,7 @@ CONTAINS
        ! move derivative of potential to real space grid and
        ! multiply by charge function in g-space
        ALLOCATE ( drpot(1:3), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, 3
           CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
           CALL rs_grid_set_box ( grid_spme, rs=drpot(i)%rs_grid)
@@ -952,13 +952,13 @@ CONTAINS
            CALL rs_grid_release(drpot(i)%rs_grid)
          END DO
          DEALLOCATE ( drpot, STAT = stat )
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
        END IF
     END IF
     DEALLOCATE ( rhos, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE ( center, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 

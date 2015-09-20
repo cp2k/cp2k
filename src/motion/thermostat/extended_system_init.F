@@ -97,29 +97,29 @@ CONTAINS
     failure=.FALSE.
     restart = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(npt_info),cp_fatal_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(npt_info))
 
     ! first allocating the npt_info_type if requested
     SELECT CASE ( simpar % ensemble )
     CASE ( npt_i_ensemble, npe_i_ensemble )
        ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        npt_info  ( :, : ) % eps = LOG ( cell % deth ) / 3.0_dp
        temp = simpar % temp_baro_ext
 
     CASE ( npt_f_ensemble, npe_f_ensemble )
        ALLOCATE ( npt_info ( 3, 3 ), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        temp = simpar % temp_baro_ext
 
     CASE ( nph_uniaxial_ensemble )
        ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        temp = simpar% temp_baro_ext
 
     CASE (  nph_uniaxial_damped_ensemble )
        ALLOCATE ( npt_info ( 1, 1 ), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        temp = simpar % temp_baro_ext
 
     CASE  DEFAULT
@@ -205,7 +205,7 @@ CONTAINS
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL set_yoshida_coef ( nhc, simpar % dt )
     END IF
 
@@ -278,7 +278,7 @@ CONTAINS
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL set_yoshida_coef ( nhc, simpar % dt)
     END IF
 
@@ -347,7 +347,7 @@ CONTAINS
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL set_yoshida_coef ( nhc, simpar % dt)
     END IF
 
@@ -418,7 +418,7 @@ CONTAINS
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL set_yoshida_coef ( nhc, simpar % dt)
     END IF
 
@@ -488,7 +488,7 @@ CONTAINS
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
        ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL set_yoshida_coef ( nhc, simpar % dt )
     END IF
 
@@ -764,7 +764,7 @@ CONTAINS
        tot_rn = nhc%glob_num_nhc*nhc%nhc_len
 
        ALLOCATE(array_of_rn( tot_rn), STAT = stat)
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        array_of_rn(:) = 0.0_dp
     END SELECT
 
@@ -824,7 +824,7 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE ( array_of_rn, STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
 
        number = nhc%glob_num_nhc
        CALL get_nhc_energies(nhc, dum, akin, para_env)
@@ -974,7 +974,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(nhc),cp_fatal_level,routineP,failure)
+    CPASSERT(ASSOCIATED(nhc))
     ! assign the forces
     DO i = 1, SIZE ( nhc % nvt, 2 )
        DO j = 2, SIZE ( nhc % nvt, 1 )

@@ -399,7 +399,7 @@ SUBROUTINE poly_mult1(p1,p2,pRes,np1,sumUp)
     size_p2=SIZE(p2)
     newGrad=grad_size1(size_p1)+grad_size1(size_p2)
     newSize=SIZE(pRes)/myNp1
-    CPPreconditionNoFail(newSize>=poly_size1(newGrad),cp_failure_level,routineP)
+    CPASSERT(newSize>=poly_size1(newGrad))
     IF (.not.mySumUp) pRes=0
     iPos=1
     resShift_0=0
@@ -449,7 +449,7 @@ SUBROUTINE poly_mult2(p1,p2,pRes,np1,sumUp)
     grad2=grad_size2(size_p2)
     newGrad=grad1+grad2
     newSize=SIZE(pRes)/myNp1
-    CPPreconditionNoFail(newSize>=poly_size2(newGrad),cp_failure_level,routineP)
+    CPASSERT(newSize>=poly_size2(newGrad))
     IF (.not.mySumUp) pRes=0
     iShift=0
     shiftRes=0
@@ -530,7 +530,7 @@ SUBROUTINE poly_mult3(p1,p2,pRes,np1,sumUp)
     grad2=grad_size3(size_p2)
     newGrad=grad1+grad2
     newSize=SIZE(pRes)/myNp1
-    CPPreconditionNoFail(newSize>=poly_size3(newGrad),cp_failure_level,routineP)
+    CPASSERT(newSize>=poly_size3(newGrad))
     CALL poly_mult3b(p1,SIZE(p1),grad1,p2,SIZE(p2),grad2,pRes,SIZE(pRes),myNp1,mySumUp)
 END SUBROUTINE
 
@@ -858,7 +858,7 @@ FUNCTION poly_random(p,maxSize,minSize) RESULT(res)
     IF (PRESENT(minSize)) myMinSize=minSize
     CALL RANDOM_NUMBER(g)
     pSize=MIN(maxSize,myMinSize+INT((maxSize-myMinSize+1)*g))
-    CPPreconditionNoFail(SIZE(p)>=pSize,cp_failure_level,routineP)
+    CPASSERT(SIZE(p)>=pSize)
     CALL RANDOM_NUMBER(p)
     DO i=1,pSize
         p(i)=REAL(INT(p(i)*200.0_dp-100.0_dp),dp)/100.0_dp
@@ -908,8 +908,8 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly)
     size_res=SIZE(p)/my_npoly
     grad=grad_size3(size_res)
     minResSize=poly_size3(grad)
-    CPPreconditionNoFail(size_res==minResSize,cp_failure_level,routineP)
-    CPPreconditionNoFail(size_p>=minResSize,cp_failure_level,routineP)
+    CPASSERT(size_res==minResSize)
+    CPASSERT(size_p>=minResSize)
     pRes=0
     IF (size_p==0) RETURN
     ii1=1
@@ -923,7 +923,7 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly)
 
     ALLOCATE(monoG1((grad+1)*(grad+2)/2*minResSize),&
         monoG2((grad+1)*(grad+2)/2*minResSize),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+    CPASSERT(stat==0)
     !monoG1=0
     !monoG2=0
     ii1=1
@@ -1033,7 +1033,7 @@ SUBROUTINE poly_affine_t3t(p,m,b,pRes,npoly)
         ! monoFullDim1=monoFullDim2
     END DO
     DEALLOCATE(monoG1,monoG2,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+    CPASSERT(stat==0)
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -1074,7 +1074,7 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly)
     grad=grad_size3(size_p)
     size_res=SIZE(pRes)/my_npoly
     minResSize=poly_size3(grad)
-    CPPreconditionNoFail(size_res>=minResSize,cp_failure_level,routineP)
+    CPASSERT(size_res>=minResSize)
     pRes=0
     IF (size_p==0) RETURN
     ii1=1
@@ -1088,7 +1088,7 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly)
 
     ALLOCATE(monoG1((grad+1)*(grad+2)/2*minResSize),&
         monoG2((grad+1)*(grad+2)/2*minResSize),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+    CPASSERT(stat==0)
     monoG1=0
     monoG2=0
     ii1=1
@@ -1199,7 +1199,7 @@ SUBROUTINE poly_affine_t3(p,m,b,pRes,npoly)
         ! monoFullDim1=monoFullDim2
     END DO
     DEALLOCATE(monoG1,monoG2,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+    CPASSERT(stat==0)
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -1228,13 +1228,13 @@ SUBROUTINE poly_p_eval3(p,x,pRes,npoly)
     size_p=SIZE(p)/my_npoly
     grad=grad_size3(size_p)
     newSize=SIZE(pRes)/my_npoly
-    CPPreconditionNoFail(newSize>=poly_size2(grad),cp_failure_level,routineP)
+    CPASSERT(newSize>=poly_size2(grad))
     pRes=0.0
     ALLOCATE(xi(grad+1),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+    CPASSERT(stat==0)
     CALL poly_p_eval3b(p,SIZE(p),x,pRes,SIZE(pRes),my_npoly,grad,xi)
     DEALLOCATE(xi,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+    CPASSERT(stat==0)
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -1345,13 +1345,13 @@ SUBROUTINE poly_padd_uneval3(p,x,pRes,npoly)
     size_p=SIZE(p)/my_npoly
     newSize=SIZE(pRes)/my_npoly
     grad=grad_size2(newSize)
-    CPPreconditionNoFail(size_p>=poly_size3(grad),cp_failure_level,routineP)
-    CPPreconditionNoFail(newSize==poly_size2(grad),cp_failure_level,routineP)
+    CPASSERT(size_p>=poly_size3(grad))
+    CPASSERT(newSize==poly_size2(grad))
     ALLOCATE(xi(grad+1),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+    CPASSERT(stat==0)
     CALL poly_padd_uneval3b(p,SIZE(p),x,pRes,SIZE(pRes),my_npoly,grad,xi)
     DEALLOCATE(xi,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+    CPASSERT(stat==0)
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -1462,12 +1462,12 @@ SUBROUTINE poly_p_eval2(p,x,pRes,npoly)
     grad=grad_size2(size_p)
     newSize=SIZE(pRes)/my_npoly
     pRes=0.0_dp
-    CPPreconditionNoFail(newSize>=poly_size1(grad),cp_failure_level,routineP)
+    CPASSERT(newSize>=poly_size1(grad))
     ALLOCATE(xi(grad+1),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
     CALL poly_p_eval2b(p,SIZE(p),x,pRes,SIZE(pRes),my_npoly,grad,xi)
     DEALLOCATE(xi,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -1572,13 +1572,13 @@ SUBROUTINE poly_padd_uneval2(p,x,pRes,npoly)
     size_p=SIZE(p)/my_npoly
     newSize=SIZE(pRes)/my_npoly
     grad=grad_size1(newSize)
-    CPPreconditionNoFail(size_p>=poly_size2(grad),cp_failure_level,routineP)
-    CPPreconditionNoFail(newSize==poly_size1(grad),cp_failure_level,routineP)
+    CPASSERT(size_p>=poly_size2(grad))
+    CPASSERT(newSize==poly_size1(grad))
     ALLOCATE(xi(grad+1),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
     CALL poly_padd_uneval2b(p,SIZE(p),x,pRes,SIZE(pRes),my_npoly,grad,xi)
     DEALLOCATE(xi,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -1679,7 +1679,7 @@ SUBROUTINE poly_eval1(p,x,pRes,npoly)
     my_npoly=1
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
-    CPPreconditionNoFail(SIZE(pRes)>=my_npoly,cp_failure_level,routineP)
+    CPASSERT(SIZE(pRes)>=my_npoly)
     pShift=0
     DO ipoly=1,my_npoly
         xx=1.0_dp
@@ -1721,9 +1721,9 @@ SUBROUTINE poly_eval2(p,x,y,pRes,npoly)
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
     grad=grad_size2(size_p)
-    CPPreconditionNoFail(SIZE(pRes)>=my_npoly,cp_failure_level,routineP)
+    CPASSERT(SIZE(pRes)>=my_npoly)
     ALLOCATE(xi(grad+1),yi(grad+1),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
     xi(1)=1.0_dp
     DO i=1,grad
         xi(i+1)=xi(i)*x
@@ -1793,9 +1793,9 @@ SUBROUTINE poly_eval3(p,x,y,z,pRes,npoly)
     IF (PRESENT(npoly)) my_npoly=npoly
     size_p=SIZE(p)/my_npoly
     grad=grad_size3(size_p)
-    CPPreconditionNoFail(SIZE(pRes)>=my_npoly,cp_failure_level,routineP)
+    CPASSERT(SIZE(pRes)>=my_npoly)
     ALLOCATE(xi(grad+1),yi(grad+1),zi(grad+1),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+    CPASSERT(stat==0)
     xi(1)=1.0_dp
     DO i=1,grad
         xi(i+1)=xi(i)*x
@@ -1873,7 +1873,7 @@ SUBROUTINE poly_derive3(p,pRes,npoly,sumUp)
     size_p=SIZE(p)/my_npoly
     newSize=SIZE(pRes)/(3*my_npoly)
     grad=grad_size3(size_p)
-    CPPreconditionNoFail(newSize>=poly_size3(grad),cp_failure_level,routineP)
+    CPASSERT(newSize>=poly_size3(grad))
     IF (.NOT. my_sumUp) pRes=0
     xDerivShift=1
     yDerivShift=my_npoly*newSize+1
@@ -1953,8 +1953,8 @@ SUBROUTINE poly_cp2k2d3(poly_cp2k,grad,poly_d3)
 
     failure=.FALSE.
     size_p=(grad+1)*(grad+2)*(grad+3)/6
-    CPPrecondition(SIZE(poly_cp2k)>=size_p,cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(poly_d3)>=size_p,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(poly_cp2k)>=size_p)
+    CPASSERT(SIZE(poly_d3)>=size_p)
     cp_ii=0
     sgrad2k=0
     sgrad3k=0
@@ -2008,8 +2008,8 @@ SUBROUTINE poly_d32cp2k(poly_cp2k,grad,poly_d3)
 
     failure=.FALSE.
     size_p=(grad+1)*(grad+2)*(grad+3)/6
-    CPPrecondition(SIZE(poly_cp2k)>=size_p,cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(poly_d3)>=size_p,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(poly_cp2k)>=size_p)
+    CPASSERT(SIZE(poly_d3)>=size_p)
     cp_ii=0
     sgrad2k=0
     sgrad3k=0

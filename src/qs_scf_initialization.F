@@ -240,20 +240,19 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nhistory, nvariables, stat
-    LOGICAL                                  :: failure
 
     IF (scf_control%outer_scf%have_scf) THEN
        nhistory = scf_control%outer_scf%max_scf + 1
        nvariables = outer_loop_variables_count(scf_control)
        ALLOCATE(scf_env%outer_scf%variables(nvariables,nhistory),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(scf_env%outer_scf%count(nhistory),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        scf_env%outer_scf%count=0
        ALLOCATE(scf_env%outer_scf%gradient(nvariables,nhistory),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(scf_env%outer_scf%energy(nhistory),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
 
   END SUBROUTINE qs_scf_ensure_outer_loop_vars
@@ -304,7 +303,7 @@ CONTAINS
 
     INTEGER                                  :: handle, is, nao, nrow_block, &
                                                 nw, stat
-    LOGICAL                                  :: do_kpoints, failure
+    LOGICAL                                  :: do_kpoints
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: ref_matrix
@@ -343,7 +342,7 @@ CONTAINS
           nw = dft_control%nspins
           IF (do_kpoints) nw = 4
           ALLOCATE(scf_env%scf_work1(nw), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO is=1,SIZE(scf_env%scf_work1)
              NULLIFY(scf_env%scf_work1(is)%matrix)
              CALL cp_fm_create(scf_env%scf_work1(is)%matrix,&
@@ -407,7 +406,7 @@ CONTAINS
        IF (.NOT.ASSOCIATED(scf_env%scf_work1)) THEN
           nw = 4
           ALLOCATE(scf_env%scf_work1(nw), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO is=1,SIZE(scf_env%scf_work1)
              NULLIFY(scf_env%scf_work1(is)%matrix)
              CALL cp_fm_create(scf_env%scf_work1(is)%matrix,&
@@ -466,8 +465,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_env))
+    CPASSERT(scf_env%ref_count>0)
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
@@ -481,7 +480,7 @@ CONTAINS
     IF(dft_control%restricted)nmo_mat=1  ! right now, there might be more mos than needed derivs
 
 !   *** finish initialization of the MOs ***
-    CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mos))
     DO ispin=1,SIZE(mos)
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,mo_coeff_b=mo_coeff_b)
        IF (.NOT.ASSOCIATED(mo_coeff)) THEN
@@ -521,7 +520,7 @@ CONTAINS
 
 !   *** finish initialization of the MOs for ADMM and derivs if needed ***
     IF(dft_control%do_admm) THEN
-      CPPrecondition(ASSOCIATED(mos_aux_fit),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(mos_aux_fit))
       CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit)
       DO ispin=1,SIZE(mos_aux_fit)
          CALL get_mo_set(mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit)
@@ -561,7 +560,7 @@ CONTAINS
           CALL mpools_get(kpoints%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
           mos_k => kpoints%kp_env(ik)%kpoint_env%mos
           ikk = kpoints%kp_range(1) + ik - 1
-          CPPrecondition(ASSOCIATED(mos_k),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(mos_k))
           DO ispin=1,SIZE(mos_k,2)
              DO ic=1,SIZE(mos_k,1)
                 CALL get_mo_set(mos_k(ic,ispin)%mo_set,mo_coeff=mo_coeff,mo_coeff_b=mo_coeff_b)
@@ -571,7 +570,7 @@ CONTAINS
                         "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))))
                 END IF
                 ! no sparse matrix representation of kpoint MO vectors
-                CPPrecondition(.NOT.ASSOCIATED(mo_coeff_b),cp_failure_level,routineP,failure)
+                CPASSERT(.NOT.ASSOCIATED(mo_coeff_b))
              END DO
           END DO
        END DO
@@ -870,10 +869,10 @@ CONTAINS
 !
     logger => cp_get_default_logger()
 
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_env))
+    CPASSERT(scf_env%ref_count>0)
+    CPASSERT(ASSOCIATED(qs_env))
+    CPASSERT(qs_env%ref_count>0)
     NULLIFY(para_env)
 
     s_minus_half_available = .FALSE.
@@ -1045,9 +1044,9 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(mo_coeff, rho, dft_control, para_env, mos)
     logger => cp_get_default_logger()
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_env))
+    CPASSERT(scf_env%ref_count>0)
+    CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env,&
                     rho=rho,&

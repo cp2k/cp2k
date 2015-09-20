@@ -78,7 +78,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(derivative, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     derivative%ref_count = 1
     derivative%id_nr     = derivative_id_nr
@@ -107,8 +107,8 @@ SUBROUTINE xc_derivative_retain(deriv)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(deriv),cp_failure_level,routineP,failure)
-  CPPreconditionNoFail(deriv%ref_count>0,cp_failure_level,routineP)
+  CPASSERT(ASSOCIATED(deriv))
+  CPASSERT(deriv%ref_count>0)
   deriv%ref_count=deriv%ref_count+1
 END SUBROUTINE xc_derivative_retain
 
@@ -131,8 +131,8 @@ END SUBROUTINE xc_derivative_retain
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(derivative),cp_failure_level,routineP,failure)
-    CPPrecondition(derivative%ref_count>=1,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(derivative))
+    CPASSERT(derivative%ref_count>=1)
 
     derivative%ref_count = derivative%ref_count - 1
     IF (derivative%ref_count == 0) THEN
@@ -144,13 +144,13 @@ END SUBROUTINE xc_derivative_retain
        END IF
        IF (ASSOCIATED(derivative%deriv_data)) THEN
           DEALLOCATE(derivative%deriv_data, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE(derivative%split_desc, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
 
        DEALLOCATE(derivative, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     NULLIFY(derivative)
 
@@ -191,14 +191,14 @@ SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
   my_accept_null_data=.FALSE.
   IF (PRESENT(accept_null_data)) my_accept_null_data=accept_null_data
 
-  CPPrecondition(ASSOCIATED(deriv),cp_failure_level,routineP,failure)
-  CPPrecondition(deriv%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(deriv))
+  CPASSERT(deriv%ref_count>0)
   IF (PRESENT(desc)) desc = deriv%desc
   IF (PRESENT(split_desc)) split_desc => deriv%split_desc
   IF (PRESENT(deriv_data)) THEN
      deriv_data => deriv%deriv_data
      IF (.NOT.my_accept_null_data) THEN
-        CPPrecondition(ASSOCIATED(deriv_data),cp_failure_level,routineP,failure)
+        CPASSERT(ASSOCIATED(deriv_data))
      END IF
   END IF
   IF (PRESENT(order)) order=SIZE(deriv%split_desc)

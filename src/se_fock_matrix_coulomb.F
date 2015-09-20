@@ -199,8 +199,8 @@ CONTAINS
     END IF
 
     nspins=dft_control%nspins
-    CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_p))
+    CPASSERT(SIZE(ks_matrix)>0)
 
     nkind = SIZE(atomic_kind_set)
     IF(calculate_forces) THEN
@@ -209,7 +209,7 @@ CONTAINS
        delta = se_control%delta
        ! Allocate atom index for kind
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
 
@@ -231,7 +231,7 @@ CONTAINS
     ecore2   = 0.0_dp
     itype    = get_se_type(dft_control%qs_control%method_id)
     ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
        se_kind_list(ikind)%se_param => se_kind_a
@@ -255,23 +255,23 @@ CONTAINS
        IF (inode==1) THEN
           CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
                row=iatom,col=iatom,BLOCK=pa_block_a,found=found)
-          CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(pa_block_a))
           check = (SIZE(pa_block_a,1)==natorb_a).AND.(SIZE(pa_block_a,2)==natorb_a)
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
                row=iatom,col=iatom,BLOCK=ksa_block_a,found=found)
-          CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(ksa_block_a))
           p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
           pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/))
           IF ( nspins == 2 ) THEN
              CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
                   row=iatom,col=iatom,BLOCK=pa_block_b,found=found)
-             CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(pa_block_b))
              check = (SIZE(pa_block_b,1)==natorb_a).AND.(SIZE(pa_block_b,2)==natorb_a)
-             CPPostcondition(check,cp_failure_level,routineP,failure)
+             CPASSERT(check)
              CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
                   row=iatom,col=iatom,BLOCK=ksa_block_b,found=found)
-             CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(ksa_block_b))
              p_block_tot_a(1:natorb_a,1:natorb_a) = pa_block_a + pa_block_b
              pa_b(1:natorb_a2)                    = RESHAPE(pa_block_b,(/natorb_a2/))
           END IF
@@ -289,26 +289,26 @@ CONTAINS
           ! Retrieve blocks for KS and P
           CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
                row=jatom,col=jatom,BLOCK=pb_block_a,found=found)
-          CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(pb_block_a))
           check = (SIZE(pb_block_a,1)==natorb_b).AND.(SIZE(pb_block_a,2)==natorb_b)
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
                row=jatom,col=jatom,BLOCK=ksb_block_a,found=found)
-          CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(ksb_block_a))
           p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a
           pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/))
           ! Handle more than one configuration
           IF ( nspins == 2 ) THEN
              CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
                   row=jatom,col=jatom,BLOCK=pb_block_b,found=found)
-             CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(pb_block_b))
              check = (SIZE(pb_block_b,1)==natorb_b).AND.(SIZE(pb_block_b,2)==natorb_b)
-             CPPostcondition(check,cp_failure_level,routineP,failure)
+             CPASSERT(check)
              CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
                   row=jatom,col=jatom,BLOCK=ksb_block_b,found=found)
-             CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(ksb_block_b))
              check = (SIZE(pb_block_a,1)==SIZE(pb_block_b,1)).AND.(SIZE(pb_block_a,2)==SIZE(pb_block_b,2))
-             CPPostcondition(check,cp_failure_level,routineP,failure)
+             CPASSERT(check)
              p_block_tot_b(1:natorb_b,1:natorb_b) = pb_block_a + pb_block_b
              pb_b(1:natorb_b2)                    = RESHAPE(pb_block_b,(/natorb_b2/))
           END IF
@@ -414,11 +414,11 @@ CONTAINS
                 force(jkind)%rho_elec(3,atom_b) = force(jkind)%rho_elec(3,atom_b) + force_ab(3)
              END IF
           CASE DEFAULT
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END SELECT
        ELSE
           IF ( se_int_control%do_ewald_gks ) THEN
-             CPPostcondition(iatom==jatom,cp_failure_level,routineP,failure)
+             CPASSERT(iatom==jatom)
              ! Two-centers One-electron terms
              ecores=0._dp
              IF      ( nspins == 1 ) THEN
@@ -456,7 +456,7 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE(se_kind_list,se_defined,se_natorb,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO ispin = 1, nspins
        CALL cp_dbcsr_sum_replicated( diagmat_ks(ispin)%matrix)
@@ -469,7 +469,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
        DEALLOCATE(atom_of_kind,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     ! Two-centers one-electron terms
@@ -582,8 +582,8 @@ CONTAINS
     atener      = atprop%energy
 
     nspins=dft_control%nspins
-    CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_p))
+    CPASSERT(SIZE(ks_matrix)>0)
 
     CALL cp_dbcsr_allocate_matrix_set(diagmat_ks,nspins)
     CALL cp_dbcsr_allocate_matrix_set(diagmat_p,nspins)
@@ -607,7 +607,7 @@ CONTAINS
          do_method_rm1, do_method_mndod, do_method_pnnl)
        itype    = get_se_type(dft_control%qs_control%method_id)
     CASE DEFAULT
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     ! Zero arrays and possibly build neighbor lists
@@ -627,7 +627,7 @@ CONTAINS
     CASE(do_multipole_quadrupole)
        task    = .TRUE.
     CASE DEFAULT
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     ! Build-up neighbor lists for real-space part of Ewald multipoles
@@ -653,7 +653,7 @@ CONTAINS
              iatom = local_particles%list(ikind)%array(ilist)
              CALL cp_dbcsr_get_block_p(matrix=diagmat_p(ispin)%matrix,&
                   row=iatom,col=iatom,BLOCK=pa_block_a,found=found)
-             CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(pa_block_a))
              ! Nuclei
              IF (task(1).AND.ispin==1) se_nddo_mpole%charge(iatom)   = se_kind_a%zeff
              ! Electrons
@@ -710,14 +710,14 @@ CONTAINS
 
        ! Allocate atom index for kind
        ALLOCATE (atom_of_kind(natoms),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
 
        ! Allocate and zeroing arrays
        ALLOCATE ( forces_g(3, forces_g_size), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( forces_r(3, natoms), STAT=stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        forces_g = 0.0_dp
        forces_r = 0.0_dp
        CALL ewald_multipole_evaluate(ewald_env, ewald_pw, se_nonbond_env, cell,&
@@ -777,7 +777,7 @@ CONTAINS
           DO ispin = 1, nspins
              CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(ispin)%matrix,&
                   row=iatom,col=iatom,BLOCK=ksa_block_a,found=found)
-             CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(ksa_block_a))
 
              ! Modify Hamiltonian Matrix accordingly potential, field and electric field gradient
              size_1c_int = SIZE(se_kind_a%w_mpole)
@@ -842,11 +842,11 @@ CONTAINS
     ! Set the Fock matrix contribution to SCP
     IF (calculate_forces) THEN
        DEALLOCATE(atom_of_kind,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(forces_g,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(forces_r,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
 
@@ -957,10 +957,10 @@ CONTAINS
          pc_coulomb_int=.TRUE.)
 
     nspins=dft_control%nspins
-    CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(diagmat_p),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(diagmat_ks),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_p))
+    CPASSERT(SIZE(ks_matrix)>0)
+    CPASSERT(ASSOCIATED(diagmat_p))
+    CPASSERT(ASSOCIATED(diagmat_ks))
 
     nkind = SIZE(atomic_kind_set)
     IF(calculate_forces) THEN
@@ -969,24 +969,24 @@ CONTAINS
        delta = se_control%delta
        ! Allocate atom index for kind
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
 
     ! Allocate arrays for storing partial information on potential, field, field gradient
     size1 = SIZE(se_nddo_mpole%efield0)
     ALLOCATE (efield0(size1), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     efield0 = 0.0_dp
     size1 = SIZE(se_nddo_mpole%efield1,1)
     size2 = SIZE(se_nddo_mpole%efield1,2)
     ALLOCATE (efield1(size1,size2), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     efield1 = 0.0_dp
     size1 = SIZE(se_nddo_mpole%efield2,1)
     size2 = SIZE(se_nddo_mpole%efield2,2)
     ALLOCATE (efield2(size1,size2), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     efield2 = 0.0_dp
 
     ! Initialize if virial is requested
@@ -1002,7 +1002,7 @@ CONTAINS
     itype    = get_se_type(dft_control%qs_control%method_id)
 
     ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
        se_kind_list(ikind)%se_param => se_kind_a
@@ -1026,23 +1026,23 @@ CONTAINS
        IF (inode==1) THEN
           CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
                row=iatom,col=iatom,BLOCK=pa_block_a,found=found)
-          CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(pa_block_a))
           check = (SIZE(pa_block_a,1)==natorb_a).AND.(SIZE(pa_block_a,2)==natorb_a)
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
                row=iatom,col=iatom,BLOCK=ksa_block_a,found=found)
-          CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(ksa_block_a))
           p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
           pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/))
           IF ( nspins == 2 ) THEN
              CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
                   row=iatom,col=iatom,BLOCK=pa_block_b,found=found)
-             CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(pa_block_b))
              check = (SIZE(pa_block_b,1)==natorb_a).AND.(SIZE(pa_block_b,2)==natorb_a)
-             CPPostcondition(check,cp_failure_level,routineP,failure)
+             CPASSERT(check)
              CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
                   row=iatom,col=iatom,BLOCK=ksa_block_b,found=found)
-             CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(ksa_block_b))
              p_block_tot_a(1:natorb_a,1:natorb_a) = pa_block_a + pa_block_b
              pa_b(1:natorb_a2)                    = RESHAPE(pa_block_b,(/natorb_a2/))
           END IF
@@ -1070,26 +1070,26 @@ CONTAINS
           ! Retrieve blocks for KS and P
           CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
                row=jatom,col=jatom,BLOCK=pb_block_a,found=found)
-          CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(pb_block_a))
           check = (SIZE(pb_block_a,1)==natorb_b).AND.(SIZE(pb_block_a,2)==natorb_b)
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
                row=jatom,col=jatom,BLOCK=ksb_block_a,found=found)
-          CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(ksb_block_a))
           p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a
           pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/))
           ! Handle more than one configuration
           IF ( nspins == 2 ) THEN
              CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
                   row=jatom,col=jatom,BLOCK=pb_block_b,found=found)
-             CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(pb_block_b))
              check = (SIZE(pb_block_b,1)==natorb_b).AND.(SIZE(pb_block_b,2)==natorb_b)
-             CPPostcondition(check,cp_failure_level,routineP,failure)
+             CPASSERT(check)
              CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
                   row=jatom,col=jatom,BLOCK=ksb_block_b,found=found)
-             CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(ksb_block_b))
              check = (SIZE(pb_block_a,1)==SIZE(pb_block_b,1)).AND.(SIZE(pb_block_a,2)==SIZE(pb_block_b,2))
-             CPPostcondition(check,cp_failure_level,routineP,failure)
+             CPASSERT(check)
              p_block_tot_b(1:natorb_b,1:natorb_b) = pb_block_a + pb_block_b
              pb_b(1:natorb_b2)                    = RESHAPE(pb_block_b,(/natorb_b2/))
           END IF
@@ -1204,14 +1204,14 @@ CONTAINS
                 force(jkind)%rho_elec(3,atom_b) = force(jkind)%rho_elec(3,atom_b) + force_ab(3)
              END IF
           CASE DEFAULT
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END SELECT
        END IF
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE(se_kind_list,se_defined,se_natorb,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Sum-up Virial constribution (long-range correction)
     IF (use_virial) THEN
@@ -1228,7 +1228,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
        DEALLOCATE(atom_of_kind,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     ! collect information on potential, field, field gradient
@@ -1240,11 +1240,11 @@ CONTAINS
     se_nddo_mpole%efield2 = se_nddo_mpole%efield2 - efield2
     ! deallocate working arrays
     DEALLOCATE (efield0, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (efield1, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (efield2, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Corrections for two-centers one-electron terms + nuclear terms
     CALL mp_sum(enuclear,para_env%group)
@@ -1359,8 +1359,8 @@ CONTAINS
     atener     =  atprop%energy
 
     nspins=dft_control%nspins
-    CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_p))
+    CPASSERT(SIZE(ks_matrix)>0)
 
     CALL cp_dbcsr_allocate_matrix_set(diagmat_ks,nspins)
     CALL cp_dbcsr_allocate_matrix_set(diagmat_p,nspins)
@@ -1382,7 +1382,7 @@ CONTAINS
     IF(calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,force=force)
        ALLOCATE (atom_of_kind(natoms),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
     itype = get_se_type(dft_control%qs_control%method_id)
@@ -1390,7 +1390,7 @@ CONTAINS
     ecore2   = 0.0_dp
     ! Real space part of the 1/R^3 sum
     ALLOCATE (se_defined(nkind),se_kind_list(nkind),se_natorb(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
        se_kind_list(ikind)%se_param => se_kind_a
@@ -1414,23 +1414,23 @@ CONTAINS
        IF (inode==1) THEN
           CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
                row=iatom,col=iatom,BLOCK=pa_block_a,found=found)
-          CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(pa_block_a))
           check = (SIZE(pa_block_a,1)==natorb_a).AND.(SIZE(pa_block_a,2)==natorb_a)
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
                row=iatom,col=iatom,BLOCK=ksa_block_a,found=found)
-          CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(ksa_block_a))
           p_block_tot_a(1:natorb_a,1:natorb_a) = 2.0_dp * pa_block_a
           pa_a(1:natorb_a2)                    = RESHAPE(pa_block_a,(/natorb_a2/))
           IF ( nspins == 2 ) THEN
              CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
                   row=iatom,col=iatom,BLOCK=pa_block_b,found=found)
-             CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(pa_block_b))
              check = (SIZE(pa_block_b,1)==natorb_a).AND.(SIZE(pa_block_b,2)==natorb_a)
-             CPPostcondition(check,cp_failure_level,routineP,failure)
+             CPASSERT(check)
              CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
                   row=iatom,col=iatom,BLOCK=ksa_block_b,found=found)
-             CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(ksa_block_b))
              p_block_tot_a(1:natorb_a,1:natorb_a) = pa_block_a + pa_block_b
              pa_b(1:natorb_a2)                    = RESHAPE(pa_block_b,(/natorb_a2/))
           END IF
@@ -1447,26 +1447,26 @@ CONTAINS
           ! Retrieve blocks for KS and P
           CALL cp_dbcsr_get_block_p(matrix=diagmat_p(1)%matrix,&
                row=jatom,col=jatom,BLOCK=pb_block_a,found=found)
-          CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(pb_block_a))
           check = (SIZE(pb_block_a,1)==natorb_b).AND.(SIZE(pb_block_a,2)==natorb_b)
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(1)%matrix,&
                row=jatom,col=jatom,BLOCK=ksb_block_a,found=found)
-          CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(ksb_block_a))
           p_block_tot_b(1:natorb_b,1:natorb_b) = 2.0_dp * pb_block_a
           pb_a(1:natorb_b2)                    = RESHAPE(pb_block_a,(/natorb_b2/))
           ! Handle more than one configuration
           IF ( nspins == 2 ) THEN
              CALL cp_dbcsr_get_block_p(matrix=diagmat_p(2)%matrix,&
                   row=jatom,col=jatom,BLOCK=pb_block_b,found=found)
-             CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(pb_block_b))
              check = (SIZE(pb_block_b,1)==natorb_b).AND.(SIZE(pb_block_b,2)==natorb_b)
-             CPPostcondition(check,cp_failure_level,routineP,failure)
+             CPASSERT(check)
              CALL cp_dbcsr_get_block_p(matrix=diagmat_ks(2)%matrix,&
                   row=jatom,col=jatom,BLOCK=ksb_block_b,found=found)
-             CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(ksb_block_b))
              check = (SIZE(pb_block_a,1)==SIZE(pb_block_b,1)).AND.(SIZE(pb_block_a,2)==SIZE(pb_block_b,2))
-             CPPostcondition(check,cp_failure_level,routineP,failure)
+             CPASSERT(check)
              p_block_tot_b(1:natorb_b,1:natorb_b) = pb_block_a + pb_block_b
              pb_b(1:natorb_b2)                    = RESHAPE(pb_block_b,(/natorb_b2/))
           END IF
@@ -1567,14 +1567,14 @@ CONTAINS
                 force(jkind)%rho_elec(3,atom_b) = force(jkind)%rho_elec(3,atom_b) + force_ab(3)
              END IF
           CASE DEFAULT
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END SELECT
        END IF
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE(se_kind_list,se_defined,se_natorb,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO ispin = 1, nspins
        CALL cp_dbcsr_sum_replicated( diagmat_ks(ispin)%matrix)
@@ -1587,7 +1587,7 @@ CONTAINS
 
     IF (calculate_forces) THEN
        DEALLOCATE(atom_of_kind,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     ! Two-centers one-electron terms

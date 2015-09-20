@@ -64,7 +64,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="KPOINTS",&
          description="Sets up the kpoints.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)

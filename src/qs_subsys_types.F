@@ -84,8 +84,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(subsys))
+    CPASSERT(subsys%ref_count>0)
     subsys%ref_count=subsys%ref_count+1
   END SUBROUTINE qs_subsys_retain
 
@@ -101,7 +101,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (ASSOCIATED(subsys)) THEN
-       CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(subsys%ref_count>0)
        subsys%ref_count=subsys%ref_count-1
        IF (subsys%ref_count==0) THEN
           CALL cp_subsys_release(subsys%cp_subsys)

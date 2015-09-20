@@ -208,7 +208,7 @@ CONTAINS
          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_bs_sqrt, matrix_tmp,&
                                 0.0_dp, matrix)
     CASE DEFAULT
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
     END SELECT
 
     CALL cp_dbcsr_release(matrix_tmp)

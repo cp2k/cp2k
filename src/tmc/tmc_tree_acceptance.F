@@ -97,11 +97,11 @@ CONTAINS
                                                 parent_ener
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tree_element),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(parent_element),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
-    CPPrecondition(temperature.GT.0.0_dp,cp_failure_level,routineP,failure)
-    CPPrecondition(rnd_nr.GE.0.0_dp.AND.rnd_nr.LE.1.0_dp,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tree_element))
+    CPASSERT(ASSOCIATED(parent_element))
+    CPASSERT(ASSOCIATED(tmc_params))
+    CPASSERT(temperature.GT.0.0_dp)
+    CPASSERT(rnd_nr.GE.0.0_dp.AND.rnd_nr.LE.1.0_dp)
 
     kB = boltzmann/joule
 
@@ -109,7 +109,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF(tmc_params%task_type.EQ.task_type_gaussian_adaptation) THEN
-CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
+CPASSERT(.FALSE.)
 !TODO       CALL acc_check_gauss_adapt(f=tree_element%potential, ct=tree_element%ekin_before_md, acc=accept)
 !DO NOT DO       RETURN
     END IF
@@ -181,7 +181,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
 
     ! update the estimated energy acceptance probability distribution
     IF(diff_pot_check) THEN
-      CPPrecondition(ASSOCIATED(tmc_params%prior_NMC_acc),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(tmc_params%prior_NMC_acc))
       tmc_params%prior_NMC_acc%counter = tmc_params%prior_NMC_acc%counter +1
       tmc_params%prior_NMC_acc%aver    = (tmc_params%prior_NMC_acc%aver*(tmc_params%prior_NMC_acc%counter-1)+&
                                          ((elem_ener-parent_ener)))/REAL(tmc_params%prior_NMC_acc%counter,KIND=dp)
@@ -224,11 +224,11 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
     failure = .FALSE.
     kB = boltzmann/joule
 
-    CPPrecondition(ASSOCIATED(tree_elem),cp_failure_level,routineP,failure)
-    CPPrecondition(tree_elem%rnd_nr.GE.0.0_dp,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(conf1),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(conf2),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tree_elem))
+    CPASSERT(tree_elem%rnd_nr.GE.0.0_dp)
+    CPASSERT(ASSOCIATED(conf1))
+    CPASSERT(ASSOCIATED(conf2))
+    CPASSERT(ASSOCIATED(tmc_params))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -301,12 +301,12 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
     failure = .FALSE.
     kB = boltzmann/joule
 
-    CPPrecondition(ASSOCIATED(parent_elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(new_elem),cp_failure_level,routineP,failure)
-    CPPrecondition(temperature.GT.0.0_dp,cp_failure_level,routineP,failure)
-    CPPrecondition(rnd_nr.GT.0.0_dp,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
-    CPPrecondition(tmc_params%pressure.GE.0.0_dp,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parent_elem))
+    CPASSERT(ASSOCIATED(new_elem))
+    CPASSERT(temperature.GT.0.0_dp)
+    CPASSERT(rnd_nr.GT.0.0_dp)
+    CPASSERT(ASSOCIATED(tmc_params))
+    CPASSERT(tmc_params%pressure.GE.0.0_dp)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -378,10 +378,10 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
     failure = .FALSE.
     NULLIFY(parent_elem, act_elem)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tree_elem),cp_failure_level,routineP,failure)
-    CPPrecondition(tree_elem%stat.EQ.status_calculated,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tree_elem%parent),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tree_elem))
+    CPASSERT(tree_elem%stat.EQ.status_calculated)
+    CPASSERT(ASSOCIATED(tree_elem%parent))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -391,7 +391,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
     ! ------------------------------------------------------
     ! check this element 
     parent_elem => search_parent_element(act_elem)
-    CPPostconditionNoFail(.NOT.ASSOCIATED(act_elem, parent_elem),cp_failure_level,routineP)
+    CPASSERT(.NOT.ASSOCIATED(act_elem, parent_elem))
 
     ! check status of parent element
     SELECT CASE(parent_elem%stat)
@@ -464,11 +464,11 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
     ! start the timing
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(act_elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(parent_elem),cp_failure_level,routineP,failure)
-    CPPrecondition(act_elem%stat.EQ.status_calculated,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%params))
+    CPASSERT(ASSOCIATED(act_elem))
+    CPASSERT(ASSOCIATED(parent_elem))
+    CPASSERT(act_elem%stat.EQ.status_calculated)
 
     flag = .FALSE.
 
@@ -476,8 +476,8 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
     ! check for all global tree elements refering to this subtree element
     ! same subtree element can be accepted at a certain temperature and rejected at another one
     DO WHILE(ASSOCIATED(tmp_gt_list_ptr))
-      CPPrecondition(tmp_gt_list_ptr%gt_elem%stat.NE.status_accepted_result,cp_failure_level,routineP,failure)
-      CPPrecondition(tmp_gt_list_ptr%gt_elem%stat.NE.status_rejected_result,cp_failure_level,routineP,failure)
+      CPASSERT(tmp_gt_list_ptr%gt_elem%stat.NE.status_accepted_result)
+      CPASSERT(tmp_gt_list_ptr%gt_elem%stat.NE.status_rejected_result)
 
       CALL check_elements(gt_act_elem=tmp_gt_list_ptr%gt_elem, tmc_env=tmc_env,&
                           check_done=flag, result_acc=result_acc)
@@ -542,8 +542,8 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
     failure = .FALSE.
     NULLIFY(ptr)
 
-    CPPrecondition(ASSOCIATED(gt_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gt_ptr))
+    CPASSERT(ASSOCIATED(tmc_params))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -592,7 +592,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -639,9 +639,9 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
     NULLIFY(act_element, tmp_element)
     check_done = .FALSE.
 
-    CPPrecondition(ASSOCIATED(gt_act_elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gt_act_elem))
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -668,8 +668,8 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
       ! get elements related to global tree element to check
       CALL get_subtree_elements_to_check(gt_act_elem=gt_act_elem, elem1=act_element, &
                                          elem2=tmp_element)
-      CPPostcondition(ASSOCIATED(act_element),cp_failure_level,routineP,failure)
-      CPPostcondition(ASSOCIATED(tmp_element),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(act_element))
+      CPASSERT(ASSOCIATED(tmp_element))
   
       ! check status of both elements (if they are already calculated and hence ready to check)
       CALL elem_ready_to_check(elem=act_element, ready=act_ready)
@@ -750,7 +750,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
     failure = .FALSE.
     NULLIFY(gt_act_elem, tmp_element, act_element)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -910,7 +910,7 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
     ready = .FALSE.
     IF((elem%scf_energies_count.GE.4)&
        .AND.(elem%stat.NE.status_deleted).AND.(elem%stat.NE.status_deleted_result)&
@@ -941,8 +941,8 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
     failure = .FALSE.
     NULLIFY(parent_elem, act_elem)
 
-    CPPrecondition(ASSOCIATED(tree_elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tree_elem))
+    CPASSERT(ASSOCIATED(tmc_env))
 
 
     ! start the timing
@@ -1022,9 +1022,9 @@ CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
 
     IF(.NOT.ASSOCIATED(reference_list)) RETURN ! could be canceled already
 
-    CPPrecondition(ASSOCIATED(reference_list%gt_elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(act_elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(parent_elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(reference_list%gt_elem))
+    CPASSERT(ASSOCIATED(act_elem))
+    CPASSERT(ASSOCIATED(parent_elem))
 
     ! start the timing
     CALL timeset(routineN,handle)

@@ -164,10 +164,10 @@ CPSourceFileRef)
 #endif
 #endif
 
-  CPPrecondition(.NOT.ASSOCIATED(blacs_env),cp_failure_level,routineP,failure)
+  CPASSERT(.NOT.ASSOCIATED(blacs_env))
 
   ALLOCATE(blacs_env,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   blacs_env%group=0
   blacs_env%ref_count=1
   blacs_env%mepos(:)=0
@@ -243,12 +243,12 @@ CPSourceFileRef)
   ! generate the mappings blacs2mpi and mpi2blacs
   ALLOCATE(blacs_env%blacs2mpi(0:blacs_env%num_pe(1)-1,0:blacs_env%num_pe(2)-1),&
        stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   blacs_env%blacs2mpi=0
   blacs_env%blacs2mpi(blacs_env%mepos(1),blacs_env%mepos(2))=para_env%mepos
   CALL mp_sum(blacs_env%blacs2mpi,para_env%group)
   ALLOCATE(blacs_env%mpi2blacs(2,0:para_env%num_pe-1),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   blacs_env%mpi2blacs=-1
   DO ipcol=0,blacs_env%num_pe(2)-1
      DO iprow=0,blacs_env%num_pe(1)-1
@@ -274,8 +274,8 @@ SUBROUTINE cp_blacs_env_retain(blacs_env)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  CPPrecondition(ASSOCIATED(blacs_env),cp_failure_level,routineP,failure)
-  CPPrecondition(blacs_env%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(blacs_env))
+  CPASSERT(blacs_env%ref_count>0)
   blacs_env%ref_count=blacs_env%ref_count+1
 END SUBROUTINE cp_blacs_env_retain
 
@@ -298,17 +298,17 @@ SUBROUTINE cp_blacs_env_release(blacs_env)
   failure=.FALSE.
 
   IF (ASSOCIATED(blacs_env)) THEN
-     CPPrecondition(blacs_env%ref_count>0,cp_failure_level,routineP,failure)
+     CPASSERT(blacs_env%ref_count>0)
      blacs_env%ref_count=blacs_env%ref_count-1
      IF (blacs_env%ref_count<1) THEN
         CALL cp_blacs_gridexit(blacs_env%group)
         CALL cp_para_env_release(blacs_env%para_env)
         DEALLOCATE(blacs_env%mpi2blacs, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(blacs_env%blacs2mpi,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(blacs_env,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+        CPASSERT(stat==0)
      END IF
   END IF
   NULLIFY(blacs_env)
@@ -338,20 +338,20 @@ SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr)
   IF (ASSOCIATED(blacs_env)) THEN
      WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
           iostat=iostat) blacs_env%group, blacs_env%ref_count
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  mepos=(',i8,',',i8,'),')",&
           iostat=iostat) blacs_env%mepos(1), blacs_env%mepos(2)
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  num_pe=(',i8,',',i8,'),')",&
           iostat=iostat) blacs_env%num_pe(1), blacs_env%num_pe(2)
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      IF (ASSOCIATED(blacs_env%blacs2mpi)) THEN
         WRITE (unit=unit_nr,fmt="('  blacs2mpi=')",advance="no",iostat=iostat)
-        CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+        CPASSERT(iostat==0)
         CALL cp_2d_i_write(blacs_env%blacs2mpi,unit_nr=unit_nr)
      ELSE
         WRITE (unit=unit_nr,fmt="('  blacs2mpi=*null*')",iostat=iostat)
-        CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+        CPASSERT(iostat==0)
      END IF
      IF (ASSOCIATED(blacs_env%para_env)) THEN
         WRITE (unit=unit_nr,fmt="('  para_env=<cp_para_env id=',i6,'>,')")&
@@ -361,11 +361,11 @@ SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr)
      END IF
      WRITE (unit=unit_nr,fmt="('  my_pid=',i10,', n_pid=',i10,' }')",&
           iostat=iostat) blacs_env%my_pid, blacs_env%n_pid
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
   ELSE
      WRITE (unit=unit_nr,&
           fmt="(a)", iostat=iostat) ' <cp_blacs_env>:*null* '
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
   END IF
   CALL m_flush(unit_nr)
 END SUBROUTINE cp_blacs_env_write

@@ -66,7 +66,7 @@ CONTAINS
     END IF
 
     ALLOCATE(efield,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(efield%cosmat)
     NULLIFY(efield%sinmat)
     NULLIFY(efield%dipmat)
@@ -121,7 +121,7 @@ CONTAINS
           CALL cp_dbcsr_deallocate_matrix_set ( efield%dipmat)
        END IF
        DEALLOCATE(efield,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE efield_berry_release
 

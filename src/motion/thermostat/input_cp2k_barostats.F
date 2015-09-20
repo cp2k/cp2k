@@ -63,7 +63,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="barostat",&
          description="Parameters of barostat.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -142,7 +142,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(print_key)
     CALL section_create(section,name="PRINT",&
          description="Collects all print_keys for barostat",&

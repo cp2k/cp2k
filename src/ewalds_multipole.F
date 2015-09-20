@@ -169,14 +169,14 @@ CONTAINS
     CALL cite_reference(Aguado2003)
     CALL cite_reference(Laino2008)
     CALL timeset(routineN,handle)
-    CPPostcondition(ASSOCIATED(nonbond_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(nonbond_env))
     check_debug  = (debug_this_module.OR.debug_r_space.OR.debug_g_space.OR.debug_e_field.OR.debug_e_field_en)&
          .EQV.debug_this_module
-    CPPostcondition(check_debug,cp_failure_level,routineP,failure)
+    CPASSERT(check_debug)
     check_forces = do_forces.EQV.(PRESENT(forces_local).AND.PRESENT(forces_glob))
-    CPPostcondition(check_forces,cp_failure_level,routineP,failure)
+    CPASSERT(check_forces)
     check_efield = do_efield.EQV.(PRESENT(efield0).OR.PRESENT(efield1).OR.PRESENT(efield2))
-    CPPostcondition(check_efield,cp_failure_level,routineP,failure)
+    CPASSERT(check_efield)
     ! Debugging this module
     IF (debug_this_module.AND.do_debug) THEN
        ! Debug specifically real space part
@@ -187,8 +187,8 @@ CONTAINS
        END IF
        ! Debug electric fields and gradients as pure derivatives
        IF (debug_e_field) THEN
-          CPPostcondition(PRESENT(atomic_kind_set),cp_failure_level,routineP,failure)
-          CPPostcondition(PRESENT(mm_section),cp_failure_level,routineP,failure)
+          CPASSERT(PRESENT(atomic_kind_set))
+          CPASSERT(PRESENT(mm_section))
           CALL debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env,&
                cell, particle_set, local_particles, radii, charges, dipoles,&
                quadrupoles, task, iw, atomic_kind_set, mm_section)
@@ -231,9 +231,9 @@ CONTAINS
        IF (PRESENT(efield0)) THEN
           size1 = SIZE(efield0)
           ALLOCATE (efield0_sr(size1), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE (efield0_lr(size1), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           efield0_sr = 0.0_dp
           efield0_lr = 0.0_dp
        END IF
@@ -241,9 +241,9 @@ CONTAINS
           size1 = SIZE(efield1,1)
           size2 = SIZE(efield1,2)
           ALLOCATE (efield1_sr(size1,size2), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE (efield1_lr(size1,size2), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           efield1_sr = 0.0_dp
           efield1_lr = 0.0_dp
        END IF
@@ -251,9 +251,9 @@ CONTAINS
           size1 = SIZE(efield2,1)
           size2 = SIZE(efield2,2)
           ALLOCATE (efield2_sr(size1,size2), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE (efield2_lr(size1,size2), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           efield2_sr = 0.0_dp
           efield2_lr = 0.0_dp
        END IF
@@ -315,25 +315,25 @@ CONTAINS
           efield0 = efield0_sr + efield0_lr
           CALL mp_sum(efield0, group)
           DEALLOCATE (efield0_sr, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (efield0_lr, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (PRESENT(efield1)) THEN
           efield1 = efield1_sr + efield1_lr
           CALL mp_sum(efield1, group)
           DEALLOCATE (efield1_sr, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (efield1_lr, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (PRESENT(efield2)) THEN
           efield2 = efield2_sr + efield2_lr
           CALL mp_sum(efield2, group)
           DEALLOCATE (efield2_sr, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE (efield2_lr, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
     CALL timestop(handle)
@@ -711,7 +711,7 @@ CONTAINS
       nparticle_local, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bds
     LOGICAL                                  :: do_efield0, do_efield1, &
-                                                do_efield2, failure
+                                                do_efield2
     REAL(KIND=dp)                            :: alpha, denom, dipole_t(3), &
                                                 f0, factor, four_alpha_sq, &
                                                 gauss, pref, q_t, tmp, trq_t
@@ -747,13 +747,13 @@ CONTAINS
     CALL structure_factor_allocate(pw_grid%bounds, nnodes, exp_igr)
 
     ALLOCATE (summe_ef(1:pw_grid%ngpts_cut), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     summe_ef = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
     ! Stress Tensor
     IF (do_stress) THEN
        pv_tmp = 0.0_dp
        ALLOCATE (summe_st(3,1:pw_grid%ngpts_cut), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        summe_st = CMPLX (0.0_dp, 0.0_dp,KIND=dp)
     END IF
 
@@ -969,7 +969,7 @@ CONTAINS
 
     CALL structure_factor_deallocate (exp_igr)
     DEALLOCATE (summe_ef, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (do_stress) THEN
        pv_tmp = pv_tmp * pref
        ! Symmetrize the tensor
@@ -983,7 +983,7 @@ CONTAINS
        pv(3,2) = pv(2,3)
        pv(3,3) = pv(3,3) +  pv_tmp(3,3)
        DEALLOCATE (summe_st, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (do_forces) THEN
        forces  = 2.0_dp * forces  * pref

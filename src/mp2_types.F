@@ -202,7 +202,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPostcondition(ASSOCIATED(mp2_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mp2_env))
 
     ! release the HFX section for the EXX calculation
     IF(ASSOCIATED(mp2_env%ri_rpa%x_data)) THEN
@@ -210,7 +210,7 @@ CONTAINS
     END IF
 
     DEALLOCATE(mp2_env,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -233,10 +233,10 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPostcondition(.NOT.ASSOCIATED(mp2_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(mp2_env))
 
     ALLOCATE(mp2_env,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY(mp2_env%ri_rpa%x_data)
 

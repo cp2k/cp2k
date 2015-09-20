@@ -45,7 +45,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="ATOMIC",&
          description="Controls the calculation of atomic properties. "//&
                      "Printing is controled by FORCE_EVAL / PRINT / PROGRAM_RUN_INFO",&

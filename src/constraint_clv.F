@@ -934,7 +934,7 @@ CONTAINS
     IF (PRESENT(roll)) THEN
        my_roll = roll
        IF (my_roll) THEN
-          CPPostcondition(PRESENT(rmat),cp_failure_level,routineP,failure)
+          CPASSERT(PRESENT(rmat))
        END IF
     END IF
     DO iatm = 1, SIZE( lcolv % colvar_old % i_atom )
@@ -982,7 +982,7 @@ CONTAINS
     IF (PRESENT(roll)) THEN
        my_roll = roll
        IF (my_roll) THEN
-          CPPostcondition(PRESENT(rmat),cp_failure_level,routineP,failure)
+          CPASSERT(PRESENT(rmat))
        END IF
     END IF
 
@@ -1037,9 +1037,9 @@ CONTAINS
     IF (PRESENT(roll)) THEN
        my_roll = roll
        IF (my_roll) THEN
-          CPPostcondition(PRESENT(rmat),cp_failure_level,routineP,failure)
-          CPPostcondition(PRESENT(veps),cp_failure_level,routineP,failure)
-          CPPostcondition(PRESENT(particles),cp_failure_level,routineP,failure)
+          CPASSERT(PRESENT(rmat))
+          CPASSERT(PRESENT(veps))
+          CPASSERT(PRESENT(particles))
        END IF
     END IF
     res = 0.0_dp

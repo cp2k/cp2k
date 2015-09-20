@@ -50,8 +50,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(qmmmx_env),cp_failure_level,routineP,failure)
-    CPPrecondition(qmmmx_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qmmmx_env))
+    CPASSERT(qmmmx_env%ref_count>0)
 
     ! get the underlying energies from primary subsys.  This is the only subsys
     ! for conventional QM/MM, and force-mixing knows to put relevant energy there.
@@ -78,8 +78,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(qmmmx_env),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(qmmmx_env%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(qmmmx_env))
+    CPASSERT(qmmmx_env%ref_count>0)
     qmmmx_env%ref_count = qmmmx_env%ref_count+1
   END SUBROUTINE qmmmx_env_retain
 
@@ -100,7 +100,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(qmmmx_env)) THEN
-       CPPreconditionNoFail(qmmmx_env%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(qmmmx_env%ref_count>0)
        qmmmx_env%ref_count = qmmmx_env%ref_count-1
        IF (qmmmx_env%ref_count==0) THEN
           CALL qmmm_env_release(qmmmx_env%core)

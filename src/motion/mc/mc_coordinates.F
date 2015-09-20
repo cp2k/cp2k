@@ -790,7 +790,6 @@ SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
                                                 start_mol
     INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits
     INTEGER, DIMENSION(:, :), POINTER        :: nchains
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rand
 
 ! begin the timing of the subroutine
@@ -909,9 +908,9 @@ SUBROUTINE find_mc_test_molecule(mc_molecule_info,start_atom,&
       IF(PRESENT(box)) box_number=box
       IF(PRESENT(molecule_type_old)) molecule_type=molecule_type_old
 
-      CPPostcondition(start_atom/=0,cp_failure_level,routineP,failure)
-      CPPostcondition(box_number/=0,cp_failure_level,routineP,failure)
-      CPPostcondition(molecule_type/=0,cp_failure_level,routineP,failure)
+      CPASSERT(start_atom/=0)
+      CPASSERT(box_number/=0)
+      CPASSERT(molecule_type/=0)
 
 ! end the timing
       CALL timestop(handle)

@@ -114,7 +114,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(next_el),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(next_el))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -150,7 +150,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(gt_elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gt_elem))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -183,7 +183,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(next_el),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(next_el))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -244,7 +244,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tree_elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tree_elem))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -295,9 +295,9 @@ CONTAINS
 
     NULLIFY(global_tree)
 
-    CPPreconditionNoFail(ASSOCIATED(start_elem),cp_failure_level,routineP)
-    CPPreconditionNoFail(ASSOCIATED(tmc_env),cp_failure_level,routineP)
-    CPPreconditionNoFail(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(start_elem))
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -453,11 +453,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(gt_tree_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(gt_tree_ptr%parent),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gt_tree_ptr))
+    CPASSERT(.NOT.ASSOCIATED(gt_tree_ptr%parent))
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
+    CPASSERT(ASSOCIATED(tmc_env%params))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -529,10 +529,10 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(tmp_elem, tree_elem, new_elem)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env%gt_act),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%params))
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
+    CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -573,7 +573,7 @@ CONTAINS
            new_elem => tmp_elem%nacc
 
         ! check for existing subtree element
-        CPPrecondition(ASSOCIATED(new_elem%conf(new_elem%mv_conf)%elem),cp_failure_level,routineP,failure)
+        CPASSERT(ASSOCIATED(new_elem%conf(new_elem%mv_conf)%elem))
         SELECT CASE(new_elem%conf(new_elem%mv_conf)%elem%stat)
         CASE(status_cancel_nmc,status_cancel_ener,status_canceled_nmc,&
              status_canceled_ener)
@@ -883,10 +883,10 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(new_elem, parent_elem)
 
-    CPPrecondition(ASSOCIATED(act_gt_el),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(act_gt_el%conf(act_gt_el%mv_conf)%elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(act_gt_el))
+    CPASSERT(ASSOCIATED(act_gt_el%conf(act_gt_el%mv_conf)%elem))
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%params))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1014,7 +1014,7 @@ CONTAINS
 
     ! end the timing
     CALL timestop(handle)
-    CPPostcondition(ASSOCIATED(act_gt_el%conf(act_gt_el%mv_conf)%elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(act_gt_el%conf(act_gt_el%mv_conf)%elem))
   END SUBROUTINE create_new_subtree_node
 
   !============================================================================
@@ -1041,8 +1041,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(gt_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gt_ptr))
+    CPASSERT(ASSOCIATED(tmc_env))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1081,7 +1081,7 @@ CONTAINS
     ! end the timing
     CALL timestop(handle)
 
-    CPPostcondition(.NOT.ASSOCIATED(gt_ptr),cp_failure_level,routineP,failure) 
+    CPASSERT(.NOT.ASSOCIATED(gt_ptr))
   END SUBROUTINE remove_gt_elem
 
 ! *****************************************************************************
@@ -1105,8 +1105,8 @@ CONTAINS
 
     failure = .FALSE.
     ready = .TRUE.
-    CPPrecondition(ASSOCIATED(ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ptr))
+    CPASSERT(ASSOCIATED(tmc_env))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1119,7 +1119,7 @@ CONTAINS
                    " still with global tree element references e.g."//&
                    cp_to_string(ptr%gt_nodes_references%gt_elem%nr),&
                    failure)
-      CPPrecondition(ASSOCIATED(ptr%gt_nodes_references%gt_elem),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(ptr%gt_nodes_references%gt_elem))
     ELSE
       SELECT CASE(ptr%stat)
       ! if element is still in progress, do not delete, wait for responding 
@@ -1127,7 +1127,7 @@ CONTAINS
            status_calculate_NMC_steps, status_calculate_MD)
         ! in case of speculative canceling: should be already canceled
         !  try to deallocate subtree element (still in progress)
-        CPPrecondition(tmc_env%params%SPECULATIVE_CANCELING,cp_failure_level,routineP,failure)
+        CPASSERT(tmc_env%params%SPECULATIVE_CANCELING)
       CASE(status_cancel_nmc, status_cancel_ener)
         ! do not return in case of finalizing (do not wait for canceling receipt)
         IF(PRESENT(draw)) ready = .FALSE. 
@@ -1137,7 +1137,7 @@ CONTAINS
       ! check if real top to bottom or bottom to top deallocation (no middle element deallocation)
       IF(ASSOCIATED(ptr%parent).AND.&
          (ASSOCIATED(ptr%acc).OR.ASSOCIATED(ptr%nacc)))THEN
-        CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
       END IF
  
       IF(ready) THEN 
@@ -1194,9 +1194,9 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(acc_ptr, nacc_ptr, tmp_ptr)
 
-    CPPrecondition(ASSOCIATED(begin_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(end_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(begin_ptr))
+    CPASSERT(ASSOCIATED(end_ptr))
+    CPASSERT(ASSOCIATED(tmc_env))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1242,7 +1242,7 @@ CONTAINS
     END IF
     ! end the timing
     CALL timestop(handle)
-    CPPostcondition(ASSOCIATED(end_ptr),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(end_ptr))
   END SUBROUTINE remove_unused_g_tree
 
 ! *****************************************************************************
@@ -1282,10 +1282,10 @@ CONTAINS
     ! start the timing
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(begin_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(end_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(working_elem_list),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(begin_ptr))
+    CPASSERT(ASSOCIATED(end_ptr))
+    CPASSERT(ASSOCIATED(working_elem_list))
+    CPASSERT(ASSOCIATED(tmc_env))
 
     !-- if element is last checked in trajectory, go back
     IF(.NOT.ASSOCIATED(begin_ptr, end_ptr)) THEN
@@ -1389,8 +1389,8 @@ CONTAINS
     TYPE(global_tree_type), POINTER          :: tmp_ptr
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(end_of_clean_tree),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(actual_ptr),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(end_of_clean_tree))
+    CPASSERT(ASSOCIATED(actual_ptr))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1434,9 +1434,9 @@ CONTAINS
     TYPE(tree_type), POINTER                 :: tmp_ptr
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(end_of_clean_tree),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(actual_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(end_of_clean_tree))
+    CPASSERT(ASSOCIATED(actual_ptr))
+    CPASSERT(ASSOCIATED(tmc_env))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1450,7 +1450,7 @@ CONTAINS
     IF(.NOT.ASSOCIATED(actual_ptr, end_of_clean_tree)) THEN
       ! in trajectory just one direction should exist
       IF(ASSOCIATED(actual_ptr%acc).AND.ASSOCIATED(actual_ptr%nacc)) THEN
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
       END IF
       ! the parent should be deleted already, but global tree is allocated to the second last accepted, &
       !   hence there could be still a reference to an element...
@@ -1489,13 +1489,13 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(last_acc_st_elem, tmp_ptr, tmp_gt_ptr)
 
-    CPPrecondition(ASSOCIATED(working_elem_list),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env%gt_act),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env%gt_clean_end),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env%result_list),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env%st_clean_ends),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(working_elem_list))
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
+    CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
+    CPASSERT(ASSOCIATED(tmc_env%m_env%gt_clean_end))
+    CPASSERT(ASSOCIATED(tmc_env%m_env%result_list))
+    CPASSERT(ASSOCIATED(tmc_env%m_env%st_clean_ends))
 
     flag = .FALSE.
     change_trajec = .FALSE.
@@ -1520,7 +1520,7 @@ CONTAINS
       IF(.NOT.ASSOCIATED(tmc_env%m_env%gt_head,tmc_env%m_env%gt_clean_end)) &
         change_trajec=.TRUE.
       tmc_env%m_env%gt_head => tmc_env%m_env%gt_clean_end
-      CPPostcondition(.NOT.ASSOCIATED(tmc_env%m_env%gt_head%parent),cp_failure_level,routineP,failure)
+      CPASSERT(.NOT.ASSOCIATED(tmc_env%m_env%gt_head%parent))
       !IF (DEBUG.GE.20) WRITE(tmc_out_file_nr,*)"new head of pt tree is ",tmc_env%m_env%gt_head%nr
     END IF
 
@@ -1533,7 +1533,7 @@ CONTAINS
         IF(last_acc_st_elem%sub_tree_nr .EQ. tree) &
           EXIT conf_loop
       END DO conf_loop
-      CPPostcondition(last_acc_st_elem%sub_tree_nr.EQ.tree,cp_failure_level,routineP,failure)
+      CPASSERT(last_acc_st_elem%sub_tree_nr.EQ.tree)
       CALL remove_unused_s_tree(begin_ptr=tmc_env%m_env%st_clean_ends(tree)%elem, &
                  end_ptr=last_acc_st_elem, working_elem_list=working_elem_list, &
                  removed=flag, tmc_env=tmc_env)
@@ -1544,7 +1544,7 @@ CONTAINS
     IF(tmc_env%params%USE_REDUCED_TREE .AND. change_trajec)THEN
       DO tree=1, tmc_env%params%nr_temp
         tmp_ptr => tmc_env%m_env%st_clean_ends(tree)%elem
-        CPPostcondition(tmp_ptr%sub_tree_nr.EQ.tree,cp_failure_level,routineP,failure)
+        CPASSERT(tmp_ptr%sub_tree_nr.EQ.tree)
         CALL remove_result_s_tree(end_of_clean_tree=tmc_env%m_env%st_clean_ends(tree)%elem,&
                                  actual_ptr=tmp_ptr, tmc_env=tmc_env)
         tmc_env%m_env%st_heads(tree)%elem => tmc_env%m_env%st_clean_ends(tree)%elem
@@ -1556,8 +1556,8 @@ CONTAINS
 
     ! end the timing
     CALL timestop(handle)
-    CPPostcondition(ASSOCIATED(tmc_env%m_env%gt_act),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(tmc_env%m_env%gt_clean_end),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
+    CPASSERT(ASSOCIATED(tmc_env%m_env%gt_clean_end))
   END SUBROUTINE remove_all_trees
 
 ! *****************************************************************************
@@ -1580,8 +1580,8 @@ CONTAINS
     TYPE(global_tree_type), POINTER          :: acc_ptr, nacc_ptr, tmp_ptr
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(begin_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(begin_ptr))
+    CPASSERT(ASSOCIATED(tmc_env))
 
     IF(ASSOCIATED(begin_ptr%acc))THEN
       acc_ptr => begin_ptr%acc
@@ -1626,8 +1626,8 @@ CONTAINS
     TYPE(tree_type), POINTER                 :: acc_ptr, nacc_ptr, tmp_ptr
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(begin_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(begin_ptr))
+    CPASSERT(ASSOCIATED(tmc_params))
 
     IF(ASSOCIATED(begin_ptr%acc))THEN
       acc_ptr => begin_ptr%acc
@@ -1669,8 +1669,8 @@ CONTAINS
     TYPE(global_tree_type), POINTER          :: global_tree
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
 
     global_tree => tmc_env%m_env%gt_act
     !-- deallocate pt tree

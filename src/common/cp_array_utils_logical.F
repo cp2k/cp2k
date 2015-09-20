@@ -125,7 +125,7 @@ SUBROUTINE cp_1d_logical_write(array, unit_nr, el_format)
 
   failure=.FALSE.
   WRITE(unit=unit_nr,fmt="('( ')",advance="no", iostat=iostat)
-  CPPrecondition(iostat==0,cp_failure_level,routineP,failure)
+  CPASSERT(iostat==0)
   IF (.NOT.failure) THEN
      IF (PRESENT(el_format)) THEN
         DO i=1,SIZE(array)-1
@@ -191,7 +191,7 @@ SUBROUTINE cp_2d_logical_write(array, unit_nr, el_format)
         fmtstr = '(" ",'//nRiga//defaultFormat//')'
         WRITE(unit=unit_nr,fmt=fmtstr,iostat=iostat) array(i,:)
      END IF
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      IF (failure) THEN
         EXIT
      END IF
@@ -228,18 +228,18 @@ END SUBROUTINE cp_2d_logical_write
 
     failure=.FALSE.
 
-    CPPrecondition(n>=0,cp_failure_level,routineP,failure)
+    CPASSERT(n>=0)
     failureIf: IF (.NOT. failure) THEN
        IF (ASSOCIATED(array)) THEN
           IF (SIZE(array) /= n) THEN
-             CPErrorMessage(cp_warning_level,routineP,'size has changed')
+             CPWARN('size has changed')
              DEALLOCATE(array, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
        END IF
        IF (.NOT.ASSOCIATED(array)) THEN
           ALLOCATE(array(n), stat=stat)
-          CPPostcondition(stat==0, cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF failureIf
   END SUBROUTINE cp_1d_logical_guarantee_size
@@ -273,20 +273,20 @@ END SUBROUTINE cp_2d_logical_write
 
     failure=.FALSE.
 
-    CPPrecondition(n_cols>=0,cp_failure_level,routineP,failure)
-    CPPrecondition(n_rows>=0,cp_failure_level,routineP,failure)
+    CPASSERT(n_cols>=0)
+    CPASSERT(n_rows>=0)
     failureIf: IF (.NOT. failure) THEN
        IF (ASSOCIATED(array)) THEN
           IF (SIZE(array,1) /= n_rows .OR. SIZE(array,2) /= n_cols) THEN
-             CPErrorMessage(cp_warning_level,routineP,'size has changed')
+             CPWARN('size has changed')
              DEALLOCATE(array, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
              NULLIFY(array)
           END IF
        END IF
        IF (.NOT.ASSOCIATED(array)) THEN
           ALLOCATE(array(n_rows,n_cols), stat=stat)
-          CPPostconditionNoFail(stat==0, cp_failure_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF failureIf
   END SUBROUTINE cp_2d_logical_guarantee_size

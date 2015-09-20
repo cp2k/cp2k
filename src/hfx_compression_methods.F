@@ -146,7 +146,7 @@ MODULE hfx_compression_methods
       ELSE
         !! Allocate new list entry
         ALLOCATE(container%current%next, STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         !$OMP ATOMIC
         memory_usage = memory_usage + 1
         container%current%next%next => NULL()

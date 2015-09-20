@@ -1854,12 +1854,12 @@ MODULE admm_methods
 
     ! *** forces are only implemented for mo_diag or none and basis_projection ***
     IF (admm_env%block_dm) THEN
-      CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
     ENDIF
 
     IF (.NOT.(admm_env%purification_method==do_admm_purify_mo_diag .OR. &
                admm_env%purification_method==do_admm_purify_none)) THEN
-      CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
     ENDIF
 
     ! *** Create sparse work matrices

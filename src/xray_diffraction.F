@@ -128,7 +128,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
 
     IF (.NOT.failure) THEN
 
@@ -225,7 +225,7 @@ CONTAINS
       ng_shell(1) = 1
 
       DO ig=2,ng
-        CPPostcondition(gsq(ig)>=gsq(jg),cp_failure_level,routineP,failure)
+        CPASSERT(gsq(ig)>=gsq(jg))
         IF (ABS(gsq(ig) - gsq(jg)) > 1.0E-12_dp) THEN
           nshell = nshell + 1
           IF (nshell > SIZE(q_shell)) THEN
@@ -310,12 +310,12 @@ CONTAINS
 
       IF (ASSOCIATED(offset_pe)) THEN
         DEALLOCATE (offset_pe,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(nshell_pe)) THEN
         DEALLOCATE (nshell_pe,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       ! Print X-ray diffraction spectrum (I/O node only)
@@ -376,7 +376,7 @@ CONTAINS
 
         IF (ASSOCIATED(aux_index)) THEN
           DEALLOCATE (aux_index,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
 
         ! Allocate the final arrays for printing with their real size
@@ -434,72 +434,72 @@ CONTAINS
 
       IF (ASSOCIATED(fmin)) THEN
         DEALLOCATE (fmin,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(fmax)) THEN
         DEALLOCATE (fmax,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(fsum)) THEN
         DEALLOCATE (fsum,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(f2sum)) THEN
         DEALLOCATE (f2sum,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(f4sum)) THEN
         DEALLOCATE (f4sum,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(ng_shell)) THEN
         DEALLOCATE (ng_shell,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(q_shell)) THEN
         DEALLOCATE (q_shell,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(fmin_gather)) THEN
         DEALLOCATE (fmin_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(fmax_gather)) THEN
         DEALLOCATE (fmax_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(fsum_gather)) THEN
         DEALLOCATE (fsum_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(f2sum_gather)) THEN
         DEALLOCATE (f2sum_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(f4sum_gather)) THEN
         DEALLOCATE (f4sum_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(ng_shell_gather)) THEN
         DEALLOCATE (ng_shell_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(q_shell_gather)) THEN
         DEALLOCATE (q_shell_gather,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       CALL pw_pool_give_back_pw(auxbas_pw_pool,&
@@ -573,8 +573,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(auxbas_pw_pool),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
+    CPASSERT(ASSOCIATED(auxbas_pw_pool))
 
     IF (.NOT.failure) THEN
 
@@ -645,7 +645,7 @@ CONTAINS
       CALL get_pw_grid_info(pw_grid=rhotot_elec_gspace%pw%pw_grid,&
                             vol=volume,&
                             orthorhombic=orthorhombic)
-      CPPostcondition(orthorhombic,cp_failure_level,routineP,failure)
+      CPASSERT(orthorhombic)
 
       CALL pw_scale(rhotot_elec_gspace%pw,volume)
 
@@ -787,17 +787,17 @@ CONTAINS
 
       IF (ASSOCIATED(delta_cpc)) THEN
         DEALLOCATE (delta_cpc,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(work)) THEN
         DEALLOCATE (work,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(pab)) THEN
         DEALLOCATE (pab,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       CALL timestop(handle)

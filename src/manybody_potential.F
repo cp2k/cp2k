@@ -129,9 +129,9 @@ CONTAINS
          eam => pot%set(i)%eam
          nparticle = SIZE ( particle_set )
          ALLOCATE(fembed(nparticle), stat=stat )
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          fembed(:) = 0._dp
-         CPPostcondition(ASSOCIATED(eam_data),cp_failure_level,routineP,failure)
+         CPASSERT(ASSOCIATED(eam_data))
          ! computation of embedding function and energy
          nparticle_local = local_particles%n_el(ikind)
          DO iparticle_local=1,nparticle_local
@@ -154,7 +154,7 @@ CONTAINS
          END DO
 
          DEALLOCATE ( fembed, stat=stat )
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
        END DO
     END DO
     ! Other manybody potential
@@ -198,7 +198,7 @@ CONTAINS
                 npairs  = iend-istart+1
                 IF (npairs /=0) THEN
                    ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    sort_list = list(:,istart:iend)
                    ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
@@ -246,7 +246,7 @@ CONTAINS
                       IF (ipair<=npairs) junique = sort_list(1,ipair)
                    END DO
                    DEALLOCATE(sort_list,work_list,stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                 END IF
              END DO
           END DO Kind_Group_Loop
@@ -280,7 +280,7 @@ CONTAINS
                 npairs  = iend-istart+1
                 IF (npairs /=0) THEN
                    ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    sort_list = list(:,istart:iend)
                    ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
@@ -329,7 +329,7 @@ CONTAINS
                       IF (ipair<=npairs) junique = sort_list(1,ipair)
                    END DO
                    DEALLOCATE(sort_list,work_list,stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                 END IF
              END DO
           END DO Kind_Group_Loop_2
@@ -412,15 +412,15 @@ CONTAINS
 
     nkinds = SIZE(potparm%pot,1)
     ALLOCATE(eam_kinds_index(nkinds,nkinds),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     eam_kinds_index = -1
     DO ikind = 1, nkinds
        DO jkind = ikind, nkinds
           DO i = 1, SIZE(potparm%pot(ikind,jkind)%pot%type)
              IF (potparm%pot(ikind,jkind)%pot%type(i)==ea_type) THEN
                 ! At the moment we allow only 1 EAM per each kinds pair..
-                CPPostcondition(eam_kinds_index(ikind,jkind)==-1,cp_failure_level,routineP,failure)
-                CPPostcondition(eam_kinds_index(jkind,ikind)==-1,cp_failure_level,routineP,failure)
+                CPASSERT(eam_kinds_index(ikind,jkind)==-1)
+                CPASSERT(eam_kinds_index(jkind,ikind)==-1)
                 eam_kinds_index(ikind,jkind) = i
                 eam_kinds_index(jkind,ikind) = i
              END IF
@@ -453,7 +453,7 @@ CONTAINS
           i = eam_kinds_index(ikind,jkind)
           IF (i==-1) CYCLE
           ! EAM
-          CPPostcondition(ASSOCIATED(eam_data),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(eam_data))
           DO ipair = istart, iend
              atom_a = list(1,ipair)
              atom_b = list(2,ipair)
@@ -501,7 +501,7 @@ CONTAINS
        END DO Kind_Group_Loop1
     END DO
     DEALLOCATE (eam_kinds_index, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Special way of handling the tersoff potential..
     IF (any_tersoff) THEN
@@ -529,7 +529,7 @@ CONTAINS
                    npairs = iend-istart+1
                    tersoff => pot%set(i)%tersoff
                    ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    sort_list = list(:,istart:iend)
                    ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
@@ -575,7 +575,7 @@ CONTAINS
                       IF (ipair<=npairs) junique = sort_list(1,ipair)
                    END DO
                    DEALLOCATE(sort_list,work_list,stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                 END IF
              END DO
           END DO Kind_Group_Loop2
@@ -608,7 +608,7 @@ CONTAINS
                    npairs = iend-istart+1
                    siepmann => pot%set(i)%siepmann
                    ALLOCATE(sort_list(2,npairs),work_list (npairs),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    sort_list = list(:,istart:iend)
                    ! Sort the list of neighbors, this increases the efficiency for single
                    ! potential contributions
@@ -659,7 +659,7 @@ CONTAINS
                       IF (ipair<=npairs) junique = sort_list(1,ipair)
                    END DO
                    DEALLOCATE(sort_list,work_list,stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                 END IF
              END DO
           END DO Kind_Group_Loop3

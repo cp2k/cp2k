@@ -641,9 +641,9 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(rho0_m)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qs_env%ks_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
+    CPASSERT(qs_env%ref_count>0)
+    CPASSERT(ASSOCIATED(qs_env%ks_env))
 
     IF (PRESENT(outer_scf_history)) outer_scf_history=>qs_env%outer_scf_history
     IF (PRESENT(outer_scf_ihistory)) outer_scf_ihistory=qs_env%outer_scf_ihistory
@@ -1083,7 +1083,7 @@ CONTAINS
 
     failure=.FALSE.
 !    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(qs_env%ref_count>0)
     IF (PRESENT(mp2_env)) qs_env%mp2_env=>mp2_env
     IF (PRESENT(kg_env)) qs_env%kg_env => kg_env
     IF (PRESENT(super_cell)) THEN
@@ -1263,7 +1263,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(qs_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL init_qs_env(qs_env, globenv=globenv)
   END SUBROUTINE qs_env_create
 
@@ -1284,8 +1284,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
+    CPASSERT(qs_env%ref_count>0)
     qs_env%ref_count=qs_env%ref_count+1
   END SUBROUTINE qs_env_retain
 
@@ -1308,7 +1308,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(qs_env)) THEN
-       CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(qs_env%ref_count>0)
        qs_env%ref_count=qs_env%ref_count-1
        IF (qs_env%ref_count<1) THEN
           CALL cell_release(qs_env%super_cell)
@@ -1317,14 +1317,14 @@ CONTAINS
                 CALL deallocate_mo_set(qs_env%mos(i)%mo_set)
              END DO
              DEALLOCATE(qs_env%mos, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(qs_env%mos_aux_fit)) THEN
              DO i=1,SIZE(qs_env%mos_aux_fit)
                 CALL deallocate_mo_set(qs_env%mos_aux_fit(i)%mo_set)
              END DO
              DEALLOCATE(qs_env%mos_aux_fit, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
 
           IF (ASSOCIATED(qs_env%mo_derivs)) THEN
@@ -1332,7 +1332,7 @@ CONTAINS
                 CALL cp_dbcsr_release_p(qs_env%mo_derivs(I)%matrix)
              ENDDO
              DEALLOCATE(qs_env%mo_derivs, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           ENDIF
 
           IF (ASSOCIATED(qs_env%mo_derivs_aux_fit)) THEN
@@ -1340,7 +1340,7 @@ CONTAINS
                 CALL cp_fm_release(qs_env%mo_derivs_aux_fit(I)%matrix)
              ENDDO
              DEALLOCATE(qs_env%mo_derivs_aux_fit, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           ENDIF
 
           IF (ASSOCIATED(qs_env%mo_loc_history)) THEN
@@ -1348,7 +1348,7 @@ CONTAINS
                 CALL cp_fm_release(qs_env%mo_loc_history(I)%matrix)
              ENDDO
              DEALLOCATE(qs_env%mo_loc_history, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           ENDIF
           IF (ASSOCIATED(qs_env%rtp))THEN
              CALL rt_prop_release(qs_env%rtp)
@@ -1356,7 +1356,7 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qs_env%outer_scf_history)) THEN
              DEALLOCATE(qs_env%outer_scf_history,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
              qs_env%outer_scf_ihistory=0
           ENDIF
           IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
@@ -1464,16 +1464,16 @@ CONTAINS
           IF( ASSOCIATED(qs_env%WannierCentres)) THEN
             DO i=1,SIZE(qs_env%WannierCentres)
               DEALLOCATE(qs_env%WannierCentres(i)%WannierHamDiag, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+              CPASSERT(stat==0)
               DEALLOCATE(qs_env%WannierCentres(i)%centres, stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+              CPASSERT(stat==0)
             ENDDO
             DEALLOCATE(qs_env%WannierCentres, stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
           ENDIF
           ! now we are ready to deallocate the full structure
           DEALLOCATE(qs_env, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(qs_env)

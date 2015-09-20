@@ -93,11 +93,11 @@ CONTAINS
        n2 = (n-1)/2
     END IF
     ALLOCATE(x(n),stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(itmp(n),stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(a(n2),stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+    CPASSERT(stat==0)
     x(:) = ix
     CALL sort(x, n, itmp)
     ! Check for zero range
@@ -202,11 +202,11 @@ CONTAINS
        END IF
     END IF
     DEALLOCATE(x,stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(itmp,stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(a,stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE sw_test
 
@@ -481,7 +481,7 @@ CONTAINS
        n = 50 ! original sample size
        NULLIFY(xdata)
        ALLOCATE(xdata(n), stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, 10
           xdata(i) = 5.0_dp - REAL(i,KIND=dp)/2.0_dp + 0.1*&
                      next_random_number(globenv%gaussian_rng_stream)
@@ -501,18 +501,18 @@ CONTAINS
        ! Test for normality distribution and for serial correlation
        DO i = 1,n
          ALLOCATE(ydata(n-i+1), stat=stat)
-         CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+         CPASSERT(stat==0)
          ydata = xdata(i:n)
          CALL sw_test ( ydata, n-i+1, w, pw)
          CALL vn_test(ydata,n-i+1,r,u,prob)
          WRITE(*,*)"Shapiro Wilks test",i,w,pw
          WRITE(*,*)"Von Neu",i,r,u,prob
          DEALLOCATE(ydata, stat=stat)
-         CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+         CPASSERT(stat==0)
        END DO
 
        DEALLOCATE(xdata, stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE tests
 

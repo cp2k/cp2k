@@ -67,7 +67,7 @@ CONTAINS
     IF (ASSOCIATED(grid_atom)) CALL deallocate_grid_atom(grid_atom)
 
     ALLOCATE (grid_atom,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY (grid_atom%rad)
     NULLIFY (grid_atom%rad2)
@@ -108,81 +108,81 @@ CONTAINS
 
        IF (ASSOCIATED(grid_atom%rad)) THEN
           DEALLOCATE (grid_atom%rad,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%rad2)) THEN
           DEALLOCATE (grid_atom%rad2,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%wr)) THEN
           DEALLOCATE (grid_atom%wr,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%wa)) THEN
           DEALLOCATE (grid_atom%wa,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%weight)) THEN
           DEALLOCATE (grid_atom%weight,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%azi)) THEN
           DEALLOCATE (grid_atom%azi,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%cos_azi)) THEN
           DEALLOCATE (grid_atom%cos_azi,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%sin_azi)) THEN
           DEALLOCATE (grid_atom%sin_azi,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%cotan_azi)) THEN
           DEALLOCATE (grid_atom%cotan_azi,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%pol)) THEN
           DEALLOCATE (grid_atom%pol,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%cos_pol)) THEN
           DEALLOCATE (grid_atom%cos_pol,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%sin_pol)) THEN
           DEALLOCATE (grid_atom%sin_pol,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%usin_pol)) THEN
           DEALLOCATE (grid_atom%usin_pol,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%rad2l)) THEN
           DEALLOCATE (grid_atom%rad2l,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(grid_atom%oorad2l)) THEN
           DEALLOCATE (grid_atom%oorad2l,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        DEALLOCATE (grid_atom,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer grid_atom is not associated and "//&

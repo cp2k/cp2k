@@ -92,8 +92,8 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(ASSOCIATED(globenv))
 
     NULLIFY (gopt_param,force_env_section,gopt_env,dvec_sc,dvec_sc_0,root_section,geo_section)
     root_section      => force_env%root_section
@@ -123,9 +123,9 @@ CONTAINS
 
     nshell = SIZE(shell_particle_set)
     ALLOCATE(dvec_sc(3*nshell), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(dvec_sc_0(3*nshell), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i= 1,nshell
       dvec_sc(1+3*(i-1)) = core_particle_set(i)%r(1)-shell_particle_set(i)%r(1)
       dvec_sc(2+3*(i-1)) = core_particle_set(i)%r(2)-shell_particle_set(i)%r(2)
@@ -154,9 +154,9 @@ CONTAINS
     CALL gopt_f_release(gopt_env)
     CALL gopt_param_release(gopt_param)
     DEALLOCATE(dvec_sc, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(dvec_sc_0, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF(PRESENT(tmp)) THEN
       DO i=1,nshell

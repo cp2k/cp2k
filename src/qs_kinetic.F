@@ -162,7 +162,7 @@ CONTAINS
         CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index)
         use_cell_mapping = (SIZE(cell_to_index) > 1)
      ELSE
-        CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
      END IF
 
      NULLIFY (atomic_kind_set, qs_kind_set, p_block,dft_control)
@@ -177,19 +177,19 @@ CONTAINS
      nkind = SIZE(atomic_kind_set)
 
      ALLOCATE (atom_of_kind(natom),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
      do_forces = .FALSE.
      IF (PRESENT(calculate_forces)) do_forces = calculate_forces
 
      ! check for symmetry
-     CPPrecondition(SIZE(sab_nl) > 0,cp_failure_level,routineP,failure)
+     CPASSERT(SIZE(sab_nl) > 0)
      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl,symmetric=do_symmetric)
 
      ! prepare basis set
      ALLOCATE (basis_set_list(nkind),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      CALL basis_set_list_setup(basis_set_list,basis_type,qs_kind_set)
 
      IF(dokp) THEN
@@ -208,19 +208,19 @@ CONTAINS
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
         ! we need density matrix for forces
         IF(dokp) THEN
-           CPPrecondition(PRESENT(matrixkp_p),cp_failure_level,routineP,failure)
+           CPASSERT(PRESENT(matrixkp_p))
         ELSE
-           CPPrecondition(PRESENT(matrix_p),cp_failure_level,routineP,failure)
+           CPASSERT(PRESENT(matrix_p))
         END IF
      END IF
 
      ! *** Allocate work storage ***
      ldsab = get_memory_usage(qs_kind_set,basis_type)
      ALLOCATE (kab(ldsab,ldsab),qab(ldsab,ldsab),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      IF (do_forces) THEN
         ALLOCATE(dab(ldsab,ldsab,3),pab(ldsab,ldsab),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
      END IF
 
      ! Iterate of neighbor list
@@ -259,7 +259,7 @@ CONTAINS
 
         IF(use_cell_mapping) THEN
            ic = cell_to_index(cell(1),cell(2),cell(3))
-           CPPostcondition(ic > 0,cp_failure_level,routineP,failure)
+           CPASSERT(ic > 0)
         ELSE
            ic = 1
         END IF
@@ -285,11 +285,11 @@ CONTAINS
         IF(dokp) THEN
            CALL cp_dbcsr_get_block_p(matrix=matrixkp_t(1,ic)%matrix,&
                 row=irow,col=icol,BLOCK=k_block,found=found)
-           CPPostcondition(found,cp_failure_level,routineP,failure)
+           CPASSERT(found)
         ELSE
            CALL cp_dbcsr_get_block_p(matrix=matrix_t(1)%matrix,&
                 row=irow,col=icol,BLOCK=k_block,found=found)
-           CPPostcondition(found,cp_failure_level,routineP,failure)
+           CPASSERT(found)
         END IF
 
         IF (do_forces) THEN
@@ -297,11 +297,11 @@ CONTAINS
            IF(dokp) THEN
               CALL cp_dbcsr_get_block_p(matrix=matrixkp_p(1,ic)%matrix,&
                    row=irow,col=icol,block=p_block,found=found)
-              CPPostcondition(found,cp_failure_level,routineP,failure)
+              CPASSERT(found)
            ELSE
               CALL cp_dbcsr_get_block_p(matrix=matrix_p,row=irow,col=icol,&
                    block=p_block,found=found)
-              CPPostcondition(found,cp_failure_level,routineP,failure)
+              CPASSERT(found)
            END IF
         END IF
 
@@ -371,15 +371,15 @@ CONTAINS
 
      ! Release work storage
      DEALLOCATE (atom_of_kind,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      DEALLOCATE (kab,qab,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      IF(do_forces) THEN
         DEALLOCATE (pab,dab,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
      END IF
      DEALLOCATE (basis_set_list,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
 
      CALL timestop(handle)
 

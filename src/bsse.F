@@ -103,9 +103,9 @@ CONTAINS
       num_of_conf = num_of_conf + FACT(Num_of_frag) / (FACT(k)*FACT(Num_of_frag-k))
     END DO
     ALLOCATE(conf(num_of_conf,Num_of_frag),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(Em(num_of_conf), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL gen_Nbody_conf(Num_of_frag, conf)
 
     should_stop = .FALSE.
@@ -143,9 +143,9 @@ CONTAINS
     IF (.NOT.should_stop) CALL dump_bsse_results(conf, Em, num_of_frag,  bsse_section)
     CALL cp_rm_iter_level(logger%iter_info,"BSSE")
     DEALLOCATE(Em,   stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(conf, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE do_bsse_calculation
 
@@ -196,9 +196,9 @@ CONTAINS
                             FACT(Num_of_sub_frag) / (FACT(k)*FACT(Num_of_sub_frag-k))
        END DO
        ALLOCATE(conf_loc(Num_of_sub_conf,Num_of_sub_frag), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(Em_loc(Num_of_sub_conf), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        Em_loc = 0.0_dp
        CALL gen_Nbody_conf(Num_of_sub_frag, conf_loc)
        CALL make_plan_conf(conf, conf_loc)
@@ -216,9 +216,9 @@ CONTAINS
        END DO
        Em = my_energy
        DEALLOCATE(Em_loc, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(conf_loc, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE eval_bsse_energy
@@ -268,7 +268,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL section_vals_get(n_frags,n_repetition=num_of_frag)
-    CPPostcondition(SIZE(conf)==num_of_frag,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(conf)==num_of_frag)
     NULLIFY(subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, tmplist,&
            force_env_section )
     CALL force_env_get(force_env, force_env_section=force_env_section)
@@ -278,14 +278,14 @@ CONTAINS
     dft_section    => section_vals_get_subs_vals(force_env_section,"DFT")
 
     ALLOCATE(my_conf(SIZE(conf)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     my_conf = conf
     CALL force_env_get(force_env=force_env, subsys=subsys, para_env=para_env,&
          cell=cell)
     CALL cp_subsys_get(subsys, particles=particles)
     isize = 0
     ALLOCATE(atom_index(isize),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, num_of_frag
        IF (conf(i) == 1) THEN
           !
@@ -302,7 +302,7 @@ CONTAINS
              END DO
           END IF
           my_conf(i) = isize - old_size
-          CPPostcondition(conf(i)/=0,cp_failure_level,routineP,failure)
+          CPASSERT(conf(i)/=0)
       END IF
     END DO
     CALL conf_info_setup(present_charge, present_multpl, conf, conf_loc, bsse_section,&
@@ -311,7 +311,7 @@ CONTAINS
     ! Get names and modify the ghost ones
     !
     ALLOCATE(atom_type(isize), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO j = 1, isize
        my_targ = atom_index(j)
        DO k = 1, SIZE(particles%els)
@@ -353,14 +353,14 @@ CONTAINS
        energy = qs_energy%total
        CALL qs_env_release(qs_env)
     ELSE
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
     DEALLOCATE(atom_index, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(atom_type, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(my_conf, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE eval_bsse_energy_low
 

@@ -194,7 +194,7 @@ CONTAINS
     CALL get_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control)
 
     ALLOCATE(mos_localized(nspins),stat=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ispin = 1,nspins
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
       CALL  cp_fm_create(mos_localized(ispin)%matrix,mo_coeff%matrix_struct)
@@ -336,7 +336,7 @@ CONTAINS
     ! allocate the vectors
     ALLOCATE(alpha(nspins),beta(nspins),tr_pAp(nspins),tr_rz0(nspins),tr_rz00(nspins),tr_rz1(nspins),&
              r(nspins),p(nspins),z(nspins),Ap(nspins),mo_coeff_array(nspins),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ispin = 1,nspins
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
        mo_coeff_array(ispin)%matrix => mo_coeff
@@ -361,7 +361,7 @@ CONTAINS
     !
     ! compute S*C0, C0_order'*H*C0_order (this should be done once for all)
     ALLOCATE(chc(nspins),Sc(nspins),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ispin = 1,nspins
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nmo=nmo)
        CALL cp_fm_create(Sc(ispin)%matrix,mo_coeff%matrix_struct)
@@ -643,7 +643,7 @@ CONTAINS
     ENDDO
     CALL cp_fm_release(buf)
     DEALLOCATE(alpha,beta,tr_pAp,tr_rz0,tr_rz00,tr_rz1,r,p,z,Ap,Sc,chc,mo_coeff_array,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,"PRINT%PROGRAM_RUN_INFO")
     !
@@ -690,10 +690,10 @@ CONTAINS
     !
     CALL timeset(routineN,handle)
     !
-    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(Av),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(chc),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(v))
+    CPASSERT(ASSOCIATED(Av))
+    CPASSERT(ASSOCIATED(chc))
+    CPASSERT(ASSOCIATED(buf))
     !
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_ks=matrix_ks,&
@@ -788,9 +788,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(c0),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(c1),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(dm),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(c0))
+    CPASSERT(ASSOCIATED(c1))
+    CPASSERT(ASSOCIATED(dm))
 
     nspins = SIZE(dm,1)
 
@@ -837,12 +837,12 @@ CONTAINS
     !
     CALL timeset(routineN,handle)
     !
-    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(Av),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(matrix_ks),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(chc),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(v))
+    CPASSERT(ASSOCIATED(Av))
+    CPASSERT(ASSOCIATED(matrix_ks))
+    CPASSERT(ASSOCIATED(matrix_s))
+    CPASSERT(ASSOCIATED(chc))
+    CPASSERT(ASSOCIATED(buf))
     !
     CALL cp_fm_get_info(v,ncol_global=ncol,nrow_global=nrow)
     ! H * v
@@ -921,20 +921,20 @@ CONTAINS
     energy_hartree=0.0_dp
     energy_hartree_1c=0.0_dp
 
-    CPPrecondition(ASSOCIATED(c0),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(Av),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(chc),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(c0))
+    CPASSERT(ASSOCIATED(v))
+    CPASSERT(ASSOCIATED(Av))
+    CPASSERT(ASSOCIATED(chc))
+    CPASSERT(ASSOCIATED(buf))
 
 
-    CPPrecondition(ASSOCIATED(p_env%kpp1_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(p_env%kpp1),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_env%kpp1_env))
+    CPASSERT(ASSOCIATED(p_env%kpp1))
     rho1    => p_env%rho1
     rho1_xc => p_env%rho1_xc
-    CPPrecondition(ASSOCIATED(rho1),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho1))
 
-    CPPrecondition(p_env%kpp1_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(p_env%kpp1_env%ref_count>0)
 
     CALL get_qs_env(qs_env=qs_env,&
          pw_env=pw_env,&
@@ -952,7 +952,7 @@ CONTAINS
     gapw    = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
     IF(gapw_xc) THEN
-       CPPrecondition(ASSOCIATED(rho1_xc),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(rho1_xc))
     END IF
 
     nspins = SIZE(p_env%kpp1)
@@ -964,11 +964,11 @@ CONTAINS
     p_env%kpp1_env%iter=p_env%kpp1_env%iter+1
 
 ! gets the tmp grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
          pw_pools=pw_pools, poisson_env=poisson_env)
     ALLOCATE(v_rspace_new(nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
          use_data = COMPLEXDATA1D,&
          in_space = RECIPROCALSPACE)
@@ -1062,7 +1062,7 @@ CONTAINS
                              auxbas_pw_pool)
 
        ALLOCATE(v_xc(nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO ispin=1, nspins
           NULLIFY(v_xc(ispin)%pw)
           CALL pw_pool_create_pw(auxbas_pw_pool,v_xc(ispin)%pw,&
@@ -1084,7 +1084,7 @@ CONTAINS
           v_rspace_new(ispin)%pw => v_xc(ispin)%pw
        END DO
        DEALLOCATE(v_xc,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        IF(gapw) CALL calculate_xc_2nd_deriv_atom(p_env,qs_env,xc_section,do_tddft=.FALSE.,&
                                                  do_triplet=lr_triplet)
@@ -1095,7 +1095,7 @@ CONTAINS
           CALL pw_release(rho1_r_pw(ispin)%pw)
        END DO
        DEALLOCATE(rho1_r_pw, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        !-------------------------------!
        ! Add both hartree and xc terms !
@@ -1229,7 +1229,7 @@ CONTAINS
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw)
        END DO
        DEALLOCATE(v_rspace_new, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
 
     END IF
 
@@ -1270,8 +1270,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(dft_control,matrix_s)
 
-    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,failure)
-    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_env))
+    CPASSERT(p_env%ref_count>0)
     CALL get_qs_env(qs_env, dft_control=dft_control)
     gapw_xc = dft_control%qs_control%gapw_xc
     IF (.NOT.ASSOCIATED(p_env%kpp1)) THEN
@@ -1335,8 +1335,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(pw_env,auxbas_pw_pool,matrix_s,rho,rho_r,input)
 
-    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,failure)
-    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpp1_env))
+    CPASSERT(kpp1_env%ref_count>0)
 
     CALL get_qs_env(qs_env, pw_env=pw_env,&
                     matrix_s=matrix_s, input=input,rho=rho)
@@ -1348,7 +1348,7 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(kpp1_env%v_rspace)) THEN
        ALLOCATE(kpp1_env%v_rspace(nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO ispin=1,nspins
           CALL pw_pool_create_pw(auxbas_pw_pool, &
                kpp1_env%v_rspace(ispin)%pw,&
@@ -1370,7 +1370,7 @@ CONTAINS
 
        IF (nspins==1.AND.lr_triplet) THEN
           ALLOCATE(my_rho_r(2),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ispin=1,2
              CALL pw_pool_create_pw(auxbas_pw_pool,my_rho_r(ispin)%pw, &
                   use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space)
@@ -1378,7 +1378,7 @@ CONTAINS
           END DO
        ELSE
           ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ispin=1,SIZE(rho_r)
              my_rho_r(ispin)%pw => rho_r(ispin)%pw
              CALL pw_retain(my_rho_r(ispin)%pw)
@@ -1402,7 +1402,7 @@ CONTAINS
           CALL pw_release(my_rho_r(ispin)%pw)
        ENDDO
        DEALLOCATE(my_rho_r,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
 
   END SUBROUTINE kpp1_check_i_alloc
@@ -1435,10 +1435,10 @@ CONTAINS
     !
     CALL timeset(routineN,handle)
     !
-    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(S_psi0),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(psi0),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(v))
+    CPASSERT(ASSOCIATED(S_psi0))
+    CPASSERT(ASSOCIATED(psi0))
+    CPASSERT(ASSOCIATED(buf))
     !
     nspins = SIZE(v,1)
     !
@@ -1447,10 +1447,10 @@ CONTAINS
        CALL cp_fm_get_info(v(ispin)%matrix,ncol_global=mv,nrow_global=nv)
        CALL cp_fm_get_info(psi0(ispin)%matrix,ncol_global=mp,nrow_global=np)
        CALL cp_fm_get_info(buf,ncol_global=mt,nrow_global=nt)
-       CPPrecondition(nv==np,cp_failure_level,routineP,failure)
-       CPPrecondition(mt>=mv,cp_failure_level,routineP,failure)
-       CPPrecondition(mt>=mp,cp_failure_level,routineP,failure)
-       CPPrecondition(nt==nv,cp_failure_level,routineP,failure)
+       CPASSERT(nv==np)
+       CPASSERT(mt>=mv)
+       CPASSERT(mt>=mp)
+       CPASSERT(nt==nv)
        !
        ! buf = v' * S_psi0
        CALL cp_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,S_psi0(ispin)%matrix,0.0_dp,buf)
@@ -1489,10 +1489,10 @@ CONTAINS
     !
     CALL timeset(routineN,handle)
     !
-    CPPrecondition(ASSOCIATED(v),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(S_psi0),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(psi0),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(buf),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(v))
+    CPASSERT(ASSOCIATED(S_psi0))
+    CPASSERT(ASSOCIATED(psi0))
+    CPASSERT(ASSOCIATED(buf))
     !
     nspins = SIZE(v,1)
     !
@@ -1501,10 +1501,10 @@ CONTAINS
        CALL cp_fm_get_info(v(ispin)%matrix,ncol_global=mv,nrow_global=nv)
        CALL cp_fm_get_info(psi0(ispin)%matrix,ncol_global=mp,nrow_global=np)
        CALL cp_fm_get_info(buf,ncol_global=mt,nrow_global=nt)
-       CPPrecondition(nv==np,cp_failure_level,routineP,failure)
-       CPPrecondition(mt>=mv,cp_failure_level,routineP,failure)
-       CPPrecondition(mt>=mp,cp_failure_level,routineP,failure)
-       CPPrecondition(nt==nv,cp_failure_level,routineP,failure)
+       CPASSERT(nv==np)
+       CPASSERT(mt>=mv)
+       CPASSERT(mt>=mp)
+       CPASSERT(nt==nv)
        !
        ! buf = v' * psi0
        CALL cp_gemm('T','N',mv,mp,nv,1.0_dp,v(ispin)%matrix,psi0(ispin)%matrix,0.0_dp,buf)
@@ -1606,7 +1606,7 @@ CONTAINS
        CALL get_mo_set(mos(1)%mo_set,mo_coeff=mo_coeff)
        CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_block=max_block)
        ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        IF(PRESENT(ind)) THEN
          IF(rst_unit>0) WRITE(rst_unit) ind,ivec,nspins,nao
@@ -1632,7 +1632,7 @@ CONTAINS
        ENDDO
 
        DEALLOCATE (vecbuffer,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        CALL cp_print_key_finished_output(rst_unit,logger,linres_section,&
             "PRINT%RESTART")
@@ -1787,7 +1787,7 @@ CONTAINS
        CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_block=max_block)
 
        ALLOCATE(vecbuffer(nao,max_block),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        !
        ! read headers
        IF(PRESENT(ind)) THEN
@@ -1846,7 +1846,7 @@ CONTAINS
        ENDIF
 
        DEALLOCATE(vecbuffer,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
     ENDIF
 
@@ -1890,11 +1890,11 @@ CONTAINS
     p_env%gnorm_old = 1.0_dp
 
     IF(linres_control%preconditioner_type /= ot_precond_none) THEN
-       CPPrecondition(ASSOCIATED(p_env%preconditioner),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(p_env%preconditioner))
        DO ispin = 1,nspins
           CALL cp_fm_get_info(p_env%PS_psi0(ispin)%matrix,nrow_global=nrow,ncol_global=ncol)
-          CPPrecondition(nrow==p_env%n_ao(ispin),cp_failure_level,routineP,failure)
-          CPPrecondition(ncol==p_env%n_mo(ispin),cp_failure_level,routineP,failure)
+          CPASSERT(nrow==p_env%n_ao(ispin))
+          CPASSERT(ncol==p_env%n_mo(ispin))
        ENDDO
     ENDIF
 

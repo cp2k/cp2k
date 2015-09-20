@@ -74,7 +74,7 @@ CONTAINS
     END IF
 
     ALLOCATE(hirshfeld_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     hirshfeld_env%iterative = .FALSE.
     hirshfeld_env%shape_function_type = shape_function_gaussian
@@ -107,30 +107,30 @@ CONTAINS
           DO ikind=1,SIZE(kind_shape)
              IF(ASSOCIATED(hirshfeld_env%kind_shape_fn(ikind)%zet)) THEN
                 DEALLOCATE(kind_shape(ikind)%zet, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              IF(ASSOCIATED(hirshfeld_env%kind_shape_fn(ikind)%coef)) THEN
                 DEALLOCATE(kind_shape(ikind)%coef, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
           END DO
           DEALLOCATE(kind_shape, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF(ASSOCIATED(hirshfeld_env%charges)) THEN
           DEALLOCATE(hirshfeld_env%charges, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        IF (ASSOCIATED(hirshfeld_env%fnorm)) THEN
           CALL pw_release(hirshfeld_env%fnorm%pw)
           DEALLOCATE(hirshfeld_env%fnorm,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        ENDIF
 
        DEALLOCATE(hirshfeld_env, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
     END IF
 
@@ -158,7 +158,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(hirshfeld_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(hirshfeld_env))
 
     IF(PRESENT(shape_function_type)) THEN
        shape_function_type = hirshfeld_env%shape_function_type
@@ -197,7 +197,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(hirshfeld_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(hirshfeld_env))
 
     IF(PRESENT(shape_function_type)) THEN
        hirshfeld_env%shape_function_type = shape_function_type

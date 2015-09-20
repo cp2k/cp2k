@@ -152,7 +152,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ewald_env))
 
     IF (PRESENT(id_nr)) id_nr = ewald_env%id_nr
     IF (PRESENT(ewald_type)) ewald_type = ewald_env%ewald_type
@@ -221,7 +221,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ewald_env))
 
     IF (PRESENT(id_nr)) ewald_env%id_nr = id_nr
     IF (PRESENT(ewald_type)) ewald_env%ewald_type = ewald_type
@@ -264,7 +264,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE( ewald_env, stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ewald_env%ref_count=1
     last_ewald_env_id_nr=last_ewald_env_id_nr+1
     ewald_env%id_nr=last_ewald_env_id_nr
@@ -291,8 +291,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(ewald_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ewald_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ewald_env))
+    CPASSERT(ewald_env%ref_count>0)
     ewald_env%ref_count=ewald_env%ref_count+1
   END SUBROUTINE ewald_env_retain
 
@@ -315,17 +315,17 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(ewald_env)) THEN
-       CPPrecondition(ewald_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(ewald_env%ref_count>0)
        ewald_env%ref_count=ewald_env%ref_count-1
        IF (ewald_env%ref_count<1) THEN
           CALL cp_para_env_release ( ewald_env%para_env)
           CALL section_vals_release(ewald_env%poisson_section)
           IF (ASSOCIATED(ewald_env%interaction_cutoffs)) THEN
              DEALLOCATE(ewald_env%interaction_cutoffs, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
           DEALLOCATE (  ewald_env, stat = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDIF
     END IF
     NULLIFY(ewald_env)
@@ -381,7 +381,7 @@ CONTAINS
        CASE (3)
           ewald_env%gmax = gmax_read
        CASE DEFAULT
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
        IF (ewald_env%ewald_type==do_ewald_spme) THEN
           CALL section_vals_val_get(ewald_section,"O_SPLINE",i_val=ewald_env%o_spline)
@@ -454,7 +454,7 @@ CONTAINS
              WRITE ( iw, '( T2,"EWALD| ",A,T71,I10 )' ) &
                   'Spline interpolation order ', ewald_env%o_spline
           CASE DEFAULT
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END SELECT
        ELSE
           WRITE ( iw, '( T2,"EWALD| ",T73, A )' ) 'not used'
@@ -485,7 +485,7 @@ CONTAINS
     failure = .FALSE.
     s    =  0.1_dp
     func =  EXP(-s**2)/s**2 - precs
-    CPPrecondition(func>0.0_dp,cp_failure_level,routineP,failure)
+    CPASSERT(func>0.0_dp)
     DO WHILE (func>0.0_dp)
        s = s + 0.1_dp
        func =  EXP(-s**2)/s**2 - precs
@@ -496,8 +496,8 @@ CONTAINS
     DO WHILE (.TRUE.)
        func2 = EXP(-s2**2)/s2**2 - precs
        func1 = EXP(-s1**2)/s1**2 - precs
-       CPPrecondition(func1>=0,cp_failure_level,routineP,failure)
-       CPPrecondition(func2<=0,cp_failure_level,routineP,failure)
+       CPASSERT(func1>=0)
+       CPASSERT(func2<=0)
        s    = 0.5_dp * (s1 + s2)
        func = EXP(-s**2)/s**2 - precs
        IF      (func > 0.0_dp) THEN

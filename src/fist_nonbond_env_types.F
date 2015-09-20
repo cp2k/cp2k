@@ -298,7 +298,7 @@ CONTAINS
 
     failure=.FALSE.
     ALLOCATE(fist_nonbond_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(fist_nonbond_env%potparm14)
     NULLIFY(fist_nonbond_env%potparm)
     NULLIFY(fist_nonbond_env%rlist_cut)
@@ -349,7 +349,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idim, jdim, natom_types, stat
-    LOGICAL                                  :: check, failure, use_potparm, &
+    LOGICAL                                  :: check, use_potparm, &
                                                 use_potparm14
     REAL(KIND=dp)                            :: fac, rcut, rlow
 
@@ -386,18 +386,18 @@ CONTAINS
        natom_types = SIZE(atomic_kind_set)
        IF (use_potparm14) THEN
           check = (SIZE(potparm14%pot,1)==natom_types)
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
        END IF
        IF (use_potparm) THEN
           check = (SIZE(potparm%pot,1)==natom_types)
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
        END IF
        ALLOCATE ( fist_nonbond_env%rlist_cut(natom_types, natom_types), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( fist_nonbond_env%rlist_lowsq(natom_types, natom_types), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( fist_nonbond_env%ij_kind_full_fac(natom_types, natom_types), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        fist_nonbond_env%ij_kind_full_fac = 1.0_dp
        DO idim = 1, natom_types
           DO jdim = idim, natom_types
@@ -473,8 +473,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(fist_nonbond_env),cp_failure_level,routineP,failure)
-    CPPrecondition(fist_nonbond_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(fist_nonbond_env))
+    CPASSERT(fist_nonbond_env%ref_count>0)
     fist_nonbond_env%ref_count=fist_nonbond_env%ref_count+1
   END SUBROUTINE fist_nonbond_env_retain
 
@@ -496,7 +496,7 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(fist_nonbond_env)) THEN
-       CPPrecondition(fist_nonbond_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(fist_nonbond_env%ref_count>0)
        fist_nonbond_env%ref_count=fist_nonbond_env%ref_count-1
        IF (fist_nonbond_env%ref_count<1) THEN
           IF (ASSOCIATED(fist_nonbond_env%nonbonded)) THEN
@@ -508,57 +508,57 @@ CONTAINS
           CALL pair_potential_pp_release ( fist_nonbond_env%potparm14)
           IF (ASSOCIATED(fist_nonbond_env%r_last_update)) THEN
              DEALLOCATE (fist_nonbond_env%r_last_update,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%r_last_update_pbc)) THEN
              DEALLOCATE (fist_nonbond_env%r_last_update_pbc,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
              DEALLOCATE (fist_nonbond_env%charges,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%eam_data)) THEN
              DEALLOCATE (fist_nonbond_env%eam_data,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%quip_data)) THEN
              IF (ASSOCIATED(fist_nonbond_env%quip_data%force)) THEN
                 DEALLOCATE (fist_nonbond_env%quip_data%force,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              ENDIF
              IF (ASSOCIATED(fist_nonbond_env%quip_data%use_indices)) THEN
                 DEALLOCATE (fist_nonbond_env%quip_data%use_indices,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              ENDIF
              DEALLOCATE (fist_nonbond_env%quip_data,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%rshell_last_update_pbc)) THEN
              DEALLOCATE (fist_nonbond_env%rshell_last_update_pbc,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%rcore_last_update_pbc)) THEN
              DEALLOCATE (fist_nonbond_env%rcore_last_update_pbc,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%cell_last_update)) THEN
              CALL cell_release(fist_nonbond_env%cell_last_update)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%ij_kind_full_fac)) THEN
              DEALLOCATE (fist_nonbond_env%ij_kind_full_fac,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%rlist_cut)) THEN
              DEALLOCATE (fist_nonbond_env%rlist_cut,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
           IF (ASSOCIATED(fist_nonbond_env%rlist_lowsq)) THEN
              DEALLOCATE (fist_nonbond_env%rlist_lowsq,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
           DEALLOCATE(fist_nonbond_env, STAT=stat)
-          CPPrecondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE fist_nonbond_env_release

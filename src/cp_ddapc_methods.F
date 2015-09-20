@@ -81,9 +81,9 @@ CONTAINS
     s_dim = rho_tot_g % pw_grid % first_gne0
     e_dim = rho_tot_g % pw_grid % ngpts_cut_local
     ALLOCATE(gfunc(s_dim:e_dim,SIZE(radii)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(w(s_dim:e_dim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     gfunc = 0.0_dp
     w     = 0.0_dp
     DO igauss = 1, SIZE(radii)
@@ -152,9 +152,9 @@ CONTAINS
           igmax = ig
     ENDDO
     ALLOCATE(my_bv(s_dim:igmax),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(my_bvw(s_dim:igmax),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !
     DO iparticle = 1, SIZE(particle_set)
        rvec =  particle_set(iparticle)%r
@@ -174,9 +174,9 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(my_bvw,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(my_bv,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE build_b_vector
 
@@ -235,11 +235,11 @@ CONTAINS
        igmax  = ig
     ENDDO
     ALLOCATE(my_Am(s_dim:igmax),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(my_Amw(s_dim:igmax),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(gfunc_sq(s_dim:igmax,SIZE(radii),SIZE(radii)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO igauss1 = 1, SIZE(radii)
        DO igauss2 = 1, SIZE(radii)
@@ -271,11 +271,11 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(gfunc_sq,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(my_Amw,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(my_Am,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE build_A_matrix
 
@@ -331,9 +331,9 @@ CONTAINS
           igmax  = ig
     ENDDO
     ALLOCATE(my_dbv(3,s_dim:igmax),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(my_dbvw(s_dim:igmax),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO iparticle = 1, SIZE(particle_set)
        IF (iparticle /= iparticle0) CYCLE
        rvec =  particle_set(iparticle)%r
@@ -360,9 +360,9 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(my_dbvw,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(my_dbv,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE build_der_b_vector
 
@@ -429,15 +429,15 @@ CONTAINS
        igmax  = ig
     ENDDO
     ALLOCATE(arg1_v_sin(s_dim:igmax),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     Nr=SIZE(radii)
     Np=SIZE(particle_set)
     Ng=igmax-s_dim+1
     ALLOCATE(lhs(nparticles*Nr,Ng), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(rhs(Ng,Np*Nr), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! rhs with first term of sin(g.(rvec1-rvec2)), which used to be called arg1_v_sin()
     ! rhs has all parts that depend on iparticle2
@@ -495,13 +495,13 @@ CONTAINS
     END DO
 
     DEALLOCATE(rhs,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(lhs,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !!! DEALLOCATE(arg1_v,stat=stat)
     !!! CPPostcondition(stat==0,cp_failure_level,routineP,failure)
     DEALLOCATE(arg1_v_sin,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE build_der_A_matrix_rows
 
@@ -519,12 +519,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure
 
      DEALLOCATE(g_dot_rvec_sin,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      DEALLOCATE(g_dot_rvec_cos,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   END SUBROUTINE cleanup_g_dot_rvec_sin_cos
 
   !NB precompute sin(g.r) and cos(g.r) for quicker evaluations of sin(g.(r1-r2)) and cos(g.(r1-r2))
@@ -549,7 +548,6 @@ CONTAINS
 
     INTEGER                                  :: e_dim, ig, igmax, iparticle, &
                                                 s_dim, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: g2, g_dot_rvec, gcut2, rvec(3)
 
      gcut2 = gcut * gcut
@@ -563,9 +561,9 @@ CONTAINS
      ENDDO
 
      ALLOCATE(g_dot_rvec_sin(1:igmax-s_dim+1,SIZE(particle_set)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(g_dot_rvec_cos(1:igmax-s_dim+1,SIZE(particle_set)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
 
      DO iparticle=1, SIZE(particle_set)
         rvec = particle_set(iparticle)%r
@@ -625,13 +623,13 @@ CONTAINS
     CALL timeset(routineN,handle)
     ndim = SIZE(particle_set)*SIZE(radii)
     ALLOCATE(Am(ndim, ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(AmI(ndim, ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(GAmI(ndim, ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(cv(ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     Am  = 0.0_dp
     AmI = 0.0_dp
     cv  = 1.0_dp/Vol
@@ -644,9 +642,9 @@ CONTAINS
     IF (iw>0) THEN
        ! Checking conditions numbers and eigenvalues
        ALLOCATE(Amw(ndim, ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(AmE(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        Amw(:,:) = Am
        CALL diamat_all(Amw, AmE)
        condition_number = MAXVAL(ABS(AmE))/MINVAL(ABS(AmE))
@@ -658,9 +656,9 @@ CONTAINS
                "WARNING: high condition number => possibly ill-conditioned matrix"
        END IF
        DEALLOCATE(Amw, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(AmE, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL invert_matrix(Am, AmI, inv_error, "N",improve=.FALSE.)
     IF (iw>0) THEN
@@ -668,12 +666,12 @@ CONTAINS
     END IF
     c0 = DOT_PRODUCT(cv,MATMUL(AmI,cv))
     DEALLOCATE(Am, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(cv, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     GAmI = AmI
     DEALLOCATE(AmI, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE ddapc_eval_AmI
 
@@ -721,9 +719,9 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(EwM)
     CALL timeset(routineN,handle)
-    CPPostcondition(.NOT.ASSOCIATED(M),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,failure)
-    CPPostcondition(cell%orthorhombic,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(M))
+    CPASSERT(ASSOCIATED(radii))
+    CPASSERT(cell%orthorhombic)
     rcut = MIN(cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3))/2.0_dp
     CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep)
     IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut)
@@ -753,9 +751,9 @@ CONTAINS
     ewmdim = SIZE(particle_set) * (SIZE(particle_set)+1) / 2
     ndim   = SIZE(particle_set) * SIZE(radii)
     ALLOCATE(EwM(ewmdim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(M(ndim, ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     M = 0.0_dp
     !
     idim = 0
@@ -869,7 +867,7 @@ CONTAINS
        END DO ! iparticle2
     END DO ! iparticle1
     DEALLOCATE(EwM, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE ewald_ddapc_pot
 
@@ -913,7 +911,7 @@ CONTAINS
     output_unit= cp_logger_get_default_io_unit(logger)
     ndim   = SIZE(particle_set) * SIZE(radii)
     ALLOCATE(M(ndim, ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     M      = 0.0_dp
     eps_in = 1.0_dp
     CALL section_vals_val_get(solvation_section,"EPS_OUT",r_val=eps_out)
@@ -930,7 +928,7 @@ CONTAINS
           CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%ATOM_LIST",i_vals=list)
           CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%WEIGHT_TYPE",i_val=weight)
           ALLOCATE(R0(3),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           SELECT CASE(weight)
           CASE (weight_type_unit)
              R0 = 0.0_dp
@@ -954,18 +952,18 @@ CONTAINS
                   r_vals_ptr=R0)
           ELSE
              DEALLOCATE(R0, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
        END IF
     END IF
-    CPPostcondition(n_rep1/=0.OR.n_rep2/=0,cp_failure_level,routineP,failure)
+    CPASSERT(n_rep1/=0.OR.n_rep2/=0)
     ! Potential calculation
     ALLOCATE(LocP(0:lmax,SIZE(particle_set)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(pos(SIZE(particle_set)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(cost(SIZE(particle_set),SIZE(particle_set)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Determining the single atomic contribution to the dielectric dipole
     DO i = 1, SIZE(particle_set)
        rvec = particle_set(i)%r-center
@@ -976,7 +974,7 @@ CONTAINS
              WRITE(output_unit,'(A,I6,A)')"Atom number :: ",i," is out of the solvation sphere"
              WRITE(output_unit,'(2(A,F12.6))')"Distance from the center::",r1," Radius of the sphere::",rs
           END IF
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
        LocP(:,i) = 0.0_dp
        IF (r1/=0.0_dp) THEN
@@ -1027,11 +1025,11 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(cost,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(pos,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(LocP,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE solvation_ddapc_pot
 
 END MODULE cp_ddapc_methods

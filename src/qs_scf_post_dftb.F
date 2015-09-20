@@ -120,7 +120,7 @@ CONTAINS
 
     logger => cp_get_default_logger()
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
     NULLIFY(dft_control,rho,para_env,matrix_s,matrix_p)
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
          dft_control=dft_control,rho=rho,natom=natom,para_env=para_env,&
@@ -129,7 +129,7 @@ CONTAINS
     CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
     ! Mulliken charges
     ALLOCATE(charges(natom,nspins),mcharge(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     CALL mulliken_charges(matrix_p,matrix_s,para_env,charges)
     !
@@ -222,7 +222,7 @@ CONTAINS
     END IF
 
     DEALLOCATE(charges,mcharge,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! EPR Hyperfine Coupling
     print_key => section_vals_get_subs_vals(print_section,"HYPERFINE_COUPLING_TENSOR")

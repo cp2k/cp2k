@@ -149,13 +149,13 @@ CONTAINS
     Fletcher_Reeves    = gopt_param%Fletcher_Reeves
     res_lim            = gopt_param%restart_limit
     ALLOCATE(g (SIZE(x0)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(h (SIZE(x0)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(xi(SIZE(x0)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(xold(SIZE(x0)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL force_env_get(force_env,cell=cell)
 
     ! Evaluate energy and forces at the first step
@@ -235,13 +235,13 @@ CONTAINS
          gopt_env%force_env%para_env, gopt_env%force_env%para_env%mepos, output_unit)
 
     DEALLOCATE(xold, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(g, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(h, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(xi,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 

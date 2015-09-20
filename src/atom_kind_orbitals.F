@@ -141,7 +141,7 @@ CONTAINS
     !!RZK                  bs_occupation=bs_occupation,&
     !!RZK                  addel=addel,laddel=laddel,naddel=naddel)
 
-    CPPostcondition(ASSOCIATED(orb_basis_set), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(orb_basis_set))
 
     atom%z = z
     CALL set_atom(atom,&
@@ -155,7 +155,7 @@ CONTAINS
                   exchange_integral_type=do_numeric)
 
     ALLOCATE (potential,basis,integrals,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     IF ( ASSOCIATED(gth_potential) ) THEN
       potential%ppot_type=gth_pseudo
@@ -302,7 +302,7 @@ CONTAINS
         IF ( l <= 3 ) THEN
           basis%nbas(l) = basis%nbas(l)+1
           k = basis%nbas(l)
-          CPPostcondition(k<=100, cp_failure_level, routineP,failure)
+          CPASSERT(k<=100)
           set_index(l,k) = i
           shell_index(l,k) = j
         END IF
@@ -312,10 +312,10 @@ CONTAINS
     nj = MAXVAL(basis%nprim)
     ns = MAXVAL(basis%nbas)
     ALLOCATE (basis%am(nj,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     basis%am = 0._dp
     ALLOCATE (basis%cm(nj,ns,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     basis%cm = 0._dp
     DO j=0,3
       nj = 0
@@ -342,9 +342,9 @@ CONTAINS
     nr = basis%grid%nr
     m  = MAXVAL(basis%nbas)
     ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     basis%bf =  0._dp
     basis%dbf = 0._dp
@@ -381,7 +381,7 @@ CONTAINS
                                      nelem=nelem)
 
     ALLOCATE (atom%state,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     atom%state%core = 0._dp
     atom%state%core(0:3,1:7) = REAL(ncore(0:3,1:7),dp)
@@ -433,10 +433,10 @@ CONTAINS
       ! recover density matrix in CP2K/GPW order and normalization
       IF(ASSOCIATED(pmat)) THEN
         DEALLOCATE (pmat,STAT=ierr)
-        CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+        CPASSERT(ierr==0)
       END IF
       ALLOCATE (pmat(nsgf,nsgf),STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
       pmat = 0._dp
       DO l=0,3
          ll = 2*l
@@ -462,7 +462,7 @@ CONTAINS
     CALL release_atom_type(atom)
 
     DEALLOCATE (potential,basis,integrals,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE calculate_atomic_orbitals
 
@@ -533,7 +533,7 @@ CONTAINS
        END IF
     END IF
 
-    CPPrecondition(ngto<=num_gto, cp_failure_level, routineP,failure)
+    CPASSERT(ngto<=num_gto)
 
     IF ( ASSOCIATED(gth_potential) ) THEN
        ! PP calculation are non-relativistic
@@ -552,7 +552,7 @@ CONTAINS
                   exchange_integral_type=do_numeric)
 
     ALLOCATE (potential,basis,integrals,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     IF ( ASSOCIATED(gth_potential) ) THEN
       potential%ppot_type=gth_pseudo
@@ -687,7 +687,7 @@ CONTAINS
     basis%nprim = basis%nbas
     m  = MAXVAL(basis%nbas)
     ALLOCATE (basis%am(m,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     basis%am = 0._dp
     DO l=0,3
       DO i=1,basis%nbas(l)
@@ -705,9 +705,9 @@ CONTAINS
     nr = basis%grid%nr
     m  = MAXVAL(basis%nbas)
     ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     basis%bf =  0._dp
     basis%dbf = 0._dp
     DO l=0,3
@@ -816,7 +816,7 @@ CONTAINS
     END IF
 
     ALLOCATE (atom%state,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     atom%state%core = 0._dp
     atom%state%core(0:3,1:7) = REAL(ncore(0:3,1:7),dp)
@@ -881,7 +881,7 @@ CONTAINS
     CALL release_atom_type(atom)
 
     DEALLOCATE (potential,basis,integrals,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE calculate_atomic_density
 
@@ -934,7 +934,7 @@ CONTAINS
     NULLIFY(all_potential,orb_basis_set)
     CALL get_qs_kind(qs_kind, basis_set=orb_basis_set, all_potential=all_potential)
 
-    CPPostcondition(ASSOCIATED(orb_basis_set), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(orb_basis_set))
 
     IF ( ASSOCIATED(all_potential) ) THEN
        ! only all electron atoms will get the relativistic correction
@@ -951,11 +951,11 @@ CONTAINS
        ! set the method flag
        SELECT CASE (rel_control%rel_method)
           CASE DEFAULT
-             CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+             CPASSERT(.FALSE.)
           CASE (rel_dkh)
              SELECT CASE (rel_control%rel_DKH_order)
                 CASE DEFAULT
-                   CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+                   CPASSERT(.FALSE.)
                 CASE (0)
                    relativistic = do_dkh0_atom
                 CASE (1)
@@ -972,9 +972,9 @@ CONTAINS
           CASE (rel_zora)
              SELECT CASE (rel_control%rel_zora_type)
                 CASE DEFAULT
-                   CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+                   CPASSERT(.FALSE.)
                 CASE (rel_zora_full)
-                   CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+                   CPASSERT(.FALSE.)
                 CASE (rel_zora_mp)
                    relativistic = do_zoramp_atom
                 CASE (rel_sczora_mp)
@@ -990,7 +990,7 @@ CONTAINS
                   exchange_integral_type=do_numeric)
 
        ALLOCATE (potential,basis,integrals,STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+       CPASSERT(ierr==0)
 
        potential%ppot_type=no_pseudo
        CALL set_atom(atom,zcore=z,potential=potential)
@@ -1025,7 +1025,7 @@ CONTAINS
            IF ( l <= 3 ) THEN
              basis%nbas(l) = basis%nbas(l)+1
              k = basis%nbas(l)
-             CPPostcondition(k<=100, cp_failure_level, routineP,failure)
+             CPASSERT(k<=100)
              set_index(l,k) = i
              shell_index(l,k) = j
            END IF
@@ -1035,10 +1035,10 @@ CONTAINS
        nj = MAXVAL(basis%nprim)
        ns = MAXVAL(basis%nbas)
        ALLOCATE (basis%am(nj,0:3),STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+       CPASSERT(ierr==0)
        basis%am = 0._dp
        ALLOCATE (basis%cm(nj,ns,0:3),STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+       CPASSERT(ierr==0)
        basis%cm = 0._dp
        DO j=0,3
          nj = 0
@@ -1076,9 +1076,9 @@ CONTAINS
        nr = basis%grid%nr
        m  = MAXVAL(basis%nbas)
        ALLOCATE (basis%bf(nr,m,0:3),STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+       CPASSERT(ierr==0)
        ALLOCATE (basis%dbf(nr,m,0:3),STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+       CPASSERT(ierr==0)
 
        basis%bf =  0._dp
        basis%dbf = 0._dp
@@ -1134,7 +1134,7 @@ CONTAINS
        END IF
 
        ALLOCATE (atom%state,STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+       CPASSERT(ierr==0)
 
        atom%state%core = 0._dp
        atom%state%core(0:3,1:7) = REAL(ncore(0:3,1:7),dp)
@@ -1174,23 +1174,23 @@ CONTAINS
           n = integrals%n(l)
           m = basis%nprim(l)
           ALLOCATE (omat(m,m),STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
 
           CALL sg_erfc ( omat(1:m,1:m), l, alpha, basis%am(1:m,l), basis%am(1:m,l) )
           integrals%core(1:n,1:n,l) = MATMUL(TRANSPOSE(basis%cm(1:m,1:n,l)),&
                                              MATMUL(omat(1:m,1:m),basis%cm(1:m,1:n,l)))
 
           DEALLOCATE (omat,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
        END DO
 
        ! recover relativistic kinetic matrix in CP2K/GPW order and normalization
        IF(ASSOCIATED(rtmat)) THEN
           DEALLOCATE (rtmat,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
        END IF
        ALLOCATE (rtmat(nsgf,nsgf),STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+       CPASSERT(ierr==0)
        rtmat = 0._dp
        DO l=0,3
           ll = 2*l
@@ -1200,7 +1200,7 @@ CONTAINS
                 j=first_sgf(shell_index(l,k2),set_index(l,k2))
                 SELECT CASE (atom%relativistic)
                    CASE DEFAULT
-                      CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+                      CPASSERT(.FALSE.)
                    CASE (do_zoramp_atom,do_sczoramp_atom)
                       DO m=0,ll
                          rtmat(i+m,j+m) = integrals%tzora(k1,k2,l)
@@ -1229,13 +1229,13 @@ CONTAINS
        CALL release_atom_type(atom)
 
        DEALLOCATE (potential,basis,integrals,STAT=ierr)
-       CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+       CPASSERT(ierr==0)
 
     ELSE
 
        IF(ASSOCIATED(rtmat)) THEN
           DEALLOCATE (rtmat,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
        END IF
        NULLIFY(rtmat)
 

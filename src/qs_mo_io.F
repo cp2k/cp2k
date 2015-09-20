@@ -151,7 +151,7 @@ CONTAINS
           ! we copy it to the fm for anycase
           DO ispin=1,SIZE(mo_array)
              IF(.not.ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) THEN
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              ENDIF
              CALL copy_dbcsr_to_fm(mo_array(ispin)%mo_set%mo_coeff_b,&
                   mo_array(ispin)%mo_set%mo_coeff)!fm->dbcsr
@@ -388,7 +388,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
-    LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
@@ -429,15 +428,15 @@ CPSourceFileRef,&
        END DO
 
        ALLOCATE (nso_info(nshell_max,nset_max,natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        nso_info(:,:,:) = 0
 
        ALLOCATE (nshell_info(nset_max,natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        nshell_info(:,:) = 0
 
        ALLOCATE (nset_info(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        nset_info(:) = 0
 
        DO iatom=1,natom
@@ -480,13 +479,13 @@ CPSourceFileRef,&
        WRITE (ires) nso_info
 
        DEALLOCATE (nset_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        DEALLOCATE (nshell_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        DEALLOCATE (nso_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
     ! use the scalapack block size as a default for buffering columns
@@ -851,7 +850,7 @@ CPSourceFileRef,&
           END DO
        ELSE IF(is_source) THEN
           !  not yet implemented
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        ELSE IF(kpoints%iogrp) THEN
           IF(.NOT.moalloc) THEN
              NULLIFY(mop)
@@ -861,7 +860,7 @@ CPSourceFileRef,&
              moalloc = .TRUE.
           END IF
           !  not yet implemented
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
     END DO
 
@@ -916,8 +915,7 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
-    LOGICAL                                  :: failure, minbas, natom_match, &
-                                                use_this
+    LOGICAL                                  :: minbas, natom_match, use_this
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
@@ -963,13 +961,13 @@ CPSourceFileRef,&
 
          ! Let's make it possible to change the basis set
          ALLOCATE (nso_info(nshell_max,nset_max,natom_read),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          ALLOCATE (nshell_info(nset_max,natom_read),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          ALLOCATE (nset_info(natom_read),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          ALLOCATE (offset_info(nshell_max,nset_max,natom_read),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
 
          IF (nao_read /= nao) THEN
             WRITE(cp_logger_get_default_unit_nr(logger),*) &
@@ -996,7 +994,7 @@ CPSourceFileRef,&
          END DO
 
          ALLOCATE(vecbuffer_read(1,nao_read),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
 
       END IF ! natom_match
    END IF ! ionode
@@ -1021,7 +1019,7 @@ CPSourceFileRef,&
    CALL mp_bcast(nspin_read,source,group)
 
    ALLOCATE (vecbuffer(1,nao),STAT=istat)
-   CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+   CPASSERT(istat==0)
 
    DO ispin=1,nspin
 
@@ -1034,7 +1032,7 @@ CPSourceFileRef,&
       IF (para_env%ionode.AND.(nmo > 0)) THEN
          READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
          ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          eig_read = 0.0_dp
          occ_read = 0.0_dp
 
@@ -1054,7 +1052,7 @@ CPSourceFileRef,&
         mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
         mos(ispin)%mo_set%occupation_numbers(1:nmo) = occ_read(1:nmo)
         DEALLOCATE(eig_read, occ_read, STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
 
         mos(ispin)%mo_set%homo = homo_read
         mos(ispin)%mo_set%lfomo = lfomo_read
@@ -1219,19 +1217,19 @@ CPSourceFileRef,&
  END DO   ! ispin
 
     DEALLOCATE(vecbuffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     IF (para_env%ionode) THEN
        DEALLOCATE(vecbuffer_read,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DEALLOCATE(offset_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DEALLOCATE(nso_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DEALLOCATE(nshell_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DEALLOCATE(nset_info,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
   END SUBROUTINE read_mos_restart_low
@@ -1364,11 +1362,11 @@ CPSourceFileRef,&
             nrow_global=nrow_global,&
             ncol_global=ncol_global)
        ALLOCATE(smatrix(nrow_global,ncol_global),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix)
        IF (.NOT.ionode) THEN
           DEALLOCATE(smatrix,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
     END IF
 
@@ -1419,7 +1417,7 @@ CPSourceFileRef,&
              END IF
 
              ALLOCATE(cmatrix(ncgf,ncgf),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
 
              cmatrix = 0.0_dp
 
@@ -1641,10 +1639,10 @@ CPSourceFileRef,&
           ! Release work storage
 
           DEALLOCATE (smatrix,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           IF (p_cart) THEN
              DEALLOCATE (cmatrix,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
           END IF
 
        ELSE IF (p_occ.OR.p_eval) THEN

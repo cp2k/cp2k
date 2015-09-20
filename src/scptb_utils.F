@@ -146,12 +146,12 @@ CONTAINS
          CALL allocate_sto_basis_set (sto_basis)
          nshell = SUM(scptb_parameter%norb)
          ALLOCATE (nq(nshell),lq(nshell),zet(nshell),STAT=stat)
-         CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          nq=0
          lq=0
          zet=0._dp
          ALLOCATE (symbol(nshell),STAT=stat)
-         CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          symbol=""
          is=0
          !Aggregate all the electron shell parameters into arrays
@@ -178,7 +178,7 @@ CONTAINS
          END IF
 
          DEALLOCATE (nq,lq,zet,symbol,STAT=stat)
-         CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
          CALL deallocate_sto_basis_set (sto_basis)
          !throw away the STO basis set, since from now on we use the GTO
@@ -578,9 +578,9 @@ CONTAINS
     group = para_env%group
     
     IF(para_env%ionode) THEN
-       CPPostcondition(source==para_env%mepos,cp_failure_level,routineP,failure)
+       CPASSERT(source==para_env%mepos)
     ELSE
-       CPPostcondition(source/=para_env%mepos,cp_failure_level,routineP,failure)
+       CPASSERT(source/=para_env%mepos)
     END IF
 
     CALL mp_bcast(scptb_control%sd3,source,group)
@@ -610,9 +610,9 @@ CONTAINS
     group = para_env%group
     
     IF(para_env%ionode) THEN
-       CPPostcondition(source==para_env%mepos,cp_failure_level,routineP,failure)
+       CPASSERT(source==para_env%mepos)
     ELSE
-       CPPostcondition(source/=para_env%mepos,cp_failure_level,routineP,failure)
+       CPASSERT(source/=para_env%mepos)
     END IF
 
     CALL mp_bcast(scptb_parameter%key,source,group)

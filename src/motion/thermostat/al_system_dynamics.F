@@ -193,7 +193,7 @@ CONTAINS
     INTEGER :: first_atom, i, ii, ikind, imap, imol, imol_local, ipart, &
       iparticle_kind, iparticle_local, last_atom, nmol_local, nparticle, &
       nparticle_kind, nparticle_local, stat
-    LOGICAL                                  :: check, failure, present_vel
+    LOGICAL                                  :: check, present_vel
     REAL(KIND=dp)                            :: mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: w(:,:)
@@ -220,16 +220,16 @@ CONTAINS
     nparticle = SIZE(particle_set)
     nparticle_kind = SIZE(local_particles%n_el)
     ALLOCATE (w(3,nparticle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     w(:,:) = 0.0_dp
     check=(nparticle_kind <= SIZE(local_particles%n_el) .AND. nparticle_kind <= SIZE(local_particles%list))
-    CPPrecondition(check, cp_failure_level, routineP,failure)
+    CPASSERT(check)
     check=ASSOCIATED(local_particles%local_particle_set)
-    CPPrecondition(check, cp_failure_level, routineP,failure)
+    CPASSERT(check)
     DO iparticle_kind=1,nparticle_kind
       nparticle_local = local_particles%n_el(iparticle_kind)
       check=(nparticle_local <= SIZE(local_particles%list(iparticle_kind)%array))
-      CPPrecondition( check, cp_failure_level, routineP,failure)
+      CPASSERT(check)
       DO iparticle_local = 1, nparticle_local
           ipart = local_particles%list(iparticle_kind)%array(iparticle_local)
           rng_stream => local_particles%local_particle_set(iparticle_kind)%rng(iparticle_local)%stream
@@ -264,7 +264,7 @@ CONTAINS
     END DO
 
     DEALLOCATE (w,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE al_OU_step
 

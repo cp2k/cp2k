@@ -119,9 +119,9 @@ CONTAINS
     INTEGER                                  :: handle, iscf, ispin, nspin, &
                                                 nstrikes, ntolerate, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: local_nocc_of_domain
-    LOGICAL                                  :: converged, failure, &
-                                                prepare_to_exit, should_stop, &
-                                                use_diis, use_prev_as_guess
+    LOGICAL                                  :: converged, prepare_to_exit, &
+                                                should_stop, use_diis, &
+                                                use_prev_as_guess
     REAL(KIND=dp) :: energy_diff, energy_new, energy_old, error_norm, &
       error_norm_ispin, prev_error_norm, t1, t2, true_mixing_fraction
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: local_mu
@@ -285,7 +285,7 @@ CONTAINS
                ! RZK UPDATE! it requires updating core LS_SCF routines
                ! RZK UPDATE! (the code exists in the CVS version)
                IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "Density_matrix_sign has not been tested yet"
-               CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+               CPASSERT(.FALSE.)
                ! RZK UPDATE!  CALL density_matrix_sign(almo_scf_env%matrix_p_blk(ispin),&
                ! RZK UPDATE!          local_mu,&
                ! RZK UPDATE!          almo_scf_env%fixed_mu,&
@@ -373,8 +373,8 @@ CONTAINS
 
     INTEGER                                  :: handle, iscf, ispin, nspin, &
                                                 unit_nr
-    LOGICAL                                  :: converged, failure, &
-                                                prepare_to_exit, should_stop
+    LOGICAL                                  :: converged, prepare_to_exit, &
+                                                should_stop
     REAL(KIND=dp) :: denergy_tot, energy_diff, energy_new, energy_old, &
       error_norm, error_norm_0, spin_factor, t1, t2
     REAL(KIND=dp), DIMENSION(2)              :: denergy_spin
@@ -716,7 +716,7 @@ CONTAINS
 
     IF (.NOT.converged)  THEN
       IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF for ALMOs on overlapping domains not converged! "
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
     ENDIF
 
     DO ispin=1,nspin
@@ -771,7 +771,7 @@ CONTAINS
       iteration, iunit, jj, line_search_iteration, max_iter, my_special_case, &
       mynode, ncores, ndomains, occ1, outer_iteration, outer_max_iter, &
       prec_type, precond_domain_projector, unit_nr, zero_neg_eiv
-    LOGICAL :: converged, do_md, failure, first_md_iteration, just_started, &
+    LOGICAL :: converged, do_md, first_md_iteration, just_started, &
       line_search, md_in_theta_space, optimize_theta, outer_prepare_to_exit, &
       prepare_to_exit, reset_conjugator, skip_grad, use_guess, &
       use_preconditioner
@@ -860,8 +860,8 @@ CONTAINS
     !!!!!! TO ADAPT IT FOR UNRESTRICTED ORBITALS - UPDATE KS MATRIX WITH PARTIALLY
     !!!!!! OPTIMIZED ORBITALS - BOTH ALPNA AND BETA
     IF (almo_scf_env%nspins.gt.1) THEN
-       CPErrorMessage(cp_failure_level,routineP,"UNRESTRICTED ALMO SCF IS NYI(!)")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("UNRESTRICTED ALMO SCF IS NYI(!)")
+       CPASSERT(.FALSE.)
     ENDIF
 
     DO ispin=1,almo_scf_env%nspins
@@ -991,8 +991,8 @@ CONTAINS
              !   WRITE(unit_nr,*) "Maximum allowed amplitude: ", almo_scf_env%envelope_amplitude
              !ENDIF
              IF (grad_norm.gt.almo_scf_env%envelope_amplitude) THEN
-                CPErrorMessage(cp_failure_level,routineP,"Max norm of the initial guess is too large")
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPABORT("Max norm of the initial guess is too large")
+                CPASSERT(.FALSE.)
              ENDIF
              ! use artanh of block-diagonal ALMOs as an initial guess for independent variables
              CALL cp_dbcsr_copy(m_theta,matrix_t_0)
@@ -1121,7 +1121,7 @@ CONTAINS
                            filter_eps=almo_scf_env%eps_filter)
                 ELSE IF (my_special_case.eq.xalmo_case_block_diag) THEN
                    ! cannot use projector with block-daigonal ALMOs
-                   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                   CPASSERT(.FALSE.)
                 ELSE
                    ! no special case
                    CALL apply_domain_operators(&
@@ -1384,7 +1384,7 @@ CONTAINS
                               filter_eps=almo_scf_env%eps_filter)
                    ELSE IF (my_special_case.eq.xalmo_case_block_diag) THEN
                       ! should not be here - cannot project the zero-order space from itself
-                      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                      CPASSERT(.FALSE.)
                    ELSE
                       ! no special case: normal xALMOs
                       CALL apply_domain_operators(&
@@ -1766,8 +1766,8 @@ CONTAINS
                             ! expensive Newton-Raphson step (the Hessian is still approximate)
                             ! RZK-warning THIS PREC HAS NOT BEEN IMPLEMENTED FOR THETA
                             IF (ncores.gt.1) THEN                            
-                               CPErrorMessage(cp_failure_level,routineP,"serial code only")
-                               CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                               CPABORT("serial code only")
+                               CPASSERT(.FALSE.)
                             ENDIF
                             CALL newton_grad_to_step(&
                                     matrix_grad=m_tmp_no_2,&
@@ -1866,8 +1866,8 @@ CONTAINS
                                
                                !!! RZK-warning Currently for non-theta only
                                IF (optimize_theta) THEN
-                                  CPErrorMessage(cp_failure_level,routineP,"theta is NYI")
-                                  CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                                  CPABORT("theta is NYI")
+                                  CPASSERT(.FALSE.)
                                ENDIF
 
                                CALL apply_domain_operators(&
@@ -1982,8 +1982,8 @@ CONTAINS
                          CASE (cg_zero)
                             beta=0.0_dp
                          CASE DEFAULT
-                            CPErrorMessage(cp_failure_level,routineP,"illegal conjugator")
-                            CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                            CPABORT("illegal conjugator")
+                            CPASSERT(.FALSE.)
                          END SELECT
       
                          IF (beta.lt.0.0_dp) THEN
@@ -2285,7 +2285,7 @@ CONTAINS
     
        IF (.NOT.converged)  THEN
           IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "Optimization not converged! "
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        ENDIF
     
        DEALLOCATE(domain_r_down)
@@ -2313,7 +2313,6 @@ CONTAINS
 
     INTEGER :: discarded_v, handle, iblock_col, iblock_col_size, iblock_row, &
       iblock_row_size, ispin, retained_v
-    LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: data_p, p_new_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 
@@ -2334,26 +2333,26 @@ CONTAINS
                   row_size=iblock_row_size,col_size=iblock_col_size)
 
           IF (iblock_row.ne.iblock_col) THEN
-             CPErrorMessage(cp_failure_level,routineP,"off-diagonal block found")
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPABORT("off-diagonal block found")
+             CPASSERT(.FALSE.)
           ENDIF
 
           retained_v=almo_scf_env%nvirt_of_domain(iblock_col,ispin)
           discarded_v=almo_scf_env%nvirt_disc_of_domain(iblock_col,ispin)
-          CPPrecondition(retained_v.gt.0,cp_failure_level,routineP,failure)
-          CPPrecondition(discarded_v.gt.0,cp_failure_level,routineP,failure)
+          CPASSERT(retained_v.gt.0)
+          CPASSERT(discarded_v.gt.0)
 
           NULLIFY (p_new_block)
           CALL cp_dbcsr_reserve_block2d(almo_scf_env%matrix_v_disc_blk(ispin),&
                   iblock_row,iblock_col,p_new_block)
-          CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
-          CPPrecondition((retained_v+discarded_v.eq.iblock_col_size),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(p_new_block))
+          CPASSERT(retained_v+discarded_v.eq.iblock_col_size)
           p_new_block(:,:) = data_p(:,(retained_v+1):iblock_col_size)
 
           NULLIFY (p_new_block)
           CALL cp_dbcsr_reserve_block2d(almo_scf_env%matrix_v_blk(ispin),&
                   iblock_row,iblock_col,p_new_block)
-          CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(p_new_block))
           p_new_block(:,:) = data_p(:,1:retained_v)
 
        ENDDO ! iterator
@@ -2388,7 +2387,7 @@ CONTAINS
       handle5, handle6, handle7, handle8, ispin, iteration, n, nmins, nspin, &
       opt_k_max_iter, outer_opt_k_iteration, outer_opt_k_max_iter, unit_nr
     INTEGER, DIMENSION(1)                    :: fake, nelectron_spin_real
-    LOGICAL :: converged, failure, line_search, md_in_k_space, &
+    LOGICAL :: converged, line_search, md_in_k_space, &
       outer_opt_k_prepare_to_exit, prepare_to_exit, reset_conjugator, &
       reset_step_size, use_cubic_approximation, use_quadratic_approximation
     REAL(KIND=dp) :: aa, bb, beta, conjugacy_error, &
@@ -3303,8 +3302,8 @@ CONTAINS
                                CASE (cg_zero)
                                   beta=0.0_dp
                                CASE DEFAULT
-                                  CPErrorMessage(cp_failure_level,routineP,"illegal conjugator")
-                                  CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                                  CPABORT("illegal conjugator")
+                                  CPASSERT(.FALSE.)
                                END SELECT
    
                                IF (beta.lt.0.0_dp) THEN
@@ -3368,7 +3367,7 @@ CONTAINS
                                      ABS(gfun0),&
                                      " is smaller than the threshold",num_threshold
                                ENDIF
-                               CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                               CPASSERT(.FALSE.)
                             ENDIF
                             IF (ABS(gfun0).lt.num_threshold) THEN
                                IF (unit_nr>0) THEN
@@ -3376,7 +3375,7 @@ CONTAINS
                                      ABS(gfun0),&
                                      " is smaller than the threshold",num_threshold
                                ENDIF
-                               CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                               CPASSERT(.FALSE.)
                             ENDIF
                             
                             use_quadratic_approximation=.TRUE.
@@ -3485,8 +3484,8 @@ CONTAINS
    
                             ! one more check on the step size
                             IF (step_size.lt.0.0_dp) THEN
-                               CPErrorMessage(cp_failure_level,routineP,"Negative step proposed")
-                               CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                               CPABORT("Negative step proposed")
+                               CPASSERT(.FALSE.)
                             ENDIF
    
                             CALL cp_dbcsr_copy(almo_scf_env%matrix_k_blk(ispin),&
@@ -3979,7 +3978,7 @@ CONTAINS
           ! RZK UPDATE! it requires updating core LS_SCF routines
           ! RZK UPDATE! (the code exists in the CVS version)
           IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "CVS only: density_matrix_sign has not been updated in SVN"
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
           ! RZK UPDATE!CALL density_matrix_sign(almo_scf_env%matrix_p(ispin),&
           ! RZK UPDATE!                     local_mu,&
           ! RZK UPDATE!                     almo_scf_env%fixed_mu,&

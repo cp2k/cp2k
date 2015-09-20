@@ -96,15 +96,14 @@ CONTAINS
     INTEGER                                  :: i_tmp, ntot
     INTEGER, DIMENSION(3)                    :: nr_bins
     INTEGER, DIMENSION(:), POINTER           :: i_arr_tmp
-    LOGICAL                                  :: explicit, explicit_key, &
-                                                failure, flag
+    LOGICAL                                  :: explicit, explicit_key, flag
     REAL(KIND=dp), POINTER                   :: charge(:)
     TYPE(section_vals_type), POINTER         :: tmp_section
 
     NULLIFY(tmp_section, charge_atm, i_arr_tmp, charge)
 
-    CPPrecondition(ASSOCIATED(tmc_ana_section),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_ana_section))
+    CPASSERT(.NOT.ASSOCIATED(tmc_ana))
 
 
     CALL section_vals_get(tmc_ana_section,explicit=explicit)
@@ -231,8 +230,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
-    CPPrecondition(nr_dim>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_env))
+    CPASSERT(nr_dim>0)
 
     ana_env%nr_dim = nr_dim
 
@@ -303,8 +302,8 @@ CONTAINS
     LOGICAL                                  :: failure, l_tmp
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%last_elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_env))
+    CPASSERT(ASSOCIATED(ana_env%last_elem))
     IF(.NOT.ana_env%restart) RETURN
 
     WRITE(file_name, FMT='(I9.9)') ana_env%last_elem%nr
@@ -405,8 +404,8 @@ CONTAINS
     REAL(KIND=dp)                            :: temp
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)   
+    CPASSERT(ASSOCIATED(ana_env))
+    CPASSERT(ASSOCIATED(elem))
     IF(.NOT.ana_env%restart) RETURN
  
     file_name_tmp = expand_file_name_char(TRIM(ana_env%out_file_prefix)//&
@@ -423,14 +422,14 @@ CONTAINS
       CALL open_file(file_name=file_name_tmp, file_status="OLD", file_form="UNFORMATTED", &
                    file_action="READ", unit_number=file_ptr) 
       READ(file_ptr) temp
-      CPPrecondition(ana_env%temperature.EQ.temp,cp_failure_level,routineP,failure)
+      CPASSERT(ana_env%temperature.EQ.temp)
       ana_env%last_elem => elem
       CALL read_subtree_elem_unformated(elem, file_ptr)
 
       ! first mention the different kind of anlysis types initialized
       ! then the variables for each calculation type
       READ(file_ptr) l_tmp
-      CPPrecondition(ASSOCIATED(ana_env%density_3d).EQV.l_tmp,cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(ana_env%density_3d).EQV.l_tmp)
       IF(l_tmp)THEN
         READ(file_ptr) ana_env%density_3d%conf_counter, &
                ana_env%density_3d%nr_bins, &
@@ -443,7 +442,7 @@ CONTAINS
       END IF
   
       READ(file_ptr) l_tmp
-      CPPrecondition(ASSOCIATED(ana_env%pair_correl).EQV.l_tmp,cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(ana_env%pair_correl).EQV.l_tmp)
       IF(l_tmp)THEN
         READ(file_ptr) ana_env%pair_correl%conf_counter, &
                  ana_env%pair_correl%nr_bins, &
@@ -453,7 +452,7 @@ CONTAINS
       END IF
   
       READ(file_ptr) l_tmp
-      CPPrecondition(ASSOCIATED(ana_env%dip_mom).EQV.l_tmp,cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(ana_env%dip_mom).EQV.l_tmp)
       IF(l_tmp)THEN
         READ(file_ptr) ana_env%dip_mom%conf_counter, &
                  ana_env%dip_mom%charges, &
@@ -461,7 +460,7 @@ CONTAINS
       END IF
 
       READ(file_ptr) l_tmp
-      CPPrecondition(ASSOCIATED(ana_env%dip_ana).EQV.l_tmp,cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(ana_env%dip_ana).EQV.l_tmp)
       IF(l_tmp)THEN
         READ(file_ptr) ana_env%dip_ana%conf_counter, &
                  ana_env%dip_ana%ana_type,&
@@ -473,7 +472,7 @@ CONTAINS
       END IF
 
       READ(file_ptr) l_tmp
-      CPPrecondition(ASSOCIATED(ana_env%displace).EQV.l_tmp,cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(ana_env%displace).EQV.l_tmp)
       IF(l_tmp)THEN
         READ(file_ptr)ana_env%displace%conf_counter, &
                 ana_env%displace%disp
@@ -509,8 +508,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(ana_env))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -628,9 +627,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_env))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -679,14 +677,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: conf_nr, handle, nr_dim, stat
-    LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: elem
 
     NULLIFY(elem)
     conf_nr = -1
     stat = TMC_STATUS_WAIT_FOR_NEW_TASK
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_env))
+    CPASSERT(ASSOCIATED(tmc_params))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -771,7 +768,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp
     INTEGER                                  :: atom, bin_x, bin_y, bin_z, &
                                                 file_ptr, handle
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp)                            :: mass_total, r_tmp, vol_cell, &
                                                 vol_sub_box
     REAL(KIND=dp), DIMENSION(3)              :: atom_pos, cell_size, &
@@ -781,15 +778,15 @@ CONTAINS
 
     NULLIFY(mass_bin)
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,failure)
-    CPPrecondition(weight.GT.0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%cell),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%density_3d),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%density_3d%sum_density),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%density_3d%sum_dens2),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(elem%pos))
+    CPASSERT(weight.GT.0)
+    CPASSERT(ASSOCIATED(atoms))
+    CPASSERT(ASSOCIATED(ana_env))
+    CPASSERT(ASSOCIATED(ana_env%cell))
+    CPASSERT(ASSOCIATED(ana_env%density_3d))
+    CPASSERT(ASSOCIATED(ana_env%density_3d%sum_density))
+    CPASSERT(ASSOCIATED(ana_env%density_3d%sum_dens2))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -844,10 +841,10 @@ CONTAINS
       bin_x = INT(atom_pos(1)/interval_size(1))+1
       bin_y = INT(atom_pos(2)/interval_size(2))+1
       bin_z = INT(atom_pos(3)/interval_size(3))+1
-      CPPostcondition(bin_x.GT.0.AND.bin_y.GT.0.AND.bin_z.GT.0,cp_failure_level,routineP,failure)
-      CPPostcondition(bin_x.LE.SIZE(ana_env%density_3d%sum_density(:,1,1)),cp_failure_level,routineP,failure)
-      CPPostcondition(bin_y.LE.SIZE(ana_env%density_3d%sum_density(1,:,1)),cp_failure_level,routineP,failure)
-      CPPostcondition(bin_z.LE.SIZE(ana_env%density_3d%sum_density(1,1,:)),cp_failure_level,routineP,failure)
+      CPASSERT(bin_x.GT.0.AND.bin_y.GT.0.AND.bin_z.GT.0)
+      CPASSERT(bin_x.LE.SIZE(ana_env%density_3d%sum_density(:,1,1)))
+      CPASSERT(bin_y.LE.SIZE(ana_env%density_3d%sum_density(1,:,1)))
+      CPASSERT(bin_z.LE.SIZE(ana_env%density_3d%sum_density(1,1,:)))
 
       ! sum mass in [g] (in bins and total)
       mass_bin(bin_x,bin_y,bin_z) = mass_bin(bin_x,bin_y,bin_z) + &
@@ -863,7 +860,7 @@ CONTAINS
     END DO
     ! check total cell density
     r_tmp = mass_total/vol_cell - SUM(mass_bin(:,:,:))/vol_sub_box/SIZE(mass_bin(:,:,:))
-    CPPostcondition(ABS(r_tmp).LT.1E-5,cp_failure_level,routineP,failure)
+    CPASSERT(ABS(r_tmp).LT.1E-5)
 
     ! calculate density (mass per volume) and sum up for average value
     ana_env%density_3d%sum_density(:,:,:) = ana_env%density_3d%sum_density(:,:,:) +&
@@ -940,13 +937,12 @@ CONTAINS
     INTEGER                                  :: bin_x, bin_y, bin_z, &
                                                 file_ptr_dens, file_ptr_vari, &
                                                 handle, i, j, k
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: cell_size, interval_size
 
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%density_3d),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%density_3d%sum_density),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%density_3d%sum_dens2),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_env))
+    CPASSERT(ASSOCIATED(ana_env%density_3d))
+    CPASSERT(ASSOCIATED(ana_env%density_3d%sum_density))
+    CPASSERT(ASSOCIATED(ana_env%density_3d%sum_dens2))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1061,12 +1057,12 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(ana_pair_correl),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(ana_pair_correl%g_r),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(ana_pair_correl%pairs),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(atoms).GT.1,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_pair_correl))
+    CPASSERT(.NOT.ASSOCIATED(ana_pair_correl%g_r))
+    CPASSERT(.NOT.ASSOCIATED(ana_pair_correl%pairs))
+    CPASSERT(ASSOCIATED(atoms))
+    CPASSERT(SIZE(atoms).GT.1)
+    CPASSERT(ASSOCIATED(cell))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1138,16 +1134,16 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: cell_size
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,failure)
-    CPPrecondition(ALL(elem%box_scale(:).GT.0.0_dp),cp_failure_level,routineP,failure)
-    CPPrecondition(weight.GT.0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%cell),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%pair_correl),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%pair_correl%g_r),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%pair_correl%pairs),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(elem%pos))
+    CPASSERT(ALL(elem%box_scale(:).GT.0.0_dp))
+    CPASSERT(weight.GT.0)
+    CPASSERT(ASSOCIATED(atoms))
+    CPASSERT(ASSOCIATED(ana_env))
+    CPASSERT(ASSOCIATED(ana_env%cell))
+    CPASSERT(ASSOCIATED(ana_env%pair_correl))
+    CPASSERT(ASSOCIATED(ana_env%pair_correl%g_r))
+    CPASSERT(ASSOCIATED(ana_env%pair_correl%pairs))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1164,7 +1160,7 @@ CONTAINS
           pair_ind = search_pair_in_list(pair_list=ana_env%pair_correl%pairs, &
                        n1=atoms(INT(i/REAL(ana_env%dim_per_elem,KIND=dp))+1)%name, &
                        n2=atoms(INT(j/REAL(ana_env%dim_per_elem,KIND=dp))+1)%name)
-          CPPostcondition(pair_ind.GT.0,cp_failure_level,routineP,failure)
+          CPASSERT(pair_ind.GT.0)
           ana_env%pair_correl%g_r(pair_ind,ind) = &
             ana_env%pair_correl%g_r(pair_ind,ind) + weight
         END IF
@@ -1198,8 +1194,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%pair_correl),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_env))
+    CPASSERT(ASSOCIATED(ana_env%pair_correl))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1273,9 +1269,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(ana_dip_mom),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_dip_mom%charges_inp),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(atoms),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_dip_mom))
+    CPASSERT(ASSOCIATED(ana_dip_mom%charges_inp))
+    CPASSERT(ASSOCIATED(atoms))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1315,14 +1311,13 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: dip_cl
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%dip_mom),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%dip_mom%charges),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(elem%pos))
+    CPASSERT(ASSOCIATED(ana_env))
+    CPASSERT(ASSOCIATED(ana_env%dip_mom))
+    CPASSERT(ASSOCIATED(ana_env%dip_mom%charges))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1390,17 +1385,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_dipole_analysis', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: vol, weight_act
     REAL(KIND=dp), DIMENSION(3, 3)           :: tmp_dip
     TYPE(cell_type), POINTER                 :: scaled_cell
 
     NULLIFY(scaled_cell)
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(elem%dipole),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%dip_ana),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(elem%dipole))
+    CPASSERT(ASSOCIATED(ana_env))
+    CPASSERT(ASSOCIATED(ana_env%dip_ana))
 
     weight_act = weight
     IF(ana_env%dip_ana%ana_type .EQ. ana_type_sym_xyz) &
@@ -1567,15 +1561,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: diel_const_scalar, kB
     REAL(KIND=dp), DIMENSION(3)              :: diel_const_sym, dielec_ev
     REAL(KIND=dp), DIMENSION(3, 3)           :: diel_const, tmp_dip, tmp_ev
 
     kB = boltzmann/joule
 
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%dip_ana),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_env))
+    CPASSERT(ASSOCIATED(ana_env%dip_ana))
 
     tmp_dip(:,:)      = 0.0_dp
     diel_const(:,:)   = 0.0_dp
@@ -1666,11 +1659,11 @@ CONTAINS
     failure = .FALSE.
     disp = 0.0_dp
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%displace),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ana_env%last_elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(elem%pos))
+    CPASSERT(ASSOCIATED(ana_env))
+    CPASSERT(ASSOCIATED(ana_env%displace))
+    CPASSERT(ASSOCIATED(ana_env%last_elem))
 
     ! start the timing
     CALL timeset(routineN,handle)

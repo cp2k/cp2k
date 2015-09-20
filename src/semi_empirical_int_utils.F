@@ -525,7 +525,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
   END FUNCTION charg_int_nri
 
 ! *****************************************************************************
@@ -732,7 +732,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
   END FUNCTION dcharg_int_nri
 
 ! *****************************************************************************
@@ -942,7 +942,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
   END FUNCTION dcharg_int_nri_fs
 
 ! *****************************************************************************
@@ -1382,7 +1382,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
   END FUNCTION charg_int_ri
 
 ! *****************************************************************************
@@ -1522,7 +1522,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
   END FUNCTION dcharg_int_ri
 
 ! *****************************************************************************
@@ -1666,7 +1666,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
   END FUNCTION dcharg_int_ri_fs
 
 ! *****************************************************************************
@@ -1711,7 +1711,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(5, 5)           :: d
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(ij_matrix),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ij_matrix))
     IF (PRESENT(do_invert)) do_invert = .FALSE.
     IF ((sepi%natorb>1).OR.(sepj%natorb>1)) THEN
        ! Compute Geomtric data and interatomic distance
@@ -1754,7 +1754,7 @@ CONTAINS
        IF (dbg_inv) THEN
           ! When debugging the derivatives of the rotation matrix we must possibly force
           ! the inversion of the reference frame
-          CPPostcondition(.NOT.do_derivatives,cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.do_derivatives)
           imap(1)   = 3
           imap(2)   = 2
           imap(3)   = 1
@@ -1909,7 +1909,7 @@ CONTAINS
        IF (do_derivatives) THEN
           ! This condition is necessary because derivatives uses the invertion of the
           ! axis for treating the divergence point along z-axis
-          CPPostcondition(eval,cp_failure_level,routineP,failure)
+          CPASSERT(eval)
           x11_d = 0.0_dp; x11_d(1) = 1.0_dp
           x22_d = 0.0_dp; x22_d(2) = 1.0_dp
           x33_d = 0.0_dp; x33_d(3) = 1.0_dp
@@ -2134,10 +2134,10 @@ CONTAINS
 
     failure = .FALSE.
     IF (lgrad) THEN
-       CPPostcondition(PRESENT( rep_d),cp_failure_level,routineP,failure)
-       CPPostcondition(PRESENT(   v_d),cp_failure_level,routineP,failure)
-       CPPostcondition(PRESENT(logv_d),cp_failure_level,routineP,failure)
-       CPPostcondition(PRESENT(  drij),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT( rep_d))
+       CPASSERT(PRESENT(   v_d))
+       CPASSERT(PRESENT(logv_d))
+       CPASSERT(PRESENT(  drij))
     END IF
     limkl = indexb(kk, kk)
     DO k = 1, limkl
@@ -2481,7 +2481,7 @@ CONTAINS
           END DO
        END DO
     ELSE
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
 
   END SUBROUTINE store_2el_2c_diag

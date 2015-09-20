@@ -73,11 +73,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
      failure=.FALSE.
-     CPPostcondition(.NOT.ASSOCIATED(damping),cp_failure_level,routineP,failure)
+     CPASSERT(.NOT.ASSOCIATED(damping))
      ALLOCATE ( damping, stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE ( damping%damp( nkinds ), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      DO i = 1, nkinds
         CALL init_damping ( damping%damp(i) )
      END DO
@@ -102,10 +102,10 @@ CONTAINS
     IF(ASSOCIATED(damping)) THEN
       IF (ASSOCIATED(damping%damp)) THEN
          DEALLOCATE(damping%damp,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
       END IF
       DEALLOCATE(damping,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
     NULLIFY(damping)
 

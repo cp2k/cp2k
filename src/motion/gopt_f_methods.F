@@ -111,7 +111,7 @@ CONTAINS
          CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
       nparticle = force_env_get_nparticle(gopt_env%force_env)
       ALLOCATE (x0(3*nparticle),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       CALL pack_subsys_particles(subsys=subsys,r=x0)
     CASE (default_cell_method_id)
       SELECT CASE (gopt_env%cell_method_id)
@@ -126,7 +126,7 @@ CONTAINS
             CALL apply_qmmmx_translate(gopt_env%force_env%qmmmx_env)
          nparticle = force_env_get_nparticle(gopt_env%force_env)
          ALLOCATE (x0(3*nparticle+6),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          CALL pack_subsys_particles(subsys=subsys,r=x0)
          idg = 3*nparticle
          DO i=1,3
@@ -138,7 +138,7 @@ CONTAINS
       CASE (default_cell_geo_opt_id,default_cell_md_id)
          CALL force_env_get(gopt_env%force_env,cell=cell)
          ALLOCATE (x0(6),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          idg = 0
          DO i=1,3
            DO j=1,i
@@ -147,10 +147,10 @@ CONTAINS
            END DO
          END DO
       CASE DEFAULT
-         CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+         CPASSERT(.FALSE.)
       END SELECT
     CASE DEFAULT
-      CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
     END SELECT
 
   END SUBROUTINE gopt_f_create_x0
@@ -280,9 +280,9 @@ CONTAINS
                pred=pred,rat=rat,step=step,rad=rad,emin=emin,wildcard=wildcard,used_time=used_time)
           ! Possibly check convergence
           IF (PRESENT(conv)) THEN
-             CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,failure)
-             CPPostcondition(PRESENT(dx),cp_failure_level,routineP,failure)
-             CPPostcondition(PRESENT(xi),cp_failure_level,routineP,failure)
+             CPASSERT(PRESENT(ndf))
+             CPASSERT(PRESENT(dx))
+             CPASSERT(PRESENT(xi))
              CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param)
           END IF
        ELSE
@@ -292,7 +292,7 @@ CONTAINS
                used_time=used_time, wildcard=wildcard)
           ! Possibly check convergence
           IF (PRESENT(conv)) THEN
-             CPPostcondition(ASSOCIATED(gopt_env%dimer_env),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(gopt_env%dimer_env))
              CALL check_rot_conv(gopt_env%dimer_env, output_unit, conv)
           END IF
        END IF
@@ -308,9 +308,9 @@ CONTAINS
             used_time=used_time)
        ! Possibly check convergence
        IF (PRESENT(conv)) THEN
-          CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,failure)
-          CPPostcondition(PRESENT(dx),cp_failure_level,routineP,failure)
-          CPPostcondition(PRESENT(xi),cp_failure_level,routineP,failure)
+          CPASSERT(PRESENT(ndf))
+          CPASSERT(PRESENT(dx))
+          CPASSERT(PRESENT(xi))
           CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param,pres_diff,pres_tol)
        END IF
     CASE (default_shellcore_method_id)
@@ -318,9 +318,9 @@ CONTAINS
                pred=pred,rat=rat,step=step,rad=rad,emin=emin,wildcard=wildcard, used_time=used_time)
           ! Possibly check convergence
           IF (PRESENT(conv)) THEN
-             CPPostcondition(PRESENT(ndf),cp_failure_level,routineP,failure)
-             CPPostcondition(PRESENT(dx),cp_failure_level,routineP,failure)
-             CPPostcondition(PRESENT(xi),cp_failure_level,routineP,failure)
+             CPASSERT(PRESENT(ndf))
+             CPASSERT(PRESENT(dx))
+             CPASSERT(PRESENT(xi))
              CALL check_converg(ndf,dx,xi,output_unit,conv,gopt_param)
           END IF
     END SELECT
@@ -1010,7 +1010,7 @@ CONTAINS
      CASE (default_cell_geo_opt_id,default_cell_md_id)
         idg = 0
      END SELECT
-     CPPrecondition((SIZE(x) == idg + 6),cp_failure_level,routineP,failure)
+     CPASSERT((SIZE(x) == idg + 6))
 
      IF (update_forces) THEN
 

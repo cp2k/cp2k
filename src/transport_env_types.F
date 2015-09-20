@@ -116,7 +116,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    CPPostcondition(ASSOCIATED(transport_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(transport_env))
 
     CALL cp_csr_destroy(transport_env%s_matrix)
     CALL cp_csr_destroy(transport_env%ks_matrix)
@@ -127,7 +127,7 @@ CONTAINS
     transport_env%ext_c_method_ptr = C_NULL_FUNPTR
 
     DEALLOCATE(transport_env, stat=istat)
-    CPPostcondition(istat==0, cp_failure_level, routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 

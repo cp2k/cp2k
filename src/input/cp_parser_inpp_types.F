@@ -63,9 +63,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(inpp),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(inpp))
     ALLOCATE(inpp, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     inpp%io_stack_level = 0
     NULLIFY(inpp%io_stack_channel,&
@@ -79,10 +79,10 @@ CONTAINS
     IF (ASSOCIATED(initial_variables)) THEN
        inpp%num_variables =SIZE(initial_variables,2)
        ALLOCATE(inpp%variable_name(inpp%num_variables),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        inpp%variable_name=initial_variables(1,:)
        ALLOCATE(inpp%variable_value(inpp%num_variables),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        inpp%variable_value=initial_variables(2,:)
     ENDIF
 
@@ -104,32 +104,32 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(inpp))
 
     IF (ASSOCIATED(inpp%io_stack_channel)) THEN
        DEALLOCATE(inpp%io_stack_channel,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(inpp%io_stack_lineno)) THEN
        DEALLOCATE(inpp%io_stack_lineno,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(inpp%io_stack_filename)) THEN
        DEALLOCATE(inpp%io_stack_filename,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     IF (ASSOCIATED(inpp%variable_name)) THEN
        DEALLOCATE(inpp%variable_name,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(inpp%variable_value)) THEN
        DEALLOCATE(inpp%variable_value,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     DEALLOCATE(inpp, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE release_inpp_type
 
 END MODULE cp_parser_inpp_types

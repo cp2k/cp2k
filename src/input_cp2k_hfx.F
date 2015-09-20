@@ -60,7 +60,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"HF",&
          description="Sets up the Hartree-Fock parameters if requested ",&
          n_keywords=5, n_subsections=2, repeats=.TRUE., &
@@ -149,7 +149,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"LOAD_BALANCE",&
          description="Parameters influencing the load balancing of the HF",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., &
@@ -225,7 +225,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"INTERACTION_POTENTIAL",&
          description="Sets up interaction potential if requested ",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., &
@@ -326,7 +326,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"SCREENING",&
          description="Sets up screening parameters if requested ",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., &
@@ -405,7 +405,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"PERIODIC",&
          description="Sets up periodic boundary condition parameters if requested ",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., &
@@ -442,7 +442,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"MEMORY",&
          description="Sets up memory parameters for the storage of the ERI's if requested ",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., &

@@ -152,7 +152,7 @@ CONTAINS
           END IF
        END IF
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     IF (PRESENT(needs)) THEN
        needs%rho=.TRUE.
@@ -264,7 +264,7 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv)
           END IF
        END IF
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
   IF (PRESENT(needs)) THEN
      needs%rho_spin=.TRUE.
@@ -310,10 +310,10 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params)
   failure=.FALSE.
   NULLIFY(bo)
 
-  CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-  CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-  CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-  CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(rho_set))
+  CPASSERT(rho_set%ref_count>0)
+  CPASSERT(ASSOCIATED(deriv_set))
+  CPASSERT(deriv_set%ref_count>0)
   CALL xc_rho_set_get(rho_set,rho=rho,&
        norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho)
   npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
@@ -322,7 +322,7 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params)
   ! and debugger happy...
   IF (cp_debug) THEN
      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   ELSE
      dummy=> rho
   END IF
@@ -405,7 +405,7 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params)
 
   IF (cp_debug) THEN
      DEALLOCATE(dummy,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+     CPASSERT(stat==0)
   ELSE
      NULLIFY(dummy)
   END IF
@@ -539,7 +539,7 @@ SUBROUTINE pbe_lda_calc(rho, norm_drho,&
      beta  = 0.46e-1_dp
      mu    = 0.1e2_dp / 0.81e2_dp
   CASE default
-     CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+     CPASSERT(.FALSE.)
   END SELECT
 
   gamma_var = (0.1e1_dp - LOG(0.2e1_dp)) / pi ** 2
@@ -1402,10 +1402,10 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params)
   failure=.FALSE.
   NULLIFY(deriv, bo)
 
-  CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-  CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-  CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-  CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(rho_set))
+  CPASSERT(rho_set%ref_count>0)
+  CPASSERT(ASSOCIATED(deriv_set))
+  CPASSERT(deriv_set%ref_count>0)
   CALL xc_rho_set_get(rho_set,&
        rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
        norm_drhob=norm_drhob, norm_drho=norm_drho, &
@@ -1417,7 +1417,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params)
   ! and debugger happy...
   IF (cp_debug) THEN
      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   ELSE
      dummy=> rhoa
   END IF
@@ -1521,7 +1521,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params)
 
   IF (cp_debug) THEN
      DEALLOCATE(dummy,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+     CPASSERT(stat==0)
   ELSE
      NULLIFY(dummy)
   END IF
@@ -1664,7 +1664,7 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
      beta  = 0.46e-1_dp
      mu    = 0.1e2_dp / 0.81e2_dp
   CASE default
-     CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+     CPASSERT(.FALSE.)
   END SELECT
 
   gamma_var = (0.1e1_dp - LOG(0.2e1_dp)) / pi ** 2

@@ -168,7 +168,7 @@ CONTAINS
 
     n = SIZE ( rho )
     ALLOCATE ( rs(n), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL calc_rs ( rho, rs )
     IF ( calc(0) .AND. calc(1) ) THEN
@@ -191,7 +191,7 @@ CONTAINS
     END IF
 
     DEALLOCATE ( rs, STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE pade_lda
 
@@ -224,7 +224,7 @@ CONTAINS
 
     n = PRODUCT(rho_set%local_bounds(2,:)-rho_set%local_bounds(1,:)+(/1,1,1/))
     ALLOCATE ( rs(n), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL calc_rs_pw ( rho_set%rho, rs, n )
     IF ( calc(0) .AND. calc(1) ) THEN
@@ -260,7 +260,7 @@ CONTAINS
     END IF
 
     DEALLOCATE ( rs, STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE pade_lda_pw_eval
 

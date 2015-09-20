@@ -105,9 +105,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(shell),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(shell))
     ALLOCATE(shell,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     shell%ref_count = 1
 
   END SUBROUTINE shell_create
@@ -131,9 +131,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPostcondition(.NOT.ASSOCIATED(shell_list),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(shell_list))
     ALLOCATE(shell_list(ndim), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO i = 1,ndim
       NULLIFY (shell_list(i)%shell)
@@ -158,8 +158,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(shell),cp_failure_level,routineP,failure)
-    CPPrecondition(shell%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(shell))
+    CPASSERT(shell%ref_count>0)
     shell%ref_count=shell%ref_count+1
 
   END SUBROUTINE shell_retain
@@ -180,11 +180,11 @@ CONTAINS
 
     failure = .FALSE.
     IF(ASSOCIATED(shell)) THEN
-      CPPrecondition(shell%ref_count>0,cp_failure_level,routineP,failure)
+      CPASSERT(shell%ref_count>0)
       shell%ref_count=shell%ref_count-1
       IF(shell%ref_count==0) THEN
         DEALLOCATE(shell,STAT=istat)
-        CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+        CPASSERT(istat==0)
       END IF
     END IF
     NULLIFY(shell)
@@ -209,7 +209,7 @@ CONTAINS
          CALL shell_release(shell_list(i)%shell)
       END DO
       DEALLOCATE(shell_list,stat=istat)
-      CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+      CPASSERT(istat==0)
     END IF
 
     NULLIFY (shell_list)

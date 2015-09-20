@@ -119,8 +119,8 @@ SUBROUTINE p_env_retain(p_env)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,failure)
-  CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(p_env))
+  CPASSERT(p_env%ref_count>0)
   p_env%ref_count=p_env%ref_count+1
 END SUBROUTINE p_env_retain
 
@@ -144,7 +144,7 @@ END SUBROUTINE p_env_retain
     failure=.FALSE.
 
     IF (ASSOCIATED(p_env)) THEN
-       CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(p_env%ref_count>0)
        p_env%ref_count=p_env%ref_count-1
        IF (p_env%ref_count<1) THEN
           CALL kpp1_release(p_env%kpp1_env)
@@ -172,18 +172,18 @@ END SUBROUTINE p_env_retain
               NULLIFY(p_env%ev_h0(ip)%matrix)
             END DO
             DEALLOCATE(p_env%ev_h0, STAT=stat)
-            CPPostcondition((stat==0),cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
           END IF
           IF(ASSOCIATED(p_env%preconditioner)) THEN
             DO ip=1,SIZE(p_env%preconditioner,1)
               CALL destroy_preconditioner(p_env%preconditioner(ip))
             END DO
             DEALLOCATE(p_env%preconditioner,STAT=stat)
-            CPPostcondition((stat==0),cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
           END IF
        END IF
        DEALLOCATE(p_env,stat=stat)
-       CPPostcondition((stat==0),cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     NULLIFY(p_env)
   END SUBROUTINE p_env_release

@@ -104,8 +104,8 @@ CONTAINS
        use_geep_lib = .FALSE.
     ELSE
        use_geep_lib = .TRUE.
-       CPPostcondition(num_geep_gauss>=min_geep_lib_gauss,cp_failure_level,routineP,failure)
-       CPPostcondition(num_geep_gauss<=max_geep_lib_gauss,cp_failure_level,routineP,failure)
+       CPASSERT(num_geep_gauss>=min_geep_lib_gauss)
+       CPASSERT(num_geep_gauss<=max_geep_lib_gauss)
     END IF
     SELECT CASE(qmmm_coupl_type)
     CASE(do_qmmm_gauss,do_qmmm_swave)
@@ -113,9 +113,9 @@ CONTAINS
        ! Preprocessing...
        !
        ALLOCATE(radius(1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
        ALLOCATE(c_radius(1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
        Ndim = SIZE(radius)
        Loop_on_all_values: DO I = 1, SIZE(mm_el_pot_radius)
           Found=.FALSE.
@@ -140,19 +140,19 @@ CONTAINS
           CALL REALLOCATE(c_radius,1,Ndim-1)
        ELSE IF (Ndim-1 == 0) THEN
           DEALLOCATE(radius,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+          CPASSERT(stat==0)
           DEALLOCATE(c_radius,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+          CPASSERT(stat==0)
        ELSE
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,Failure)
+          CPASSERT(.FALSE.)
        END IF
        !
        ALLOCATE(qmmm_gaussian_fns(Ndim-1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
        DO I = 1, Ndim-1
           NULLIFY(qmmm_gaussian_fns(I)%pgf)
           ALLOCATE(qmmm_gaussian_fns(I)%pgf, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+          CPASSERT(stat==0)
           NULLIFY(qmmm_gaussian_fns(I)%pgf%Ak)
           NULLIFY(qmmm_gaussian_fns(I)%pgf%Gk)
           NULLIFY(qmmm_gaussian_fns(I)%pgf%grid_level)
@@ -164,11 +164,11 @@ CONTAINS
        END DO
        IF (ASSOCIATED(radius)) THEN
           DEALLOCATE(radius,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(c_radius)) THEN
           DEALLOCATE(c_radius,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+          CPASSERT(stat==0)
        END IF
        !
        IF (use_geep_lib) THEN
@@ -186,12 +186,12 @@ CONTAINS
        !
        CALL pw_env_get(pw_env,pw_pools=pools, gridlevel_info=gridlevel_info)
        ALLOCATE(maxradius(SIZE(pools)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        maxradius = 0.0_dp
        DO J = 1, SIZE(qmmm_gaussian_fns)
           mypgf => qmmm_gaussian_fns(J)%pgf
           ALLOCATE(mypgf%grid_level(SIZE(mypgf%Ak)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           mypgf%grid_level=0
           mymaxradius = 0.0_dp
           DO I = 1, mypgf%number_of_gaussians

@@ -158,7 +158,7 @@ CONTAINS
                error_level=cp_failure_level)
        CASE DEFAULT
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
     ELSEIF (dft_control%qs_control%dftb) THEN
        ! DFTB
@@ -177,7 +177,7 @@ CONTAINS
                error_level=cp_failure_level)
        CASE DEFAULT
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
     ELSE
        ! QS
@@ -213,7 +213,7 @@ CONTAINS
                "No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
        CASE DEFAULT
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
        ! Dump info on the electrostatic potential if requested
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
@@ -281,11 +281,11 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_chrg),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_index),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(aug_pools),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(pw_pools),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mm_particles))
+    CPASSERT(ASSOCIATED(qmmm_env%mm_atom_chrg))
+    CPASSERT(ASSOCIATED(qmmm_env%mm_atom_index))
+    CPASSERT(ASSOCIATED(aug_pools))
+    CPASSERT(ASSOCIATED(pw_pools))
     !Statements
     CALL timeset(routineN,handle)
     ngrids=SIZE(pw_pools)
@@ -333,7 +333,7 @@ CONTAINS
        END DO
        CALL timestop(handle2)
     CASE DEFAULT
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     lb = v_qmmm%pw%pw_grid%bounds_local(1,:)
     ub = v_qmmm%pw%pw_grid%bounds_local(2,:)
@@ -406,7 +406,6 @@ CONTAINS
                                                 LIndMM, myind, n_rep_real(3), &
                                                 stat
     INTEGER, DIMENSION(2, 3)                 :: bo2
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, height, &
                                                 sph_chrg_factor, W
     REAL(KIND=dp), DIMENSION(3)              :: ra
@@ -420,11 +419,11 @@ CONTAINS
     CALL timeset(routineNb//"_G",handle2)
     bo2 = tmp_grid(auxbas_grid)%pw%pw_grid%bounds
     ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (ydat(bo2(1,2):bo2(2,2)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (zdat(bo2(1,3):bo2(2,3)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (par_scheme==do_par_atom) myind = 0
     Radius: DO IRadTyp = 1, SIZE(pgfs)
        pgf => pgfs(IRadTyp)%pgf
@@ -472,15 +471,15 @@ CONTAINS
     END DO Radius
     IF (ASSOCIATED(xdat)) THEN
        DEALLOCATE (xdat, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
     IF (ASSOCIATED(ydat)) THEN
        DEALLOCATE (ydat, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
     IF (ASSOCIATED(zdat)) THEN
        DEALLOCATE (zdat, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
     CALL timestop(handle2)
     CALL timeset(routineNb//"_R",handle2)

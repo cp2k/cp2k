@@ -89,13 +89,13 @@ CONTAINS
     IF(PRESENT(beta)) my_beta=beta
     NULLIFY(a,b)
 
-    CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,failure)
-    CPPrecondition(matrix_a%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_a))
+    CPASSERT(matrix_a%ref_count>0)
 
     IF (PRESENT(beta)) THEN
-       CPPrecondition(PRESENT(matrix_b),cp_failure_level,routineP,failure)
-       CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,failure)
-       CPPrecondition(matrix_b%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(matrix_b))
+       CPASSERT(ASSOCIATED(matrix_b))
+       CPASSERT(matrix_b%ref_count>0)
        IF (matrix_a%id_nr==matrix_b%id_nr) THEN
           CALL cp_assert(matrix_a%id_nr/=matrix_b%id_nr, &
                          cp_warning_level, cp_assertion_failed, &
@@ -154,7 +154,7 @@ CPSourceFileRef,&
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="to do (pdscal,pdcopy,pdaxpy)")
 #else
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
 #endif
        END IF
 
@@ -804,8 +804,8 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     failure=.FALSE.
     NULLIFY(a)
 
-    CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,failure)
-    CPPrecondition(matrix_a%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_a))
+    CPASSERT(matrix_a%ref_count>0)
 
     a => matrix_a%local_data
     size_a = SIZE(a,1)*SIZE(a,2)
@@ -842,12 +842,12 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 #endif
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(matrixt),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix))
+    CPASSERT(ASSOCIATED(matrixt))
     IF (failure) RETURN
     nrow_global = matrix%matrix_struct%nrow_global
     ncol_global = matrix%matrix_struct%ncol_global
-    CPPrecondition(nrow_global==ncol_global,cp_failure_level,routineP,failure)
+    CPASSERT(nrow_global==ncol_global)
     IF (failure) RETURN
 
     CALL timeset(routineN,handle)
@@ -904,16 +904,16 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 #endif
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(work),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix))
+    CPASSERT(ASSOCIATED(work))
     IF (failure) RETURN
     nrow_global = matrix%matrix_struct%nrow_global
     ncol_global = matrix%matrix_struct%ncol_global
-    CPPrecondition(nrow_global==ncol_global,cp_failure_level,routineP,failure)
+    CPASSERT(nrow_global==ncol_global)
     nrow_global = work%matrix_struct%nrow_global
     ncol_global = work%matrix_struct%ncol_global
-    CPPrecondition(nrow_global==ncol_global,cp_failure_level,routineP,failure)
-    CPPrecondition(matrix%use_sp.EQV.work%use_sp,cp_failure_level,routineP,failure)
+    CPASSERT(nrow_global==ncol_global)
+    CPASSERT(matrix%use_sp.EQV.work%use_sp)
     IF (failure) RETURN
 
     CALL timeset(routineN,handle)
@@ -1263,7 +1263,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     IF(PRESENT(first_col)) icol = first_col
 
 
-    CPPrecondition(nrow>=ncol,cp_failure_level,routineP,failure)
+    CPASSERT(nrow>=ncol)
     ndim = SIZE(a,2)
 !    ALLOCATE(ipiv(ndim),istat=STAT)
     ALLOCATE(tau(ndim),STAT=istat)

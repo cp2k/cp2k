@@ -345,7 +345,7 @@ CPSourceFileRef,&
     CALL section_vals_get(tmp_section,n_repetition=nrep,explicit=is_present)
     IF (is_present) THEN
        ALLOCATE(dft_control%efield_fields(nrep),stat=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        DO i=1,nrep
           CALL read_efield_sections(dft_control,tmp_section)
        END DO
@@ -353,7 +353,7 @@ CPSourceFileRef,&
           dft_control%apply_efield_field = .TRUE.
        ELSE
           dft_control%apply_efield = .TRUE.
-          CPPostcondition(nrep==1, cp_failure_level, routineP,failure)
+          CPASSERT(nrep==1)
        END IF
     END IF
 
@@ -372,7 +372,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(tmp_section,"DISPLACEMENT_FIELD", &
             l_val=dft_control%period_efield%displacement_field)
        ! periodic fields don't work with RTP
-       CPPostcondition(.NOT.do_rtp, cp_failure_level, routineP,failure)
+       CPASSERT(.NOT.do_rtp)
        IF(dft_control%period_efield%displacement_field) THEN
           CALL cite_reference(Stengel2009)
        ELSE
@@ -524,7 +524,7 @@ CPSourceFileRef,&
     END IF
 
     ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     qs_control%cutoff = cutoff
 
     IF (multigrid_set) THEN
@@ -1010,7 +1010,7 @@ CPSourceFileRef,&
             r_val=qs_control%dftb_control%hb_sr_para)
        CALL section_vals_val_get(dftb_parameter,"SK_FILE",n_rep_val=n_var)
        ALLOCATE(qs_control%dftb_control%sk_pair_list(3,n_var),STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        DO k = 1, n_var
           CALL section_vals_val_get(dftb_parameter,"SK_FILE",i_rep_val=k,&
                c_vals=clist)
@@ -1835,7 +1835,7 @@ CPSourceFileRef,&
     DO i=1,SIZE(dft_control%efield_fields)
        NULLIFY(dft_control%efield_fields(i)%efield)
        ALLOCATE(dft_control%efield_fields(i)%efield,stat=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        efield => dft_control%efield_fields(i)%efield
        NULLIFY(efield%envelop_i_vars,efield%envelop_r_vars)
        CALL section_vals_val_get(efield_section,"INTENSITY",i_rep_section=i, &
@@ -1844,7 +1844,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(efield_section,"POLARISATION",i_rep_section=i, &
             r_vals=tmp_vals)
        ALLOCATE(efield%polarisation(SIZE(tmp_vals)),stat=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        efield%polarisation = tmp_vals
        CALL section_vals_val_get(efield_section,"PHASE",i_rep_section=i, &
             r_val=efield%phase_offset)
@@ -1854,7 +1854,7 @@ CPSourceFileRef,&
             r_val=efield%wavelength)
        IF(efield%envelop_id==constant_env)THEN
           ALLOCATE(efield%envelop_i_vars(2),stat=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
           tmp_section => section_vals_get_subs_vals(efield_section,"CONSTANT_ENV",i_rep_section=i)
           CALL section_vals_val_get(tmp_section,"START_STEP", &
                i_val=efield%envelop_i_vars(1))
@@ -1863,7 +1863,7 @@ CPSourceFileRef,&
        END IF
        IF(efield%envelop_id==gaussian_env)THEN
           ALLOCATE(efield%envelop_r_vars(2),stat=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
           tmp_section => section_vals_get_subs_vals(efield_section,"GAUSSIAN_ENV",i_rep_section=i)
           CALL section_vals_val_get(tmp_section,"T0", &
                r_val=efield%envelop_r_vars(1))
@@ -1872,7 +1872,7 @@ CPSourceFileRef,&
        END IF
        IF(efield%envelop_id==ramp_env)THEN
           ALLOCATE(efield%envelop_i_vars(4),stat=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
           tmp_section => section_vals_get_subs_vals(efield_section,"CONSTANT_ENV",i_rep_section=i)
           CALL section_vals_val_get(tmp_section,"START_STEP_IN", &
                i_val=efield%envelop_i_vars(1))
@@ -1906,7 +1906,7 @@ CPSourceFileRef,&
 
     failure=.FALSE.
     ALLOCATE(dft_control%rtp_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL section_vals_val_get(rtp_section,"MAX_ITER",&
       i_val=dft_control%rtp_control%max_iter)
     CALL section_vals_val_get(rtp_section,"MAT_EXP",&

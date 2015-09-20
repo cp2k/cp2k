@@ -689,7 +689,7 @@ CONTAINS
           CALL assign_x_to_basis(opt_bas%x_opt, opt_bas%kind_basis(ikind)%flex_basis(0),variable_counter)
       END DO
 
-      CPPostcondition(variable_counter==SIZE(opt_bas%x_opt),cp_failure_level,routineP,failure)
+      CPASSERT(variable_counter==SIZE(opt_bas%x_opt))
       
    END SUBROUTINE generate_initial_basis
 

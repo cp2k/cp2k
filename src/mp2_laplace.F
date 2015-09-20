@@ -124,7 +124,7 @@ MODULE mp2_laplace
 
     ! Calculate weights and exponents with minimax approximation
     ALLOCATE(awj(2*num_integ_points),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     awj=0.0_dp
 
     Emin=2.0_dp*(Eigenval(homo+1)-Eigenval(homo))
@@ -144,10 +144,10 @@ MODULE mp2_laplace
     CALL get_minimax_coeff(num_integ_points,E_Range,awj,ierr)
 
     ALLOCATE(aj(num_integ_points),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     aj=0.0_dp
     ALLOCATE(wj(num_integ_points),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     wj=0.0_dp
 
     DO jquad=1, num_integ_points

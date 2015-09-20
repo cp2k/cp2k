@@ -235,7 +235,7 @@ CONTAINS
     INTEGER                                  :: istat
 
     ALLOCATE ( virial, stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+    CPASSERT(istat==0)
 
     CALL zero_virial ( virial )
     last_virial_id_nr=last_virial_id_nr+1
@@ -262,8 +262,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(virial),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(virial%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(virial))
+    CPASSERT(virial%ref_count>0)
     virial%ref_count=virial%ref_count+1
   END SUBROUTINE virial_retain
 
@@ -287,11 +287,11 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(virial)) THEN
-       CPPreconditionNoFail(virial%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(virial%ref_count>0)
        virial%ref_count=virial%ref_count-1
        IF (virial%ref_count.EQ.0) THEN
           DEALLOCATE(virial,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        NULLIFY(virial)
     END IF

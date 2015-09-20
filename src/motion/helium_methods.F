@@ -114,16 +114,16 @@ MODULE helium_methods
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(helium),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,failure)
-    CPPrecondition(input%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(helium))
+    CPASSERT(ASSOCIATED(input))
+    CPASSERT(input%ref_count>0)
     NULLIFY(helium_section)
     helium_section => section_vals_get_subs_vals(input, &
                                            "MOTION%PINT%HELIUM")
     CALL section_vals_get(helium_section,explicit=explicit)
-    CPPostcondition(explicit,cp_failure_level,routineP,failure)
+    CPASSERT(explicit)
     ALLOCATE(helium, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY ( helium%input, &
               helium%ptable,  helium%permutation, &
               helium%iperm, &
@@ -166,7 +166,7 @@ MODULE helium_methods
     IF ( explicit ) THEN
       CALL section_vals_val_get(helium_section,"NUM_ENV",&
            i_val=itmp)
-      CPPostcondition(itmp>=0,cp_failure_level,routineP,failure)
+      CPASSERT(itmp>=0)
       helium%num_env_restart = itmp
       ELSE
       helium%num_env_restart = -1
@@ -343,29 +343,29 @@ MODULE helium_methods
     CALL section_vals_val_get(helium_section,"MAX_PERM_CYCLE",&
            i_val=helium%maxcycle)
     i = helium%maxcycle
-    CPPostcondition(i>=0,cp_failure_level,routineP,failure)
+    CPASSERT(i>=0)
     i = helium%atoms - helium%maxcycle
-    CPPostcondition(i>=0,cp_failure_level,routineP,failure)
+    CPASSERT(i>=0)
 
     ! set m-distribution parameters
     CALL section_vals_val_get(helium_section,"M-SAMPLING%M-VALUE",&
          i_val=i)
-    CPPostcondition(i>=1,cp_failure_level,routineP,failure)
-    CPPostcondition(i<=helium%maxcycle,cp_failure_level,routineP,failure)
+    CPASSERT(i>=1)
+    CPASSERT(i<=helium%maxcycle)
     helium%m_value = i
     CALL section_vals_val_get(helium_section,"M-SAMPLING%M-RATIO",&
          r_val=rtmp)
-    CPPostcondition(rtmp>0.0_dp,cp_failure_level,routineP,failure)
-    CPPostcondition(rtmp<=1.0_dp,cp_failure_level,routineP,failure)
+    CPASSERT(rtmp>0.0_dp)
+    CPASSERT(rtmp<=1.0_dp)
     helium%m_ratio = rtmp
 
     CALL section_vals_val_get(helium_section,"BISECTION",&
            i_val=helium%bisection)
     ! precheck bisection value (not all invalids are filtered out here yet)
     i = helium%bisection
-    CPPostcondition(i>1,cp_failure_level,routineP,failure)
+    CPASSERT(i>1)
     i = helium%beads - helium%bisection
-    CPPostcondition(i>0,cp_failure_level,routineP,failure)
+    CPASSERT(i>0)
     !
     itmp = helium%bisection
     rtmp = 2**(ANINT(LOG(REAL(itmp))/LOG(2.0_dp)))
@@ -417,9 +417,9 @@ MODULE helium_methods
 
     isize = helium%pdx+1
     ALLOCATE(helium%uij(isize,isize),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%eij(isize,isize),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, isize
        DO j = 1, i
           CALL spline_data_create(helium%uij(i,j)%spline_data)
@@ -441,7 +441,7 @@ MODULE helium_methods
 
     isize = (helium%pdx+1)*(helium%pdx+2)
     ALLOCATE(pot_transfer(nlines,isize), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (logger%para_env%ionode) THEN
        DO i = 1, nlines
           READ (input_unit,*) pot_transfer(i,:)
@@ -469,42 +469,42 @@ MODULE helium_methods
        END DO
     END DO
     DEALLOCATE(pot_transfer, STAT=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
     ! ALLOCATE helium-related arrays
     i = helium%atoms
     j = helium%beads
     ALLOCATE(helium%pos(3,i,j),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%work(3,i,j),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%ptable(helium%maxcycle+1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%permutation(i),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%iperm(i),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%tmatrix(i,i),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%nmatrix(i,2*i),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%pmatrix(i,i),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%ipmatrix(i,i),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     itmp = helium%bisctlog2 + 2
     ALLOCATE(helium%num_accepted(itmp,helium%maxcycle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%rdf_avrg(helium%rdf_nbin),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%rdf_inst(helium%rdf_nbin),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%plength_avrg(helium%atoms),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%plength_inst(helium%atoms),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%atom_plength(helium%atoms),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! density related data
     helium%rho_num = 1
@@ -523,9 +523,9 @@ MODULE helium_methods
       itmp = helium%rho_nbin
       jtmp = helium%rho_num
       ALLOCATE(helium%rho_avrg(jtmp,itmp,itmp,itmp),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(helium%rho_inst(jtmp,itmp,itmp,itmp),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       helium%rho_avrg(:,:,:,:) = 0.0_dp
       helium%rho_inst(:,:,:,:) = 0.0_dp
 
@@ -570,7 +570,7 @@ MODULE helium_methods
       ! check if bead numbers are commensurate:
       i = helium%bead_ratio*helium%solute_beads - helium%beads
 !TODO Adjust helium bead number if not comm. and if coords not given expl.
-      CPPostcondition(i==0,cp_failure_level,routineP,failure)
+      CPASSERT(i==0)
 
       ! check if tau, temperature and bead number are consistent:
       tcheck=ABS( (helium%tau*helium%beads-solute%beta) / solute%beta )
@@ -602,38 +602,38 @@ MODULE helium_methods
     ! ALLOCATE solute-related arrays
     ALLOCATE(helium%force_avrg(helium%solute_beads,&
       helium%solute_atoms*3),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%force_inst(helium%solute_beads,&
       helium%solute_atoms*3),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! ALLOCATE temporary arrays
     ALLOCATE(helium%itmp_atoms_1d(helium%atoms),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%ltmp_atoms_1d(helium%atoms),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%itmp_atoms_np_1d(helium%atoms*helium%num_env),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%rtmp_3_np_1d(3*helium%num_env),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%rtmp_p_ndim_1d(helium%solute_beads*&
       helium%solute_atoms*3),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%rtmp_p_ndim_np_1d(helium%solute_beads*&
       helium%solute_atoms*3*helium%num_env),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%rtmp_3_atoms_beads_1d(3*helium%atoms*&
       helium%beads),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%rtmp_3_atoms_beads_np_1d(3*helium%atoms*&
       helium%beads*helium%num_env),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%rtmp_p_ndim_2d(helium%solute_beads,&
       helium%solute_atoms*3),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(helium%ltmp_3_atoms_beads_3d(3,helium%atoms,&
       helium%beads),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL helium_write_setup(helium)
 
@@ -660,7 +660,7 @@ MODULE helium_methods
     failure=.FALSE.
 
     IF (ASSOCIATED(helium)) THEN
-      CPPrecondition(helium%ref_count>0,cp_failure_level,routineP,failure)
+      CPASSERT(helium%ref_count>0)
       helium%ref_count=helium%ref_count-1
       IF (helium%ref_count<1) THEN
 
@@ -677,7 +677,7 @@ MODULE helium_methods
           helium%ltmp_atoms_1d, &
           helium%itmp_atoms_1d, &
           STAT=stat )
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         NULLIFY ( &
           helium%ltmp_3_atoms_beads_3d, &
           helium%rtmp_p_ndim_2d, &
@@ -696,7 +696,7 @@ MODULE helium_methods
           helium%force_inst, &
           helium%force_avrg, &
           STAT=stat )
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         NULLIFY( &
           helium%force_inst, &
           helium%force_avrg &
@@ -705,7 +705,7 @@ MODULE helium_methods
         IF ( helium%rho_present ) THEN
           IF ( helium%rho_restart ) THEN
             DEALLOCATE( helium%rho_rstr, STAT=stat )
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
             NULLIFY( helium%rho_rstr )
           END IF
           DEALLOCATE( &
@@ -737,7 +737,7 @@ MODULE helium_methods
           helium%work, &
           helium%pos, &
           STAT=stat )
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         NULLIFY( &
           helium%atom_plength, &
           helium%plength_inst, &
@@ -767,11 +767,11 @@ MODULE helium_methods
           END DO
 
           DEALLOCATE( helium%eij, STAT=stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           NULLIFY(helium%eij)
 
           DEALLOCATE( helium%uij, STAT=stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           NULLIFY(helium%uij)
 
           CALL delete_rng_stream(helium%rng_stream_uniform)
@@ -783,14 +783,14 @@ MODULE helium_methods
                        helium%solute_number, &
                        helium%solute_index, &
                        STAT=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
             NULLIFY(helium%solute_element, &
                     helium%solute_number, &
                     helium%solute_index)
           END IF
 
           DEALLOCATE( helium, STAT=stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
 
        END IF
     END IF
@@ -811,8 +811,8 @@ MODULE helium_methods
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
-    CPPrecondition(helium%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
+    CPASSERT(helium%ref_count>0)
     helium%ref_count=helium%ref_count+1
     RETURN
   END SUBROUTINE helium_retain
@@ -847,8 +847,8 @@ MODULE helium_methods
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(helium%input),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
+    CPASSERT(ASSOCIATED(helium%input))
 
     NULLIFY(helium_section)
     helium_section => section_vals_get_subs_vals(helium%input, &
@@ -982,7 +982,7 @@ MODULE helium_methods
     REAL(kind=dp)                            :: r1, r2
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     DO ia = 1, helium%atoms
       DO ic = 1, 3
@@ -1029,7 +1029,7 @@ MODULE helium_methods
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -1050,14 +1050,14 @@ MODULE helium_methods
     offset = msglen * MOD( logger%para_env%mepos, num_env_restart )
     NULLIFY(m,f)
     ALLOCATE(m(3,helium%atoms,helium%beads),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
     ALLOCATE(f(3,helium%atoms,helium%beads),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
     m(:,:,:) = .TRUE.
     f(:,:,:) = 0.0_dp
     helium%pos(:,:,:) = UNPACK(message(offset+1:offset+msglen), MASK=m, FIELD=f )
     DEALLOCATE(f,m,STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
 
     IF ( num_env_restart .NE. logger%para_env%num_pe ) THEN
       err_str = "Reading bead coordinates from the input file."
@@ -1109,7 +1109,7 @@ MODULE helium_methods
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     IF ( helium%solute_present ) THEN
 !TODO initial forces are set to 0 due to possible overlapping atoms
@@ -1143,7 +1143,7 @@ MODULE helium_methods
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: f
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     ! assign the pointer to the memory location of the input structure, where
     ! the forces are stored
@@ -1174,15 +1174,15 @@ MODULE helium_methods
     ! restore forces on all processors (no message passing)
     NULLIFY(m,f)
     ALLOCATE(m(helium%solute_beads,helium%solute_atoms*3),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
     ALLOCATE(f(helium%solute_beads,helium%solute_atoms*3),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
     m(:,:) = .TRUE.
     f(:,:) = 0.0_dp
     helium%force_avrg(:,:) = UNPACK(message(1:msglen), MASK=m, FIELD=f )
     helium%force_inst(:,:) = 0.0_dp
     DEALLOCATE(f,m,STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
 
     CALL helium_write_line("Forces on the solute read from the input file.")
 
@@ -1209,7 +1209,7 @@ MODULE helium_methods
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     DO ia = 1, helium%atoms
       helium%permutation(ia) = ia
@@ -1245,7 +1245,7 @@ MODULE helium_methods
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -1339,7 +1339,7 @@ MODULE helium_methods
     TYPE(rng_stream_type), POINTER           :: next_rngs, prev_rngs
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -1434,7 +1434,7 @@ MODULE helium_methods
     TYPE(rng_stream_type), POINTER           :: next_rngs, prev_rngs
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -1633,7 +1633,7 @@ MODULE helium_methods
 
     CHARACTER(len=default_string_length)     :: err_str, stmp1, stmp2
     INTEGER                                  :: istat, itmp, msglen
-    LOGICAL                                  :: failure, ltmp
+    LOGICAL                                  :: ltmp
     LOGICAL, DIMENSION(:, :, :, :), POINTER  :: m
     REAL(kind=dp), DIMENSION(:), POINTER     :: message
     REAL(kind=dp), DIMENSION(:, :, :, :), &
@@ -1641,7 +1641,7 @@ MODULE helium_methods
 
     itmp = helium%rho_nbin
     ALLOCATE(helium%rho_rstr(helium%rho_num,itmp,itmp,itmp),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! assign pointers to the memory locations in the input structure, where
     ! the old densities are stored and check if the sizes match
@@ -1668,16 +1668,16 @@ MODULE helium_methods
     itmp = helium%rho_nbin
     NULLIFY(m,f)
     ALLOCATE(m(helium%rho_num,itmp,itmp,itmp),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(f(helium%rho_num,itmp,itmp,itmp),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     m(:,:,:,:) = .TRUE.
     f(:,:,:,:) = 0.0_dp
 
     helium%rho_rstr(:,:,:,:) = UNPACK(message(1:msglen), MASK=m, FIELD=f)
 
     DEALLOCATE(f,m,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     NULLIFY(message)
 
     RETURN
@@ -1710,7 +1710,7 @@ MODULE helium_methods
     TYPE(particle_list_type), POINTER        :: my_particles
 
     my_failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,my_failure)
+    CPASSERT(ASSOCIATED(pint_env))
 
     ! set up my_particles structure
     NULLIFY(my_f_env, my_subsys, my_particles)
@@ -1719,17 +1719,17 @@ MODULE helium_methods
     CALL force_env_get(force_env=my_f_env%force_env, subsys=my_subsys)
     CALL cp_subsys_get(my_subsys, particles=my_particles)
     CALL f_env_rm_defaults(my_f_env,istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,my_failure)
+    CPASSERT(istat==0)
 
     natoms  = helium%solute_atoms
     NULLIFY(helium%solute_element)
     ALLOCATE(helium%solute_element(natoms), STAT=istat)
-    CPPostcondition(istat==0, cp_fatal_level, routineP,my_failure)
+    CPASSERT(istat==0)
 
     ! in the worst case there will be as many atomic types as atoms
     NULLIFY(element)
     ALLOCATE(element(natoms), STAT=istat)
-    CPPostcondition(istat==0, cp_fatal_level, routineP,my_failure)
+    CPASSERT(istat==0)
 
     ! find out how many different atomic types are there
     nelements = 0
@@ -1746,7 +1746,7 @@ MODULE helium_methods
         CASE DEFAULT
           WRITE(*,*) "Atomic mass number'", mnum, &
             "' not supported by the HELIUM code."
-          CPAssert(.FALSE., cp_failure_level, routineP,my_failure)
+          CPASSERT(.FALSE.)
       END SELECT
       helium%solute_element(i) = my_element_symbol
       ! check if this element symbol is already present in element
@@ -1763,14 +1763,14 @@ MODULE helium_methods
         element(nelements) = my_element_symbol
       END IF
     END DO
-    CPPostcondition(nelements.LE.3,cp_fatal_level,routineP,my_failure)
+    CPASSERT(nelements.LE.3)
 
     ! allocate the arrays, DEALLOCATE them in helium_release
     ! (solute_index a bit superfluous at the moment)
     NULLIFY(helium%solute_number,helium%solute_index)
     ALLOCATE(helium%solute_number(3), STAT=istat)
     ALLOCATE(helium%solute_index(3,natoms), STAT=istat)
-    CPPostcondition(istat==0,cp_fatal_level,routineP,my_failure)
+    CPASSERT(istat==0)
 
     ! collect atomic indices
     helium%solute_number(:) = 0
@@ -1788,12 +1788,12 @@ MODULE helium_methods
       CASE DEFAULT
         WRITE(*,*) "Atom type '", helium%solute_element(i), &
           "' not supported by the HELIUM code."
-        CPAssert(.FALSE., cp_failure_level, routineP,my_failure)
+        CPASSERT(.FALSE.)
       END SELECT
     END DO
 
     DEALLOCATE(element, STAT=istat)
-    CPPostconditionNoFail(istat==0, cp_warning_level, routineP)
+    CPASSERT(istat==0)
 
     RETURN
   END SUBROUTINE helium_set_solute_indices
@@ -1823,7 +1823,7 @@ MODULE helium_methods
     TYPE(f_env_type), POINTER                :: my_f_env
 
     my_failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,my_failure)
+    CPASSERT(ASSOCIATED(pint_env))
 
     ! get the cell structure from pint_env
     NULLIFY(my_f_env, my_cell)
@@ -1831,12 +1831,12 @@ MODULE helium_methods
       f_env=my_f_env,failure=my_failure)
     CALL force_env_get(force_env=my_f_env%force_env, cell=my_cell)
     CALL f_env_rm_defaults(my_f_env,status)
-    CPPostcondition(status==0,cp_failure_level,routineP,my_failure)
+    CPASSERT(status==0)
 
     CALL get_cell(my_cell, orthorhombic=my_orthorhombic)
     IF (.NOT. my_orthorhombic) THEN
       PRINT *, "Helium solvent not implemented for non-orthorhombic cells."
-      CPAssert(.FALSE., cp_failure_level, routineP,my_failure)
+      CPASSERT(.FALSE.)
     ELSE
       helium%solute_cell => my_cell
     END IF

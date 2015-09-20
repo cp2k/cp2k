@@ -104,7 +104,7 @@ CONTAINS
 
     ! read and set up information on the basis sets
     ALLOCATE(ae_basis,pp_basis,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     basis_section => section_vals_get_subs_vals(atom_section,"AE_BASIS")
     NULLIFY(ae_basis%grid)
     CALL init_atom_basis(ae_basis,basis_section,zval,"AA")
@@ -128,7 +128,7 @@ CONTAINS
     NULLIFY(potential_section)
     potential_section => section_vals_get_subs_vals(atom_section,"POTENTIAL")
     ALLOCATE(ae_pot,p_pot,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     CALL init_atom_potential(p_pot,potential_section,zval)
     CALL init_atom_potential(ae_pot,potential_section,-1)
     IF ( .NOT.p_pot%confinement .AND. .NOT.ae_pot%confinement ) THEN
@@ -176,10 +176,10 @@ CONTAINS
 
     ! integrals
     ALLOCATE(ae_int, pp_int,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     ALLOCATE(atom_info(n_rep,n_meth),atom_refs(n_rep,n_meth),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%PROGRAM_BANNER",extension=".log")
     IF(iw > 0) THEN
@@ -206,14 +206,14 @@ CONTAINS
         atom_refs(in,im)%atom%xc_section => xc_section
 
         ALLOCATE(state,statepp,STAT=ierr)
-        CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+        CPASSERT(ierr==0)
 
         ! get the electronic configuration
         CALL section_vals_val_get(atom_section,"ELECTRON_CONFIGURATION", i_rep_val=in,&
                                   c_vals=tmpstringlist)
         ! all electron configurations have to be with full core
         pp_calc = INDEX(tmpstringlist(1),"CORE") /= 0
-        CPPostcondition(.NOT.pp_calc, cp_failure_level, routineP,failure)
+        CPASSERT(.NOT.pp_calc)
 
         ! set occupations
         CALL atom_set_occupation(tmpstringlist,state%occ,state%occupation,state%multiplicity)
@@ -276,7 +276,7 @@ CONTAINS
         !
         CALL set_atom(atom_info(in,im)%atom,basis=pp_basis,integrals=pp_int,potential=p_pot)
         statepp%maxn_calc(:) = MIN( statepp%maxn_calc(:), pp_basis%nbas(:) )
-        CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP,failure)
+        CPASSERT(ALL(state%maxn_calc(:) >= state%maxn_occ))
 
         ! calculate integrals: all electron basis
         ! general integrals
@@ -289,7 +289,7 @@ CONTAINS
         !
         CALL set_atom(atom_refs(in,im)%atom,basis=ae_basis,integrals=ae_int,potential=ae_pot)
         state%maxn_calc(:) = MIN( state%maxn_calc(:), ae_basis%nbas(:) )
-        CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP,failure)
+        CPASSERT(ALL(state%maxn_calc(:) >= state%maxn_occ))
 
         CALL set_atom(atom_info(in,im)%atom,coulomb_integral_type=do_eric,&
                       exchange_integral_type=do_erie)
@@ -369,10 +369,10 @@ CONTAINS
       END DO
     END DO
     DEALLOCATE(atom_info,atom_refs,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     DEALLOCATE(ae_pot,p_pot,ae_basis,pp_basis,ae_int,pp_int,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     CALL timestop(handle)
 

@@ -174,7 +174,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     energy_homo=0.0_dp
     IF (needs_full_spectrum) THEN
        ALLOCATE(eigenvalues_ot(k),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        ! XXXXXXXXXXXXXXXX do not touch the initial MOs, could be harmful for either
        !                  the case of non-equivalent MOs but also for the derivate
        ! we could already have all eigenvalues e.g. full_all and we could skip this
@@ -224,7 +224,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 
     IF (needs_full_spectrum) THEN
       DEALLOCATE(eigenvalues_ot,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     ENDIF
 
     CALL timestop(handle)
@@ -250,7 +250,6 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, stat
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_para_env_type), POINTER          :: para_env
 
@@ -265,11 +264,11 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
             DEALLOCATE(preconditioner(ispin)%preconditioner)
          ENDDO
          DEALLOCATE(preconditioner,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+         CPASSERT(stat==0)
        CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse,ot_precond_full_single_inverse) ! these are 'independent'
          ! do nothing
        CASE DEFAULT
-           CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
        END SELECT
     END IF
 
@@ -278,10 +277,10 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
          SELECT CASE(prec_type)
          CASE(ot_precond_full_all,ot_precond_full_single_inverse)
             ALLOCATE(preconditioner(nspins), stat=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
          CASE DEFAULT
             ALLOCATE(preconditioner(1), stat=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
          END SELECT
          DO ispin=1,SIZE(preconditioner)
             ALLOCATE(preconditioner(ispin)%preconditioner)
@@ -360,11 +359,11 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
     IF(dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb) THEN
       IF(prec_type==ot_precond_full_kinetic) THEN
           msg="Full_kinetic not available for semi-empirical methods"
-          CPErrorMessage(cp_failure_level,routineP,TRIM(msg))
+          CPABORT(TRIM(msg))
       END IF
       matrix_t => matrix_s(1)%matrix
     ELSE
-      CPPrecondition(.NOT. my_has_unit_metric,cp_failure_level,routineP,failure)
+      CPASSERT(.NOT. my_has_unit_metric)
       CALL get_qs_env(qs_env, kinetic=kinetic)
       matrix_t => kinetic(1)%matrix
     END IF

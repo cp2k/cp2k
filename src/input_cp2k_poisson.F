@@ -101,7 +101,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="poisson",&
          description="Sets up the poisson resolutor.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -171,7 +171,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="MULTIPOLE",&
          description="This section is used to set up the decoupling of QM periodic images with "//&
@@ -241,7 +241,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="mt",&
          description="Sets up parameters of  Martyna-Tuckerman poisson solver. "//&
                      "Note that exact results are only guaranteed if the unit cell is "//&
@@ -287,7 +287,7 @@ SUBROUTINE create_ewald_section(section)
 
   failure=.FALSE.
 
-  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+  CPASSERT(.NOT.ASSOCIATED(section))
   CALL section_create(section,name="ewald",&
        description="Ewald parameters controlling electrostatic only for CLASSICAL MM.",&
        n_keywords=7, n_subsections=0, repeats=.FALSE., &
@@ -470,7 +470,7 @@ END SUBROUTINE create_ewald_section
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="interpolator",&
          description="controls the interpolation for the G-space term",&
          n_keywords=5, n_subsections=0, repeats=.FALSE.)
@@ -550,7 +550,7 @@ END SUBROUTINE create_ewald_section
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="wavelet",&
          description="Sets up parameters of  wavelet based poisson solver."//&
                "This solver allows for non-periodic (PERIODIC NONE) boundary conditions and slab-boundary conditions "//&
@@ -590,7 +590,7 @@ END SUBROUTINE create_ewald_section
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="IMPLICIT",&
          description="Parameters for the implicit (generalized) Poisson solver.",&
          n_keywords=4, n_subsections=2, repeats=.FALSE.)
@@ -661,7 +661,7 @@ END SUBROUTINE create_ewald_section
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DIELECTRIC", &
          description="Parameters for the dielectric constant function.", &
          n_keywords=6, n_subsections=2, repeats=.FALSE.)
@@ -750,7 +750,7 @@ END SUBROUTINE create_ewald_section
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DIELEC_AA_CUBOIDAL", &
          description="Parameters for creating axis-aligned cuboidal dielectric region.",&
          n_keywords=5, n_subsections=0, repeats=.TRUE.)
@@ -809,7 +809,7 @@ END SUBROUTINE create_ewald_section
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DIELEC_XAA_ANNULAR", &
          description="Parameters for creating x-axis-aligned annular dielectric region.",&
          n_keywords=5, n_subsections=0, repeats=.TRUE.)
@@ -868,7 +868,7 @@ END SUBROUTINE create_ewald_section
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DIRICHLET_BC", &
          description="Parameters for creating Dirichlet type boundary conditions.",&
          n_keywords=1, n_subsections=4, repeats=.FALSE.)
@@ -919,7 +919,7 @@ END SUBROUTINE create_ewald_section
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="AA_PLANAR", &
          description="Parameters for creating axis-aligned planar (rectangular) Dirichlet boundary region.",&
          n_keywords=9, n_subsections=0, repeats=.TRUE.)
@@ -1007,7 +1007,7 @@ END SUBROUTINE create_ewald_section
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PLANAR", &
          description="Parameters for creating an arbitrary planar Dirichlet boundary region.",&
          n_keywords=7, n_subsections=0, repeats=.TRUE.)
@@ -1080,7 +1080,7 @@ END SUBROUTINE create_ewald_section
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="XAA_CYLINDRICAL", &
          description="Parameters for creating x-axis-aligned cylindrical Dirichlet boundary region.",&
          n_keywords=9, n_subsections=0, repeats=.TRUE.)
@@ -1165,7 +1165,7 @@ END SUBROUTINE create_ewald_section
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="AA_CUBOIDAL", &
          description="Parameters for creating axis-aligned cuboidal region where a fixed voltage is applied.",&
          n_keywords=7, n_subsections=0, repeats=.TRUE.)

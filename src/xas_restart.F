@@ -198,7 +198,7 @@ CONTAINS
 
       CALL get_mo_set(mo_set=mos(1)%mo_set,nao=nao)
       ALLOCATE (vecbuffer(1,nao),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
       DO ispin = 1, SIZE(mos)
         CALL get_mo_set(mo_set=mos(ispin)%mo_set, nmo=nmo, eigenvalues=eigenvalues,&
@@ -213,7 +213,7 @@ CONTAINS
                  CPSourceFileRef,&
                  only_ionode=.TRUE.)
           ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           eig_read = 0.0_dp
           occ_read = 0.0_dp
           nmo = MIN(nmo,nmo_read)
@@ -230,7 +230,7 @@ CPSourceFileRef,&
 
           END IF
           DEALLOCATE(eig_read, occ_read, STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         ENDIF
         CALL mp_bcast(eigenvalues,source,group)
         CALL mp_bcast(occupation_numbers,source,group)
@@ -255,7 +255,7 @@ CPSourceFileRef,&
       END DO ! ispin
 
       DEALLOCATE(vecbuffer,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
 !      nspin = SIZE(mos,1)
 !      DO ispin = 1,nspin
@@ -482,15 +482,15 @@ CPSourceFileRef,&
     CALL get_xas_env(xas_env=xas_env,excvec_coeff=excvec_coeff,&
          excvec_overlap=excvec_overlap,fm_work=fm_work,nexc_search=nexc_search,&
          xas_estate=xas_estate,occ_estate=occ_estate)
-    CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(excvec_overlap))
 
     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
          eigenvalues=eigenvalues,occupation_numbers=occupation_numbers)
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     vecbuffer = 0.0_dp
     ALLOCATE(vecbuffer2(1,nexc_search),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     vecbuffer2 = 0.0_dp
 
   ! ** use the maximum overlap criterion to find the index of the excited orbital
@@ -529,7 +529,7 @@ CPSourceFileRef,&
          nao,1,transpose=.TRUE.)
 
     DEALLOCATE(vecbuffer,vecbuffer2,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
  END SUBROUTINE find_excited_core_orbital
 

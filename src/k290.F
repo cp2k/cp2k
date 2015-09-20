@@ -126,19 +126,19 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(csym),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(csym))
 
     IF ( ASSOCIATED(csym%xkappa) ) THEN
        DEALLOCATE(csym%xkappa,STAT=ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(csym%ty) ) THEN
        DEALLOCATE(csym%ty,STAT=ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
 
     DEALLOCATE(csym,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE release_csym_type
 
@@ -189,17 +189,17 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
-    CPPrecondition(.NOT.ASSOCIATED(csym),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(csym))
     ALLOCATE(csym,stat=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
 
     !..total number of atoms
     nat = SIZE(coor,2)
     !..allocate arrays for coordinates and atom types
     ALLOCATE (csym%xkappa(3,nat),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     ALLOCATE (csym%ty(nat),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     !..count number of atom types
     csym%ty = types
     nsp = 0
@@ -247,26 +247,26 @@ CONTAINS
     nkk = csym%nkpoint
     !..allocate intermediate arrays
     ALLOCATE (rx(3,nat),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     ALLOCATE (tvec(3,nat),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     ALLOCATE (isc(nat),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     ALLOCATE (f0(49,nat),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     ALLOCATE (wvkl(3,nkk),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     ALLOCATE (lwght(nkk),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     ALLOCATE (lrot(48,nkk),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     ALLOCATE (includ(nkk),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     nhash = MAX(2000,nkk/10)
     ALLOCATE (list(nkk+nhash),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     ALLOCATE (rlist(3,nkk),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
 
     IF ( PRESENT(iounit) ) THEN
        csym%punit = iounit
@@ -286,7 +286,7 @@ CONTAINS
          wvkl,lwght,lrot,nhash,includ,list,rlist,csym%delta)
     IF ( PRESENT(xkpoint) ) THEN
        !..return kpoints and weights
-       CPPrecondition(PRESENT(wkpoint),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(wkpoint))
        isum=0
        nkpts=0
        DO ik=1,nkk
@@ -296,7 +296,7 @@ CONTAINS
        END DO
        wsum=REAL(isum,KIND=dp)
        ALLOCATE (xkpoint(3,nkpts),wkpoint(nkpts),STAT=isos)
-       CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+       CPASSERT(isos==0)
        DO ik=1,nkpts
           wkpoint(ik) = REAL(lwght(ik),KIND=dp)/wsum
           xkpoint(1:3,ik) = wvkl(1:3,ik)
@@ -304,7 +304,7 @@ CONTAINS
     END IF
     !..deallocate intermediate arrays
     DEALLOCATE (rx,tvec,isc,f0,wvkl,lwght,lrot,includ,list,rlist,STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
 
     CALL timestop(handle)
 
@@ -633,7 +633,7 @@ CONTAINS
             ' constant vector shift (MacDonald) of this mesh:', wvk0
           IF (ABS(istriz)/=1) THEN
              WRITE (iout,'(" invalid switch for symmetrization",I10)') istriz
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END IF
           WRITE (iout,'(" symmetrization switch: ",I3)',ADVANCE="NO") istriz
           IF (istriz==1) THEN
@@ -660,7 +660,7 @@ CONTAINS
              WRITE (iout,*) ' K290| Number of rotations for crystal lattice', &
                   nc
              WRITE (iout,*) ' K290| No duplication found'
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END IF
           nc = nc0
           DO i = 1, nc0
@@ -1469,7 +1469,7 @@ CONTAINS
     IF (ihg<6) THEN
        IF (nc==0) THEN
           WRITE (*,'(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nc
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
           !       Triclinic system
        ELSE IF (nc==1) THEN
           !         IB=1
@@ -1607,7 +1607,7 @@ CONTAINS
     ELSE IF (ihg>=6) THEN
        IF (nc==0) THEN
           WRITE (*,'(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nc
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
           !       Triclinic system
        ELSE IF (nc==1) THEN
           !         IB=1
@@ -2601,19 +2601,19 @@ CONTAINS
     WRITE (*,'(A,3F10.4,/,A,3F10.4,A,/,A,I3,A)') ' THE VECTOR     ', &
          wva, ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
          ' BY ROTATION NO. ', ibrav(iop), ' IS OUTSIDE THE 1BZ'
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
     !------------------------------------------------------------------------------!
 470 CONTINUE
     WRITE (*,'(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
     WRITE (*,*) 'MESH SIZE EXCEEDS NKPOINT=', nkpoint
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
     !------------------------------------------------------------------------------!
 490 CONTINUE
     WRITE (*,'(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
     WRITE (*,'(A,3F10.4,/,A,3F10.4,A,/,A,I3,A)') ' THE VECTOR     ', &
          wva, ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
          ' BY ROTATION NO. ', ib(n), ' IS NOT IN THE LIST'
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
   END SUBROUTINE sppt2
 ! *****************************************************************************
 !> \brief ...
@@ -2699,7 +2699,7 @@ CONTAINS
        WRITE (*,'(2A,/,A)') &
             ' SUBROUTINE MESH *** FATAL ERROR *** LINKED LIST', &
             ' TOO LONG ***', ' CHOOSE A BETTER HASH-FUNCTION'
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
        !       WVK was not found
 130    CONTINUE
        IF (iplace==-1) THEN
@@ -2713,7 +2713,7 @@ CONTAINS
              WRITE (*,'(A)') 'SUBROUTINE MESH *** FATAL ERROR ***'
              WRITE (*,'(A,I10,A,/,A,3F10.5)') ' ISTORE=', istore, &
                   ' EXCEEDS DIMENSIONS', ' WVK = ', wvk
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END IF
           list(istore) = nil
           DO i = 1, 3
@@ -2832,7 +2832,7 @@ CONTAINS
        RETURN
     END DO
     !     List too long
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
   END SUBROUTINE remove
 
 ! *****************************************************************************
@@ -2897,7 +2897,7 @@ CONTAINS
 
     END DO
     !     List too long
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
   END SUBROUTINE garbag
 
 ! *****************************************************************************
@@ -2979,7 +2979,7 @@ CONTAINS
     !     Fatal error
     WRITE (*,'(A,/,A,3F10.4,A)') ' SUBROUTINE BZRDUC *** FATAL ERROR ***', &
          ' WAVEVECTOR ', wvk, ' COULD NOT BE REDUCED TO THE 1BZ'
-    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
 
   END SUBROUTINE bzrduc
 ! *****************************************************************************
@@ -3123,7 +3123,7 @@ CONTAINS
                    WRITE (iout,'(A)') ' SUBROUTINE BZDEFI *** FATAL ERROR ***'
                    WRITE (iout,'(" TOO MANY PLANES, NRSDIR = ",I5)') nrsdir
                 END IF
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
                 RETURN
              ENDIF
              DO i = 1, 3

@@ -83,7 +83,7 @@ CONTAINS
       CASE(pw_poisson_implicit)
       CASE(pw_poisson_none)
       CASE default
-         CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+         CPASSERT(.FALSE.)
     END SELECT
 
     ! parsing EWALD subsection
@@ -145,7 +145,7 @@ CONTAINS
       CASE(use_perd_none)
          params%periodic = (/0,0,0/)
       CASE DEFAULT
-         CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+         CPASSERT(.FALSE.)
     END SELECT
     ! check for consistent use of periodicity (cell <-> Poisson solver)
     !CPPostcondition(ALL(perd == cell%perd),cp_fatal_level,routineP,failure)
@@ -189,7 +189,7 @@ CONTAINS
             "Poisson solver for this periodicity not yet implemented",&
             failure=failure)
     CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
   END SUBROUTINE decode_periodic_wavelet

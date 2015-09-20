@@ -361,7 +361,7 @@ CONTAINS
        END SELECT
 
        IF (ASSOCIATED(maxradius2)) DEALLOCATE(maxradius2, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     qmmm_env_qm%maxradius => maxradius
@@ -568,7 +568,7 @@ CONTAINS
        CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type)
        CALL section_vals_val_get(qmmm_section,"EPS_MM_RSPACE",r_val=eps_mm_rspace)
        CALL section_vals_val_get(qmmm_section,"SPHERICAL_CUTOFF",r_vals=tmp_sph_cut)
-       CPPostcondition(SIZE(tmp_sph_cut)==2,cp_failure_level,routineP,failure)
+       CPASSERT(SIZE(tmp_sph_cut)==2)
        qmmm_env%spherical_cutoff = tmp_sph_cut
        IF (qmmm_env%spherical_cutoff(1)<=0.0_dp) THEN
           qmmm_env%spherical_cutoff(2) = 0.0_dp
@@ -679,10 +679,10 @@ CONTAINS
           IF (icount <= size_mm_system) mm_atom_index(icount) = i
        END IF
     END DO
-    CPPostcondition(icount==size_mm_system,cp_failure_level,routineP,failure)
+    CPASSERT(icount==size_mm_system)
     IF (ASSOCIATED(mm_link_atoms)) THEN
        DEALLOCATE(mm_link_atoms, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     ! Build image charge atom list + set up variables
@@ -938,23 +938,23 @@ CONTAINS
           CASE(do_qmmm_link_gho)
              ! do nothing for the moment
           CASE DEFAULT
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END SELECT
        END DO
     END IF
     IF (PRESENT(mm_link_scale_factor).AND.(link_involv_mm /= 0)) &
          ALLOCATE(mm_link_scale_factor(link_involv_mm), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (PRESENT(fist_scale_charge_link).AND.(link_involv_mm /= 0)) &
          ALLOCATE(fist_scale_charge_link(link_involv_mm), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (PRESENT(mm_link_atoms).AND.(link_involv_mm /= 0)) &
          ALLOCATE(mm_link_atoms(link_involv_mm),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (PRESENT(qm_atom_index))   ALLOCATE(qm_atom_index(num_qm_atom_tot),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (PRESENT(qm_atom_type))    ALLOCATE(qm_atom_type(num_qm_atom_tot),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (PRESENT(qm_atom_index))   qm_atom_index    =   0
     IF (PRESENT(qm_atom_type))    qm_atom_type     = " "
     num_qm_atom_tot = 1
@@ -985,7 +985,7 @@ CONTAINS
           END IF
           IF (PRESENT(qm_atom_index)) THEN
              CALL section_vals_val_get(qmmm_links,"MM_INDEX",i_rep_section=ikind,i_val=mm_index)
-             CPPostcondition(ALL(qm_atom_index/=mm_index),cp_failure_level,routineP,failure)
+             CPASSERT(ALL(qm_atom_index/=mm_index))
              qm_atom_index(num_qm_atom_tot:num_qm_atom_tot )  = mm_index
              num_qm_atom_tot = num_qm_atom_tot + 1
           END IF
@@ -1003,7 +1003,7 @@ CONTAINS
           END IF
        END DO
     END IF
-    CPPostcondition(num_qm_atom_tot-1==SIZE(qm_atom_index),cp_failure_level,routineP,failure)
+    CPASSERT(num_qm_atom_tot-1==SIZE(qm_atom_index))
 
   END SUBROUTINE setup_qm_atom_list
 
@@ -1047,7 +1047,7 @@ CONTAINS
     n_pseudo= 0
     qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK")
     CALL section_vals_get(qmmm_link_section,n_repetition=nlinks)
-    CPPostcondition(nlinks /= 0,cp_failure_level,routineP,failure)
+    CPASSERT(nlinks /= 0)
     DO ikind= 1, nlinks
        CALL section_vals_val_get(qmmm_link_section,"LINK_TYPE",i_rep_section=ikind,i_val=link_type)
        IF (link_type ==  do_qmmm_link_imomm)  n_imomm  = n_imomm  + 1
@@ -1055,21 +1055,21 @@ CONTAINS
        IF (link_type ==  do_qmmm_link_pseudo) n_pseudo = n_pseudo + 1
     END DO
     n_tot = n_imomm + n_gho + n_pseudo
-    CPPostcondition(n_tot /= 0,cp_failure_level,routineP,failure)
+    CPASSERT(n_tot /= 0)
     ALLOCATE(qmmm_links, stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(stat == 0)
     NULLIFY(qmmm_links%imomm,&
             qmmm_links%pseudo)
     ! IMOMM
     IF ( n_imomm /= 0 ) THEN
        ALLOCATE(qmmm_links%imomm(n_imomm), stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
        ALLOCATE(wrk_tmp(n_imomm), stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
        DO ikind = 1, n_imomm
           NULLIFY(qmmm_links%imomm(ikind)%link)
           ALLOCATE(qmmm_links%imomm(ikind)%link,stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
+          CPASSERT(stat == 0)
        END DO
        n_imomm = 0
        DO ikind = 1, nlinks
@@ -1103,20 +1103,20 @@ CONTAINS
           IF (COUNT(wrk_tmp == wrk_tmp(ikind)) > 1) THEN
              WRITE(iw,'(/A)')"In the IMOMM scheme no more than one QM atom can be bounded to the same MM atom."
              WRITE(iw, '(A)')"Multiple link MM atom not allowed. Check your link sections."
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END IF
        END DO
        DEALLOCATE(wrk_tmp, stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
     END IF
     ! PSEUDO
     IF ( n_pseudo /= 0 ) THEN
        ALLOCATE(qmmm_links%pseudo(n_pseudo), stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
        DO ikind = 1, n_pseudo
           NULLIFY(qmmm_links%pseudo(ikind)%link)
           ALLOCATE(qmmm_links%pseudo(ikind)%link,stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routineP,failure)
+          CPASSERT(stat == 0)
        END DO
        n_pseudo = 0
        DO ikind = 1, nlinks
@@ -1134,7 +1134,7 @@ CONTAINS
     IF ( n_gho /= 0) THEN
        ! not yet implemented
        ! still to define : type, implementation into QS
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
   END SUBROUTINE setup_qmmm_links
 
@@ -1182,7 +1182,7 @@ CONTAINS
     NULLIFY( qmmm_link_section, move_section, add_section)
     qmmm_link_section => section_vals_get_subs_vals(qmmm_section,"LINK")
     CALL section_vals_get(qmmm_link_section,n_repetition=nlinks)
-    CPPostcondition(nlinks /= 0,cp_failure_level,routineP,failure)
+    CPASSERT(nlinks /= 0)
     icount     = 0
     n_move_tot = 0
     n_add_tot  = 0
@@ -1316,7 +1316,7 @@ CONTAINS
         i = i+1
      END DO GetId
      IF (PRESENT(ind1)) ind1 = i
-     CPPostcondition(i<=SIZE(mm_atom_index),cp_failure_level,routineP,failure)
+     CPASSERT(i<=SIZE(mm_atom_index))
      IF (.NOT.PRESENT(charge)) my_charge = mm_atom_chrg(i)/REAL(my_move,KIND=dp)
      IF (my_radius   == 0.0_dp) my_radius   = mm_el_pot_radius(i)
      IF (my_c_radius == 0.0_dp) my_c_radius = mm_el_pot_radius_corr(i)
@@ -1361,7 +1361,7 @@ CONTAINS
      tmp(1) =  qm_cell_small%hmat(1,1)
      tmp(2) =  qm_cell_small%hmat(2,2)
      tmp(3) =  qm_cell_small%hmat(3,3)
-     CPPostcondition(ALL(tmp>0),cp_failure_level,routineP,failure)
+     CPASSERT(ALL(tmp>0))
      qmmm_env%dOmmOqm = tmp/2.0_dp
      ! This is unit vector to translate the QM system in order to center it
      ! in QM cell
@@ -1421,7 +1421,7 @@ CONTAINS
     END DO
 
     ALLOCATE(qmmm_env%image_charge_pot%image_mm_list(num_image_mm_atom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     qmmm_env%image_charge_pot%image_mm_list=0
     num_image_mm_atom=1
@@ -1439,10 +1439,10 @@ CONTAINS
 
    max_index=SIZE(subsys_mm%particles%els)
 
-   CPPrecondition(SIZE(qmmm_env%image_charge_pot%image_mm_list) /= 0,cp_failure_level,routineP,failure)
+   CPASSERT(SIZE(qmmm_env%image_charge_pot%image_mm_list) /= 0)
    imageind_in_range=(MAXVAL(qmmm_env%image_charge_pot%image_mm_list)<= max_index)&
                      .AND.(MINVAL(qmmm_env%image_charge_pot%image_mm_list) > 0)
-   CPPostcondition(imageind_in_range,cp_failure_level,routineP,failure)
+   CPASSERT(imageind_in_range)
 
    DO i=1,num_image_mm_atom
       atom_a=qmmm_env%image_charge_pot%image_mm_list(i)

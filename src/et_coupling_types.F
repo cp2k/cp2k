@@ -62,7 +62,7 @@ MODULE et_coupling_types
       failure=.FALSE.
 
       ALLOCATE(et_coupling, stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       NULLIFY(et_coupling%et_mo_coeff)
       NULLIFY(et_coupling%rest_mat)
@@ -125,7 +125,6 @@ MODULE et_coupling_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
 
       IF(ASSOCIATED(et_coupling%et_mo_coeff))THEN
          DO i=1,SIZE(et_coupling%et_mo_coeff)
@@ -139,7 +138,7 @@ MODULE et_coupling_types
       END IF
 
       DEALLOCATE(et_coupling,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END SUBROUTINE et_coupling_release
 
 END MODULE et_coupling_types

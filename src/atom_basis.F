@@ -97,7 +97,7 @@ CONTAINS
 
     ! read and set up inofrmation on the basis sets
     ALLOCATE(ae_basis,pp_basis,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     basis_section => section_vals_get_subs_vals(atom_section,"AE_BASIS")
     NULLIFY(ae_basis%grid)
     CALL init_atom_basis(ae_basis,basis_section,zval,"AE")
@@ -115,7 +115,7 @@ CONTAINS
     NULLIFY(potential_section)
     potential_section => section_vals_get_subs_vals(atom_section,"POTENTIAL")
     ALLOCATE(ae_pot,p_pot,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     CALL init_atom_potential(p_pot,potential_section,zval)
     CALL init_atom_potential(ae_pot,potential_section,-1)
 
@@ -154,10 +154,10 @@ CONTAINS
 
     ! integrals
     ALLOCATE(ae_int, pp_int,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     ALLOCATE(atom_info(n_rep,n_meth),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     DO in = 1, n_rep
       DO im = 1, n_meth
@@ -172,7 +172,7 @@ CONTAINS
         atom_info(in,im)%atom%xc_section => xc_section
 
         ALLOCATE(state,STAT=ierr)
-        CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+        CPASSERT(ierr==0)
 
         ! get the electronic configuration
         CALL section_vals_val_get(atom_section,"ELECTRON_CONFIGURATION", i_rep_val=in,&
@@ -202,14 +202,14 @@ CONTAINS
           had_pp = .TRUE.
           CALL set_atom(atom_info(in,im)%atom,basis=pp_basis,potential=p_pot)
           state%maxn_calc(:) = MIN( state%maxn_calc(:), pp_basis%nbas(:) )
-          CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP,failure)
+          CPASSERT(ALL(state%maxn_calc(:) >= state%maxn_occ))
         ELSE
           state%core=0._dp
           CALL set_atom(atom_info(in,im)%atom,zcore=zval,pp_calc=.FALSE.)
           had_ae = .TRUE.
           CALL set_atom(atom_info(in,im)%atom,basis=ae_basis,potential=ae_pot)
           state%maxn_calc(:) = MIN( state%maxn_calc(:), ae_basis%nbas(:) )
-          CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP,failure)
+          CPASSERT(ALL(state%maxn_calc(:) >= state%maxn_occ))
         END IF
 
         CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=method,i_rep_val=im)
@@ -278,10 +278,10 @@ CONTAINS
       END DO
     END DO
     DEALLOCATE(atom_info,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     DEALLOCATE(ae_pot,p_pot,ae_basis,pp_basis,ae_int,pp_int,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     CALL timestop(handle)
 

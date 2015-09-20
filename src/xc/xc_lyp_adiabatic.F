@@ -150,10 +150,10 @@ CONTAINS
     CALL section_vals_val_get(lyp_adiabatic_params,"LAMBDA",r_val=lambda)
     CALL cite_reference(Lee1988)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
+    CPASSERT(ASSOCIATED(deriv_set))
+    CPASSERT(deriv_set%ref_count>0)
     CALL xc_rho_set_get(rho_set,rho_1_3=rho_1_3,rho=rho,&
          norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho,&
          drho_cutoff=epsilon_norm_drho)
@@ -163,7 +163,7 @@ CONTAINS
     ! and debugger happy...
     IF (cp_debug) THEN
       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     ELSE
       dummy=> rho
     END IF
@@ -205,7 +205,7 @@ CONTAINS
 
     IF (cp_debug) THEN
       DEALLOCATE(dummy,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
     ELSE
       NULLIFY(dummy)
     END IF
@@ -380,10 +380,10 @@ CONTAINS
     CALL section_vals_val_get(lyp_adiabatic_params,"LAMBDA",r_val=lambda)
     CALL cite_reference(Lee1988)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
+    CPASSERT(ASSOCIATED(deriv_set))
+    CPASSERT(deriv_set%ref_count>0)
     CALL xc_rho_set_get(rho_set,&
          rhoa=rhoa, rhob=rhob, norm_drhoa=norm_drhoa, &
          norm_drhob=norm_drhob, norm_drho=norm_drho, &
@@ -395,7 +395,7 @@ CONTAINS
     ! and debugger happy...
     IF (cp_debug) THEN
       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     ELSE
       dummy=> rhoa
     END IF
@@ -464,7 +464,7 @@ CONTAINS
 
     IF (cp_debug) THEN
       DEALLOCATE(dummy,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
     ELSE
       NULLIFY(dummy)
     END IF

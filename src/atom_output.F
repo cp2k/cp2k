@@ -125,7 +125,7 @@ CONTAINS
            WRITE(iw,'(A5,T10,10F6.2)') label(l),(state%occ(l,j),j=1,mo)
         ELSE
            mc = mm(l)
-           CPPrecondition(SUM(state%occ(l,1:mc))==0,cp_failure_level,routineP,failure)
+           CPASSERT(SUM(state%occ(l,1:mc))==0)
            WRITE(iw,ADVANCE="no",FMT='(A5,T9,A1,10F6.2)') label(l),"[",(state%core(l,j),j=1,mc)
            WRITE(iw,FMT='(A1,F5.2,10F6.2)') "]",(state%occ(l,j),j=mc+1,mc+mo)
         END IF
@@ -351,9 +351,9 @@ CONTAINS
         END DO
         WRITE(iw,'(" ",79("*"))')
       CASE (NUM_BASIS)
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
     END SELECT
 
   END SUBROUTINE atom_print_basis
@@ -398,7 +398,7 @@ CONTAINS
            "F_EXPONENTS ",(atom_basis%am(i,3),i=1,atom_basis%nbas(3))
         END IF
       CASE (CGTO_BASIS)
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (STO_BASIS)
         WRITE(iw,'(A)') "      BASIS_TYPE SLATER"
         IF ( atom_basis%nbas(0) > 0 ) THEN
@@ -426,9 +426,9 @@ CONTAINS
            "F_QUANTUM_NUMBERS ",(atom_basis%ns(i,3),i=1,atom_basis%nbas(3))
         END IF
       CASE (NUM_BASIS)
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
     END SELECT
     CALL close_file(unit_number=iw)
 
@@ -464,7 +464,7 @@ CONTAINS
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL")
     SELECT CASE (meth)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (do_rks_atom)
         CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun)
       CASE (do_uks_atom)
@@ -479,7 +479,7 @@ CONTAINS
 
     SELECT CASE (meth)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (do_rks_atom)
         IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Restricted Kohn-Sham Calculation')")
       CASE (do_uks_atom)
@@ -517,7 +517,7 @@ CONTAINS
 
       SELECT CASE (reltyp)
         CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+          CPASSERT(.FALSE.)
         CASE (do_nonrel_atom)
           IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Nonrelativistic Calculation')")
         CASE (do_zoramp_atom)
@@ -646,7 +646,7 @@ CONTAINS
           END IF
         END DO
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
     END SELECT
     IF (potential%confinement) THEN
       WRITE(iw,'(/,T10,A,T51,F12.6," * (R /",F6.2,")**",F6.2)') &
@@ -739,7 +739,7 @@ CONTAINS
 
     SELECT CASE (atom%method_type)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (do_rks_atom)
         CALL atom_print_orbitals_helper(atom,atom%orbitals%wfn,"",iw)
       CASE (do_uks_atom)
@@ -751,7 +751,7 @@ CONTAINS
         CALL atom_print_orbitals_helper(atom,atom%orbitals%wfna,"Alpha",iw)
         CALL atom_print_orbitals_helper(atom,atom%orbitals%wfnb,"Beta",iw)
       CASE (do_rohf_atom)
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
     END SELECT
 
   END SUBROUTINE atom_print_orbitals

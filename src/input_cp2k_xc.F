@@ -82,7 +82,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="xc_functional",&
          description="The xc functional to use",&
          n_keywords=0, n_subsections=4, repeats=.FALSE., &
@@ -729,8 +729,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
-    CPPrecondition(name == "LIBXC" .OR. name == "KE_LIBXC",cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
+    CPASSERT(name == "LIBXC" .OR. name == "KE_LIBXC")
     NULLIFY(keyword)
     CALL section_create(section, name, description,&
                         n_keywords=3, n_subsections=0, repeats=.FALSE., &
@@ -778,7 +778,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="xc_potential",&
          description="The xc potential to use (CAREFUL: xc potential here refers "//&
          "to potentials that are not derived from an xc functional, but rather are "//&
@@ -840,7 +840,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="vdw_potential",&
          description="This section combines all possible additional dispersion "//&
          "corrections to the normal XC functionals. This can be more functionals "//&
@@ -1058,7 +1058,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"xc",&
          description="Parameters needed for the calculation of the eXchange and Correlation potential",&
          n_keywords=5, n_subsections=2, repeats=.FALSE.)
@@ -1182,7 +1182,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"ADIABATIC_RESCALING",&
          description="Parameters for self interation corrected hybrid functionals",&
          n_keywords=0, n_subsections=0, repeats=.FALSE.)

@@ -202,8 +202,8 @@ vkin = 0.0_dp
     REAL(KIND=dp), DIMENSION(3)              :: dr, helium_r, solute_r
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
+    CPASSERT(ASSOCIATED(pint_env))
 
     num_chlorine = helium%solute_number(1)
     num_oxygen   = helium%solute_number(2)

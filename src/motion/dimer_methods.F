@@ -77,9 +77,9 @@ CONTAINS
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
 
-    CPPostcondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gopt_env))
     dimer_env => gopt_env%dimer_env
-    CPPostcondition(ASSOCIATED(dimer_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(dimer_env))
     iw = cp_print_key_unit_nr(logger,gopt_env%geo_section,"PRINT%PROGRAM_RUN_INFO",extension=".log")
     ! Possibly rotate Dimer or just compute Gradients of point 0 for Translation
     IF (gopt_env%dimer_rotation) THEN
@@ -225,13 +225,13 @@ CONTAINS
 
           ! Orthogonalize gradient with respect to the full set of Roto-Trasl vectors
           ALLOCATE(D(3*natoms,dof),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ! Check First orthogonality in the first element of the basis set
           DO i = 1, dof
              D(:,i) = mat(:,i)
              DO j = i+1, dof
                 norm = DOT_PRODUCT(mat(:,i),mat(:,j))
-                CPPostcondition(ABS(norm)<thrs_motion,cp_failure_level,routineP,failure)
+                CPASSERT(ABS(norm)<thrs_motion)
              END DO
           END DO
           DO i = 1, dof
@@ -239,9 +239,9 @@ CONTAINS
              gradient = gradient - norm * D(:,i)
           END DO
           DEALLOCATE(D, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(mat, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
     CALL timestop(handle)
@@ -274,7 +274,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, idg, idir, ip
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
@@ -304,7 +303,7 @@ CONTAINS
        DO ip=1,particles%n_els
           DO idir=1,3
              idg=idg+1
-             CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,failure)
+             CPASSERT(SIZE(gradient)>=idg)
              gradient(idg)=-particles%els(ip)%f(idir)
           END DO
        END DO

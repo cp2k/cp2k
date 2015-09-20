@@ -58,9 +58,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(expns3),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(expns3))
     ALLOCATE (expns3,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     expns3%core_core = 0.0_dp
     expns3%e1b       = 0.0_dp
     expns3%e2a       = 0.0_dp
@@ -86,7 +86,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(expns3)) THEN
        DEALLOCATE (expns3,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE semi_empirical_expns3_release
 

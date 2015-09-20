@@ -109,13 +109,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(scptb_parameter)) &
             CALL deallocate_scptb_parameter(scptb_parameter)
 
     ALLOCATE (scptb_parameter,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     scptb_parameter % key = ""
     scptb_parameter % parameterization = ""
@@ -151,11 +150,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
-    LOGICAL                                  :: failure
 
-    CPPrecondition(ASSOCIATED(scptb_parameter),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scptb_parameter))
     DEALLOCATE (scptb_parameter,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE deallocate_scptb_parameter
 
@@ -204,9 +202,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_scptb_parameter', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    CPPrecondition(ASSOCIATED(scptb_parameter),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scptb_parameter))
 
     IF (PRESENT(key)) key = scptb_parameter%key
     IF (PRESENT(atomname)) atomname = scptb_parameter%atomname
@@ -275,9 +271,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_scptb_parameter', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    CPPrecondition(ASSOCIATED(scptb_parameter),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scptb_parameter))
 
     IF (PRESENT(key)) scptb_parameter%key = key
     IF (PRESENT(atomname)) scptb_parameter%atomname = atomname
@@ -389,14 +383,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat, tl
-    LOGICAL                                  :: failure
 
     CALL scp_vector_release(scp_vec)
 
     ALLOCATE(scp_vec,stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(scp_vec%vector(nkind),stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     tl=0
     DO ikind=1,nkind
@@ -404,7 +397,7 @@ CONTAINS
        scp_vec%vector(ikind)%nbasis = nbasis(ikind)
        tl=tl+natoms(ikind)*nbasis(ikind)
        ALLOCATE(scp_vec%vector(ikind)%vmat(nbasis(ikind),natoms(ikind)),stat=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        scp_vec%vector(ikind)%vmat=0._dp
     END DO
     scp_vec%total_length = tl
@@ -422,20 +415,19 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, istat
-    LOGICAL                                  :: failure
 
     IF(ASSOCIATED(scp_vec)) THEN
       IF(ASSOCIATED(scp_vec%vector)) THEN
         DO ikind=1,SIZE(scp_vec%vector)
            DEALLOCATE(scp_vec%vector(ikind)%vmat,stat=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
         END DO
         DEALLOCATE(scp_vec%vector,stat=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
         NULLIFY(scp_vec%vector)
       END IF
       DEALLOCATE(scp_vec,stat=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
 
   END SUBROUTINE scp_vector_release

@@ -85,7 +85,7 @@ CONTAINS
       iso, istat, jatom, mepos, natom, natomkind, nkind, num_pe, output_unit, &
       z
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, lsd, paw_atom
+    LOGICAL                                  :: lsd, paw_atom
     REAL(dp)                                 :: arg, hard_radius, &
                                                 hypanisotemp, hypfactor, &
                                                 int_radius, rab2, rtemp, sum
@@ -160,11 +160,11 @@ CONTAINS
     ! allocate hyperfine matrices
     natom = SIZE(particle_set,1)
     ALLOCATE (hypaniso(3,3,natom),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (hypiso(natom),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (hypiso_one(natom),STAT=istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! set the matrices to zero
     hypiso = 0.0_dp
@@ -295,7 +295,7 @@ CONTAINS
                     auxbas_pw_pool=auxbas_pw_pool)
 
     ALLOCATE (rhototspin_elec_gspace,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL pw_pool_create_pw(auxbas_pw_pool,&
                             rhototspin_elec_gspace%pw,&
                             use_data=COMPLEXDATA1D,&
@@ -306,12 +306,12 @@ CONTAINS
 
     ! Load the contribution of the soft electronic density
     CALL qs_rho_get(rho, rho_g=rho_g)
-    CPPrecondition(SIZE(rho_g)>1,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(rho_g)>1)
     CALL pw_axpy(rho_g(1)%pw,rhototspin_elec_gspace%pw)
     CALL pw_axpy(rho_g(2)%pw,rhototspin_elec_gspace%pw,alpha=-1._dp)
     ! grid to assemble anisotropic hyperfine terms
     ALLOCATE (hypaniso_gspace,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL pw_pool_create_pw(auxbas_pw_pool,&
                             hypaniso_gspace%pw,&
                             use_data=COMPLEXDATA1D,&
@@ -339,11 +339,11 @@ CONTAINS
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rhototspin_elec_gspace%pw)
     DEALLOCATE (rhototspin_elec_gspace,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL pw_pool_give_back_pw(auxbas_pw_pool,hypaniso_gspace%pw)
     DEALLOCATE (hypaniso_gspace,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! Multiply hyperfine matrices with constant*gyromagnetic ratio's
     ! to have it in units of Mhz.
@@ -391,11 +391,11 @@ CONTAINS
 
     ! Deallocate the remainings ...
     DEALLOCATE (hypiso,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (hypiso_one,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (hypaniso,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE qs_epr_hyp_calc
 

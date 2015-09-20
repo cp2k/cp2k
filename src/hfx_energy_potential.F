@@ -198,7 +198,7 @@ MODULE hfx_energy_potential
     INTEGER, SAVE                            :: shm_number_of_p_entries
     LOGICAL :: bins_left, buffer_overflow, do_disk_storage, &
       do_dynamic_load_balancing, do_it, do_kpoints, do_p_screening, &
-      do_periodic, do_print_load_balance_info, failure, is_anti_symmetric, &
+      do_periodic, do_print_load_balance_info, is_anti_symmetric, &
       ks_fully_occ, my_do_exx, treat_lsd_in_core, use_disk_storage
     LOGICAL, DIMENSION(:, :), POINTER        :: shm_atomic_pair_list
     REAL(dp) :: afac, bintime_start, bintime_stop, cartesian_estimate, &
@@ -416,7 +416,7 @@ MODULE hfx_energy_potential
 !$OMP         basis_parameter,basis_info,treat_lsd_in_core,ncpu,n_processes,neris_total,neris_incore,&
 !$OMP         neris_disk,neris_onthefly,mem_eris,mem_eris_disk,mem_max_val,compression_factor,&
 !$OMP         compression_factor_disk,nprim_ints,neris_tmp,max_val_memory,max_am,do_p_screening,&
-!$OMP         max_set,particle_set,atomic_kind_set,natom,kind_of,stat,failure,ncos_max,nsgf_max,ikind,&
+!$OMP         max_set,particle_set,atomic_kind_set,natom,kind_of,stat,ncos_max,nsgf_max,ikind,&
 !$OMP         nseta,npgfa,la_max,nsgfa,primitive_integrals,pbd_buf,pbc_buf,pad_buf,pac_buf,kbd_buf,kbc_buf,&
 !$OMP         kad_buf,kac_buf,ee_work,ee_work2,ee_buffer1,ee_buffer2,ee_primitives_tmp,nspins,max_contraction,&
 !$OMP         max_pgf,jkind,lb_max,nsetb,npgfb,first_sgfb,sphi_b,nsgfb,ncob,sgfb,nneighbors,pgf_list_ij,pgf_list_kl,&
@@ -516,12 +516,12 @@ MODULE hfx_energy_potential
       cell_loop_info%dokp = .TRUE.
       cell_loop_info%cell_to_index => cell_to_index
       ALLOCATE(cell_loop_info%index_to_cell(3,nkimages),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       CALL set_cell_info(cell_loop_info)
     END IF
 
     ALLOCATE(kind_of(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              kind_of=kind_of)
@@ -542,40 +542,40 @@ MODULE hfx_energy_potential
     ENDDO
     !! Allocate the arrays for the integrals.
     ALLOCATE(primitive_integrals(nsgf_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     primitive_integrals = 0.0_dp
 
     ALLOCATE(pbd_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(pbc_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(pad_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(pac_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(kbd_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(kbc_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(kad_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(kac_buf(nsgf_max**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_work(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_work2(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_buffer1(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_buffer2(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     nspins = dft_control%nspins
 
     ALLOCATE(max_contraction(max_set,natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     max_contraction=0.0_dp
     max_pgf = 0
@@ -601,19 +601,19 @@ MODULE hfx_energy_potential
     ! ** Allocate buffers for pgf_lists
     nneighbors = SIZE(actual_x_data%neighbor_cells)
     ALLOCATE(pgf_list_ij(max_pgf**2), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(pgf_list_kl(max_pgf**2), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(pgf_product_list(nneighbors**3), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(nimages(max_pgf**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO i=1,max_pgf**2
       ALLOCATE(pgf_list_ij(i)%image_list(nneighbors), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(pgf_list_kl(i)%image_list(nneighbors), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END DO
 !$OMP BARRIER
 !$OMP MASTER
@@ -767,7 +767,7 @@ MODULE hfx_energy_potential
 
     !! Helper array to map local basis function indices to global ones
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     last_sgf_global(0)=0
     DO iatom=1,natom
       ikind = kind_of(iatom)
@@ -779,7 +779,7 @@ MODULE hfx_energy_potential
     !! Get the full density from all the processors
     NULLIFY(full_density_alpha,full_density_beta)
     ALLOCATE(full_density_alpha(shm_block_offset(ncpu+1),nkimages),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF( .NOT. treat_lsd_in_core .OR. nspins == 1 ) THEN
       CALL timeset(routineN//"_getP",handle_getP)
       DO img=1,nkimages
@@ -855,7 +855,7 @@ MODULE hfx_energy_potential
 
     NULLIFY(full_ks_alpha, full_ks_beta)
     ALLOCATE(shm_master_x_data%full_ks_alpha(shm_block_offset(ncpu+1),nkimages),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     full_ks_alpha => shm_master_x_data%full_ks_alpha
     full_ks_alpha = 0.0_dp
 
@@ -863,7 +863,7 @@ MODULE hfx_energy_potential
     IF (.NOT. treat_lsd_in_core ) THEN
       IF(nspins==2) THEN
         ALLOCATE(shm_master_x_data%full_ks_beta(shm_block_offset(ncpu+1),nkimages),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         full_ks_beta => shm_master_x_data%full_ks_beta
         full_ks_beta = 0.0_dp
       END IF
@@ -1054,7 +1054,7 @@ MODULE hfx_energy_potential
         shm_total_bins = shm_total_bins + SIZE(x_data(irep, i)%distribution_energy)
       END DO
       ALLOCATE(tmp_task_list(shm_total_bins), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       shm_task_counter = 0
       DO i = 1,n_threads
         DO bin = 1,SIZE(x_data(irep,i)%distribution_energy)
@@ -1067,9 +1067,9 @@ MODULE hfx_energy_potential
 
       ! ** Now sort the task list
       ALLOCATE(tmp_task_list_cost(shm_total_bins),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(tmp_index(shm_total_bins),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       DO i = 1,shm_total_bins
         tmp_task_list_cost(i) = tmp_task_list(i)%cost
@@ -1078,7 +1078,7 @@ MODULE hfx_energy_potential
       CALL sort(tmp_task_list_cost,shm_total_bins,tmp_index)
 
       ALLOCATE(shm_master_x_data%task_list(shm_total_bins), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       DO i = 1,shm_total_bins
         shm_master_x_data%task_list(i) = tmp_task_list(tmp_index(shm_total_bins - i +1))
@@ -1088,7 +1088,7 @@ MODULE hfx_energy_potential
       shm_task_counter = 0
 
       DEALLOCATE(tmp_task_list_cost, tmp_index, tmp_task_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
 !$OMP END MASTER
 !$OMP BARRIER
@@ -1110,9 +1110,9 @@ MODULE hfx_energy_potential
 
     coeffs_kind_max0=MAXVAL(screen_coeffs_kind(:,:)%x(2))
     ALLOCATE(set_list_ij((max_set*load_balance_parameter%block_size)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(set_list_kl((max_set*load_balance_parameter%block_size)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -1806,7 +1806,7 @@ MODULE hfx_energy_potential
 !$OMP BARRIER
 
     DEALLOCATE(primitive_integrals,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 !$OMP BARRIER
     !! Get some number about ERIS
 !$OMP ATOMIC
@@ -1957,7 +1957,7 @@ MODULE hfx_energy_potential
 
       NULLIFY(full_ks_alpha)
       DEALLOCATE(shm_master_x_data%full_ks_alpha, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       IF( .NOT. treat_lsd_in_core ) THEN
         IF(nspins == 2) THEN
           DO img=1,nkimages
@@ -1967,7 +1967,7 @@ MODULE hfx_energy_potential
           END DO
           NULLIFY(full_ks_beta)
           DEALLOCATE(shm_master_x_data%full_ks_beta, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
         END IF
       END IF
       CALL timestop(handle_dist_ks)
@@ -1984,7 +1984,7 @@ MODULE hfx_energy_potential
       END DO
       !for ADMMS, we need the exchange matrix k(d) for both spins 
       IF( dft_control%do_admm ) THEN
-        CPPostcondition(nkimages==1,cp_failure_level,routineP,failure)
+        CPASSERT(nkimages==1)
         CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(ispin)%matrix, ks_matrix(ispin,1)%matrix, &
                            name="HF exch. part of matrix_ks_aux_fit for ADMMS") 
       END IF
@@ -1998,7 +1998,7 @@ MODULE hfx_energy_potential
         END DO
         !for ADMMS, we need the exchange matrix k(d) for both spins
         IF( dft_control%do_admm ) THEN
-          CPPostcondition(nkimages==1,cp_failure_level,routineP,failure)
+          CPASSERT(nkimages==1)
           CALL cp_dbcsr_copy(matrix_ks_aux_fit_hfx(2)%matrix, ks_matrix(2,1)%matrix, &
                              name="HF exch. part of matrix_ks_aux_fit for ADMMS")          
         END IF
@@ -2178,54 +2178,54 @@ MODULE hfx_energy_potential
 !$OMP BARRIER
     !! Clean up
     DEALLOCATE(last_sgf_global,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 !$OMP MASTER
     DEALLOCATE(full_density_alpha,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF( .NOT. treat_lsd_in_core ) THEN
       IF(nspins==2) THEN
         DEALLOCATE(full_density_beta,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
        END IF
     END IF
     IF (do_dynamic_load_balancing) THEN
       DEALLOCATE(shm_master_x_data%task_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
 !$OMP END MASTER
     DEALLOCATE(pbd_buf, pbc_buf, pad_buf, pac_buf, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(kbd_buf,kbc_buf,kad_buf,kac_buf, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(set_list_ij, set_list_kl, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO i=1,max_pgf**2
       DEALLOCATE(pgf_list_ij(i)%image_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DEALLOCATE(pgf_list_kl(i)%image_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END DO
 
     DEALLOCATE(pgf_list_ij, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(pgf_list_kl, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(pgf_product_list, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(max_contraction, kind_of, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(nimages, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF(ASSOCIATED(cell_loop_info%index_to_cell)) THEN
       DEALLOCATE(cell_loop_info%index_to_cell, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
 
 !$OMP BARRIER

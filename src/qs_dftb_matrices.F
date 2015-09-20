@@ -156,8 +156,8 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: defined, failure, found, &
-                                                hb_sr_damp, use_virial
+    LOGICAL                                  :: defined, found, hb_sr_damp, &
+                                                use_virial
     REAL(KIND=dp)                            :: ddr, dgam, dgrd, dr, drm, &
                                                 drp, erep, erepij, f0, f1, &
                                                 foab, fow, ga, gb, hb_para, &
@@ -283,7 +283,7 @@ CONTAINS
        END IF
        natom = SIZE(particle_set)
        ALLOCATE (atom_of_kind(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 atom_of_kind=atom_of_kind)
        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
@@ -329,7 +329,7 @@ CONTAINS
        ngrdcut = dftb_param_ij%ngrdcut
        dgrd = dftb_param_ij%dgrd
        ddr = dgrd*0.1_dp
-       CPPrecondition(dftb_param_ij%llm==dftb_param_ji%llm,cp_failure_level,routineP,failure)
+       CPASSERT(dftb_param_ij%llm==dftb_param_ji%llm)
        llm = dftb_param_ij%llm
        fmatij => dftb_param_ij%fmat
        smatij => dftb_param_ij%smat
@@ -353,7 +353,7 @@ CONTAINS
             ic = 1
          ELSE
             ic = cell_to_index(cell(1),cell(2),cell(3))
-            CPPostcondition(ic > 0,cp_failure_level,routineP,failure)
+            CPASSERT(ic > 0)
          END IF
 
          icol = MAX(iatom,jatom)
@@ -361,14 +361,14 @@ CONTAINS
          NULLIFY(sblock,fblock,gblock)
          CALL cp_dbcsr_get_block_p(matrix=matrix_s(1,ic)%matrix,&
                 row=irow,col=icol,BLOCK=sblock,found=found)
-         CPPostcondition(found,cp_failure_level,routineP,failure)
+         CPASSERT(found)
          CALL cp_dbcsr_get_block_p(matrix=matrix_h(1,ic)%matrix,&
                 row=irow,col=icol,BLOCK=fblock,found=found)
-         CPPostcondition(found,cp_failure_level,routineP,failure)
+         CPASSERT(found)
          IF ( dftb_control%self_consistent ) THEN
                CALL cp_dbcsr_get_block_p(matrix=gamma_matrix(1)%matrix,&
                    row=irow,col=icol,BLOCK=gblock,found=found)
-            CPPostcondition(found,cp_failure_level,routineP,failure)
+            CPASSERT(found)
          END IF
 
    
@@ -376,21 +376,21 @@ CONTAINS
             NULLIFY (pblock)
             CALL cp_dbcsr_get_block_p(matrix=matrix_p(1,ic)%matrix,&
                  row=irow,col=icol,block=pblock,found=found)
-            CPPrecondition(ASSOCIATED(pblock),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(pblock))
             NULLIFY (wblock)
             CALL cp_dbcsr_get_block_p(matrix=matrix_w(1,ic)%matrix,&
                  row=irow,col=icol,block=wblock,found=found)
-            CPPrecondition(ASSOCIATED(wblock),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(wblock))
             IF ( dftb_control%self_consistent ) THEN
                DO i=2,4
                   NULLIFY(dsblocks(i)%block)
                   CALL cp_dbcsr_get_block_p(matrix=matrix_s(i,ic)%matrix,&
                          row=irow,col=icol,BLOCK=dsblocks(i)%block,found=found)
-                  CPPostcondition(found,cp_failure_level,routineP,failure)
+                  CPASSERT(found)
                   NULLIFY (dgblocks(i)%block)
                   CALL cp_dbcsr_get_block_p(matrix=gamma_matrix(i)%matrix,&
                          row=irow,col=icol,BLOCK=dgblocks(i)%block,found=found)
-                  CPPostcondition(found,cp_failure_level,routineP,failure)
+                  CPASSERT(found)
                END DO
             END IF
          END IF
@@ -416,7 +416,7 @@ CONTAINS
              IF ( irow == iatom ) f0=-1.0_dp
 
              ALLOCATE (dfblock(n1,n2),dsblock(n1,n2),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
 
              DO i=1,3 
                drij = rij 
@@ -442,7 +442,7 @@ CONTAINS
                force_ab(i) = force_ab(i) + foab
                force_w(i) = force_w(i) + fow
                IF ( dftb_control%self_consistent ) THEN
-                  CPPrecondition(ASSOCIATED(dsblocks(i+1)%block),cp_failure_level,routineP,failure)
+                  CPASSERT(ASSOCIATED(dsblocks(i+1)%block))
                   dsblocks(i+1)%block = dsblocks(i+1)%block + dsblock
                END IF
              ENDDO
@@ -458,7 +458,7 @@ CONTAINS
                END IF
              END IF
              DEALLOCATE (dfblock,dsblock,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
            END IF
          END IF
 
@@ -494,7 +494,7 @@ CONTAINS
                drm = dr - ddr
                dgam = 0.5_dp*(gamma_rab_sr(drp,ga,gb,hb_para)-gamma_rab_sr(drm,ga,gb,hb_para))/ddr
                DO i=1,3
-                  CPPrecondition(ASSOCIATED(dgblocks(i+1)%block),cp_failure_level,routineP,failure)
+                  CPASSERT(ASSOCIATED(dgblocks(i+1)%block))
                   IF ( irow == iatom ) THEN
                      dgblocks(i+1)%block(1,1)= dgblocks(i+1)%block(1,1) + dgam*rij(i)/dr
                   ELSE
@@ -603,7 +603,7 @@ CONTAINS
           END DO
        END IF
        DEALLOCATE(atom_of_kind,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
      END IF
 
     CALL timestop(handle)
@@ -658,7 +658,7 @@ CONTAINS
             ks_matrix, rho, energy)
     logger => cp_get_default_logger()
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
@@ -676,9 +676,9 @@ CONTAINS
 
     scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF")
     nspins=dft_control%nspins
-    CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_h))
+    CPASSERT(ASSOCIATED(rho))
+    CPASSERT(SIZE(ks_matrix)>0)
 
     DO ispin=1,nspins
        DO img=1,SIZE(ks_matrix,2)
@@ -694,12 +694,12 @@ CONTAINS
       CALL qs_rho_get(rho,rho_ao_kp=matrix_p)
       natom=SIZE(particle_set)
       ALLOCATE(charges(natom,nspins),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       !
       CALL mulliken_charges(matrix_p,matrix_s,para_env,charges)
       !
       ALLOCATE(mcharge(natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       nkind = SIZE(atomic_kind_set)
       DO ikind=1,nkind
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
@@ -711,18 +711,18 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE(charges,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
       CALL build_dftb_coulomb(qs_env,ks_matrix,rho,mcharge,energy,&
             calculate_forces,just_energy)
 
       DEALLOCATE(mcharge,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
     END IF
 
     IF (qs_env%qmmm) THEN
-       CPPrecondition(SIZE(ks_matrix,2)==1,cp_failure_level,routineP,failure)
+       CPASSERT(SIZE(ks_matrix,2)==1)
        DO ispin = 1, nspins
           ! If QM/MM sumup the 1el Hamiltonian
           CALL cp_dbcsr_add(ks_matrix(ispin,1)%matrix,qs_env%ks_qmmm_env%matrix_h(1)%matrix,&
@@ -761,13 +761,13 @@ CONTAINS
          "PRINT%DETAILED_ENERGY")
     ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
     IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
-       CPPrecondition(SIZE(ks_matrix,2)==1,cp_failure_level,routineP,failure)
+       CPASSERT(SIZE(ks_matrix,2)==1)
        CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
        DO ispin=1,SIZE(mo_derivs)
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                mo_coeff_b=mo_coeff, occupation_numbers=occupation_numbers )
           IF(.NOT.mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           ENDIF
           CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin,1)%matrix,mo_coeff,&
                0.0_dp,mo_derivs(ispin)%matrix)
@@ -797,7 +797,7 @@ CONTAINS
     INTEGER :: handle, i, iatom, icol, ikind, indder, inode, irow, istat, j, &
       jatom, jkind, l1, l2, la, lb, llm, lmaxi, lmaxj, m, n1, n2, natom, &
       natorb_a, natorb_b, ngrd, ngrdcut, nkind
-    LOGICAL                                  :: defined, failure, found
+    LOGICAL                                  :: defined, found
     REAL(KIND=dp)                            :: ddr, dgrd, dr, f0
     REAL(KIND=dp), DIMENSION(0:3)            :: skself
     REAL(KIND=dp), DIMENSION(3)              :: drij, rij
@@ -888,7 +888,7 @@ CONTAINS
        ngrdcut = dftb_param_ij%ngrdcut
        dgrd = dftb_param_ij%dgrd
        ddr = dgrd*0.1_dp
-       CPPrecondition(dftb_param_ij%llm==dftb_param_ji%llm,cp_failure_level,routineP,failure)
+       CPASSERT(dftb_param_ij%llm==dftb_param_ji%llm)
        llm = dftb_param_ij%llm
        smatij => dftb_param_ij%smat
        smatji => dftb_param_ji%smat
@@ -901,7 +901,7 @@ CONTAINS
           NULLIFY(sblock)
           CALL cp_dbcsr_get_block_p(matrix=matrix_s(1)%matrix,&
                row=irow,col=icol,BLOCK=sblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,failure)
+          CPASSERT(found)
 
           IF (nderivative.gt.0) THEN
              DO i=2,SIZE(matrix_s,1)
@@ -926,7 +926,7 @@ CONTAINS
                 indder=1 ! used to put the 2nd derivatives in the correct matric (5=xx,8=yy,10=zz)
 
                 ALLOCATE (dsblock1(n1,n2,3),dsblock(n1,n2),dsblockm(n1,n2),STAT=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
                 dsblock1=0.0_dp
                 DO i=1,3
                    dsblock=0._dp; dsblockm=0.0_dp
@@ -945,7 +945,7 @@ CONTAINS
                    dsblock = dsblock-dsblockm
                    dsblock = dsblock/(2.0_dp*ddr)
     
-                   CPPrecondition(ASSOCIATED(dsblocks(i+1)%block),cp_failure_level,routineP,failure)
+                   CPASSERT(ASSOCIATED(dsblocks(i+1)%block))
                    dsblocks(i+1)%block = dsblocks(i+1)%block + dsblock
                    IF(nderivative.gt.1) THEN
                       indder=indder+5-i
@@ -979,7 +979,7 @@ CONTAINS
                 END IF
 
                 DEALLOCATE (dsblock1,dsblock,dsblockm,STAT=istat)
-                CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
              END IF
           END IF
        END IF
@@ -1057,7 +1057,7 @@ CONTAINS
     CALL build_dftb_overlap(qs_env,0,matrix_s)
 
     ALLOCATE(qpot(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     qpot = 0.0_dp
     pc_ener = 0.0_dp
 
@@ -1092,7 +1092,7 @@ CONTAINS
     matrix_h => ks_qmmm_env_loc%matrix_h
     CALL cp_dbcsr_allocate_matrix_set(matrix_h,1)
     ALLOCATE(matrix_h(1)%matrix,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL cp_dbcsr_init(matrix_h(1)%matrix)
     CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,&
                        name="QMMM HAMILTONIAN MATRIX")
@@ -1104,7 +1104,7 @@ CONTAINS
        NULLIFY(hblock)
        CALL cp_dbcsr_get_block_p(matrix=matrix_h(1)%matrix,&
             row=iatom,col=jatom,block=hblock,found=found)
-       CPPostcondition(found,cp_failure_level,routineP,failure)
+       CPASSERT(found)
        hblock = hblock - 0.5_dp*sblock*(qpot(iatom)+qpot(jatom))
     END DO
     CALL cp_dbcsr_iterator_stop(iter)
@@ -1113,7 +1113,7 @@ CONTAINS
     ks_qmmm_env_loc%pc_ener = pc_ener
 
     DEALLOCATE(qpot,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL cp_dbcsr_deallocate_matrix_set ( matrix_s)
 
@@ -1154,7 +1154,7 @@ CONTAINS
     matrix_h => ks_qmmm_env_loc%matrix_h
     CALL cp_dbcsr_allocate_matrix_set(matrix_h,1)
     ALLOCATE(matrix_h(1)%matrix,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL cp_dbcsr_init(matrix_h(1)%matrix)
     CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,&
                        name="QMMM HAMILTONIAN MATRIX")
@@ -1237,7 +1237,7 @@ CONTAINS
     CALL build_dftb_overlap(qs_env,0,matrix_s)
 
     ALLOCATE(qpot(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     qpot = 0.0_dp
     pc_ener = 0.0_dp
 
@@ -1268,7 +1268,7 @@ CONTAINS
              NULLIFY(atoms_mm)
              CALL allocate_particle_set(atoms_mm,nmm)
              ALLOCATE(charges_mm(nmm),STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              DO Imp=1,nmm
                 Imm = Pot%mm_atom_index(Imp)
                 IndMM = qmmm_env%mm_atom_index(Imm)
@@ -1285,7 +1285,7 @@ CONTAINS
              END IF
              CALL deallocate_particle_set(atoms_mm)
              DEALLOCATE(charges_mm,STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
           END DO
           IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
              DO ipot = 1,SIZE(qmmm_env%added_charges%Potentials)
@@ -1295,7 +1295,7 @@ CONTAINS
                 NULLIFY(atoms_mm)
                 CALL allocate_particle_set(atoms_mm,nmm)
                 ALLOCATE(charges_mm(nmm),STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
                 DO Imp=1,nmm
                    Imm = Pot%mm_atom_index(Imp)
                    IndMM = qmmm_env%added_charges%mm_atom_index(Imm)
@@ -1312,7 +1312,7 @@ CONTAINS
                 END IF
                 CALL deallocate_particle_set(atoms_mm)
                 DEALLOCATE(charges_mm,STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
              END DO
           END IF
           CALL mp_sum(qpot,para_env%group)
@@ -1389,7 +1389,7 @@ CONTAINS
     matrix_h => ks_qmmm_env_loc%matrix_h 
     CALL cp_dbcsr_allocate_matrix_set(matrix_h,1)
     ALLOCATE(matrix_h(1)%matrix,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL cp_dbcsr_init(matrix_h(1)%matrix)
     CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,&
                        name="QMMM HAMILTONIAN MATRIX")
@@ -1401,7 +1401,7 @@ CONTAINS
        NULLIFY(hblock)
        CALL cp_dbcsr_get_block_p(matrix=matrix_h(1)%matrix,&
             row=iatom,col=jatom,block=hblock,found=found)
-       CPPostcondition(found,cp_failure_level,routineP,failure)
+       CPASSERT(found)
        hblock = hblock - 0.5_dp*sblock*(qpot(iatom)+qpot(jatom))
     END DO
     CALL cp_dbcsr_iterator_stop(iter)
@@ -1410,7 +1410,7 @@ CONTAINS
     ks_qmmm_env_loc%pc_ener = pc_ener
 
     DEALLOCATE(qpot,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! Release Ewald environment
     CALL ewald_env_release(ewald_env)
@@ -1495,12 +1495,12 @@ CONTAINS
        nkind  = SIZE(atomic_kind_set)
        ! Mulliken charges
        ALLOCATE(charges(number_qm_atoms,nspins),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        !
        CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges)
        !
        ALLOCATE(mcharge(number_qm_atoms),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
           CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
@@ -1511,13 +1511,13 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE(charges,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        ALLOCATE(qpot(number_qm_atoms),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        qpot = 0.0_dp
        ALLOCATE(Forces_QM(3,number_qm_atoms),stat=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        Forces_QM= 0.0_dp
 
        ! calculate potential and forces from classical charges
@@ -1586,12 +1586,12 @@ CONTAINS
           NULLIFY(pblock)
           CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
                row=iatom,col=jatom,block=pblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,failure)
+          CPASSERT(found)
           DO i=1,3
              NULLIFY(dsblock)
              CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
                   row=iatom,col=jatom,block=dsblock,found=found)
-             CPPostcondition(found,cp_failure_level,routineP,failure)
+             CPASSERT(found)
              fi = -2.0_dp*gmij*SUM(pblock*dsblock)
              Forces_QM(i,iatom) = Forces_QM(i,iatom) + fi
              Forces_QM(i,jatom) = Forces_QM(i,jatom) - fi
@@ -1616,14 +1616,14 @@ CONTAINS
        END DO
        !
        DEALLOCATE(mcharge,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        !
        ! MM forces will be handled directly from the QMMM module in the same way
        ! as for GPW/GAPW methods
        DEALLOCATE(Forces_QM,stat=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DEALLOCATE(qpot,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        CALL cp_dbcsr_deallocate_matrix_set ( matrix_s)
 
@@ -1713,12 +1713,12 @@ CONTAINS
        nkind  = SIZE(atomic_kind_set)
       ! Mulliken charges
        ALLOCATE(charges(number_qm_atoms,nspins),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        !
        CALL mulliken_charges(matrix_p,matrix_s(1)%matrix,para_env,charges)
        !
        ALLOCATE(mcharge(number_qm_atoms),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
           CALL get_qs_kind(qs_kind_set(ikind), dftb_parameter=dftb_kind)
@@ -1729,13 +1729,13 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE(charges,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        ALLOCATE(qpot(number_qm_atoms),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        qpot = 0.0_dp
        ALLOCATE(Forces_QM(3,number_qm_atoms),stat=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        Forces_QM= 0.0_dp
 
        ! Create Ewald environments
@@ -1765,7 +1765,7 @@ CONTAINS
                 NULLIFY(atoms_mm)
                 CALL allocate_particle_set(atoms_mm,nmm)
                 ALLOCATE(charges_mm(nmm),STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
                 DO Imp=1,nmm
                    Imm = Pot%mm_atom_index(Imp)
                    IndMM = qmmm_env%mm_atom_index(Imm)
@@ -1775,7 +1775,7 @@ CONTAINS
                 END DO
                 ! force array for mm atoms
                 ALLOCATE(Forces_MM(3,nmm),stat=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
                 Forces_MM= 0.0_dp
                 IF(ewald_type == do_ewald_ewald) THEN
                    CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -1793,7 +1793,7 @@ CONTAINS
                 END IF
                 CALL deallocate_particle_set(atoms_mm)
                 DEALLOCATE(charges_mm,STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
                 ! transfer MM forces
                 CALL mp_sum(Forces_MM,para_env%group)
                 DO Imp=1,nmm
@@ -1801,7 +1801,7 @@ CONTAINS
                    Forces(:,Imm) = Forces(:,Imm) - Forces_MM(:,Imp)
                 END DO
                 DEALLOCATE(Forces_MM,stat=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
              END DO
 
              IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
@@ -1812,7 +1812,7 @@ CONTAINS
                    NULLIFY(atoms_mm)
                    CALL allocate_particle_set(atoms_mm,nmm)
                    ALLOCATE(charges_mm(nmm),STAT=istat)
-                   CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(istat==0)
                    DO Imp=1,nmm
                       Imm = Pot%mm_atom_index(Imp)
                       IndMM = qmmm_env%added_charges%mm_atom_index(Imm)
@@ -1822,7 +1822,7 @@ CONTAINS
                    END DO
                    ! force array for mm atoms
                    ALLOCATE(Forces_MM(3,nmm),stat=istat)
-                   CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(istat==0)
                    Forces_MM= 0.0_dp
                    IF(ewald_type == do_ewald_ewald) THEN
                       CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -1846,12 +1846,12 @@ CONTAINS
                       Forces_added_charges(:,Imm) = Forces_added_charges(:,Imm) - Forces_MM(:,Imp)
                    END DO
                    DEALLOCATE(Forces_MM,stat=istat)
-                   CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(istat==0)
                 END DO
              END IF
              CALL mp_sum(qpot,para_env%group)
              CALL mp_sum(Forces_QM, para_env%group)
-             CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              ! Add Ewald and DFTB short range corrections
              ! This is effectively using a minimum image convention!
              ! Set rcutoff to values compatible with alpha Ewald
@@ -1974,12 +1974,12 @@ CONTAINS
           NULLIFY(pblock)
           CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
                row=iatom,col=jatom,block=pblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,failure)
+          CPASSERT(found)
           DO i=1,3
              NULLIFY(dsblock)
              CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i)%matrix,&
                   row=iatom,col=jatom,block=dsblock,found=found)
-             CPPostcondition(found,cp_failure_level,routineP,failure)
+             CPASSERT(found)
              fi = -2.0_dp*gmij*SUM(pblock*dsblock)
              Forces_QM(i,iatom) = Forces_QM(i,iatom) + fi
              Forces_QM(i,jatom) = Forces_QM(i,jatom) - fi
@@ -2004,14 +2004,14 @@ CONTAINS
        END DO
        !
        DEALLOCATE(mcharge,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        !
        ! MM forces will be handled directly from the QMMM module in the same way
        ! as for GPW/GAPW methods
        DEALLOCATE(Forces_QM,stat=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DEALLOCATE(qpot,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        ! Release Ewald environment
        CALL ewald_env_release(ewald_env)
@@ -2277,7 +2277,6 @@ CONTAINS
                                                 nmat, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
@@ -2301,9 +2300,9 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
 
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
@@ -2313,10 +2312,10 @@ CONTAINS
     IF(nderivative==0)nmat=1
     IF(nderivative==1)nmat=4
     IF(nderivative==2)nmat=10
-    CPPostcondition(nmat>0,cp_failure_level,routineP,failure)
+    CPASSERT(nmat>0)
 
     ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
 
     CALL cp_dbcsr_allocate_matrix_set(matrices,nmat)
@@ -2342,9 +2341,9 @@ CONTAINS
     END DO
 
     DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (last_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE(row_blk_sizes)
 
@@ -2379,7 +2378,6 @@ CONTAINS
                                                 nmat, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
@@ -2403,9 +2401,9 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set,nsgf=nsgf)
 
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
@@ -2415,10 +2413,10 @@ CONTAINS
     IF(nderivative==0)nmat=1
     IF(nderivative==1)nmat=4
     IF(nderivative==2)nmat=10
-    CPPostcondition(nmat>0,cp_failure_level,routineP,failure)
+    CPASSERT(nmat>0)
 
     ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
 
     CALL cp_dbcsr_allocate_matrix_set(matrices,nmat,nimg)
@@ -2446,9 +2444,9 @@ CONTAINS
     END DO
 
     DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (last_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE(row_blk_sizes)
 
@@ -2476,7 +2474,6 @@ CONTAINS
     INTEGER                                  :: i, iatom, istat, natom, ncol, &
                                                 neighbor_list_id, nrow
     INTEGER, DIMENSION(:), POINTER           :: felem, lelem, row_blk_sizes
-    LOGICAL                                  :: failure
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -2489,19 +2486,19 @@ CONTAINS
        nrow = natom
        ncol = natom
        ALLOCATE (felem(natom),lelem(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DO iatom = 1, natom
           felem(iatom) = iatom
           lelem(iatom) = iatom
        ENDDO
 
        ALLOCATE (row_blk_sizes(natom), STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL convert_offsets_to_sizes (felem, row_blk_sizes, lelem)
  
        CALL cp_dbcsr_allocate_matrix_set(gammat,nmat)
        ALLOCATE(gammat(1)%matrix,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL cp_dbcsr_init(gammat(1)%matrix)
  
        CALL cp_dbcsr_create(matrix=gammat(1)%matrix, &
@@ -2522,7 +2519,7 @@ CONTAINS
        END DO
  
        DEALLOCATE (row_blk_sizes,felem,lelem,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        ! setup the matrices using the neighbor list
        DO i=1,nmat

@@ -150,10 +150,10 @@ CONTAINS
 
     nkind  = SIZE(atomic_kind_set)
     ALLOCATE(sk_files(nkind,nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(istat==0)
     ! allocate potential structures
     ALLOCATE(dftb_potential(nkind,nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL qs_dftb_pairpot_init(dftb_potential)
 
     DO ikind = 1, nkind
@@ -281,9 +281,9 @@ CPSourceFileRef,&
 
       ! Slater-Koster table
       ALLOCATE(fmat(ngrd,10),STAT=istat)
-      CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(smat(ngrd,10),STAT=istat)
-      CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+      CPASSERT(istat==0)
       IF ( para_env%ionode ) THEN
         DO k=1,ngrd
           READ (runit,fmt=*,END=1,err=1) fwork(1:10),swork(1:10)
@@ -339,9 +339,9 @@ CPSourceFileRef,&
               ! spline dimension and left-hand cutoff
               READ (runit,fmt=*,END=1,err=1) spdim,s_cut
               ALLOCATE(spxr(spdim,2),STAT=istat)
-              CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+              CPASSERT(istat==0)
               ALLOCATE(scoeff(spdim,4),STAT=istat)
-              CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+              CPASSERT(istat==0)
               ! e-functions describing left-hand extrapolation
               READ (runit,fmt=*,END=1,err=1) srep(1:3)
               DO isp = 1,spdim-1
@@ -362,9 +362,9 @@ CPSourceFileRef,&
       CALL mp_bcast(spdim,para_env%source,para_env%group)
       IF ( spdim > 0 .AND. (.NOT. para_env%ionode)) THEN
         ALLOCATE(spxr(spdim,2),STAT=istat)
-        CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+        CPASSERT(istat==0)
         ALLOCATE(scoeff(spdim,4),STAT=istat)
-        CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
       IF(spdim > 0) THEN
         CALL mp_bcast(spxr,para_env%source,para_env%group)
@@ -413,14 +413,14 @@ CPSourceFileRef,&
       END IF
 
       DEALLOCATE(fmat,STAT=istat)
-      CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+      CPASSERT(istat==0)
       DEALLOCATE(smat,STAT=istat)
-      CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+      CPASSERT(istat==0)
       IF(spdim > 0) THEN
         DEALLOCATE(spxr,STAT=istat)
-        CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+        CPASSERT(istat==0)
         DEALLOCATE(scoeff,STAT=istat)
-        CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
     END DO
@@ -482,9 +482,9 @@ CPSourceFileRef,&
 
         ! Slater-Koster table
         ALLOCATE(fmat(ngrd,10),STAT=istat)
-        CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+        CPASSERT(istat==0)
         ALLOCATE(smat(ngrd,10),STAT=istat)
-        CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+        CPASSERT(istat==0)
         IF ( para_env%ionode ) THEN
           DO k=1,ngrd
             READ (runit,fmt=*,END=1,err=1) fwork(1:10),swork(1:10)
@@ -507,9 +507,9 @@ CPSourceFileRef,&
                 ! spline dimension and left-hand cutoff
                 READ (runit,fmt=*,END=1,err=1) spdim,s_cut
                 ALLOCATE(spxr(spdim,2),STAT=istat)
-                CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+                CPASSERT(istat==0)
                 ALLOCATE(scoeff(spdim,4),STAT=istat)
-                CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+                CPASSERT(istat==0)
                 ! e-functions describing left-hand extrapolation
                 READ (runit,fmt=*,END=1,err=1) srep(1:3)
                 DO isp = 1,spdim-1
@@ -530,9 +530,9 @@ CPSourceFileRef,&
         CALL mp_bcast(spdim,para_env%source,para_env%group)
         IF ( spdim > 0 .AND. (.NOT. para_env%ionode)) THEN
           ALLOCATE(spxr(spdim,2),STAT=istat)
-          CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(istat==0)
           ALLOCATE(scoeff(spdim,4),STAT=istat)
-          CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
         IF(spdim > 0) THEN
           CALL mp_bcast(spxr,para_env%source,para_env%group)
@@ -581,21 +581,21 @@ CPSourceFileRef,&
         END IF
 
         DEALLOCATE(fmat,STAT=istat)
-        CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+        CPASSERT(istat==0)
         DEALLOCATE(smat,STAT=istat)
-        CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+        CPASSERT(istat==0)
         IF(spdim > 0) THEN
           DEALLOCATE(spxr,STAT=istat)
-          CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(istat==0)
           DEALLOCATE(scoeff,STAT=istat)
-          CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
 
       END DO
     END DO
 
     DEALLOCATE(sk_files,STAT=istat)
-    CPPostcondition(istat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! read dispersion parameters (UFF type)
     IF ( dftb_control%dispersion ) THEN
@@ -709,7 +709,7 @@ CPSourceFileRef,&
     RETURN
 
 1   CONTINUE
-    CPPostcondition(.FALSE.,cp_fatal_level,routineP,failure)
+    CPASSERT(.FALSE.)
 
   END SUBROUTINE qs_dftb_param_init
 

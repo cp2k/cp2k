@@ -104,13 +104,13 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     ALLOCATE(results, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(results%result_value, results%result_label)
     results%ref_count=1
     ALLOCATE(results%result_label(0), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(results%result_value(0), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE cp_result_create
 
@@ -134,13 +134,13 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     IF(ASSOCIATED(results))THEN
-       CPPrecondition(results%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(results%ref_count>0)
        results%ref_count=results%ref_count-1
        IF (results%ref_count==0) THEN
           ! Description
           IF(ASSOCIATED(results%result_label))THEN
              DEALLOCATE(results%result_label,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           ! Values
           IF(ASSOCIATED(results%result_value))THEN
@@ -148,10 +148,10 @@ CONTAINS
                 CALL cp_result_value_release(results%result_value(i)%value)
              END DO
              DEALLOCATE(results%result_value,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(results,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
     CALL timestop(handle)
@@ -177,7 +177,7 @@ CONTAINS
        ! Description
        IF(ASSOCIATED(results%result_label))THEN
           DEALLOCATE(results%result_label,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        ! Values
        IF(ASSOCIATED(results%result_value))THEN
@@ -185,7 +185,7 @@ CONTAINS
              CALL cp_result_value_release(results%result_value(i)%value)
           END DO
           DEALLOCATE(results%result_value,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
     CALL timestop(handle)
@@ -207,8 +207,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(results),cp_failure_level,routineP,failure)
-    CPPrecondition(results%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(results))
+    CPASSERT(results%ref_count>0)
     results%ref_count=results%ref_count+1
   END SUBROUTINE cp_result_retain
 
@@ -229,7 +229,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     ALLOCATE(value, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     value%type_in_use = -1
     NULLIFY(value%real_type)
     NULLIFY(value%logical_type)
@@ -256,21 +256,21 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    CPPostcondition(ASSOCIATED(value),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(value))
     value%type_in_use = type_in_use
     SELECT CASE(value%type_in_use)
     CASE(result_type_real)
        ALLOCATE(value%real_type(size_value),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     CASE(result_type_integer)
        ALLOCATE(value%integer_type(size_value),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     CASE(result_type_logical)
        ALLOCATE(value%logical_type(size_value),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     CASE DEFAULT
        ! Type not implemented in cp_result_type
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     CALL timestop(handle)
   END SUBROUTINE cp_result_value_init
@@ -296,30 +296,30 @@ CONTAINS
        CASE(result_type_real)
           IF (ASSOCIATED(value%real_type)) THEN
              DEALLOCATE(value%real_type,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
-          CPPostcondition(.NOT.ASSOCIATED(value%integer_type),cp_failure_level,routineP,failure)
-          CPPostcondition(.NOT.ASSOCIATED(value%logical_type),cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.ASSOCIATED(value%integer_type))
+          CPASSERT(.NOT.ASSOCIATED(value%logical_type))
        CASE(result_type_integer)
           IF (ASSOCIATED(value%integer_type)) THEN
              DEALLOCATE(value%integer_type,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
-          CPPostcondition(.NOT.ASSOCIATED(value%real_type),cp_failure_level,routineP,failure)
-          CPPostcondition(.NOT.ASSOCIATED(value%logical_type),cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.ASSOCIATED(value%real_type))
+          CPASSERT(.NOT.ASSOCIATED(value%logical_type))
        CASE(result_type_logical)
           IF (ASSOCIATED(value%logical_type)) THEN
              DEALLOCATE(value%logical_type,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
-          CPPostcondition(.NOT.ASSOCIATED(value%integer_type),cp_failure_level,routineP,failure)
-          CPPostcondition(.NOT.ASSOCIATED(value%real_type),cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.ASSOCIATED(value%integer_type))
+          CPASSERT(.NOT.ASSOCIATED(value%real_type))
        CASE DEFAULT
           ! Type not implemented in cp_result_type
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
        DEALLOCATE(value,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL timestop(handle)
   END SUBROUTINE cp_result_value_release
@@ -341,17 +341,17 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    CPPostcondition(ASSOCIATED(results_in),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(results_out),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(results_in))
+    CPASSERT(ASSOCIATED(results_out))
     CALL cp_result_clean(results_out)
 
     check = SIZE(results_in%result_label)==SIZE(results_in%result_value)
-    CPPostcondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     ndim  = SIZE(results_in%result_value)
     ALLOCATE(results_out%result_label(ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(results_out%result_value(ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, ndim
        results_out%result_label(i) = results_in%result_label(i)
        CALL cp_result_value_create(results_out%result_value(i)%value)
@@ -378,28 +378,28 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    CPPostcondition(ASSOCIATED(value_in),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(value_out),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(value_in))
+    CPASSERT(ASSOCIATED(value_out))
     value_out%type_in_use = value_in%type_in_use
     SELECT CASE(value_out%type_in_use)
     CASE(result_type_real)
        isize = SIZE(value_in%real_type)
        ALLOCATE(value_out%real_type(isize),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        value_out%real_type = value_in%real_type
     CASE(result_type_integer)
        isize = SIZE(value_in%integer_type)
        ALLOCATE(value_out%integer_type(isize),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        value_out%integer_type = value_in%integer_type
     CASE(result_type_logical)
        isize = SIZE(value_in%logical_type)
        ALLOCATE(value_out%logical_type(isize),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        value_out%logical_type = value_in%logical_type
     CASE DEFAULT
        ! Type not implemented in cp_result_type
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     CALL timestop(handle)
   END SUBROUTINE cp_result_value_copy
@@ -435,7 +435,7 @@ CONTAINS
     END IF
     ! Allocate and copy new values while releases old
     ALLOCATE(tmp_value(istart:iend), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = istart, iend
        NULLIFY(tmp_value(i)%value)
        CALL cp_result_value_create(tmp_value(i)%value)
@@ -445,7 +445,7 @@ CONTAINS
        END IF
     END DO
     DEALLOCATE(result_value, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     result_value => tmp_value
     CALL timestop(handle)
   END SUBROUTINE cp_result_value_p_reallocate

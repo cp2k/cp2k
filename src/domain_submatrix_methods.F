@@ -156,13 +156,12 @@ CONTAINS
 
     INTEGER                                  :: handle, idomain, ndomains, &
                                                 ndomainsB
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
     ndomains=SIZE(original)
     ndomainsB=SIZE(copy)
-    CPPrecondition(ndomains.eq.ndomainsB,cp_failure_level,routineP,failure)
+    CPASSERT(ndomains.eq.ndomainsB)
     copy(:)%nnodes=original(:)%nnodes
     copy(:)%groupid=original(:)%groupid
     DO idomain = 1, ndomains
@@ -275,11 +274,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ds1, ds2, handle, ms1, ms2
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(copy%domain.gt.0,cp_failure_level,routineP,failure)
+    CPASSERT(copy%domain.gt.0)
 
     ds1=SIZE(array,1)
     ds2=SIZE(array,2)
@@ -345,13 +343,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ds1, ds2, handle, ms1, ms2
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(submatrix%domain.gt.0,cp_failure_level,routineP,failure)
-    CPPrecondition(submatrix%nrows.gt.0,cp_failure_level,routineP,failure)
-    CPPrecondition(submatrix%ncols.gt.0,cp_failure_level,routineP,failure)
+    CPASSERT(submatrix%domain.gt.0)
+    CPASSERT(submatrix%nrows.gt.0)
+    CPASSERT(submatrix%ncols.gt.0)
 
     ds1=submatrix%nrows
     ds2=submatrix%ncols
@@ -468,13 +465,13 @@ CONTAINS
     INTEGER                                  :: cs1, cs2, handle, icol, irow, &
                                                 K, K1, LDA, LDB, LDC, M, &
                                                 Mblocks, N, Nblocks
-    LOGICAL                                  :: failure, NOTA, NOTB
+    LOGICAL                                  :: NOTA, NOTB
 
     CALL timeset(routineN,handle)
     
-    CPPrecondition(A%domain.gt.0,cp_failure_level,routineP,failure)
-    CPPrecondition(B%domain.gt.0,cp_failure_level,routineP,failure)
-    CPPrecondition(C%domain.gt.0,cp_failure_level,routineP,failure)
+    CPASSERT(A%domain.gt.0)
+    CPASSERT(B%domain.gt.0)
+    CPASSERT(C%domain.gt.0)
 
     LDA = SIZE(A%mdata,1)
     LDB = SIZE(B%mdata,1)
@@ -503,7 +500,7 @@ CONTAINS
     ENDIF
 
     ! these checks are for debugging only
-    CPPrecondition(K.eq.K1,cp_failure_level,routineP,failure)
+    CPASSERT(K.eq.K1)
    
     ! conform C matrix 
     C%nrows=M
@@ -549,14 +546,14 @@ CONTAINS
 
     IF (.NOT.ALLOCATED(C%mdata)) THEN
        !!! cannot use non-zero beta if C is not allocated
-       CPPrecondition(beta.eq.0.0_dp,cp_failure_level,routineP,failure)
+       CPASSERT(beta.eq.0.0_dp)
        ALLOCATE(C%mdata(C%nrows,C%ncols))
     ELSE
        cs1=SIZE(C%mdata,1)
        cs2=SIZE(C%mdata,2)
        IF ((C%nrows.ne.cs1).OR.(C%ncols.ne.cs2)) THEN
           !!! cannot deallocate data if beta is non-zero
-          CPPrecondition(beta.eq.0.0_dp,cp_failure_level,routineP,failure)
+          CPASSERT(beta.eq.0.0_dp)
           DEALLOCATE(C%mdata)
           ALLOCATE(C%mdata(C%nrows,C%ncols))
        ENDIF
@@ -599,7 +596,6 @@ CONTAINS
     INTEGER                                  :: handle, idomain, idomainA, &
                                                 idomainB, ndomains, &
                                                 ndomainsB, ndomainsC
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -607,15 +603,15 @@ CONTAINS
     ndomainsB=SIZE(B)
     ndomainsC=SIZE(C)
 
-    CPPrecondition(ndomains.eq.ndomainsB,cp_failure_level,routineP,failure)
-    CPPrecondition(ndomainsB.eq.ndomainsC,cp_failure_level,routineP,failure)
+    CPASSERT(ndomains.eq.ndomainsB)
+    CPASSERT(ndomainsB.eq.ndomainsC)
     
     DO idomain = 1, ndomains
 
        idomainA = A(idomain)%domain
        idomainB = B(idomain)%domain
        
-       CPPrecondition(idomainA.eq.idomainB,cp_failure_level,routineP,failure)
+       CPASSERT(idomainA.eq.idomainB)
        
        C(idomain)%domain = idomainA
 
@@ -652,12 +648,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: C1, C2, handle, icol, R1, R2
-    LOGICAL                                  :: failure, NOTB
+    LOGICAL                                  :: NOTB
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(A%domain.gt.0,cp_failure_level,routineP,failure)
-    CPPrecondition(B%domain.gt.0,cp_failure_level,routineP,failure)
+    CPASSERT(A%domain.gt.0)
+    CPASSERT(B%domain.gt.0)
     
     R1 = A%nrows
     C1 = A%ncols
@@ -673,8 +669,8 @@ CONTAINS
     ENDIF
 
     ! these checks are for debugging only
-    CPPrecondition(C1.eq.C2,cp_failure_level,routineP,failure)
-    CPPrecondition(R1.eq.R2,cp_failure_level,routineP,failure)
+    CPASSERT(C1.eq.C2)
+    CPASSERT(R1.eq.R2)
    
     IF (NOTB) THEN
        DO icol = 1, C1
@@ -713,21 +709,20 @@ CONTAINS
 
     INTEGER                                  :: handle, idomain, idomainA, &
                                                 idomainB, ndomains, ndomainsB
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
     ndomains=SIZE(A)
     ndomainsB=SIZE(B)
 
-    CPPrecondition(ndomains.eq.ndomainsB,cp_failure_level,routineP,failure)
+    CPASSERT(ndomains.eq.ndomainsB)
     
     DO idomain = 1, ndomains
 
        idomainA = A(idomain)%domain
        idomainB = B(idomain)%domain
        
-       CPPrecondition(idomainA.eq.idomainB,cp_failure_level,routineP,failure)
+       CPASSERT(idomainA.eq.idomainB)
        
        ! check if the submatrix exists
        IF (idomainA.gt.0) THEN
@@ -811,7 +806,6 @@ CONTAINS
 
     INTEGER                                  :: domainA, domainB, handle, &
                                                 idomain, ndomainsA, ndomainsB
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: curr_trace, send_trace
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_trace
 
@@ -824,20 +818,20 @@ CONTAINS
     ndomainsA=SIZE(A)
     ndomainsB=SIZE(B)
 
-    CPPrecondition(ndomainsA.eq.ndomainsB,cp_failure_level,routineP,failure)
+    CPASSERT(ndomainsA.eq.ndomainsB)
     
     DO idomain = 1, ndomainsA
 
        domainA = A(idomain)%domain
        domainB = B(idomain)%domain
        
-       CPPrecondition(domainA.eq.domainB,cp_failure_level,routineP,failure)
+       CPASSERT(domainA.eq.domainB)
 
        ! check if the submatrix is local
        IF (domainA.gt.0) THEN
 
-          CPPrecondition(A(idomain)%nrows.eq.B(idomain)%nrows,cp_failure_level,routineP,failure)
-          CPPrecondition(A(idomain)%ncols.eq.B(idomain)%ncols,cp_failure_level,routineP,failure)
+          CPASSERT(A(idomain)%nrows.eq.B(idomain)%nrows)
+          CPASSERT(A(idomain)%ncols.eq.B(idomain)%ncols)
           
           curr_trace=SUM(A(idomain)%mdata(:,:)*B(idomain)%mdata(:,:))
           send_trace=send_trace+curr_trace
@@ -899,7 +893,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_descriptor, &
                                                 send_descriptor
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: failure, found, transp
+    LOGICAL                                  :: found, transp
     REAL(KIND=dp)                            :: antifactor
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_data, send_data
     REAL(KIND=dp), DIMENSION(:), POINTER     :: block_p
@@ -1194,8 +1188,8 @@ CONTAINS
 !    subm_col_size(:)=0
     ndomains2=SIZE(submatrix)
     IF (ndomains2.ne.ndomains) THEN
-       CPErrorMessage(cp_failure_level,routineP,"wrong submatrix size")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("wrong submatrix size")
+       CPASSERT(.FALSE.)
     ENDIF
     CALL release_submatrices(submatrix)
     submatrix(:)%nnodes=nNodes
@@ -1346,8 +1340,8 @@ CONTAINS
                          ENDDO
                       ELSE IF (matrix_type==dbcsr_type_no_symmetry) THEN
                       ELSE
-                         CPErrorMessage(cp_failure_level,routineP,"matrix type is NYI")
-                         CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                         CPABORT("matrix type is NYI")
+                         CPASSERT(.FALSE.)
                       ENDIF
                    ENDIF
                 ENDIF
@@ -1401,7 +1395,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_descriptor, &
                                                 send_descriptor
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: failure, transp
+    LOGICAL                                  :: transp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_data, send_data
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_p
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -1424,8 +1418,8 @@ CONTAINS
     ndomains2 = SIZE(submatrix)
 
     IF (ndomains.ne.ndomains2) THEN
-       CPErrorMessage(cp_failure_level,routineP,"domain mismatch")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("domain mismatch")
+       CPASSERT(.FALSE.)
     ENDIF
 
     nNodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(&
@@ -1437,8 +1431,8 @@ CONTAINS
 
     matrix_type=cp_dbcsr_get_matrix_type(matrix)
     IF (matrix_type.ne.dbcsr_type_no_symmetry) THEN
-       CPErrorMessage(cp_failure_level,routineP,"only non-symmetric matrices so far")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("only non-symmetric matrices so far")
+       CPASSERT(.FALSE.)
     ENDIF
    
     ! remove all blocks from the dbcsr matrix   
@@ -1465,16 +1459,16 @@ CONTAINS
           DO irow_subm = 1, submatrix(idomain)%nbrows
           
              IF (submatrix(idomain)%nbcols.ne.1) THEN
-                CPErrorMessage(cp_failure_level,routineP,"corrupt submatrix structure")
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPABORT("corrupt submatrix structure")
+                CPASSERT(.FALSE.)
              ENDIF
 
              row = submatrix(idomain)%dbcsr_row(irow_subm)
              col = submatrix(idomain)%dbcsr_col(1)
 
              IF (col.ne.idomain) THEN
-                CPErrorMessage(cp_failure_level,routineP,"corrupt submatrix structure")
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPABORT("corrupt submatrix structure")
+                CPASSERT(.FALSE.)
              ENDIF
 
              transp=.FALSE.
@@ -1619,7 +1613,7 @@ CONTAINS
           !IF (.NOT.found) THEN
           NULLIFY (block_p)
           CALL cp_dbcsr_reserve_block2d(matrix,row,col,block_p)
-          CPPostcondition(ASSOCIATED(block_p),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(block_p))
           !ENDIF
           ! copy data from the received array into the matrix block
           start_data=recv_offset_cpu(iNode)+block_offset+1

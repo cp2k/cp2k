@@ -770,9 +770,9 @@ CONTAINS
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
 
-    CPPostcondition(.NOT.ASSOCIATED(glob_loc_list),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.ASSOCIATED(glob_loc_list_a),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.ASSOCIATED(glob_cell_v),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(glob_loc_list))
+    CPASSERT(.NOT.ASSOCIATED(glob_loc_list_a))
+    CPASSERT(.NOT.ASSOCIATED(glob_cell_v))
     failure = .FALSE.
     CALL timeset ( routineN, handle )
     npairs_tot = 0
@@ -795,13 +795,13 @@ CONTAINS
        END DO Kind_Group_Loop1
     END DO
     ALLOCATE(work_list(npairs_tot), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(work_list2(npairs_tot), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(glob_loc_list(2,npairs_tot), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(glob_cell_v(3,npairs_tot), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Fill arrays with data
     npairs_tot = 0
     DO ilist=1,nonbonded%nlists
@@ -838,19 +838,19 @@ CONTAINS
     END DO
     glob_loc_list(2,:) = work_list2
     DEALLOCATE(work_list2, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(rwork_list(3,npairs_tot), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
      DO ipair = 1, npairs_tot
        rwork_list(:,ipair)=glob_cell_v(:,work_list(ipair))
     END DO
     glob_cell_v = rwork_list
     DEALLOCATE(rwork_list, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(work_list, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(glob_loc_list_a(npairs_tot), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     glob_loc_list_a = glob_loc_list(1,:)
     CALL timestop ( handle )
   END SUBROUTINE setup_tersoff_arrays
@@ -878,15 +878,15 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(glob_loc_list)) THEN
        DEALLOCATE(glob_loc_list, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(glob_loc_list_a)) THEN
        DEALLOCATE(glob_loc_list_a, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(glob_cell_v)) THEN
        DEALLOCATE(glob_cell_v, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE destroy_tersoff_arrays

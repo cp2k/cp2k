@@ -84,7 +84,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: defined, failure, found, &
+    LOGICAL                                  :: defined, found, &
                                                 use_cell_mapping, use_virial
     LOGICAL, DIMENSION(:), POINTER           :: scptb_defined
     REAL(KIND=dp)                            :: dr, eps_filter, f0, kh, kij
@@ -157,7 +157,7 @@ CONTAINS
        ! forces are not yet supported for k-points
        nder = 1
        ALLOCATE (atom_of_kind(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
        CALL get_qs_env(qs_env,&
                        rho=rho,&
@@ -228,9 +228,9 @@ CONTAINS
     !The band energy elements will be added to the kinetic energy.
 
     ALLOCATE (scptb_kind_param(nkind),scptb_defined(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (umt(100,nkind),hmt(100,nkind),kk(nkind,nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     umt = 0._dp
     hmt = 0._dp
     DO ikind=1,nkind
@@ -261,7 +261,7 @@ CONTAINS
 
        IF(use_cell_mapping) THEN
           ic = cell_to_index(cell(1),cell(2),cell(3))
-          CPPrecondition(ic > 0,cp_failure_level,routineP,failure)
+          CPASSERT(ic > 0)
        ELSE
           ic = 1
        END IF
@@ -275,7 +275,7 @@ CONTAINS
          icol = iatom
        END IF
        CALL cp_dbcsr_get_block_p(matrix_h(1,ic)%matrix,irow,icol,h_block,found)
-       CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(h_block))
 
        dr = SUM(rij(:)**2)
        !actual core energy determination , eq. 2.17 in my notes ???
@@ -286,7 +286,7 @@ CONTAINS
        ELSE
           NULLIFY(s_block) !s_block is overlap [sub]matrix ???
           CALL cp_dbcsr_get_block_p(matrix_s(1,ic)%matrix,irow,icol,s_block,found)
-          CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(s_block))
           IF ( irow == iatom ) THEN
             DO i=1,SIZE(h_block,1)
               DO j=1,SIZE(h_block,2)
@@ -306,11 +306,11 @@ CONTAINS
             atom_a = atom_of_kind(iatom)
             atom_b = atom_of_kind(jatom)
             CALL cp_dbcsr_get_block_p(matrix_p(1,ic)%matrix,irow,icol,p_block,found)
-            CPPostcondition(ASSOCIATED(p_block),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(p_block))
             DO icor=1,3
               force_ab(icor) = 0._dp
               CALL cp_dbcsr_get_block_p(matrix_s(icor+1,ic)%matrix,irow,icol,ds_block,found)
-              CPPostcondition(ASSOCIATED(ds_block),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(ds_block))
               IF ( irow == iatom ) THEN
                  DO i=1,SIZE(h_block,1)
                    DO j=1,SIZE(h_block,2)
@@ -343,13 +343,13 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE (scptb_kind_param,scptb_defined,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (umt,hmt,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     IF (calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        IF (nspins == 2) THEN
           DO ic=1,nimg
              CALL cp_dbcsr_add(matrix_p(1,ic)%matrix, matrix_p(2,ic)%matrix, &

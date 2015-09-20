@@ -156,20 +156,20 @@ CONTAINS
     TYPE(qs_kind_type), POINTER              :: qs_kind
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(hirshfeld_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(hirshfeld_env))
 
     nkind = SIZE(qs_kind_set)
     ALLOCATE(hirshfeld_env%kind_shape_fn(nkind), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     SELECT CASE(hirshfeld_env%shape_function_type)
        CASE (shape_function_gaussian)
           DO ikind=1,nkind
              hirshfeld_env%kind_shape_fn(ikind)%numexp = 1
              ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%zet(1), stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%coef(1), stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              CALL get_qs_kind(qs_kind_set(ikind),element_symbol=esym)
              rco = 2.0_dp
              CALL get_ptable_info(symbol=esym,covalent_radius=rco,found=found)
@@ -187,9 +187,9 @@ CONTAINS
                                            confine=.FALSE.)
              hirshfeld_env%kind_shape_fn(ikind)%numexp = ngto
              ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%zet(ngto), stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(hirshfeld_env%kind_shape_fn(ikind)%coef(ngto), stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              hirshfeld_env%kind_shape_fn(ikind)%zet(:) = ppdens(:,1)
              CALL get_qs_kind(qs_kind,zeff=zeff)
              hirshfeld_env%kind_shape_fn(ikind)%coef(:) = ppdens(:,2)/zeff
@@ -236,7 +236,7 @@ CONTAINS
     tnfun = ABS(tnfun - SUM(hirshfeld_env%charges))
     ! 
     ALLOCATE(rhonorm, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho=rho)
     CALL qs_rho_get(rho, rho_r=rho_r, rho_r_valid=rho_r_valid)
@@ -257,7 +257,7 @@ CONTAINS
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rhonorm%pw)
     !
     DEALLOCATE(rhonorm, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE comp_hirshfeld_charges
 ! *****************************************************************************
@@ -283,12 +283,12 @@ CONTAINS
     n1 = SIZE(fout,1)
     n2 = SIZE(fout,2)
     n3 = SIZE(fout,3)
-    CPPrecondition(n1==SIZE(fun1,1),cp_failure_level,routineP,failure)
-    CPPrecondition(n2==SIZE(fun1,2),cp_failure_level,routineP,failure)
-    CPPrecondition(n3==SIZE(fun1,3),cp_failure_level,routineP,failure)
-    CPPrecondition(n1==SIZE(fun2,1),cp_failure_level,routineP,failure)
-    CPPrecondition(n2==SIZE(fun2,2),cp_failure_level,routineP,failure)
-    CPPrecondition(n3==SIZE(fun2,3),cp_failure_level,routineP,failure)
+    CPASSERT(n1==SIZE(fun1,1))
+    CPASSERT(n2==SIZE(fun1,2))
+    CPASSERT(n3==SIZE(fun1,3))
+    CPASSERT(n1==SIZE(fun2,1))
+    CPASSERT(n2==SIZE(fun2,2))
+    CPASSERT(n3==SIZE(fun2,3))
 
     DO i3=1,n3
       DO i2=1,n2
@@ -341,7 +341,7 @@ CONTAINS
     IF(ounit>0) WRITE(ounit,"(/,T2,A)") "Hirshfeld charge iterations: Residuals ..."
     !
     ALLOCATE(rhonorm, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho=rho)
     CALL qs_rho_get(rho, rho_r=rho_r, rho_r_valid=rho_r_valid)
@@ -389,7 +389,7 @@ CONTAINS
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rhonorm%pw)
     !
     DEALLOCATE(rhonorm, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE comp_hirshfeld_i_charges
 
@@ -443,7 +443,7 @@ CONTAINS
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     ALLOCATE(pab(1,1),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     nthread = 1
     ithread = 0
 
@@ -452,7 +452,7 @@ CONTAINS
       IF ( numexp <= 0 ) CYCLE
       CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom, atom_list=atom_list)
       ALLOCATE(cores(natom),STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
 
       DO iex=1,numexp
          alpha=hirshfeld_env%kind_shape_fn(ikind)%zet(iex)
@@ -487,20 +487,20 @@ CONTAINS
       END DO
 
       DEALLOCATE(cores,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
     END DO
     DEALLOCATE (pab,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
     NULLIFY(fnorm)
     CALL get_hirshfeld_info(hirshfeld_env,fnorm=fnorm)
     IF (ASSOCIATED(fnorm)) THEN
        CALL pw_release(fnorm%pw)
        DEALLOCATE(fnorm,stat=ierr)
-       CPPostconditionNoFail(ierr==0,cp_failure_level,routineP)
+       CPASSERT(ierr==0)
     ENDIF
     ALLOCATE(fnorm,stat=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     CALL pw_pool_create_pw(auxbas_pw_pool,fnorm%pw,use_data=REALDATA3D)
     fnorm%pw%in_space=REALSPACE
     CALL set_hirshfeld_info(hirshfeld_env,fnorm=fnorm)
@@ -575,14 +575,14 @@ CONTAINS
     nthread = 1
     ithread = 0
     ALLOCATE(hab(1,1),pab(1,1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO ikind=1,SIZE(atomic_kind_set)
       numexp = hirshfeld_env%kind_shape_fn(ikind)%numexp
       IF ( numexp <= 0 ) CYCLE
       CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom,atom_list=atom_list)
       ALLOCATE(cores(natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       DO iex=1,numexp
          alpha=hirshfeld_env%kind_shape_fn(ikind)%zet(iex)
@@ -627,13 +627,13 @@ CONTAINS
 
       END DO
       DEALLOCATE(cores,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
     END DO
 
     CALL rs_grid_release(rs_v)
     DEALLOCATE(hab,pab,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL get_qs_env(qs_env=qs_env,para_env=para_env)
     CALL mp_sum(fval,para_env%group)

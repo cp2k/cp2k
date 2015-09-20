@@ -145,13 +145,13 @@ CONTAINS
 
 
     ! from here on we can be sure that it's conventional QM/MM
-    CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,failure)
-    CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env%qmmm_env))
+    CPASSERT(force_env%qmmm_env%ref_count>0)
 
     CALL fist_env_get(force_env%qmmm_env%fist_env,cell=mm_cell,subsys=subsys_mm)
     CALL get_qs_env(force_env%qmmm_env%qs_env,cell=qm_cell,cp_subsys=subsys_qm)
     qm_atom_index   => force_env%qmmm_env%qm%qm_atom_index
-    CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qm_atom_index))
 
     qm_cell_diag = (/qm_cell%hmat(1,1),&
                      qm_cell%hmat(2,2),&
@@ -228,8 +228,7 @@ CONTAINS
 
     INTEGER                                  :: ip, qm_index
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
-    LOGICAL                                  :: failure, is_x(2), is_y(2), &
-                                                is_z(2)
+    LOGICAL                                  :: is_x(2), is_y(2), is_z(2)
     REAL(KIND=dp)                            :: k, wallenergy, wallforce
     REAL(KIND=dp), DIMENSION(3)              :: coord, qm_cell_diag, skin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: list
@@ -242,14 +241,14 @@ CONTAINS
     NULLIFY(list)
     CALL section_vals_val_get(walls_section,"WALL_SKIN",r_vals=list)
     CALL section_vals_val_get(walls_section,"K",r_val=k)
-    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
-    CPPrecondition(qmmm_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qmmm_env))
+    CPASSERT(qmmm_env%ref_count>0)
 
     CALL fist_env_get(qmmm_env%fist_env,cell=mm_cell,subsys=subsys_mm)
     CALL get_qs_env(qmmm_env%qs_env,cell=qm_cell,cp_subsys=subsys_qm)
 
     qm_atom_index   => qmmm_env%qm%qm_atom_index
-    CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qm_atom_index))
 
     skin(:) = list(:)
 
@@ -427,13 +426,13 @@ CONTAINS
     NULLIFY(subsys_mm, subsys_qm, qm_atom_index, particles_mm, particles_qm,&
             subsys_section, qm_cell, mm_cell, qs_kind_set)
 
-    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
-    CPPrecondition(qmmm_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qmmm_env))
+    CPASSERT(qmmm_env%ref_count>0)
 
     CALL fist_env_get(qmmm_env%fist_env,cell=mm_cell,subsys=subsys_mm)
     CALL get_qs_env(qmmm_env%qs_env,cell=qm_cell,cp_subsys=subsys_qm)
     qm_atom_index   => qmmm_env%qm%qm_atom_index
-    CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qm_atom_index))
 
     particles_qm => subsys_qm%particles%els
     particles_mm => subsys_mm%particles%els

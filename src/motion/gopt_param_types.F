@@ -88,7 +88,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(gopt_param, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     last_gopt_param_id=last_gopt_param_id+1
     gopt_param%id_nr=last_gopt_param_id
@@ -116,8 +116,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(gopt_param),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(gopt_section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(gopt_param))
+    CPASSERT(ASSOCIATED(gopt_section))
     CALL gopt_param_create(gopt_param)
 
     failure=.FALSE.
@@ -189,8 +189,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(gopt_param))
+    CPASSERT(gopt_param%ref_count>0)
     gopt_param%ref_count=gopt_param%ref_count+1
   END SUBROUTINE gopt_param_retain
 
@@ -212,11 +212,11 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(gopt_param)) THEN
-       CPPreconditionNoFail(gopt_param%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(gopt_param%ref_count>0)
        gopt_param%ref_count=gopt_param%ref_count-1
        IF (gopt_param%ref_count==0) THEN
           DEALLOCATE(gopt_param, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE gopt_param_release

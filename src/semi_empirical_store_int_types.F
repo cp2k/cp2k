@@ -80,9 +80,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: se_mem_section
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(store_int_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(store_int_env))
     ALLOCATE (store_int_env,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     store_int_env%filling_containers = .TRUE.
     store_int_env%nbuffer             = 0
     NULLIFY(store_int_env%max_val_buffer, store_int_env%uncompressed_container)
@@ -111,15 +111,15 @@ CPSourceFileRef,&
     ! Allocate containers/caches for integral storage if requested
     IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly.AND.store_int_env%compress) THEN
        ALLOCATE(store_int_env%integral_containers(64), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(store_int_env%integral_caches(64), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i=1,64
           store_int_env%integral_caches(i)%element_counter = 1
           store_int_env%integral_caches(i)%data = 0
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(store_int_env%integral_containers(i)%first,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           store_int_env%integral_containers(i)%first%prev => NULL()
           store_int_env%integral_containers(i)%first%next => NULL()
           store_int_env%integral_containers(i)%current => store_int_env%integral_containers(i)%first
@@ -155,26 +155,26 @@ CPSourceFileRef,&
                      store_int_env%memory_parameter%actual_memory_usage,&
                      .FALSE.)
                 DEALLOCATE(store_int_env%integral_containers(i)%first,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END DO
              IF (ASSOCIATED(store_int_env%max_val_buffer)) THEN
                 DEALLOCATE(store_int_env%max_val_buffer,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              DEALLOCATE(store_int_env%integral_containers,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE(store_int_env%integral_caches,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ELSE
              IF (ASSOCIATED(store_int_env%uncompressed_container)) THEN
                 DEALLOCATE(store_int_env%uncompressed_container,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
           END IF
        END IF
        ! Deallocate the full store_int_env
        DEALLOCATE (store_int_env,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE semi_empirical_si_release

@@ -120,17 +120,17 @@ CONTAINS
 
     IF ( spdim > 0 ) THEN
       ALLOCATE(pairpot%spxr(spdim,2),stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
 
       ALLOCATE(pairpot%scoeff(spdim,4),stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
     END IF
 
     ALLOCATE(pairpot%fmat(ngrd,llm),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
     ALLOCATE(pairpot%smat(ngrd,llm),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
   END SUBROUTINE qs_dftb_pairpot_create
 
@@ -157,24 +157,24 @@ CONTAINS
         DO j=1,n2
           IF (ASSOCIATED(pairpot(i,j)%spxr)) THEN
             DEALLOCATE(pairpot(i,j)%spxr,stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(pairpot(i,j)%scoeff)) THEN
             DEALLOCATE(pairpot(i,j)%scoeff,stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(pairpot(i,j)%smat)) THEN
             DEALLOCATE(pairpot(i,j)%smat,stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(pairpot(i,j)%fmat)) THEN
             DEALLOCATE(pairpot(i,j)%fmat,stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
           END IF
         END DO
       END DO
       DEALLOCATE(pairpot,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE qs_dftb_pairpot_release

@@ -50,9 +50,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(status),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(status))
     ALLOCATE(status, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     status%in_use                = .FALSE.
     status%old_input_line        = ""
     status%old_input_line_number = HUGE(0)
@@ -79,10 +79,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(status),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(status))
     CALL release_buffer_type(status%buffer)
     DEALLOCATE(status, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE release_status_type
 
 END MODULE cp_parser_status_types

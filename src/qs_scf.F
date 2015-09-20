@@ -174,7 +174,7 @@ CONTAINS
     NULLIFY(scf_env)
     failure=.FALSE.
     logger => cp_get_default_logger()
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
     CALL get_qs_env(qs_env,scf_env=scf_env,input=input, &
                      dft_control=dft_control,scf_control=scf_control)
     IF(scf_control%max_scf > 0) THEN
@@ -290,10 +290,10 @@ CONTAINS
             particle_set,dft_section,input,&
             scf_section, para_env, results, kpoints, pw_env, rho_ao_kp)
 
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_env))
+    CPASSERT(scf_env%ref_count>0)
+    CPASSERT(ASSOCIATED(qs_env))
+    CPASSERT(qs_env%ref_count>0)
 
     logger => cp_get_default_logger()
     t1 = m_walltime()
@@ -340,7 +340,7 @@ CONTAINS
     IF(test_for_result(results,description=description)) THEN
       CALL get_results(results, description=description,&
                        values=res_val_3, n_entries=i_tmp)
-      CPPostcondition(i_tmp.EQ.3,cp_failure_level,routineP,failure)
+      CPASSERT(i_tmp.EQ.3)
       CALL cp_assert(ANY(res_val_3(:).GT.0.0),cp_failure_level,&
              cp_assertion_failed,routineP,&
              " Trying to access result ("//TRIM(description)//&
@@ -534,10 +534,10 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_env))
+    CPASSERT(scf_env%ref_count>0)
+    CPASSERT(ASSOCIATED(qs_env))
+    CPASSERT(qs_env%ref_count>0)
 
     CALL get_qs_env(qs_env=qs_env,&
          scf_control=scf_control,&
@@ -644,7 +644,7 @@ CONTAINS
           IF (dft_control%restricted) number_of_OT_envs=1
 
           ALLOCATE(scf_env%qs_ot_env(number_of_OT_envs),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
           ! XXX Joost XXX should disentangle reading input from this part
           CALL ot_scf_read_input(scf_env%qs_ot_env,scf_section)
@@ -704,7 +704,7 @@ CPSourceFileRef)
                 do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
                 ! only full all needs rotation
                 is_full_all=scf_env%qs_ot_env(1)%settings%preconditioner_type==ot_precond_full_all
-                CPPrecondition(.NOT.(do_rotation.AND.is_full_all),cp_failure_level,routineP,failure)
+                CPASSERT(.NOT.(do_rotation.AND.is_full_all))
                 DO ispin=1,SIZE(scf_env%qs_ot_env)
                    CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
                         scf_env%ot_preconditioner(ispin)%preconditioner)
@@ -726,16 +726,16 @@ CPSourceFileRef)
        do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
        DO ispin=1,SIZE(mos)
           IF (.NOT. mos(ispin)%mo_set%uniform_occupation) THEN
-             CPPrecondition(do_rotation,cp_failure_level,routineP,failure)
+             CPASSERT(do_rotation)
           ENDIF
        ENDDO
     END SELECT
 
     ! another safety check
     IF (dft_control%low_spin_roks) THEN
-       CPPrecondition(scf_env%method==ot_method_nr,cp_failure_level,routineP,failure)
+       CPASSERT(scf_env%method==ot_method_nr)
        do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
-       CPPrecondition(do_rotation,cp_failure_level,routineP,failure)
+       CPASSERT(do_rotation)
     ENDIF
 
     CALL timestop(handle)
@@ -764,8 +764,8 @@ CPSourceFileRef)
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_env))
+    CPASSERT(scf_env%ref_count>0)
 
 !   *** Release SCF work storage ***
 
@@ -820,19 +820,19 @@ CPSourceFileRef)
 
        IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
           DEALLOCATE(scf_env%outer_scf%variables,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        ENDIF
        IF (ASSOCIATED(scf_env%outer_scf%count)) THEN
           DEALLOCATE(scf_env%outer_scf%count,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        ENDIF
        IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN
           DEALLOCATE(scf_env%outer_scf%gradient,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        ENDIF
        IF (ASSOCIATED(scf_env%outer_scf%energy)) THEN
           DEALLOCATE(scf_env%outer_scf%energy,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        ENDIF
 
     CALL timestop(handle)

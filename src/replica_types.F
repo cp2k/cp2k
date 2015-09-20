@@ -146,57 +146,57 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     IF (ASSOCIATED(rep_env)) THEN
-       CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(rep_env%ref_count>0)
        rep_env%ref_count=rep_env%ref_count-1
        IF (rep_env%ref_count==0) THEN
           CALL rep_env_destroy_low(rep_env%id_nr,ierr)
           IF (rep_env%f_env_id>0) THEN
              CALL destroy_force_env(rep_env%f_env_id,ierr)
-             CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
           END IF
           IF (ASSOCIATED(rep_env%r)) THEN
              DEALLOCATE(rep_env%r,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(rep_env%v)) THEN
              DEALLOCATE(rep_env%v,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(rep_env%f)) THEN
              DEALLOCATE(rep_env%f,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(rep_env%wf_history)) THEN
              DO i=1,SIZE(rep_env%wf_history)
                 CALL wfi_release(rep_env%wf_history(i)%wf_history)
              END DO
              DEALLOCATE(rep_env%wf_history,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(rep_env%results)) THEN
              DO i=1,SIZE(rep_env%results)
                 CALL cp_result_release(rep_env%results(i)%results)
              END DO
              DEALLOCATE(rep_env%results,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(rep_env%local_rep_indices,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(rep_env%rep_is_local,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
           IF (ASSOCIATED(rep_env%replica_owner)) THEN
              DEALLOCATE(rep_env%replica_owner,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(rep_env%inter_rep_rank,rep_env%force_rank,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL cp_cart_release(rep_env%cart)
           CALL cp_para_env_release(rep_env%para_env)
           CALL cp_para_env_release(rep_env%para_env_f)
           CALL cp_para_env_release(rep_env%para_env_inter_rep)
           CALL rep_envs_rm_rep_env(rep_env)
           DEALLOCATE(rep_env,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(rep_env)
@@ -233,7 +233,7 @@ CONTAINS
     CALL cp_rm_iter_level(iteration_info=logger%iter_info,&
          level_name="REPLICA_EVAL")
     CALL f_env_rm_defaults(f_env,ierr)
-    CPAssert(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
   END SUBROUTINE rep_env_destroy_low
 
 ! *****************************************************************************
@@ -252,8 +252,8 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,failure)
-    CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rep_env))
+    CPASSERT(rep_env%ref_count>0)
     rep_env%ref_count=rep_env%ref_count+1
     CALL timestop(handle)
   END SUBROUTINE rep_env_retain
@@ -341,9 +341,9 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,failure)
-    CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(vals,2)==rep_env%nrep,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rep_env))
+    CPASSERT(rep_env%ref_count>0)
+    CPASSERT(SIZE(vals,2)==rep_env%nrep)
     DO irep=1,rep_env%nrep
        IF (.NOT.rep_env%rep_is_local(irep)) THEN
           vals(:,irep)=0._dp
@@ -374,9 +374,9 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     nrep=rep_env%nrep
-    CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,failure)
-    CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(results)==rep_env%nrep,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rep_env))
+    CPASSERT(rep_env%ref_count>0)
+    CPASSERT(SIZE(results)==rep_env%nrep)
     DO irep=1, nrep
 !         source = 0
 !         IF (rep_env%rep_is_local(irep)) source = rep_env%para_env_inter_rep%mepos
@@ -446,20 +446,20 @@ CONTAINS
           IF (module_initialized) THEN
              IF (.NOT.ASSOCIATED(rep_envs)) THEN
                 ALLOCATE(rep_envs(1),stat=stat)
-                CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+                CPASSERT(stat==0)
              ELSE
                 ALLOCATE(new_rep_envs(SIZE(rep_envs)+1),stat=stat)
-                CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+                CPASSERT(stat==0)
                 DO i=1,SIZE(rep_envs)
                    new_rep_envs(i)%rep_env => rep_envs(i)%rep_env
                 END DO
                 DEALLOCATE(rep_envs,stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
                 rep_envs => new_rep_envs
              END IF
           ELSE
              ALLOCATE(rep_envs(1),stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           rep_envs(SIZE(rep_envs))%rep_env => rep_env
           module_initialized=.TRUE.
@@ -486,9 +486,9 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(rep_env)) THEN
-       CPPrecondition(module_initialized,cp_failure_level,routineP,failure)
+       CPASSERT(module_initialized)
        ALLOCATE(new_rep_envs(SIZE(rep_envs)-1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        ii=0
        DO i=1,SIZE(rep_envs)
           IF (rep_envs(i)%rep_env%id_nr/=rep_env%id_nr) THEN
@@ -496,13 +496,13 @@ CONTAINS
              new_rep_envs(ii)%rep_env => rep_envs(i)%rep_env
           END IF
        END DO
-       CPPostcondition(ii==SIZE(new_rep_envs),cp_failure_level,routineP,failure)
+       CPASSERT(ii==SIZE(new_rep_envs))
        DEALLOCATE(rep_envs,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
        rep_envs => new_rep_envs
        IF (SIZE(rep_envs)==0) THEN
           DEALLOCATE(rep_envs,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE rep_envs_rm_rep_env
@@ -528,8 +528,8 @@ CONTAINS
     failure=.FALSE.
 
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,failure)
-    CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rep_env))
+    CPASSERT(rep_env%ref_count>0)
     res=-1
     DO i=1,SIZE(rep_env%local_rep_indices)
        IF (rep_env%local_rep_indices(i)==global_index) THEN

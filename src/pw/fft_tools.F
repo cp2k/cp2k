@@ -2625,9 +2625,9 @@ CONTAINS
 
     ! Allocate first scratch and mark it as used
     ALLOCATE (fft_scratch_first,STAT=ierr)
-    CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     ALLOCATE (fft_scratch_first%fft_scratch,STAT=ierr)
-    CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     NULLIFY(fft_scratch_first%fft_scratch_next)
     fft_scratch_first%fft_scratch%fft_scratch_id=0
     fft_scratch_first%fft_scratch%in_use=.TRUE.
@@ -2698,15 +2698,15 @@ CONTAINS
     ! deallocate structures
     IF(ASSOCIATED(fft_scratch%ziptr)) THEN
        DEALLOCATE(fft_scratch%ziptr,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%zoptr)) THEN
        DEALLOCATE(fft_scratch%zoptr,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%p1buf)) THEN
        DEALLOCATE(fft_scratch%p1buf,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%p2buf)) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
@@ -2715,7 +2715,7 @@ CONTAINS
 #else
        DEALLOCATE(fft_scratch%p2buf,STAT=ierr)
 #endif
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%p3buf)) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
@@ -2724,7 +2724,7 @@ CONTAINS
 #else
        DEALLOCATE(fft_scratch%p3buf,STAT=ierr)
 #endif
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%p4buf)) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
@@ -2733,7 +2733,7 @@ CONTAINS
 #else
        DEALLOCATE(fft_scratch%p4buf,STAT=ierr)
 #endif
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%p5buf)) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
@@ -2742,11 +2742,11 @@ CONTAINS
 #else
        DEALLOCATE(fft_scratch%p5buf,STAT=ierr)
 #endif
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%p6buf)) THEN
        DEALLOCATE(fft_scratch%p6buf,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%p7buf)) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
@@ -2755,7 +2755,7 @@ CONTAINS
 #else
        DEALLOCATE(fft_scratch%p7buf,STAT=ierr)
 #endif
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%r1buf)) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
@@ -2764,11 +2764,11 @@ CONTAINS
 #else
        DEALLOCATE(fft_scratch%r1buf,STAT=ierr)
 #endif
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%r2buf)) THEN
        DEALLOCATE(fft_scratch%r2buf,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%tbuf)) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
@@ -2777,112 +2777,112 @@ CONTAINS
 #else
        DEALLOCATE(fft_scratch%tbuf,STAT=ierr)
 #endif
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%a1buf)) THEN
        DEALLOCATE(fft_scratch%a1buf,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%a2buf)) THEN
        DEALLOCATE(fft_scratch%a2buf,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%a3buf)) THEN
        DEALLOCATE(fft_scratch%a3buf,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%a4buf)) THEN
        DEALLOCATE(fft_scratch%a4buf,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%a5buf)) THEN
        DEALLOCATE(fft_scratch%a5buf,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%a6buf)) THEN
        DEALLOCATE(fft_scratch%a6buf,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%scount)) THEN
        DEALLOCATE(fft_scratch%scount,fft_scratch%rcount,&
             fft_scratch%sdispl,fft_scratch%rdispl,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%rr)) THEN
        DEALLOCATE(fft_scratch%rr,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%xzbuf)) THEN
        DEALLOCATE(fft_scratch%xzbuf,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%yzbuf)) THEN
        DEALLOCATE(fft_scratch%yzbuf,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%xzbuf_sgl)) THEN
        DEALLOCATE(fft_scratch%xzbuf_sgl,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%yzbuf_sgl)) THEN
        DEALLOCATE(fft_scratch%yzbuf_sgl,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%ss)) THEN
        DEALLOCATE(fft_scratch%ss,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%tt)) THEN
        DEALLOCATE(fft_scratch%tt,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%pgrid)) THEN
        DEALLOCATE(fft_scratch%pgrid,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%pgcube)) THEN
        DEALLOCATE(fft_scratch%pgcube,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%xcor)) THEN
        DEALLOCATE(fft_scratch%xcor,fft_scratch%zcor,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%pzcoord)) THEN
        DEALLOCATE(fft_scratch%pzcoord,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%xzcount)) THEN
        DEALLOCATE(fft_scratch%xzcount,fft_scratch%yzcount,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        DEALLOCATE(fft_scratch%xzdispl,fft_scratch%yzdispl,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        fft_scratch%in=0
        fft_scratch%rsratio=1._dp
     END IF
     IF(ASSOCIATED(fft_scratch%rbuf1)) THEN
        DEALLOCATE(fft_scratch%rbuf1,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%rbuf2)) THEN
        DEALLOCATE(fft_scratch%rbuf2,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%rbuf3)) THEN
        DEALLOCATE(fft_scratch%rbuf3,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%rbuf4)) THEN
        DEALLOCATE(fft_scratch%rbuf4,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%rbuf5)) THEN
        DEALLOCATE(fft_scratch%rbuf5,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
     IF(ASSOCIATED(fft_scratch%rbuf6)) THEN
        DEALLOCATE(fft_scratch%rbuf6,STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
 
     IF (fft_scratch%cart_sub_comm(1) .NE. mp_comm_null) THEN
@@ -2930,9 +2930,9 @@ CONTAINS
           CALL deallocate_fft_scratch_type(fft_scratch_current%fft_scratch)
 
           DEALLOCATE(fft_scratch_current%fft_scratch,STAT=ierr)
-          CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr==0)
           DEALLOCATE(fft_scratch_current,STAT=ierr)
-          CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr==0)
        ELSE
           EXIT
        END IF
@@ -2994,9 +2994,9 @@ CONTAINS
                    ! deallocate the element
                    CALL deallocate_fft_scratch_type(fft_scratch_old%fft_scratch)
                    DEALLOCATE(fft_scratch_old%fft_scratch,STAT=ierr)
-                   CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+                   CPASSERT(ierr==0)
                    DEALLOCATE(fft_scratch_old,STAT=ierr)
-                   CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+                   CPASSERT(ierr==0)
 
                 ELSE
                    fft_scratch_current=>fft_scratch_current%fft_scratch_next
@@ -3095,9 +3095,9 @@ CONTAINS
           ! We cannot find the scratch type in this pool
           ! Generate a new scratch set
           ALLOCATE (fft_scratch_new,STAT=ierr)
-          CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr==0)
           ALLOCATE (fft_scratch_new%fft_scratch,STAT=ierr)
-          CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr==0)
           fft_scratch_new%fft_scratch%group = 0
           NULLIFY(fft_scratch_new%fft_scratch%ziptr)
           NULLIFY(fft_scratch_new%fft_scratch%zoptr)
@@ -3150,7 +3150,7 @@ CONTAINS
 
           SELECT CASE (tf_type)
           CASE DEFAULT
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           CASE (100)    ! fft3d_pb: full cube distribution
              mx1   = fft_sizes%mx1
              my1   = fft_sizes%my1
@@ -3159,17 +3159,17 @@ CONTAINS
              my3   = fft_sizes%my3
              mz3   = fft_sizes%mz3
              ALLOCATE ( fft_scratch_new%fft_scratch%a1buf(mx1*my1,n(3)),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%a2buf(n(3),mx1*my1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%a3buf(mx2*mz2,n(2)),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%a4buf(n(2),mx2*mz2),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%a5buf(my3*mz3,n(1)),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%a6buf(n(1),my3*mz3),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
 
              CALL mp_environ ( nn, dim, pos, fft_sizes%rs_group )
@@ -3181,13 +3181,13 @@ CONTAINS
              mcz2   = fft_sizes%mcz2
              mcy3   = fft_sizes%mcy3
              ALLOCATE ( fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2,0:DIM(2)-1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2,0:DIM(2)-1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%rbuf3(mx2*mz3*mcy3,0:DIM(1)-1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%rbuf4(mx2*mz2*mcy3,0:DIM(1)-1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
 
              dims = (/.TRUE.,.FALSE./)
              CALL mp_cart_sub( fft_sizes%rs_group, dims, fft_scratch_new%fft_scratch%cart_sub_comm(1))
@@ -3226,18 +3226,18 @@ CONTAINS
              my3   = fft_sizes%my3
              mz3   = fft_sizes%mz3
              ALLOCATE ( fft_scratch_new%fft_scratch%a1buf(mx1*my1,n(3)),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%a2buf(n(3),mx1*my1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
              ALLOCATE ( fft_scratch_new%fft_scratch%a3buf(mx1*mz1,n(2)),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%a4buf(n(2),mx1*mz1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%a5buf(my3*mz3,n(1)),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%a6buf(n(1),my3*mz3),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
 
              CALL mp_environ ( nn, dim, pos, fft_sizes%rs_group )
              CALL mp_cart_rank ( fft_sizes%rs_group, pos, fft_scratch_new%fft_scratch%mip )
@@ -3245,9 +3245,9 @@ CONTAINS
              fft_scratch_new%fft_scratch%pos = pos
              mcy3   = fft_sizes%mcy3
              ALLOCATE ( fft_scratch_new%fft_scratch%rbuf5(mx1*mz3*mcy3,0:DIM(1)-1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%rbuf6(mx1*mz1*mcy3,0:DIM(1)-1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
 
              !set up fft plans
              CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), mx1*my1, &
@@ -3279,30 +3279,30 @@ CONTAINS
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
              length = INT(2 * dp_size * MAX(mmax,1) * MAX(lmax,1), KIND=C_SIZE_T)
              ierr = cudaHostAlloc(cptr_r1buf, length, cudaHostAllocDefault)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              CALL c_f_pointer(cptr_r1buf, fft_scratch_new%fft_scratch%r1buf, (/MAX(mmax,1),MAX(lmax,1)/))
              length = INT(2 * dp_size * MAX(ny,1) * MAX(nz,1) * MAX(nx,1), KIND=C_SIZE_T)
              ierr = cudaHostAlloc(cptr_tbuf, length, cudaHostAllocDefault)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              CALL c_f_pointer(cptr_tbuf, fft_scratch_new%fft_scratch%tbuf, (/MAX(ny,1),MAX(nz,1),MAX(nx,1)/))
 #else
              ALLOCATE ( fft_scratch_new%fft_scratch%r1buf(mmax,lmax),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%tbuf(ny,nz,nx),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
 #endif
              fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
              ALLOCATE ( fft_scratch_new%fft_scratch%r2buf(lg,mg),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              nm = nmray*mx2
              IF ( alltoall_sgl ) THEN
                 ALLOCATE ( fft_scratch_new%fft_scratch%ss(mmax,lmax),STAT=ierr)
-                CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+                CPASSERT(ierr==0)
                 ALLOCATE ( fft_scratch_new%fft_scratch%tt(nm,0:np-1),STAT=ierr)
-                CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+                CPASSERT(ierr==0)
              ELSE
                 ALLOCATE ( fft_scratch_new%fft_scratch%rr(nm,0:np-1),STAT=ierr)
-                CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+                CPASSERT(ierr==0)
              END IF
 
              !set up fft plans
@@ -3335,67 +3335,67 @@ CONTAINS
              nbx   = fft_sizes%nbx
              nbz   = fft_sizes%nbz
              ALLOCATE ( fft_scratch_new%fft_scratch%p1buf(mx1*my1,n(3)),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%p6buf(lg,mg),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
              length = INT(2 * dp_size * MAX(n(3),1) * MAX(mx1*my1,1), KIND=C_SIZE_T)
              ierr = cudaHostAlloc(cptr_p2buf, length, cudaHostAllocDefault)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              CALL c_f_pointer(cptr_p2buf, fft_scratch_new%fft_scratch%p2buf, (/MAX(n(3),1),MAX(mx1*my1,1)/))
              length = INT(2 * dp_size * MAX(mx2*mz2,1) * MAX(n(2),1), KIND=C_SIZE_T)
              ierr = cudaHostAlloc(cptr_p3buf, length, cudaHostAllocDefault)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              CALL c_f_pointer(cptr_p3buf, fft_scratch_new%fft_scratch%p3buf, (/MAX(mx2*mz2,1),MAX(n(2),1)/))
              length = INT(2 * dp_size * MAX(n(2),1) * MAX(mx2*mz2,1), KIND=C_SIZE_T)
              ierr = cudaHostAlloc(cptr_p4buf, length, cudaHostAllocDefault)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              CALL c_f_pointer(cptr_p4buf, fft_scratch_new%fft_scratch%p4buf, (/MAX(n(2),1),MAX(mx2*mz2,1)/))
              length = INT(2 * dp_size * MAX(nyzray,1) * MAX(n(1),1), KIND=C_SIZE_T)
              ierr = cudaHostAlloc(cptr_p5buf, length, cudaHostAllocDefault)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              CALL c_f_pointer(cptr_p5buf, fft_scratch_new%fft_scratch%p5buf, (/MAX(nyzray,1),MAX(n(1),1)/))
              length = INT(2 * dp_size * MAX(mg,1) * MAX(lg,1), KIND=C_SIZE_T)
              ierr = cudaHostAlloc(cptr_p7buf, length, cudaHostAllocDefault)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              CALL c_f_pointer(cptr_p7buf, fft_scratch_new%fft_scratch%p7buf, (/MAX(mg,1),MAX(lg,1)/))
 #else
              ALLOCATE ( fft_scratch_new%fft_scratch%p2buf(n(3),mx1*my1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%p3buf(mx2*mz2,n(2)),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%p4buf(n(2),mx2*mz2),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%p5buf(nyzray,n(1)),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%p7buf(mg,lg),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
 #endif
              IF ( alltoall_sgl ) THEN
                 ALLOCATE ( fft_scratch_new%fft_scratch%yzbuf_sgl(mg*lg),STAT=ierr)
-                CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+                CPASSERT(ierr==0)
                 ALLOCATE ( fft_scratch_new%fft_scratch%xzbuf_sgl(n(2)*mx2*mz2),STAT=ierr)
-                CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+                CPASSERT(ierr==0)
              ELSE
                 ALLOCATE ( fft_scratch_new%fft_scratch%yzbuf(mg*lg),STAT=ierr)
-                CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+                CPASSERT(ierr==0)
                 ALLOCATE ( fft_scratch_new%fft_scratch%xzbuf(n(2)*mx2*mz2),STAT=ierr)
-                CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+                CPASSERT(ierr==0)
              END IF
              ALLOCATE ( fft_scratch_new%fft_scratch%pgrid(0:m1-1,0:m2-1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%xcor(nbx),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%zcor(nbz),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%pzcoord(0:np-1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%xzcount(0:np-1), &
                   fft_scratch_new%fft_scratch%yzcount(0:np-1) )
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%xzdispl(0:np-1), &
                   fft_scratch_new%fft_scratch%yzdispl(0:np-1) )
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              fft_scratch_new%fft_scratch%in=0
              fft_scratch_new%fft_scratch%rsratio=1._dp
              fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
@@ -3407,9 +3407,9 @@ CONTAINS
              mcz1   = fft_sizes%mcz1
              mcz2   = fft_sizes%mcz2
              ALLOCATE ( fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2,0:DIM(2)-1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2,0:DIM(2)-1),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
 
              dims = (/.FALSE.,.TRUE./)
              CALL mp_cart_sub( fft_sizes%rs_group, dims, fft_scratch_new%fft_scratch%cart_sub_comm(2))
@@ -3452,9 +3452,9 @@ CONTAINS
           CASE (400)    ! serial FFT
              np = 0
              ALLOCATE ( fft_scratch_new%fft_scratch%ziptr(n(1),n(2),n(3)),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%zoptr(n(1),n(2),n(3)),STAT=ierr)
-             CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
 
              !in place plans
              CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, .TRUE., FWFFT, n, &
@@ -3518,7 +3518,7 @@ CONTAINS
           fft_scratch_current => fft_scratch_current%fft_scratch_next
        ELSE
           ! We cannot find the scratch type in this pool
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
           EXIT
        END IF
     END DO

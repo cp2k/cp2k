@@ -153,15 +153,15 @@ CONTAINS
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     gbo = spline_g%pw_grid%bounds
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(spline_g))
+    CPASSERT(spline_g%in_use==COMPLEXDATA1D)
+    CPASSERT(spline_g%in_space==RECIPROCALSPACE)
+    CPASSERT(.NOT.spline_g%pw_grid%spherical)
+    CPASSERT(spline_g%pw_grid%grid_span==FULLSPACE)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)),&
          cosKVals(gbo(1,3):gbo(2,3)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i) default(none) shared(cosIVals,coeff,gbo)
@@ -195,7 +195,7 @@ CONTAINS
 
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline2_interpolate_values_g
@@ -233,16 +233,16 @@ CONTAINS
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     gbo = spline_g%pw_grid%bounds
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(spline_g))
+    CPASSERT(spline_g%in_use==COMPLEXDATA1D)
+    CPASSERT(spline_g%in_space==RECIPROCALSPACE)
+    CPASSERT(.NOT.spline_g%pw_grid%spherical)
+    CPASSERT(spline_g%pw_grid%grid_span==FULLSPACE)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),&
          cosJVals(gbo(1,2):gbo(2,2)),&
          cosKVals(gbo(1,3):gbo(2,3)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i) default(none) shared(cosIVals,coeff,gbo)
@@ -282,7 +282,7 @@ CONTAINS
 
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline3_interpolate_values_g
@@ -319,15 +319,15 @@ CONTAINS
     gbo = spline_g%pw_grid%bounds
     inv64=1.0_dp/64.0_dp
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(spline_g))
+    CPASSERT(spline_g%in_use==COMPLEXDATA1D)
+    CPASSERT(spline_g%in_space==RECIPROCALSPACE)
+    CPASSERT(.NOT.spline_g%pw_grid%spherical)
+    CPASSERT(spline_g%pw_grid%grid_span==FULLSPACE)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)), &
          cosKVals(gbo(1,3):gbo(2,3)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     coeff=twopi/n_tot(1)
     !$omp parallel do default(none) private(i) shared(gbo,cosIVals,coeff)
@@ -359,7 +359,7 @@ CONTAINS
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline2_evaluate_values_g
@@ -410,15 +410,15 @@ CONTAINS
     r_coeffs(3)=r_coeffs(3)*4.0_dp
     r_coeffs(4)=r_coeffs(4)*8.0_dp
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(spline_g))
+    CPASSERT(spline_g%in_use==COMPLEXDATA1D)
+    CPASSERT(spline_g%in_space==RECIPROCALSPACE)
+    CPASSERT(.NOT.spline_g%pw_grid%spherical)
+    CPASSERT(spline_g%pw_grid%grid_span==FULLSPACE)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)), &
          cosKVals(gbo(1,3):gbo(2,3)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i) default(none) shared(gbo,coeff,cosIVals)
@@ -450,7 +450,7 @@ CONTAINS
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
   END SUBROUTINE pw_nn_smear_g
@@ -487,15 +487,15 @@ CONTAINS
     gbo = spline_g%pw_grid%bounds
     inv27=1.0_dp/27.0_dp
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(spline_g))
+    CPASSERT(spline_g%in_use==COMPLEXDATA1D)
+    CPASSERT(spline_g%in_space==RECIPROCALSPACE)
+    CPASSERT(.NOT.spline_g%pw_grid%spherical)
+    CPASSERT(spline_g%pw_grid%grid_span==FULLSPACE)
 
     ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)), &
          cosKVals(gbo(1,3):gbo(2,3)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     coeff=twopi/n_tot(1)
     !$omp parallel do private(i) default(none) shared(coeff,cosIVals,gbo)
@@ -534,7 +534,7 @@ CONTAINS
        spline_g%cc(ii)=spline_g%cc(ii)*coeff
     END DO
     DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline3_evaluate_values_g
@@ -667,16 +667,16 @@ CONTAINS
     bo = spline_g%pw_grid%bounds_local
     gbo = spline_g%pw_grid%bounds
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
-    CPPrecondition(.not.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(spline_g))
+    CPASSERT(spline_g%in_use==COMPLEXDATA1D)
+    CPASSERT(spline_g%in_space==RECIPROCALSPACE)
+    CPASSERT(.not.spline_g%pw_grid%spherical)
+    CPASSERT(spline_g%pw_grid%grid_span==FULLSPACE)
 
     ALLOCATE(csIVals(gbo(1,1):gbo(2,1)),&
          csJVals(gbo(1,2):gbo(2,2)),&
          csKVals(gbo(1,3):gbo(2,3)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     coeff=twopi/n_tot(1)
     IF (idir==1) THEN
@@ -770,7 +770,7 @@ CONTAINS
     END SELECT
 
     DEALLOCATE(csIVals, csJVals, csKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline3_deriv_g
@@ -809,15 +809,15 @@ CONTAINS
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds
 
-    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,failure)
-    CPPrecondition(.not.spline_g%pw_grid%spherical,cp_failure_level,routineP,failure)
-    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(spline_g))
+    CPASSERT(spline_g%in_use==COMPLEXDATA1D)
+    CPASSERT(spline_g%in_space==RECIPROCALSPACE)
+    CPASSERT(.not.spline_g%pw_grid%spherical)
+    CPASSERT(spline_g%pw_grid%grid_span==FULLSPACE)
 
     ALLOCATE(csIVals(bo(1,1):bo(2,1)),csJVals(bo(1,2):bo(2,2)),&
          csKVals(bo(1,3):bo(2,3)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     coeff=twopi/n_tot(1)
     IF (idir==1) THEN
@@ -911,7 +911,7 @@ CONTAINS
     END SELECT
 
     DEALLOCATE(csIVals, csJVals, csKVals, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
   END SUBROUTINE pw_spline2_deriv_g
@@ -1171,8 +1171,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo)
                                                 stat
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: s
-    LOGICAL                                  :: failure, has_boundary, &
-                                                yderiv, zderiv
+    LOGICAL                                  :: has_boundary, yderiv, zderiv
     REAL(kind=dp)                            :: in_val_f, in_val_l
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
 
@@ -1190,7 +1189,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo)
      ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
           u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
           tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
      CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
           gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
@@ -1204,7 +1203,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo)
           gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
           pw_in%pw_grid%para%group)
      DEALLOCATE(tmp,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+     CPASSERT(stat==0)
   END IF
 
   !$omp parallel do default(none) private(k,kw,myk,j,jw,myj,in_val_f,&
@@ -1235,7 +1234,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo)
   END DO
   IF (has_boundary) THEN
      DEALLOCATE(l_boundary,u_boundary,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+     CPASSERT(stat==0)
   END IF
 END SUBROUTINE pw_nn_compose_r_work
 
@@ -1260,12 +1259,12 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out)
 
   CALL timeset(routineN,handle)
   failure=.FALSE.
-  CPPrecondition(ASSOCIATED(pw_in),cp_failure_level,routineP,failure)
-  CPPrecondition(pw_in%in_space==REALSPACE,cp_failure_level,routineP,failure)
-  CPPrecondition(pw_in%in_use==REALDATA3D,cp_failure_level,routineP,failure)
-  CPPrecondition(ASSOCIATED(pw_out),cp_failure_level,routineP,failure)
-  CPPrecondition(pw_out%in_space==REALSPACE,cp_failure_level,routineP,failure)
-  CPPrecondition(pw_out%in_use==REALDATA3D,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(pw_in))
+  CPASSERT(pw_in%in_space==REALSPACE)
+  CPASSERT(pw_in%in_use==REALDATA3D)
+  CPASSERT(ASSOCIATED(pw_out))
+  CPASSERT(pw_out%in_space==REALSPACE)
+  CPASSERT(pw_out%in_use==REALDATA3D)
   IF (.NOT.ALL(pw_in%pw_grid%bounds_local(:,2:3) == pw_in%pw_grid%bounds(:,2:3))) THEN
      CALL cp_assert(.FALSE.,&
           cp_failure_level,cp_assertion_failed,routineP,&
@@ -1466,7 +1465,7 @@ END SUBROUTINE pw_nn_compose_r
     CALL mp_comm_compare(coarse_coeffs_pw%pw_grid%para%group,&
          fine_values_pw%pw_grid%para%group,ii)
     IF (ii>1) THEN
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
     my_coarse_bo=coarse_coeffs_pw%pw_grid%bounds_local
     coarse_gbo=coarse_coeffs_pw%pw_grid%bounds
@@ -1494,11 +1493,11 @@ END SUBROUTINE pw_nn_compose_r
     has_i_lbound=(fine_gbo(1,1)/=fine_bo(1,1)).or.pbc.and.is_split
 
     IF (pbc) THEN
-       CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,failure)
-       CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+1+f_shift),cp_failure_level,routineP,failure)
+       CPASSERT(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift))
+       CPASSERT(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+1+f_shift))
     ELSE
-       CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift),cp_failure_level,routineP,failure)
-       CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,failure)
+       CPASSERT(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift))
+       CPASSERT(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift))
     END IF
 
     coarse_coeffs => coarse_coeffs_pw%cr3d
@@ -1515,7 +1514,7 @@ END SUBROUTINE pw_nn_compose_r
        ALLOCATE(send_size(0:n_procs-1),send_offset(0:n_procs-1),&
             sent_size(0:n_procs-1),rcv_size(0:n_procs-1), &
             rcv_offset(0:n_procs-1),real_rcv_size(0:n_procs-1), stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! ** rcv size count
 
@@ -1597,7 +1596,7 @@ END SUBROUTINE pw_nn_compose_r
           send_tot_size=send_tot_size+send_size(ip)
        END DO
        ALLOCATE(send_buf(0:send_tot_size-1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
 
        rcv_tot_size=0
        DO ip=0,n_procs-1
@@ -1612,7 +1611,7 @@ CPSourceFileRef,&
                failure)
        END IF
        ALLOCATE(rcv_buf(0:rcv_tot_size-1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! ** fill send buffer
 
@@ -1706,11 +1705,11 @@ CPSourceFileRef,&
           END DO
        END IF
 
-       CPPostcondition(ALL(sent_size(:n_procs-2)==send_offset(1:)),cp_failure_level,routineP,failure)
-       CPPostcondition(sent_size(n_procs-1)==send_tot_size,cp_failure_level,routineP,failure)
+       CPASSERT(ALL(sent_size(:n_procs-2)==send_offset(1:)))
+       CPASSERT(sent_size(n_procs-1)==send_tot_size)
        ! test send/rcv sizes
        CALL mp_alltoall(send_size,real_rcv_size,1,coarse_coeffs_pw%pw_grid%para%group)
-       CPAssert(ALL(real_rcv_size==rcv_size),cp_failure_level,routineP,failure)
+       CPASSERT(ALL(real_rcv_size==rcv_size))
        ! all2all
        CALL mp_alltoall( sb=send_buf, scount=send_size, sdispl=send_offset,&
             rb=rcv_buf, rcount=rcv_size, rdispl=rcv_offset, &
@@ -1722,7 +1721,7 @@ CPSourceFileRef,&
        ALLOCATE(coarse_coeffs(coarse_bo(1,1):coarse_bo(2,1),&
             coarse_bo(1,2):coarse_bo(2,2),&
             coarse_bo(1,3):coarse_bo(2,3)),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
 
        my_lb=MAX(coarse_gbo(1,1),coarse_bo(1,1))
        my_ub=MIN(coarse_gbo(2,1),coarse_bo(2,1))
@@ -1781,14 +1780,14 @@ CPSourceFileRef,&
           sent_size(p_old)=sent_size(p_old)+coarse_slice_size
        END DO
 
-       CPPostcondition(ALL(sent_size(0:n_procs-2)==rcv_offset(1:)),cp_failure_level,routineP,failure)
-       CPPostcondition(sent_size(n_procs-1)==rcv_tot_size,cp_failure_level,routineP,failure)
+       CPASSERT(ALL(sent_size(0:n_procs-2)==rcv_offset(1:)))
+       CPASSERT(sent_size(n_procs-1)==rcv_tot_size)
 
        ! dealloc
        DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
        DEALLOCATE(send_buf,rcv_buf,real_rcv_size,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
        CALL timestop(handle2)
 
     END IF
@@ -1817,7 +1816,7 @@ CPSourceFileRef,&
                    CASE(-3)
                       wk=w_border1(3)
                    CASE default
-                      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+                      CPASSERT(.FALSE.)
                       CYCLE
                    END SELECT
                 ELSE
@@ -1829,7 +1828,7 @@ CPSourceFileRef,&
                    CASE(-1)
                       wk=w_border1(1)
                    CASE default
-                      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+                      CPASSERT(.FALSE.)
                       CYCLE
                    END SELECT
                 END IF
@@ -1974,7 +1973,7 @@ CPSourceFileRef,&
                            ww0(1)*v0+ww0(2)*v1+&
                            ww0(3)*v2
                    ELSE
-                      CPPrecondition(fi+1==fine_bo(1,1),cp_failure_level,routineP,failure)
+                      CPASSERT(fi+1==fine_bo(1,1))
                    END IF
 !                      CALL timestop(handle2)
 !                      CALL timeset(routineN//"_core",handle2)
@@ -2190,7 +2189,7 @@ CPSourceFileRef,&
                       fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
                            w_border0*wj*v2
                    END IF
-                   CPPostcondition(fi==fine_bo(2,1),cp_failure_level,routineP,failure)
+                   CPASSERT(fi==fine_bo(2,1))
                 END IF
 !                   CALL timestop(handle2)
              END DO
@@ -2200,7 +2199,7 @@ CPSourceFileRef,&
 
     IF (is_split) THEN
        DEALLOCATE(coarse_coeffs,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     END IF
     CALL timestop(handle)
   END SUBROUTINE add_coarse2fine
@@ -2304,19 +2303,19 @@ CPSourceFileRef,&
     has_i_lbound=(fine_gbo(1,1)/=fine_bo(1,1)).or.pbc.and.is_split
 
     IF (pbc) THEN
-       CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,failure)
-       CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift+1),cp_failure_level,routineP,failure)
+       CPASSERT(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift))
+       CPASSERT(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift+1))
     ELSE
-       CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift),cp_failure_level,routineP,failure)
-       CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift),cp_failure_level,routineP,failure)
+       CPASSERT(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+f_shift))
+       CPASSERT(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)+f_shift))
     END IF
-    CPPrecondition(coarse_gbo(2,1)-coarse_gbo(1,2)>1,cp_failure_level,routineP,failure)
+    CPASSERT(coarse_gbo(2,1)-coarse_gbo(1,2)>1)
     local_data=is_split ! ANY(coarse_bo/=my_coarse_bo)
     IF (local_data) THEN
        ALLOCATE(coarse_coeffs(coarse_bo(1,1):coarse_bo(2,1),&
             coarse_bo(1,2):coarse_bo(2,2),&
             coarse_bo(1,3):coarse_bo(2,3)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        coarse_coeffs=0._dp
     ELSE
        coarse_coeffs => coarse_coeffs_pw%cr3d
@@ -2352,7 +2351,7 @@ CPSourceFileRef,&
                 CASE(-3)
                    wk=w_border1(3)
                 CASE default
-                   CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+                   CPASSERT(.FALSE.)
                    CYCLE
                 END SELECT
              ELSE
@@ -2364,7 +2363,7 @@ CPSourceFileRef,&
                 CASE(-1)
                    wk=w_border1(1)
                 CASE default
-                   CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+                   CPASSERT(.FALSE.)
                    CYCLE
                 END SELECT
              END IF
@@ -2394,7 +2393,7 @@ CPSourceFileRef,&
                       CASE(-3)
                          wj=w_border1(3)*wk
                       CASE default
-                         CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+                         CPASSERT(.FALSE.)
                          CYCLE
                       END SELECT
                    ELSE
@@ -2406,7 +2405,7 @@ CPSourceFileRef,&
                       CASE(3)
                          wj=w_border1(3)*wk
                       CASE default
-                         CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+                         CPASSERT(.FALSE.)
                          CYCLE
                       END SELECT
                    END IF
@@ -2552,7 +2551,7 @@ CPSourceFileRef,&
                    END IF
                    rest_b=MODULO(FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)-6,4)
                    i=FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-3-rest_b+4
-                   CPPrecondition(fi==(i-2)*2+f_shift(1),cp_failure_level,routineP,failure)
+                   CPASSERT(fi==(i-2)*2+f_shift(1))
                    IF (rest_b>0) THEN
                       fi=fi+1
                       vv0=fine_values(fi,fj,fk)
@@ -2754,7 +2753,7 @@ CPSourceFileRef,&
                               +wj*(w_border1(1)*vv0+w_border0*vv1)
                       END IF
                    END IF
-                   CPPostcondition(fi==fine_bo(2,1),cp_failure_level,routineP,failure)
+                   CPASSERT(fi==fine_bo(2,1))
                 END IF
              END DO
           END DO
@@ -2771,7 +2770,7 @@ CPSourceFileRef,&
             sent_size(0:n_procs-1),rcv_size(0:n_procs-1), &
             rcv_offset(0:n_procs-1), pp_lb(0:n_procs-1),&
             pp_ub(0:n_procs-1),real_rcv_size(0:n_procs-1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! ** send size count
 
@@ -2846,7 +2845,7 @@ CPSourceFileRef,&
 CPSourceFileRef,&
             failure)
        ALLOCATE(send_buf(0:send_tot_size-1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
 
        rcv_tot_size=0
        DO ip=0,n_procs-1
@@ -2854,7 +2853,7 @@ CPSourceFileRef,&
           rcv_tot_size=rcv_tot_size+rcv_size(ip)
        END DO
        ALLOCATE(rcv_buf(0:rcv_tot_size-1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! ** fill send buffer
 
@@ -2884,17 +2883,17 @@ CPSourceFileRef,&
 
     IF (local_data) THEN
        DEALLOCATE(coarse_coeffs,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        NULLIFY(coarse_coeffs)
     END IF
 
-       CPPostcondition(ALL(sent_size(:n_procs-2)==send_offset(1:)),cp_failure_level,routineP,failure)
-       CPPostcondition(sent_size(n_procs-1)==send_tot_size,cp_failure_level,routineP,failure)
+       CPASSERT(ALL(sent_size(:n_procs-2)==send_offset(1:)))
+       CPASSERT(sent_size(n_procs-1)==send_tot_size)
        ! test send/rcv sizes
        CALL mp_alltoall(send_size,real_rcv_size,1,coarse_coeffs_pw%pw_grid%para%group)
 
-       CPAssert(ALL(real_rcv_size==rcv_size),cp_failure_level,routineP,failure)
+       CPASSERT(ALL(real_rcv_size==rcv_size))
        ! all2all
        CALL mp_alltoall( sb=send_buf, scount=send_size, sdispl=send_offset,&
             rb=rcv_buf, rcount=rcv_size, rdispl=rcv_offset, &
@@ -2959,14 +2958,14 @@ CPSourceFileRef,&
 
        ! dealloc
        DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
        DEALLOCATE(send_buf,rcv_buf,real_rcv_size, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
        DEALLOCATE(pp_ub,pp_lb,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
        CALL timestop(handle2)
     ELSE
-       CPPostcondition(.NOT.local_data,cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.local_data)
     END IF
 
     CALL timestop(handle)
@@ -2998,7 +2997,7 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     ALLOCATE(preconditioner,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     last_precond_id=last_precond_id+1
     preconditioner%id_nr=last_precond_id
     preconditioner%ref_count=1
@@ -3032,8 +3031,8 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,failure)
-    CPPrecondition(preconditioner%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(preconditioner))
+    CPASSERT(preconditioner%ref_count>0)
     IF (PRESENT(transpose)) preconditioner%transpose=transpose
     do_3d_coeff=.FALSE.
     preconditioner%kind=precond_kind
@@ -3072,7 +3071,7 @@ CPSourceFileRef,&
        preconditioner%normalize=.FALSE.
        do_3d_coeff=.TRUE.
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     IF (do_3d_coeff) THEN
        s=1._dp
@@ -3119,8 +3118,8 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(preconditioner%ref_count>1,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(preconditioner))
+    CPASSERT(preconditioner%ref_count>1)
     preconditioner%ref_count=preconditioner%ref_count+1
   END SUBROUTINE pw_spline_precond_retain
 
@@ -3141,12 +3140,12 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     IF (ASSOCIATED(preconditioner)) THEN
-       CPPreconditionNoFail(preconditioner%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(preconditioner%ref_count>0)
        preconditioner%ref_count=preconditioner%ref_count-1
        IF (preconditioner%ref_count==0) THEN
           CALL pw_pool_release(preconditioner%pool)
           DEALLOCATE(preconditioner,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE pw_spline_precond_release
@@ -3170,8 +3169,8 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,failure)
-    CPPrecondition(preconditioner%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(preconditioner))
+    CPASSERT(preconditioner%ref_count>0)
     SELECT CASE(preconditioner%kind)
     CASE(no_precond)
        CALL pw_copy(in_v,out_v)
@@ -3198,7 +3197,7 @@ CPSourceFileRef,&
                transpose=preconditioner%transpose)
        END IF
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
   END SUBROUTINE pw_spline_do_precond
 
@@ -3344,8 +3343,8 @@ CPSourceFileRef,&
                                                 stat
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: s
-    LOGICAL :: failure, has_l_boundary, has_u_boundary, is_split, &
-      my_normalize, my_sharpen, my_smooth_boundary, my_transpose
+    LOGICAL :: has_l_boundary, has_u_boundary, is_split, my_normalize, &
+      my_sharpen, my_smooth_boundary, my_transpose
     REAL(kind=dp)                            :: in_val_f, in_val_l, &
                                                 in_val_tmp, w_j, w_k
     REAL(kind=dp), DIMENSION(-1:1)           :: w
@@ -3365,8 +3364,8 @@ CPSourceFileRef,&
     IF (PRESENT(transpose)) my_transpose=transpose
     my_smooth_boundary=.FALSE.
     IF (PRESENT(smooth_boundary)) my_smooth_boundary=smooth_boundary
-    CPAssert(.not.my_normalize.OR.my_sharpen,cp_failure_level,routineP,failure)
-    CPAssert(.NOT.my_smooth_boundary.OR..NOT.my_sharpen,cp_failure_level,routineP,failure)
+    CPASSERT(.not.my_normalize.OR.my_sharpen)
+    CPASSERT(.NOT.my_smooth_boundary.OR..NOT.my_sharpen)
     DO i=1,3
        s(i)=bo(2,i)-bo(1,i)+1
     END DO
@@ -3379,7 +3378,7 @@ CPSourceFileRef,&
        ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
             u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
             tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
@@ -3393,7 +3392,7 @@ CPSourceFileRef,&
             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
             pw_in%pw_grid%para%group)
        DEALLOCATE(tmp,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     END IF
 
     n_els=s(1)
@@ -3490,7 +3489,7 @@ CPSourceFileRef,&
                 IF (has_l_boundary) THEN
                    IF (my_transpose) THEN
                       IF (s(1)==1) THEN
-                         CPAssert(.not.has_u_boundary,cp_failure_level,routineP,failure)
+                         CPASSERT(.not.has_u_boundary)
                          in_val_tmp=u_boundary(myj,myk)
                       ELSE
                          in_val_tmp=in_val(bo(1,1)+1,myj,myk)
@@ -3548,7 +3547,7 @@ CPSourceFileRef,&
                    IF (my_transpose) THEN
                       in_val_l=in_val(bo(2,1),myj,myk)
                       IF (s(1)==1) THEN
-                         CPAssert(.not.has_l_boundary,cp_failure_level,routineP,failure)
+                         CPASSERT(.not.has_l_boundary)
                          in_val_tmp=l_boundary(myj,myk)
                       ELSE
                          in_val_tmp=in_val(bo(2,1)-1,myj,myk)
@@ -3668,7 +3667,7 @@ CPSourceFileRef,&
 
     IF (is_split) THEN
        DEALLOCATE(l_boundary,u_boundary,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE pw_nn_compose_r_no_pbc
 

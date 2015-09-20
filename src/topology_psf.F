@@ -117,7 +117,7 @@ CONTAINS
        IF (output_unit>0) THEN
           WRITE(output_unit,'(A)')"ERROR| Missing PSF specification line"
        END IF
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
     DO WHILE (parser_test_next_token(parser)/="EOL")
        CALL parser_get_object  (parser,field)
@@ -247,7 +247,7 @@ CPSourceFileRef,&
             ANY(conn_info%bond_a(nbond_prev+1:)>natom) .OR. &
             ANY(conn_info%bond_b(nbond_prev+1:)<=0) .OR. &
             ANY(conn_info%bond_b(nbond_prev+1:)>natom)) THEN
-          CPAssert(.FALSE.,cp_failure_level,"topology_read, invalid bond",failure)
+          CPABORT("topology_read, invalid bond")
        END IF
        conn_info%bond_a(nbond_prev+1:)=conn_info%bond_a(nbond_prev+1:)+natom_prev
        conn_info%bond_b(nbond_prev+1:)=conn_info%bond_b(nbond_prev+1:)+natom_prev
@@ -471,7 +471,7 @@ CPSourceFileRef,&
           END IF
        ELSE
           IF(atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)) THEN
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END IF
        END IF
     END DO
@@ -498,20 +498,20 @@ CPSourceFileRef,&
     conn_info%onfo_b(1:) = conn_info%phi_d(1:)
     ! Reorder bonds
     ALLOCATE(ex_bond_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO I=1,natom
        ALLOCATE(ex_bond_list(I)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
     CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N)
     ! Reorder bends
     ALLOCATE(ex_bend_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO I=1,natom
        ALLOCATE(ex_bend_list(I)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     N = 0
     IF(ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
@@ -527,23 +527,23 @@ CPSourceFileRef,&
     ! deallocate bends
     DO I=1,natom
        DEALLOCATE(ex_bend_list(I)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     DEALLOCATE(ex_bend_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! deallocate bonds
     DO I=1,natom
        DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     DEALLOCATE(ex_bond_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Get unique onfo
     ALLOCATE(ex_bond_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO I=1,natom
        ALLOCATE(ex_bond_list(I)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     N = 0
     IF(ASSOCIATED(conn_info%onfo_a)) N = nonfo
@@ -563,10 +563,10 @@ CPSourceFileRef,&
     END DO
     DO I=1,natom
        DEALLOCATE(ex_bond_list(I)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     DEALLOCATE(ex_bond_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL reallocate(conn_info%onfo_a,1,nonfo)
     CALL reallocate(conn_info%onfo_b,1,nonfo)
 
@@ -635,14 +635,14 @@ CPSourceFileRef,&
           END DO
           ! And now modify the molecule name if two molecules have been bridged
           ALLOCATE(ex_bond_list(natom),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(tag_mols(natom),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(wrk(natom),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO j=1,natom
              ALLOCATE(ex_bond_list(j)%array1(0),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDDO
           CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, nbond+n_rep)
           ! Loop over atoms to possiblyt change molecule name
@@ -665,7 +665,7 @@ CPSourceFileRef,&
              noe = iend-istart+1
              istart1 = MINVAL(wrk(istart:iend))
              iend1   = MAXVAL(wrk(istart:iend))
-             CPPostcondition(iend1-istart1+1==noe,cp_failure_level,routineP,failure)
+             CPASSERT(iend1-istart1+1==noe)
              atom_info%id_molname(istart1:iend1)=str2id(s2s("MOL"//cp_to_string(item)))
              item = tag_mols(i)
              istart = i
@@ -674,19 +674,19 @@ CPSourceFileRef,&
           noe  = iend-istart+1
           istart1 = MINVAL(wrk(istart:iend))
           iend1   = MAXVAL(wrk(istart:iend))
-          CPPostcondition(iend1-istart1+1==noe,cp_failure_level,routineP,failure)
+          CPASSERT(iend1-istart1+1==noe)
           atom_info%id_molname(istart1:iend1)=str2id(s2s("MOL"//cp_to_string(item)))
           ! Deallocate bonds
           DO i=1,natom
              DEALLOCATE(ex_bond_list(i)%array1,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDDO
           DEALLOCATE(ex_bond_list,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(tag_mols,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(wrk,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        ! Any new defined angle
        subsection => section_vals_get_subs_vals(section,"ANGLES")
@@ -789,7 +789,7 @@ CPSourceFileRef,&
 
     ! Check for charges.. (need to dump them in the PSF..)
     ALLOCATE(charges(topology%natoms),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     charges = atom_info%atm_charge
     ! Collect charges from Input file..
     NULLIFY(tmp_section)
@@ -797,9 +797,9 @@ CPSourceFileRef,&
     CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg)
     IF (explicit) THEN
        ALLOCATE(charge_atm(nchg),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(charge_inp(nchg),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL read_chrg_section(charge_atm,charge_inp,section=tmp_section,start=0)
        DO j = 1, topology%natoms
           record = id2str(atom_info%id_atmname(j))
@@ -813,9 +813,9 @@ CPSourceFileRef,&
           END DO
        END DO
        DEALLOCATE(charge_atm,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(charge_inp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     ! fixup for topology output
     DO j = 1, topology%natoms
@@ -876,7 +876,7 @@ CPSourceFileRef,&
     END DO
     WRITE(file_unit,FMT='(/)')
     DEALLOCATE(charges,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     WRITE(file_unit,FMT='('//TRIM(c_int)//',A)')SIZE(conn_info%bond_a)," !NBOND"
     DO i=1,SIZE(conn_info%bond_a),4

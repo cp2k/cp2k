@@ -67,7 +67,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(oce_set%intac(nkind*nkind),STAT=istat)
-    CPPrecondition(istat==0,cp_warning_level,routineP,failure)
+    CPASSERT(istat==0)
     DO i=1,nkind*nkind
       NULLIFY(oce_set%intac(i)%alist)
       NULLIFY(oce_set%intac(i)%asort)

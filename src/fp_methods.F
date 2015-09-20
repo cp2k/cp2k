@@ -73,9 +73,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(fp_env),cp_failure_level,routineP,failure)
-    CPPrecondition(fp_env%use_fp,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(fp_env))
+    CPASSERT(fp_env%use_fp)
+    CPASSERT(ASSOCIATED(subsys))
     CALL cp_subsys_get(subsys,particles=particles_list)
     particles=>particles_list%els
 
@@ -145,7 +145,7 @@ CONTAINS
 
     ! the combinatorial weight
     i=fp_env%i2+fp_env%o1
-    CPPrecondition(i<=maxfac,cp_failure_level,routineP,failure)
+    CPASSERT(i<=maxfac)
     fp_env%comb_weight=(fac(fp_env%i2)*fac(fp_env%o1))/fac(i)
 
     ! we can add the bias potential now.

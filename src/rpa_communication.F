@@ -87,7 +87,7 @@ MODULE rpa_communication
     ! create the RPA proc_map
     IF(.NOT.(ALLOCATED(RPA_proc_map))) THEN
       ALLOCATE(RPA_proc_map(-para_env_RPA%num_pe:2*para_env_RPA%num_pe-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       RPA_proc_map=0
       DO i=0,para_env_RPA%num_pe-1
         RPA_proc_map(i)=i
@@ -124,7 +124,7 @@ MODULE rpa_communication
 
     ! 0) create the map for the local sizes
     ALLOCATE(local_size_source(2,0:para_env_RPA%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     local_size_source=0
     local_size_source(1,para_env_RPA%mepos)=nrow_local_s
     local_size_source(2,para_env_RPA%mepos)=ncol_local_s
@@ -132,7 +132,7 @@ MODULE rpa_communication
 
     ! 1) loop over my local data and define a map for the proc to send data
     ALLOCATE(map_send_size(0:para_env_RPA%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     map_send_size=0
     DO jjB=1, ncol_local_s
       j_global=col_indices_s(jjB)
@@ -149,7 +149,7 @@ MODULE rpa_communication
 
     ! 2) loop over my local data of fm_mat_S and define a map for the proc from which rec data
     ALLOCATE(map_rec_size(0:para_env_RPA%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     map_rec_size=0
     DO jjB=1, ncol_local_d
       j_global=col_indices_d(jjB)
@@ -174,12 +174,12 @@ MODULE rpa_communication
     END DO
 
     ALLOCATE(buffer_send(number_of_send),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! 3.5) prepare the index map
     CALL timeset(routineN//"_bS",handle2)
     ALLOCATE(proc2counter(0:para_env_RPA%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     proc2counter=0
     ! allocate buffer for sending
     send_counter=0
@@ -191,7 +191,7 @@ MODULE rpa_communication
         send_counter=send_counter+1
         ! prepare the sending buffer
         ALLOCATE(buffer_send(send_counter)%indx(2,size_send_buffer),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         buffer_send(send_counter)%indx=0
 
         proc2counter(proc_send)=send_counter
@@ -199,7 +199,7 @@ MODULE rpa_communication
     END DO
 
     ALLOCATE(index_counter(0:para_env_RPA%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     index_counter=0
     DO iiB=1, nrow_local_s
       i_global=row_indices_s(iiB)
@@ -233,7 +233,7 @@ MODULE rpa_communication
     END DO
 
     ALLOCATE(buffer_rec(number_of_rec),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! 4.5) prepare the index map
     CALL timeset(routineN//"_bR",handle2)
@@ -247,7 +247,7 @@ MODULE rpa_communication
         rec_counter=rec_counter+1
         ! allocate the auxilliary index structure
         ALLOCATE(buffer_rec(rec_counter)%indx(2,size_rec_buffer),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         buffer_rec(rec_counter)%indx=0
 
         proc2counter(proc_receive)=rec_counter
@@ -417,7 +417,7 @@ MODULE rpa_communication
         rec_counter=rec_counter+1
         ! prepare the buffer for receive
         ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         buffer_rec(rec_counter)%msg=0.0_dp
         buffer_rec(rec_counter)%proc=proc_receive
 
@@ -432,7 +432,7 @@ MODULE rpa_communication
     CALL timeset(routineN//"_bS",handle2)
     ! allocate buffer for sending, fill the buffer, send the message
     ALLOCATE(req_send(number_of_send),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     send_counter=0
     DO proc_shift=1, para_env_RPA%num_pe-1
       proc_send=RPA_proc_map(para_env_RPA%mepos+proc_shift)
@@ -442,7 +442,7 @@ MODULE rpa_communication
         send_counter=send_counter+1
         ! allocate
         ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         buffer_send(send_counter)%msg=0.0_dp
         buffer_send(send_counter)%proc=proc_send
     

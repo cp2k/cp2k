@@ -81,7 +81,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(file_name.NE."",cp_failure_level,routineP,failure)
+    CPASSERT(file_name.NE."")
 
     ind = INDEX(file_name,".",BACK = .TRUE.)
     IF(.NOT.ind.EQ.0) THEN
@@ -91,7 +91,7 @@ CONTAINS
        WRITE(result_file_name,*)TRIM(file_name),".",extra
     END IF
     result_file_name=TRIM(ADJUSTL(result_file_name))
-    CPPostcondition(result_file_name.NE."",cp_failure_level,routineP,failure)
+    CPASSERT(result_file_name.NE."")
   END FUNCTION expand_file_name_ending
 
 ! *****************************************************************************
@@ -113,7 +113,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(file_name.NE."",cp_failure_level,routineP,failure)
+    CPASSERT(file_name.NE."")
 
     ind = INDEX(file_name,".",BACK = .TRUE.)
     IF(.NOT.ind.EQ.0) THEN
@@ -123,7 +123,7 @@ CONTAINS
        WRITE(result_file_name,*)TRIM(file_name),"_",extra
     END IF
     result_file_name=TRIM(ADJUSTL(result_file_name))
-    CPPostcondition(result_file_name.NE."",cp_failure_level,routineP,failure)
+    CPASSERT(result_file_name.NE."")
   END FUNCTION expand_file_name_char
 
 ! *****************************************************************************
@@ -147,7 +147,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(file_name.NE."",cp_failure_level,routineP,failure)
+    CPASSERT(file_name.NE."")
 
     rval_to_string = ""
 
@@ -165,7 +165,7 @@ CONTAINS
        END IF
     END IF
     result_file_name=TRIM(ADJUSTL(result_file_name))
-    CPPostcondition(result_file_name.NE."",cp_failure_level,routineP,failure)
+    CPASSERT(result_file_name.NE."")
   END FUNCTION expand_file_name_temp
 
 ! *****************************************************************************
@@ -189,7 +189,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(file_name.NE."",cp_failure_level,routineP,failure)
+    CPASSERT(file_name.NE."")
 
     rval_to_string = ""
 
@@ -208,7 +208,7 @@ CONTAINS
        END IF
     END IF
     result_file_name=TRIM(ADJUSTL(result_file_name))
-    CPPostcondition(result_file_name.NE."",cp_failure_level,routineP,failure)
+    CPASSERT(result_file_name.NE."")
   END FUNCTION expand_file_name_int
 
 !------------------------------------------------------------------------------
@@ -237,10 +237,10 @@ CONTAINS
 
     failure = .FALSE.
     c_tmp=""
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env%gt_act),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
+    CPASSERT(ASSOCIATED(tmc_env%params))
+    CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
 
     IF(failure) RETURN
 
@@ -314,15 +314,15 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(nr_mv_types)    :: mv_weight_tmp
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env%gt_act),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
+    CPASSERT(ASSOCIATED(tmc_env%params))
+    CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
     IF(failure) RETURN
 
     IF(file_name.EQ.tmc_default_restart_in_file_name) THEN
       INQUIRE(FILE=tmc_default_restart_in_file_name, EXIST=flag)
-      CPPrecondition(flag,cp_failure_level,routineP,failure)
+      CPASSERT(flag)
       CALL open_file(file_name=tmc_default_restart_in_file_name, file_status="OLD", &
                    file_action="READ", unit_number=file_ptr)
       READ(file_ptr,*) file_name
@@ -414,12 +414,12 @@ CONTAINS
     failure   = .FALSE.
     file_name = ""
 
-    CPPrecondition(ASSOCIATED(result_list),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(result_count),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%Temp),cp_failure_level,routineP,failure)
-    CPPrecondition(conf_updated.GE.0,cp_failure_level,routineP,failure)
-    CPPrecondition(conf_updated.LE.SIZE(tmc_params%Temp),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(result_list))
+    CPASSERT(ASSOCIATED(result_count))
+    CPASSERT(ASSOCIATED(tmc_params))
+    CPASSERT(ASSOCIATED(tmc_params%Temp))
+    CPASSERT(conf_updated.GE.0)
+    CPASSERT(conf_updated.LE.SIZE(tmc_params%Temp))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -480,10 +480,10 @@ CONTAINS
     header    = ""
     print_it  = .TRUE.
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,failure)
-    CPPrecondition(PRESENT(conf_nr).OR.PRESENT(conf_info),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(tmc_params))
+    CPASSERT(ASSOCIATED(tmc_params%atoms))
+    CPASSERT(PRESENT(conf_nr).OR.PRESENT(conf_info))
 
     IF(print_it) THEN
       ! start the timing
@@ -491,11 +491,11 @@ CONTAINS
   
       ! set default file name
       IF(PRESENT(file_name)) THEN
-        CPPrecondition(file_name.NE."",cp_failure_level,routineP,failure)
+        CPASSERT(file_name.NE."")
         file_name_act = file_name
       ELSE
-        CPPrecondition(ASSOCIATED(tmc_params%Temp),cp_failure_level,routineP,failure)
-        CPPrecondition(PRESENT(temp_index),cp_failure_level,routineP,failure)
+        CPASSERT(ASSOCIATED(tmc_params%Temp))
+        CPASSERT(PRESENT(temp_index))
         file_name_act = expand_file_name_temp(file_name=tmc_default_trajectory_file_name, &
                                           rvalue=tmc_params%Temp(temp_index))
       END IF
@@ -621,12 +621,12 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name_tmp
     INTEGER                                  :: file_ptr
-    LOGICAL                                  :: failure, file_exists
+    LOGICAL                                  :: file_exists
 
-    CPPrecondition(ASSOCIATED(dip),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(dip))
 
     IF(PRESENT(file_ext)) THEN
-      CPPrecondition(file_ext.NE."",cp_failure_level,routineP,failure)
+      CPASSERT(file_ext.NE."")
       file_name_tmp = expand_file_name_ending(file_name,TRIM(file_ext))
     ELSE
       file_name_tmp = expand_file_name_ending(file_name,"dip")
@@ -676,9 +676,9 @@ CONTAINS
     conf_nr_old = conf_nr
     files_conf_missmatch = .FALSE.
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_ana%atoms),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(tmc_ana))
+    CPASSERT(ASSOCIATED(tmc_ana%atoms))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -696,7 +696,7 @@ CONTAINS
              cp_to_string(tmc_ana%last_elem%nr),&
              failure=flag, only_ionode=.TRUE.)
       ELSE
-        CPPostcondition(i_tmp.GT.conf_nr_old,cp_failure_level,routineP,failure)
+        CPASSERT(i_tmp.GT.conf_nr_old)
         conf_nr = i_tmp
         elem%nr = i_tmp
       END IF
@@ -813,10 +813,10 @@ CONTAINS
     failure = .FALSE.
     stat = TMC_STATUS_FAILED
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(elem%pos),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
-    CPPrecondition(tmc_ana%id_traj.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(elem%pos))
+    CPASSERT(ASSOCIATED(tmc_ana))
+    CPASSERT(tmc_ana%id_traj.GT.0)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -892,10 +892,10 @@ CONTAINS
     failure = .FALSE.
     stat = TMC_STATUS_FAILED
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(elem%dipole),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
-    CPPrecondition(tmc_ana%id_dip.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(elem%dipole))
+    CPASSERT(ASSOCIATED(tmc_ana))
+    CPASSERT(tmc_ana%id_dip.GT.0)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -953,10 +953,10 @@ CONTAINS
     failure = .FALSE.
     stat = TMC_STATUS_FAILED
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_ana%cell),cp_failure_level,routineP,failure)
-    CPPrecondition(tmc_ana%id_cell.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(tmc_ana))
+    CPASSERT(ASSOCIATED(tmc_ana%cell))
+    CPASSERT(tmc_ana%id_cell.GT.0)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1020,7 +1020,7 @@ CONTAINS
     LOGICAL                                  :: failure, file_exists
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_ana))
 
     stat = TMC_STATUS_WAIT_FOR_NEW_TASK
 
@@ -1028,9 +1028,9 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF(PRESENT(dir_ind)) THEN
-      CPPrecondition(ASSOCIATED(tmc_ana%dirs),cp_failure_level,routineP,failure)
-      CPPrecondition(dir_ind.GT.0,cp_failure_level,routineP,failure)
-      CPPrecondition(dir_ind.LE.SIZE(tmc_ana%dirs),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(tmc_ana%dirs))
+      CPASSERT(dir_ind.GT.0)
+      CPASSERT(dir_ind.LE.SIZE(tmc_ana%dirs))
 
       IF(INDEX(tmc_ana%dirs(dir_ind),"/", BACK=.TRUE.).EQ.&
          LEN_TRIM(tmc_ana%dirs(dir_ind))) THEN
@@ -1120,7 +1120,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_ana))
 
     ! start the timing
     CALL timeset(routineN,handle)

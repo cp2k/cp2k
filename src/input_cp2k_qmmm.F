@@ -99,7 +99,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="qmmm",&
          description="Input for QM/MM calculations.",&
          n_keywords=6, n_subsections=3, repeats=.FALSE., &
@@ -291,7 +291,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MM_KIND",&
          description="Information about the MM kind in the QM/MM scheme",&
          n_keywords=2, n_subsections=0, repeats=.TRUE.)
@@ -337,7 +337,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="FORCE_MIXING",&
             description="This section enables and defines parameters for force-mixing based QM/MM,"//&
             " which actually does two conventional QM/MM calculations, on a small "//&
@@ -575,7 +575,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="QM_KIND",&
          description="Information about the QM kind in the QM/MM scheme",&
          n_keywords=3, n_subsections=0, repeats=.TRUE.)
@@ -612,7 +612,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="WALLS",&
          description="Enables Walls for the QM box. This can be used to avoid that QM "//&
          " atoms move out of the QM box.",&
@@ -668,7 +668,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="IMAGE_CHARGE",&
          description="Inclusion of polarization effects within the image charge "//&
                      "approach for systems where QM molecules are physisorbed on e.g. metal "//&
@@ -749,7 +749,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword, subsection)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PERIODIC",&
          description="Specify parameters for QM/MM periodic boundary conditions calculations",&
          n_keywords=0, n_subsections=0, repeats=.FALSE., &
@@ -815,7 +815,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="MULTIPOLE",&
          description="This section is used to set up the decoupling of QM periodic images with "//&
@@ -901,7 +901,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(subsection,keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="FORCEFIELD",&
          description="Specify information on the QM/MM forcefield",&
          n_keywords=0, n_subsections=2, repeats=.TRUE.)
@@ -941,7 +941,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(subsection )
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="NONBONDED",&
          description="Specify information on the QM/MM non-bonded forcefield",&
          n_keywords=0, n_subsections=2, repeats=.TRUE.)
@@ -982,7 +982,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword, subsection )
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="LINK",&
          description="Specify information on the QM/MM link treatment",&
          n_keywords=7, n_subsections=2, repeats=.TRUE.)
@@ -1181,7 +1181,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="interpolator",&
          description="kind of interpolation used between the multigrids",&
          n_keywords=5, n_subsections=0, repeats=.FALSE.)
@@ -1283,7 +1283,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(keyword, print_key)
     CALL section_create(section,name="print",&
          description="Section of possible print options specific of the QMMM code.",&

@@ -214,11 +214,11 @@ CONTAINS
     ! 1. Nullify and allocate things in topology
     !-----------------------------------------------------------------------------
     ALLOCATE(topology%atom_info,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(topology%conn_info,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(topology%cons_info,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !-----------------------------------------------------------------------------
     ! 2. Initialize and Nullify things in topology
     !-----------------------------------------------------------------------------
@@ -416,162 +416,162 @@ CONTAINS
     !-----------------------------------------------------------------------------
     IF(ASSOCIATED(topology%atom_info%id_molname)) THEN
        DEALLOCATE(topology%atom_info%id_molname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%id_resname)) THEN
        DEALLOCATE(topology%atom_info%id_resname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%resid)) THEN
        DEALLOCATE(topology%atom_info%resid,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%id_atmname)) THEN
        DEALLOCATE(topology%atom_info%id_atmname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%id_atom_names)) THEN
        DEALLOCATE(topology%atom_info%id_atom_names,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%r)) THEN
        DEALLOCATE(topology%atom_info%r,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%map_mol_typ)) THEN
        DEALLOCATE(topology%atom_info%map_mol_typ,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%map_mol_num)) THEN
        DEALLOCATE(topology%atom_info%map_mol_num,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%map_mol_res)) THEN
        DEALLOCATE(topology%atom_info%map_mol_res,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%atm_charge)) THEN
        DEALLOCATE(topology%atom_info%atm_charge,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%atm_mass)) THEN
        DEALLOCATE(topology%atom_info%atm_mass,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%occup)) THEN
        DEALLOCATE(topology%atom_info%occup,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%beta)) THEN
        DEALLOCATE(topology%atom_info%beta,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%atom_info%id_element)) THEN
        DEALLOCATE(topology%atom_info%id_element,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     !-----------------------------------------------------------------------------
     ! 2. DEALLOCATE things in topology%conn_info
     !-----------------------------------------------------------------------------
     IF(ASSOCIATED(topology%conn_info%bond_a)) THEN
        DEALLOCATE(topology%conn_info%bond_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%bond_b)) THEN
        DEALLOCATE(topology%conn_info%bond_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%bond_type)) THEN
        DEALLOCATE(topology%conn_info%bond_type,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%ub_a)) THEN
        DEALLOCATE(topology%conn_info%ub_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%ub_b)) THEN
        DEALLOCATE(topology%conn_info%ub_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%ub_c)) THEN
        DEALLOCATE(topology%conn_info%ub_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%theta_a)) THEN
        DEALLOCATE(topology%conn_info%theta_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%theta_b)) THEN
        DEALLOCATE(topology%conn_info%theta_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%theta_c)) THEN
        DEALLOCATE(topology%conn_info%theta_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%theta_type)) THEN
        DEALLOCATE(topology%conn_info%theta_type,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_a)) THEN
        DEALLOCATE(topology%conn_info%phi_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_b)) THEN
        DEALLOCATE(topology%conn_info%phi_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_c)) THEN
        DEALLOCATE(topology%conn_info%phi_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_d)) THEN
        DEALLOCATE(topology%conn_info%phi_d,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%phi_type)) THEN
        DEALLOCATE(topology%conn_info%phi_type,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_a)) THEN
        DEALLOCATE(topology%conn_info%impr_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_b)) THEN
        DEALLOCATE(topology%conn_info%impr_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_c)) THEN
        DEALLOCATE(topology%conn_info%impr_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_d)) THEN
        DEALLOCATE(topology%conn_info%impr_d,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%impr_type)) THEN
        DEALLOCATE(topology%conn_info%impr_type,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%onfo_a)) THEN
        DEALLOCATE(topology%conn_info%onfo_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%onfo_b)) THEN
        DEALLOCATE(topology%conn_info%onfo_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%c_bond_a)) THEN
        DEALLOCATE(topology%conn_info%c_bond_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%c_bond_b)) THEN
        DEALLOCATE(topology%conn_info%c_bond_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info%c_bond_type)) THEN
        DEALLOCATE(topology%conn_info%c_bond_type,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     !-----------------------------------------------------------------------------
     ! 3. DEALLOCATE things in topology%cons_info
@@ -586,15 +586,15 @@ CONTAINS
     CALL cell_release(topology%cell_muc)
     IF(ASSOCIATED(topology%atom_info)) THEN
        DEALLOCATE(topology%atom_info,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%conn_info)) THEN
        DEALLOCATE(topology%conn_info,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(topology%cons_info)) THEN
        DEALLOCATE(topology%cons_info,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE deallocate_topology
@@ -618,43 +618,43 @@ CONTAINS
     ! Fixed Atoms
     IF(ASSOCIATED(constraint_info%fixed_atoms)) THEN
        DEALLOCATE(constraint_info%fixed_atoms, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_type)) THEN
        DEALLOCATE(constraint_info%fixed_type, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_molnames)) THEN
        DEALLOCATE(constraint_info%fixed_molnames, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_mol_type)) THEN
        DEALLOCATE(constraint_info%fixed_mol_type, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_restraint)) THEN
        DEALLOCATE(constraint_info%fixed_restraint, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_k0)) THEN
        DEALLOCATE(constraint_info%fixed_k0, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_mol_restraint)) THEN
        DEALLOCATE(constraint_info%fixed_mol_restraint, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_mol_k0)) THEN
        DEALLOCATE(constraint_info%fixed_mol_k0, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_exclude_qm)) THEN
        DEALLOCATE(constraint_info%fixed_exclude_qm, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%fixed_exclude_mm)) THEN
        DEALLOCATE(constraint_info%fixed_exclude_mm, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     ! Collective Constraint
     IF (ASSOCIATED(constraint_info%colvar_set)) THEN
@@ -665,218 +665,218 @@ CONTAINS
           END IF
        END DO
        DEALLOCATE(constraint_info%colvar_set, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_colv_mol)) THEN
        DEALLOCATE(constraint_info%const_colv_mol,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_colv_molname)) THEN
        DEALLOCATE(constraint_info%const_colv_molname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_colv_target)) THEN
        DEALLOCATE(constraint_info%const_colv_target,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_colv_target_growth)) THEN
        DEALLOCATE(constraint_info%const_colv_target_growth,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%colv_intermolecular)) THEN
        DEALLOCATE(constraint_info%colv_intermolecular,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%colv_restraint)) THEN
        DEALLOCATE(constraint_info%colv_restraint,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%colv_k0)) THEN
        DEALLOCATE(constraint_info%colv_k0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%colv_exclude_qm)) THEN
        DEALLOCATE(constraint_info%colv_exclude_qm, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%colv_exclude_mm)) THEN
        DEALLOCATE(constraint_info%colv_exclude_mm, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     ! G3x3
     IF(ASSOCIATED(constraint_info%const_g33_mol)) THEN
        DEALLOCATE(constraint_info%const_g33_mol,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_molname)) THEN
        DEALLOCATE(constraint_info%const_g33_molname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_a)) THEN
        DEALLOCATE(constraint_info%const_g33_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_b)) THEN
        DEALLOCATE(constraint_info%const_g33_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_c)) THEN
        DEALLOCATE(constraint_info%const_g33_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_dab)) THEN
        DEALLOCATE(constraint_info%const_g33_dab,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_dac)) THEN
        DEALLOCATE(constraint_info%const_g33_dac,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g33_dbc)) THEN
        DEALLOCATE(constraint_info%const_g33_dbc,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%g33_intermolecular)) THEN
        DEALLOCATE(constraint_info%g33_intermolecular,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%g33_restraint)) THEN
        DEALLOCATE(constraint_info%g33_restraint,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%g33_k0)) THEN
        DEALLOCATE(constraint_info%g33_k0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%g33_exclude_qm)) THEN
        DEALLOCATE(constraint_info%g33_exclude_qm, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%g33_exclude_mm)) THEN
        DEALLOCATE(constraint_info%g33_exclude_mm, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     ! G4x6
     IF(ASSOCIATED(constraint_info%const_g46_mol)) THEN
        DEALLOCATE(constraint_info%const_g46_mol,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_molname)) THEN
        DEALLOCATE(constraint_info%const_g46_molname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_a)) THEN
        DEALLOCATE(constraint_info%const_g46_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_b)) THEN
        DEALLOCATE(constraint_info%const_g46_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_c)) THEN
        DEALLOCATE(constraint_info%const_g46_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_d)) THEN
        DEALLOCATE(constraint_info%const_g46_d,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_dab)) THEN
        DEALLOCATE(constraint_info%const_g46_dab,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_dac)) THEN
        DEALLOCATE(constraint_info%const_g46_dac,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_dbc)) THEN
        DEALLOCATE(constraint_info%const_g46_dbc,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_dad)) THEN
        DEALLOCATE(constraint_info%const_g46_dad,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_dbd)) THEN
        DEALLOCATE(constraint_info%const_g46_dbd,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_g46_dcd)) THEN
        DEALLOCATE(constraint_info%const_g46_dcd,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%g46_intermolecular)) THEN
        DEALLOCATE(constraint_info%g46_intermolecular,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%g46_restraint)) THEN
        DEALLOCATE(constraint_info%g46_restraint,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%g46_k0)) THEN
        DEALLOCATE(constraint_info%g46_k0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%g46_exclude_qm)) THEN
        DEALLOCATE(constraint_info%g46_exclude_qm, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%g46_exclude_mm)) THEN
        DEALLOCATE(constraint_info%g46_exclude_mm, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     ! virtual_site
     IF(ASSOCIATED(constraint_info%const_vsite_mol)) THEN
        DEALLOCATE(constraint_info%const_vsite_mol,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_molname)) THEN
        DEALLOCATE(constraint_info%const_vsite_molname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_a)) THEN
        DEALLOCATE(constraint_info%const_vsite_a,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_b)) THEN
        DEALLOCATE(constraint_info%const_vsite_b,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_c)) THEN
        DEALLOCATE(constraint_info%const_vsite_c,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_d)) THEN
        DEALLOCATE(constraint_info%const_vsite_d,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_wbc)) THEN
        DEALLOCATE(constraint_info%const_vsite_wbc,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%const_vsite_wdc)) THEN
        DEALLOCATE(constraint_info%const_vsite_wdc,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%vsite_intermolecular)) THEN
        DEALLOCATE(constraint_info%vsite_intermolecular,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%vsite_restraint)) THEN
        DEALLOCATE(constraint_info%vsite_restraint,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%vsite_k0)) THEN
        DEALLOCATE(constraint_info%vsite_k0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%vsite_exclude_qm)) THEN
        DEALLOCATE(constraint_info%vsite_exclude_qm, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(constraint_info%vsite_exclude_mm)) THEN
        DEALLOCATE(constraint_info%vsite_exclude_mm, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE deallocate_constraint
 
@@ -902,32 +902,32 @@ CONTAINS
 
     IF (ASSOCIATED(atom_info%id_molname)) THEN
        DEALLOCATE(atom_info%id_molname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     IF (ASSOCIATED(atom_info%resid)) THEN
        DEALLOCATE(atom_info%resid,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     IF (ASSOCIATED(atom_info%id_resname)) THEN
        DEALLOCATE(atom_info%id_resname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     IF (ASSOCIATED(atom_info%id_atmname)) THEN
        DEALLOCATE(atom_info%id_atmname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     IF (ASSOCIATED(atom_info%atm_charge)) THEN
        DEALLOCATE(atom_info%atm_charge,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     IF (ASSOCIATED(atom_info%atm_mass)) THEN
        DEALLOCATE(atom_info%atm_mass,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE pre_read_topology

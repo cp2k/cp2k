@@ -116,7 +116,7 @@ CONTAINS
           CALL mp_bcast(dispersion_env%r_max,para_env%source,para_env%group)
           ALLOCATE(dispersion_env%q_mesh(nqs),dispersion_env%kernel(0:nr_points,nqs,nqs),&
                    dispersion_env%d2phi_dk2(0:nr_points,nqs,nqs),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           dispersion_env%nqs = nqs
           dispersion_env%nr_points = nr_points
           IF(para_env%source==para_env%mepos) THEN
@@ -148,7 +148,7 @@ CONTAINS
           CALL mp_bcast(dispersion_env%d2phi_dk2,para_env%source,para_env%group)
           ! 2nd derivates for interpolation
           ALLOCATE(dispersion_env%d2y_dx2(nqs,nqs),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL initialize_spline_interpolation (dispersion_env%q_mesh, dispersion_env%d2y_dx2)
           !
           dispersion_env%q_cut = dispersion_env%q_mesh(nqs)
@@ -209,9 +209,9 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_r))
+    CPASSERT(ASSOCIATED(rho_g))
+    CPASSERT(ASSOCIATED(pw_pool))
 
     IF (PRESENT(virial)) THEN
        use_virial = virial%pv_calculate.AND.(.NOT.virial%pv_numer)
@@ -219,10 +219,10 @@ CONTAINS
        use_virial = .FALSE.
     ENDIF
     IF(use_virial) THEN
-       CPPrecondition(.NOT.energy_only,cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.energy_only)
     END IF
     IF (.NOT. energy_only) THEN
-       CPPrecondition(ASSOCIATED(vxc_rho),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(vxc_rho))
     END IF
 
     b_value = dispersion_env%b_value
@@ -235,7 +235,7 @@ CONTAINS
     ! get density derivatives
     nspin=SIZE(rho_r)
     ALLOCATE ( drho_r(3,nspin), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ispin=1,nspin
        DO idir=1,3
           NULLIFY(drho_r(idir,ispin)%pw)
@@ -249,11 +249,11 @@ CONTAINS
 
     np = SIZE(tmp_r%cr3d)
     ALLOCATE ( rho(np), drho(np,3), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     rho = 0.0_dp
     drho = 0.0_dp
     DO ispin=1,nspin
-       CPPrecondition(rho_r(ispin)%pw%in_use==REALDATA3D,cp_failure_level,routineP,failure)
+       CPASSERT(rho_r(ispin)%pw%in_use==REALDATA3D)
        CALL pw_transfer ( rho_g(ispin)%pw, tmp_g)
        CALL pw_transfer ( tmp_g, tmp_r)
        rho(:) = rho(:) + RESHAPE(tmp_r%cr3d,(/np/))
@@ -271,7 +271,7 @@ CONTAINS
 
     IF (energy_only) THEN
        ALLOCATE ( q0(np), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        SELECT CASE (dispersion_env%nl_type)
           CASE DEFAULT
              STOP 'Unknown vdW-DF functional'
@@ -282,7 +282,7 @@ CONTAINS
        END SELECT
     ELSE
        ALLOCATE ( q0(np), dq0_drho(np), dq0_dgradrho(np), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        SELECT CASE (dispersion_env%nl_type)
           CASE DEFAULT
              STOP 'Unknown vdW-DF functional'
@@ -308,7 +308,7 @@ CONTAINS
     !! for the convolution (equation 11 of SOLER).
     !! --------------------------------------------------------------------------------------------------
     ALLOCATE ( thetas(np,dispersion_env%nqs), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !! Interpolate the P_i polynomials defined in equation 3 in SOLER for the particular
     !! q0 values we have.
     CALL spline_interpolation(dispersion_env%q_mesh, dispersion_env%d2y_dx2, q0, thetas)
@@ -341,7 +341,7 @@ CONTAINS
     n2 = SIZE(tmp_r%cr3d,2)
     n3 = SIZE(tmp_r%cr3d,3)
     ALLOCATE ( thetas_g(dispersion_env%nqs), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i=1,dispersion_env%nqs
        tmp_r%cr3d = RESHAPE(thetas(:,i),(/n1,n2,n3/))
        NULLIFY(thetas_g(i)%pw)
@@ -394,7 +394,7 @@ CONTAINS
        !! to access grid points outside their allocated regions.
        !! -------------------------------------------------------------------------
        ALLOCATE ( potential(np), hpot(np), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF(use_virial) THEN
           ! calculates gradient contribution to stress
           grid => tmp_g%pw_grid
@@ -435,7 +435,7 @@ CONTAINS
     END IF
 
     DEALLOCATE ( thetas, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO i=1,dispersion_env%nqs
        CALL pw_pool_give_back_pw(pw_pool, thetas_g(i)%pw)
@@ -449,13 +449,13 @@ CONTAINS
     CALL pw_pool_give_back_pw(pw_pool, tmp_g)
 
     DEALLOCATE ( rho, drho, drho_r, thetas_g, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (energy_only) THEN
        DEALLOCATE ( q0, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        DEALLOCATE ( q0, dq0_drho, dq0_dgradrho, STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     CALL timestop(handle)
@@ -502,9 +502,9 @@ CONTAINS
     CALL timeset(routineN,handle)
     nqs = dispersion_env%nqs
     ALLOCATE(kernel_of_k(nqs,nqs),dkernel_of_dk(nqs,nqs),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(theta(nqs),thetam(nqs),theta_g(nqs),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (PRESENT(virial)) THEN
        use_virial = .TRUE.
@@ -518,7 +518,7 @@ CONTAINS
 
     IF (.NOT.energy_only) THEN
        ALLOCATE(u_vdW(grid%ngpts_cut_local,nqs),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        u_vdW(:,:) = CMPLX(0.0_dp,0.0_dp,KIND=dp)
     END IF
 
@@ -577,12 +577,12 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE(u_vdW,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     DEALLOCATE(theta,thetam,theta_g,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(kernel_of_k,dkernel_of_dk,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -640,8 +640,8 @@ CONTAINS
 
     IF (PRESENT(virial)) THEN
        use_virial = .TRUE.
-       CPPrecondition(PRESENT(drho),cp_failure_level,routineP,failure)
-       CPPrecondition(PRESENT(dvol),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(drho))
+       CPASSERT(PRESENT(dvol))
     ELSE
        use_virial = .FALSE.
     END IF
@@ -655,7 +655,7 @@ CONTAINS
     q_mesh => dispersion_env%q_mesh
     nqs = dispersion_env%nqs
     ALLOCATE(y(nqs),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO i_grid = 1,SIZE(u_vdw,1)
        q_low = 1
@@ -724,7 +724,7 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(y,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -1247,7 +1247,7 @@ CONTAINS
     !! interpolation.  In that case, a kernel file should be generated with a larger number
     !! of radial points.
     !! -------------------------------------------------------------------------------------
-    CPPrecondition(k < Nr_points*dk,cp_failure_level,routineP,failure)
+    CPASSERT(k < Nr_points*dk)
     !! -------------------------------------------------------------------------------------
     kernel_of_k = 0.0_dp
     !! This integer division figures out which bin k is in since the kernel
@@ -1311,7 +1311,7 @@ CONTAINS
     kernel => dispersion_env%kernel
     d2phi_dk2 => dispersion_env%d2phi_dk2
 
-    CPPrecondition(k < Nr_points*dk,cp_failure_level,routineP,failure)
+    CPASSERT(k < Nr_points*dk)
 
     dkernel_of_dk = 0.0_dp
     k_i = INT(k/dk)

@@ -140,7 +140,7 @@ CONTAINS
              ELSE
                 ! Skip compression
                 memory_usage = store_int_env%memory_parameter%actual_memory_usage
-                CPPrecondition((nints/1.2_dp)<=HUGE(0)-memory_usage,cp_failure_level,routineP,failure)
+                CPASSERT((nints/1.2_dp)<=HUGE(0)-memory_usage)
                 IF (memory_usage+nints>SIZE(store_int_env%uncompressed_container)) THEN
                    new_size = INT((memory_usage+nints)*1.2_dp)
                    CALL reallocate(store_int_env%uncompressed_container, 1, new_size)
@@ -256,7 +256,7 @@ CONTAINS
        IF (PRESENT(e2a)) nints_2 = (sepj%natorb*(sepj%natorb+1)/2)
        nints                     = nints_1 + nints_2
        ! This is the upper limit for an spd basis set
-       CPPrecondition(nints<=90,cp_failure_level,routineP,failure)
+       CPASSERT(nints<=90)
        cache_size = store_int_env%memory_parameter%cache_size
        eps_storage= store_int_env%memory_parameter%eps_storage_scaling
        IF (store_int_env%filling_containers) THEN
@@ -312,7 +312,7 @@ CONTAINS
              ELSE
                 ! Skip compression
                 memory_usage = store_int_env%memory_parameter%actual_memory_usage
-                CPPrecondition((nints/1.2_dp)<=HUGE(0)-memory_usage,cp_failure_level,routineP,failure)
+                CPASSERT((nints/1.2_dp)<=HUGE(0)-memory_usage)
                 IF (memory_usage+nints>SIZE(store_int_env%uncompressed_container)) THEN
                    new_size = INT((memory_usage+nints)*1.2_dp)
                    CALL reallocate(store_int_env%uncompressed_container, 1, new_size)

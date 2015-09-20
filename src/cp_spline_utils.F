@@ -92,7 +92,7 @@ CONTAINS
          i_val=interp_kind)
 
     pbc=(interp_kind==spline3_pbc_interp)
-    CPPrecondition(pbc.OR.interp_kind==spline3_nopbc_interp,cp_failure_level,routineP,failure)
+    CPASSERT(pbc.OR.interp_kind==spline3_nopbc_interp)
     bo=pw_coarse_out%pw_grid%bounds_local
     NULLIFY(values,coeffs)
     CALL pw_pool_create_pw(coarse_pool,values, use_data=REALDATA3D,&
@@ -199,7 +199,7 @@ CONTAINS
          i_val=interp_kind)
 
     pbc=(interp_kind==spline3_pbc_interp)
-    CPPrecondition(pbc.OR.interp_kind==spline3_nopbc_interp,cp_failure_level,routineP,failure)
+    CPASSERT(pbc.OR.interp_kind==spline3_nopbc_interp)
     NULLIFY(precond)
     CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
          pool=coarse_pool,pbc=pbc,transpose=.FALSE.)
@@ -216,7 +216,7 @@ CONTAINS
             eps_r=eps_r,eps_x=eps_x,&
             max_iter=max_iter)
     END IF
-    CPPostconditionNoFail(success,cp_warning_level,routineP)
+    CPASSERT(success)
     CALL pw_spline_precond_release(precond)
 
 !FM       nullify(tst_pw)

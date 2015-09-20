@@ -64,10 +64,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
+    CPASSERT(ASSOCIATED(tmc_env%params))
 
     ! start the timing
     CALL timeset(routineN,handle)

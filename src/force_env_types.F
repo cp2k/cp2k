@@ -171,8 +171,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(force_env%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count>0)
     force_env%ref_count=force_env%ref_count+1
   END SUBROUTINE force_env_retain
 
@@ -197,7 +197,7 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(force_env)) THEN
-       CPPreconditionNoFail(force_env%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(force_env%ref_count>0)
        force_env%ref_count=force_env%ref_count-1
        IF (force_env%ref_count==0) THEN
           ! Deallocate SUB_FORCE_ENV
@@ -215,7 +215,7 @@ CONTAINS
                    CALL cp_rm_default_logger()
              END DO
              DEALLOCATE(force_env%sub_force_env,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
 
           SELECT CASE ( force_env%in_use )
@@ -231,10 +231,10 @@ CONTAINS
           CALL globenv_release(force_env%globenv)
           CALL cp_para_env_release(force_env%para_env)
           ! Not deallocated
-          CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,failure)
-          CPAssert(.NOT.ASSOCIATED(force_env%qs_env),cp_warning_level,routineP,failure)
-          CPAssert(.NOT.ASSOCIATED(force_env%eip_env),cp_warning_level,routineP,failure)
-          CPAssert(.NOT.ASSOCIATED(force_env%mixed_env),cp_warning_level,routineP,failure)
+          CPASSERT(.NOT.ASSOCIATED(force_env%fist_env))
+          CPASSERT(.NOT.ASSOCIATED(force_env%qs_env))
+          CPASSERT(.NOT.ASSOCIATED(force_env%eip_env))
+          CPASSERT(.NOT.ASSOCIATED(force_env%mixed_env))
           CALL meta_env_release(force_env%meta_env)
           CALL fp_env_release(force_env%fp_env)
           CALL qmmm_env_release(force_env%qmmm_env)
@@ -242,7 +242,7 @@ CONTAINS
           CALL section_vals_release(force_env%force_env_section)
           CALL section_vals_release(force_env%root_section)
           DEALLOCATE(force_env,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(force_env)
@@ -328,25 +328,25 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count>0)
 
     SELECT CASE(force_env%in_use)
     CASE (use_qs_force)
-       CPPrecondition(ASSOCIATED(force_env%qs_env),cp_failure_level,routineP,failure)
-       CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP)
-       CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP)
+       CPASSERT(ASSOCIATED(force_env%qs_env))
+       CPASSERT(.NOT.PRESENT(fist_env))
+       CPASSERT(.NOT.PRESENT(eip_env))
        CALL get_qs_env(force_env%qs_env,&
                        energy=qs_energy,&
                        input=input,&
                        cp_subsys=subsys)
        IF (PRESENT(potential_energy)) potential_energy = qs_energy%total
-       CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.PRESENT(kinetic_energy))
     CASE (use_fist_force)
-       CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(force_env%fist_env))
 !          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP)
 !          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP)
-       CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.PRESENT(input))
        CALL fist_env_get(force_env%fist_env,&
                          thermo=thermo,&
                          subsys=subsys)
@@ -355,9 +355,9 @@ CONTAINS
        IF (PRESENT(kinetic_shell)) kinetic_shell = thermo%kin_shell
        IF (PRESENT(harmonic_shell)) harmonic_shell = thermo%harm_shell
     CASE (use_eip_force)
-       CPPrecondition(ASSOCIATED(force_env%eip_env), cp_failure_level, routineP,failure)
-       CPPreconditionNoFail(.NOT. PRESENT(qs_env), cp_warning_level, routineP)
-       CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP)
+       CPASSERT(ASSOCIATED(force_env%eip_env))
+       CPASSERT(.NOT. PRESENT(qs_env))
+       CPASSERT(.NOT. PRESENT(fist_env))
        CALL eip_env_get(force_env%eip_env,&
                         eip_potential_energy=eip_potential_energy,&
                         eip_kinetic_energy=eip_kinetic_energy,&
@@ -366,7 +366,7 @@ CONTAINS
          potential_energy = eip_potential_energy
        END IF
        IF (PRESENT(kinetic_energy)) kinetic_energy = eip_kinetic_energy
-       CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.PRESENT(kinetic_energy))
     CASE (use_qmmm)
        CALL qmmm_env_get(force_env%qmmm_env,&
                          subsys=subsys,&
@@ -378,10 +378,10 @@ CONTAINS
                           potential_energy=potential_energy,&
                           kinetic_energy=kinetic_energy)
     CASE (use_mixed_force)
-       CPPrecondition(ASSOCIATED(force_env%mixed_env),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(force_env%mixed_env))
 !          CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP)
 !          CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP)
-       CPPrecondition(.NOT.PRESENT(input),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.PRESENT(input))
        CALL get_mixed_env(force_env%mixed_env,&
                          mixed_energy=mixed_energy,&
                          subsys=subsys)
@@ -521,8 +521,8 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition((force_env%ref_count > 0),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count > 0)
     CALL force_env_get(force_env,subsys=subsys)
     CALL pack_subsys_particles(subsys=subsys,f=frc(1:n))
     CALL timestop(handle)
@@ -552,8 +552,8 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition((force_env%ref_count > 0),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count > 0)
     CALL force_env_get(force_env,subsys=subsys)
     CALL pack_subsys_particles(subsys=subsys,r=pos(1:n))
     CALL timestop(handle)
@@ -583,8 +583,8 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition((force_env%ref_count > 0),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count > 0)
     CALL force_env_get(force_env,subsys=subsys)
     CALL pack_subsys_particles(subsys=subsys,v=vel(1:n))
     CALL timestop(handle)
@@ -620,8 +620,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count>0)
     IF (PRESENT(meta_env)) THEN
        IF (ASSOCIATED(meta_env)) THEN
           CALL meta_env_retain(meta_env)
@@ -680,13 +680,13 @@ CONTAINS
     CALL section_vals_val_get(root_section,"MULTIPLE_FORCE_EVALS%FORCE_EVAL_ORDER",&
          i_vals=my_i_force_eval)
     ALLOCATE(i_force_eval(nforce_eval),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (nforce_eval>0) THEN
        IF (nforce_eval==SIZE(my_i_force_eval)) THEN
           i_force_eval                = my_i_force_eval
        ELSE
           ! The difference in the amount of defined force_env MUST be one..
-          CPPostcondition(nforce_eval-SIZE(my_i_force_eval)==1,cp_fatal_level,routineP,failure)
+          CPASSERT(nforce_eval-SIZE(my_i_force_eval)==1)
           DO iforce_eval = 1, nforce_eval
              IF (ANY(my_i_force_eval==iforce_eval)) CYCLE
              main_force_eval = iforce_eval

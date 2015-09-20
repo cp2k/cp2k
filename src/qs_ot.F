@@ -103,7 +103,7 @@ CONTAINS
        IF (qs_ot_env%settings%do_ener) THEN
           ncoef = SIZE ( qs_ot_env % ener_gx)
           ALLOCATE ( qs_ot_env%ener_dx ( ncoef ), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           qs_ot_env%ener_dx = 0.0_dp
        ENDIF
     ENDIF
@@ -311,7 +311,7 @@ CONTAINS
     V   => qs_ot_env%buf1_k_k_nosym ! a buffer
     W   => qs_ot_env%buf2_k_k_nosym ! a buffer
     ALLOCATE(eig(k), fun(k), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     CALL cp_dbcsr_syevd(P,V,eig,qs_ot_env%para_env,qs_ot_env%blacs_env)
     !
@@ -339,7 +339,7 @@ CONTAINS
     ENDIF
     !
     DEALLOCATE(eig, fun, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     CALL timestop(handle)
   END SUBROUTINE qs_ot_ref_lwdn

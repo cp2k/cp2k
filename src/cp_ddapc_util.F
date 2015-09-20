@@ -156,14 +156,14 @@ CONTAINS
           CALL section_vals_val_get(density_fit_section,"RADII",r_vals=inp_radii)
           num_gauss = SIZE(inp_radii)
           ALLOCATE(radii(num_gauss), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           radii = inp_radii
        ELSE
           CALL section_vals_val_get(density_fit_section,"NUM_GAUSS",i_val=num_gauss)
           CALL section_vals_val_get(density_fit_section,"MIN_RADIUS",r_val=rcmin)
           CALL section_vals_val_get(density_fit_section,"PFACTOR",r_val=pfact)
           ALLOCATE(radii(num_gauss), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i = 1, num_gauss
              radii(i) = rcmin*pfact**(i-1)
           END DO
@@ -189,7 +189,7 @@ CONTAINS
        CALL cp_print_key_finished_output(iw2,logger,density_fit_section,&
             "PROGRAM_RUN_INFO/CONDITION_NUMBER")
        DEALLOCATE(radii, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_g,&
             accept_non_compatible=.TRUE.)
     END IF
@@ -341,14 +341,14 @@ CONTAINS
        CALL section_vals_val_get(density_fit_section,"RADII",r_vals=inp_radii)
        num_gauss = SIZE(inp_radii)
        ALLOCATE(radii(num_gauss), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        radii = inp_radii
     ELSE
        CALL section_vals_val_get(density_fit_section,"NUM_GAUSS",i_val=num_gauss)
        CALL section_vals_val_get(density_fit_section,"MIN_RADIUS",r_val=rcmin)
        CALL section_vals_val_get(density_fit_section,"PFACTOR",r_val=pfact)
        ALLOCATE(radii(num_gauss), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, num_gauss
           radii(i) = rcmin*pfact**(i-1)
        END DO
@@ -356,10 +356,10 @@ CONTAINS
     IF (PRESENT(out_radii)) THEN
        IF (ASSOCIATED(out_radii)) THEN
           DEALLOCATE(out_radii, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        ALLOCATE(out_radii(SIZE(radii)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        out_radii = radii
     END IF
     CALL section_vals_val_get(density_fit_section,"GCUT",r_val=gcut)
@@ -369,13 +369,13 @@ CONTAINS
     !
     ndim = SIZE(particle_set)*SIZE(radii)
     ALLOCATE(bv(ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(qv(ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(qtot(SIZE(particle_set)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(cv(ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timeset(routineN//"-charges",handle2)
     bv(:)  = 0.0_dp
     cv(:)  = 1.0_dp/Vol
@@ -395,19 +395,19 @@ CONTAINS
     END DO
     IF (PRESENT(qout1)) THEN
        IF (ASSOCIATED(qout1)) THEN
-          CPPostcondition(SIZE(qout1)==SIZE(qv),cp_failure_level,routineP,failure)
+          CPASSERT(SIZE(qout1)==SIZE(qv))
        ELSE
           ALLOCATE(qout1(SIZE(qv)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        qout1 = qv
     END IF
     IF (PRESENT(qout2)) THEN
        IF (ASSOCIATED(qout2)) THEN
-          CPPostcondition(SIZE(qout2)==SIZE(qtot),cp_failure_level,routineP,failure)
+          CPASSERT(SIZE(qout2)==SIZE(qtot))
        ELSE
           ALLOCATE(qout2(SIZE(qtot)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        qout2 = qtot
     END IF
@@ -423,26 +423,26 @@ CONTAINS
           WRITE(iw,'(T3,A)')" Evaluating DDAPC atomic derivatives .."
        END IF
        ALLOCATE(dAm(ndim, ndim,3), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(dbv(ndim,3), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(dqv(ndim,SIZE(particle_set),3), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        !NB refactor math in inner loop - no more dqv0, but new temporaries instead
        ALLOCATE(cvT_AmI(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(cvT_AmI_dAmj(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(tv(ndim,SIZE(particle_set),3), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(AmI_cv(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        cvT_AmI(:) = MATMUL(cv, cp_ddapc_env%AmI)
        AmI_cv(:) = MATMUL(cp_ddapc_env%AmI,cv)
        ALLOCATE(dAmj_qv(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(AmI_bv(ndim), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        AmI_bv(:) = MATMUL(cp_ddapc_env%AmI,bv)
 
        !NB call routine to precompute sin(g.r) and cos(g.r),
@@ -516,14 +516,14 @@ CONTAINS
        !NB moved reduction out to where dqv is used to compute
        !NB  a force contribution (smaller array to reduce, just size(particle_set) x 3)
        !NB namely ewald_ddapc_force(), cp_decl_ddapc_forces(), restraint_functional_force()
-       CPPostcondition(PRESENT(dq_out),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(dq_out))
        IF (.NOT.ASSOCIATED(dq_out)) THEN
           ALLOCATE(dq_out(SIZE(dqv,1),SIZE(dqv,2),SIZE(dqv,3)), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ELSE
-          CPPostcondition(SIZE(dqv,1)==SIZE(dq_out,1),cp_failure_level,routineP,failure)
-          CPPostcondition(SIZE(dqv,2)==SIZE(dq_out,2),cp_failure_level,routineP,failure)
-          CPPostcondition(SIZE(dqv,3)==SIZE(dq_out,3),cp_failure_level,routineP,failure)
+          CPASSERT(SIZE(dqv,1)==SIZE(dq_out,1))
+          CPASSERT(SIZE(dqv,2)==SIZE(dq_out,2))
+          CPASSERT(SIZE(dqv,3)==SIZE(dq_out,3))
        END IF
        dq_out = dqv
        IF (debug_this_module) THEN
@@ -532,39 +532,39 @@ CONTAINS
           cp_ddapc_env => qs_env%cp_ddapc_env
        END IF
        DEALLOCATE(dqv, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(dAm, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(dbv, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        !NB deallocate new temporaries
        DEALLOCATE(cvT_AmI, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(cvT_AmI_dAmj, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(AmI_cv, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(tv, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(dAmj_qv, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(AmI_bv, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL timestop(handle3)
     END IF
     !
     ! End of charge fit
     !
     DEALLOCATE(radii, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(bv, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(cv, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(qv, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(qtot, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (.NOT.PRESENT(iwc)) THEN
        CALL cp_print_key_finished_output(iw,logger,density_fit_section,&
             "PROGRAM_RUN_INFO")
@@ -619,9 +619,9 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     NULLIFY(g_hartree)
     n_gauss = SIZE(radii)
     ALLOCATE(cv(n_gauss*SIZE(particle_set)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(uv(n_gauss*SIZE(particle_set)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     uv      = 0.0_dp
     CALL evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv,&
          charges, energy_res)
@@ -705,9 +705,9 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     g_hartree =>  v_hartree_gspace%pw
     Vol = g_hartree%pw_grid%vol
     ALLOCATE(cv(SIZE(M,1)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(uv(SIZE(M,1)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     cv   = 1.0_dp/Vol
     uv(:)   = MATMUL(M,charges)
     sfac = -1.0_dp/Vol
@@ -784,11 +784,11 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     dx   = 0.01_dp
     ndim = SIZE(particle_set)*SIZE(radii)
     ALLOCATE(bv1(ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(bv2(ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ddbv(ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     rvec = particle_set(iparticle)%r
     cp_ddapc_env => qs_env%cp_ddapc_env
     DO i = 1, 3
@@ -810,18 +810,18 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
              IF (v0.GT.0.1_dp) THEN
                 WRITE(*,'(A,2I5,2F15.9)')"ERROR IN DERIVATIVE OF B VECTOR, IPARTICLE, ICOORD:",iparticle,i,&
                      dbv(kk,i),ddbv(kk)
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END IF
           END IF
        END DO
        particle_set(iparticle)%r = rvec
     END DO
     DEALLOCATE(bv1, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(bv2, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ddbv, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE debug_der_b_vector
 
@@ -872,11 +872,11 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     dx   = 0.01_dp
     ndim = SIZE(particle_set)*SIZE(radii)
     ALLOCATE(Am1(ndim,ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(Am2(ndim,ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ddAm(ndim,ndim), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     rvec = particle_set(iparticle)%r
     cp_ddapc_env => qs_env%cp_ddapc_env
     CALL prep_g_dot_rvec_sin_cos(rho_tot_g, particle_set, gcut, g_dot_rvec_sin, g_dot_rvec_cos)
@@ -902,7 +902,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
                 IF (v0.GT.0.1_dp) THEN
                    WRITE(*,'(A,4I5,2F15.9)')"ERROR IN DERIVATIVE OF A MATRIX, IPARTICLE, ICOORD:",iparticle,i,kk,ll,&
                         dAm(kk,ll,i),ddAm(kk,ll)
-                   CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                   CPASSERT(.FALSE.)
                 END IF
              END IF
           END DO
@@ -911,11 +911,11 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     END DO
     CALL cleanup_g_dot_rvec_sin_cos(g_dot_rvec_sin, g_dot_rvec_cos)
     DEALLOCATE(Am1, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(Am2, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ddAm, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE debug_der_A_matrix
 
@@ -960,11 +960,11 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     ndim = SIZE(particle_set)*SIZE(radii)
     NULLIFY(qtot1, qtot2)
     ALLOCATE(qtot1(ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(qtot2(ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ddqv(ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !
     dx = 0.001_dp
     DO iparticle = 1, SIZE(particle_set)
@@ -988,11 +988,11 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
     END DO
     !
     DEALLOCATE(qtot1, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(qtot2, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ddqv, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE debug_charge
 

@@ -102,13 +102,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, idomain, im, ndomains
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     
     IF( max_length.le.0 ) THEN
-       CPErrorMessage(cp_failure_level,routineP,"DIIS: max_length is less than zero")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("DIIS: max_length is less than zero")
+       CPASSERT(.FALSE.)
     END IF
 
     diis_env%diis_env_type=diis_env_dbcsr
@@ -172,13 +171,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, idomain, ndomains
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     
     IF( max_length.le.0 ) THEN
-       CPErrorMessage(cp_failure_level,routineP,"DIIS: max_length is less than zero")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("DIIS: max_length is less than zero")
+       CPASSERT(.FALSE.)
     END IF
 
     diis_env%diis_env_type=diis_env_domain
@@ -238,7 +236,6 @@ CONTAINS
     INTEGER                                  :: handle, idomain, in_point, &
                                                 irow, ndomains, &
                                                 old_buffer_length
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: trace0
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: m_b_tmp
@@ -247,17 +244,17 @@ CONTAINS
 
     IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
        IF ( .NOT.(PRESENT(var).AND.PRESENT(err)) ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"provide DBCSR matrices")
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPABORT("provide DBCSR matrices")
+          CPASSERT(.FALSE.)
        ENDIF
     ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
        IF ( .NOT.(PRESENT(d_var).AND.PRESENT(d_err)) ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"provide domain submatrices")
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPABORT("provide domain submatrices")
+          CPASSERT(.FALSE.)
        ENDIF
     ELSE
-       CPErrorMessage(cp_failure_level,routineP,"illegal DIIS ENV type")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("illegal DIIS ENV type")
+       CPASSERT(.FALSE.)
     ENDIF
 
     in_point=diis_env%in_point
@@ -364,7 +361,6 @@ CONTAINS
 
     INTEGER                                  :: handle, idomain, im, INFO, &
                                                 LWORK, ndomains, unit_nr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: checksum
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: coeff, eigenvalues, tmp1, WORK
     REAL(KIND=dp), ALLOCATABLE, &
@@ -383,17 +379,17 @@ CONTAINS
 
     IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
        IF ( .NOT.PRESENT(extr_var) ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"provide DBCSR matrix")
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPABORT("provide DBCSR matrix")
+          CPASSERT(.FALSE.)
        ENDIF
     ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
        IF ( .NOT.PRESENT(d_extr_var) ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"provide domain submatrices")
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPABORT("provide domain submatrices")
+          CPASSERT(.FALSE.)
        ENDIF
     ELSE
-       CPErrorMessage(cp_failure_level,routineP,"illegal DIIS ENV type")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("illegal DIIS ENV type")
+       CPASSERT(.FALSE.)
     ENDIF
 
     ! Prepare data
@@ -421,8 +417,8 @@ CONTAINS
           CALL DSYEV('V','L',diis_env%buffer_length+1,m_b_copy,&
                   diis_env%buffer_length+1,eigenvalues,WORK,LWORK,INFO)
           IF( INFO.NE.0 ) THEN
-             CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPABORT("DSYEV failed")
+             CPASSERT(.FALSE.)
           END IF
           DEALLOCATE(WORK)
 
@@ -507,24 +503,23 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: trace
 
     CALL timeset(routineN,handle)
 
     IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
        IF ( .NOT.(PRESENT(A).AND.PRESENT(B)) ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"provide DBCSR matrices")
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPABORT("provide DBCSR matrices")
+          CPASSERT(.FALSE.)
        ENDIF
     ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
        IF ( .NOT.(PRESENT(d_A).AND.PRESENT(d_B)) ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"provide domain submatrices")
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPABORT("provide domain submatrices")
+          CPASSERT(.FALSE.)
        ENDIF
     ELSE
-       CPErrorMessage(cp_failure_level,routineP,"illegal DIIS ENV type")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("illegal DIIS ENV type")
+       CPASSERT(.FALSE.)
     ENDIF
 
     SELECT CASE(diis_env%error_type)
@@ -532,16 +527,16 @@ CONTAINS
        IF (diis_env%diis_env_type.eq.diis_env_dbcsr) THEN
           CALL cp_dbcsr_trace(A, B, trace, 'T', 'N')
        ELSE IF (diis_env%diis_env_type.eq.diis_env_domain) THEN
-          CPPrecondition(SIZE(d_A%mdata,1).eq.SIZE(d_B%mdata,1),cp_failure_level,routineP,failure)
-          CPPrecondition(SIZE(d_A%mdata,2).eq.SIZE(d_B%mdata,2),cp_failure_level,routineP,failure)
-          CPPrecondition(d_A%domain.eq.d_B%domain,cp_failure_level,routineP,failure)
-          CPPrecondition(d_A%domain.gt.0,cp_failure_level,routineP,failure)
-          CPPrecondition(d_B%domain.gt.0,cp_failure_level,routineP,failure)
+          CPASSERT(SIZE(d_A%mdata,1).eq.SIZE(d_B%mdata,1))
+          CPASSERT(SIZE(d_A%mdata,2).eq.SIZE(d_B%mdata,2))
+          CPASSERT(d_A%domain.eq.d_B%domain)
+          CPASSERT(d_A%domain.gt.0)
+          CPASSERT(d_B%domain.gt.0)
           trace=SUM(d_A%mdata(:,:)*d_B%mdata(:,:))
        ENDIF
     CASE DEFAULT
-       CPErrorMessage(cp_failure_level,routineP,"Vector type is unknown")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("Vector type is unknown")
+       CPASSERT(.FALSE.)
     END SELECT
 
     almo_scf_diis_error_overlap=trace

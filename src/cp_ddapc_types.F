@@ -119,7 +119,7 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     ALLOCATE(cp_ddapc_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     cp_ddapc_env%ref_count=1
     last_cp_ddapc_id=last_cp_ddapc_id+1
     cp_ddapc_env%id_nr=last_cp_ddapc_id
@@ -158,7 +158,7 @@ CONTAINS
                             radii)
        IF ( cp_ddapc_ewald%do_qmmm_periodic_decpl.OR.cp_ddapc_ewald%do_decoupling) THEN
           ALLOCATE(cp_ddapc_env%Mt(SIZE(cp_ddapc_env%Md,1),SIZE(cp_ddapc_env%Md,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           IF ( cp_ddapc_ewald%do_decoupling) THEN
              ! Just decoupling
              cp_ddapc_env%Mt = cp_ddapc_env%Md
@@ -196,8 +196,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(cp_ddapc_env),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(cp_ddapc_env%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(cp_ddapc_env))
+    CPASSERT(cp_ddapc_env%ref_count>0)
     cp_ddapc_env%ref_count=cp_ddapc_env%ref_count+1
   END SUBROUTINE cp_ddapc_retain
 
@@ -219,36 +219,36 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(cp_ddapc_env)) THEN
-       CPPreconditionNoFail(cp_ddapc_env%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(cp_ddapc_env%ref_count>0)
        cp_ddapc_env%ref_count=cp_ddapc_env%ref_count-1
        IF (cp_ddapc_env%ref_count==0) THEN
           IF (ASSOCIATED(cp_ddapc_env%AmI)) THEN
              DEALLOCATE(cp_ddapc_env%AmI, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(cp_ddapc_env%Mt)) THEN
              DEALLOCATE(cp_ddapc_env%Mt, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(cp_ddapc_env%Md)) THEN
              DEALLOCATE(cp_ddapc_env%Md, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(cp_ddapc_env%Mr)) THEN
              DEALLOCATE(cp_ddapc_env%Mr, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(cp_ddapc_env%Ms)) THEN
              DEALLOCATE(cp_ddapc_env%Ms, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(cp_ddapc_env%gfunc)) THEN
              DEALLOCATE(cp_ddapc_env%gfunc, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(cp_ddapc_env%w)) THEN
              DEALLOCATE(cp_ddapc_env%w, stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           NULLIFY(cp_ddapc_env%AmI,&
                   cp_ddapc_env%Md,&
@@ -257,7 +257,7 @@ CONTAINS
                   cp_ddapc_env%gfunc,&
                   cp_ddapc_env%w)
           DEALLOCATE(cp_ddapc_env, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           NULLIFY(cp_ddapc_env)
        END IF
     END IF
@@ -303,9 +303,9 @@ CONTAINS
     failure = .FALSE.
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
-    CPPrecondition(.NOT.ASSOCIATED(cp_ddapc_ewald),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(cp_ddapc_ewald))
     ALLOCATE(cp_ddapc_ewald, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(cp_ddapc_ewald%pw_grid_mm,&
             cp_ddapc_ewald%pw_grid_qm,&
             cp_ddapc_ewald%ewald_section,&
@@ -372,13 +372,13 @@ CONTAINS
                coeff=cp_ddapc_ewald%coeff_qm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts,&
                param_section=multipole_section,tag="ddapc",para_env=para_env,print_section=grid_print_section)
           DEALLOCATE(LG, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(gx, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(gy, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(gz, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           NULLIFY(LG, gx, gy, gz)
           IF (cp_ddapc_ewald%do_qmmm_periodic_decpl) THEN
              NULLIFY(mm_cell, dummy_cell)
@@ -392,13 +392,13 @@ CONTAINS
                   param_section=multipole_section,tag="ddapc",para_env=para_env, &
                   print_section=grid_print_section)
              DEALLOCATE(LG, stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE(gx, stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE(gy, stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE(gz, stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              NULLIFY(LG, gx, gy, gz)
              CALL cell_release(dummy_cell)
              CALL cell_release(mm_cell)
@@ -452,13 +452,13 @@ CONTAINS
     fvec   = 2.0_dp * pi / (/hmat(1,1),hmat(2,2),hmat(3,3)/)
     ndim   = (nmax1+1)*(2*nmax2+1)*(2*nmax3+1)-1
     ALLOCATE(LG(ndim), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(gx(ndim), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(gy(ndim), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(gz(ndim), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     i = 0
     DO k1 = 0, nmax1
@@ -505,22 +505,22 @@ CONTAINS
        END IF
        IF (ASSOCIATED(cp_ddapc_ewald%pw_pool_qm)) THEN
           CALL pw_pool_release ( cp_ddapc_ewald%pw_pool_qm)
-          CPPostconditionNoFail(.NOT.ASSOCIATED(cp_ddapc_ewald%pw_pool_qm),cp_failure_level,routineP)
+          CPASSERT(.NOT.ASSOCIATED(cp_ddapc_ewald%pw_pool_qm))
        END IF
        IF (ASSOCIATED(cp_ddapc_ewald%pw_pool_mm)) THEN
           CALL pw_pool_release ( cp_ddapc_ewald%pw_pool_mm)
-          CPPostconditionNoFail(.NOT.ASSOCIATED(cp_ddapc_ewald%pw_pool_mm),cp_failure_level,routineP)
+          CPASSERT(.NOT.ASSOCIATED(cp_ddapc_ewald%pw_pool_mm))
        END IF
        IF (ASSOCIATED(cp_ddapc_ewald%pw_grid_qm)) THEN
           CALL pw_grid_release ( cp_ddapc_ewald%pw_grid_qm)
-          CPPostconditionNoFail(.NOT.ASSOCIATED(cp_ddapc_ewald%pw_grid_qm),cp_failure_level,routineP)
+          CPASSERT(.NOT.ASSOCIATED(cp_ddapc_ewald%pw_grid_qm))
        END IF
        IF (ASSOCIATED(cp_ddapc_ewald%pw_grid_mm)) THEN
           CALL pw_grid_release ( cp_ddapc_ewald%pw_grid_mm)
-          CPPostconditionNoFail(.NOT.ASSOCIATED(cp_ddapc_ewald%pw_grid_mm),cp_failure_level,routineP)
+          CPASSERT(.NOT.ASSOCIATED(cp_ddapc_ewald%pw_grid_mm))
        END IF
        DEALLOCATE(cp_ddapc_ewald, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        NULLIFY(cp_ddapc_ewald)
     END IF
 

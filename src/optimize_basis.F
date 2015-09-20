@@ -371,7 +371,7 @@ CONTAINS
        ! parse the input of the training sets
        CALL get_set_and_basis_id(opt_bas%comp_group(mp_id)%member_list(icalc),opt_bas,set_id,bas_id)
        CALL m_chdir(TRIM(opt_bas%training_dir(set_id)),ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        input_file => read_input(input_declaration,&
                                 opt_bas%training_input(set_id),&
                                 initial_variables=empty_initial_variables, &

@@ -42,7 +42,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(ilist),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ilist))
     ind = INDEX(token,"..")
     READ (UNIT=token(:ind-1),FMT=*) ilist%istart
     READ (UNIT=token(ind+2:),FMT=*) ilist%iend
@@ -72,7 +72,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(ilist),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ilist))
     ilist%ipresent = ilist%ipresent + 1
     IF (ilist%ipresent>ilist%iend) THEN
        CALL ilist_reset(ilist)
@@ -94,7 +94,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(ilist),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ilist))
     IF (ilist%ipresent==ilist%iend) THEN
        ilist%istart   = HUGE(0)
        ilist%iend     = HUGE(0)

@@ -78,7 +78,7 @@ CONTAINS
           CALL pw_pools_dealloc(qmmm_env%aug_pools)
        END IF
        ALLOCATE(qmmm_env%aug_pools(SIZE(pw_pools)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        !
        DO Ilevel = 1, SIZE(pw_pools)
           NULLIFY(pool, qmmm_env%aug_pools(Ilevel)%pool)
@@ -134,8 +134,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(pw_grid_in%ngpts_cut>0,cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(pw_grid_out),cp_failure_level,routineP,failure)
+    CPASSERT(pw_grid_in%ngpts_cut>0)
+    CPASSERT(.NOT.ASSOCIATED(pw_grid_out))
     pw_mode_loc = pw_grid_in%para%mode
     IF (PRESENT(pw_mode)) pw_mode_loc = pw_mode
     CALL pw_grid_create(pw_grid_out, pw_grid_in%para%group)
@@ -187,7 +187,7 @@ CONTAINS
             pw_grid_out % para % nyzray,&
             pw_grid_out % para % bo)
     ALLOCATE(pos_of_x(pw_grid_out%bounds(1,1):pw_grid_out%bounds(2,1)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     pos_of_x(:pw_grid_out%bounds(2,1)-1)=pw_grid_in%para%pos_of_x
     pos_of_x(pw_grid_out%bounds(2,1))=pos_of_x(pw_grid_out%bounds(2,1)-1)
     pw_grid_out%para%pos_of_x => pos_of_x
@@ -200,7 +200,7 @@ CONTAINS
     pw_grid_out % para % rs_mpo = pw_grid_in % para % rs_mpo
 
     NULLIFY(pw_grid_out%g,pw_grid_out%gsq,pw_grid_out%g_hat)
-    CPPrecondition(pw_grid_in%grid_span==FULLSPACE,cp_failure_level,routineP,failure)
+    CPASSERT(pw_grid_in%grid_span==FULLSPACE)
     pw_grid_out%grid_span=pw_grid_in%grid_span
     pw_grid_out%have_g0=.FALSE.
     pw_grid_out%first_gne0=HUGE(0)

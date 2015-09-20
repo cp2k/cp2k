@@ -1038,7 +1038,6 @@ CONTAINS
 
     CHARACTER(LEN=100)                       :: ctmp
     INTEGER                                  :: ierr, itmp
-    LOGICAL                                  :: failure
 
     CALL section_vals_val_get(section, keyword_name, c_val=ctmp)
 
@@ -1049,17 +1048,17 @@ CONTAINS
         walltime = 0
         ! read seconds
         READ(ctmp(INDEX(ctmp,":",BACK=.TRUE.)+1:),FMT=*,IOSTAT=ierr) walltime
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
         ! read minutes
         READ(ctmp(INDEX(ctmp,":",BACK=.TRUE.)-2:INDEX(ctmp,":",BACK=.TRUE.)-1),FMT=*,IOSTAT=ierr) itmp
         walltime = walltime + REAL(60*itmp,KIND=dp)
         ! read hours
         READ(ctmp(1:INDEX(ctmp,":")-1),FMT=*,IOSTAT=ierr) itmp
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
         walltime = walltime + REAL(3600*itmp,KIND=dp)
       ELSE
         READ(ctmp,FMT=*,IOSTAT=ierr) walltime
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
       END IF
     END IF
   END SUBROUTINE cp2k_get_walltime

@@ -95,7 +95,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: ui_section, ui_var_section
 
     failure=.FALSE.
-    CPPreconditionNoFail(.NOT.ASSOCIATED(fe_env),cp_failure_level,routineP)
+    CPASSERT(.NOT.ASSOCIATED(fe_env))
 
     CALL section_vals_get(fe_section,explicit=explicit)
     IF (explicit) THEN
@@ -103,7 +103,7 @@ CONTAINS
        SELECT CASE(id_method)
        CASE (do_fe_ui)
           ALLOCATE(fe_env, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
           NULLIFY(fe_env%covmx, fe_env%uivar, fe_env%conv_par, fe_env%cg_data)
           fe_env%type = id_method
           fe_env%nr_points   = 0
@@ -114,7 +114,7 @@ CONTAINS
           CALL section_vals_get(ui_var_section,n_repetition=fe_env%ncolvar)
           ! Convergence controlling parameters
           ALLOCATE(fe_env%conv_par, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
           fe_env%conv_par%test_k  = .FALSE.
           fe_env%conv_par%test_sw = .FALSE.
           fe_env%conv_par%test_vn = .FALSE.
@@ -134,7 +134,7 @@ CONTAINS
                r_val=fe_env%conv_par%vn_conf_lm)
           ! Umbrella Integration variables
           ALLOCATE(fe_env%uivar(fe_env%ncolvar), stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i = 1, fe_env%ncolvar
              ! Read Umbrella Integration Variable definition
              CALL section_vals_val_get(ui_var_section,"COLVAR",&
@@ -143,10 +143,10 @@ CONTAINS
           END DO
        CASE (do_fe_ac)
           ALLOCATE(fe_env, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
           NULLIFY(fe_env%covmx, fe_env%uivar, fe_env%conv_par, fe_env%cg_data)
           ALLOCATE(fe_env%covmx(3,0), stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
           fe_env%type = id_method
           CALL section_vals_val_get(fe_section,"ALCHEMICAL_CHANGE%EPS_CONV",r_val=fe_env%eps_conv)
        CASE DEFAULT
@@ -174,38 +174,38 @@ CONTAINS
     IF (ASSOCIATED(fe_env)) THEN
        IF (ASSOCIATED(fe_env%covmx)) THEN
           DEALLOCATE(fe_env%covmx,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(fe_env%cg_data)) THEN
           DO i = 1, SIZE(fe_env%cg_data)
              IF (ASSOCIATED(fe_env%cg_data(i)%avg)) THEN
                 DEALLOCATE(fe_env%cg_data(i)%avg,stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              IF (ASSOCIATED(fe_env%cg_data(i)%var)) THEN
                 DEALLOCATE(fe_env%cg_data(i)%var,stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
           END DO
           DEALLOCATE(fe_env%cg_data,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(fe_env%conv_par)) THEN
           DEALLOCATE(fe_env%conv_par,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(fe_env%uivar)) THEN
           DO i = 1, SIZE(fe_env%uivar)
              IF (ASSOCIATED(fe_env%uivar(i)%ss)) THEN
                 DEALLOCATE(fe_env%uivar(i)%ss,stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
           END DO
           DEALLOCATE(fe_env%uivar,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE(fe_env, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE fe_env_release
 

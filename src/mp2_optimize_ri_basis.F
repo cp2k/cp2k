@@ -305,28 +305,28 @@ MODULE mp2_optimize_ri_basis
 
     ! Allocate stuff
     ALLOCATE(p(ndof),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     p=0.0_dp
     ALLOCATE(xi(ndof),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     xi=0.0_dp
     ALLOCATE(g(ndof),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     g=0.0_dp
     ALLOCATE(dg(ndof),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     dg=0.0_dp
     ALLOCATE(hdg(ndof),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     hdg=0.0_dp
     ALLOCATE(pnew(ndof),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     pnew=0.0_dp
     ALLOCATE(deriv(ndof),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     deriv=0.0_dp
     ALLOCATE(hessin(ndof,ndof),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     hessin=0.0_dp
     DO i=1, ndof 
       hessin(i,i)=1.0_dp
@@ -334,10 +334,10 @@ MODULE mp2_optimize_ri_basis
 
     ! initialize trasformation function
     ALLOCATE(lower_B(ndof),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     lower_B=0.0_dp
     ALLOCATE(max_dev(ndof),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     max_dev=0.0_dp
 
     ! Initialize the transformation function
@@ -688,7 +688,7 @@ MODULE mp2_optimize_ri_basis
 
         ! in the new case eps is just the step length for calculating the numerical derivative
 
-        CPPostcondition(RI_basis_parameter(ikind)%npgf(iset)==1,cp_failure_level,routineP,failure)
+        CPASSERT(RI_basis_parameter(ikind)%npgf(iset)==1)
         orig_basis_val=RI_basis_parameter(ikind)%zet(1,iset)
         temp=p(ideriv)+step
         CALL transf_val(lower_B(ideriv), max_dev(ideriv), temp, new_basis_val)
@@ -984,10 +984,10 @@ MODULE mp2_optimize_ri_basis
     DO ikind=1, nkind
       am_max=MAXVAL(RI_basis_parameter(ikind)%lmax(:))
       ALLOCATE(nf_per_l(0:am_max),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       nf_per_l=0
       ALLOCATE(max_min_exp_per_l(2,0:am_max),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       max_min_exp_per_l(1,:)=HUGE(0)
       max_min_exp_per_l(2,:)=-HUGE(0)
 
@@ -1009,7 +1009,7 @@ MODULE mp2_optimize_ri_basis
       ! max_min_exp_per_l(1,0)=expo
 
       ALLOCATE(has_to_be_changed(0:am_max),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       has_to_be_changed=.FALSE.
       DO la=0, am_max
         pmax=-HUGE(0)
@@ -1131,7 +1131,7 @@ MODULE mp2_optimize_ri_basis
     failure=.FALSE.
 
     ALLOCATE(mat_ab(virtual,virtual_beta),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   
     DI=0.0_dp
     Emp2_RI=0.0_dp
@@ -1204,7 +1204,7 @@ MODULE mp2_optimize_ri_basis
     END DO
 
     ALLOCATE(ij_list_proc(elements_ij_proc,2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ij_list_proc=0
     ij_counter=-1
     elements_ij_proc=0
@@ -1291,7 +1291,7 @@ MODULE mp2_optimize_ri_basis
     nkind = SIZE(qs_kind_set,1) 
 
     ALLOCATE(basis_was_assoc(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     basis_was_assoc=.FALSE.
 
     IF(external_num_of_func.AND.nkind>1) THEN
@@ -1324,7 +1324,7 @@ MODULE mp2_optimize_ri_basis
 
         RI_max_am=max_am
         ALLOCATE(RI_num_sgf_per_l(0:RI_max_am),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         RI_num_sgf_per_l=0
         RI_nset=0
         DO iset=1, nseta
@@ -1341,7 +1341,7 @@ MODULE mp2_optimize_ri_basis
         END DO
 
         ALLOCATE(exp_tab(MAXVAL(RI_num_sgf_per_l),0:RI_max_am),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         exp_tab=0.0_dp
         DO iii=0, RI_max_am
           iexpo=0
@@ -1357,17 +1357,17 @@ MODULE mp2_optimize_ri_basis
         ! sort exponents
         DO iii=0, RI_max_am
           ALLOCATE(ordered_pos(RI_num_sgf_per_l(iii)),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ordered_pos=0
           CALL sort(exp_tab(1:RI_num_sgf_per_l(iii),iii), RI_num_sgf_per_l(iii), ordered_pos)
           DEALLOCATE(ordered_pos)
         END DO
 
         ALLOCATE(RI_l_expo(RI_nset),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         RI_l_expo=0
         ALLOCATE(RI_exponents(RI_nset),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         RI_exponents=0.0_dp
 
         iset=0
@@ -1382,7 +1382,7 @@ MODULE mp2_optimize_ri_basis
 
 
         ALLOCATE(max_rel_dev(RI_nset),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         max_rel_dev=1.0_dp
         iset=0
         DO iii=0, RI_max_am
@@ -1438,13 +1438,13 @@ MODULE mp2_optimize_ri_basis
         END DO  
 
         ALLOCATE(exponents(nexpo_shell),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
         exponents=0.0_dp
         ALLOCATE(l_expo(nexpo_shell),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
         l_expo=0
         ALLOCATE(num_sgf_per_l(0:max_am),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
         num_sgf_per_l=0
         iexpo=0
         DO iset = 1, nseta
@@ -1465,13 +1465,13 @@ MODULE mp2_optimize_ri_basis
         END DO
 
         ALLOCATE(exp_tab(nexpo_shell,nexpo_shell),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         exp_tab=0.0_dp
         ALLOCATE(l_tab(nexpo_shell,nexpo_shell),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         l_tab=0
         ALLOCATE(tot_num_exp_per_l(0:max_am*2),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         tot_num_exp_per_l=0
         DO iexpo=1, nexpo_shell
           DO jexpo=iexpo, nexpo_shell
@@ -1486,7 +1486,7 @@ MODULE mp2_optimize_ri_basis
         DEALLOCATE(exponents)
 
         ALLOCATE(max_min_exp_l(2,0:max_am*2),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         max_min_exp_l(1,:)=HUGE(0)
         max_min_exp_l(2,:)=-HUGE(0)
 
@@ -1508,7 +1508,7 @@ MODULE mp2_optimize_ri_basis
         max_min_exp_l(2,:)=max_min_exp_l(2,:)/1.20_dp
 
         ALLOCATE(RI_num_sgf_per_l(0:max_am*2),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         RI_num_sgf_per_l=0
         
         SELECT CASE(basis_quality)
@@ -1534,7 +1534,7 @@ MODULE mp2_optimize_ri_basis
           IF(RI_max_am>max_am*2) THEN
             DEALLOCATE(RI_num_sgf_per_l)
             ALLOCATE(RI_num_sgf_per_l(0:RI_max_am),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
             RI_num_sgf_per_l=0
           END IF
           DO la=0, RI_max_am
@@ -1583,15 +1583,15 @@ MODULE mp2_optimize_ri_basis
         RI_nset=SUM(RI_num_sgf_per_l)
 
         ALLOCATE(RI_exponents(RI_nset),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         RI_exponents=0.0_dp
 
         ALLOCATE(RI_l_expo(RI_nset),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         RI_l_expo=0
 
         ALLOCATE(max_rel_dev(RI_nset),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         max_rel_dev=1.0_dp
 
         iset=0
@@ -1642,18 +1642,18 @@ MODULE mp2_optimize_ri_basis
 
       IF(.NOT.ALLOCATED(max_rel_dev_output)) THEN
         ALLOCATE(max_rel_dev_output(RI_nset),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         max_rel_dev_output(:)=max_rel_dev
       ELSE
         ! make a copy
         RI_prev_size=SIZE(max_rel_dev_output)
         ALLOCATE(max_rel_dev_prev(RI_prev_size),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         max_rel_dev_prev(:)=max_rel_dev_output
         DEALLOCATE(max_rel_dev_output)
         ! reallocate and copy
         ALLOCATE(max_rel_dev_output(RI_prev_size+RI_nset),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         max_rel_dev_output(1:RI_prev_size)=max_rel_dev_prev
         max_rel_dev_output(RI_prev_size+1:RI_prev_size+RI_nset)=max_rel_dev
         DEALLOCATE(max_rel_dev_prev)
@@ -1864,10 +1864,10 @@ MODULE mp2_optimize_ri_basis
     CALL reallocate(gto_basis_set%m,1,nsgf)
     CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
     ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ncgf = 0
     nsgf = 0
@@ -1895,7 +1895,7 @@ MODULE mp2_optimize_ri_basis
     END DO
 
     DEALLOCATE (gcc,l,lmax,lmin,n,npgf,nshell,zet,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 

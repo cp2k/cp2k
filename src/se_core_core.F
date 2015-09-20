@@ -133,7 +133,7 @@ CONTAINS
             virial, atprop)
 
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
     CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, cell=cell, se_taper=se_taper,&
          virial=virial,atprop=atprop, energy=energy)
 
@@ -162,7 +162,7 @@ CONTAINS
        CALL ewald_pw_get (ewald_pw, pw_big_pool=se_int_control%ewald_gks%pw_pool, &
             dg=se_int_control%ewald_gks%dg)
        ! Virial not implemented
-       CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.use_virial)
     END IF
 
     CALL get_qs_env(qs_env=qs_env,sab_se=sab_se,atomic_kind_set=atomic_kind_set,&
@@ -174,7 +174,7 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,force=force)
        natom = SIZE (particle_set)
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        delta = se_control%delta
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
@@ -182,7 +182,7 @@ CONTAINS
     itype    = get_se_type(dft_control%qs_control%method_id)
 
     ALLOCATE (se_kind_param(nkind),se_defined(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
        CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
        se_kind_param(ikind)%se_param => se_kind_a
@@ -246,7 +246,7 @@ CONTAINS
                 force(jkind)%all_potential(3,atom_b) = force(jkind)%all_potential(3,atom_b) + force_ab(3)
              END IF
           CASE DEFAULT
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END SELECT
        ELSE
           IF ( se_int_control%do_ewald_gks ) THEN
@@ -265,11 +265,11 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE (se_kind_param,se_defined,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (calculate_forces) THEN
        DEALLOCATE(atom_of_kind,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     CALL mp_sum(enuclear,para_env%group)

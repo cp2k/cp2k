@@ -96,7 +96,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw%ref_count>0)
     IF ( pw%in_use == REALDATA1D ) THEN
        ns = SIZE(pw%cr)
        pw%cr(:) = 0._dp
@@ -148,8 +148,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
-    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw1%ref_count>0)
+    CPASSERT(pw2%ref_count>0)
     IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
 
        IF ( pw1%pw_grid%spherical .AND. pw2%pw_grid%spherical ) THEN
@@ -322,7 +322,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw%ref_count>0)
 
     SELECT CASE ( pw%in_use )
     CASE ( REALDATA1D )
@@ -372,8 +372,8 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ALL(n>=0),cp_failure_level,routineP,failure)
+    CPASSERT(pw%ref_count>0)
+    CPASSERT(ALL(n>=0))
 
     m = SUM ( n )
     im = CMPLX ( 0.0_dp, 1.0_dp,KIND=dp) ** m
@@ -473,7 +473,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw%ref_count>0)
 
     flop = 0.0_dp
     o3 = 1._dp/3._dp
@@ -537,7 +537,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw%ref_count>0)
 
     flop = 0.0_dp
     o3 = 1._dp/3._dp
@@ -602,7 +602,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw%ref_count>0)
 
     flop = 0.0_dp
 
@@ -658,8 +658,8 @@ CONTAINS
     CALL m_memory()
 
     failure = .FALSE.
-    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw1%ref_count>0)
+    CPASSERT(pw2%ref_count>0)
 
     IF ( pw1%in_space == REALSPACE .AND. pw2%in_space == REALSPACE ) THEN
 
@@ -732,8 +732,8 @@ CONTAINS
     logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
 
-    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw1%ref_count>0)
+    CPASSERT(pw2%ref_count>0)
 
     my_alpha=1.0_dp
     IF (PRESENT(alpha)) my_alpha=alpha
@@ -944,7 +944,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw%ref_count>0)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Data field has to be COMPLEXDATA1D")
@@ -1017,7 +1017,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw%ref_count>0)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Data field has to be COMPLEXDATA1D")
@@ -1101,7 +1101,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw%ref_count>0)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Data field has to be COMPLEXDATA1D")
@@ -1212,7 +1212,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(pw%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw%ref_count>0)
 
     IF ( pw%in_use /= COMPLEXDATA1D ) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Data field has to be COMPLEXDATA1D")
@@ -1354,8 +1354,8 @@ CONTAINS
     CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
          CEILING (pw1%pw_grid%cutoff/10)*10))),handle)
 
-    CPPrecondition(pw1%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(pw2%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw1%ref_count>0)
+    CPASSERT(pw2%ref_count>0)
     NULLIFY ( c_in )
     NULLIFY ( c_out )
 
@@ -1438,7 +1438,7 @@ CONTAINS
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  PW_GATHER : 3d -> 1d "
           CALL pw_gather ( pw2, c_out)
           DEALLOCATE ( c_out, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        CASE ( "FW_R3DC1D" )
 #if defined (__PW_CUDA)
           CALL pw_cuda_r3dc1d_3d(pw1, pw2, scale = norm)
@@ -1450,7 +1450,7 @@ CONTAINS
           CALL fft3d ( dir, n, c_out, scale = norm, debug = test )
           CALL pw_gather ( pw2, c_out)
           DEALLOCATE ( c_out, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 #endif
        CASE ( "BW_C3DC3D" )
           c_in => pw1%cc3d
@@ -1466,7 +1466,7 @@ CONTAINS
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  REAL part "
           pw2%cr3d = REAL ( c_out,KIND=dp)
           DEALLOCATE ( c_out, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        CASE ( "BW_C1DC3D" )
           c_out => pw2%cc3d
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  PW_SCATTER : 3d -> 1d "
@@ -1487,7 +1487,7 @@ CONTAINS
           IF ( test .AND. output_unit > 0 ) WRITE ( output_unit,'(A)') "  REAL part "
           CALL copy_cr(c_out,pw2%cr3d)
           DEALLOCATE ( c_out, STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 #endif
        END SELECT
 
@@ -1517,8 +1517,8 @@ CONTAINS
        my_pos = pw1%pw_grid%para%my_pos
        nrays = pw1%pw_grid%para%nyzray ( my_pos )
        grays => pw1%pw_grid%grays
-       CPPostcondition(SIZE(grays,1)==n(1),cp_failure_level,routineP,failure)
-       CPPostcondition(SIZE(grays,2)==nrays,cp_failure_level,routineP,failure)
+       CPASSERT(SIZE(grays,1)==n(1))
+       CPASSERT(SIZE(grays,2)==nrays)
 
        SELECT CASE ( mode )
        CASE DEFAULT
@@ -1575,7 +1575,7 @@ CONTAINS
                   WRITE ( output_unit,'(A)') "  PW_GATHER : 2d -> 1d "
              CALL pw_gather ( pw2, grays)
              DEALLOCATE ( c_in, STAT = stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
        CASE ( "BW_C1DC3D" )
           !..prepare input
@@ -1629,7 +1629,7 @@ CONTAINS
                   WRITE ( output_unit,'(A)') "  Real part "
              CALL copy_cr(c_in,pw2%cr3d)
              DEALLOCATE ( c_in, STAT = stat )
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
        END SELECT
 
@@ -1955,7 +1955,7 @@ CONTAINS
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(sf%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(sf%ref_count>0)
     flop = 0.0_dp
 
     IF ( sf%in_space == RECIPROCALSPACE .AND. &

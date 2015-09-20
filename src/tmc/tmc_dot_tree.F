@@ -65,10 +65,10 @@ CONTAINS
     failure = .FALSE.
     filename = ""
 
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
-    CPPrecondition(ind.GE.0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%Temp),cp_failure_level,routineP,failure)
-    CPPrecondition(ind.LE.SIZE(tmc_params%Temp),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_params))
+    CPASSERT(ind.GE.0)
+    CPASSERT(ASSOCIATED(tmc_params%Temp))
+    CPASSERT(ind.LE.SIZE(tmc_params%Temp))
 
     IF(ind.EQ.0) THEN
       filename = TRIM(expand_file_name_char(tmc_params%dot_file_name,"global"))
@@ -77,7 +77,7 @@ CONTAINS
                                             rvalue=tmc_params%Temp(ind)))
     END IF
 
-    CPPostcondition(filename.NE."",cp_failure_level,routineP,failure)
+    CPASSERT(filename.NE."")
   END FUNCTION get_dot_file_name
 ! *****************************************************************************
 !> \brief initializes the dot files (open and write headers)
@@ -94,7 +94,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_params))
 
     ! global tree
     CALL open_file(file_name=get_dot_file_name(tmc_params, 0), file_status="REPLACE", &
@@ -130,7 +130,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_params))
 
     ! global tree
     CALL open_file(file_name=get_dot_file_name(tmc_params, 0), &
@@ -161,7 +161,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(file_ptr.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(file_ptr.GT.0)
 
     WRITE(file_ptr,*)'//LEGEND'
     WRITE(file_ptr,*)'subgraph clusterLegend {'
@@ -217,8 +217,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(filename.NE."",cp_failure_level,routineP,failure)
-    CPPrecondition(node_nr.GE.0,cp_failure_level,routineP,failure)
+    CPASSERT(filename.NE."")
+    CPASSERT(node_nr.GE.0)
 
     CALL open_file(file_name=filename, file_status="OLD", &
                    file_action="WRITE", file_position="APPEND", unit_number=file_ptr)
@@ -285,7 +285,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_params))
 
     CALL open_file(file_name=get_dot_file_name(tmc_params, tree), &
                    file_status="OLD", file_action="WRITE", &
@@ -316,9 +316,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(new_element),cp_failure_level,routineP,failure)
-    CPPrecondition(conf.GT.0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(new_element))
+    CPASSERT(conf.GT.0)
+    CPASSERT(ASSOCIATED(tmc_params))
 
     CALL create_dot_branch(parent_nr=new_element%parent%nr,&
                            child_nr=new_element%nr,&
@@ -348,8 +348,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(tmp_pt_list_elem)
 
-    CPPrecondition(ASSOCIATED(new_element),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(new_element))
+    CPASSERT(ASSOCIATED(tmc_params))
 
     ! creating list with configuration numbers (of subtrees)
     list_of_nr = ""
@@ -428,8 +428,8 @@ CONTAINS
     TYPE(gt_elem_list_type), POINTER         :: tmp_pt_list_elem
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tree_element),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tree_element))
+    CPASSERT(ASSOCIATED(tmc_params))
 
     IF(DEBUG.GT.8)THEN
       list_of_nr = ""
@@ -471,8 +471,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(gt_tree_element),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gt_tree_element))
+    CPASSERT(ASSOCIATED(tmc_params))
 
      IF(DEBUG.GT.8) WRITE(*,*)"mark global tree node color", gt_tree_element%nr, gt_tree_element%stat
      CALL write_color(node_nr=gt_tree_element%nr, stat=gt_tree_element%stat, &

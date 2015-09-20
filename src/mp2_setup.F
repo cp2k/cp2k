@@ -193,7 +193,7 @@ CONTAINS
        CASE(mp2_ri_optimize_basis)
          WRITE(unit_nr,'(T2,A)') "MP2| Optimize RI auxiliary basis"
        CASE DEFAULT
-         CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+         CPASSERT(.FALSE.)
        END SELECT
        WRITE(unit_nr,'(T2,A)') ""
     ENDIF

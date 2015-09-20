@@ -138,7 +138,7 @@ CONTAINS
     IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. START"
     CALL rep_env_create(rep_env, para_env=para_env, input=input,&
          input_declaration=input_declaration,nrep=nrep,prep=prep,row_force=row_force)
-    CPPostcondition(SIZE(rep_env%local_rep_indices)==1,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(rep_env%local_rep_indices)==1)
     IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. END"
     IF (ASSOCIATED(rep_env)) THEN
        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
@@ -147,7 +147,7 @@ CONTAINS
        particle_set => subsys%particles%els
        ! Read NEB controlling parameters
        ALLOCATE (neb_env,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        neb_env%force_env            => f_env%force_env
        neb_env%root_section         => input
        neb_env%force_env_section    => force_env_section
@@ -156,11 +156,11 @@ CONTAINS
        neb_env%nsize_xyz            = rep_env%ndim
        neb_env%nsize_int            = number_of_colvar(f_env%force_env)
        check = (neb_env%nsize_xyz >= neb_env%nsize_int)
-       CPPostcondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        ! Check that teh used colvar are uniquely determined
        check = (number_of_colvar(f_env%force_env) == &
                 number_of_colvar(f_env%force_env, unique=.TRUE.))
-       CPPostcondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        CALL read_neb_section(neb_env,neb_section)
        ! Print BAND header
        iw2=cp_print_key_unit_nr(logger,neb_section,"BANNER",extension=".nebLog")
@@ -202,7 +202,7 @@ CONTAINS
        CALL neb_var_release(vels)
        ! At the end let's destroy the environment of the BAND calculation
        DEALLOCATE(neb_env, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL rep_env_release(rep_env)
     CALL cp_print_key_finished_output(output_unit,logger,neb_section,&
@@ -255,8 +255,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     NULLIFY( Dcoords, tc_section, vc_section)
-    CPPostcondition(ASSOCIATED(coords),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(vels),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(coords))
+    CPASSERT(ASSOCIATED(vels))
     ! MD band for string methods type does not make anywa sense. Stop calculation.
     IF (neb_env%id_type==do_sm) THEN
        CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -273,11 +273,11 @@ CONTAINS
     ! Initial setup for MD
     CALL neb_var_create(Dcoords, neb_env)
     ALLOCATE (mass(SIZE(coords%wrk,1),neb_env%number_of_replica),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (energies(neb_env%number_of_replica),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (distances(neb_env%number_of_replica-1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Setting up the mass array
     IF (neb_env%use_colvar) THEN
        mass(:,:) = 0.5_dp*dt/massunit
@@ -353,11 +353,11 @@ CONTAINS
     END DO md_opt_loop
 
     DEALLOCATE (mass,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (energies,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (distances,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL neb_var_release(Dcoords)
     CALL cp_print_key_finished_output(iw,logger,neb_env%neb_section,&
          "REPLICA_INFO")
@@ -412,9 +412,9 @@ CONTAINS
     NULLIFY(sline, crr, err)
     neb_env%opt_type_label = "SD"
     do_ls = .TRUE.
-    CPPostcondition(ASSOCIATED(coords),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(vels),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(forces),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(coords))
+    CPASSERT(ASSOCIATED(vels))
+    CPASSERT(ASSOCIATED(forces))
     iw=cp_print_key_unit_nr(logger,neb_env%neb_section,"REPLICA_INFO",&
          extension=".replicaLog")
     CALL section_vals_val_get(diis_section,"MAX_STEPS",i_val=max_steps)
@@ -432,15 +432,15 @@ CONTAINS
     CALL neb_var_create(sline, neb_env, full_allocation=.TRUE.)
     ! Array of error vectors
     ALLOCATE (err(PRODUCT(coords%size_wrk),n_diis),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (crr(PRODUCT(coords%size_wrk),n_diis),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (set_err(n_diis),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (energies(neb_env%number_of_replica),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (distances(neb_env%number_of_replica-1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Initializing forces array
     CALL reorient_images(neb_env%rotate_frames, particle_set, coords, vels,&
          output_unit, distances, neb_env%number_of_replica)
@@ -526,15 +526,15 @@ CONTAINS
        IF (converged) EXIT
     END DO
     DEALLOCATE (energies, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (distances, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (err, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (crr, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (set_err, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL neb_var_release(sline)
     CALL timestop(handle)
   END SUBROUTINE neb_diis

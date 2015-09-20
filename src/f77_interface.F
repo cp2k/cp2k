@@ -242,7 +242,7 @@ CONTAINS
        CALL cp_logger_release(logger)
 
        ALLOCATE(f_envs(0),stat=stat)
-       CPPostconditionNoErr(stat==0,cp_fatal_level,routineP)
+       CPASSERT(stat==0)
        module_initialized=.TRUE.
        ierr=0
 
@@ -297,10 +297,10 @@ CONTAINS
        CALL pw_cuda_finalize()
        DO ienv=n_f_envs,1,-1
           CALL destroy_force_env(f_envs(ienv)%f_env%id_nr,ierr=ierr)
-          CPAssertNoFail(ierr==0,cp_warning_level,routineP)
+          CPASSERT(ierr==0)
        END DO
        DEALLOCATE(f_envs,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
        CALL cp_para_env_release(default_para_env)
        ierr=0
        CALL cp_rm_default_logger()
@@ -332,14 +332,14 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(f_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(f_env))
     CALL force_env_release(f_env%force_env)
     CALL cp_logger_release(f_env%logger)
     CALL timer_env_release(f_env%timer_env)
     CALL mp_perf_env_release(f_env%mp_perf_env)
     IF (f_env%old_path/=f_env%my_path) THEN
        CALL m_chdir(f_env%old_path,ierr)
-       CPAssert(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
   END SUBROUTINE f_env_dealloc
 
@@ -372,7 +372,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(f_env,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     f_env%force_env => force_env
     CALL force_env_retain(f_env%force_env)
     f_env%logger => logger
@@ -455,11 +455,11 @@ CONTAINS
     ELSE
        f_env => f_envs(f_env_pos)%f_env
        logger => f_env%logger
-       CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,my_failure)
+       CPASSERT(ASSOCIATED(logger))
        CALL m_getcwd(f_env%old_path)
        IF (f_env%old_path/=f_env%my_path) THEN
           CALL m_chdir(TRIM(f_env%my_path),ierr)
-          CPAssert(ierr==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr==0)
        END IF
        CALL add_mp_perf_env(f_env%mp_perf_env)
        CALL add_timer_env(f_env%timer_env)
@@ -502,23 +502,23 @@ CONTAINS
 
     IF (ASSOCIATED(f_env)) THEN
        IF (PRESENT(handle)) THEN
-          CPAssert(handle==cp_default_logger_stack_size(),cp_failure_level,routineP,failure)
+          CPASSERT(handle==cp_default_logger_stack_size())
        END IF
 
        logger => f_env%logger
        d_logger => cp_get_default_logger()
        d_timer_env => get_timer_env()
        d_mp_perf_env => get_mp_perf_env()
-       CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,failure)
-       CPPrecondition(ASSOCIATED(d_logger),cp_failure_level,routineP,failure)
-       CPPrecondition(ASSOCIATED(d_timer_env),cp_failure_level,routineP,failure)
-       CPPrecondition(ASSOCIATED(d_mp_perf_env),cp_failure_level,routineP,failure)
-       CPPrecondition(logger%id_nr==d_logger%id_nr,cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(logger))
+       CPASSERT(ASSOCIATED(d_logger))
+       CPASSERT(ASSOCIATED(d_timer_env))
+       CPASSERT(ASSOCIATED(d_mp_perf_env))
+       CPASSERT(logger%id_nr==d_logger%id_nr)
        ! CPPrecondition(d_timer_env%id_nr==f_env%timer_env%id_nr,cp_failure_level,routineP,failure)
-       CPPrecondition(d_mp_perf_env%id_nr==f_env%mp_perf_env%id_nr,cp_failure_level,routineP,failure)
+       CPASSERT(d_mp_perf_env%id_nr==f_env%mp_perf_env%id_nr)
        IF (f_env%old_path/=f_env%my_path) THEN
           CALL m_chdir(TRIM(f_env%old_path),ierr2)
-          CPAssert(ierr2==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr2==0)
        END IF
        IF (PRESENT(ierr)) THEN
           ierr=0
@@ -611,7 +611,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(input_declaration),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(input_declaration))
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
             fp_env,eip_env,mixed_env,qs_env,qmmm_env)
     new_env_id=-1
@@ -693,7 +693,7 @@ CONTAINS
     IF (n_f_envs+1>SIZE(f_envs)) THEN
        f_envs_old => f_envs
        ALLOCATE(f_envs(n_f_envs+10), stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i=1,n_f_envs
           f_envs(i)%f_env => f_envs_old(i)%f_env
        END DO
@@ -701,7 +701,7 @@ CONTAINS
           NULLIFY(f_envs(i)%f_env)
        END DO
        DEALLOCATE(f_envs_old,stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
 
@@ -710,7 +710,7 @@ CONTAINS
     CALL cp2k_setup(root_section,para_env,globenv)
     ! Group Distribution
     ALLOCATE(group_distribution(0:para_env%num_pe-1),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     group_distribution  = 0
     lgroup_distribution => group_distribution
     ! Setup all possible force_env
@@ -748,7 +748,7 @@ CONTAINS
 CPSourceFileRef,&
                only_ionode=.TRUE.)
           check = ASSOCIATED(force_env%mixed_env%sub_para_env)
-          CPPrecondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           ngroups = force_env%mixed_env%ngroups
           my_group= lgroup_distribution(para_env%mepos)
           isubforce_eval = iforce_eval-1
@@ -861,7 +861,7 @@ CPSourceFileRef,&
        ! Handle multiple force_eval
        IF (nforce_eval>1.AND.iforce_eval==1) THEN
           ALLOCATE(my_force_env%sub_force_env(nsubforce_size),stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ! Nullify subforce_env
           DO k = 1,nsubforce_size
              NULLIFY(my_force_env%sub_force_env(k)%force_env)
@@ -883,9 +883,9 @@ CPSourceFileRef,&
     IF (use_multiple_para_env)&
        CALL cp_rm_default_logger()
     DEALLOCATE(group_distribution,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(i_force_eval,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     timer_env => get_timer_env()
     mp_perf_env => get_mp_perf_env()
     CALL mp_max(last_f_env_id,para_env%group)
@@ -943,14 +943,14 @@ CPSourceFileRef,&
     CALL force_env_get(f_env%force_env,globenv=globenv,&
          root_section=root_section,para_env=para_env)
 
-    CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(globenv))
     CALL globenv_retain(globenv)
     CALL f_env_dealloc(f_env)
     CALL cp2k_finalize(root_section,para_env,globenv,f_env%old_path)
     CALL section_vals_release(root_section)
     CALL globenv_release(globenv)
     DEALLOCATE(f_env,stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+    CPASSERT(stat==0)
     ierr=0
   END SUBROUTINE destroy_force_env
 
@@ -1037,7 +1037,7 @@ CPSourceFileRef,&
     CALL f_env_add_defaults(env_id,f_env,failure)
     NULLIFY (cell_full)
     CALL force_env_get(f_env%force_env,cell=cell_full)
-    CPPrecondition(ASSOCIATED(cell_full),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(cell_full))
     cell = cell_full%hmat
     IF(PRESENT(per)) per(:) = cell_full%perd(:)
     CALL f_env_rm_defaults(f_env,ierr)
@@ -1242,7 +1242,7 @@ CPSourceFileRef,&
     CALL f_env_add_defaults(env_id,f_env,failure)
     NULLIFY (cell)
     CALL force_env_get(f_env%force_env,cell=cell)
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(cell))
     cell%hmat = new_cell
     CALL init_cell(cell)
     CALL force_env_get(f_env%force_env, subsys=subsys)

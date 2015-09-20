@@ -72,7 +72,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MD",&
          description="This section defines the whole set of parameters needed perform an MD run.",&
          n_keywords=13, n_subsections=6, repeats=.FALSE.)
@@ -295,7 +295,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="Langevin",&
          description="Controls the set of parameters to run a Langevin MD. "//&
          "The integrator used follows that given in the article by Ricci et al. "//&
@@ -351,7 +351,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
          description="Controls the printing properties during an MD run",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -449,7 +449,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="RESPA",&
          description="Multiple timestep integration based on RESPA (implemented for NVE only)."//&
@@ -489,7 +489,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="REFTRAJ",&
          description="Loads an external trajectory file and performs analysis on the"//&
@@ -597,7 +597,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="MSD",&
          description="Loads an external trajectory file and performs analysis on the"//&
@@ -681,7 +681,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="msst",&
          description="Parameters for Multi-Scale Shock Technique (MSST) "//&
@@ -752,7 +752,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="shell",&
          description="Parameters of shell model in adiabatic dynamics.",&
@@ -821,7 +821,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="ADIABATIC_DYNAMICS",&
          description="Parameters used in canonical adiabatic free energy sampling (CAFES).",&
@@ -951,7 +951,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="thermal_region", &
          description="Define regions where different initialization and control "//&
@@ -1072,7 +1072,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY (keyword)
     NULLIFY (subsection)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
 
     CALL section_create(section,name="CASCADE",&
@@ -1140,7 +1140,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="Averages",&
          description="Controls the calculation of the averages during an MD run.",&
          n_keywords=1, n_subsections=1, repeats=.FALSE.)
@@ -1195,7 +1195,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RESTART_AVERAGES",&
          description="Stores information for restarting averages.",&
          n_keywords=1, n_subsections=1, repeats=.FALSE.)

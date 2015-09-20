@@ -242,7 +242,7 @@ END SUBROUTINE write_string
        IF (PRESENT(rest)) sll => rest
     ELSE
        ALLOCATE(sll, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        sll%first_el = first_el
        NULLIFY(sll%rest)
        IF (PRESENT(rest)) sll%rest => rest
@@ -290,7 +290,7 @@ END SUBROUTINE write_string
     failure=.FALSE.
 
     DEALLOCATE(sll, stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE cp_sll_char_dealloc_node
 
 ! ============= get/set ============
@@ -324,7 +324,7 @@ END SUBROUTINE write_string
        IF (PRESENT(first_el)) THEN
           CALL cp_sll_char_create(sll,first_el,rest)
        ELSE
-          CPAssert(.NOT.PRESENT(rest),cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.PRESENT(rest))
        END IF
     ELSE
        IF (PRESENT(first_el)) sll%first_el = first_el
@@ -360,7 +360,7 @@ END SUBROUTINE write_string
     failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
-       CPPrecondition(.NOT.PRESENT(first_el),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.PRESENT(first_el))
        IF (PRESENT(rest)) NULLIFY(rest)
        IF (PRESENT(empty)) empty=.TRUE.
        IF (PRESENT(length)) length=0
@@ -393,7 +393,7 @@ END SUBROUTINE write_string
     failure=.FALSE.
 
     IF (cp_debug) THEN
-       CPPrecondition(ASSOCIATED(sll),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(sll))
     END IF
 
     res = sll%first_el
@@ -525,14 +525,14 @@ END SUBROUTINE write_string
     failure=.FALSE.
 
     IF (cp_debug) THEN
-       CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,failure)
+       CPASSERT(index>0.OR.index==-1)
     END IF
     IF (index==-1) THEN
        pos => cp_sll_char_get_rest(sll, iter=-1)
     ELSE
        pos => cp_sll_char_get_rest(sll, iter=index-1)
     END IF
-    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pos))
 
     res = pos%first_el
   END FUNCTION cp_sll_char_get_el_at
@@ -568,7 +568,7 @@ END SUBROUTINE write_string
     ELSE
        pos => cp_sll_char_get_rest(sll, iter=index-1)
     END IF
-    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pos))
 
     pos%first_el = value
   END SUBROUTINE cp_sll_char_set_el_at
@@ -699,7 +699,7 @@ END SUBROUTINE write_string
        ELSE
           pos => cp_sll_char_get_rest(sll, iter=index-2)
        END IF
-       CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(pos))
        CALL cp_sll_char_insert_el(pos%rest,el)
     END IF
   END SUBROUTINE cp_sll_char_insert_el_at
@@ -727,7 +727,7 @@ END SUBROUTINE write_string
     failure=.FALSE.
 
     IF (cp_debug) THEN
-       CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,failure)
+       CPASSERT(index>0.OR.index==-1)
     END IF
     IF (index==1) THEN
        CALL cp_sll_char_rm_first_el(sll)
@@ -737,7 +737,7 @@ END SUBROUTINE write_string
        ELSE
           pos => cp_sll_char_get_rest(sll, iter=index-2)
        END IF
-       CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(pos))
        CALL cp_sll_char_rm_first_el(pos%rest)
     END IF
   END SUBROUTINE cp_sll_char_rm_el_at
@@ -794,12 +794,12 @@ FUNCTION cp_sll_char_to_array(sll) RESULT(res)
 
   len=cp_sll_char_get_length(sll)
   ALLOCATE(res(len),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   iter => sll
   DO i=1,len
      res(i) = iter%first_el
      IF (.NOT.(cp_sll_char_next(iter).OR.i==len)) THEN
-        CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
      END IF
   END DO
 END FUNCTION cp_sll_char_to_array
@@ -900,9 +900,9 @@ SUBROUTINE cp_sll_char_insert_ordered(sll,el,insert_equals,&
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_char_next(iter),cp_failure_level,routineP,failure)
+        CPASSERT(cp_sll_char_next(iter))
      END DO
-     CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(iter))
   END IF
 END SUBROUTINE cp_sll_char_insert_ordered
 
@@ -984,9 +984,9 @@ SUBROUTINE cp_sll_char_insert_ordered2(sll,el,compare_function,&
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_char_next(iter),cp_failure_level,routineP,failure)
+        CPASSERT(cp_sll_char_next(iter))
      END DO
-     CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(iter))
   END IF
 END SUBROUTINE cp_sll_char_insert_ordered2
 

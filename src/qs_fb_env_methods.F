@@ -363,7 +363,7 @@ CONTAINS
     ! requires a new mo_set (molecular orbitals | eigenvectors) and
     ! the corresponding matrix pools for the eigenvector coefficients
     ALLOCATE(mos_filtered(nspin), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DO ispin = 1, nspin
        CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
                        maxocc=maxocc, &
@@ -510,7 +510,7 @@ CONTAINS
     ! full basis version in scf_env ready to be used outside this
     ! subroutine
     ALLOCATE(matrix_filtered_p, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_init(matrix_filtered_p)
     ! the filtered density matrix should have the same sparse
     ! structure as the original density matrix, we must copy the
@@ -554,7 +554,7 @@ CONTAINS
     CALL cp_dbcsr_release(matrix_tmp)
     CALL cp_dbcsr_release(matrix_filtered_p)
     DEALLOCATE(matrix_filtered_p, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! ----------------------------------------------------------------------
     ! Update MOs
@@ -643,7 +643,7 @@ CONTAINS
        CALL deallocate_mo_set(mo_set=mos_filtered(ispin)%mo_set)
     END DO
     DEALLOCATE(mos_filtered, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_deallocate_matrix_set(matrix_filter)
 
     CALL timestop(handle)
@@ -840,7 +840,7 @@ CONTAINS
 
     nkinds = SIZE(qs_kind_set)
     ALLOCATE(rcut(nkinds), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! reading from the other parts of the code, it seemed that
     ! aux_fit_basis_set is only used when do_admm is TRUE. This can be
@@ -850,7 +850,7 @@ CONTAINS
     ! calculations, and if not set, the task list is generated using
     ! the default basis_set="ORB".
     ALLOCATE(basis_set_list(nkinds), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (dft_control%do_admm) THEN
        CALL basis_set_list_setup(basis_set_list, "AUX_FIT", qs_kind_set)
     ELSE
@@ -868,7 +868,7 @@ CONTAINS
 
     ! cleanup
     DEALLOCATE(basis_set_list, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -916,7 +916,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(fb_env_has_data(fb_env), cp_failure_level, routineP,failure)
+    CPASSERT(fb_env_has_data(fb_env))
 
     NULLIFY(cell, halos, halo_atoms, rcut, particle_set, para_env, &
             qs_kind_set, local_atoms)
@@ -946,7 +946,7 @@ CONTAINS
 
     ! create the halos, one for each local atom
     ALLOCATE(halos(natoms_local), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DO ihalo = 1, natoms_local
        CALL fb_atomic_halo_nullify(halos(ihalo))
        CALL fb_atomic_halo_create(halos(ihalo))
@@ -956,7 +956,7 @@ CONTAINS
                                  max_nhalos=max_natoms_local)
     ! build halos
     ALLOCATE(pair_radii(nkinds_global,nkinds_global), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_build_pair_radii(rcut, nkinds_global, pair_radii)
     ihalo = 0
     DO iatom = 1, natoms_local
@@ -989,7 +989,7 @@ CONTAINS
        CALL fb_atomic_halo_sort(halos(ihalo))
     END DO ! iatom
     DEALLOCATE(pair_radii, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! finalise
     CALL fb_atomic_halo_list_set(atomic_halos=atomic_halos, &
@@ -1043,7 +1043,7 @@ CONTAINS
     CALL timeset(routineN, handle)
 
     failure = .FALSE.
-    CPPrecondition(fb_env_has_data(fb_env), cp_failure_level, routineP,failure)
+    CPASSERT(fb_env_has_data(fb_env))
     NULLIFY(nfunctions, functions, basis_set, basis_set_list, qs_kind_set, dft_control)
     CALL fb_trial_fns_nullify(trial_fns)
 
@@ -1064,7 +1064,7 @@ CONTAINS
     ! calculations, and if not set, the task list is generated using
     ! the default basis_set="ORB".
     ALLOCATE(basis_set_list(nkinds), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (dft_control%do_admm) THEN
        CALL basis_set_list_setup(basis_set_list, "AUX_FIT", qs_kind_set)
     ELSE
@@ -1072,7 +1072,7 @@ CONTAINS
     END IF
 
     ALLOCATE(nfunctions(nkinds), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     nfunctions = 0
 
     DO ikind = 1, nkinds
@@ -1116,7 +1116,7 @@ CONTAINS
     ! functions
     max_n_trial = MAXVAL(nfunctions)
     ALLOCATE(functions(max_n_trial,nkinds), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     functions(:,:) = 0
     ! redo the loops to get the trial function indices within the basis set
     DO ikind = 1, nkinds
@@ -1170,7 +1170,7 @@ CONTAINS
 
     ! cleanup
     DEALLOCATE(basis_set_list, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -1211,9 +1211,9 @@ CONTAINS
 
     nblks = nblkrows_total * nblkcols_total
     ALLOCATE(rows(nblks), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(cols(nblks), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     rows(:) = 0
     cols(:) = 0
     iblk = 0
@@ -1231,9 +1231,9 @@ CONTAINS
 
     ! cleanup
     DEALLOCATE(rows, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(cols, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE fb_dbcsr_copy_sparse_struct
 

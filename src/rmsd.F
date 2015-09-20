@@ -75,12 +75,12 @@ CONTAINS
       DIMENSION(:, :)                        :: r0p, rp
 
     failure   = .FALSE.
-    CPPostcondition(SIZE(r)==SIZE(r0),cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(r)==SIZE(r0))
     natom     = SIZE(particle_set)
     my_rotate = .FALSE.
     IF (PRESENT(rotate)) my_rotate=rotate
     ALLOCATE(w(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (PRESENT(weights)) THEN
        w(:) = weights
     ELSE
@@ -93,9 +93,9 @@ CONTAINS
        IF (mtot /= 0.0_dp) w(:) = w(:)/mtot
     END IF
     ALLOCATE(rp(3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(r0p(3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Molecule given by coordinates R
     ! Find COM and center molecule in COM
     xx=0.0_dp
@@ -291,11 +291,11 @@ CONTAINS
        END DO
     END IF
     DEALLOCATE(w,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(rp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(r0p,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE rmsd3
 
 END MODULE rmsd

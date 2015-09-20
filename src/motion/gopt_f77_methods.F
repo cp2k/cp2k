@@ -153,7 +153,7 @@
        CASE (default_ts_method_id)
           ! Transition State Optimization
           ALLOCATE (gradient_ts(particles%n_els*3),stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ! Real calculation of energy and forces for transition state optimization:
           ! When doing dimer methods forces have to be always computed since the function
           ! to minimize is not the energy but the effective force
@@ -163,12 +163,12 @@
           ! Possibly take the gradients
           IF (PRESENT(gradient)) THEN
              IF (master == para_env%mepos) THEN ! we are on the master
-                CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,failure)
+                CPASSERT(ASSOCIATED(gradient))
                 gradient = gradient_ts
              END IF
           END IF
           DEALLOCATE (gradient_ts,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END SELECT
        ! This call is necessary for QM/MM if a Translation is applied
        ! this makes the geometry optimizer consistent
@@ -199,14 +199,14 @@ CPSourceFileRef,&
           END IF
           ! Possibly take the gradients
           IF (PRESENT(gradient)) THEN
-             CPPrecondition(ANY(virial_avg%pv_total /= 0),cp_failure_level,routineP,failure)
+             CPASSERT(ANY(virial_avg%pv_total /= 0))
              ! Convert the average ptens
              av_ptens(:,:) = virial_avg%pv_total(:,:)/cell%deth
              IF (master == para_env%mepos) THEN ! we are on the master
-                CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,failure)
+                CPASSERT(ASSOCIATED(gradient))
                 nparticle = force_env_get_nparticle(gopt_env%force_env)
                 nsize = 3*nparticle
-                CPPrecondition((SIZE(gradient) == nsize + 6),cp_failure_level,routineP,failure)
+                CPASSERT((SIZE(gradient) == nsize + 6))
                 CALL pack_subsys_particles(subsys=subsys,f=gradient(1:nsize),fscale=-1.0_dp)
                 CALL apply_cell_change(gopt_env,cell,gradient,update_forces=.TRUE.)
                 cell_gradient => gradient(nsize+1:nsize+6)
@@ -277,7 +277,7 @@ CPSourceFileRef,&
                 CALL cp_virial(averages%virial, virial_avg)
                 CALL release_averages(averages)
              CASE DEFAULT
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END SELECT
              CALL cp_rm_default_logger()
              CALL gopt_new_logger_release(new_logger, gopt_env%force_env%root_section, para_env, project_name,&
@@ -291,11 +291,11 @@ CPSourceFileRef,&
           END IF
           ! Possibly give back the gradients
           IF (PRESENT(gradient)) THEN
-             CPPrecondition(ANY(virial_avg%pv_total/=0),cp_failure_level,routineP,failure)
+             CPASSERT(ANY(virial_avg%pv_total/=0))
              ! Convert the average ptens
              av_ptens(:,:) = virial_avg%pv_total(:,:)/cell%deth
              IF (master == para_env%mepos) THEN ! we are on the master
-                CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,failure)
+                CPASSERT(ASSOCIATED(gradient))
                 ! Compute the gradients on the cell
                 CALL get_dg_dh(gradient,av_ptens,gopt_env%cell_env%pres_ext,cell,gopt_env%cell_env%mtrx,&
                                keep_angles=gopt_env%cell_env%keep_angles,&
@@ -308,7 +308,7 @@ CPSourceFileRef,&
           END IF
           CALL virial_release(virial_avg)
        CASE DEFAULT
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
     CASE (default_shellcore_method_id)
        idg = 0
@@ -336,7 +336,7 @@ CPSourceFileRef,&
        ! Possibly take the gradients
        IF (PRESENT(gradient)) THEN
          IF (master == para_env%mepos) THEN ! we are on the master
-            CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(gradient))
             idg = 0
             DO ip=1,shell_particles%n_els
                DO idir=1,3
@@ -347,7 +347,7 @@ CPSourceFileRef,&
          END IF
        END IF
     CASE DEFAULT
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     CALL timestop(handle)

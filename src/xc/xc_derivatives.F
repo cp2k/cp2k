@@ -163,7 +163,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(functional),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(functional))
   SELECT CASE(functional%section%name)
   CASE("BECKE97")
      IF (lsd) THEN
@@ -225,7 +225,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CALL pade(reference, shortform, lsd=lsd, needs=needs)
   CASE("HCTH")
      CALL section_vals_val_get(functional,"PARAMETER_SET",i_val=i_param)
-     CPPrecondition(.NOT.lsd,cp_warning_level,routineP,failure)
+     CPASSERT(.NOT.lsd)
      CALL hcth_lda_info(i_param,reference,shortform,needs,max_deriv)
   CASE("OPTX")
      IF (lsd) THEN
@@ -254,7 +254,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CALL section_vals_val_get(functional,"FUNCTIONAL",i_val=i_param)
      CALL ke_gga_info(i_param,lsd,reference,shortform,needs,max_deriv)
   CASE("P86C")
-     CPPrecondition(.NOT.lsd,cp_warning_level,routineP,failure)
+     CPASSERT(.NOT.lsd)
      IF(failure) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
                          "BP functional not implemented with LSD")
@@ -437,7 +437,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         CALL pade_lda_pw_eval(deriv_set, rho_set, deriv_order)
      END IF
   CASE("HCTH")
-     CPPrecondition(.NOT.lsd,cp_warning_level,routineP,failure)
+     CPASSERT(.NOT.lsd)
      CALL section_vals_val_get(functional,"PARAMETER_SET",i_val=i_param)
      CALL hcth_lda_eval(i_param,rho_set,deriv_set,deriv_order)
   CASE("OPTX")
@@ -469,7 +469,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         CALL ke_gga_lda_eval(i_param,rho_set,deriv_set,deriv_order)
      END IF
   CASE("P86C")
-     CPPrecondition(.NOT.lsd,cp_warning_level,routineP,failure)
+     CPASSERT(.NOT.lsd)
      CALL p86_lda_eval(rho_set,deriv_set,deriv_order,functional)
   CASE("PW92")
      CALL section_vals_val_get(functional,"PARAMETRIZATION",i_val=i_param)
@@ -606,7 +606,7 @@ SUBROUTINE xc_functionals_eval(functionals, lsd, rho_set, deriv_set, &
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(functionals),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(functionals))
   ifun=0
   DO
      ifun=ifun+1
@@ -663,7 +663,7 @@ FUNCTION xc_functionals_get_needs(functionals, lsd, add_basic_components)&
   my_add_basic_components=.FALSE.
   IF (PRESENT(add_basic_components)) my_add_basic_components=add_basic_components
 
-  CPPrecondition(ASSOCIATED(functionals),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(functionals))
   CALL xc_rho_cflags_setall(needs,.FALSE.)
   ifun=0
   DO

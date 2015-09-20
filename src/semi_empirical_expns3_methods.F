@@ -61,9 +61,9 @@ CONTAINS
        DO i = 1, nkinds
           CALL get_qs_kind(qs_kind_set(i), se_parameter=sepi)
           check = .NOT.ASSOCIATED(sepi%expns3_int)
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           ALLOCATE(sepi%expns3_int(nkinds),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO j = 1, nkinds
              NULLIFY(sepi%expns3_int(j)%expns3)
              CALL semi_empirical_expns3_create(sepi%expns3_int(j)%expns3)
@@ -129,8 +129,8 @@ CONTAINS
        kl = indexa(4, 4)
        e1b(4) = ijkl_low_3 (sepi, sepj, kl, ij, 1, 1, 0, 0, 2, itype, coeff_int_3) * zj
        ! Consistency check
-       CPPostcondition(e1b(2)==e1b(3),cp_failure_level,routineP,failure)
-       CPPostcondition(e1b(3)==e1b(4),cp_failure_level,routineP,failure)
+       CPASSERT(e1b(2)==e1b(3))
+       CPASSERT(e1b(3)==e1b(4))
        IF (sepi%dorb) THEN
           kl = indexa(5, 5)
           e1b(5) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3) * zj
@@ -143,10 +143,10 @@ CONTAINS
           kl = indexa(9, 9)
           e1b(9) = ijkl_low_3 (sepi, sepj, kl, ij, 2, 2, 0, 0, 2, itype, coeff_int_3) * zj
           ! Consistency check
-          CPPostcondition(e1b(5)==e1b(6),cp_failure_level,routineP,failure)
-          CPPostcondition(e1b(6)==e1b(7),cp_failure_level,routineP,failure)
-          CPPostcondition(e1b(7)==e1b(8),cp_failure_level,routineP,failure)
-          CPPostcondition(e1b(8)==e1b(9),cp_failure_level,routineP,failure)
+          CPASSERT(e1b(5)==e1b(6))
+          CPASSERT(e1b(6)==e1b(7))
+          CPASSERT(e1b(7)==e1b(8))
+          CPASSERT(e1b(8)==e1b(9))
        END IF
     END IF
 
@@ -161,8 +161,8 @@ CONTAINS
        kl = indexa(4, 4)
        e2a(4) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 1, 1, 1, itype, coeff_int_3) * zi
        ! Consistency check
-       CPPostcondition(e2a(2)==e2a(3),cp_failure_level,routineP,failure)
-       CPPostcondition(e2a(3)==e2a(4),cp_failure_level,routineP,failure)
+       CPASSERT(e2a(2)==e2a(3))
+       CPASSERT(e2a(3)==e2a(4))
        IF (sepj%dorb) THEN
           kl = indexa(5, 5)
           e2a(5) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3) * zi
@@ -175,10 +175,10 @@ CONTAINS
           kl = indexa(9, 9)
           e2a(9) = ijkl_low_3 (sepi, sepj, ij, kl, 0, 0, 2, 2, 1, itype, coeff_int_3) * zi
           ! Consistency check
-          CPPostcondition(e2a(5)==e2a(6),cp_failure_level,routineP,failure)
-          CPPostcondition(e2a(6)==e2a(7),cp_failure_level,routineP,failure)
-          CPPostcondition(e2a(7)==e2a(8),cp_failure_level,routineP,failure)
-          CPPostcondition(e2a(8)==e2a(9),cp_failure_level,routineP,failure)
+          CPASSERT(e2a(5)==e2a(6))
+          CPASSERT(e2a(6)==e2a(7))
+          CPASSERT(e2a(7)==e2a(8))
+          CPASSERT(e2a(8)==e2a(9))
        END IF
     END IF
 

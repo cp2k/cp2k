@@ -140,7 +140,6 @@ CONTAINS
                                                 jpgfb, kpgfx, laa_max, &
                                                 lbb_max, lmax, n, ndev, nds, &
                                                 nl, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, b, exp_rab2, k, pfac, &
                                                 prefac, rab2, sqrt_pi3, &
                                                 sqrt_zet, sr_int, temp, x, &
@@ -167,7 +166,7 @@ CONTAINS
     ENDIF
 
     ALLOCATE(dtemp(nl+1), dsr_int(nl+1),stat=STAT)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     sqrt_pi3 = SQRT(pi**3)
 
@@ -337,7 +336,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(dtemp, dsr_int, stat=STAT)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -591,7 +590,6 @@ CONTAINS
                                                 jmax, la, labm, labmin, lamb, &
                                                 lb, ma, mb, nla, nlam, nlb, &
                                                 nlbm, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: bma, bma_m, bma_p, bmb, &
                                                 bmb_m, bmb_p, dAa, dAa_m, &
                                                 dAa_p, dAb, dAb_m, dAb_p
@@ -603,9 +601,9 @@ CONTAINS
 
     jmax = MIN(MAXVAL(lamax),lbmax)
     ALLOCATE(Wam(0:jmax,4),Wamm(0:jmax,4),Wamp(0:jmax,4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(Wbm(0:jmax,4),Wbmm(0:jmax,4),Wbmp(0:jmax,4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO lb = 0,lbmax
        nlb = nsoset_pm(lb-1)
@@ -743,9 +741,9 @@ CONTAINS
     ENDDO
 
     DEALLOCATE(Wam,Wamm,Wamp,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(Wbm,Wbmm,Wbmp,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 

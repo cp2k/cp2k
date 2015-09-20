@@ -162,7 +162,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="dft",&
          description="parameter needed by dft programs",&
          n_keywords=3, n_subsections=4, repeats=.FALSE.)
@@ -437,7 +437,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword, subsection, print_key)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="SCRF",&
          description="Adds an implicit solvation model to the DFT calculation."//&
          " Know also as Self Consistent Reaction Field.",&
@@ -487,7 +487,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword, subsection)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="SPHERE",&
          description="Treats the implicit solvent environment like a sphere",&
          n_keywords=0, n_subsections=0, repeats=.FALSE.)
@@ -523,7 +523,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CENTER",&
          description="Defines the center of the sphere.",&
          n_keywords=0, n_subsections=0, repeats=.FALSE.)
@@ -582,7 +582,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     NULLIFY(keyword, print_key)
     CALL section_create(section,name="LOCALIZE",&
@@ -808,7 +808,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section))
     NULLIFY(print_key, keyword)
     CALL cp_print_key_section_create(print_key,"WANNIER_CUBES",&
          description="Controls the printing of the wannier functions ", &
@@ -898,7 +898,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PRINT",&
          description="Section of possible print options in DFT code.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -2138,7 +2138,7 @@ CONTAINS
     NULLIFY(subsection)
     NULLIFY(keyword)
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="WFN_MIX",&
          description="A section that allows manipulation of the MO coeffs,"//&
@@ -2246,7 +2246,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key2
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(print_key),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(print_key))
     NULLIFY(print_key2, keyword)
     CALL cp_print_key_section_create(print_key,"MOLECULAR_STATES",&
          description="Controls printing of molecular states ",&
@@ -2302,7 +2302,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key2
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(print_key),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(print_key))
     NULLIFY(print_key2, keyword)
     CALL cp_print_key_section_create(print_key,"WANNIER_STATES",&
          description="Controls printing of molecular states ",&
@@ -2357,7 +2357,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"qs",&
          description="parameters needed to set up the Quickstep framework",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -2741,7 +2741,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DFTB",&
          description="Parameters needed to set up the DFTB methods",&
          n_keywords=1, n_subsections=1, repeats=.FALSE., &
@@ -2818,7 +2818,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"SCPTB",&
          description="Parameters needed to set up the SCPTB methods",&
          n_keywords=1, n_subsections=1, repeats=.FALSE.)
@@ -2911,7 +2911,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"AUXILIARY_DENSITY_MATRIX_METHOD",&
          description="Parameters needed for the ADMM method.",&
          n_keywords=1, n_subsections=1, repeats=.FALSE., &
@@ -3016,7 +3016,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="PARAMETER",&
          description="Information on where to find DFTB parameters",&
@@ -3120,7 +3120,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"SE",&
          description="Parameters needed to set up the Semi-empirical methods",&
          n_keywords=8, n_subsections=0, repeats=.FALSE.)
@@ -3272,7 +3272,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="LR_CORRECTION",&
          description="Setup parameters for the evaluation of the long-range correction term in SE "//&
          "calculations.", n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -3317,7 +3317,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="COULOMB",&
          description="Setup parameters for the evaluation of the COULOMB term in SE "//&
          "calculations.", n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -3364,7 +3364,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXCHANGE",&
          description="Setup parameters for the evaluation of the EXCHANGE and "//&
          " core Hamiltonian terms in SE calculations.", n_keywords=0, n_subsections=1,&
@@ -3414,7 +3414,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="SCREENING",&
          description="Setup parameters for the tapering of the Coulomb/Exchange Screening in "//&
          "KDSO-D integral scheme,", n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -3451,7 +3451,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
          description="Section of possible print options in SE code.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -3496,7 +3496,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"GA",&
          description="Sets up memory parameters for the storage of the integrals",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -3529,7 +3529,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"MEMORY",&
          description="Sets up memory parameters for the storage of the integrals",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -3578,7 +3578,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"MULLIKEN_RESTRAINT",&
          description="Use mulliken charges in a restraint (check code for details)",&
          n_keywords=7, n_subsections=0, repeats=.FALSE.)
@@ -3621,7 +3621,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword, print_key)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DENSITY_FITTING",&
          description="Setup parameters for density fitting (Bloechl charges or density derived "//&
          " atomic point charges (DDAPC) charges)",&
@@ -3699,7 +3699,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword, print_key)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DDAPC_RESTRAINT",&
          description="Use DDAPC charges in a restraint (check code for details)",&
          n_keywords=7, n_subsections=0, repeats=.TRUE.)
@@ -3776,7 +3776,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword, print_key)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"BECKE_RESTRAINT",&
          description="Use Becke weight population in a restraint/constraint ",&
          n_keywords=7, n_subsections=0, repeats=.FALSE.)
@@ -3851,7 +3851,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,"S2_RESTRAINT",&
          description="Use S2 in a re/constraint (OT only)",&
@@ -3899,7 +3899,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"tddfpt",&
          description="parameters needed to set up the Time Dependent Density Functional PT",&
          n_keywords=5, n_subsections=1, repeats=.FALSE., &
@@ -4053,7 +4053,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"relativistic",&
          description="parameters needed and setup for relativistic calculations",&
          n_keywords=5, n_subsections=0, repeats=.FALSE.)
@@ -4133,7 +4133,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(print_key)
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"scf",&
          description="Parameters needed perform an SCF run.",&
          n_keywords=24, n_subsections=3, repeats=.FALSE.)
@@ -4444,7 +4444,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"KG_METHOD",&
          description="Specifies the parameters for a Kim-Gordon-like partitioning"//&
                      " into molecular subunits",&
@@ -4535,7 +4535,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"OUTER_SCF",&
          description="parameters controlling the outer SCF loop",&
          n_keywords=9, n_subsections=0, repeats=.FALSE.)
@@ -4639,7 +4639,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BSSE",&
          description="This section is used to set up the BSSE calculation. "//&
          "It also requires that for each atomic kind X a kind X_ghost is present, "//&
@@ -4736,7 +4736,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
          description="Section of possible print options in BSSE code.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -4776,7 +4776,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="interpolator",&
          description="controls the interpolation for the G-space term",&
          n_keywords=5, n_subsections=0, repeats=.FALSE.)
@@ -4855,7 +4855,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="LRIGPW",&
          description="This section specifies optional parameters for LRIGPW.",& 
          n_keywords=3, n_subsections=0, repeats=.FALSE.)
@@ -4931,7 +4931,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="OPTIMIZE_LRI_BASIS",&
          description="This section specifies the parameters for optimizing "//&
          "the lri auxiliary basis sets for LRIGPW. The Powell optimizer is used.",&
@@ -5058,7 +5058,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="mgrid",&
          description="multigrid information",&
          n_keywords=5, n_subsections=1, repeats=.FALSE.)
@@ -5159,7 +5159,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="interpolator",&
          description="kind of interpolation used between the multigrids",&
          n_keywords=5, n_subsections=0, repeats=.FALSE.)
@@ -5255,7 +5255,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"sic",&
          description="parameters for the self interaction correction",&
          n_keywords=6, n_subsections=0, repeats=.FALSE., &
@@ -5325,7 +5325,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"LOW_SPIN_ROKS",&
          description="Specify the details of the low spin ROKS method."//&
                      "In particular, one can specify various terms added to the energy of the high spin roks configuration"//&
@@ -5367,7 +5367,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXTERNAL_POTENTIAL",&
          description="Section controlling the presence of an electrostatic "//&
          "external potential dependent on the atomic positions (X,Y,Z). "//&
@@ -5460,7 +5460,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXTERNAL_DENSITY",&
          description="Section for the use of the ZMP technique on external densities.",&
          n_keywords=4, n_subsections=0, repeats=.FALSE., &
@@ -5530,7 +5530,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXTERNAL_VXC",&
          description="SCF convergence with external v_xc calculated through previous ZMP"//&
                      "calculation",&
@@ -5567,7 +5567,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"PERIODIC_EFIELD",&
          description="parameters for finite periodic electric field computed using "//&
          "the Berry phase approach. IMPORTANT: Can only be used in combination "//&
@@ -5620,7 +5620,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"EFIELD",&
          description="parameters for finite, time dependent, nonperiodic electric fields",&
          n_keywords=6, n_subsections=1, repeats=.TRUE.)
@@ -5703,7 +5703,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"OT",&
          description="Sets the various options for the orbital transformation (OT) method. "//&
          "Default settings already provide an efficient, yet robust method. "//&
@@ -6072,7 +6072,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DIAGONALIZATION",&
          description="Set up type and parameters for Kohn-Sham matrix diagonalization.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -6191,7 +6191,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,"FILTER_MATRIX",&
                         description=" ",&
@@ -6264,7 +6264,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DAVIDSON",&
          description=" ",&
          n_keywords=2, n_subsections=0, repeats=.FALSE.)
@@ -6353,7 +6353,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"KRYLOV",&
          description=" ",&
          n_keywords=2, n_subsections=0, repeats=.FALSE.)
@@ -6418,7 +6418,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DIAG_SUB_SCF",&
          description="Activation of self-consistenf subspace refinement by diagonalization "//&
          "of H by adjusting the occupation but keeping the MOS unchanged.",&
@@ -6487,7 +6487,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"xas",&
          description="Sets the method of choice to calculate core-level excitation spectra. "//&
          "The occupied states from  which we calculate the "//&
@@ -6764,7 +6764,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
 
     CALL section_create(section,&
@@ -6878,7 +6878,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"REAL_TIME_PROPAGATION",&
          description="Parameters needed to set up the real time propagation"//&
          " for the electron dynamics",&
@@ -7136,7 +7136,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"CONSTANT_ENV",&
          description="parameters for a constant envelop",&
          n_keywords=6, n_subsections=1, repeats=.TRUE.)
@@ -7174,7 +7174,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"GAUSSIAN_ENV",&
          description="parameters for a gaussian envelop",&
          n_keywords=6, n_subsections=1, repeats=.TRUE.)
@@ -7213,7 +7213,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"RAMP_ENV",&
          description="Parameters for an trapeziodal envelop ",&
          n_keywords=6, n_subsections=1, repeats=.TRUE.)
@@ -7271,7 +7271,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
 
     CALL section_create(section,&

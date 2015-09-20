@@ -135,8 +135,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP,failure)
-    CPPrecondition(eip_env%ref_count>0, cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(eip_env))
+    CPASSERT(eip_env%ref_count>0)
     eip_env%ref_count = eip_env%ref_count+1
   END SUBROUTINE eip_env_retain
 
@@ -162,12 +162,12 @@ CONTAINS
     failure = .FALSE.
 
     IF (ASSOCIATED(eip_env)) THEN
-      CPPrecondition(eip_env%ref_count>0, cp_failure_level, routineP,failure)
+      CPASSERT(eip_env%ref_count>0)
       eip_env%ref_count = eip_env%ref_count-1
       IF (eip_env%ref_count<1) THEN
         IF (ASSOCIATED(eip_env%eip_forces)) THEN
           DEALLOCATE(eip_env%eip_forces, stat=stat)
-          CPPostconditionNoFail(stat==0, cp_warning_level, routineP)
+          CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(eip_env%subsys)) THEN
           CALL cp_subsys_release(eip_env%subsys)
@@ -185,7 +185,7 @@ CONTAINS
           CALL cell_release(eip_env%cell_ref)
         END IF
         DEALLOCATE(eip_env, stat=stat)
-        CPPostconditionNoFail(stat==0, cp_warning_level, routineP)
+        CPASSERT(stat==0)
       END IF
     END IF
     NULLIFY(eip_env)
@@ -276,8 +276,8 @@ CONTAINS
 
     NULLIFY(atomic_kinds, particles, molecules_new, molecule_kinds_new)
 
-    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP,failure)
-    CPPrecondition(eip_env%ref_count>0, cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(eip_env))
+    CPASSERT(eip_env%ref_count>0)
 
     IF (PRESENT(id_nr)) id_nr = eip_env%id_nr
     IF (PRESENT(eip_model)) eip_model = eip_env%eip_model
@@ -393,8 +393,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP,failure)
-    CPPrecondition(eip_env%ref_count>0, cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(eip_env))
+    CPASSERT(eip_env%ref_count>0)
 
     IF (PRESENT(id_nr)) eip_env%id_nr = id_nr
     IF (PRESENT(eip_model)) eip_env%eip_model = eip_model
@@ -484,7 +484,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(eip_env))
 
     eip_env%eip_model            = 0
     eip_env%eip_kinetic_energy   = 0.0_dp
@@ -531,7 +531,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(eip_env, stat=stat)
-    CPPostcondition(stat == 0, cp_failure_level, routineP,failure)
+    CPASSERT(stat == 0)
 
     NULLIFY(eip_env%eip_forces)
     NULLIFY(eip_env%subsys)

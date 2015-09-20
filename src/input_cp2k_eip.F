@@ -58,7 +58,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EIP", &
          description="This section contains all information to run an "//&
          "Empirical Interatomic Potential (EIP) calculation.", &
@@ -106,7 +106,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section, name="PRINT", &
          description="Section of possible print options in EIP code.", &
          n_keywords=0, n_subsections=6, repeats=.FALSE.)

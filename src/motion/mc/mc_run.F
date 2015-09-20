@@ -148,7 +148,7 @@ CONTAINS
       force_env_section => force_env_1%force_env_section
       root_section => force_env_1%root_section
       CALL section_vals_get(force_env_section,n_repetition=isos)
-      CPPostconditionNoFail(isos==1,cp_warning_level,routineP)
+      CPASSERT(isos==1)
 ! set some values...will use get_globenv if that ever comes around
 
 ! initialize the random numbers
@@ -350,13 +350,13 @@ CONTAINS
 
 
       DEALLOCATE ( empty_coordinates, STAT = isos )
-      CPPostconditionNoFail(isos==0,cp_warning_level,routineP)
+      CPASSERT(isos==0)
       DEALLOCATE ( mc_par, STAT = isos )
-      CPPostconditionNoFail(isos==0,cp_warning_level,routineP)
+      CPASSERT(isos==0)
       DEALLOCATE ( mc_env, STAT = isos )
-      CPPostconditionNoFail(isos==0,cp_warning_level,routineP)
+      CPASSERT(isos==0)
       DEALLOCATE ( force_env, STAT = isos )
-      CPPostconditionNoFail(isos==0,cp_warning_level,routineP)
+      CPASSERT(isos==0)
 
 ! delete the random numbers
       CALL delete_rng_stream(rng_stream)

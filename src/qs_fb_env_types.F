@@ -108,8 +108,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP,failure)
-    CPPreconditionNoFail(fb_env%obj%ref_count>0, cp_failure_level, routineP)
+    CPASSERT(ASSOCIATED(fb_env%obj))
+    CPASSERT(fb_env%obj%ref_count>0)
     fb_env%obj%ref_count = fb_env%obj%ref_count + 1
   END SUBROUTINE fb_env_retain
 
@@ -131,23 +131,23 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(fb_env%obj)) THEN
-       CPPreconditionNoFail(fb_env%obj%ref_count>0, cp_failure_level, routineP)
+       CPASSERT(fb_env%obj%ref_count>0)
        fb_env%obj%ref_count = fb_env%obj%ref_count - 1
        IF (fb_env%obj%ref_count == 0) THEN
           fb_env%obj%ref_count = 1
           IF (ASSOCIATED(fb_env%obj%rcut)) THEN
              DEALLOCATE(fb_env%obj%rcut, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
              DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+             CPASSERT(stat==0)
           END IF
           CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos)
           CALL fb_trial_fns_release(fb_env%obj%trial_fns)
           fb_env%obj%ref_count = 0
           DEALLOCATE(fb_env%obj, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
     ELSE
        NULLIFY(fb_env%obj)
@@ -225,9 +225,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(fb_env%obj), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(fb_env%obj))
     ALLOCATE(fb_env%obj, STAT=stat)
-    CPPostconditionNoFail(stat==0, cp_failure_level, routineP)
+    CPASSERT(stat==0)
     NULLIFY(fb_env%obj%rcut)
     CALL fb_atomic_halo_list_nullify(fb_env%obj%atomic_halos)
     CALL fb_trial_fns_nullify(fb_env%obj%trial_fns)
@@ -259,10 +259,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(fb_env%obj))
     IF (ASSOCIATED(fb_env%obj%rcut)) THEN
        DEALLOCATE(fb_env%obj%rcut, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        NULLIFY(fb_env%obj%rcut)
     END IF
     CALL fb_atomic_halo_list_release(fb_env%obj%atomic_halos)
@@ -272,7 +272,7 @@ CONTAINS
     fb_env%obj%collective_com = .TRUE.
     IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
        DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        NULLIFY(fb_env%obj%local_atoms)
     END IF
     fb_env%obj%nlocal_atoms = 0
@@ -325,8 +325,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP,failure)
-    CPPrecondition(fb_env%obj%ref_count>0, cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(fb_env%obj))
+    CPASSERT(fb_env%obj%ref_count>0)
     IF (PRESENT(rcut)) &
          rcut => fb_env%obj%rcut
     IF (PRESENT(filter_temperature)) &
@@ -389,11 +389,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(fb_env%obj), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(fb_env%obj))
     IF (PRESENT(rcut)) THEN
        IF (ASSOCIATED(fb_env%obj%rcut)) THEN
           DEALLOCATE(fb_env%obj%rcut, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
        fb_env%obj%rcut => rcut
     END IF
@@ -418,7 +418,7 @@ CONTAINS
     IF (PRESENT(local_atoms)) THEN
        IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
           DEALLOCATE(fb_env%obj%local_atoms, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
        fb_env%obj%local_atoms => local_atoms
     END IF

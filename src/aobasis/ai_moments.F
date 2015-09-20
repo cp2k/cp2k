@@ -1514,7 +1514,7 @@ CONTAINS
       DIMENSION(:, :, :)                     :: difmab, mab
 
     failure = .FALSE.
-    CPPrecondition(order==1,cp_failure_level,routineP,failure)
+    CPASSERT(order==1)
 
     rab = rbc - rac
     rab2= SUM( rab**2 )

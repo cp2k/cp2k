@@ -126,7 +126,7 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE(map_info, stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(map_info%index, map_info%map_index)
     NULLIFY(map_info%v_scale)
     NULLIFY(map_info%p_scale)
@@ -154,31 +154,31 @@ CONTAINS
     IF (ASSOCIATED(map_info)) THEN
        IF (ASSOCIATED (map_info%p_kin)) THEN
           DEALLOCATE (map_info%p_kin, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED (map_info%p_scale)) THEN
           DEALLOCATE (map_info%p_scale, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED (map_info%v_scale)) THEN
           DEALLOCATE (map_info%v_scale, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED (map_info%s_kin)) THEN
           DEALLOCATE (map_info%s_kin, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED (map_info%index)) THEN
           DEALLOCATE (map_info%index, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED (map_info%map_index)) THEN
           DEALLOCATE (map_info%map_index, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
        DEALLOCATE (map_info, STAT=stat)
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE release_map_info_type
@@ -201,15 +201,15 @@ CONTAINS
     IF (ASSOCIATED(lnhc)) THEN
        IF ( ASSOCIATED(lnhc%dt_yosh)) THEN
           DEALLOCATE (lnhc%dt_yosh, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED (lnhc%nvt)) THEN
           DEALLOCATE (lnhc%nvt, STAT=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDIF
        CALL release_map_info_type(lnhc%map_info)
        DEALLOCATE (lnhc, STAT=stat)
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
 
   END SUBROUTINE lnhc_dealloc

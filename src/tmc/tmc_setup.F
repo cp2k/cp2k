@@ -310,7 +310,7 @@ CONTAINS
       END IF ! unused worker groups have nothing to do
   
       ! delete the random numbers
-      CPPrecondition(ASSOCIATED(tmc_env%rng_stream),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(tmc_env%rng_stream))
       CALL delete_rng_stream(tmc_env%rng_stream)
 
       ! deallocate the move types
@@ -385,7 +385,7 @@ CONTAINS
       !TODO get the correct usage of creating and handling the logger...
       logger=>cp_get_default_logger()
       output_unit= cp_logger_get_default_io_unit(logger)
-      CPPostconditionNoFail(output_unit.GT.0,cp_failure_level,routineP)
+      CPASSERT(output_unit.GT.0)
       ! write the header
       CALL tmc_ana_header(output_unit)
 
@@ -396,7 +396,7 @@ CONTAINS
       nr_dim = SIZE(elem%pos)
       ! we need a new tree element with all neccessay arrays, (e.g. dipoles could not be allocated already)
       CALL deallocate_sub_tree_node(tree_elem=elem)
-      CPPostconditionNoFail(SIZE(ana_list).GT.0,cp_failure_level,routineP)
+      CPASSERT(SIZE(ana_list).GT.0)
 
       ! print initial test output (for single core tests, where no data is produced)
       IF(tmc_env%params%print_test_output) THEN
@@ -497,10 +497,10 @@ CONTAINS
 
     NULLIFY(tmc_section, inp_Temp, Temps)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(ana_list),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(input))
+    CPASSERT(.NOT.ASSOCIATED(ana_list))
+    CPASSERT(.NOT.ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(tmc_env))
 
     ! first global TMC stuff
     tmc_section => section_vals_get_subs_vals(input,"MOTION%TMC")
@@ -508,7 +508,7 @@ CONTAINS
     ! TMC analysis stuff
     tmc_section => section_vals_get_subs_vals(input,"MOTION%TMC%TMC_ANALYSIS_FILES")
     CALL section_vals_get(tmc_section,explicit=flag)
-    CPPostconditionNoFail(flag,cp_failure_level,routineP)
+    CPASSERT(flag)
 
     CALL section_vals_val_get(tmc_section,"FORCE_ENV_FILE",&
              c_val=tmc_env%params%energy_inp_file)
@@ -600,7 +600,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(tmc_section, inp_Temp)
 
-    CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(input))
 
     tmc_env%tmc_comp_set%ana_on_the_fly = 0
     tmc_section => section_vals_get_subs_vals(input,"MOTION%TMC%TMC_ANALYSIS")
@@ -611,11 +611,11 @@ CONTAINS
 
     tmc_section => section_vals_get_subs_vals(input,"MOTION%TMC")
     CALL section_vals_get(tmc_section,explicit=flag)
-    CPPostconditionNoFail(flag,cp_failure_level,routineP)
+    CPASSERT(flag)
 
     CALL section_vals_val_get(tmc_section,"PRINT_TEST_OUTPUT",l_val=tmc_env%params%print_test_output)
 
-    CPPrecondition(ASSOCIATED(tmc_env%tmc_comp_set),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set))
     ! read the parameters for the computational setup
     CALL section_vals_val_get(tmc_section,"GROUP_ENERGY_SIZE",i_val=tmc_env%tmc_comp_set%group_ener_size)
     CALL section_vals_val_get(tmc_section,"GROUP_ENERGY_NR",i_val=tmc_env%tmc_comp_set%group_ener_nr)
@@ -727,15 +727,15 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(input))
 
     tmc_section => section_vals_get_subs_vals(input,"MOTION%TMC")
     CALL section_vals_get(tmc_section,explicit=flag)
-    CPPostconditionNoFail(flag,cp_failure_level,routineP)
+    CPASSERT(flag)
 
     ! only for the master
     IF(tmc_env%tmc_comp_set%group_nr == 0) THEN 
-      CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(tmc_env%m_env))
       ! the walltime input can be done as HH:MM:SS or just in seconds.
       CALL cp2k_get_walltime(section=input, keyword_name="GLOBAL%WALLTIME", &
                              walltime=tmc_env%m_env%walltime)
@@ -771,7 +771,7 @@ CONTAINS
 
     ! everything for the worker group
     ELSE IF(tmc_env%tmc_comp_set%group_nr .NE. 0) THEN 
-      CPPrecondition(ASSOCIATED(tmc_env%w_env),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(tmc_env%w_env))
     END IF
 
     ! stuff everyone needs to know
@@ -863,8 +863,8 @@ CONTAINS
       my_mpi_world, total_used
     LOGICAL                                  :: failure, flag, master
 
-    CPPrecondition(ASSOCIATED(tmc_comp_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_comp_set))
+    CPASSERT(ASSOCIATED(para_env))
 
     ! colors and positions for new communicators
     ! variables for printing
@@ -977,7 +977,7 @@ CONTAINS
           ! up to now we use just one core for doing the analysis
           IF(para_env%mepos .EQ. para_env%num_pe-2) THEN
             tmc_comp_set%group_nr = para_env%mepos - (para_env%num_pe-1) ! negative
-            CPPostcondition(tmc_comp_set%group_nr.LT.0,cp_failure_level,routineP,failure)
+            CPASSERT(tmc_comp_set%group_nr.LT.0)
             IF(para_env%mepos.GE.para_env%num_pe-1-ana_on_the_fly) THEN
               master_ana_group = para_env%num_pe +4
               master_ana_rank  = -tmc_comp_set%group_nr
@@ -1068,13 +1068,13 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(tmc_env%tmc_comp_set),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set))
     ! only the master prints out
     IF(tmc_env%tmc_comp_set%group_nr == 0) THEN
       file_nr = tmc_env%m_env%io_unit 
-      CPPostcondition(ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_w),cp_failure_level,routineP,failure)
-      CPPostcondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_w))
+      CPASSERT(ASSOCIATED(tmc_env%m_env))
 
       CALL m_flush(file_nr)
       WRITE ( file_nr, * )

@@ -45,13 +45,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
-    LOGICAL                                  :: failure
 
     IF (ASSOCIATED(dftb_parameter)) &
             CALL deallocate_dftb_atom_param(dftb_parameter)
 
     ALLOCATE (dftb_parameter,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     dftb_parameter % defined = .FALSE.
     dftb_parameter % name = ""
@@ -83,11 +82,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
-    LOGICAL                                  :: failure
 
-    CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(dftb_parameter))
     DEALLOCATE (dftb_parameter,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE deallocate_dftb_atom_param
 
@@ -128,9 +126,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_dftb_atom_param', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(dftb_parameter))
 
     IF (PRESENT(name)) name = dftb_parameter%name
     IF (PRESENT(typ)) typ = dftb_parameter%typ
@@ -188,9 +184,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_dftb_atom_param', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    CPPrecondition(ASSOCIATED(dftb_parameter),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(dftb_parameter))
 
     IF (PRESENT(name)) dftb_parameter%name = name
     IF (PRESENT(typ)) dftb_parameter%typ = typ

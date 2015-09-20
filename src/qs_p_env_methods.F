@@ -160,7 +160,7 @@ CONTAINS
     n_spins = dft_control%nspins
 
     ALLOCATE(p_env,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(p_env%kpp1, &
          p_env%p1, &
          p_env%m_epsilon, &
@@ -286,7 +286,7 @@ CONTAINS
         IF (.NOT.ASSOCIATED(p_env%preconditioner)) THEN
 
           ALLOCATE(p_env%preconditioner(n_spins), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO spin =1,n_spins
             CALL init_preconditioner(p_env%preconditioner(spin),&
                  para_env=para_env,blacs_env=blacs_env)
@@ -297,7 +297,7 @@ CONTAINS
                name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%PS_psi0")
 
           ALLOCATE(p_env%ev_h0(n_spins),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 !             CALL fm_pools_create_fm_vect(ao_mo_fm_pools,elements=p_env%ev_h0,&
 !                  name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//"%ev_h0")
         END IF
@@ -339,8 +339,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(dft_control,matrix_s)
 
-    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,failure)
-    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_env))
+    CPASSERT(p_env%ref_count>0)
     CALL get_qs_env(qs_env, dft_control=dft_control)
     gapw_xc = dft_control%qs_control%gapw_xc
     IF (.NOT.ASSOCIATED(p_env%kpp1)) THEN
@@ -387,8 +387,8 @@ SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,failure)
-  CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(p_env))
+  CPASSERT(p_env%ref_count>0)
   IF (PRESENT(s_struct_changed)) THEN
      IF (s_struct_changed) THEN
         IF (ASSOCIATED(p_env%kpp1)) THEN
@@ -406,7 +406,7 @@ SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed)
      END IF
   END IF
 
-  CPPrecondition(ASSOCIATED(p_env%kpp1_env),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(p_env%kpp1_env))
   CALL kpp1_did_change(p_env%kpp1_env,s_struct_changed=s_struct_changed,&
        grid_changed=grid_changed)
 END SUBROUTINE p_env_did_change
@@ -462,8 +462,8 @@ END SUBROUTINE p_env_did_change
          logger, input,lr_section, energy, matrix_ks, dft_control, rho_ao)
     logger => cp_get_default_logger()
 
-    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,failure)
-    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_env))
+    CPASSERT(p_env%ref_count>0)
 
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&
@@ -487,7 +487,7 @@ END SUBROUTINE p_env_did_change
        CALL cp_fm_vect_copy(psi0,my_psi0)
     ELSE
        ALLOCATE(my_psi0(n_spins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO spin=1,n_spins
           NULLIFY(my_psi0(spin)%matrix)
           CALL get_mo_set(mos(spin)%mo_set,&
@@ -674,8 +674,8 @@ END SUBROUTINE p_env_did_change
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,failure)
-    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_env))
+    CPASSERT(p_env%ref_count>0)
     NULLIFY(dft_control)
     CALL get_qs_env(qs_env, dft_control=dft_control)
 
@@ -734,10 +734,10 @@ END SUBROUTINE p_env_did_change
                     matrix_ks=matrix_ks,&
                     dft_control=dft_control)
 
-    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,failure)
-    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(0<spin,cp_failure_level,routineP,failure)
-    CPPrecondition(spin<=dft_control%nspins,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_env))
+    CPASSERT(p_env%ref_count>0)
+    CPASSERT(0<spin)
+    CPASSERT(spin<=dft_control%nspins)
 
     CALL mpools_get(qs_env%mpools, maxao_maxmo_fm_pool=maxao_maxmo_fm_pool)
     CALL fm_pool_create_fm(maxao_maxmo_fm_pool, tmp)
@@ -818,8 +818,8 @@ END SUBROUTINE p_env_did_change
 
     iter=iter+1
 
-    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,failure)
-    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_env))
+    CPASSERT(p_env%ref_count>0)
 
     CALL p_env_check_i_alloc(p_env,qs_env=qs_env)
     n_spins = dft_control%nspins
@@ -894,15 +894,15 @@ END SUBROUTINE p_env_did_change
     NULLIFY(tmp_matrix,maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct,tmp_fmstruct,&
          dft_control)
 
-    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,failure)
-    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_env))
+    CPASSERT(p_env%ref_count>0)
 
     CALL get_qs_env(qs_env, dft_control=dft_control)
     CALL mpools_get(qs_env%mpools,maxmo_maxmo_fm_pool=maxmo_maxmo_fm_pool)
     n_spins = dft_control%nspins
     maxmo_maxmo_fmstruct => fm_pool_get_el_struct(maxmo_maxmo_fm_pool)
     CALL cp_fm_struct_get(maxmo_maxmo_fmstruct, nrow_global=nmo2,ncol_global=maxnmo)
-    CPPrecondition(SIZE(v)>=n_spins,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(v)>=n_spins)
     ! alloc tmp storage
     IF (PRESENT(n_cols)) THEN
        max_cols=MAXVAL(n_cols(1:n_spins))
@@ -926,13 +926,13 @@ END SUBROUTINE p_env_did_change
 
        CALL cp_fm_get_info(v(spin)%matrix, &
             nrow_global=v_rows, ncol_global=v_cols)
-       CPPrecondition(v_rows>=p_env%n_ao(spin),cp_failure_level,routineP,failure)
+       CPASSERT(v_rows>=p_env%n_ao(spin))
        cols = v_cols
        IF (PRESENT(n_cols)) THEN
-          CPPrecondition(n_cols(spin)<=cols,cp_failure_level,routineP,failure)
+          CPASSERT(n_cols(spin)<=cols)
           cols=n_cols(spin)
        END IF
-       CPPrecondition(cols<=max_cols,cp_failure_level,routineP,failure)
+       CPASSERT(cols<=max_cols)
 
        ! tmp_matrix = v^T (S psi0)
        CALL cp_gemm(transa='T',transb='N',m=cols,n=p_env%n_mo(spin),&
@@ -998,15 +998,15 @@ END SUBROUTINE p_env_did_change
     NULLIFY(tmp_matrix,maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct,tmp_fmstruct,&
          dft_control)
 
-    CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,failure)
-    CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_env))
+    CPASSERT(p_env%ref_count>0)
 
     CALL get_qs_env(qs_env, dft_control=dft_control)
     CALL mpools_get(qs_env%mpools, maxmo_maxmo_fm_pool=maxmo_maxmo_fm_pool)
     n_spins = dft_control%nspins
     maxmo_maxmo_fmstruct => fm_pool_get_el_struct(maxmo_maxmo_fm_pool)
     CALL cp_fm_struct_get(maxmo_maxmo_fmstruct, nrow_global=nmo2,ncol_global=maxnmo)
-    CPPrecondition(SIZE(v)>=n_spins,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(v)>=n_spins)
     ! alloc tmp storage
     IF (PRESENT(n_cols)) THEN
        max_cols=MAXVAL(n_cols(1:n_spins))
@@ -1030,13 +1030,13 @@ END SUBROUTINE p_env_did_change
 
        CALL cp_fm_get_info(v(spin)%matrix, &
             nrow_global=v_rows, ncol_global=v_cols)
-       CPPrecondition(v_rows>=p_env%n_ao(spin),cp_failure_level,routineP,failure)
+       CPASSERT(v_rows>=p_env%n_ao(spin))
        cols = v_cols
        IF (PRESENT(n_cols)) THEN
-          CPPrecondition(n_cols(spin)<=cols,cp_failure_level,routineP,failure)
+          CPASSERT(n_cols(spin)<=cols)
           cols=n_cols(spin)
        END IF
-       CPPrecondition(cols<=max_cols,cp_failure_level,routineP,failure)
+       CPASSERT(cols<=max_cols)
 
        ! tmp_matrix = v^T psi0d
        CALL cp_gemm(transa='T',transb='N',m=cols,n=p_env%n_mo(spin),&

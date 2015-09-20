@@ -293,10 +293,10 @@ CONTAINS
     ! Allocate work storage
 
     ALLOCATE (work(lwork),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (divide_and_conquer) THEN
        ALLOCATE (iwork(liwork),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     ! Diagonalize the matrix a
@@ -320,11 +320,11 @@ CONTAINS
     ! Release work storage
 
     DEALLOCATE (work,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (divide_and_conquer) THEN
        DEALLOCATE (iwork,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     CALL timestop(handle)
@@ -437,9 +437,9 @@ CONTAINS
     n = SIZE(a,1)
     lwork = 20*n
     ALLOCATE (ipiv(n),STAT=info)
-    CPPostcondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
     ALLOCATE (work(lwork),STAT=info)
-    CPPostcondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
     ipiv = 0
     work  = 0._dp
     info = 0
@@ -448,7 +448,7 @@ CONTAINS
        CALL dgetri(n,a,n,ipiv,work,lwork,info)
     END IF
     DEALLOCATE (ipiv,work,STAT=info)
-    CPPostcondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
   END SUBROUTINE invmat
 
 ! *****************************************************************************
@@ -595,25 +595,25 @@ CONTAINS
 
     ! Allocate work storage
     ALLOCATE (a_lu(n,n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (b(n,n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (berr(n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (ferr(n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (ipiv(n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (iwork(n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (work(4*n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     a_lu(1:n,1:n) = a(1:n,1:n)
 
@@ -690,19 +690,19 @@ CONTAINS
 
     ! Release work storage
     DEALLOCATE (work,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (iwork,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (ipiv,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (ferr,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (berr,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (b,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (a_lu,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE invert_matrix_d
 
@@ -783,25 +783,25 @@ CONTAINS
 
     ! Allocate work storage
     ALLOCATE (a_lu(n,n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (b(n,n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (berr(n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (ferr(n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (ipiv(n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (rwork(2*n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (work(2*n),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     a_lu(1:n,1:n) = a(1:n,1:n)
 
@@ -876,19 +876,19 @@ CONTAINS
 
     ! Release work storage
     DEALLOCATE (work,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (rwork,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (ipiv,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (ferr,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (berr,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (b,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (a_lu,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE invert_matrix_z
 
@@ -921,7 +921,7 @@ CONTAINS
 
     n=SIZE(a,1)
     ALLOCATE(u(n,n),vt(n,n),sig(n),sig_plus(n,n),iwork(8*n),work(1),temp_mat(n,n),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     u(:,:)   = 0.0_dp
     vt(:,:)  = 0.0_dp
     sig(:) = 0.0_dp
@@ -940,9 +940,9 @@ CONTAINS
     END IF
     lwork = INT(work(1))
     DEALLOCATE(work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(work(lwork),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! do SVD
     CALL dgesdd('A',n,n,a(1,1),n,sig(1),u(1,1),n,vt(1,1),n,work(1),&
@@ -967,7 +967,7 @@ CONTAINS
     CALL dgemm("T","N",n,n,n,1._dp,vt,n,temp_mat,n,0._dp,a_pinverse,n)
 
     DEALLOCATE( u,vt,sig,iwork,work,sig_plus,temp_mat,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -1001,7 +1001,7 @@ CONTAINS
 
     n=SIZE(a,1)
     ALLOCATE(dinv(n,n),eig(n),work(1),temp_mat(n,n),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     dinv(:,:) = 0.0_dp
     eig(:)    = 0.0_dp
     work(:)   = 0.0_dp
@@ -1016,9 +1016,9 @@ CONTAINS
     END IF
     lwork = INT(work(1))
     DEALLOCATE(work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(work(lwork),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! get eigenvalues and eigenvectors
     CALL dsyev('V','U',n,a(1,1),n,eig(1),work(1),lwork,info)
@@ -1042,7 +1042,7 @@ CONTAINS
     CALL dgemm("N","N",n,n,n,1._dp,a,n,temp_mat,n,0._dp,a_pinverse,n)
 
     DEALLOCATE(eig,work,dinv,temp_mat,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 

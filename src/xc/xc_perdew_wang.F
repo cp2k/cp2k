@@ -78,7 +78,7 @@ CONTAINS
 
     SELECT CASE (method)
     CASE DEFAULT
-       CPAssertNoFail(.FALSE.,cp_failure_level,routineP)
+       CPASSERT(.FALSE.)
     CASE (pw_orig)
        p_string='PWO'
     CASE (pw_dmc)
@@ -237,10 +237,10 @@ CONTAINS
     CALL timeset(routineN,timer_handle)
     failure=.FALSE.
     NULLIFY(bo,rho, e_0,e_rho,e_rho_rho,e_rho_rho_rho, dummy)
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
+    CPASSERT(ASSOCIATED(deriv_set))
+    CPASSERT(deriv_set%ref_count>0)
     CALL xc_rho_set_get(rho_set,rho=rho,&
          local_bounds=bo,rho_cutoff=rho_cutoff)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
@@ -251,7 +251,7 @@ CONTAINS
     ! and debugger happy...
     IF (cp_debug) THEN
        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        dummy=> rho
     END IF
@@ -292,7 +292,7 @@ CONTAINS
 
     IF (cp_debug) THEN
        DEALLOCATE(dummy,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     ELSE
        NULLIFY(dummy)
     END IF
@@ -394,10 +394,10 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
     CALL timeset(routineN,timer_handle)
     failure=.FALSE.
     NULLIFY(bo,a,b,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,ebbb)
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
+    CPASSERT(ASSOCIATED(deriv_set))
+    CPASSERT(deriv_set%ref_count>0)
     CALL xc_rho_set_get(rho_set,rhoa=a,rhob=b,&
          local_bounds=bo,rho_cutoff=rho_cutoff)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
@@ -408,7 +408,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
     ! and debugger happy...
     IF (cp_debug) THEN
        ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        dummy=> a
     END IF
@@ -467,7 +467,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 
     IF (cp_debug) THEN
        DEALLOCATE(dummy,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     ELSE
        NULLIFY(dummy)
     END IF

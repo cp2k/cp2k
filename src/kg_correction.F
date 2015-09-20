@@ -73,7 +73,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kg_ekin_subset', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(kg_environment_type), POINTER       :: kg_env
 
     kg_env => qs_env%kg_env
@@ -88,7 +87,7 @@ CONTAINS
        CALL kg_ekin_atomic(qs_env, ks_matrix, ekin_mol)
 
     ELSE
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
 
   END SUBROUTINE kg_ekin_subset

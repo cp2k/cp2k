@@ -45,8 +45,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(md_env), cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(mdctrl), cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(md_env))
+    CPASSERT(ASSOCIATED(mdctrl))
 
     IF(ASSOCIATED(mdctrl%glbopt)) THEN
       CALL glbopt_md_callback(mdctrl%glbopt, md_env, should_stop)

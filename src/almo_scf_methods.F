@@ -445,7 +445,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eps_multiply
     TYPE(cp_dbcsr_type) :: matrix_tmp1, matrix_tmp2, matrix_tmp3, &
       matrix_tmp4, matrix_tmp5, matrix_tmp6, matrix_tmp7, matrix_tmp8, &
@@ -576,7 +575,7 @@ CONTAINS
        
        !!!!!! use intermediate matrices to get the error vector !!!!!!!
        !!!!!! make sure s_blk_sqrt and its inverse exist (i.e. we use diag algorithm)
-       CPPrecondition(almo_scf_env%almo_update_algorithm.eq.almo_scf_diag,cp_failure_level,routineP,failure)
+       CPASSERT(almo_scf_env%almo_update_algorithm.eq.almo_scf_diag)
        ! tmp_err = (1-S.T_blk.SigInv.tr(T_blk)).F.T_blk.SigInv
        CALL cp_dbcsr_init(matrix_tmp_err)
        CALL cp_dbcsr_create(matrix_tmp_err,&
@@ -742,7 +741,6 @@ CONTAINS
 
     INTEGER                                  :: handle, iblock_size, idomain, &
                                                 info, ispin, lwork, ndomains
-    LOGICAL                                  :: failure
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues, work
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: data_copy
@@ -754,8 +752,8 @@ CONTAINS
 
     IF (almo_scf_env%domain_layout_aos==almo_domain_layout_molecular .AND. &
         almo_scf_env%mat_distr_aos==almo_mat_distr_atomic) THEN
-       CPErrorMessage(cp_failure_level,routineP,"a domain must be located entirely on a CPU")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("a domain must be located entirely on a CPU")
+       CPASSERT(.FALSE.)
     ENDIF
 
     ndomains=almo_scf_env%ndomains
@@ -819,8 +817,8 @@ CONTAINS
              ALLOCATE(WORK(MAX(1,LWORK)))
              CALL DSYEV('V','L',iblock_size,data_copy,iblock_size,eigenvalues,WORK,LWORK,INFO)
              IF( INFO.NE.0 ) THEN
-                CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPABORT("DSYEV failed")
+                CPASSERT(.FALSE.)
              END IF
 
 !WRITE (*,*) "Domain", idomain ,"OCC energies", eigenvalues( 1:almo_scf_env%nocc_of_domain(idomain,ispin) )
@@ -829,8 +827,8 @@ CONTAINS
              ! Copy occupied eigenvectors
              IF ( almo_scf_env%domain_t(idomain,ispin)%ncols.NE.&
                 almo_scf_env%nocc_of_domain(idomain,ispin) ) THEN
-                CPErrorMessage(cp_failure_level,routineP,"wrong domain structure")
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPABORT("wrong domain structure")
+                CPASSERT(.FALSE.)
              END IF
              CALL copy_submatrices(almo_scf_env%domain_t(idomain,ispin),&
                      subm_t(idomain),.FALSE.)
@@ -892,7 +890,7 @@ CONTAINS
 
     INTEGER :: handle, iblock_col, iblock_row, iblock_size, info, ispin, &
       lwork, nocc_of_block, nvirt_of_block, orbital
-    LOGICAL                                  :: block_needed, failure
+    LOGICAL                                  :: block_needed
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues, work
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: data_copy
@@ -907,8 +905,8 @@ CONTAINS
 
     IF (almo_scf_env%domain_layout_aos==almo_domain_layout_molecular .AND. &
         almo_scf_env%mat_distr_aos==almo_mat_distr_atomic) THEN
-       CPErrorMessage(cp_failure_level,routineP,"a domain must be located entirely on a CPU")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("a domain must be located entirely on a CPU")
+       CPASSERT(.FALSE.)
     ENDIF
 
     DO ispin=1,almo_scf_env%nspins
@@ -954,8 +952,8 @@ CONTAINS
           ENDIF
    
           IF (.NOT.block_needed) THEN
-             CPErrorMessage(cp_failure_level,routineP,"off-diagonal block found")
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPABORT("off-diagonal block found")
+             CPASSERT(.FALSE.)
           ENDIF
    
           IF (block_needed) THEN
@@ -976,8 +974,8 @@ CONTAINS
              ALLOCATE(WORK(MAX(1,LWORK)))
              CALL DSYEV('V','L',iblock_size,data_copy,iblock_size,eigenvalues,WORK,LWORK,INFO)
              IF( INFO.NE.0 ) THEN
-                CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPABORT("DSYEV failed")
+                CPASSERT(.FALSE.)
              END IF
 
              !!! RZK-warning                                               !!!
@@ -990,22 +988,22 @@ CONTAINS
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(matrix_t_blk_orthog,iblock_row,iblock_col,p_new_block)
              nocc_of_block=SIZE(p_new_block,2)
-             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
-             CPPrecondition(nocc_of_block.gt.0,cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(p_new_block))
+             CPASSERT(nocc_of_block.gt.0)
              p_new_block(:,:) = data_copy(:,1:nocc_of_block)
              ! now virtuals
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(matrix_v_blk_orthog,iblock_row,iblock_col,p_new_block)
              nvirt_of_block=SIZE(p_new_block,2)
-             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
-             CPPrecondition(nvirt_of_block.gt.0,cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(p_new_block))
+             CPASSERT(nvirt_of_block.gt.0)
              !CPPrecondition((nvirt_of_block+nocc_of_block.eq.iblock_size),cp_failure_level,routineP,failure)
              p_new_block(:,:) = data_copy(:,(nocc_of_block+1):(nocc_of_block+nvirt_of_block))
    
              ! copy eigenvalues into two diagonal cp_dbcsr matrices - Eoo and Evv
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(almo_scf_env%matrix_eoo(ispin),iblock_row,iblock_col,p_new_block)
-             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(p_new_block))
              p_new_block(:,:) = 0.0_dp 
              DO orbital=1,nocc_of_block
                 p_new_block(orbital,orbital)=eigenvalues(orbital)
@@ -1013,7 +1011,7 @@ CONTAINS
              ! virtual energies
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(almo_scf_env%matrix_evv_full(ispin),iblock_row,iblock_col,p_new_block)
-             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(p_new_block))
              p_new_block(:,:) = 0.0_dp 
              DO orbital=1,nvirt_of_block
                 p_new_block(orbital,orbital)=eigenvalues(nocc_of_block+orbital)
@@ -1076,7 +1074,6 @@ CONTAINS
     INTEGER                                  :: handle, iblock_col, &
                                                 iblock_row, iblock_size, &
                                                 methodID
-    LOGICAL                                  :: failure
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: data_copy
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: data_p, p_new_block
@@ -1113,7 +1110,7 @@ CONTAINS
 
           NULLIFY (p_new_block)
           CALL cp_dbcsr_reserve_block2d(matrix_out,iblock_row,iblock_col,p_new_block)
-          CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(p_new_block))
           p_new_block(:,:) = data_copy(:,:)
    
           DEALLOCATE(data_copy)
@@ -1645,7 +1642,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, use_sigma_inv_guess
+    LOGICAL                                  :: use_sigma_inv_guess
     TYPE(cp_dbcsr_type)                      :: t_tmp
 
     CALL timeset(routineN,handle)
@@ -1653,7 +1650,7 @@ CONTAINS
     ! make sure that S, sigma and sigma_inv are present for non-orthogonal orbitals
     IF (.NOT.orthog_orbs) THEN
        IF ((.NOT.PRESENT(s)).OR.(.NOT.PRESENT(sigma)).OR.(.NOT.PRESENT(sigma_inv))) THEN
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        ENDIF
     ENDIF
 
@@ -1740,7 +1737,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type)                      :: tmp_no, tmp_ov, tmp_ov2, &
                                                 tmp_sig, tmp_sig_inv
 
@@ -1774,8 +1770,8 @@ CONTAINS
           CALL cp_dbcsr_copy(tmp_sig_inv,sig_inv_projector)
        ELSE
           IF (.NOT.PRESENT(sig_inv_template)) THEN
-             CPErrorMessage(cp_failure_level,routineP,"PROGRAMMING ERROR: provide either template or sig_inv")
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPABORT("PROGRAMMING ERROR: provide either template or sig_inv")
+             CPASSERT(.FALSE.)
           ENDIF
           ! compute inverse overlap of the projector orbitals
           CALL cp_dbcsr_init(tmp_sig)
@@ -2070,8 +2066,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ndomains
-    LOGICAL                                  :: failure, &
-                                                matrix_trimmer_required, &
+    LOGICAL                                  :: matrix_trimmer_required, &
                                                 my_use_trimmer, &
                                                 operator2_required
     TYPE(domain_submatrix_type), &
@@ -2091,16 +2086,16 @@ CONTAINS
 
     IF (my_use_trimmer) THEN
        matrix_trimmer_required=.TRUE.
-       CPErrorMessage(cp_failure_level,routineP,"TRIMMED PROJECTOR DISABLED!")
+       CPABORT("TRIMMED PROJECTOR DISABLED!")
     ENDIF
 
     IF (.NOT.PRESENT(operator2).AND.operator2_required) THEN
-       CPErrorMessage(cp_failure_level,routineP,"SECOND OPERATOR IS REQUIRED")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("SECOND OPERATOR IS REQUIRED")
+       CPASSERT(.FALSE.)
     ENDIF
     IF (.NOT.PRESENT(matrix_trimmer).AND.matrix_trimmer_required) THEN
-       CPErrorMessage(cp_failure_level,routineP,"TRIMMER MATRIX IS REQUIRED")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("TRIMMER MATRIX IS REQUIRED")
+       CPASSERT(.FALSE.)
     ENDIF
 
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
@@ -2136,8 +2131,8 @@ CONTAINS
 !   cp_dbcsr_distribution(dpattern)))
 !CALL print_submatrices(subm_out,GroupID)                   
     ELSE
-       CPErrorMessage(cp_failure_level,routineP,"ILLEGAL ACTION")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("ILLEGAL ACTION")
+       CPASSERT(.FALSE.)
     ENDIF
 
     CALL construct_dbcsr_from_submatrices(matrix_out,subm_out,dpattern)
@@ -2197,8 +2192,10 @@ CONTAINS
     INTEGER :: handle, idomain, index1_end, index1_start, n_domain_mos, naos, &
       nblkrows_tot, ndomains, neighbor, row
     INTEGER, DIMENSION(:), POINTER           :: nmos
-    LOGICAL :: failure, matrix_r_required, matrix_s_inv_required, &
-      matrix_trimmer_required, my_use_trimmer
+    LOGICAL                                  :: matrix_r_required, &
+                                                matrix_s_inv_required, &
+                                                matrix_trimmer_required, &
+                                                my_use_trimmer
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Minv
     TYPE(domain_submatrix_type), &
@@ -2219,20 +2216,20 @@ CONTAINS
     IF (my_action.eq.-1) matrix_r_required=.TRUE.
     IF (my_use_trimmer) THEN
        matrix_trimmer_required=.TRUE.
-       CPErrorMessage(cp_failure_level,routineP,"TRIMMED PRECONDITIONER DISABLED!")
+       CPABORT("TRIMMED PRECONDITIONER DISABLED!")
     ENDIF
 
     IF (.NOT.PRESENT(subm_s_inv).AND.matrix_s_inv_required) THEN
-       CPErrorMessage(cp_failure_level,routineP,"S_inv SUBMATRICES ARE REQUIRED")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("S_inv SUBMATRICES ARE REQUIRED")
+       CPASSERT(.FALSE.)
     ENDIF
     IF (.NOT.PRESENT(subm_r_down).AND.matrix_r_required) THEN
-       CPErrorMessage(cp_failure_level,routineP,"R SUBMATRICES ARE REQUIRED")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("R SUBMATRICES ARE REQUIRED")
+       CPASSERT(.FALSE.)
     ENDIF
     IF (.NOT.PRESENT(matrix_trimmer).AND.matrix_trimmer_required) THEN
-       CPErrorMessage(cp_failure_level,routineP,"TRIMMER MATRIX IS REQUIRED")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("TRIMMER MATRIX IS REQUIRED")
+       CPASSERT(.FALSE.)
     ENDIF
 
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
@@ -2385,7 +2382,6 @@ CONTAINS
 
     INTEGER                                  :: handle, idomain, naos, &
                                                 ndomains
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Ssqrt, Ssqrtinv
     TYPE(domain_submatrix_type), &
@@ -2394,8 +2390,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
-    CPPrecondition(SIZE(subm_s_sqrt).eq.ndomains,cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(subm_s_sqrt_inv).eq.ndomains,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(subm_s_sqrt).eq.ndomains)
+    CPASSERT(SIZE(subm_s_sqrt_inv).eq.ndomains)
     ALLOCATE(subm_s(ndomains))
     CALL init_submatrices(subm_s)
 
@@ -2462,7 +2458,6 @@ CONTAINS
 
     INTEGER                                  :: handle, idomain, naos, &
                                                 ndomains
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Sinv
     TYPE(domain_submatrix_type), &
@@ -2472,7 +2467,7 @@ CONTAINS
     
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
 
-    CPPrecondition(SIZE(subm_s_inv).eq.ndomains,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(subm_s_inv).eq.ndomains)
     ALLOCATE(subm_s(ndomains))
     CALL init_submatrices(subm_s)
 
@@ -2542,7 +2537,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ndomains
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type)                      :: m_tmp_no_1, m_tmp_no_2, &
                                                 matrix_r
 
@@ -2573,7 +2567,7 @@ CONTAINS
     CALL cp_dbcsr_release(m_tmp_no_2)
 
     ndomains = cp_dbcsr_nblkcols_total(dpattern)
-    CPPrecondition(SIZE(subm_r_down).eq.ndomains,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(subm_r_down).eq.ndomains)
 
     CALL construct_submatrices(matrix_r,subm_r_down,&
             dpattern,map,node_of_domain,select_row_col)
@@ -2606,7 +2600,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, INFO, jj, LWORK
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues, WORK
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: test, testN
@@ -2647,8 +2640,8 @@ CONTAINS
     CALL DSYEV('V','L',N,Asqrtinv,N,eigenvalues,WORK,LWORK,INFO)
     IF ( INFO.NE.0 ) THEN
        WRITE(*,*) 'DSYEV ERROR MESSAGE: ', INFO
-       CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("DSYEV failed")
+       CPASSERT(.FALSE.)
     END IF
     DEALLOCATE(WORK)
    
@@ -2724,7 +2717,7 @@ CONTAINS
     INTEGER                                  :: handle, ii, INFO, jj, LWORK, &
                                                 range1_eiv, range2_eiv, &
                                                 range3_eiv
-    LOGICAL                                  :: failure, use_ranges
+    LOGICAL                                  :: use_ranges
     REAL(KIND=dp)                            :: my_shift
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues, WORK
     REAL(KIND=dp), ALLOCATABLE, &
@@ -2736,14 +2729,14 @@ CONTAINS
        IF (PRESENT(range1)) THEN
           use_ranges=.TRUE.
           IF (.NOT.PRESENT(range2)) THEN
-             CPErrorMessage(cp_failure_level,routineP,"SPECIFY TWO RANGES")
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPABORT("SPECIFY TWO RANGES")
+             CPASSERT(.FALSE.)
           ENDIF
        ELSE
           use_ranges=.FALSE.
           IF ((.NOT.PRESENT(range1_thr)).OR.(.NOT.PRESENT(range2_thr))) THEN
-             CPErrorMessage(cp_failure_level,routineP,"SPECIFY TWO THRESHOLDS")
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPABORT("SPECIFY TWO THRESHOLDS")
+             CPASSERT(.FALSE.)
           ENDIF
        ENDIF
     ENDIF
@@ -2761,13 +2754,13 @@ CONTAINS
 
        CALL DPOTRF('L', N, Ainv, N, INFO )
        IF( INFO.NE.0 ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"DPOTRF failed")
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPABORT("DPOTRF failed")
+          CPASSERT(.FALSE.)
        END IF
        CALL DPOTRI('L', N, Ainv, N, INFO )
        IF( INFO.NE.0 ) THEN
-          CPErrorMessage(cp_failure_level,routineP,"DPOTRI failed")
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPABORT("DPOTRI failed")
+          CPASSERT(.FALSE.)
        END IF
        ! complete the matrix
        DO ii=1,N
@@ -2792,8 +2785,8 @@ CONTAINS
        CALL DSYEV('V','L',N,Ainv,N,eigenvalues,WORK,LWORK,INFO)
        IF ( INFO.NE.0 ) THEN
           WRITE(*,*) 'DSYEV ERROR MESSAGE: ', INFO
-          CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPABORT("DSYEV failed")
+          CPASSERT(.FALSE.)
        END IF
        DEALLOCATE(WORK)
 
@@ -2842,8 +2835,8 @@ CONTAINS
 
     CASE DEFAULT
 
-       CPErrorMessage(cp_failure_level,routineP,"Illegal method selected for matrix inversion")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("Illegal method selected for matrix inversion")
+       CPASSERT(.FALSE.)
 
     END SELECT
 
@@ -3134,8 +3127,8 @@ CONTAINS
                                                 ao_domain_sizes, &
                                                 mo_block_sizes
     INTEGER, DIMENSION(:), POINTER           :: ao_blk_sizes, mo_blk_sizes
-    LOGICAL                                  :: failure, found, found2, &
-                                                found_col, found_row
+    LOGICAL                                  :: found, found2, found_col, &
+                                                found_row
     REAL(KIND=dp)                            :: test_error
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues, Grad_vec, &
                                                 Step_vec, tmp, tmpr, work
@@ -3153,7 +3146,7 @@ CONTAINS
 
     nblkrows_tot = cp_dbcsr_nblkrows_total(quench_t)
     nblkcols_tot = cp_dbcsr_nblkcols_total(quench_t)
-    CPPostcondition(nblkrows_tot==nblkcols_tot,cp_failure_level,routineP,failure)
+    CPASSERT(nblkrows_tot==nblkcols_tot)
     mo_blk_sizes => cp_dbcsr_col_block_sizes(quench_t)
     ao_blk_sizes => cp_dbcsr_row_block_sizes(quench_t)
     ALLOCATE(mo_block_sizes(nblkcols_tot),ao_block_sizes(nblkcols_tot))
@@ -3513,8 +3506,8 @@ CONTAINS
     CALL DSYEV('V','L',H_size,Hinv,H_size,eigenvalues,WORK,LWORK,INFO)
     IF( INFO.NE.0 ) THEN
        WRITE(*,*) 'DSYEV ERROR MESSAGE: ', INFO
-       CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("DSYEV failed")
+       CPASSERT(.FALSE.)
     END IF
     DEALLOCATE(WORK)
 
@@ -3638,7 +3631,7 @@ WRITE(*,*) "NEWTOV step error: ", MAXVAL(ABS(tmp))
       
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(matrix_step,row,col,p_new_block)
-             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(p_new_block))
              ! copy the data column by column
              DO orb_i=1, mo_block_sizes(col)
                 p_new_block(:,orb_i) = &

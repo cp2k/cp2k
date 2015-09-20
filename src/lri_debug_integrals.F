@@ -53,7 +53,6 @@ CONTAINS
                                                 lb_max, lb_min, lds, ma, &
                                                 maxl, mb, stat
     INTEGER, DIMENSION(3)                    :: na, nb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, dmax, res1, xa, xb
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sab
@@ -77,12 +76,12 @@ CONTAINS
 
     !---------------------------------------
     ALLOCATE(sab(ncoset(la_max),ncoset(lb_max)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     maxl=MAX(la_max, lb_max)
     lds = ncoset(maxl)
     ALLOCATE(swork(lds,lds,1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     sab=0._dp
     rab(:)= B(:) - A(:)
     dab = SQRT(DOT_PRODUCT(rab,rab))
@@ -124,7 +123,7 @@ CONTAINS
     WRITE(*,*) "dmax", dmax
 
    DEALLOCATE(sab,swork,STAT=stat) 
-   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+   CPASSERT(stat==0)
 
   END SUBROUTINE overlap_ab_test_simple
 
@@ -215,7 +214,6 @@ CONTAINS
     INTEGER :: ia1, iax, iay, iaz, ib1, ibx, iby, ibz, ic1, icx, icy, icz, &
       la_max, la_min, lb_max, lb_min, lc_max, lc_min, ma, mb, mc, stat
     INTEGER, DIMENSION(3)                    :: na, nb, nc
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, dac, dbc, dmax, res1, &
                                                 xa, xb, xc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -248,7 +246,7 @@ CONTAINS
     rbc(:)= C(:) - B(:)
     dbc = SQRT(DOT_PRODUCT(rbc,rbc))
     ALLOCATE(sabc(ncoset(la_max),ncoset(lb_max),ncoset(lc_max)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     xa_work(1)=xa
     xb_work(1)=xb
     xc_work(1)=xc
@@ -307,7 +305,7 @@ CONTAINS
     WRITE(*,*) "dmax", dmax
 
    DEALLOCATE(sabc,STAT=stat) 
-   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+   CPASSERT(stat==0)
     
   END SUBROUTINE overlap_abc_test_simple
 
@@ -430,7 +428,6 @@ CONTAINS
       la_max2, la_min, la_min1, la_min2, lb_max, lb_max1, lb_max2, lb_min, &
       lb_min1, lb_min2, lds, ma, maxl, mb, stat
     INTEGER, DIMENSION(3)                    :: na, naa, nb, nbb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, dmax, res1, xa, xa1, &
                                                 xa2, xb, xb1, xb2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -463,12 +460,12 @@ CONTAINS
 
     !---------------------------------------
     ALLOCATE(saabb(ncoset(la_max1),ncoset(la_max2),ncoset(lb_max1),ncoset(lb_max2)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     maxl=MAX(la_max1+la_max2, lb_max1+lb_max2)
     lds = ncoset(maxl)
     ALLOCATE(swork(lds,lds),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     saabb=0._dp
     rab(:)= B(:) - A(:)
     dab = SQRT(DOT_PRODUCT(rab,rab))
@@ -531,7 +528,7 @@ CONTAINS
     WRITE(*,*) "dmax", dmax
 
    DEALLOCATE(saabb,swork,STAT=stat) 
-   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+   CPASSERT(stat==0)
 
   END SUBROUTINE overlap_aabb_test_simple
 

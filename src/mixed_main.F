@@ -82,7 +82,7 @@ CONTAINS
     IF (n_rep_val>0) THEN
        CALL section_vals_val_get(force_env_section,"MIXED%GROUP_PARTITION",i_vals=i_vals)
        ALLOCATE(group_partition(0:SIZE(i_vals)-1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        group_partition(:)=i_vals
        ngroup_wish_set=.TRUE.
        ngroup_wish=SIZE(i_vals)
@@ -99,7 +99,7 @@ CONTAINS
 
     ! Split the current communicator
     ALLOCATE(mixed_env%group_distribution(0:para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (group_size_wish_set) THEN
        CALL mp_comm_split(para_env%group,mixed_env%new_group,mixed_env%ngroups,mixed_env%group_distribution,&
             subgroup_min_size=group_size_wish)
@@ -108,7 +108,7 @@ CONTAINS
             n_subgroups=ngroup_wish,&
             group_partition=group_partition)
     ENDIF
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (output_unit>0) THEN
        WRITE(output_unit,FMT="(T2,A,T71,I10)") "MIXED_ENV| Number of created MPI groups:",mixed_env%ngroups
        WRITE(output_unit,FMT="(T2,A)",ADVANCE="NO") "MIXED_ENV| Task to group correspondence:"
@@ -121,15 +121,15 @@ CONTAINS
     ENDIF
     IF (ASSOCIATED(group_partition)) THEN
        DEALLOCATE(group_partition,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     ! Allocate para_env and handle the several loggers
     ALLOCATE(mixed_env%sub_para_env(mixed_env%ngroups),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(mixed_env%sub_logger(mixed_env%ngroups),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(mixed_env%energies(n_subforce_eval),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !
     DO i = 1, mixed_env%ngroups
        NULLIFY(mixed_env%sub_para_env(i)%para_env,logger)

@@ -658,7 +658,7 @@ CONTAINS
     IF (dump_lm.AND.(do_int_constraint.OR.do_ext_constraint)) THEN
        nkind = SIZE (  molecule_kind_set )
        ALLOCATE(lagr(nconstraint),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        lagr = 0.0_dp
        ! Dump lagrange multipliers for Intramolecular Constraints
        my_index = 0
@@ -720,7 +720,7 @@ CONTAINS
           ELSEIF (id_type=="R") THEN
              label = "Rattle Lagrangian Multipliers:"
           ELSE
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END IF
           WRITE(log_unit,FMT='(A,T40,4F15.9)')TRIM(label),lagr(1:MIN(4,SIZE(lagr)))
           DO j = 5, SIZE(lagr), 4
@@ -728,7 +728,7 @@ CONTAINS
           END DO
        END IF
        DEALLOCATE(lagr,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL timestop(handle)
 

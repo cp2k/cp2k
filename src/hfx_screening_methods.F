@@ -360,7 +360,7 @@ MODULE hfx_screening_methods
 
 !$OMP MASTER
     ALLOCATE(coeffs_pgf(max_pgf,max_pgf,max_set,max_set,nkind,nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO ikind = 1,nkind
       DO jkind = 1,nkind
@@ -467,7 +467,7 @@ MODULE hfx_screening_methods
 
 !$OMP MASTER
     ALLOCATE(coeffs_set(max_set,max_set,nkind,nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO ikind = 1,nkind
       DO jkind = 1,nkind
@@ -565,7 +565,7 @@ MODULE hfx_screening_methods
     ! ** now kinds
 !$OMP MASTER
     ALLOCATE(coeffs_kind(nkind,nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO ikind = 1,nkind
       DO jkind = 1,nkind
@@ -723,7 +723,7 @@ MODULE hfx_screening_methods
     rb = 0.0_dp
 !$OMP MASTER
     ALLOCATE(radii_pgf(max_pgf,max_pgf,max_set,max_set,nkind,nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind = 1,nkind
       DO jkind = 1,nkind
         DO iset=1,max_set

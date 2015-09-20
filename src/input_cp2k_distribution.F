@@ -49,7 +49,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DISTRIBUTION",&
          description="can be used used to tune the parallel distribution of the data",&
          n_keywords=2, n_subsections=2, repeats=.FALSE.)

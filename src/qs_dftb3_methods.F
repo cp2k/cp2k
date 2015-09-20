@@ -85,7 +85,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cellind
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: failure, found, use_virial
+    LOGICAL                                  :: found, use_virial
     REAL(KIND=dp)                            :: dr, eb3, eloc, fi, gmij, ua, &
                                                 ui, uj, zeff
     REAL(KIND=dp), DIMENSION(3)              :: fij, rij
@@ -148,7 +148,7 @@ CONTAINS
        use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
        ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 kind_of=kind_of,atom_of_kind=atom_of_kind)
        CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
@@ -183,7 +183,7 @@ CONTAINS
              ic = 1
           ELSE
              ic = cell_to_index(cellind(1),cellind(2),cellind(3))
-             CPPostcondition(ic > 0,cp_failure_level,routineP,failure)
+             CPASSERT(ic > 0)
           END IF
 
           ikind  = kind_of(iatom)
@@ -200,12 +200,12 @@ CONTAINS
           NULLIFY(pblock)
           CALL cp_dbcsr_get_block_p(matrix=matrix_p(1,ic)%matrix,&
                row=irow,col=icol,block=pblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,failure)
+          CPASSERT(found)
           DO i=1,3
              NULLIFY(dsblock)
              CALL cp_dbcsr_get_block_p(matrix=matrix_s(1+i,ic)%matrix,&
                   row=irow,col=icol,block=dsblock,found=found)
-             CPPostcondition(found,cp_failure_level,routineP,failure)
+             CPASSERT(found)
              IF(irow==iatom) THEN
                 fi = -gmij*SUM(pblock*dsblock)
              ELSE
@@ -227,7 +227,7 @@ CONTAINS
        CALL neighbor_list_iterator_release(nl_iterator)
        !
        DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        IF ( SIZE(matrix_p,1) == 2 ) THEN
           DO ic=1,SIZE(matrix_p,2)
              CALL cp_dbcsr_add(matrix_p(1,ic)%matrix,matrix_p(2,ic)%matrix,&
@@ -240,7 +240,7 @@ CONTAINS
     IF ( .NOT. just_energy ) THEN
        CALL get_qs_env(qs_env=qs_env,matrix_s_kp=matrix_s,natom=natom)
        ALLOCATE (kind_of(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
        !
        nimg = SIZE(ks_matrix,2)
@@ -265,7 +265,7 @@ CONTAINS
              ic = 1
           ELSE
              ic = cell_to_index(cellind(1),cellind(2),cellind(3))
-             CPPostcondition(ic > 0,cp_failure_level,routineP,failure)
+             CPASSERT(ic > 0)
           END IF
 
           ikind  = kind_of(iatom)
@@ -279,12 +279,12 @@ CONTAINS
           NULLIFY(sblock)
           CALL cp_dbcsr_get_block_p(matrix=matrix_s(1,ic)%matrix,&
                row=irow,col=icol,block=sblock,found=found)
-          CPPostcondition(found,cp_failure_level,routineP,failure)
+          CPASSERT(found)
           DO is=1,SIZE(ks_matrix,1)
              NULLIFY(ksblock)
              CALL cp_dbcsr_get_block_p(matrix=ks_matrix(is,ic)%matrix,&
                   row=irow,col=icol,block=ksblock,found=found)
-             CPPostcondition(found,cp_failure_level,routineP,failure)
+             CPASSERT(found)
              ksblock = ksblock - 0.5_dp*gmij*sblock
           END DO
 
@@ -292,7 +292,7 @@ CONTAINS
        CALL neighbor_list_iterator_release(nl_iterator)
        !
        DEALLOCATE (kind_of,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
     CALL timestop(handle)

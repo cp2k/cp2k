@@ -123,11 +123,11 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
     LOGICAL                                  :: failure
 
    failure=.FALSE.
-   CPPrecondition(ASSOCIATED(blacs_env),cp_failure_level,routineP,failure)
-   CPPrecondition(.NOT.ASSOCIATED(distribution_2d),cp_failure_level,routineP,failure)
+   CPASSERT(ASSOCIATED(blacs_env))
+   CPASSERT(.NOT.ASSOCIATED(distribution_2d))
 
    ALLOCATE(distribution_2d,stat=stat)
-   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+   CPASSERT(stat==0)
    distribution_2d%ref_count = 1
    last_distribution_2d_id=last_distribution_2d_id+1
    distribution_2d%id_nr=last_distribution_2d_id
@@ -170,13 +170,13 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
    IF (PRESENT(local_rows_ptr)) &
         distribution_2d%local_rows => local_rows_ptr
    IF (.NOT.ASSOCIATED(distribution_2d%local_rows)) THEN
-      CPPrecondition(PRESENT(n_local_rows),cp_failure_level,routineP,failure)
+      CPASSERT(PRESENT(n_local_rows))
       ALLOCATE(distribution_2d%local_rows(SIZE(n_local_rows)),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DO i=1,SIZE(distribution_2d%local_rows)
          ALLOCATE(distribution_2d%local_rows(i)%array(n_local_rows(i)),&
               stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          distribution_2d%local_rows(i)%array=-HUGE(0)
       END DO
    END IF
@@ -202,13 +202,13 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
    IF (PRESENT(local_cols_ptr)) &
         distribution_2d%local_cols => local_cols_ptr
    IF (.NOT.ASSOCIATED(distribution_2d%local_cols)) THEN
-      CPPrecondition(PRESENT(n_local_cols),cp_failure_level,routineP,failure)
+      CPASSERT(PRESENT(n_local_cols))
       ALLOCATE(distribution_2d%local_cols(SIZE(n_local_cols)),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DO i=1,SIZE(distribution_2d%local_cols)
          ALLOCATE(distribution_2d%local_cols(i)%array(n_local_cols(i)),&
               stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          distribution_2d%local_cols(i)%array=-HUGE(0)
       END DO
    END IF
@@ -250,8 +250,8 @@ SUBROUTINE distribution_2d_retain(distribution_2d)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  CPPrecondition(ASSOCIATED(distribution_2d),cp_failure_level,routineP,failure)
-  CPPreconditionNoFail(distribution_2d%ref_count>0,cp_failure_level,routineP)
+  CPASSERT(ASSOCIATED(distribution_2d))
+  CPASSERT(distribution_2d%ref_count>0)
   distribution_2d%ref_count=distribution_2d%ref_count+1
 END SUBROUTINE distribution_2d_retain
 
@@ -270,48 +270,48 @@ SUBROUTINE distribution_2d_release(distribution_2d)
 
    failure=.FALSE.
    IF (ASSOCIATED(distribution_2d)) THEN
-      CPPrecondition(distribution_2d%ref_count>0,cp_failure_level,routineP,failure)
+      CPASSERT(distribution_2d%ref_count>0)
       distribution_2d%ref_count=distribution_2d%ref_count-1
       IF (distribution_2d%ref_count == 0 ) THEN
          CALL cp_blacs_env_release(distribution_2d%blacs_env)
          IF (ASSOCIATED(distribution_2d%col_distribution)) THEN
             DEALLOCATE(distribution_2d%col_distribution,stat=istat)
-            CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+            CPASSERT(istat==0)
          END IF
          IF (ASSOCIATED(distribution_2d%row_distribution)) THEN
             DEALLOCATE(distribution_2d%row_distribution,stat=istat)
-            CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+            CPASSERT(istat==0)
          END IF
          DO i=1,SIZE(distribution_2d%local_rows)
             DEALLOCATE(distribution_2d%local_rows(i)%array,stat=istat)
-            CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+            CPASSERT(istat==0)
          END DO
          DEALLOCATE(distribution_2d%local_rows,stat=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+         CPASSERT(istat==0)
          DO i=1,SIZE(distribution_2d%local_cols)
             DEALLOCATE(distribution_2d%local_cols(i)%array,stat=istat)
-            CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+            CPASSERT(istat==0)
          END DO
          DEALLOCATE(distribution_2d%local_cols,stat=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+         CPASSERT(istat==0)
          IF (ASSOCIATED(distribution_2d%flat_local_rows)) THEN
             DEALLOCATE(distribution_2d%flat_local_rows,stat=istat)
-            CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+            CPASSERT(istat==0)
          END IF
          IF (ASSOCIATED(distribution_2d%flat_local_cols)) THEN
             DEALLOCATE(distribution_2d%flat_local_cols,stat=istat)
-            CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+            CPASSERT(istat==0)
          END IF
          IF (ASSOCIATED(distribution_2d%n_local_rows)) THEN
             DEALLOCATE(distribution_2d%n_local_rows,stat=istat)
-            CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+            CPASSERT(istat==0)
          END IF
          IF (ASSOCIATED(distribution_2d%n_local_cols)) THEN
             DEALLOCATE(distribution_2d%n_local_cols,stat=istat)
-            CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+            CPASSERT(istat==0)
          END IF
          DEALLOCATE(distribution_2d,stat=istat)
-         CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+         CPASSERT(istat==0)
       ENDIF
    ENDIF
    NULLIFY(distribution_2d)
@@ -559,8 +559,8 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  CPPrecondition(ASSOCIATED(distribution_2d),cp_failure_level,routineP,failure)
-  CPPrecondition(distribution_2d%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(distribution_2d))
+  CPASSERT(distribution_2d%ref_count>0)
   IF (PRESENT(row_distribution)) row_distribution => distribution_2d%row_distribution
   IF (PRESENT(col_distribution)) col_distribution => distribution_2d%col_distribution
   IF (PRESENT(n_row_distribution)) n_row_distribution=distribution_2d%n_row_distribution
@@ -574,7 +574,7 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
         ALLOCATE(multiindex(SIZE(distribution_2d%local_rows)),&
              distribution_2d%flat_local_rows(SUM(distribution_2d%n_local_rows)),&
              stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         multiindex=1
         DO iblock_atomic=1,SIZE(distribution_2d%flat_local_rows)
            iblock_min=HUGE(0)
@@ -588,13 +588,13 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
                  END IF
               END IF
            END DO
-           CPPostcondition(ikind_min>0,cp_failure_level,routineP,failure)
+           CPASSERT(ikind_min>0)
            distribution_2d%flat_local_rows(iblock_atomic)=&
                 distribution_2d%local_rows(ikind_min)%array(multiindex(ikind_min))
            multiindex(ikind_min)=multiindex(ikind_min)+1
         END DO
         DEALLOCATE(multiindex, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
      flat_local_rows => distribution_2d%flat_local_rows
   END IF
@@ -603,7 +603,7 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
         ALLOCATE(multiindex(SIZE(distribution_2d%local_cols)),&
              distribution_2d%flat_local_cols(SUM(distribution_2d%n_local_cols)),&
              stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         multiindex=1
         DO iblock_atomic=1,SIZE(distribution_2d%flat_local_cols)
            iblock_min=HUGE(0)
@@ -617,13 +617,13 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
                  END IF
               END IF
            END DO
-           CPPostcondition(ikind_min>0,cp_failure_level,routineP,failure)
+           CPASSERT(ikind_min>0)
            distribution_2d%flat_local_cols(iblock_atomic)=&
                 distribution_2d%local_cols(ikind_min)%array(multiindex(ikind_min))
            multiindex(ikind_min)=multiindex(ikind_min)+1
         END DO
         DEALLOCATE(multiindex, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
      flat_local_cols => distribution_2d%flat_local_cols
   END IF

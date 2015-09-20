@@ -237,7 +237,7 @@ CONTAINS
 
     n = matrix%matrix_struct%nrow_global
     ALLOCATE(eig(n), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
 
 #if defined(__SCALAPACK)
@@ -342,10 +342,10 @@ CONTAINS
     eig(:) = 0.0_dp
 
     ALLOCATE (work(1),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     work(:) = 0.0_dp
     ALLOCATE (iwork(1),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     iwork(:) = 0
 
     CALL dsyevd('V','U',n,m(1,1),n,eig(1),work(1),lwork,iwork(1),liwork,myinfo)
@@ -358,15 +358,15 @@ CONTAINS
     ! Reallocate work arrays and perform diagonalisation
     lwork = INT(work(1))
     DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(work(lwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     liwork = iwork(1)
     DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(iwork(liwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     iwork(:) = 0
 
     CALL dsyevd('V','U',n,m(1,1),n,eig(1),work(1),lwork,iwork(1),liwork,myinfo)
@@ -379,9 +379,9 @@ CONTAINS
     CALL cp_fm_to_fm(matrix,eigenvectors)
 
     DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 #endif
 
     IF(PRESENT(info)) myinfo = 0
@@ -394,7 +394,7 @@ CONTAINS
     END IF
 
     DEALLOCATE (eig,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL timestop(handle)
 
   END SUBROUTINE cp_fm_syevd
@@ -448,12 +448,12 @@ CONTAINS
 
     liwork = 7*n + 8*context%num_pe(2) + 2
     ALLOCATE(iwork(liwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ! work space query
 
     lwork = -1
     ALLOCATE(work(1),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL pdsyevd('V','U',n,m(1,1),1,1,descm,eig(1),v(1,1),1,1,descv, &
                  work(1),lwork,iwork(1),liwork,info)
@@ -467,9 +467,9 @@ CONTAINS
     lwork = NINT(work(1)+100000)
 !    lwork = NINT(work(1))
     DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(work(lwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! Scalapack takes advantage of IEEE754 exceptions for speedup.
     ! Therefore, we disable floating point traps temporarily.
@@ -489,10 +489,10 @@ CONTAINS
        (routineN,moduleN,__LINE__, "Matrix diagonalization failed")
 
     DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
 #endif
 
@@ -598,7 +598,7 @@ CONTAINS
 
 
     ALLOCATE (w(n),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     eigenvalues(:) = 0.0_dp
 #if defined(__SCALAPACK)
 
@@ -636,18 +636,18 @@ CONTAINS
     liwork = 6*MAX(N,npe+1,4)
 
     ALLOCATE (gap(npe),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     gap = 0.0_dp
     ALLOCATE (iclustr(2*npe),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     iclustr = 0
     ALLOCATE (ifail(n),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ifail = 0
     ALLOCATE (iwork(liwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (work(lwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! Scalapack takes advantage of IEEE754 exceptions for speedup.
     ! Therefore, we disable floating point traps temporarily.
@@ -689,15 +689,15 @@ CONTAINS
     ! Release work storage
 
     DEALLOCATE (gap,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (iclustr,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (ifail,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
 #else
 
@@ -718,12 +718,12 @@ CONTAINS
     liwork = 5*n
 
     ALLOCATE (ifail(n),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ifail = 0
     ALLOCATE (iwork(liwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (work(lwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     info = 0
 
     CALL dsyevx(job_type,"I","U",n,a(1,1),n,vl,vu,1,neig_local,abstol,m,w,z(1,1),n,work(1),lwork,&
@@ -746,16 +746,16 @@ CONTAINS
     ! Release work storage
 
     DEALLOCATE (ifail,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
 #endif
     eigenvalues(1:neig_local) = w(1:neig_local)
     DEALLOCATE (w,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -847,14 +847,14 @@ CONTAINS
     mypcol=context%mepos(2)
 
     ALLOCATE(w(n), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     eigenvalues(:) = 0.0_dp
 
 #if defined(__SCALAPACK)
 
     IF (matrix%matrix_struct%nrow_block /= matrix%matrix_struct%ncol_block) THEN
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
     END IF
 
     a => matrix%local_data
@@ -872,9 +872,9 @@ CONTAINS
     ! First Call: Determine the needed work_space
     lwork = -1
     ALLOCATE(work(5*n), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(iwork(6*n), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 #if defined (__SCALAPACK2)
     CALL pdsyevr(job_type,'I','U',n,a,1,1,desca,vl,vu,ilow_local,iup_local,m,nz,w(1),z,1,1,descz,work,lwork,iwork,liwork,info)
 #endif
@@ -884,12 +884,12 @@ CONTAINS
     IF(lwork>SIZE(work,1)) THEN
       DEALLOCATE(work,STAT=istat)
       ALLOCATE(work(lwork),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
     IF(liwork>SIZE(iwork,1)) THEN
       DEALLOCATE(iwork,STAT=istat)
       ALLOCATE(iwork(liwork),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
 
     !Second call: solve the eigenvalue problem
@@ -901,13 +901,13 @@ CONTAINS
     IF(info>0) THEN
       WRITE(*,*) 'Processor ', myprow, mypcol, ': Error! INFO code = ', INFO
     END IF
-    CPPrecondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
 
     ! Release work storage
     DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
 #else
 
@@ -928,13 +928,13 @@ CONTAINS
     liwork = 5*n
 
     ALLOCATE (ifail(n),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ifail = 0
 
     ALLOCATE (iwork(liwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (work(lwork),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! target the most accurate calculation of the eigenvalues
     abstol = 2.0_dp*dlamch("S")
@@ -944,19 +944,19 @@ CONTAINS
                 iwork(1),ifail(1),info)
 
     ! Error handling
-    CPPrecondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
 
     ! Release work storage
     DEALLOCATE (iwork,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (work,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
 #endif
 
     eigenvalues(ilow_local:iup_local) = w(ilow_local:iup_local)
     DEALLOCATE (w,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -1018,7 +1018,7 @@ CONTAINS
     neig = SIZE(eigenvalues,1)
     ! the full eigenvalues vector is needed
     ALLOCATE(eval(n),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! Calculate eigenvalues/eigenvectors
 #if defined (__ELPA) || defined (__ELPA2)
@@ -1035,12 +1035,12 @@ CPSourceFileRef)
 #endif
 
 #else
-    CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+    CPASSERT(.FALSE.)
 #endif
     eigenvalues(1:neig) = eval(1:neig)
 
     DEALLOCATE(eval,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! mpi communicators are freed
     CALL mp_comm_free(comm_row)
@@ -1113,7 +1113,7 @@ CPSourceFileRef)
     ncol_global = matrix%matrix_struct%ncol_global
 
     ALLOCATE (eigenvalues(ncol_global),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     eigenvalues(:) = 0.0_dp
 
@@ -1224,7 +1224,7 @@ CPSourceFileRef)
     END IF
 
     DEALLOCATE (eigenvalues,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 

@@ -190,20 +190,20 @@ CONTAINS
                          nstates=nstates)
 
     ALLOCATE(vecbuf_c0(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO idir = 1,3
        NULLIFY(vecbuf_Rmdc0(idir)%array)
        ALLOCATE(vecbuf_Rmdc0(idir)%array(1,nao),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     ENDDO
 
     CALL get_qs_kind_set(qs_kind_set=qs_kind_set,nsgf=nsgf)
 
     natom = SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
@@ -231,7 +231,7 @@ CONTAINS
     !
     ! prepare for allocation
     ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
     !
     !
@@ -438,13 +438,13 @@ CONTAINS
     DEALLOCATE(row_blk_sizes)
 
     DEALLOCATE (first_sgf,last_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE(vecbuf_c0,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO idir = 1,3
        DEALLOCATE(vecbuf_Rmdc0(idir)%array,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END DO
 
     CALL timestop(handle)
@@ -754,15 +754,15 @@ CONTAINS
 
     ! initialize all work matrices needed
     ALLOCATE ( opvec(2, dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE ( op_fm_set( 2, dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE ( eigrmat( dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE ( inv_mat(3, dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE ( inv_work(2,3, dft_control%nspins ), STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! A bit to allocate for the wavefunction
     DO ispin = 1, dft_control%nspins
@@ -870,15 +870,15 @@ CONTAINS
 
 
     DEALLOCATE ( inv_work, STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE ( opvec, STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE ( op_fm_set, STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE ( eigrmat, STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE ( inv_mat, STAT = istat )
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
 
 

@@ -71,18 +71,18 @@ CONTAINS
     history%damping = damp
     history%eps_diis = eps
     ALLOCATE ( history%dmat(ndiis+1,ndiis+1), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
     ALLOCATE ( history%hmat(ndiis), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     n1 = SIZE(matrix,1)
     n2 = SIZE(matrix,2)
     n3 = SIZE(matrix,3)
     DO i=1,ndiis
       ALLOCATE ( history%hmat(i)%emat(n1,n2,n3), STAT=ierr )
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
       ALLOCATE ( history%hmat(i)%fmat(n1,n2,n3), STAT=ierr )
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
     END DO
 
   END SUBROUTINE atom_history_init
@@ -134,24 +134,24 @@ CONTAINS
     history%eps_diis = 0._dp
     IF ( ASSOCIATED(history%dmat) ) THEN
       DEALLOCATE ( history%dmat, STAT=ierr )
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
       NULLIFY ( history%dmat )
     END IF
     IF ( ASSOCIATED(history%hmat) ) THEN
       DO i=1,SIZE(history%hmat)
         IF ( ASSOCIATED(history%hmat(i)%emat) ) THEN
           DEALLOCATE ( history%hmat(i)%emat, STAT=ierr )
-          CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr==0)
           NULLIFY ( history%hmat(i)%emat )
         END IF
         IF ( ASSOCIATED(history%hmat(i)%fmat) ) THEN
           DEALLOCATE ( history%hmat(i)%fmat, STAT=ierr )
-          CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr==0)
           NULLIFY ( history%hmat(i)%fmat )
         END IF
       END DO
       DEALLOCATE ( history%hmat, STAT=ierr )
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
       NULLIFY ( history%hmat )
     END IF
 
@@ -188,7 +188,7 @@ CONTAINS
         rcond = 1.e-10_dp
         lwork = 25*nmax
         ALLOCATE(vec(nmax+1,2),s(nmax+1),work(lwork),STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
         nlen = history%hlen
         vec = 0._dp
         vec(nlen+1,1) = 1._dp
@@ -208,7 +208,7 @@ CONTAINS
         END DO
         CALL lapack_sgelss(nlen+1,nlen+1,1,history%dmat,nmax+1,vec,nmax+1,s,&
                            rcond,rank,work,lwork,info)
-        CPPostcondition(info==0,cp_failure_level,routineP,failure)
+        CPASSERT(info==0)
         fmat = 0._dp
         DO i=1,nlen
           na = nnow + 1 - i
@@ -217,7 +217,7 @@ CONTAINS
         END DO
 
         DEALLOCATE(vec,s,work,STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
       ELSE
         ! damping
         nm = nnow - 1
@@ -227,7 +227,7 @@ CONTAINS
     ELSEIF ( history%hlen == 1 ) THEN
       fmat = history%hmat(nnow)%fmat
     ELSE
-      CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
     END IF
 
   END SUBROUTINE atom_opt

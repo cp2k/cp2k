@@ -221,19 +221,19 @@ CONTAINS
     ENDDO
 
     ALLOCATE(f_nonbond(3,natoms), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     nshell = 0
     IF(shell_present)THEN
        CALL fist_env_get(fist_env, shell_particle_set=shell_particle_set,  &
             core_particle_set=core_particle_set)
-       CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,failure)
-       CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(shell_particle_set))
+       CPASSERT(ASSOCIATED(core_particle_set))
        nshell = SIZE(shell_particle_set)
        ALLOCATE(fshell_nonbond(3, nshell), STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(fcore_nonbond(3, nshell), STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        NULLIFY(shell_particle_set,core_particle_set)
     END IF
@@ -355,13 +355,13 @@ CONTAINS
        END SELECT
        ! Allocate and zeroing arrays
        ALLOCATE(fg_coulomb(3, fg_coulomb_size), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        fg_coulomb = 0.0_dp
        IF(shell_present)THEN
           ALLOCATE(fgshell_coulomb(3, nshell), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(fgcore_coulomb(3, nshell), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           fgshell_coulomb = 0.0_dp
           fgcore_coulomb  = 0.0_dp
        END IF
@@ -435,11 +435,11 @@ CONTAINS
                 ELSE
                    IF(atprop_env%energy) THEN
                       ALLOCATE(e_coulomb(fg_coulomb_size), STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                      CPASSERT(stat==0)
                    END IF
                    IF(atprop_env%stress) THEN
                       ALLOCATE(pv_coulomb(3,3,fg_coulomb_size), STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                      CPASSERT(stat==0)
                    END IF
                    CALL ewald_evaluate(ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,&
                         local_particles, fg_coulomb, vg_coulomb, pv_g ,use_virial=use_virial,&
@@ -634,7 +634,7 @@ CONTAINS
     ! We first sum the forces in f_nonbond, this allows for a more efficient
     ! global sum in the parallel code and in the end copy them back to part
     ALLOCATE(f_total(3,natoms), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     f_total = 0.0_dp
     DO i = 1, natoms
        f_total(1, i)= particle_set(i)%f(1)+ f_nonbond(1, i)
@@ -643,9 +643,9 @@ CONTAINS
     END DO
     IF(shell_present)THEN
        ALLOCATE(fshell_total(3,nshell), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(fcore_total(3,nshell), STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, nshell
           fshell_total(1, i)= shell_particle_set(i)%f(1)+ fshell_nonbond(1, i)
           fshell_total(2, i)= shell_particle_set(i)%f(2)+ fshell_nonbond(2, i)
@@ -694,11 +694,11 @@ CONTAINS
        END DO
        IF(atprop_env%energy) THEN
          DEALLOCATE(e_coulomb, STAT = stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
        END IF
        IF(atprop_env%stress) THEN
          DEALLOCATE(pv_coulomb, STAT = stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
        END IF
     END IF
 
@@ -896,23 +896,23 @@ CONTAINS
     ! deallocating all local variables
     IF(ALLOCATED(fg_coulomb))THEN
        DEALLOCATE(fg_coulomb, STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ALLOCATED(f_total))THEN
        DEALLOCATE(f_total, STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     DEALLOCATE(f_nonbond, STAT = stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(shell_present)THEN
        DEALLOCATE(fshell_total, STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF(ewald_type /= do_ewald_none)THEN
           DEALLOCATE(fgshell_coulomb, STAT = stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE(fshell_nonbond, STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%DERIVATIVES")
     CALL cp_print_key_finished_output(iw2,logger,mm_section,"PRINT%EWALD_INFO")

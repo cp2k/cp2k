@@ -135,7 +135,7 @@ SUBROUTINE wfs_release(snapshot)
   failure=.FALSE.
 
   IF (ASSOCIATED(snapshot)) THEN
-     CPPreconditionNoFail(snapshot%ref_count>0,cp_failure_level,routineP)
+     CPASSERT(snapshot%ref_count>0)
      snapshot%ref_count=snapshot%ref_count-1
      IF (snapshot%ref_count==0) THEN
         IF (ASSOCIATED(snapshot%wf)) THEN
@@ -143,7 +143,7 @@ SUBROUTINE wfs_release(snapshot)
               CALL cp_fm_release(snapshot%wf(i)%matrix)
            END DO
            DEALLOCATE(snapshot%wf,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         ! snapshot%rho_r & snapshot%rho_g is deallocated in wfs_update
         ! of qs_wf_history_methods, in case you wonder about it.
@@ -160,7 +160,7 @@ SUBROUTINE wfs_release(snapshot)
            CALL qs_rho_release(snapshot%rho_frozen)
         END IF
         DEALLOCATE(snapshot,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
   END IF
   NULLIFY(snapshot)
@@ -183,7 +183,7 @@ SUBROUTINE wfi_retain(wf_history)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(wf_history))
   wf_history%ref_count=wf_history%ref_count+1
 
 END SUBROUTINE wfi_retain
@@ -208,7 +208,7 @@ SUBROUTINE wfi_release(wf_history)
   failure=.FALSE.
 
   IF (ASSOCIATED(wf_history)) THEN
-     CPPreconditionNoFail(wf_history%ref_count>0,cp_failure_level,routineP)
+     CPASSERT(wf_history%ref_count>0)
      wf_history%ref_count=wf_history%ref_count-1
      IF (wf_history%ref_count==0) THEN
         IF (ASSOCIATED(wf_history%past_states)) THEN
@@ -216,10 +216,10 @@ SUBROUTINE wfi_release(wf_history)
               CALL wfs_release(wf_history%past_states(i)%snapshot)
            END DO
            DEALLOCATE(wf_history%past_states,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         DEALLOCATE(wf_history,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
   END IF
   NULLIFY(wf_history)
@@ -247,10 +247,10 @@ FUNCTION wfi_get_snapshot(wf_history, index) RESULT(res)
   failure=.FALSE.
   NULLIFY(res)
 
-  CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,failure)
-  CPPrecondition(ASSOCIATED(wf_history%past_states),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(wf_history))
+  CPASSERT(ASSOCIATED(wf_history%past_states))
   IF (index>wf_history%memory_depth.OR.index>wf_history%snapshot_count) THEN
-     CPPrecondition(.FALSE.,cp_warning_level,routineP,failure)
+     CPASSERT(.FALSE.)
   END IF
   res => wf_history%past_states(&
        MODULO(wf_history%snapshot_count+1-index,&

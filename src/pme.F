@@ -159,8 +159,8 @@ CONTAINS
     CALL structure_factor_init(exp_igr)
 
     IF(PRESENT(shell_particle_set)) THEN
-       CPPostcondition(ASSOCIATED(shell_particle_set),cp_failure_level,routineP,failure)
-       CPPostcondition(ASSOCIATED(core_particle_set),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(shell_particle_set))
+       CPASSERT(ASSOCIATED(core_particle_set))
        nshell=SIZE(shell_particle_set)
        CALL structure_factor_allocate ( grid_s%bounds, npart, exp_igr, &
             allocate_centre = .TRUE., allocate_shell_e=.TRUE., allocate_shell_centre = .TRUE., nshell=nshell )
@@ -367,7 +367,7 @@ CONTAINS
     !--------END OF STRESS TENSOR CALCULATION -----------
 
     ALLOCATE ( drpot(1:3), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     DO i = 1, 3
        CALL rs_grid_create(drpot(i)%rs_grid, rs_desc)
        CALL rs_grid_set_box ( grid_b, rs=drpot(i)%rs_grid)
@@ -476,7 +476,7 @@ CONTAINS
           CALL rs_grid_release(drpot(i)%rs_grid)
        END DO
        DEALLOCATE ( drpot, STAT = ierr )
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
 
     CALL pw_pool_give_back_pw ( pw_small_pool, rhos1%pw)
@@ -552,7 +552,7 @@ CONTAINS
     IF(PRESENT(is1_core)) my_is1_core = is1_core
     IF(PRESENT(is2_core)) my_is2_core = is2_core
     IF(my_is1_core .OR. my_is2_core) THEN
-       CPPostcondition(PRESENT(core_particle_set),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(core_particle_set))
     END IF
     my_is1_shell = .FALSE.
     my_is2_shell = .FALSE.

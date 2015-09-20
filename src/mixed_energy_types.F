@@ -58,7 +58,7 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT.ASSOCIATED(mixed_energy)) THEN
       ALLOCATE (mixed_energy,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
     CALL init_mixed_energy(mixed_energy)
   END SUBROUTINE allocate_mixed_energy
@@ -82,7 +82,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(mixed_energy)) THEN
       DEALLOCATE (mixed_energy,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
   END SUBROUTINE deallocate_mixed_energy
 

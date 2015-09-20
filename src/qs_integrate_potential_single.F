@@ -176,12 +176,12 @@ CONTAINS
 
        ni = ncoset(lmaxscp)
        ALLOCATE(hab(ni,1),pab(ni,1),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        pab = 0._dp
        hab = 0._dp
 
        ALLOCATE(cores(natom_of_kind),STAT=ierr)
-       CPPrecondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        cores = 0
        npme = 0
 
@@ -259,7 +259,7 @@ CONTAINS
        END DO
 
        DEALLOCATE(cores,hab,pab,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
     END DO
 
@@ -341,7 +341,7 @@ CONTAINS
 
        ni = ncoset(2*lppl-2)
        ALLOCATE(hab(ni,1),pab(ni,1),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        pab = 0._dp
 
        CALL reallocate ( cores, 1, natom_of_kind )
@@ -395,7 +395,7 @@ CONTAINS
              n = coset(2,2,2)
              pab(n,1) = 6._dp*cexp_ppl(4)
            CASE DEFAULT
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
          END SELECT
        END DO
 
@@ -448,14 +448,14 @@ CONTAINS
        END DO
 
        DEALLOCATE(hab,pab,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
     END DO
 
     CALL rs_grid_release(rs_v)
 
     DEALLOCATE(cores,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -545,7 +545,7 @@ CONTAINS
          ithread=0
 
          ALLOCATE(hab(ni,1),pab(ni,1),STAT=stat)
-         CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          pab = 0._dp
 
          CALL reallocate ( cores, 1, natom )
@@ -599,7 +599,7 @@ CONTAINS
                n = coset(2,2,2)
                pab(n,1) = 6._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
              CASE DEFAULT
-               CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+               CPASSERT(.FALSE.)
            END SELECT
          END DO
          IF(dft_control%nspins==2)pab=pab*0.5_dp
@@ -650,7 +650,7 @@ CONTAINS
          END DO
 
          DEALLOCATE(hab,pab,STAT=stat)
-         CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
       END DO
 
@@ -659,7 +659,7 @@ CONTAINS
     CALL rs_grid_release(rs_v)
 
     DEALLOCATE(cores,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -719,11 +719,11 @@ CONTAINS
     IF(.NOT. skip_fcore) THEN
         NULLIFY(pw_env)
         ALLOCATE (cores(1),STAT=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE (hab(1,1),STAT=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE (pab(1,1),STAT=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
 
         CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
         CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v)
@@ -830,7 +830,7 @@ CONTAINS
         CALL rs_grid_release(rs_v)
 
         DEALLOCATE (hab,pab,cores,STAT=stat)
-        CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
 
     END IF
 
@@ -1064,10 +1064,10 @@ CONTAINS
           ENDIF
 
           DEALLOCATE (work_i, STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           IF (calculate_forces) THEN
              DEALLOCATE (work_f, STAT=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
 
        END DO
@@ -1075,7 +1075,7 @@ CONTAINS
       CALL mp_sum(int_res(ikind)%v_int,para_env%group)
      
       DEALLOCATE (hab,pab,STAT=stat)
-      CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END DO
 
     DO i=1,SIZE(rs_v)

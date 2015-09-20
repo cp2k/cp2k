@@ -138,7 +138,7 @@ CONTAINS
 
     IF (ASSOCIATED(farming_env%group_partition)) THEN
        DEALLOCATE(farming_env%group_partition,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     END IF
 
     ! The following input order is used
@@ -196,7 +196,7 @@ CONTAINS
     CALL section_vals_get(jobs_section,n_repetition=farming_env % njobs)
 
     ALLOCATE(farming_env%Job(farming_env % njobs),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL init_job_type(farming_env%job)
 
     has_dep=.FALSE.
@@ -233,8 +233,8 @@ CONTAINS
     END DO
 
     IF (has_dep) THEN
-       CPPostcondition(farming_env%master_slave,cp_failure_level,routineP,failure)
-       CPPostcondition(.NOT.farming_env%cycle,cp_failure_level,routineP,failure)
+       CPASSERT(farming_env%master_slave)
+       CPASSERT(.NOT.farming_env%cycle)
     ENDIF
 
 

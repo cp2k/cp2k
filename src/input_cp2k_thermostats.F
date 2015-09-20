@@ -76,7 +76,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     my_coupled_thermostat = .FALSE.
     IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
     NULLIFY(nose_section, region_section)
@@ -154,7 +154,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     my_coupled_thermostat = .FALSE.
     IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
     NULLIFY(nose_section, region_section)
@@ -235,7 +235,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     my_coupled_thermostat = .FALSE.
     IF (PRESENT(coupled_thermostat)) my_coupled_thermostat = coupled_thermostat
     NULLIFY(csvr_section, gle_section, al_section, nose_section, subsection, region_section)
@@ -326,7 +326,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(print_key)
     CALL section_create(section,name="PRINT",&
          description="Collects all print_keys for thermostat",&
@@ -373,7 +373,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="DEFINE_REGION",&
          description="This section provides the possibility to define arbitrary region "//&
@@ -440,7 +440,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="nose",&
          description="paramameters of the Nose Hoover thermostat chain",&
          citations=(/Nose1984a,Nose1984b/))
@@ -513,7 +513,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="GLE",&
          description="paramameters of the gle thermostat. This section can be generated "//&
                      " from https://epfl-cosmo.github.io/gle4md/index.html?page=matrix ",&
@@ -587,7 +587,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="s",&
          description="The s variable for GLE used for restart",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -618,7 +618,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="csvr",&
          description="Parameters of the canonical sampling through velocity rescaling thermostat.",&
          citations=(/Bussi2007/))
@@ -663,7 +663,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="ad_langevin",&
          description="Parameters of the adaptive-Langevin thermostat."//&
          " Known to work with NVT ensemble, but not tested with"//&
@@ -726,7 +726,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name=TRIM(sec_name),&
          description="Information to initialize the Ad-Langevin thermostat DOF "//TRIM(sec_name),&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -757,7 +757,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="THERMOSTAT_ENERGY",&
          description="Information to initialize the CSVR thermostat energy.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -789,7 +789,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="force",&
          description="The forces for "//TRIM(name)//" used for restart",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -821,7 +821,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="mass",&
          description="The masses for "//TRIM(name)//" used for restart",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -853,7 +853,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="velocity",&
          description="The velocities for "//TRIM(name)//" used for restart",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -885,7 +885,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="coord",&
          description="The positions for "//TRIM(name)//" used for restart",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)

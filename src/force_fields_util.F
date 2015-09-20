@@ -390,7 +390,7 @@ CONTAINS
           END IF
        END IF
        DEALLOCATE(array,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (fatal) THEN
       IF (ignore_fatal) THEN
@@ -759,7 +759,7 @@ CONTAINS
           IF (iw>0) WRITE(iw,'(2I6)')(bond_list(ibond)%a,bond_list(ibond)%b,ibond=1,SIZE(bond_list))
           NULLIFY(bad1,bad2)
           ALLOCATE(bad1(SIZE(bond_kind_set)),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           bad1(:)=0
           DO ibond=1,SIZE(bond_kind_set)
              unsetme=.FALSE.
@@ -787,7 +787,7 @@ CONTAINS
              END DO
              counter=0
              ALLOCATE(bad2(SIZE(bond_list)),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              bad2(:)=0
              DO ibond=1,SIZE(bond_list)
                 unsetme = .FALSE.
@@ -798,7 +798,7 @@ CONTAINS
              IF(SUM(bad2)/=0) THEN
                 counter = SIZE(bond_list)-SUM(bad2)
                 ALLOCATE(new_bond_list(counter),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 counter=0
                 DO ibond=1,SIZE(bond_list)
                    IF(bad2(ibond)==0) THEN
@@ -818,17 +818,17 @@ CONTAINS
                 END DO
              END IF
              DEALLOCATE(bad2,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              CALL deallocate_bond_kind_set(bond_kind_set)
              DEALLOCATE(bond_list,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              IF(iw>0) WRITE(iw,*) "    Mol(",ikind,") New BOND Count: ",&
                   SIZE(new_bond_list),SIZE(new_bond_kind_set)
              IF (iw>0) WRITE(iw,'(2I6)')(new_bond_list(ibond)%a,new_bond_list(ibond)%b,&
                   ibond=1,SIZE(new_bond_list))
           END IF
           DEALLOCATE(bad1,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
     !-----------------------------------------------------------------------------
@@ -848,7 +848,7 @@ CONTAINS
                bend_list(ibend)%c,ibend=1,SIZE(bend_list))
           NULLIFY(bad1,bad2)
           ALLOCATE(bad1(SIZE(bend_kind_set)),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           bad1(:)=0
           DO ibend=1,SIZE(bend_kind_set)
              unsetme=.FALSE.
@@ -876,7 +876,7 @@ CONTAINS
              END DO
              counter=0
              ALLOCATE(bad2(SIZE(bend_list)),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              bad2(:)=0
              DO ibend=1,SIZE(bend_list)
                 unsetme = .FALSE.
@@ -887,7 +887,7 @@ CONTAINS
              IF(SUM(bad2)/=0) THEN
                 counter = SIZE(bend_list)-SUM(bad2)
                 ALLOCATE(new_bend_list(counter),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 counter=0
                 DO ibend=1,SIZE(bend_list)
                    IF(bad2(ibend)==0) THEN
@@ -907,17 +907,17 @@ CONTAINS
                 END DO
              END IF
              DEALLOCATE(bad2,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              CALL deallocate_bend_kind_set(bend_kind_set)
              DEALLOCATE(bend_list,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              IF(iw>0) WRITE(iw,*) "    Mol(",ikind,") New BEND Count: ",&
                   SIZE(new_bend_list),SIZE(new_bend_kind_set)
              IF (iw>0) WRITE(iw,'(3I6)')(new_bend_list(ibend)%a,new_bend_list(ibend)%b,&
                   new_bend_list(ibend)%c,ibend=1,SIZE(new_bend_list))
           END IF
           DEALLOCATE(bad1,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
 
@@ -938,7 +938,7 @@ CONTAINS
                ub_list(iub)%c,iub=1,SIZE(ub_list))
           NULLIFY(bad1,bad2)
           ALLOCATE(bad1(SIZE(ub_kind_set)),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           bad1(:)=0
           DO iub=1,SIZE(ub_kind_set)
              unsetme=.FALSE.
@@ -966,7 +966,7 @@ CONTAINS
              END DO
              counter=0
              ALLOCATE(bad2(SIZE(ub_list)),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              bad2(:)=0
              DO iub=1,SIZE(ub_list)
                 unsetme = .FALSE.
@@ -977,7 +977,7 @@ CONTAINS
              IF(SUM(bad2)/=0) THEN
                 counter = SIZE(ub_list)-SUM(bad2)
                 ALLOCATE(new_ub_list(counter),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 counter=0
                 DO iub=1,SIZE(ub_list)
                    IF(bad2(iub)==0) THEN
@@ -997,17 +997,17 @@ CONTAINS
                 END DO
              END IF
              DEALLOCATE(bad2,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              CALL ub_kind_dealloc_ref(ub_kind_set)
              DEALLOCATE(ub_list,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              IF(iw>0) WRITE(iw,*) "    Mol(",ikind,") New UB Count: ",&
                   SIZE(new_ub_list),SIZE(new_ub_kind_set)
              IF (iw>0) WRITE(iw,'(3I6)')(new_ub_list(iub)%a,new_ub_list(iub)%b,&
                   new_ub_list(iub)%c,iub=1,SIZE(new_ub_list))
           END IF
           DEALLOCATE(bad1,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
 
@@ -1028,7 +1028,7 @@ CONTAINS
                torsion_list(itorsion)%c,torsion_list(itorsion)%d,itorsion=1,SIZE(torsion_list))
           NULLIFY(bad1,bad2)
           ALLOCATE(bad1(SIZE(torsion_kind_set)),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           bad1(:)=0
           DO itorsion=1,SIZE(torsion_kind_set)
              unsetme=.FALSE.
@@ -1056,11 +1056,11 @@ CONTAINS
                    j = SIZE(torsion_kind_set(itorsion)%k)
                    k = SIZE(torsion_kind_set(itorsion)%phi0)
                    ALLOCATE(new_torsion_kind_set(counter)%m(i),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    ALLOCATE(new_torsion_kind_set(counter)%k(i),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    ALLOCATE(new_torsion_kind_set(counter)%phi0(i),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    new_torsion_kind_set(counter)%m= torsion_kind_set(itorsion)%m
                    new_torsion_kind_set(counter)%k= torsion_kind_set(itorsion)%k
                    new_torsion_kind_set(counter)%phi0= torsion_kind_set(itorsion)%phi0
@@ -1068,7 +1068,7 @@ CONTAINS
              END DO
              counter=0
              ALLOCATE(bad2(SIZE(torsion_list)),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              bad2(:)=0
              DO itorsion=1,SIZE(torsion_list)
                 unsetme = .FALSE.
@@ -1079,7 +1079,7 @@ CONTAINS
              IF(SUM(bad2)/=0) THEN
                 counter = SIZE(torsion_list)-SUM(bad2)
                 ALLOCATE(new_torsion_list(counter),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 counter=0
                 DO itorsion=1,SIZE(torsion_list)
                    IF(bad2(itorsion)==0) THEN
@@ -1099,14 +1099,14 @@ CONTAINS
                 END DO
              END IF
              DEALLOCATE(bad2,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DO itorsion=1,SIZE(torsion_kind_set)
                 CALL torsion_kind_dealloc_ref(torsion_kind_set(itorsion))
              END DO
              DEALLOCATE(torsion_kind_set,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE(torsion_list,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              IF(iw>0) WRITE(iw,*) "    Mol(",ikind,") New TORSION Count: ",&
                   SIZE(new_torsion_list),SIZE(new_torsion_kind_set)
              IF (iw>0) WRITE(iw,'(4I6)')(new_torsion_list(itorsion)%a,new_torsion_list(itorsion)%b,&
@@ -1114,7 +1114,7 @@ CONTAINS
                   SIZE(new_torsion_list))
           END IF
           DEALLOCATE(bad1,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
 
@@ -1133,7 +1133,7 @@ CONTAINS
                SIZE(impr_list),SIZE(impr_kind_set)
           NULLIFY(bad1,bad2)
           ALLOCATE(bad1(SIZE(impr_kind_set)),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           bad1(:)=0
           DO iimpr=1,SIZE(impr_kind_set)
              unsetme=.FALSE.
@@ -1161,7 +1161,7 @@ CONTAINS
              END DO
              counter=0
              ALLOCATE(bad2(SIZE(impr_list)),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              bad2(:)=0
              DO iimpr=1,SIZE(impr_list)
                 unsetme = .FALSE.
@@ -1172,7 +1172,7 @@ CONTAINS
              IF(SUM(bad2)/=0) THEN
                 counter = SIZE(impr_list)-SUM(bad2)
                 ALLOCATE(new_impr_list(counter),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 counter=0
                 DO iimpr=1,SIZE(impr_list)
                    IF(bad2(iimpr)==0) THEN
@@ -1192,19 +1192,19 @@ CONTAINS
                 END DO
              END IF
              DEALLOCATE(bad2,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DO iimpr=1,SIZE(impr_kind_set)
                 CALL impr_kind_dealloc_ref() !This Subroutine doesn't deallocate anything, maybe needs to be implemented
              END DO
              DEALLOCATE(impr_kind_set,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE(impr_list,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              IF(iw>0) WRITE(iw,*) "    Mol(",ikind,") New IMPROPER Count: ",&
                   SIZE(new_impr_list),SIZE(new_impr_kind_set)
           END IF
           DEALLOCATE(bad1,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
 
@@ -1223,7 +1223,7 @@ CONTAINS
                SIZE(opbend_list),SIZE(opbend_kind_set)
           NULLIFY(bad1,bad2)
           ALLOCATE(bad1(SIZE(opbend_kind_set)),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           bad1(:)=0
           DO iopbend=1,SIZE(opbend_kind_set)
              unsetme=.FALSE.
@@ -1251,7 +1251,7 @@ CONTAINS
              END DO
              counter=0
              ALLOCATE(bad2(SIZE(opbend_list)),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              bad2(:)=0
              DO iopbend=1,SIZE(opbend_list)
                 unsetme = .FALSE.
@@ -1262,7 +1262,7 @@ CONTAINS
              IF(SUM(bad2)/=0) THEN
                 counter = SIZE(opbend_list)-SUM(bad2)
                 ALLOCATE(new_opbend_list(counter),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 counter=0
                 DO iopbend=1,SIZE(opbend_list)
                    IF(bad2(iopbend)==0) THEN
@@ -1282,16 +1282,16 @@ CONTAINS
                 END DO
              END IF
              DEALLOCATE(bad2,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE(opbend_kind_set,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE(opbend_list,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              IF(iw>0) WRITE(iw,*) "    Mol(",ikind,") New OPBEND Count: ",&
                   SIZE(new_opbend_list),SIZE(new_opbend_kind_set)
           END IF
           DEALLOCATE(bad1,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
 
@@ -1349,11 +1349,11 @@ CONTAINS
     NULLIFY (my_units_tmp)
     IF (ASSOCIATED(parameters)) THEN
        DEALLOCATE(parameters,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(values)) THEN
        DEALLOCATE(values,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     irep = 1
     IF (PRESENT(i_rep_sec)) irep = i_rep_sec
@@ -1362,7 +1362,7 @@ CONTAINS
     CALL compress(xfunction, full=.TRUE.)
     IF (PRESENT(input_variables)) THEN
        ALLOCATE(my_var(SIZE(input_variables)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        my_var = input_variables
     ELSE
        CALL section_vals_val_get(gen_section,"VARIABLES",i_rep_section=irep,c_vals=my_var)
@@ -1371,20 +1371,20 @@ CONTAINS
        mydim = SIZE(my_var)
     END IF
     IF (PRESENT(size_variables)) THEN
-       CPPrecondition(mydim==size_variables,cp_failure_level,routineP,failure)
+       CPASSERT(mydim==size_variables)
     END IF
     ! Check for presence of Parameters
     CALL section_vals_val_get(gen_section,"PARAMETERS",i_rep_section=irep,n_rep_val=n_par)
     CALL section_vals_val_get(gen_section,"VALUES",i_rep_section=irep,n_rep_val=n_val)
     check = (n_par>0).EQV.(n_val>0)
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     CALL section_vals_val_get(gen_section,"UNITS",i_rep_section=irep,n_rep_val=n_units)
     IF (n_par>0) THEN
        ! Parameters
        ALLOCATE(my_par(0),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(my_val(0),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, n_par
           isize  = SIZE(my_par)
           CALL section_vals_val_get(gen_section,"PARAMETERS",i_rep_section=irep,i_rep_val=i,c_vals=my_par_tmp)
@@ -1403,10 +1403,10 @@ CONTAINS
           CALL reallocate(my_val,1, isize+SIZE(my_val_tmp))
           my_val(isize+1:isize+SIZE(my_val_tmp))=my_val_tmp
        END DO
-       CPPrecondition(SIZE(my_par)==SIZE(my_val),cp_failure_level,routineP,failure)
+       CPASSERT(SIZE(my_par)==SIZE(my_val))
        ! Optionally read the units for each parameter value
        ALLOCATE (my_units(0),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF (n_units > 0) THEN
           DO i=1,n_units
              isize = SIZE(my_units)
@@ -1420,28 +1420,28 @@ CONTAINS
                 my_units(isize+ind) = my_units_tmp(j)
              END DO
           END DO
-          CPPrecondition(SIZE(my_units)==SIZE(my_val),cp_failure_level,routineP,failure)
+          CPASSERT(SIZE(my_units)==SIZE(my_val))
        END IF
        mydim=mydim+SIZE(my_val)
        IF (SIZE(my_val)==0) THEN
           DEALLOCATE(my_par,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(my_val,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(my_units,stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
     ! Handle trivial case of a null function defined
     ALLOCATE(parameters(mydim),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(values(mydim),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (mydim>0) THEN
        parameters(1:SIZE(my_var)) = my_var
        values(1:SIZE(my_var))     = 0.0_dp
        IF (PRESENT(var_values)) THEN
-          CPPrecondition(SIZE(var_values)==SIZE(my_var),cp_failure_level,routineP,failure)
+          CPASSERT(SIZE(var_values)==SIZE(my_var))
           values(1:SIZE(my_var)) = var_values
        END IF
        IF (ASSOCIATED(my_val)) THEN
@@ -1457,19 +1457,19 @@ CONTAINS
     END IF
     IF (ASSOCIATED(my_par)) THEN
        DEALLOCATE(my_par,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(my_val)) THEN
        DEALLOCATE(my_val,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(my_units)) THEN
        DEALLOCATE(my_units,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (PRESENT(input_variables)) THEN
        DEALLOCATE(my_var,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE get_generic_info
 

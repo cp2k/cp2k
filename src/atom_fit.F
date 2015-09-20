@@ -82,7 +82,7 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE(co(num_gto),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     co = 0._dp
     NULLIFY(density)
     CALL create_opgrid(density,atom%basis%grid)
@@ -150,14 +150,14 @@ CONTAINS
     END IF
 
     IF(PRESENT(results)) THEN
-      CPPrecondition(SIZE(results)>=num_gto+2, cp_failure_level, routineP,failure)
+      CPASSERT(SIZE(results)>=num_gto+2)
       results(1) = x(1)
       results(2) = x(2)
       results(3:2+num_gto) = co(1:num_gto)
     END IF
 
     DEALLOCATE(co,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE atom_fit_density
 ! *****************************************************************************
@@ -194,22 +194,22 @@ CONTAINS
 
     SELECT CASE (basis%basis_type)
        CASE DEFAULT
-         CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+         CPASSERT(.FALSE.)
        CASE (GTO_BASIS)
          IF ( basis%geometrical ) THEN
            ostate%nvar = 2
            ALLOCATE(x(2),STAT=ierr)
-           CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+           CPASSERT(ierr==0)
            x(1) = SQRT(basis%aval)
            x(2) = SQRT(basis%cval)
          ELSE
            ll = MAXVAL(basis%nprim(:))
            ALLOCATE(xtob(ll,0:3),STAT=ierr)
-           CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+           CPASSERT(ierr==0)
            xtob = 0
            ll = SUM(basis%nprim(:))
            ALLOCATE(x(ll),STAT=ierr)
-           CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+           CPASSERT(ierr==0)
            x = 0._dp
            ll = 0
            DO l=0,3
@@ -236,11 +236,11 @@ CONTAINS
        CASE (STO_BASIS)
          ll = MAXVAL(basis%nbas(:))
          ALLOCATE(xtob(ll,0:3),STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+         CPASSERT(ierr==0)
          xtob = 0
          ll = SUM(basis%nbas(:))
          ALLOCATE(x(ll),STAT=ierr)
-         CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+         CPASSERT(ierr==0)
          x = 0._dp
          ll = 0
          DO l=0,3
@@ -263,7 +263,7 @@ CONTAINS
     n=SIZE(atom_info,1)
     m=SIZE(atom_info,2)
     ALLOCATE(wem(n,m),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     wem = 1._dp
     CALL section_vals_val_get(powell_section,"WEIGHT_ELECTRON_CONFIGURATION", explicit=explicit)
     IF(explicit) THEN
@@ -286,7 +286,7 @@ CONTAINS
       END DO
     END DO
     DEALLOCATE(wem,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     ostate%nf = 0
     ostate%iprint = 1
@@ -306,7 +306,7 @@ CONTAINS
       IF ( ostate%state == 2 ) THEN
          SELECT CASE (basis%basis_type)
             CASE DEFAULT
-              CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
             CASE (GTO_BASIS)
               IF ( basis%geometrical ) THEN
                 basis%am = 0._dp
@@ -391,7 +391,7 @@ CONTAINS
        ! x->basis
        SELECT CASE (basis%basis_type)
           CASE DEFAULT
-            CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+            CPASSERT(.FALSE.)
           CASE (GTO_BASIS)
             IF ( basis%geometrical ) THEN
               basis%am = 0._dp
@@ -454,11 +454,11 @@ CONTAINS
     END IF
 
     DEALLOCATE(x,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     IF ( ALLOCATED(xtob) ) THEN
       DEALLOCATE(xtob,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
     END IF
 
   END SUBROUTINE atom_fit_basis
@@ -519,10 +519,10 @@ CONTAINS
     n=SIZE(atom_info,1)
     m=SIZE(atom_info,2)
     ALLOCATE(wem(n,m),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     wem = 1._dp
     ALLOCATE(pval(4,10,0:3,m,n),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     CALL section_vals_val_get(powell_section,"WEIGHT_ELECTRON_CONFIGURATION", explicit=explicit)
     IF(explicit) THEN
@@ -542,14 +542,14 @@ CONTAINS
     CALL open_file(file_name="POWELL_RESULT",file_status="UNKNOWN",file_action="WRITE",unit_number=iw)
 
     ALLOCATE(xi(200),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     !decide here what to optimize
     CALL get_pseudo_param(xi,ostate%nvar,ppot%gth_pot)
     ALLOCATE(x(ostate%nvar),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     x(1:ostate%nvar) = xi(1:ostate%nvar)
     DEALLOCATE(xi,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     ostate%nf = 0
     ostate%iprint = 1
@@ -668,7 +668,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(wem,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     WRITE(iunit,'(/," POWELL| Initial errors of target values")')
     CALL put_pseudo_param(x,ppot%gth_pot)
@@ -846,11 +846,11 @@ CONTAINS
     END IF
 
     DEALLOCATE(x,pval,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     IF ( ALLOCATED(xtob) ) THEN
       DEALLOCATE(xtob,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
     END IF
 
     CALL close_file(unit_number=iw)
@@ -887,10 +887,10 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(pe(n),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     nr = atom%basis%grid%nr
     ALLOCATE (bf(nr,n),den(nr),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     bf =  0._dp
 
     DO i=1,n
@@ -907,7 +907,7 @@ CONTAINS
 
     ! allocate vectors and matrices for overlaps
     ALLOCATE(tval(n+1,1),uval(n),smat(n+1,n+1),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     DO i=1,n
       uval(i) = (pi/pe(i))**1.5_dp
       tval(i,1) = integrate_grid(density%op,bf(:,i),atom%basis%grid)
@@ -924,7 +924,7 @@ CONTAINS
     smat(n+1,n+1) = 0._dp
 
     CALL lapack_sgesv ( n+1, 1, smat, n+1, ipiv, tval, n+1, info )
-    CPPostcondition(info==0, cp_failure_level, routineP,failure)
+    CPASSERT(info==0)
     co(1:n) = tval(1:n,1)
 
     ! calculate density
@@ -937,10 +937,10 @@ CONTAINS
     aerr = SQRT(integrate_grid(den,atom%basis%grid))
 
     DEALLOCATE(pe,bf,den,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     DEALLOCATE(tval,uval,smat,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE density_fit
 ! *****************************************************************************
@@ -972,7 +972,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(atint,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     nn = SIZE(atom_info,1)
     nm = SIZE(atom_info,2)
@@ -1030,7 +1030,7 @@ CONTAINS
     CALL atom_relint_release(atint)
 
     DEALLOCATE(atint,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE basis_fit
 ! *****************************************************************************
@@ -1359,10 +1359,10 @@ CONTAINS
 
     failure = .FALSE.
     ! at least one parameter to be optimized
-    CPPrecondition(num_pol*num_gau > 0, cp_failure_level, routineP,failure)
+    CPASSERT(num_pol*num_gau > 0)
 
     ALLOCATE(co(num_pol+1,num_gau),x(num_pol*num_gau+num_gau),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     co = 0._dp
 
     ! calculate density
@@ -1448,12 +1448,12 @@ CONTAINS
     CALL close_file(unit_number=iw)
 
     IF(PRESENT(results)) THEN
-      CPPrecondition(SIZE(results)>=SIZE(x), cp_failure_level, routineP,failure)
+      CPASSERT(SIZE(results)>=SIZE(x))
       results = x
     END IF
 
     DEALLOCATE(co,x,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE atom_fit_kgpot
 
@@ -1475,13 +1475,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ierr, ig, ip, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: pc, rc
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pval
 
     n = kgpot%grid%nr
     ALLOCATE(pval(n),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     pval = 0.0_dp
     DO i=1,n
        DO ig=1,ng
@@ -1497,7 +1496,7 @@ CONTAINS
     aerr = fourpi*SUM(pval(1:n)*kgpot%grid%wr(1:n))
 
     DEALLOCATE(pval,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE kgpot_fit 
 

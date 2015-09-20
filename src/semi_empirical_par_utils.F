@@ -221,7 +221,7 @@ CONTAINS
     failure        = .FALSE.
     use_p_orbitals = .TRUE.
     z              = sep%z
-    CPPostcondition(z>=0, cp_failure_level, routineP,failure)
+    CPASSERT(z>=0)
     ! Special case for Hydrogen.. If requested allow p-orbitals on it..
     SELECT CASE (z)
     CASE (0,2)
@@ -239,7 +239,7 @@ CONTAINS
     IF (extended_basis_set.AND.element_has_f(sep)) natorb = natorb+7
     ! Check and assignemnt
     check = (natorb<=4).OR.(extended_basis_set)
-    CPPostcondition(check, cp_failure_level, routineP,failure)
+    CPASSERT(check)
     sep%natorb             = natorb
     sep%extended_basis_set = extended_basis_set
     ! Determine the Z eff
@@ -397,7 +397,7 @@ CONTAINS
 
     ! Principal quantum number
     qn = REAL(nqs(z),KIND=dp)
-    CPPostcondition(qn>0, cp_failure_level, routineP,failure)
+    CPASSERT(qn>0)
 
     ! Charge separation evaluation
     dd = (2.0_dp*qn + 1)*(4.0_dp*zs*zp)**(qn + 0.5_dp)/(zs+zp)**(2.0_dp*qn + 2)/SQRT(3.0_dp)
@@ -619,17 +619,17 @@ CPSourceFileRef)
     z1 = sep%sto_exponents(0)
     z2 = sep%sto_exponents(1)
     z3 = sep%sto_exponents(2)
-    CPPostcondition(z1>0.0_dp, cp_failure_level, routineP,failure)
+    CPASSERT(z1>0.0_dp)
     amn = 0.0_dp
     nsp = nqs(sep%z)
     amn(1,0) = amn_l_low(z1, z1, nsp, nsp, 0)
     IF (sep%natorb>=4) THEN
-       CPPostcondition(z2>0.0_dp, cp_failure_level, routineP,failure)
+       CPASSERT(z2>0.0_dp)
        amn(2,1) = amn_l_low(z1, z2, nsp, nsp, 1)
        amn(3,0) = amn_l_low(z2, z2, nsp, nsp, 0)
        amn(3,2) = amn_l_low(z2, z2, nsp, nsp, 2)
        IF (sep%dorb) THEN
-          CPPostcondition(z3>0.0_dp, cp_failure_level, routineP,failure)
+          CPASSERT(z3>0.0_dp)
           nd     = nqd(sep%z)
           amn(4,2) = amn_l_low(z1, z3, nsp, nd, 2)
           amn(5,1) = amn_l_low(z2, z3, nsp, nd, 1)
@@ -917,10 +917,10 @@ CPSourceFileRef)
                                                 s0, s1, s2, s3, tmp
 
     failure = .FALSE.
-    CPPostcondition(ea>0.0_dp, cp_failure_level, routineP,failure)
-    CPPostcondition(eb>0.0_dp, cp_failure_level, routineP,failure)
-    CPPostcondition(ec>0.0_dp, cp_failure_level, routineP,failure)
-    CPPostcondition(ed>0.0_dp, cp_failure_level, routineP,failure)
+    CPASSERT(ea>0.0_dp)
+    CPASSERT(eb>0.0_dp)
+    CPASSERT(ec>0.0_dp)
+    CPASSERT(ed>0.0_dp)
     aea = LOG(ea)
     aeb = LOG(eb)
     aec = LOG(ec)
@@ -1020,7 +1020,7 @@ CPSourceFileRef)
                                                 f1, f2, y1, y2
 
     failure = .FALSE.
-    CPPostcondition(fg/=0.0_dp, cp_failure_level, routineP,failure)
+    CPASSERT(fg/=0.0_dp)
     ! Term for SS
     IF (l == 0) THEN
        res = 0.5_dp * evolt/fg
@@ -1080,11 +1080,11 @@ CPSourceFileRef)
     failure = .FALSE.
     CALL get_se_param(sep, defined=defined, natorb=natorb,&
                       gss=gss, gsp=gsp, gpp=gpp, gp2=gp2, hsp=hsp)
-    CPPostcondition(defined, cp_failure_level, routineP,failure)
+    CPASSERT(defined)
 
     isize     = natorb*(natorb+1)/2
     ALLOCATE(sep%w(isize,isize),stat=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ! Initialize array
     sep%w = 0.0_dp
     ! Fill the array

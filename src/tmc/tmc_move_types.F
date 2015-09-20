@@ -87,7 +87,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'move_types_create', &
       routineP = moduleN//':'//routineN
 
-    CPPreconditionNoFail(.NOT.ASSOCIATED(move_types),cp_failure_level,routineP)
+    CPASSERT(.NOT.ASSOCIATED(move_types))
 
     ALLOCATE(move_types)
     ALLOCATE(move_types%mv_weight(nr_mv_types))
@@ -119,7 +119,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'move_types_release', &
       routineP = moduleN//':'//routineN
 
-    CPPreconditionNoFail(ASSOCIATED(move_types),cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(move_types))
 
     IF(ASSOCIATED(move_types%atom_lists)) DEALLOCATE(move_types%atom_lists)
     DEALLOCATE(move_types%mv_weight)

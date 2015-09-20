@@ -63,7 +63,7 @@ SUBROUTINE create_almo_scf_section(section)
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"ALMO_SCF",&
          description="Settings for a class of efficient linear scaling methods based "//&
          "on absolutely localized orbitals"//&
@@ -557,7 +557,7 @@ SUBROUTINE create_almo_eda_section(section)
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
    
     CALL section_create(section,"ALMO_DA",&
          description="Controls decomposition analysis based on ALMOs and XALMOs. "//&
@@ -610,7 +610,7 @@ SUBROUTINE create_optimizer_section(section,optimizer_id)
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
    
     ! choose the name of the section
     SELECT CASE(optimizer_id)
@@ -630,8 +630,8 @@ SUBROUTINE create_optimizer_section(section,optimizer_id)
             n_keywords=6, n_subsections=0, repeats=.FALSE.)
        optimizer_type=optimizer_pcg
     CASE DEFAULT
-       CPErrorMessage(cp_failure_level,routineP,"No default values allowed")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("No default values allowed")
+       CPASSERT(.FALSE.)
     END SELECT
 
     NULLIFY (keyword)

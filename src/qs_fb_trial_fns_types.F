@@ -76,8 +76,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP,failure)
-    CPPreconditionNoFail(trial_fns%obj%ref_count>0, cp_failure_level, routineP)
+    CPASSERT(ASSOCIATED(trial_fns%obj))
+    CPASSERT(trial_fns%obj%ref_count>0)
     trial_fns%obj%ref_count = trial_fns%obj%ref_count + 1
   END SUBROUTINE fb_trial_fns_retain
 
@@ -99,21 +99,21 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(trial_fns%obj)) THEN
-       CPPreconditionNoFail(trial_fns%obj%ref_count>0, cp_failure_level, routineP)
+       CPASSERT(trial_fns%obj%ref_count>0)
        trial_fns%obj%ref_count = trial_fns%obj%ref_count - 1
        IF (trial_fns%obj%ref_count == 0) THEN
           trial_fns%obj%ref_count = 1
           IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
              DEALLOCATE(trial_fns%obj%nfunctions, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(trial_fns%obj%functions)) THEN
              DEALLOCATE(trial_fns%obj%functions, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+             CPASSERT(stat==0)
           END IF
           trial_fns%obj%ref_count = 0
           DEALLOCATE(trial_fns%obj, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
     ELSE
        NULLIFY(trial_fns%obj)
@@ -186,9 +186,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(trial_fns%obj), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(trial_fns%obj))
     ALLOCATE(trial_fns%obj, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(trial_fns%obj%nfunctions)
     NULLIFY(trial_fns%obj%functions)
     trial_fns%obj%ref_count = 1
@@ -212,16 +212,16 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(trial_fns%obj))
     ! if halo_atoms are associated, then deallocate and de-associate
     IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
        DEALLOCATE(trial_fns%obj%nfunctions, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        NULLIFY(trial_fns%obj%nfunctions)
     END IF
     IF (ASSOCIATED(trial_fns%obj%functions)) THEN
        DEALLOCATE(trial_fns%obj%functions, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        NULLIFY(trial_fns%obj%functions)
     END IF
   END SUBROUTINE fb_trial_fns_init
@@ -248,7 +248,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(trial_fns%obj))
     IF (PRESENT(nfunctions)) nfunctions => trial_fns%obj%nfunctions
     IF (PRESENT(functions)) functions => trial_fns%obj%functions
   END SUBROUTINE fb_trial_fns_get
@@ -276,18 +276,18 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(trial_fns%obj), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(trial_fns%obj))
     IF (PRESENT(nfunctions)) THEN
        IF (ASSOCIATED(trial_fns%obj%nfunctions)) THEN
           DEALLOCATE(trial_fns%obj%nfunctions, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
        trial_fns%obj%nfunctions => nfunctions
     END IF
     IF (PRESENT(functions)) THEN
        IF (ASSOCIATED(trial_fns%obj%functions)) THEN
           DEALLOCATE(trial_fns%obj%functions, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
        trial_fns%obj%functions => functions
     END IF

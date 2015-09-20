@@ -65,7 +65,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY (subsection,keyword,print_key)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="free_energy",&
          description="Controls the calculation of free energy and free energy derivatives"//&
          " with different possible methods",&
@@ -122,7 +122,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="metadyn",&
          description="This section sets parameters to set up a calculation of metadynamics.",&
          n_keywords=1, n_subsections=1, repeats=.FALSE., &
@@ -393,7 +393,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MULTIPLE_WALKERS",&
          description="Enables and configures the metadynamics using multiple walkers.",&
          n_keywords=0, n_subsections=0, repeats=.FALSE.)
@@ -461,7 +461,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="ALCHEMICAL_CHANGE",&
          description="Controls the calculation of delta free energies"//&
          " with the alchemical change method.",&
@@ -512,7 +512,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="umbrella_integration",&
          description="Controls the calculation of free energy derivatives"//&
          " with the umbrella integration method.",&
@@ -547,7 +547,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="SPAWNED_HILLS_POS",&
          description="The position of the spawned hills during metadynamics."//&
          "Used for RESTART.",&
@@ -677,7 +677,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="METAVAR",&
          description="This section specify the nature of the collective variables.",&
          n_keywords=1, n_subsections=1, repeats=.TRUE.)
@@ -858,7 +858,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="UVAR",&
          description="This section specify the nature of the collective variables"//&
          " used in computing the free energy.",&
@@ -890,7 +890,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CONVERGENCE_CONTROL",&
          description="This section specify parameters controlling the convergence"//&
          " of the free energy.",&

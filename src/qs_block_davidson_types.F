@@ -68,9 +68,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(bdav_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(bdav_env))
     ALLOCATE(bdav_env(nspins), stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
     DO ispin = 1,nspins
       NULLIFY(bdav_env(ispin)%H_block_mat)
       NULLIFY(bdav_env(ispin)%H_block_vec)
@@ -216,7 +216,7 @@ CONTAINS
 
       END DO
       DEALLOCATE(bdav_env,STAT=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
 
     END IF
 

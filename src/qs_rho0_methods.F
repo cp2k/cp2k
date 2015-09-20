@@ -119,7 +119,7 @@ MODULE qs_rho0_methods
     llmax = harmonics%llmax
 
     ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     my_CG => harmonics%my_CG
 
@@ -163,7 +163,7 @@ MODULE qs_rho0_methods
     END DO  ! iset1
 
     DEALLOCATE(cg_list,cg_n_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
   END SUBROUTINE calculate_mpole_gau
@@ -258,10 +258,10 @@ MODULE qs_rho0_methods
             nspins = SIZE(cpc_h)
             nsotot = SIZE(mpole_gau%Qlm_gg,1)
             ALLOCATE(cpc_ah(nsotot,nsotot,nspins),STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
             cpc_ah=0._dp
             ALLOCATE(cpc_as(nsotot,nsotot,nspins),STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
             cpc_as=0._dp
             DO ispin = 1,nspins
               CALL prj_scatter(cpc_h(ispin)%r_coef,cpc_ah(:,:,ispin),qs_kind)
@@ -312,7 +312,7 @@ MODULE qs_rho0_methods
          END DO  ! iso
          IF(paw_atom) THEN
             DEALLOCATE(cpc_ah,cpc_as,STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
          END IF
       END DO  ! iat
     END IF

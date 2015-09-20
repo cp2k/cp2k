@@ -94,7 +94,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(kg_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL init_kg_env(kg_env, input)
   END SUBROUTINE kg_env_create
 
@@ -223,7 +223,7 @@ CONTAINS
     ELSEIF(kg_env%tnadd_method == kg_tnadd_atomic) THEN
        NULLIFY(kg_env%xc_section_kg)
     ELSE
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
 
     CALL timestop(handle)
@@ -298,15 +298,15 @@ CONTAINS
     ! Allocate work storage
     nkind = SIZE(atomic_kind_set)
     ALLOCATE (orb_radius(nkind),tpot_radius(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     orb_radius(:) = 0.0_dp
     tpot_radius(:) = 0.0_dp
     ALLOCATE (orb_present(nkind),tpot_present(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (pair_radius(nkind,nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (atom2d(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL section_vals_val_get(qs_env%input,"DFT%SUBCELLS",r_val=subcells)
 
@@ -372,13 +372,13 @@ CONTAINS
     ! Release work storage
     CALL atom2d_cleanup(atom2d)
     DEALLOCATE (atom2d,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (orb_present,tpot_present,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (orb_radius,tpot_radius,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (pair_radius,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -492,7 +492,7 @@ CONTAINS
     CALL kg_remove_duplicates(sorted_pairs, npairs)
 
     ! should now be half as much pairs as before
-    CPPostcondition(npairs==SIZE(pairs,2)/2,cp_failure_level,routineP,failure)
+    CPASSERT(npairs==SIZE(pairs,2)/2)
 
     CALL open_file(unit_number=unit_nr, file_name="graph.col")
 

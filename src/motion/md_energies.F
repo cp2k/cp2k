@@ -124,8 +124,8 @@ CONTAINS
     NULLIFY(subsys)
     NULLIFY(atomic_kinds, atomic_kind_set, particles, shell_particles)
 
-    CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(md_ener))
+    CPASSERT(ASSOCIATED(force_env))
 
     CALL force_env_get(force_env, subsys=subsys)
     CALL cp_subsys_get(subsys, atomic_kinds=atomic_kinds, particles=particles,&
@@ -144,20 +144,20 @@ CONTAINS
 
     IF(simpar%temperature_per_kind) THEN
       ALLOCATE(md_ener%temp_kind(nkind), STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(md_ener%ekin_kind(nkind), STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(md_ener%nfree_kind(nkind),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       md_ener%nfree_kind = 0
 
       IF(shell_adiabatic) THEN
         ALLOCATE(md_ener%temp_shell_kind(nkind), STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
         ALLOCATE(md_ener%ekin_shell_kind(nkind), STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
         ALLOCATE(md_ener%nfree_shell_kind(nkind), STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
         md_ener%nfree_shell_kind = 0
       END IF
 

@@ -138,8 +138,8 @@ CONTAINS
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
     nspins=dft_control%nspins
 
-    CPPrecondition(ASSOCIATED(matrix_p),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_p))
+    CPASSERT(SIZE(ks_matrix)>0)
 
     ! Identify proper integral screening (according user requests)
     integral_screening = se_control%integral_screening
@@ -158,13 +158,13 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,force=force)
        natom = SIZE (particle_set)
        ALLOCATE (atom_of_kind(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        delta = se_control%delta
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
     END IF
 
   ALLOCATE (se_defined(nkind),se_kind_list(nkind),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DO ikind=1,nkind
      CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind_a)
      se_kind_list(ikind)%se_param => se_kind_a
@@ -192,10 +192,10 @@ CONTAINS
      ! Retrieve blocks for KS and P
      CALL cp_dbcsr_get_block_p(matrix=ks_matrix(1)%matrix,&
           row=irow,col=icol,BLOCK=ks_block_a,found=found)
-     CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(ks_block_a))
      CALL cp_dbcsr_get_block_p(matrix=matrix_p(1)%matrix,&
           row=irow,col=icol,BLOCK=p_block_a,found=found)
-     CPPostcondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(p_block_a))
      size_p_block_a(1) = SIZE(p_block_a,1)
      size_p_block_a(2) = SIZE(p_block_a,2)
      p_block_tot(1:size_p_block_a(1),1:size_p_block_a(2)) = 2.0_dp * p_block_a
@@ -204,12 +204,12 @@ CONTAINS
      IF ( nspins == 2 ) THEN
         CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
              row=irow,col=icol,BLOCK=ks_block_b,found=found)
-        CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,failure)
+        CPASSERT(ASSOCIATED(ks_block_b))
         CALL cp_dbcsr_get_block_p(matrix=matrix_p(2)%matrix,&
              row=irow,col=icol,BLOCK=p_block_b,found=found)
-        CPPostcondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,failure)
+        CPASSERT(ASSOCIATED(p_block_b))
         check = (size_p_block_a(1)==SIZE(p_block_b,1)).AND.(size_p_block_a(2)==SIZE(p_block_b,2))
-        CPPostcondition(check,cp_failure_level,routineP,failure)
+        CPASSERT(check)
         p_block_tot(1:SIZE(p_block_a,1),1:SIZE(p_block_a,2)) = p_block_a + p_block_b
      END IF
 
@@ -277,11 +277,11 @@ CONTAINS
   CALL neighbor_list_iterator_release(nl_iterator)
 
   DEALLOCATE(se_kind_list,se_defined,stat=stat)
-  CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   IF (calculate_forces) THEN
      DEALLOCATE(atom_of_kind,stat=stat)
-     CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   END IF
     CALL finalize_se_taper(se_taper)
 
@@ -337,7 +337,7 @@ CONTAINS
     anag       =  se_control%analytical_gradients
     nspins=dft_control%nspins
 
-    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(ks_matrix)>0)
 
 
     CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb,&
@@ -346,7 +346,7 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
   ALLOCATE (se_defined(nkind),se_kind_list(nkind),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DO ikind=1,nkind
      CALL get_qs_kind(qs_kind_set(ikind), se_parameter=se_kind_a)
      se_kind_list(ikind)%se_param => se_kind_a
@@ -374,7 +374,7 @@ CONTAINS
      ! Retrieve blocks for KS
      CALL cp_dbcsr_get_block_p(matrix=ks_matrix(1)%matrix,&
           row=irow,col=icol,BLOCK=ks_block_a,found=found)
-     CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(ks_block_a))
 
                 ifHi= (atomic_kind_set(ikind)%element_symbol=='H ')
                 ifHj= (atomic_kind_set(jkind)%element_symbol=='H ')
@@ -424,14 +424,14 @@ CONTAINS
      IF ( nspins == 2 ) THEN
         CALL cp_dbcsr_get_block_p(matrix=ks_matrix(2)%matrix,&
              row=irow,col=icol,BLOCK=ks_block_b,found=found)
-        CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,failure)
+        CPASSERT(ASSOCIATED(ks_block_b))
      END IF
 
   END DO
   CALL neighbor_list_iterator_release(nl_iterator)
 
   DEALLOCATE(se_kind_list,se_defined,stat=stat)
-  CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
 
     CALL timestop(handle)

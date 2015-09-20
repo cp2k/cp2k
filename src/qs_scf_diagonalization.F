@@ -381,18 +381,18 @@ CONTAINS
     END IF
 
     ! We always do Cholesky
-    CPAssert(scf_env%cholesky_method>cholesky_off,cp_failure_level,routineP,failure)
+    CPASSERT(scf_env%cholesky_method>cholesky_off)
 
     NULLIFY(sab_nl)
     CALL get_kpoint_info(kpoints,nkp=nkp,xkp=xkp,use_real_wfn=use_real_wfn,kp_range=kp_range,&
          nkp_groups=nkp_groups,kp_dist=kp_dist,sab_nl=sab_nl,&
          cell_to_index=cell_to_index)
-    CPAssert(ASSOCIATED(sab_nl),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(sab_nl))
     kplocal = kp_range(2) - kp_range(1) + 1
 
     ! allocate some work matrices
     ALLOCATE(rmatrix,cmatrix,tmpmat,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_init(rmatrix)
     CALL cp_dbcsr_init(cmatrix)
     CALL cp_dbcsr_init(tmpmat)
@@ -603,18 +603,18 @@ CONTAINS
     CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp)
 
     ALLOCATE( eval_first(nspin), STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     ALLOCATE( occ_first(nspin),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,&
                       nmo=nmo,&
                       eigenvalues=mo_eigenvalues,&
                       occupation_numbers=mo_occupations)
        ALLOCATE( eval_first(ispin)%array(nmo),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
        ALLOCATE( occ_first(ispin)%array(nmo),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
        eval_first(ispin)%array(1:nmo) = mo_eigenvalues(1:nmo)
        occ_first(ispin)%array(1:nmo) = mo_occupations(1:nmo)
     END DO
@@ -818,11 +818,11 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos)
     END IF
 
     ALLOCATE(subspace_env%chc_mat(nspin),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
     ALLOCATE(subspace_env%c_vec(nspin),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
     ALLOCATE(subspace_env%c0(nspin),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
 
     DO ispin = 1,nspin
        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff, nmo=nmo)

@@ -112,8 +112,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(parser%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
     parser%ref_count=parser%ref_count+1
   END SUBROUTINE parser_retain
 
@@ -133,7 +133,7 @@ CONTAINS
     INTEGER                                  :: stat
 
     IF (ASSOCIATED(parser)) THEN
-       CPPreconditionNoFail(parser%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(parser%ref_count>0)
        parser%ref_count=parser%ref_count-1
        IF (parser%ref_count==0) THEN
           IF (parser%input_unit >= 0) THEN
@@ -146,10 +146,10 @@ CONTAINS
           CALL release_status_type(parser%status)
           IF (ASSOCIATED(parser%initial_variables)) THEN
              DEALLOCATE(parser%initial_variables,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           ENDIF
           DEALLOCATE(parser,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE parser_release
@@ -197,9 +197,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(parser),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(parser))
     ALLOCATE(parser,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     last_parser_id=last_parser_id+1
     parser%id_nr=last_parser_id
     parser%ref_count=1
@@ -261,7 +261,7 @@ CONTAINS
     IF (PRESENT(initial_variables)) THEN
        IF (SIZE(initial_variables,2)>0) THEN
           ALLOCATE(parser%initial_variables(2,SIZE(initial_variables,2)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           parser%initial_variables=initial_variables
        ENDIF
     ENDIF
@@ -297,7 +297,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
     ! Rewind units
     IF (parser%input_unit>0) REWIND(parser%input_unit)
     ! Restore initial settings

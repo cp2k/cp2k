@@ -139,7 +139,7 @@ CONTAINS
     CALL fb_atomic_halo_nullify(dummy_atomic_halo)
 
     ! filter_mat must be of a dissassociated status (i.e. brand new)
-    CPPrecondition(.NOT.ASSOCIATED(filter_mat), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(filter_mat))
 
     ! get trial function information
     CALL fb_trial_fns_get(trial_fns=trial_fns, &
@@ -153,7 +153,7 @@ CONTAINS
                            row_blk_size=row_blk_size, &
                            distribution=dbcsr_dist)
     ALLOCATE(col_blk_size(nblkcols_total), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     col_blk_size = 0
     DO iblkcol = 1, nblkcols_total
        atomic_kind => particle_set(iblkcol)%atomic_kind
@@ -169,7 +169,7 @@ CONTAINS
     symmetry_string = dbcsr_type_no_symmetry
     ! create empty filter matrix
     ALLOCATE(filter_mat, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_init(filter_mat)
     CALL cp_dbcsr_create(matrix=filter_mat, &
                          name=name_string, &
@@ -179,7 +179,7 @@ CONTAINS
                          col_blk_size=col_blk_size, &
                          nze=0)
     DEALLOCATE(col_blk_size, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
                                  nhalos=nhalos, &
@@ -189,7 +189,7 @@ CONTAINS
     ! create dummy empty atomic halo
     CALL fb_atomic_halo_create(dummy_atomic_halo)
     ALLOCATE(dummy_halo_atoms(0), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_atomic_halo_set(atomic_halo=dummy_atomic_halo, &
                             owner_atom=0, &
                             owner_id_in_halo=0, &
@@ -308,7 +308,7 @@ CONTAINS
 
     ! filter_mat must be of a dissassociated status (i.e. brand new)
     check_ok = .NOT. ASSOCIATED(filter_mat)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
 
     ! get total number of atoms
     natoms_global = SIZE(particle_set)
@@ -325,7 +325,7 @@ CONTAINS
                            row_blk_size=row_blk_size, &
                            distribution=dbcsr_dist)
     ALLOCATE(col_blk_size(nblkcols_total), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     col_blk_size = 0
     DO iblkcol = 1, nblkcols_total
        atomic_kind => particle_set(iblkcol)%atomic_kind
@@ -339,7 +339,7 @@ CONTAINS
     CALL uppercase(name_string)
     ! create empty filter matrix (it is always non-symmetric as it is non-square)
     ALLOCATE(filter_mat, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_init(filter_mat)
     CALL cp_dbcsr_create(matrix=filter_mat, &
                          name=name_string, &
@@ -349,7 +349,7 @@ CONTAINS
                          col_blk_size=col_blk_size, &
                          nze=0)
     DEALLOCATE(col_blk_size, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! get all the blocks required for constructing atomic matrics, and
     ! store it in a fb_matrix_data object
@@ -559,7 +559,7 @@ CONTAINS
     row_block_size_data => cp_dbcsr_row_block_sizes(H_mat)
     natoms_global = SIZE(particle_set)
     ALLOCATE(col_block_size_data(natoms_global), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DO jatom_global = 1, natoms_global
        atomic_kind => particle_set(jatom_global)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind, kind_number=jkind)
@@ -568,13 +568,13 @@ CONTAINS
 
     ! allocate temporary arrays for send
     ALLOCATE(send_sizes(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_pair_count(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_pair_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(com_pairs_send, &
                                              numprocs, &
@@ -586,17 +586,17 @@ CONTAINS
                                              send_pair_disps)
     ! allocate send buffer
     ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! allocate temporary array for recv
     ALLOCATE(recv_sizes(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_pair_count(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_pair_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(com_pairs_recv, &
                                              numprocs, &
@@ -608,7 +608,7 @@ CONTAINS
                                              recv_pair_disps)
     ! allocate recv buffer
     ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! ----------------------------------------------------------------------
     ! Construct atomic filter matrix for this atomic_halo
@@ -622,7 +622,7 @@ CONTAINS
     ALLOCATE(atomic_H_blk_row_start(natoms_in_halo + 1), &
              atomic_H_blk_col_start(natoms_in_halo + 1), &
              STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_atmatrix_calc_size(H_mat, &
                                atomic_halo, &
                                nrows_atmatrix, &
@@ -631,7 +631,7 @@ CONTAINS
                                atomic_H_blk_col_start)
 
     ALLOCATE(atomic_H(nrows_atmatrix,ncols_atmatrix), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_atmatrix_construct(H_mat, &
                                atomic_halo, &
                                para_env, &
@@ -643,7 +643,7 @@ CONTAINS
     ALLOCATE(atomic_S_blk_row_start(natoms_in_halo + 1), &
              atomic_S_blk_col_start(natoms_in_halo + 1), &
              STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_atmatrix_calc_size(S_mat, &
                                atomic_halo, &
                                nrows_atmatrix, &
@@ -651,7 +651,7 @@ CONTAINS
                                atomic_S_blk_row_start, &
                                atomic_S_blk_col_start)
     ALLOCATE(atomic_S(nrows_atmatrix,ncols_atmatrix), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_atmatrix_construct(S_mat, &
                                atomic_halo, &
                                para_env, &
@@ -661,7 +661,7 @@ CONTAINS
 
     ! construct the atomic filter matrix
     ALLOCATE(atomic_filter_mat(nrows_atmatrix,ncols_atmatrix), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ! calculate atomic filter matrix only if it is non-zero sized
     IF (nrows_atmatrix > 0 .AND. ncols_atmatrix > 0) THEN
        CALL fb_fltrmat_build_atomic_fltrmat(atomic_H, &
@@ -678,7 +678,7 @@ CONTAINS
 
     ! preconstruct iatom_global to iatom_in_halo map
     ALLOCATE(ind_in_halo(natoms_global), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ind_in_halo = 0
     DO iatom_in_halo = 1, natoms_in_halo
        iatom_global = halo_atoms(iatom_in_halo)
@@ -695,9 +695,9 @@ CONTAINS
                                         pe, iatom_global, jatom_global, &
                                         send_encode)
           iatom_in_halo = ind_in_halo(iatom_global)
-          CPPostcondition(iatom_in_halo>0, cp_failure_level, routineP,failure)
+          CPASSERT(iatom_in_halo>0)
           jatom_in_halo = ind_in_halo(jatom_global)
-          CPPostcondition(jatom_in_halo>0, cp_failure_level, routineP,failure)
+          CPASSERT(jatom_in_halo>0)
           atomic_kind => particle_set(jatom_global)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                kind_number=jkind)
@@ -732,17 +732,17 @@ CONTAINS
     END DO  ! ipe
 
     DEALLOCATE(atomic_H, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(atomic_H_blk_row_start, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(atomic_S, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(atomic_S_blk_row_start, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(atomic_filter_mat, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ind_in_halo, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! ----------------------------------------------------------------------
     ! Do communication
@@ -757,15 +757,15 @@ CONTAINS
     CALL timestop(handle_mpi)
 
     DEALLOCATE(send_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_pair_count, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_pair_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! ----------------------------------------------------------------------
     ! Unpack the recv buffer and add the blocks to correct parts of
@@ -790,13 +790,13 @@ CONTAINS
 
     ! cleanup rest of the temporary arrays
     DEALLOCATE(recv_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_pair_count, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_pair_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     CALL fb_com_atom_pairs_release(com_pairs_send)
     CALL fb_com_atom_pairs_release(com_pairs_recv)
@@ -859,7 +859,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms, ntfns, &
                                                 row_block_size_data
     INTEGER, DIMENSION(:, :), POINTER        :: tfns
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: atomic_filter_mat, atomic_H, &
                                                 atomic_S, mat_blk
@@ -870,9 +870,9 @@ CONTAINS
     NULLIFY(atomic_kind, halo_atoms, ntfns, row_block_size_data, tfns)
 
     check_ok = fb_matrix_data_has_data(H_mat_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = fb_matrix_data_has_data(S_mat_data)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
 
     ! obtain trial function information
     CALL fb_trial_fns_get(trial_fns=trial_fns, &
@@ -883,7 +883,7 @@ CONTAINS
     row_block_size_data => cp_dbcsr_row_block_sizes(H_mat)
     natoms_global = SIZE(particle_set)
     ALLOCATE(col_block_size_data(natoms_global), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DO jatom_global = 1, natoms_global
        atomic_kind => particle_set(jatom_global)%atomic_kind
        CALL get_atomic_kind(atomic_kind=atomic_kind, kind_number=jkind)
@@ -902,7 +902,7 @@ CONTAINS
     ALLOCATE(atomic_H_blk_row_start(natoms_in_halo + 1), &
              atomic_H_blk_col_start(natoms_in_halo + 1), &
              STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_atmatrix_calc_size(H_mat, &
                                atomic_halo, &
                                nrows_atmatrix, &
@@ -910,7 +910,7 @@ CONTAINS
                                atomic_H_blk_row_start, &
                                atomic_H_blk_col_start)
     ALLOCATE(atomic_H(nrows_atmatrix,ncols_atmatrix), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_atmatrix_construct_2(H_mat_data, &
                                  atomic_halo, &
                                  atomic_H, &
@@ -921,7 +921,7 @@ CONTAINS
     ALLOCATE(atomic_S_blk_row_start(natoms_in_halo + 1), &
              atomic_S_blk_col_start(natoms_in_halo + 1), &
              STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_atmatrix_calc_size(S_mat, &
                                atomic_halo, &
                                nrows_atmatrix, &
@@ -929,7 +929,7 @@ CONTAINS
                                atomic_S_blk_row_start, &
                                atomic_S_blk_col_start)
     ALLOCATE(atomic_S(nrows_atmatrix,ncols_atmatrix), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL fb_atmatrix_construct_2(S_mat_data, &
                                  atomic_halo, &
                                  atomic_S, &
@@ -938,7 +938,7 @@ CONTAINS
 
     ! construct the atomic filter matrix
     ALLOCATE(atomic_filter_mat(nrows_atmatrix,ncols_atmatrix), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ! calculate atomic filter matrix only if it is non-zero sized
     IF (nrows_atmatrix > 0 .AND. ncols_atmatrix > 0) THEN
        CALL fb_fltrmat_build_atomic_fltrmat(atomic_H, &
@@ -958,7 +958,7 @@ CONTAINS
     nrows_blk_max = MAXVAL(row_block_size_data)
     ncols_blk_max = MAXVAL(ntfns)
     ALLOCATE(mat_blk(nrows_blk_max,ncols_blk_max), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     mat_blk(:,:) = 0.0_dp
     DO iatom_in_halo = 1, natoms_in_halo
        iatom_global = halo_atoms(iatom_in_halo)
@@ -1003,19 +1003,19 @@ CONTAINS
        ! CPPostcondition(stat==0, cp_failure_level, routineP,failure)
     END DO ! iatom_in_halo
     DEALLOCATE(mat_blk, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! clean up
     DEALLOCATE(atomic_H, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(atomic_H_blk_row_start, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(atomic_S, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(atomic_S_blk_row_start, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(atomic_filter_mat, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -1104,7 +1104,7 @@ CONTAINS
 
     ! allocate send tasks
     ALLOCATE(tasks_send(TASK_N_RECORDS,ntasks_send), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! Get the total number of atoms, this can be obtained from the
     ! total number of block rows in the DBCSR filter matrix.  We
@@ -1259,7 +1259,7 @@ CONTAINS
 
     ! allocate send tasks
     ALLOCATE(tasks_send(TASK_N_RECORDS,ntasks_send), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! Get the total number of atoms. This can be obtained from the
     ! total number of block rows in the DBCSR filter matrix.  We
@@ -1381,7 +1381,7 @@ CONTAINS
 
     check_ok = SIZE(atomic_filter_mat, 1) > 0 .AND. &
                SIZE(atomic_filter_mat, 2) > 0
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
 
     ! initialise
     atomic_filter_mat = 0.0_dp
@@ -1389,16 +1389,16 @@ CONTAINS
 
     ! diagonalise using LAPACK
     ALLOCATE(eigenvalues(mat_dim), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ! get optimal work array size
     ALLOCATE(work(1), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ! dsygv will overwrite part of atomic_H and atomic_S, thus need to copy them
     ALLOCATE(atomic_S_copy(SIZE(atomic_S,1),SIZE(atomic_S,2)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     atomic_S_copy(:,:) = atomic_S(:,:)
     ALLOCATE(eigenvectors(SIZE(atomic_H,1),SIZE(atomic_H,2)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     eigenvectors(:,:) = atomic_H(:,:)
 
     CALL timeset("fb_atomic_filter_dsygv", handle_dsygv)
@@ -1419,9 +1419,9 @@ CONTAINS
     work_array_size = NINT(work(1))
     ! now allocate work array
     DEALLOCATE(work, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(work(work_array_size), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     work = 0.0_dp
     ! do calculation
     atomic_S_copy(:,:) = atomic_S(:,:)
@@ -1442,32 +1442,32 @@ CONTAINS
     ! check if diagonalisation is successful
     IF (info .NE. 0) THEN
        WRITE (*,*) "DSYGV ERROR MESSAGE: ", info
-       CPErrorMessage(cp_failure_level, routineP, "DSYGV failed")
-       CPPrecondition(.FALSE., cp_failure_level, routineP,failure)
+       CPABORT("DSYGV failed")
+       CPASSERT(.FALSE.)
     END IF
 
     CALL timestop(handle_dsygv)
 
     DEALLOCATE(work, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(atomic_S_copy, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! first get the filter function
     ALLOCATE(filter_function(mat_dim), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     filter_function = 0.0_dp
     CALL fb_fltrmat_fermi_dirac_mu(filter_function, &
                                    eigenvalues, &
                                    filter_temp, &
                                    fermi_level)
     DEALLOCATE(eigenvalues, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! atomic_H has the eigenvectors, construct the version of it
     ! filtered through the filter function
     ALLOCATE(filtered_eigenvectors(mat_dim,mat_dim), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DO jj = 1, mat_dim
        DO ii = 1, mat_dim
           filtered_eigenvectors(ii,jj) = &
@@ -1476,7 +1476,7 @@ CONTAINS
     END DO ! jj
 
     DEALLOCATE(filter_function, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timeset("fb_atomic_filter_dgemm", handle_dgemm)
 
@@ -1508,9 +1508,9 @@ CONTAINS
     END DO
 
     DEALLOCATE(filtered_eigenvectors, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(eigenvectors, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 

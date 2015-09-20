@@ -113,10 +113,10 @@ SUBROUTINE mol_kind_new_list_create(list, els_ptr, &
 
   failure=.FALSE.
 
-  CPPrecondition(PRESENT(els_ptr).OR.PRESENT(n_els),cp_failure_level,routineP,failure)
+  CPASSERT(PRESENT(els_ptr).OR.PRESENT(n_els))
 
   ALLOCATE(list, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   last_mol_kind_new_list_id=last_mol_kind_new_list_id+1
   list%id_nr=last_mol_kind_new_list_id
   list%ref_count=1
@@ -133,8 +133,8 @@ SUBROUTINE mol_kind_new_list_create(list, els_ptr, &
   IF (PRESENT(n_els)) list%n_els=n_els
   IF (.NOT.ASSOCIATED(list%els)) THEN
      ALLOCATE(list%els(list%n_els),stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
-     CPPreconditionNoFail(list%owns_els,cp_warning_level,routineP)
+     CPASSERT(stat==0)
+     CPASSERT(list%owns_els)
   END IF
 END SUBROUTINE mol_kind_new_list_create
 
@@ -155,8 +155,8 @@ SUBROUTINE mol_kind_new_list_retain(list)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(list),cp_failure_level,routineP,failure)
-  CPPrecondition(list%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(list))
+  CPASSERT(list%ref_count>0)
   list%ref_count=list%ref_count+1
 END SUBROUTINE mol_kind_new_list_retain
 
@@ -179,7 +179,7 @@ SUBROUTINE mol_kind_new_list_release(list)
   failure=.FALSE.
 
   IF (ASSOCIATED(list)) THEN
-     CPPrecondition(list%ref_count>0,cp_failure_level,routineP,failure)
+     CPASSERT(list%ref_count>0)
      list%ref_count=list%ref_count-1
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
@@ -189,7 +189,7 @@ SUBROUTINE mol_kind_new_list_release(list)
         END IF
         NULLIFY(list%els)
         DEALLOCATE(list,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
   END IF
   NULLIFY(list)

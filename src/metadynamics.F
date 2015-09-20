@@ -116,8 +116,8 @@ CONTAINS
 #endif
 
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(simpar))
+    CPASSERT(ASSOCIATED(force_env))
 
 #if defined (__PLUMED_CP2K) || defined (__PLUMED2)
     NULLIFY(cell,subsys)
@@ -915,9 +915,9 @@ END SUBROUTINE
     IF ((hills_env%min_disp > 0.0_dp).AND.(hills_env%old_hill_number > 0).AND.&
         (intermeta_steps >= hills_env%min_nt_hills)) THEN
        ALLOCATE (ddp(meta_env%n_colvar), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        ALLOCATE (local_last_hills(meta_env%n_colvar), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
 
        local_last_hills(1:n_colvar) = hills_env%ss_history(1:n_colvar,hills_env%old_hill_number)
 
@@ -945,9 +945,9 @@ END SUBROUTINE
                                             "PRINT%PROGRAM_RUN_INFO")
        END IF
        DEALLOCATE (ddp, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
        DEALLOCATE (local_last_hills, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+       CPASSERT(stat==0)
     END IF
 
     !RG keep into account adaptive hills
@@ -1042,13 +1042,13 @@ END SUBROUTINE
 
     ! Computes forces due to the hills: history dependent term
     ALLOCATE(ddp(meta_env%n_colvar), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     ALLOCATE(diff_ss(meta_env%n_colvar), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     ALLOCATE(numf(meta_env%n_colvar), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     ALLOCATE(denf(meta_env%n_colvar), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
 
     hills_env%energy = 0.0_dp
     DO ih=1,n_colvar
@@ -1103,13 +1103,13 @@ END SUBROUTINE
        ENDDO
     ENDDO
     DEALLOCATE(ddp, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(diff_ss, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(numf, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(denf, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routinep,failure)
+    CPASSERT(stat==0)
 
     CALL cp_rm_iter_level(logger%iter_info,"METADYNAMICS")
 

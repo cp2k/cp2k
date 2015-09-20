@@ -114,7 +114,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
 
     NULLIFY (input, dft_control)
 
@@ -311,12 +311,12 @@ CONTAINS
                     para_env=para_env,&
                     blacs_env=blacs_env)
 
-    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(energy),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(atomic_kind_set))
+    CPASSERT(ASSOCIATED(dft_control))
+    CPASSERT(ASSOCIATED(energy))
+    CPASSERT(ASSOCIATED(matrix_s))
+    CPASSERT(ASSOCIATED(particle_set))
+    CPASSERT(ASSOCIATED(rho))
 
     sm_s => matrix_s(1)%matrix ! Overlap matrix in sparse format
     CALL qs_rho_get(rho, rho_ao=matrix_p)     ! Density matrices in sparse format
@@ -340,7 +340,7 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (first_sgf_atom(natom),STAT=stat)
-    CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(stat == 0)
     first_sgf_atom(:) = 0
 
     CALL get_particle_set(particle_set, qs_kind_set,&
@@ -355,7 +355,7 @@ CONTAINS
     ! Retrieve S^(1/2) from the SCF environment
 
     fm_s_half => scf_env%s_half
-    CPPrecondition(ASSOCIATED(fm_s_half),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(fm_s_half))
 
     ! Try to retrieve (full) work matrices from the SCF environment and reuse
     ! them, if available
@@ -396,12 +396,12 @@ CONTAINS
     ! Create local block diagonal matrices
 
     ALLOCATE (sm_q,STAT=stat)
-    CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(stat == 0)
     CALL cp_dbcsr_init(sm_q)
     CALL cp_dbcsr_get_block_diag(sm_s,sm_q)
 
     ALLOCATE (sm_v,STAT=stat)
-    CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(stat == 0)
     CALL cp_dbcsr_init(sm_v)
     CALL cp_dbcsr_get_block_diag(sm_s,sm_v)
 
@@ -533,7 +533,7 @@ CONTAINS
         n = nsb*nsbsize
 
         ALLOCATE (q_matrix(n,n),STAT=stat)
-        CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+        CPASSERT(stat == 0)
         q_matrix(:,:) = 0.0_dp
 
         ! Print headline if requested
@@ -541,7 +541,7 @@ CONTAINS
         IF (should_output.AND.(print_level > low_print_level)) THEN
           IF (output_unit > 0) THEN
             ALLOCATE (symbol(nsbsize),STAT=stat)
-            CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+            CPASSERT(stat == 0)
             DO m=-lu,lu
               symbol(lu+m+1) = sgf_symbol(0,lu,m)
             END DO
@@ -555,7 +555,7 @@ CONTAINS
               ": "//TRIM(atomic_kind_name),&
               "Atom   Shell  ",(ADJUSTR(symbol(i)),i=1,nsbsize)," Trace"
             DEALLOCATE (symbol,STAT=stat)
-            CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+            CPASSERT(stat == 0)
           END IF
         END IF
 
@@ -606,12 +606,12 @@ CONTAINS
                   ((qs_env%scf_env%outer_scf%iter_count == 0).AND.&
                    (qs_env%scf_env%iter_count <= max_scf))) THEN
                 ALLOCATE (orb_occ(nsbsize),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 ALLOCATE (q_eigval(n),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 q_eigval(:) = 0.0_dp
                 ALLOCATE (q_eigvec(n,n),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 q_eigvec(:,:) = 0.0_dp
                 norb = SIZE(orbitals)
                 CALL jacobi(q_matrix,q_eigval,q_eigvec)
@@ -645,7 +645,7 @@ CONTAINS
                       iorb = i0 + lu + orbitals(i)
                       orb_occ(lu+orbitals(i)+1) = .TRUE.
                     END IF
-                    CPPostcondition((iorb /= -1000),cp_failure_level,routineP,failure)
+                    CPASSERT(iorb /= -1000)
                     iloc = MAXLOC(q_eigvec(iorb,:))
                     q_eigval(iloc(1)) = MIN(occ,trq)
                     q_matrix(:,iloc(1)) = q_eigval(iloc(1))*q_eigvec(:,iloc(1)) ! backtransform left
@@ -654,11 +654,11 @@ CONTAINS
                 END DO
                 q_matrix(:,:) = MATMUL(q_matrix,TRANSPOSE(q_eigvec)) ! backtransform right
                 DEALLOCATE (orb_occ,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 DEALLOCATE (q_eigval,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 DEALLOCATE (q_eigvec,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
               END IF
             END IF ! orbitals associated
 
@@ -688,7 +688,7 @@ CONTAINS
                                         col=atom_a,&
                                         block=v_block,&
                                         found=found)
-              CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(v_block))
 
               i = 0
               DO iset=1,nset
@@ -724,7 +724,7 @@ CONTAINS
             CALL mp_sum(q_matrix, para_env%group)
             IF (output_unit > 0) THEN
               ALLOCATE (q_work(nsb,nsbsize),STAT=stat)
-              CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+              CPASSERT(stat == 0)
               q_work(:,:) = 0.0_dp
               DO isb=1,nsb
                 j = 0
@@ -741,7 +741,7 @@ CONTAINS
                 "Total",(SUM(q_work(:,i)),i=1,nsbsize),SUM(q_work)
               WRITE (UNIT=output_unit,FMT="(A)") ""
               DEALLOCATE (q_work,STAT=stat)
-              CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+              CPASSERT(stat == 0)
               IF (debug) THEN
                 ! Print the DFT+U occupation matrix
                 WRITE (UNIT=output_unit,FMT="(T9,70I10)") (i,i=1,n)
@@ -750,10 +750,10 @@ CONTAINS
                 END DO
                 ! Print the eigenvalues and eigenvectors of the occupation matrix
                 ALLOCATE (q_eigval(n),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 q_eigval(:) = 0.0_dp
                 ALLOCATE (q_eigvec(n,n),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 q_eigvec(:,:) = 0.0_dp
                 CALL jacobi(q_matrix,q_eigval,q_eigvec)
                 WRITE (UNIT=output_unit,FMT="(/,T9,70I10)") (i,i=1,n)
@@ -763,15 +763,15 @@ CONTAINS
                   WRITE (UNIT=output_unit,FMT="(T3,I6,70F10.6)") i,q_eigvec(i,:)
                 END DO
                 DEALLOCATE (q_eigval,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 DEALLOCATE (q_eigvec,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
               END IF ! debug
             END IF
             IF (debug) THEN
               ! Print the full atomic occupation matrix block
               ALLOCATE (q_work(nsgf_kind,nsgf_kind),STAT=stat)
-              CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+              CPASSERT(stat == 0)
               q_work(:,:) = 0.0_dp
               IF (ASSOCIATED(q_block)) q_work(:,:) = q_block(:,:)
               CALL mp_sum(q_work, para_env%group)
@@ -782,10 +782,10 @@ CONTAINS
                   WRITE (UNIT=output_unit,FMT="(T3,I6,200F10.6)") i,q_work(i,:)
                 END DO
                 ALLOCATE (q_eigval(norb),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                  q_eigval(:) = 0.0_dp
                 ALLOCATE (q_eigvec(norb,norb),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 q_eigvec(:,:) = 0.0_dp
                 CALL jacobi(q_work,q_eigval,q_eigvec)
                 WRITE (UNIT=output_unit,FMT="(/,T9,200I10)") (i,i=1,norb)
@@ -795,12 +795,12 @@ CONTAINS
                   WRITE (UNIT=output_unit,FMT="(T3,I6,200F10.6)") i,q_eigvec(i,:)
                 END DO
                 DEALLOCATE (q_eigval,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 DEALLOCATE (q_eigvec,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
               END IF
               DEALLOCATE (q_work,STAT=stat)
-              CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+              CPASSERT(stat == 0)
             END IF ! debug
           END IF ! should output
 
@@ -808,7 +808,7 @@ CONTAINS
 
         IF (ALLOCATED(q_matrix)) THEN
           DEALLOCATE (q_matrix,STAT=stat)
-          CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+          CPASSERT(stat == 0)
         END IF
       END DO ! next atomic kind "ikind"
 
@@ -993,11 +993,11 @@ CONTAINS
                     rho=rho,&
                     para_env=para_env)
 
-    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(energy),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(atomic_kind_set))
+    CPASSERT(ASSOCIATED(dft_control))
+    CPASSERT(ASSOCIATED(energy))
+    CPASSERT(ASSOCIATED(particle_set))
+    CPASSERT(ASSOCIATED(rho))
 
     IF (orthonormal_basis) THEN
       NULLIFY (sm_s)
@@ -1005,7 +1005,7 @@ CONTAINS
       ! Get overlap matrix in sparse format
       CALL get_qs_env(qs_env=qs_env,&
                       matrix_s=matrix_s)
-      CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(matrix_s))
       sm_s => matrix_s(1)%matrix
     END IF
 
@@ -1032,7 +1032,7 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (is_plus_u_kind(nkind),STAT=stat)
-    CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(stat == 0)
     is_plus_u_kind(:) = .FALSE.
 
     IF (PRESENT(matrix_h)) THEN
@@ -1058,7 +1058,7 @@ CONTAINS
 
       IF (.NOT.ASSOCIATED(sm_q)) THEN
         ALLOCATE (sm_q,STAT=stat)
-        CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+        CPASSERT(stat == 0)
         CALL cp_dbcsr_init(sm_q)
         CALL cp_dbcsr_get_block_diag(sm_p,sm_q)
       END IF
@@ -1066,7 +1066,7 @@ CONTAINS
 
       IF (.NOT.ASSOCIATED(sm_v)) THEN
         ALLOCATE (sm_v,STAT=stat)
-        CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+        CPASSERT(stat == 0)
         CALL cp_dbcsr_init(sm_v)
         CALL cp_dbcsr_get_block_diag(sm_p,sm_v)
       END IF
@@ -1087,7 +1087,7 @@ CONTAINS
                                   col=iatom,&
                                   block=q_block,&
                                   found=found)
-        CPPostcondition(ASSOCIATED(q_block),cp_failure_level,routineP,failure)
+        CPASSERT(ASSOCIATED(q_block))
 
         IF (orthonormal_basis) THEN
           ! S is the unit matrix
@@ -1100,7 +1100,7 @@ CONTAINS
                                     col=iatom,&
                                     block=s_block,&
                                     found=found)
-          CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(s_block))
           ! Exploit that P and S are symmetric
           DO jsgf=1,SIZE(p_block,2)
             DO isgf=1,SIZE(p_block,1)
@@ -1189,7 +1189,7 @@ CONTAINS
         n = nsb*nsbsize
 
         ALLOCATE (q_matrix(n,n),STAT=stat)
-        CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+        CPASSERT(stat == 0)
         q_matrix(:,:) = 0.0_dp
 
         ! Print headline if requested
@@ -1197,7 +1197,7 @@ CONTAINS
         IF (should_output.AND.(print_level > low_print_level)) THEN
           IF (output_unit > 0) THEN
             ALLOCATE (symbol(nsbsize),STAT=stat)
-            CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+            CPASSERT(stat == 0)
             DO m=-lu,lu
               symbol(lu+m+1) = sgf_symbol(0,lu,m)
             END DO
@@ -1211,7 +1211,7 @@ CONTAINS
               ": "//TRIM(atomic_kind_name),&
               "Atom   Shell  ",(ADJUSTR(symbol(i)),i=1,nsbsize)," Trace"
             DEALLOCATE (symbol,STAT=stat)
-            CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+            CPASSERT(stat == 0)
           END IF
         END IF
 
@@ -1262,12 +1262,12 @@ CONTAINS
                   ((qs_env%scf_env%outer_scf%iter_count == 0).AND.&
                    (qs_env%scf_env%iter_count <= max_scf))) THEN
                 ALLOCATE (orb_occ(nsbsize),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 ALLOCATE (q_eigval(n),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 q_eigval(:) = 0.0_dp
                 ALLOCATE (q_eigvec(n,n),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 q_eigvec(:,:) = 0.0_dp
                 norb = SIZE(orbitals)
                 CALL jacobi(q_matrix,q_eigval,q_eigvec)
@@ -1301,7 +1301,7 @@ CONTAINS
                       iorb = i0 + lu + orbitals(i)
                       orb_occ(lu+orbitals(i)+1) = .TRUE.
                     END IF
-                    CPPostcondition((iorb /= -1000),cp_failure_level,routineP,failure)
+                    CPASSERT(iorb /= -1000)
                     iloc = MAXLOC(q_eigvec(iorb,:))
                     q_eigval(iloc(1)) = MIN(occ,trq)
                     q_matrix(:,iloc(1)) = q_eigval(iloc(1))*q_eigvec(:,iloc(1)) ! backtransform left
@@ -1310,11 +1310,11 @@ CONTAINS
                 END DO
                 q_matrix(:,:) = MATMUL(q_matrix,TRANSPOSE(q_eigvec)) ! backtransform right
                 DEALLOCATE (orb_occ,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 DEALLOCATE (q_eigval,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 DEALLOCATE (q_eigvec,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
               END IF
             END IF ! orbitals associated
 
@@ -1344,7 +1344,7 @@ CONTAINS
                                         col=atom_a,&
                                         block=v_block,&
                                         found=found)
-              CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(v_block))
 
               i = 0
               DO iset=1,nset
@@ -1380,7 +1380,7 @@ CONTAINS
             CALL mp_sum(q_matrix, para_env%group)
             IF (output_unit > 0) THEN
               ALLOCATE (q_work(nsb,nsbsize),STAT=stat)
-              CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+              CPASSERT(stat == 0)
               q_work(:,:) = 0.0_dp
               DO isb=1,nsb
                 j = 0
@@ -1397,7 +1397,7 @@ CONTAINS
                 "Total",(SUM(q_work(:,i)),i=1,nsbsize),SUM(q_work)
               WRITE (UNIT=output_unit,FMT="(A)") ""
               DEALLOCATE (q_work,STAT=stat)
-              CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+              CPASSERT(stat == 0)
               IF (debug) THEN
                 ! Print the DFT+U occupation matrix
                 WRITE (UNIT=output_unit,FMT="(T9,70I10)") (i,i=1,n)
@@ -1406,10 +1406,10 @@ CONTAINS
                 END DO
                 ! Print the eigenvalues and eigenvectors of the occupation matrix
                 ALLOCATE (q_eigval(n),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 q_eigval(:) = 0.0_dp
                 ALLOCATE (q_eigvec(n,n),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 q_eigvec(:,:) = 0.0_dp
                 CALL jacobi(q_matrix,q_eigval,q_eigvec)
                 WRITE (UNIT=output_unit,FMT="(/,T9,70I10)") (i,i=1,n)
@@ -1419,15 +1419,15 @@ CONTAINS
                   WRITE (UNIT=output_unit,FMT="(T3,I6,70F10.6)") i,q_eigvec(i,:)
                 END DO
                 DEALLOCATE (q_eigval,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 DEALLOCATE (q_eigvec,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
               END IF ! debug
             END IF
             IF (debug) THEN
               ! Print the full atomic occupation matrix block
               ALLOCATE (q_work(nsgf_kind,nsgf_kind),STAT=stat)
-              CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+              CPASSERT(stat == 0)
               q_work(:,:) = 0.0_dp
               IF (ASSOCIATED(q_block)) q_work(:,:) = q_block(:,:)
               CALL mp_sum(q_work, para_env%group)
@@ -1438,10 +1438,10 @@ CONTAINS
                   WRITE (UNIT=output_unit,FMT="(T3,I6,200F10.6)") i,q_work(i,:)
                 END DO
                 ALLOCATE (q_eigval(norb),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                  q_eigval(:) = 0.0_dp
                 ALLOCATE (q_eigvec(norb,norb),STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 q_eigvec(:,:) = 0.0_dp
                 CALL jacobi(q_work,q_eigval,q_eigvec)
                 WRITE (UNIT=output_unit,FMT="(/,T9,200I10)") (i,i=1,norb)
@@ -1451,12 +1451,12 @@ CONTAINS
                   WRITE (UNIT=output_unit,FMT="(T3,I6,200F10.6)") i,q_eigvec(i,:)
                 END DO
                 DEALLOCATE (q_eigval,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
                 DEALLOCATE (q_eigvec,STAT=stat)
-                CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+                CPASSERT(stat == 0)
               END IF
               DEALLOCATE (q_work,STAT=stat)
-              CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+              CPASSERT(stat == 0)
             END IF ! debug
           END IF ! should output
 
@@ -1464,7 +1464,7 @@ CONTAINS
 
         IF (ALLOCATED(q_matrix)) THEN
           DEALLOCATE (q_matrix,STAT=stat)
-          CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+          CPASSERT(stat == 0)
         END IF
 
       END DO ! next atomic kind "ikind"
@@ -1500,7 +1500,7 @@ CONTAINS
                                       col=atom_a,&
                                       block=v_block,&
                                       found=found)
-            CPPostcondition(ASSOCIATED(v_block),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(v_block))
 
             IF (orthonormal_basis) THEN
               DO isgf=1,SIZE(h_block,1)
@@ -1512,7 +1512,7 @@ CONTAINS
                                          col=atom_a,&
                                          block=s_block,&
                                          found=found)
-              CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(s_block))
               DO jsgf=1,SIZE(h_block,2)
                 DO isgf=1,SIZE(h_block,1)
                   h_block(isgf,jsgf) = h_block(isgf,jsgf) + v_block(isgf,jsgf)*s_block(isgf,jsgf)
@@ -1667,11 +1667,11 @@ CONTAINS
                     rho=rho,&
                     para_env=para_env)
 
-    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(energy),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(atomic_kind_set))
+    CPASSERT(ASSOCIATED(dft_control))
+    CPASSERT(ASSOCIATED(energy))
+    CPASSERT(ASSOCIATED(particle_set))
+    CPASSERT(ASSOCIATED(rho))
 
     IF (orthonormal_basis) THEN
       NULLIFY (sm_s)
@@ -1679,7 +1679,7 @@ CONTAINS
       ! Get overlap matrix in sparse format
       CALL get_qs_env(qs_env=qs_env,&
                       matrix_s=matrix_s)
-      CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(matrix_s))
       sm_s => matrix_s(1)%matrix
     END IF
 
@@ -1706,19 +1706,19 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (first_sgf_atom(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     first_sgf_atom(:) = 0
 
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf_atom)
 
     ALLOCATE (trps(nsgf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     trps(:) = 0.0_dp
 
     IF (PRESENT(matrix_h).OR.PRESENT(matrix_w)) THEN
       ALLOCATE (dEdq(nsgf),STAT=stat)
-      CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+      CPASSERT(stat == 0)
       just_energy  = .FALSE.
     ELSE
       just_energy = .TRUE.
@@ -1775,7 +1775,7 @@ CONTAINS
                                     col=jatom,&
                                     block=s_block,&
                                     found=found)
-          CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(s_block))
 
           sgf = first_sgf_atom(jatom)
           DO jsgf=1,SIZE(p_block,2)
@@ -1872,14 +1872,14 @@ CONTAINS
         END DO
 
         ALLOCATE (q_ii(nsb,2*lu+1),STAT=stat)
-        CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+        CPASSERT(stat == 0)
 
         ! Print headline if requested
 
         IF (should_output.AND.(print_level > low_print_level)) THEN
           IF (output_unit > 0) THEN
             ALLOCATE (symbol(2*lu+1),STAT=stat)
-            CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+            CPASSERT(stat == 0)
             DO m=-lu,lu
               symbol(lu+m+1) = sgf_symbol(0,lu,m)
             END DO
@@ -1893,7 +1893,7 @@ CONTAINS
               ": "//TRIM(atomic_kind_name),&
               "Atom   Shell  ",(ADJUSTR(symbol(i)),i=1,2*lu+1)," Trace"
             DEALLOCATE (symbol,STAT=stat)
-            CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+            CPASSERT(stat == 0)
           END IF
         END IF
 
@@ -1963,7 +1963,7 @@ CONTAINS
 
         IF (ALLOCATED(q_ii)) THEN
           DEALLOCATE (q_ii,STAT=stat)
-          CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+          CPASSERT(stat == 0)
         END IF
 
       END DO ! next atomic kind "ikind"
@@ -2003,7 +2003,7 @@ CONTAINS
                                       col=jatom,&
                                       block=s_block,&
                                       found=found)
-            CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(s_block))
 
             ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
 
@@ -2062,7 +2062,7 @@ CONTAINS
                                     col=jatom,&
                                     block=w_block,&
                                     found=found)
-          CPPostcondition(ASSOCIATED(w_block),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(w_block))
 
           ! Consider the symmetric form 1/2*(P*S + S*P) for the calculation
 
@@ -2113,17 +2113,17 @@ CONTAINS
 
     IF (ALLOCATED(first_sgf_atom)) THEN
       DEALLOCATE (first_sgf_atom,STAT=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
     END IF
 
     IF (ALLOCATED(trps)) THEN
       DEALLOCATE (trps,STAT=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
     END IF
 
     IF (ALLOCATED(dEdq)) THEN
       DEALLOCATE (dEdq,STAT=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
     END IF
 
    CALL timestop(handle)

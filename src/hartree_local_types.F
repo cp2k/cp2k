@@ -60,21 +60,20 @@ MODULE hartree_local_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat
-    LOGICAL                                  :: failure
 
     IF(ASSOCIATED(ecoul_1c)) THEN
       CALL deallocate_ecoul_1center(ecoul_1c)
     END IF
 
     ALLOCATE(ecoul_1c(natom), STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO iat = 1,natom
       ALLOCATE(ecoul_1c(iat)%Vh1_h,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
       NULLIFY(ecoul_1c(iat)%Vh1_h%r_coef)
       ALLOCATE(ecoul_1c(iat)%Vh1_s,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
       NULLIFY(ecoul_1c(iat)%Vh1_s%r_coef)
     END DO
 
@@ -93,29 +92,28 @@ MODULE hartree_local_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, istat, natom
-    LOGICAL                                  :: failure
 
     natom = SIZE(ecoul_1c,1)
 
     DO iat= 1,natom
       IF (ASSOCIATED(ecoul_1c(iat)%Vh1_h%r_coef)) THEN
           DEALLOCATE(ecoul_1c(iat)%Vh1_h%r_coef,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
       ENDIF
       DEALLOCATE(ecoul_1c(iat)%Vh1_h,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
       IF (ASSOCIATED(ecoul_1c(iat)%Vh1_s%r_coef)) THEN
           DEALLOCATE(ecoul_1c(iat)%Vh1_s%r_coef,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
       ENDIF
       DEALLOCATE(ecoul_1c(iat)%Vh1_s,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     END DO
 
     DEALLOCATE(ecoul_1c, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE deallocate_ecoul_1center
 
@@ -176,7 +174,7 @@ MODULE hartree_local_types
     failure=.FALSE.
 
     ALLOCATE(hartree_local, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY (hartree_local%ecoul_1c)
 
@@ -201,7 +199,7 @@ MODULE hartree_local_types
       END IF
 
       DEALLOCATE(hartree_local,stat=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE hartree_local_release

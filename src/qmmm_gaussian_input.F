@@ -151,7 +151,7 @@ CONTAINS
                                                 mm_potential_file_name, Units
     INTEGER                                  :: IRad, istart, Ival, j, Nog, &
                                                 Nval, output_unit, stat
-    LOGICAL                                  :: failure, Found, Found_Radius
+    LOGICAL                                  :: Found, Found_Radius
     REAL(KIND=dp)                            :: fconv, my_radius, Radius
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
@@ -187,7 +187,7 @@ CONTAINS
 !           &END
 !
           CALL parser_get_object  (parser,Ftarget,newline=.TRUE.)
-          CPPostcondition(TRIM(Ftarget)=="RADIUS",cp_failure_level,routineP,Failure)
+          CPASSERT(TRIM(Ftarget)=="RADIUS")
           CALL parser_get_object  (parser,radius)
           CALL parser_get_object  (parser,units)
           CALL uppercase (units)
@@ -216,9 +216,9 @@ CONTAINS
           END IF
           NOG = qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
           ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+          CPASSERT(stat==0)
           ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+          CPASSERT(stat==0)
           IF (compatibility) THEN
              my_radius = qmmm_gaussian_fns(J)%pgf%Elp_Radius_corr
              qmmm_gaussian_fns(IRad)%pgf%Ak(1) = 1.0_dp/radius - 2.0_dp/(rootpi*radius)
@@ -318,9 +318,9 @@ CONTAINS
        END SELECT
        NOG = qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
        ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
        ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
        IF (compatibility) THEN
           my_radius = qmmm_gaussian_fns(IRad)%pgf%Elp_Radius_corr
           qmmm_gaussian_fns(IRad)%pgf%Ak(1) = 1.0_dp/radius - 2.0_dp/(rootpi*radius)
@@ -756,9 +756,9 @@ CONTAINS
        END SELECT
        NOG = qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians
        ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Ak(NOG),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
        ALLOCATE(qmmm_gaussian_fns(IRad)%pgf%Gk(NOG),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
        SELECT CASE(num_geep_gauss)
        CASE(2)
           qmmm_gaussian_fns(IRad)%pgf%Ak(istart+1) = s2_a1

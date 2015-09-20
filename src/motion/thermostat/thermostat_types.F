@@ -117,25 +117,25 @@ CONTAINS
 
     failure =.FALSE.
     check = .NOT.ASSOCIATED(thermostats)
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
 
     ! Preliminary allocation for thermostats
     ALLOCATE(thermostats, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     last_thermostats_id_nr = last_thermostats_id_nr + 1
     thermostats%id_nr = last_thermostats_id_nr
     thermostats%ref_count =  1
 
     ! Thermostats Info
     ALLOCATE(thermostats%thermostat_info_part, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(thermostats%thermostat_info_shell, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 !cjm
     ALLOCATE(thermostats%thermostat_info_fast, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(thermostats%thermostat_info_slow, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 !cjm
 
     NULLIFY(thermostats%thermostat_info_part%map_loc_thermo_gen)
@@ -171,7 +171,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(thermostats)) THEN
-       CPPrecondition(thermostats%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(thermostats%ref_count>0)
        thermostats%ref_count=thermostats%ref_count+1
     END IF
 
@@ -197,7 +197,7 @@ CONTAINS
     check = ASSOCIATED(thermostats)
     IF (check) THEN
        check = thermostats%ref_count>0
-       CPPrecondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        thermostats%ref_count=thermostats%ref_count-1
        IF (thermostats%ref_count<1) THEN
           CALL release_thermostat_info(thermostats%thermostat_info_part)
@@ -225,7 +225,7 @@ CONTAINS
              CALL release_thermostat_type(thermostats%thermostat_coef)
           END IF
           DEALLOCATE(thermostats, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE release_thermostats
@@ -260,7 +260,7 @@ CONTAINS
     skip_region_loc = .FALSE.
     IF (PRESENT(skip_region)) skip_region_loc = skip_region
     ALLOCATE(thermostat, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     last_thermostat_id_nr = last_thermostat_id_nr + 1
     thermostat%id_nr = last_thermostat_id_nr
     thermostat%ref_count =  1
@@ -277,29 +277,29 @@ CONTAINS
     IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
        nose_section => section_vals_get_subs_vals(section,"NOSE")
        ALLOCATE(thermostat%nhc, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL lnhc_init(thermostat%nhc, nose_section)
        thermostat%nhc%region = region
     ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
        csvr_section => section_vals_get_subs_vals(section,"CSVR")
        ALLOCATE(thermostat%csvr, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL csvr_init(thermostat%csvr, simpar, csvr_section)
        thermostat%csvr%region=region
     ELSE IF (thermostat%type_of_thermostat==do_thermo_al) THEN
        al_section => section_vals_get_subs_vals(section,"AD_LANGEVIN")
        ALLOCATE(thermostat%al, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL al_init(thermostat%al, simpar, al_section)
        thermostat%al%region=region
     ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
        gle_section => section_vals_get_subs_vals(section,"GLE")
        ALLOCATE(thermostat%gle, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL gle_init(thermostat%gle, dt=simpar%dt, temp=simpar%temp_ext, &
      section=gle_section)
        thermostat%gle%region=region
-       CPPostcondition(region==do_region_massive,cp_failure_level,routineP,failure)
+       CPASSERT(region==do_region_massive)
     END IF
 
   END SUBROUTINE create_thermostat_type
@@ -324,10 +324,10 @@ CONTAINS
     IF (ASSOCIATED(thermostat_info)) THEN
        IF (ASSOCIATED(thermostat_info%map_loc_thermo_gen)) THEN
           DEALLOCATE(thermostat_info%map_loc_thermo_gen, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE(thermostat_info, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE release_thermostat_info
 
@@ -351,7 +351,7 @@ CONTAINS
     check = ASSOCIATED(thermostat)
     IF (check) THEN
        check = thermostat%ref_count>0
-       CPPrecondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        thermostat%ref_count=thermostat%ref_count-1
        IF (thermostat%ref_count<1) THEN
           NULLIFY(thermostat%section)
@@ -368,7 +368,7 @@ CONTAINS
              CALL gle_dealloc(thermostat%gle)
           END IF
           DEALLOCATE(thermostat, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE release_thermostat_type

@@ -113,17 +113,17 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(particle_set))
 
     nparticle = SIZE(particle_set)
     IF (PRESENT(first_sgf)) THEN
-      CPPrecondition(SIZE(first_sgf) >= nparticle,cp_failure_level,routineP,failure)
+      CPASSERT(SIZE(first_sgf) >= nparticle)
     END IF
     IF (PRESENT(last_sgf)) THEN
-      CPPrecondition(SIZE(last_sgf) >= nparticle,cp_failure_level,routineP,failure)
+      CPASSERT(SIZE(last_sgf) >= nparticle)
     END IF
     IF (PRESENT(nsgf)) THEN
-      CPPrecondition(SIZE(nsgf) >= nparticle,cp_failure_level,routineP,failure)
+      CPASSERT(SIZE(nsgf) >= nparticle)
     END IF
 
     IF (PRESENT(first_sgf).OR.PRESENT(last_sgf).OR.PRESENT(nsgf)) THEN
@@ -667,7 +667,7 @@ CONTAINS
        CALL get_cell(cell=cell, periodic=periodic)
        natom = SIZE(particle_set)
        ALLOCATE (distance_matrix(natom,natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        distance_matrix(:,:) = 0.0_dp
        DO iatom=1,natom
           DO jatom=iatom+1,natom
@@ -830,10 +830,10 @@ CONTAINS
             old_size = new_size
          END DO
          ALLOCATE (work(new_size),STAT=istat)
-         CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+         CPASSERT(istat == 0)
          CALL sort(index_list,new_size,work)
          DEALLOCATE (work,STAT=istat)
-         CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+         CPASSERT(istat == 0)
          DO i=1,new_size
             WRITE (UNIT=string,FMT="(A,I0,A)") "(",index_list(i),")"
             IF ((index_list(i) < 1).OR.(index_list(i) > natom)) THEN
@@ -849,7 +849,7 @@ CONTAINS
              "r"//TRIM(string),"=",pbc(particle_set(index_list(i))%r(1:3),cell)*conv
          END DO
          DEALLOCATE (index_list,STAT=istat)
-         CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+         CPASSERT(istat == 0)
       END IF
 
       ! Print the requested atomic position vectors in scaled coordinates
@@ -872,10 +872,10 @@ CONTAINS
             old_size = new_size
          END DO
          ALLOCATE (work(new_size),STAT=istat)
-         CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+         CPASSERT(istat == 0)
          CALL sort(index_list,new_size,work)
          DEALLOCATE (work,STAT=istat)
-         CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+         CPASSERT(istat == 0)
          DO i=1,new_size
             WRITE (UNIT=string,FMT="(A,I0,A)") "(",index_list(i),")"
             IF ((index_list(i) < 1).OR.(index_list(i) > natom)) THEN
@@ -893,7 +893,7 @@ CONTAINS
              "s"//TRIM(string),"=",s(1:3)
          END DO
          DEALLOCATE (index_list,STAT=istat)
-         CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+         CPASSERT(istat == 0)
       END IF
 
       ! Print the requested distances

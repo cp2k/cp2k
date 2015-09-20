@@ -169,9 +169,9 @@ CONTAINS
 CPSourceFileRef)
 #endif
 
-    CPPrecondition(ASSOCIATED(matrix_struct),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_struct))
     ALLOCATE(matrix,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     context => matrix_struct%context
     matrix%matrix_struct => matrix_struct
     CALL cp_fm_struct_retain(matrix%matrix_struct)
@@ -195,10 +195,10 @@ CPSourceFileRef)
     ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
     IF(matrix%use_sp) THEN
        ALLOCATE(matrix%local_data_sp(nrow_local,ncol_local),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
 
     ! JVDV we should remove this, as it is up to the user to zero afterwards
@@ -235,8 +235,8 @@ CPSourceFileRef)
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,failure)
-    CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix))
+    CPASSERT(matrix%ref_count>0)
     matrix%ref_count=matrix%ref_count+1
 
   END SUBROUTINE cp_fm_retain
@@ -262,21 +262,21 @@ CPSourceFileRef)
     CALL timeset(routineN,handle)
 
     IF (ASSOCIATED(matrix)) THEN
-       CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(matrix%ref_count>0)
        matrix%ref_count=matrix%ref_count-1
        IF (matrix%ref_count<1) THEN
           IF (ASSOCIATED(matrix%local_data)) THEN
              DEALLOCATE(matrix%local_data,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(matrix%local_data_sp)) THEN
              DEALLOCATE(matrix%local_data_sp,stat=stat)
-             CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           matrix%name=""
           CALL cp_fm_struct_release(matrix%matrix_struct)
           DEALLOCATE(matrix,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(matrix)
@@ -327,7 +327,7 @@ CPSourceFileRef)
     CALL create_rng_stream(rng,"cp_fm_init_random_stream",distribution_type=UNIFORM, &
                            extended_precision=.TRUE.,seed=seed)
 
-    CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.matrix%use_sp)
 
     CALL cp_fm_get_info(matrix,nrow_global=nrow_global,ncol_global=ncol_global, &
                                nrow_local=nrow_local,ncol_local=ncol_local,&
@@ -351,7 +351,7 @@ CPSourceFileRef)
     ! following this, we fill the full buff with random numbers, and pick those we need
     icol_global=0
     DO icol_local=1,ncol_local
-       CPPrecondition(col_indices(icol_local)>icol_global,cp_failure_level,routineP,failure)
+       CPASSERT(col_indices(icol_local)>icol_global)
        DO
          CALL reset_to_next_rng_substream(rng)
          icol_global=icol_global+1
@@ -408,7 +408,7 @@ CPSourceFileRef)
     ENDIF
 
     IF (PRESENT(beta)) THEN
-       CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.matrix%use_sp)
       n = MIN(matrix%matrix_struct%nrow_global,matrix%matrix_struct%ncol_global)
       DO i=1,n
          CALL cp_fm_set_element(matrix,i,i,beta)
@@ -593,7 +593,7 @@ CPSourceFileRef)
     nprow = context%num_pe(1)
     npcol = context%num_pe(2)
 
-    CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.matrix%use_sp)
 
 #if defined(__SCALAPACK)
 
@@ -666,10 +666,10 @@ CPSourceFileRef)
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,failure)
-    CPPrecondition(fm%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(fm))
+    CPASSERT(fm%ref_count>0)
 
-    CPPrecondition(.NOT.fm%use_sp,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.fm%use_sp)
 
     IF (PRESENT(alpha)) al=alpha
     IF (PRESENT(beta)) be=beta
@@ -805,10 +805,10 @@ CPSourceFileRef)
     i0=1; j0=1; tr_a=.FALSE.
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,failure)
-    CPPrecondition(fm%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(fm))
+    CPASSERT(fm%ref_count>0)
 
-    CPPrecondition(.NOT.fm%use_sp,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.fm%use_sp)
 
     IF (PRESENT(start_row)) i0=start_row
     IF (PRESENT(start_col)) j0=start_col
@@ -996,13 +996,13 @@ CPSourceFileRef)
       num_pe = matrix%matrix_struct%para_env%num_pe
       mepos = matrix%matrix_struct%para_env%mepos
       ALLOCATE(ir_max_vec(0:num_pe-1),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ir_max_vec(0:num_pe-1) = 0
       ALLOCATE(ic_max_vec(0:num_pe-1),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ic_max_vec(0:num_pe-1) = 0
       ALLOCATE(a_max_vec(0:num_pe-1),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       a_max_vec(0:num_pe-1) = 0.0_dp
       my_max = 0.0_dp
 
@@ -1044,9 +1044,9 @@ CPSourceFileRef)
       END DO
 
       DEALLOCATE(ir_max_vec,ic_max_vec,a_max_vec, STAT = istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
-      CPPostcondition(ic_max>0,cp_failure_level,routineP,failure)
-      CPPostcondition(ir_max>0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
+      CPASSERT(ic_max>0)
+      CPASSERT(ir_max>0)
 
     END IF
 
@@ -1077,7 +1077,6 @@ CPSourceFileRef)
     INTEGER                                  :: handle, i, j, ncol_local, &
                                                 nrow_global, nrow_local
     INTEGER, DIMENSION(:), POINTER           :: row_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: values
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
 
@@ -1085,7 +1084,7 @@ CPSourceFileRef)
 
     my_block => matrix%local_data
 
-    CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.matrix%use_sp)
 
     CALL cp_fm_get_info(matrix, row_indices=row_indices, nrow_global=nrow_global, &
                                 nrow_local=nrow_local, ncol_local=ncol_local)
@@ -1129,7 +1128,7 @@ CPSourceFileRef)
 
     my_block => matrix%local_data
 
-    CPPrecondition(.NOT.matrix%use_sp,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.matrix%use_sp)
 
     CALL cp_fm_get_info(matrix, col_indices=col_indices, ncol_global=ncol_global, &
                                 nrow_local=nrow_local, ncol_local=ncol_local)
@@ -1334,7 +1333,7 @@ CPSourceFileRef)
                source%local_data(1,1),1,destination%local_data(1,1),1)
        ENDIF
     ELSE
-      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
     END IF
 
     CALL timestop(handle)
@@ -1618,7 +1617,7 @@ CPSourceFileRef)
        CALL pdgemr2d(m,n,smat,1,1,desca,dmat,1,1,descb,global_context)
 
 #else
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
 #endif
     END IF
 
@@ -1659,7 +1658,7 @@ CPSourceFileRef)
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix))
 
     context => matrix%matrix_struct%context
 
@@ -1733,7 +1732,7 @@ CPSourceFileRef)
     CALL cp_blacs_gridinit(ictxt_loc,'R',1,num_pe)
     CALL cp_blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
     CALL descinit(desc,nrow_global,ncol_global,rb,max_block,0,0,ictxt_loc,nrow_global,info)
-    CPPostcondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
     in=numroc(ncol_global,max_block,mypcol,0,npcol)
 
     ALLOCATE(newdat(nrow_global,MAX(1,in)))
@@ -1744,7 +1743,7 @@ CPSourceFileRef)
          newdat(1,1),1,1,desc,ictxt_loc)
 
    ALLOCATE(vecbuf(nrow_global*max_block),STAT=istat)
-   CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+   CPASSERT(istat==0)
    vecbuf=HUGE(1.0_dp) ! init for valgrind
 
    DO i=1,ncol_global,MAX(max_block,1)
@@ -1776,12 +1775,12 @@ CPSourceFileRef)
 
    END DO
    DEALLOCATE(vecbuf,STAT=istat)
-   CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+   CPASSERT(istat==0)
 
    CALL cp_blacs_gridexit(ictxt_loc)
 
    DEALLOCATE(newdat,STAT=istat)
-   CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+   CPASSERT(istat==0)
 
 #else
 
@@ -1828,7 +1827,7 @@ CPSourceFileRef)
    ! the parallel case could be made more efficient (see cp_fm_write_unformatted)
 
    ALLOCATE(vecbuf(nrow_global,max_block),stat=stat)
-   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+   CPASSERT(stat==0)
 
    DO j=1,ncol_global,max_block
 
@@ -1844,7 +1843,7 @@ CPSourceFileRef)
    ENDDO
 
    DEALLOCATE(vecbuf,stat=stat)
-   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+   CPASSERT(stat==0)
 
 #else
 

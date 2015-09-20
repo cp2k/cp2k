@@ -296,7 +296,7 @@ CONTAINS
                scf_control,diis_step)
        CASE(special_diag_method_nr)
           CALL get_qs_env(qs_env=qs_env,has_unit_metric=has_unit_metric)
-          CPPrecondition(has_unit_metric,cp_failure_level,routineP,failure)
+          CPASSERT(has_unit_metric)
           ! Diagonlization in orthonormal case
 !         CALL do_special_diag(scf_env,mos,matrix_ks,&
 !                              scf_control,scf_section,diis_step)
@@ -686,8 +686,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_env))
+    CPASSERT(scf_env%ref_count>0)
 ! *** method dependent cleanup
        SELECT CASE(scf_env%method)
        CASE(ot_method_nr)
@@ -695,7 +695,7 @@ CONTAINS
              CALL ot_scf_destroy(scf_env%qs_ot_env(ispin))
           ENDDO
           DEALLOCATE(scf_env%qs_ot_env,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        CASE(ot_diag_method_nr)
    !
        CASE(general_diag_method_nr)

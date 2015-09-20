@@ -569,7 +569,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        IF (ofgpw .AND. (scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr)) THEN
           ! We fit a function to the square root of the density
           CALL qs_rho_update_rho(rho,qs_env)
-          CPPostcondition(1==0,cp_failure_level,routineP,failure)
+          CPASSERT(1==0)
 !         CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
 !         DO ispin=1,nspin
 !           CALL integrate_ppl_rspace(qs%rho%rho_r(ispin),qs_env)
@@ -600,9 +600,9 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        group = para_env%group
        natoms = SIZE(particle_set)
        ALLOCATE (kind_of(natoms),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        ALLOCATE (first_sgf(natoms),last_sgf(natoms),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        checksum = cp_dbcsr_checksum(s_sparse(1)%matrix)
        i = cp_dbcsr_get_num_blocks (s_sparse(1)%matrix); CALL mp_sum(i,group)
@@ -617,7 +617,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
 
        ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        DO ispin=1,nspin
           scale = 1._dp
@@ -676,7 +676,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
              ALLOCATE(buff(n,n),sort_kind(size_atomic_kind_set),&
                       nelec_kind(size_atomic_kind_set),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              !
              ! sort kind vs nbr electron
              DO ikind = 1,size_atomic_kind_set
@@ -731,7 +731,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              END IF
 
              DEALLOCATE(buff,nelec_kind,sort_kind,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
 
              IF(.FALSE.) THEN
                 ALLOCATE(buff(nao,1),buff2(nao,1))
@@ -834,19 +834,19 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
           DO ikind=1,SIZE(atomic_kind_set)
             IF(ASSOCIATED(pmat(ikind)%mat)) THEN
               DEALLOCATE (pmat(ikind)%mat,STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+              CPASSERT(istat==0)
             END IF
           END DO
        END DO
 
        DEALLOCATE (pmat,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        DEALLOCATE (kind_of,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        DEALLOCATE (first_sgf,last_sgf,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        did_guess = .TRUE.
     END IF
@@ -1007,12 +1007,12 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     natom = SIZE(particle_set)
 
     ALLOCATE (kind_of(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
 
     ALLOCATE (pmat(SIZE(atomic_kind_set)),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! precompute the atomic blocks corresponding to spherical atoms
     DO ikind=1,SIZE(atomic_kind_set)
@@ -1059,15 +1059,15 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     DO ikind=1,SIZE(atomic_kind_set)
       IF(ASSOCIATED(pmat(ikind)%mat)) THEN
         DEALLOCATE (pmat(ikind)%mat,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
     END DO
 
     DEALLOCATE (pmat,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE (kind_of,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -1109,7 +1109,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: maxocc, my_sum, nelec, paa, &
                                                 scale, trps1, trps2, yy, zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
@@ -1130,20 +1129,20 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     ENDIF
 
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL get_particle_set(particle_set,qs_kind_set,first_sgf=first_sgf)
     CALL get_qs_kind_set(qs_kind_set, maxlgto=maxl)
 
     ALLOCATE (econf(0:maxl),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ALLOCATE (pdiag(nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     pdiag(:) = 0.0_dp
 
     ALLOCATE (sdiag(nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     sdiag(:) = 0.0_dp
     IF (has_unit_metric) THEN
@@ -1215,7 +1214,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                       pdiag(isgfa+14) = econf(3)/7._dp
                       pdiag(isgfa+15) = econf(3)/7._dp
                    CASE DEFAULT
-                      CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                      CPASSERT(.FALSE.)
                    END SELECT
                 END DO
              END DO
@@ -1272,7 +1271,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                    END IF
                 END IF
               CASE DEFAULT
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
               END SELECT
             END DO
           ELSE
@@ -1329,16 +1328,16 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     CALL cp_dbcsr_set_diag(matrix_p, pdiag)
 
     DEALLOCATE (econf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE (pdiag,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE (sdiag,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 

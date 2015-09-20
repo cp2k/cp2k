@@ -236,7 +236,7 @@ CPSourceFileRef)
           r2 = atom_info%r(1:3,jj)
           r  = pbc(r1-r2,cell)
           check = (SQRT(DOT_PRODUCT(r,r))>=threshold)
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
        END DO
     END DO
     ! Parse Symmetry Group and generation elements..

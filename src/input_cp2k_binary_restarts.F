@@ -92,9 +92,9 @@ CONTAINS
 
     NULLIFY (logger)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(root_section),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(subsys_section),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(root_section))
+    CPASSERT(ASSOCIATED(para_env))
+    CPASSERT(ASSOCIATED(subsys_section))
     logger => cp_get_default_logger()
 
     binary_file_read = .FALSE.
@@ -374,8 +374,8 @@ CONTAINS
 
     NULLIFY (logger)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(root_section),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(subsys_section),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(root_section))
+    CPASSERT(ASSOCIATED(subsys_section))
     logger => cp_get_default_logger()
     para_env => logger%para_env
 
@@ -481,7 +481,7 @@ CONTAINS
        RETURN
     END IF
 
-    CPPrecondition((nparticle > 0),cp_failure_level,routineP,failure)
+    CPASSERT(nparticle > 0)
 
     ALLOCATE (rbuf(3,nparticle),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -597,9 +597,9 @@ CONTAINS
 
     NULLIFY (logger)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(root_section),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(subsys_section),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(root_section))
+    CPASSERT(ASSOCIATED(para_env))
+    CPASSERT(ASSOCIATED(subsys_section))
     logger => cp_get_default_logger()
 
     binary_file_read = .FALSE.
@@ -791,8 +791,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(nhc),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(nhc))
+    CPASSERT(ASSOCIATED(para_env))
 
     ! Set to .TRUE. for debug mode, i.e. all data read are written to stdout
     NULLIFY (logger)

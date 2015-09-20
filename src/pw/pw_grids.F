@@ -126,9 +126,9 @@ CONTAINS
     failure =.FALSE.
     my_local=.FALSE.
     IF (PRESENT(local)) my_local = local
-    CPPrecondition(.NOT.ASSOCIATED(pw_grid),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(pw_grid))
     ALLOCATE(pw_grid,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     pw_grid % bounds = 0
     pw_grid % cutoff = 0.0_dp
     pw_grid % grid_span = FULLSPACE
@@ -243,7 +243,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw_grid%ref_count>0)
 
     IF ( PRESENT(id_nr) ) id_nr = pw_grid%id_nr
     IF ( PRESENT(mode) ) mode = pw_grid%para%mode
@@ -289,7 +289,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(pw_grid%ref_count>0)
 
     IF ( PRESENT(grid_span) ) THEN
        pw_grid%grid_span = grid_span
@@ -297,7 +297,7 @@ CONTAINS
     IF ( PRESENT(bounds) .AND. PRESENT(npts) ) THEN
        pw_grid%bounds = bounds
        pw_grid%npts = npts
-       CPPostcondition(ALL(npts==bounds(2,:)-bounds(1,:)+1),cp_failure_level,routineP,failure)
+       CPASSERT(ALL(npts==bounds(2,:)-bounds(1,:)+1))
     ELSE IF ( PRESENT(bounds) ) THEN
        pw_grid%bounds = bounds
        pw_grid%npts = bounds(2,:)-bounds(1,:)+1
@@ -489,8 +489,8 @@ CONTAINS
 
     ! some checks
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pw_grid), cp_failure_level, routineP,failure)
-    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_grid))
+    CPASSERT(pw_grid%ref_count>0)
 
     ! mapping of map_x( g_hat(i,j)) to g_hatmap
     ! the second index is for switching from gather(1) to scatter(2)
@@ -608,8 +608,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,failure)
-    CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_grid))
+    CPASSERT(pw_grid%ref_count>0)
 
 
     ! set pointer to possible reference grid
@@ -630,18 +630,18 @@ CONTAINS
     ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
     ! these are not mapped indices !
     ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = allocstat )
-    CPPrecondition(allocstat==0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat==0)
     CALL pw_grid_count ( cell_h_inv, pw_grid, ecut, yz_mask )
 
     ! Check if reference grid is compatible
     IF ( PRESENT ( ref_grid ) ) THEN
-       CPPrecondition(pw_grid % para % mode == ref_grid % para % mode,cp_failure_level,routineP,failure)
+       CPASSERT(pw_grid % para % mode == ref_grid % para % mode)
        IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
           CALL mp_comm_compare(pw_grid % para % group, ref_grid % para % group, ires )
-          CPPrecondition(ires <= 3,cp_failure_level,routineP,failure) !FM make it >3 ?
+          CPASSERT(ires <= 3)
        END IF
-       CPPrecondition(pw_grid % grid_span == ref_grid % grid_span,cp_failure_level,routineP,failure)
-       CPPrecondition(pw_grid % spherical .EQV. ref_grid % spherical,cp_failure_level,routineP,failure)
+       CPASSERT(pw_grid % grid_span == ref_grid % grid_span)
+       CPASSERT(pw_grid % spherical .EQV. ref_grid % spherical)
     END IF
 
     ! Distribute grid
@@ -661,7 +661,7 @@ CONTAINS
     CALL pw_grid_remap ( pw_grid, yz_mask)
 
     DEALLOCATE ( yz_mask , STAT=allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
 
     CALL cell2grid(cell_hmat, cell_h_inv, cell_deth, pw_grid)
     !
@@ -865,7 +865,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_index
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: axis_dist_all
     INTEGER, DIMENSION(2, 3)                 :: axis_dist
-    LOGICAL                                  :: blocking, failure
+    LOGICAL                                  :: blocking
 
 !------------------------------------------------------------------------------
 
@@ -875,7 +875,7 @@ CONTAINS
     lbz = pw_grid % bounds ( 1, 3 )
 
     pw_grid % ngpts = PRODUCT ( INT(pw_grid % npts,KIND=int_8) )
-    CPPrecondition(ALL(pw_grid%para%rs_dims==0),cp_failure_level,routineP,failure)
+    CPASSERT(ALL(pw_grid%para%rs_dims==0))
     IF (PRESENT(rs_dims)) THEN
        pw_grid%para%rs_dims=rs_dims
     END IF
@@ -896,9 +896,9 @@ CONTAINS
 
        pw_grid % bounds_local = pw_grid % bounds
        pw_grid % npts_local = pw_grid % npts
-CPPrecondition(pw_grid%ngpts_cut<HUGE(pw_grid%ngpts_cut_local),cp_failure_level,routineP,failure)
+CPASSERT(pw_grid%ngpts_cut<HUGE(pw_grid%ngpts_cut_local))
        pw_grid % ngpts_cut_local = INT(pw_grid % ngpts_cut)
-CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP,failure)
+CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
        pw_grid % ngpts_local = INT(pw_grid % ngpts)
        pw_grid % para % rs_dims=1
        CALL mp_cart_create ( MPI_COMM_SELF, 2, &
@@ -910,7 +910,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
             pw_grid % para % rs_mpo )
        pw_grid%para%group_size = 1
        ALLOCATE (pw_grid%para%bo(2,3,0:0,3),STAT=ierr)
-       CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr == 0)
        DO i=1,3
           pw_grid%para%bo(1,1:3,0,i) = 1
           pw_grid%para%bo(2,1:3,0,i) = pw_grid%npts(1:3)
@@ -986,7 +986,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
             blocking=.TRUE.
          ENDIF
        CASE DEFAULT
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
 
        !..create group for real space distribution
@@ -1015,7 +1015,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 
        !..the third distribution is needed for the second step in the FFT
        ALLOCATE ( pw_grid % para % bo ( 2, 3, 0:np-1, 3 ), STAT = ierr )
-       CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr == 0)
        rsd = pw_grid % para % rs_dims
 
        IF (PRESENT(bounds_local)) THEN
@@ -1068,10 +1068,10 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        pw_grid % ngpts_cut_local = 0
 
        ALLOCATE ( pw_grid % para % nyzray ( 0: np-1 ), STAT = ierr )
-       CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr == 0)
 
        ALLOCATE ( pw_grid % para % yzq ( ny, nz ), STAT = ierr )
-       CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr == 0)
 
        IF ( pw_grid % spherical .OR. pw_grid % grid_span == HALFSPACE &
             .OR. .NOT. blocking ) THEN
@@ -1091,7 +1091,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
           i1 = SIZE ( yz_mask, 1 )
           i2 = SIZE ( yz_mask, 2 )
           ALLOCATE ( yz_index(2,i1*i2), STAT = ierr )
-          CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr == 0)
           CALL order_mask ( yz_mask, yz_index)
           DO i = 1, i1*i2
              lo(1) = yz_index(1,i)
@@ -1115,7 +1115,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
           END DO
 
           DEALLOCATE ( yz_index, STAT = ierr )
-          CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr == 0)
 
           ! Count the total number of rays on each processor
           pw_grid % para % nyzray = 0
@@ -1130,7 +1130,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
           ! Allocate mapping array (y:z, nray, nproc)
           ns = MAXVAL ( pw_grid % para % nyzray ( 0: np-1 ) )
           ALLOCATE ( pw_grid % para % yzp ( 2, ns, 0: np-1 ), STAT = ierr )
-          CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr == 0)
 
           ! Fill mapping array, recalculate nyzray for convenience
           pw_grid % para % nyzray = 0
@@ -1198,11 +1198,11 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
           ! Allocate mapping array (y:z, nray, nproc)
           ns = MAXVAL ( pw_grid % para % nyzray ( 0: np-1 ) )
           ALLOCATE ( pw_grid % para % yzp ( 2, ns, 0: np-1 ), STAT = ierr )
-          CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr == 0)
           pw_grid % para % yzp = 0
 
           ALLOCATE ( pemap(0:np-1), STAT = ierr )
-          CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr == 0)
           pemap = 0
           pemap(pw_grid % para % my_pos) = pw_grid % para % rs_mpo
           CALL mp_sum(pemap,pw_grid % para % group)
@@ -1221,11 +1221,11 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
                    pw_grid % para % yzp ( 2, ns, ip ) = i
                 END DO
              END DO
-             CPPrecondition(ns == pw_grid%para%nyzray(ip),cp_failure_level,routineP,failure)
+             CPASSERT(ns == pw_grid%para%nyzray(ip))
           END DO
 
           DEALLOCATE ( pemap, STAT = ierr )
-          CPPrecondition(ierr == 0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr == 0)
 
        END IF
 
@@ -1679,11 +1679,11 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     END IF
 
     ! Check the number of g-vectors for grid
-    CPPrecondition(pw_grid % ngpts_cut_local == gpt,cp_failure_level,routineP,failure)
+    CPASSERT(pw_grid % ngpts_cut_local == gpt)
     IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
        gpt_global = gpt
        CALL mp_sum ( gpt_global, pw_grid % para % group )
-       CPPrecondition(pw_grid % ngpts_cut == gpt_global,cp_failure_level,routineP,failure)
+       CPASSERT(pw_grid % ngpts_cut == gpt_global)
     ENDIF
 
     pw_grid % have_g0 = .FALSE.
@@ -1812,11 +1812,11 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     failure = .FALSE.
 
     ALLOCATE ( pw_grid % g ( 3, ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
     ALLOCATE ( pw_grid % gsq ( ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
     ALLOCATE ( pw_grid % g_hat ( 3, ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
 
     nmaps = 1
     IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
@@ -1829,35 +1829,35 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 #else
     ALLOCATE(pw_grid%g_hatmap(1, 1), STAT = allocstat)
 #endif
-    CPPrecondition(allocstat==0, cp_failure_level, routineP,failure)
+    CPASSERT(allocstat==0)
 
     IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
       ALLOCATE ( pw_grid % grays ( pw_grid%npts(1), &
                  pw_grid%para%nyzray(pw_grid%para%my_pos) ), &
                  STAT = allocstat )
-      CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+      CPASSERT(allocstat == 0)
     END IF
 
     ALLOCATE ( pw_grid % mapl % pos ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
          STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
     ALLOCATE ( pw_grid % mapl % neg ( bounds ( 1, 1 ):bounds ( 2, 1 ) ), &
          STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
 
     ALLOCATE ( pw_grid % mapm % pos ( bounds ( 1, 2 ):bounds ( 2, 2 ) ), &
          STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
     ALLOCATE ( pw_grid % mapm % neg ( bounds ( 1, 2 ):bounds ( 2, 2 ) ), &
          STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
 
     ALLOCATE ( pw_grid % mapn % pos ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
          STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
     ALLOCATE ( pw_grid % mapn % neg ( bounds ( 1, 3 ):bounds ( 2, 3 ) ), &
          STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
 
     CALL timestop(handle)
 
@@ -1906,7 +1906,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 
     ng = SIZE ( pw_grid % gsq  )
     ALLOCATE ( idx ( ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
 
     ! grids are (locally) ordered by length of G-vectors
     CALL sort ( pw_grid % gsq, ng, idx )
@@ -1914,7 +1914,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx)
 
     ALLOCATE ( real_tmp ( 3, ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
     DO i=1,ng
        real_tmp(1,i)= pw_grid % g (1,idx (i))
        real_tmp(2,i)= pw_grid % g (2,idx (i))
@@ -1926,10 +1926,10 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        pw_grid % g (3,i)=real_tmp(3,i)
     ENDDO
     DEALLOCATE ( real_tmp, STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
 
     ALLOCATE ( int_tmp ( 3, ng ), STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
     DO i=1,ng
        int_tmp(1,i)= pw_grid % g_hat (1,idx (i))
        int_tmp(2,i)= pw_grid % g_hat (2,idx (i))
@@ -1941,10 +1941,10 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        pw_grid % g_hat (3,i)=int_tmp(3,i)
     ENDDO
     DEALLOCATE ( int_tmp, STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
 
     DEALLOCATE ( idx, STAT = allocstat )
-    CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+    CPASSERT(allocstat == 0)
 
     ! check if ordering is compatible to reference grid
     IF ( PRESENT ( ref_grid ) ) THEN
@@ -1958,7 +1958,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
           END IF
        ELSE
           ALLOCATE ( pw_grid%gidx(1:ngr), STAT = allocstat )
-          CPPrecondition(allocstat == 0,cp_failure_level,routineP,failure)
+          CPASSERT(allocstat == 0)
           pw_grid%gidx = 0
           ! first try as many trivial associations as possible
           it = 0
@@ -2145,9 +2145,9 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     IF ( s2 <= s1 ) RETURN
     ns = s2 - s1 + 1
     ALLOCATE ( indl ( ns ), STAT = info )
-    CPPrecondition(info == 0,cp_failure_level,routineP,failure)
+    CPASSERT(info == 0)
     ALLOCATE ( slen ( ns ), STAT = info )
-    CPPrecondition(info == 0,cp_failure_level,routineP,failure)
+    CPASSERT(info == 0)
 
     DO i = s1, s2
        ii = idx ( i )
@@ -2165,9 +2165,9 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     idx ( s1:s2 ) = indl ( 1:ns )
 
     DEALLOCATE ( indl, STAT = info )
-    CPPrecondition(info == 0,cp_failure_level,routineP,failure)
+    CPASSERT(info == 0)
     DEALLOCATE ( slen, STAT = info )
-    CPPrecondition(info == 0,cp_failure_level,routineP,failure)
+    CPASSERT(info == 0)
 
   END SUBROUTINE redist
 
@@ -2237,7 +2237,7 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
        END DO
     END DO
 
-    CPPrecondition(is == pw_grid % para % nyzray ( ip ),cp_failure_level,routineP,failure)
+    CPASSERT(is == pw_grid % para % nyzray ( ip ))
     CALL mp_sum ( pw_grid % para % yzp, pw_grid % para % group )
 
     CALL timestop(handle)
@@ -2320,8 +2320,8 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(pw_grid))
+    CPASSERT(pw_grid%ref_count>0)
     pw_grid%ref_count=pw_grid%ref_count+1
   END SUBROUTINE pw_grid_retain
 
@@ -2351,24 +2351,24 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
     failure=.FALSE.
 
     IF (ASSOCIATED(pw_grid)) THEN
-       CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(pw_grid%ref_count>0)
        pw_grid%ref_count=pw_grid%ref_count-1
        IF (pw_grid%ref_count==0) THEN
           IF ( ASSOCIATED ( pw_grid % gidx ) ) THEN
              DEALLOCATE ( pw_grid % gidx, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % g ) ) THEN
              DEALLOCATE ( pw_grid % g, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % gsq ) ) THEN
              DEALLOCATE ( pw_grid % gsq, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % g_hat ) ) THEN
              DEALLOCATE ( pw_grid % g_hat, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % g_hatmap ) ) THEN
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
@@ -2377,52 +2377,52 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
 #else
              DEALLOCATE ( pw_grid % g_hatmap, STAT = stat )
 #endif
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % grays ) ) THEN
              DEALLOCATE ( pw_grid % grays, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapl % pos ) ) THEN
              DEALLOCATE ( pw_grid % mapl % pos, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapm % pos ) ) THEN
              DEALLOCATE ( pw_grid % mapm % pos, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapn % pos ) ) THEN
              DEALLOCATE ( pw_grid % mapn % pos, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapl % neg ) ) THEN
              DEALLOCATE ( pw_grid % mapl % neg, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapm % neg ) ) THEN
              DEALLOCATE ( pw_grid % mapm % neg, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % mapn % neg ) ) THEN
              DEALLOCATE ( pw_grid % mapn % neg, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( ASSOCIATED ( pw_grid % para % bo ) ) THEN
              DEALLOCATE ( pw_grid % para % bo, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF ( pw_grid % para % mode == PW_MODE_DISTRIBUTED ) THEN
              IF ( ASSOCIATED ( pw_grid % para % yzp ) ) THEN
                 DEALLOCATE ( pw_grid % para % yzp, STAT = stat )
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
              IF ( ASSOCIATED ( pw_grid % para % yzq ) ) THEN
                 DEALLOCATE ( pw_grid % para % yzq, STAT = stat )
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
              IF ( ASSOCIATED ( pw_grid % para % nyzray ) ) THEN
                 DEALLOCATE ( pw_grid % para % nyzray, STAT = stat )
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
           END IF
           ! also release groups
@@ -2431,12 +2431,12 @@ CPPrecondition(pw_grid%ngpts<HUGE(pw_grid%ngpts_local),cp_failure_level,routineP
                CALL mp_comm_free ( pw_grid % para % rs_group )
           IF ( ASSOCIATED ( pw_grid % para % pos_of_x ) ) THEN
              DEALLOCATE ( pw_grid % para % pos_of_x, STAT = stat )
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
 
           IF(ASSOCIATED(pw_grid)) THEN
              DEALLOCATE(pw_grid, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
        END IF
     END IF

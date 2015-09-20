@@ -61,13 +61,13 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(normalmode_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(normalmode_env))
     ALLOCATE(normalmode_env,stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(normalmode_env%x2u(p,p),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(normalmode_env%u2x(p,p),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     last_normalmode_id=last_normalmode_id+1
     normalmode_env%id_nr=last_normalmode_id
     normalmode_env%ref_count=1
@@ -133,15 +133,15 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(normalmode_env)) THEN
-      CPPrecondition(normalmode_env%ref_count>0,cp_failure_level,routineP,failure)
+      CPASSERT(normalmode_env%ref_count>0)
       normalmode_env%ref_count=normalmode_env%ref_count-1
       IF (normalmode_env%ref_count==0) THEN
         DEALLOCATE(normalmode_env%x2u,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(normalmode_env%u2x,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(normalmode_env,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
       END IF
     END IF
     NULLIFY(normalmode_env)
@@ -165,8 +165,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(normalmode_env),cp_failure_level,routineP,failure)
-    CPPrecondition(normalmode_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(normalmode_env))
+    CPASSERT(normalmode_env%ref_count>0)
     normalmode_env%ref_count=normalmode_env%ref_count+1
 
     RETURN
@@ -247,8 +247,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(normalmode_env),cp_failure_level,routineP,failure)
-    CPPrecondition(normalmode_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(normalmode_env))
+    CPASSERT(normalmode_env%ref_count>0)
     CALL DGEMM('N','N',normalmode_env%p,SIZE(x,2),normalmode_env%p,1.0_dp,&
       normalmode_env%x2u(1,1),SIZE(normalmode_env%x2u,1),x(1,1),SIZE(x,1),&
       0.0_dp,ux,SIZE(ux,1))
@@ -277,8 +277,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(normalmode_env),cp_failure_level,routineP,failure)
-    CPPrecondition(normalmode_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(normalmode_env))
+    CPASSERT(normalmode_env%ref_count>0)
     CALL DGEMM('N','N',normalmode_env%p,SIZE(ux,2),normalmode_env%p,1.0_dp,&
       normalmode_env%u2x(1,1),SIZE(normalmode_env%u2x,1),ux(1,1),SIZE(ux,1),&
       0.0_dp,x,SIZE(x,1))
@@ -306,8 +306,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(normalmode_env),cp_failure_level,routineP,failure)
-    CPPrecondition(normalmode_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(normalmode_env))
+    CPASSERT(normalmode_env%ref_count>0)
     CALL DGEMM('T','N',normalmode_env%p,SIZE(f,2),normalmode_env%p,1.0_dp,&
       normalmode_env%u2x(1,1),SIZE(normalmode_env%u2x,1),f(1,1),SIZE(f,1),&
       0.0_dp,uf,SIZE(uf,1))

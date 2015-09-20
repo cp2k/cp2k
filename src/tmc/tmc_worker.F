@@ -136,14 +136,14 @@ CONTAINS
     i2 = -1
     NULLIFY(conf, para_env_m_w, ana_restart_conf)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
 
     ! start the timing
     CALL timeset(routineN,handle)
 
     ! initialize
     IF(tmc_env%tmc_comp_set%group_nr.GT.0) THEN
-      CPPrecondition(ASSOCIATED(tmc_env%tmc_comp_set%para_env_sub_group),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set%para_env_sub_group))
       IF(tmc_env%w_env%env_id_ener.GT.0) THEN
         itmp = tmc_env%w_env%env_id_ener
       ELSE
@@ -157,7 +157,7 @@ CONTAINS
 !      CALL get_mimal_distances()
     ELSE
       ! analysis group
-      CPPrecondition(ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_ana),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_ana))
       para_env_m_w => tmc_env%tmc_comp_set%para_env_m_ana
       master = .TRUE.
     END IF
@@ -243,7 +243,7 @@ CONTAINS
                      para_env=tmc_env%tmc_comp_set%para_env_m_first_w)
           !-- calculate the approximate energy
           CASE(TMC_STAT_APPROX_ENERGY_REQUEST)
-            CPPrecondition(tmc_env%w_env%env_id_approx.GT.0,cp_failure_level,routineP,failure)
+            CPASSERT(tmc_env%w_env%env_id_approx.GT.0)
             itmp = bcast_group
             !-- DISTRIBUTING WORK (group master) to all other group members
             CALL tmc_message(msg_type=work_stat, send_recv=send_msg, &
@@ -322,7 +322,7 @@ CONTAINS
                              para_env=para_env_m_w, &
                              tmc_params=tmc_env%params, elem=conf)
           CASE(TMC_STAT_ENERGY_REQUEST)
-            CPPrecondition(tmc_env%w_env%env_id_ener.GT.0,cp_failure_level,routineP,failure)
+            CPASSERT(tmc_env%w_env%env_id_ener.GT.0)
             !-- DISTRIBUTING WORK (group master) to all other group members
             itmp = bcast_group
             CALL tmc_message(msg_type=work_stat, send_recv=send_msg, &
@@ -385,10 +385,10 @@ CONTAINS
                              para_env=para_env_m_w,&
                              tmc_params=tmc_env%params, elem=conf)
           CASE(TMC_STAT_INIT_ANALYSIS)
-            CPPostcondition(ASSOCIATED(ana_restart_conf),cp_failure_level,routineP,failure)
-            CPPostcondition(SIZE(ana_restart_conf).EQ.tmc_env%params%nr_temp,cp_failure_level,routineP,failure)
-            CPPrecondition(PRESENT(ana_list),cp_failure_level,routineP,failure)
-            CPPrecondition(ASSOCIATED(ana_list),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(ana_restart_conf))
+            CPASSERT(SIZE(ana_restart_conf).EQ.tmc_env%params%nr_temp)
+            CPASSERT(PRESENT(ana_list))
+            CPASSERT(ASSOCIATED(ana_list))
             itmp = MASTER_COMM_ID
             CALL communicate_atom_types(atoms=tmc_env%params%atoms, &
                    source=itmp, para_env=tmc_env%tmc_comp_set%para_env_m_ana)
@@ -443,8 +443,8 @@ CONTAINS
               END IF
             END DO 
           CASE(TMC_STAT_ANALYSIS_REQUEST)
-            CPPrecondition(PRESENT(ana_list),cp_failure_level,routineP,failure)
-            CPPrecondition(ASSOCIATED(ana_list(conf%sub_tree_nr)%temp),cp_failure_level,routineP,failure)
+            CPASSERT(PRESENT(ana_list))
+            CPASSERT(ASSOCIATED(ana_list(conf%sub_tree_nr)%temp))
             CALL do_tmc_analysis(elem=conf, &
                    ana_env=ana_list(conf%sub_tree_nr)%temp)
             work_stat = TMC_STAT_ANALYSIS_RESULT
@@ -487,7 +487,7 @@ CONTAINS
             EXIT worker_work_time
           ! all group members have to calculate the (MD potential) energy together
           CASE(TMC_STAT_START_CONF_RESULT)
-            CPPrecondition(tmc_env%w_env%env_id_approx.GT.0,cp_failure_level,routineP,failure)
+            CPASSERT(tmc_env%w_env%env_id_approx.GT.0)
             !-- collective calculation of the potential energy of MD potential
             SELECT CASE(tmc_env%params%task_type)
             CASE(task_type_MC, task_type_ideal_gas)
@@ -528,14 +528,14 @@ CONTAINS
           !-- energy calculations
           CASE(TMC_STAT_APPROX_ENERGY_REQUEST)
             !--- do calculate energy
-            CPPrecondition(tmc_env%w_env%env_id_approx.GT.0,cp_failure_level,routineP,failure)
+            CPASSERT(tmc_env%w_env%env_id_approx.GT.0)
             CALL calc_potential_energy(conf=conf, &
                                        env_id=tmc_env%w_env%env_id_approx, &
                                        exact_approx_pot=.FALSE., &
                                        tmc_env=tmc_env)
           CASE(TMC_STAT_ENERGY_REQUEST)
             !--- do calculate energy
-            CPPrecondition(tmc_env%w_env%env_id_ener.GT.0,cp_failure_level,routineP,failure)
+            CPASSERT(tmc_env%w_env%env_id_ener.GT.0)
             CALL calc_potential_energy(conf=conf, &
                                        env_id=tmc_env%w_env%env_id_ener, &
                                        exact_approx_pot=.TRUE., &
@@ -634,21 +634,20 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: comm_dest, handle, substeps
-    LOGICAL                                  :: accept, change_rejected, &
-                                                failure, flag
+    LOGICAL                                  :: accept, change_rejected, flag
     REAL(KIND=dp)                            :: rnd_nr
     TYPE(tree_type), POINTER                 :: last_acc_conf
 
     NULLIFY(last_acc_conf)
     
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%tmc_comp_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%rng_stream),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,failure)
-    CPPrecondition(conf%temp_created.GT.0,cp_failure_level,routineP,failure)
-    CPPrecondition(conf%temp_created.LE.tmc_env%params%nr_temp,cp_failure_level,routineP,failure)
-    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%params))
+    CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set))
+    CPASSERT(ASSOCIATED(tmc_env%rng_stream))
+    CPASSERT(ASSOCIATED(conf))
+    CPASSERT(conf%temp_created.GT.0)
+    CPASSERT(conf%temp_created.LE.tmc_env%params%nr_temp)
+    CPASSERT(env_id.GT.0)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -810,14 +809,14 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecule_new
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(init_conf),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(init_conf))
 
     ! start the timing
     CALL timeset(routineN,handle)
 
     ! get positions
     CALL get_natom(env_id=env_id, n_atom=nr_atoms, ierr=ierr)
-    CPPostcondition(ierr.EQ.0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr.EQ.0)
     ndim  = 3*nr_atoms
     CALL allocate_new_sub_tree_node(tmc_params=tmc_params, &
                                     next_el=init_conf, nr_dim=ndim)
@@ -867,9 +866,9 @@ CONTAINS
     NULLIFY (f_env, subsys, particles)
     nr_atoms = 0
 
-    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(atoms),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(cell),cp_failure_level,routineP,failure)
+    CPASSERT(env_id.GT.0)
+    CPASSERT(.NOT.ASSOCIATED(atoms))
+    CPASSERT(.NOT.ASSOCIATED(cell))
 
     CALL f_env_get_from_id(env_id,f_env)
     nr_atoms = force_env_get_natom(f_env%force_env)
@@ -886,7 +885,7 @@ CONTAINS
          atoms(iparticle)%name = particles%els(iparticle)%atomic_kind%name
          atoms(iparticle)%mass = particles%els(iparticle)%atomic_kind%mass
        END DO
-       CPPostcondition(iparticle-1.EQ.nr_atoms,cp_failure_level,routineP,failure)
+       CPASSERT(iparticle-1.EQ.nr_atoms)
     ENDIF
   END SUBROUTINE get_atom_kinds_and_cell
 
@@ -913,12 +912,12 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(results,subsys)
-    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(env_id.GT.0)
 
     CALL f_env_get_from_id(env_id,f_env)
 
-    CPPostcondition(ASSOCIATED(f_env),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(f_env%force_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(f_env))
+    CPASSERT(ASSOCIATED(f_env%force_env))
     CALL cp_assert(ASSOCIATED(f_env%force_env%qs_env), &
                    cp_failure_level,cp_assertion_failed,routineP,&
                    "the intermediate SCF energy request can not be set "//&
@@ -957,12 +956,12 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(subsys,results)
-    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(env_id.GT.0)
 
     CALL f_env_get_from_id(env_id,f_env)
 
-    CPPostcondition(ASSOCIATED(f_env),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(f_env%force_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(f_env))
+    CPASSERT(ASSOCIATED(f_env%force_env))
     CALL cp_assert(ASSOCIATED(f_env%force_env%qs_env), &
                    cp_failure_level,cp_assertion_failed,routineP,&
                    "the SCF intermediate energy communicator can not be "//&

@@ -47,9 +47,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(ilist),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(ilist))
     ALLOCATE(ilist, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ilist%istart   = HUGE(0)
     ilist%iend     = HUGE(0)
     ilist%nel_list = HUGE(0)
@@ -74,9 +74,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(ilist),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ilist))
     DEALLOCATE(ilist, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE release_ilist_type
 
 END MODULE cp_parser_ilist_types

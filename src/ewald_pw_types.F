@@ -88,8 +88,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(ewald_pw),cp_failure_level,routineP,failure)
-    CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ewald_pw))
+    CPASSERT(ewald_pw%ref_count>0)
     ewald_pw%ref_count=ewald_pw%ref_count+1
   END SUBROUTINE ewald_pw_retain
 
@@ -117,7 +117,7 @@ CONTAINS
     NULLIFY ( dg )
     failure=.FALSE.
     ALLOCATE ( ewald_pw, stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY ( ewald_pw % pw_big_pool )
     NULLIFY ( ewald_pw % pw_small_pool )
     NULLIFY ( ewald_pw % rs_desc )
@@ -148,7 +148,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     IF (ASSOCIATED(ewald_pw)) THEN
-       CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(ewald_pw%ref_count>0)
        ewald_pw%ref_count=ewald_pw%ref_count-1
        IF (ewald_pw%ref_count<1) THEN
           CALL pw_pool_release ( ewald_pw % pw_small_pool)
@@ -157,7 +157,7 @@ CONTAINS
           CALL pw_poisson_release ( ewald_pw % poisson_env)
           CALL dg_release ( ewald_pw % dg)
           DEALLOCATE (  ewald_pw , stat = stat )
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY ( ewald_pw )
@@ -213,10 +213,10 @@ CONTAINS
     NULLIFY ( pw_big_grid )
     NULLIFY ( pw_small_grid, poisson_section )
 
-    CPPrecondition(ASSOCIATED ( ewald_pw ),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED ( ewald_env ),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED ( cell ),cp_failure_level,routineP,failure)
-    CPPrecondition(ewald_pw%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED ( ewald_pw ))
+    CPASSERT(ASSOCIATED ( ewald_env ))
+    CPASSERT(ASSOCIATED ( cell ))
+    CPASSERT(ewald_pw%ref_count>0)
     CALL ewald_env_get ( ewald_env = ewald_env,&
                          para_env = para_env, &
                          gmax = gmax, alpha = alpha,&
@@ -353,18 +353,18 @@ CONTAINS
     CASE ( do_ewald_none )
        ! No EWALD sums..
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     ! Poisson Environment
     IF (ASSOCIATED(ewald_pw%poisson_env)) THEN
        ALLOCATE(pw_pools(1),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        pw_pools(1)%pool => ewald_pw%pw_big_pool
        CALL pw_poisson_read_parameters(poisson_section, poisson_params)
        CALL pw_poisson_set(ewald_pw%poisson_env,cell_hmat=cell%hmat,parameters=poisson_params,&
             use_level=1,pw_pools=pw_pools)
        DEALLOCATE(pw_pools,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     END IF
     CALL timestop(handle)
   END SUBROUTINE ewald_pw_init

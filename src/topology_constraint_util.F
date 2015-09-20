@@ -181,7 +181,7 @@ CONTAINS
            topology%const_33   .OR. topology%const_46   .OR. &
            topology%const_colv ) THEN
           ALLOCATE(lci,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           NULLIFY(lci%lcolv)
           NULLIFY(lci%lg3x3)
           NULLIFY(lci%lg4x6)
@@ -189,7 +189,7 @@ CONTAINS
        CALL set_molecule(molecule,lci=lci)
     END DO
     ALLOCATE(gci,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(gci%lcolv,&
             gci%lg3x3,&
             gci%lg4x6,&
@@ -220,10 +220,10 @@ CONTAINS
        topology%const_colv = .TRUE.
        NULLIFY(atom_typeh, hdist)
        ALLOCATE(constr_x_mol(SIZE(molecule_kind_set)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, SIZE(molecule_kind_set)
           ALLOCATE(constr_x_mol(i)%constr(1),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           constr_x_mol(i)%constr(1) = 1
        END DO
        CALL section_vals_val_get(hbonds_section,"MOLECULE",n_rep_val=nrep)
@@ -266,7 +266,7 @@ CONTAINS
        IF (nrep/=0) &
             CALL section_vals_val_get(hbonds_section,"TARGETS",r_vals=hdist)
        IF (ASSOCIATED(hdist)) THEN
-          CPPostcondition(SIZE(hdist)==SIZE(atom_typeh),cp_failure_level,routineP,failure)
+          CPASSERT(SIZE(hdist)==SIZE(atom_typeh))
        END IF
        CALL section_vals_val_get(hbonds_section,"exclude_qm",l_val=exclude_qm)
        CALL section_vals_val_get(hbonds_section,"exclude_mm",l_val=exclude_mm)
@@ -392,10 +392,10 @@ CONTAINS
        END DO
        DO j = 1, SIZE(constr_x_mol)
           DEALLOCATE(constr_x_mol(j)%constr,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END DO
        DEALLOCATE(constr_x_mol,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     CALL timestop(handle2)
@@ -427,7 +427,7 @@ CONTAINS
                nmolecule=nmolecule, molecule_list=molecule_list)
           ncolv_mol = SIZE(constr_x_mol(ii)%constr)
           ALLOCATE(colv_list(ncolv_mol),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ! Starting index of the first molecule of this kind.
           ! We need the index if no target is provided in the input file
           ! for the collective variable.. The target will be computed on the
@@ -443,7 +443,7 @@ CONTAINS
              molecule => molecule_set(molecule_list(j))
              CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
              ALLOCATE(lcolv(ncolv_mol),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              CALL setup_lcolv(lcolv, constr_x_mol(ii)%constr, first_atom, last_atom,&
                   cons_info, particle_set, colvar_func_info, use_clv_info, cind)
              CALL set_molecule(molecule=molecule,lcolv=lcolv)
@@ -451,22 +451,22 @@ CONTAINS
        END DO
        DO j = 1, SIZE(constr_x_mol)
           DEALLOCATE(constr_x_mol(j)%constr,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END DO
        DEALLOCATE(constr_x_mol,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Intermolecular constraints
        ncolv_glob = 0
        IF (ASSOCIATED(constr_x_glob)) THEN
           ncolv_glob = SIZE(constr_x_glob)
           ALLOCATE(colv_list(ncolv_glob),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL setup_colv_list(colv_list, constr_x_glob, gind, cons_info,&
                topology, particle_set, restart_restraint_clv, colvar_rest,&
                first_atom=1)
           CALL setup_colvar_counters(colv_list,ncolv)
           ALLOCATE(lcolv(ncolv_glob),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL setup_lcolv(lcolv, constr_x_glob, 1, SIZE(particle_set), cons_info,&
                            particle_set, colvar_func_info, use_clv_info, cind)
           gci%colv_list => colv_list
@@ -475,7 +475,7 @@ CONTAINS
           ! Total number of Intermolecular constraints
           gci%ntot = gci%ncolv%ntot + gci%ntot
           DEALLOCATE(constr_x_glob,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
 
@@ -502,32 +502,32 @@ CONTAINS
                                  molecule_list=molecule_list)
           ng3x3 =  SIZE(constr_x_mol(ii)%constr)
           ALLOCATE(g3x3_list(ng3x3),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL setup_g3x3_list(g3x3_list, constr_x_mol(ii)%constr, cons_info, ng3x3_restraint)
           CALL set_molecule_kind(molecule_kind,ng3x3=ng3x3,ng3x3_restraint=ng3x3_restraint,g3x3_list=g3x3_list)
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
              CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
              ALLOCATE(lg3x3(ng3x3),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              CALL setup_lg3x3(lg3x3, g3x3_list, first_atom, last_atom)
              CALL set_molecule(molecule=molecule,lg3x3=lg3x3)
           END DO
        END DO
        DO j = 1, SIZE(constr_x_mol)
           DEALLOCATE(constr_x_mol(j)%constr,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END DO
        DEALLOCATE(constr_x_mol,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Intermolecular constraints
        IF (ASSOCIATED(constr_x_glob)) THEN
           ng3x3 =  SIZE(constr_x_glob)
           ALLOCATE(g3x3_list(ng3x3),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL setup_g3x3_list(g3x3_list, constr_x_glob, cons_info, ng3x3_restraint)
           ALLOCATE(lg3x3(ng3x3),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL setup_lg3x3(lg3x3, g3x3_list, first_atom,last_atom)
           gci%g3x3_list => g3x3_list
           gci%lg3x3     => lg3x3
@@ -536,7 +536,7 @@ CONTAINS
           ! Total number of Intermolecular constraints
           gci%ntot = 3*gci%ng3x3 + gci%ntot
           DEALLOCATE(constr_x_glob,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
 
@@ -562,32 +562,32 @@ CONTAINS
                nmolecule=nmolecule,molecule_list=molecule_list)
           ng4x6 = SIZE(constr_x_mol(ii)%constr)
           ALLOCATE(g4x6_list(ng4x6),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL setup_g4x6_list(g4x6_list, constr_x_mol(ii)%constr, cons_info, ng4x6_restraint)
           CALL set_molecule_kind(molecule_kind,ng4x6=ng4x6,ng4x6_restraint=ng4x6_restraint,g4x6_list=g4x6_list)
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
              CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
              ALLOCATE(lg4x6(ng4x6),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              CALL setup_lg4x6(lg4x6, g4x6_list, first_atom, last_atom)
              CALL set_molecule(molecule=molecule,lg4x6=lg4x6)
           END DO
        END DO
        DO j = 1, SIZE(constr_x_mol)
           DEALLOCATE(constr_x_mol(j)%constr,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END DO
        DEALLOCATE(constr_x_mol,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Intermolecular constraints
        IF (ASSOCIATED(constr_x_glob)) THEN
           ng4x6 =  SIZE(constr_x_glob)
           ALLOCATE(g4x6_list(ng4x6),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL setup_g4x6_list(g4x6_list, constr_x_glob, cons_info, ng4x6_restraint)
           ALLOCATE(lg4x6(ng4x6),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL setup_lg4x6(lg4x6, g4x6_list, first_atom,last_atom)
           gci%g4x6_list => g4x6_list
           gci%lg4x6     => lg4x6
@@ -596,7 +596,7 @@ CONTAINS
           ! Total number of Intermolecular constraints
           gci%ntot = 6*gci%ng4x6 + gci%ntot
           DEALLOCATE(constr_x_glob,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
 
@@ -622,22 +622,22 @@ CONTAINS
                nmolecule=nmolecule,molecule_list=molecule_list)
           nvsite = SIZE(constr_x_mol(ii)%constr)
           ALLOCATE(vsite_list(nvsite),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL setup_vsite_list(vsite_list, constr_x_mol(ii)%constr, cons_info, nvsite_restraint)
           CALL set_molecule_kind(molecule_kind,nvsite=nvsite,nvsite_restraint=nvsite_restraint,&
                vsite_list=vsite_list)
        END DO
        DO j = 1, SIZE(constr_x_mol)
           DEALLOCATE(constr_x_mol(j)%constr,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END DO
        DEALLOCATE(constr_x_mol,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Intermolecular constraints
        IF (ASSOCIATED(constr_x_glob)) THEN
           nvsite =  SIZE(constr_x_glob)
           ALLOCATE(vsite_list(nvsite),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL setup_vsite_list(vsite_list, constr_x_glob, cons_info, nvsite_restraint)
           gci%vsite_list => vsite_list
           gci%nvsite     = nvsite
@@ -645,7 +645,7 @@ CONTAINS
           ! Total number of Intermolecular constraints
           gci%ntot = gci%nvsite + gci%ntot
           DEALLOCATE(constr_x_glob,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
     CALL timestop(handle2)
@@ -656,10 +656,10 @@ CONTAINS
     !-----------------------------------------------------------------------------
     IF(topology%const_atom) THEN
        ALLOCATE(fixd_list_gci(SIZE(particle_set)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        nfixd_list_gci = 0
        ALLOCATE(missed_molname(SIZE(cons_info%fixed_molnames,1)),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        missed_molname=.TRUE.
        nfixd_restart = 0
        DO i=1,SIZE(molecule_kind_set)
@@ -707,7 +707,7 @@ CONTAINS
              END DO
           END DO
           ALLOCATE(fixd_list(nfixed_atoms),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           kk              = 0
           nfixd_restraint = 0
           IF (nfixed_atoms/=0) THEN
@@ -803,7 +803,7 @@ CONTAINS
                          fixd_list(kk)%restraint%k0     = cons_info%fixed_mol_k0(k1loc)
                       ELSE
                          ! Should never reach this point
-                         CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                         CPASSERT(.FALSE.)
                       END IF
                       IF (fixd_list(kk)%restraint%active) THEN
                          nfixd_restraint = nfixd_restraint+ 1
@@ -832,28 +832,28 @@ CONTAINS
                                  i_rep_val=nfixd_restart, r_vals=r)
                             SELECT CASE(itype)
                             CASE(use_perd_x)
-                               CPPostcondition(SIZE(r)==1,cp_failure_level,routineP,failure)
+                               CPASSERT(SIZE(r)==1)
                                fixd_list(kk)%coord(1) = r(1)
                             CASE(use_perd_y)
-                               CPPostcondition(SIZE(r)==1,cp_failure_level,routineP,failure)
+                               CPASSERT(SIZE(r)==1)
                                fixd_list(kk)%coord(2) = r(1)
                             CASE(use_perd_z)
-                               CPPostcondition(SIZE(r)==1,cp_failure_level,routineP,failure)
+                               CPASSERT(SIZE(r)==1)
                                fixd_list(kk)%coord(3) = r(1)
                             CASE(use_perd_xy)
-                               CPPostcondition(SIZE(r)==2,cp_failure_level,routineP,failure)
+                               CPASSERT(SIZE(r)==2)
                                fixd_list(kk)%coord(1) = r(1)
                                fixd_list(kk)%coord(2) = r(2)
                             CASE(use_perd_xz)
-                               CPPostcondition(SIZE(r)==2,cp_failure_level,routineP,failure)
+                               CPASSERT(SIZE(r)==2)
                                fixd_list(kk)%coord(1) = r(1)
                                fixd_list(kk)%coord(3) = r(2)
                             CASE(use_perd_yz)
-                               CPPostcondition(SIZE(r)==2,cp_failure_level,routineP,failure)
+                               CPASSERT(SIZE(r)==2)
                                fixd_list(kk)%coord(2) = r(1)
                                fixd_list(kk)%coord(3) = r(2)
                             CASE(use_perd_xyz)
-                               CPPostcondition(SIZE(r)==3,cp_failure_level,routineP,failure)
+                               CPASSERT(SIZE(r)==3)
                                fixd_list(kk)%coord(1:3) = r(1:3)
                             END SELECT
                          ELSE
@@ -861,34 +861,34 @@ CONTAINS
                             SELECT CASE(itype)
                             CASE(use_perd_x)
                                ALLOCATE(r(1),stat=stat)
-                               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                               CPASSERT(stat==0)
                                r(1) = fixd_list(kk)%coord(1)
                             CASE(use_perd_y)
                                ALLOCATE(r(1),stat=stat)
-                               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                               CPASSERT(stat==0)
                                r(1) = fixd_list(kk)%coord(2)
                             CASE(use_perd_z)
                                ALLOCATE(r(1),stat=stat)
-                               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                               CPASSERT(stat==0)
                                r(1) = fixd_list(kk)%coord(3)
                             CASE(use_perd_xy)
                                ALLOCATE(r(2),stat=stat)
-                               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                               CPASSERT(stat==0)
                                r(1) = fixd_list(kk)%coord(1)
                                r(2) = fixd_list(kk)%coord(2)
                             CASE(use_perd_xz)
                                ALLOCATE(r(2),stat=stat)
-                               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                               CPASSERT(stat==0)
                                r(1) = fixd_list(kk)%coord(1)
                                r(2) = fixd_list(kk)%coord(3)
                             CASE(use_perd_yz)
                                ALLOCATE(r(2),stat=stat)
-                               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                               CPASSERT(stat==0)
                                r(1) = fixd_list(kk)%coord(1)
                                r(2) = fixd_list(kk)%coord(3)
                             CASE(use_perd_xyz)
                                ALLOCATE(r(3),stat=stat)
-                               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                               CPASSERT(stat==0)
                                r(1:3) = fixd_list(kk)%coord(1:3)
                             END SELECT
                             CALL section_vals_val_set(fixd_restr_rest,"_DEFAULT_KEYWORD_",&
@@ -910,18 +910,18 @@ CONTAINS
        IF (iw>0) THEN
           WRITE(iw,*)"TOTAL NUMBER OF FIXED ATOMS:",nfixd_list_gci
        END IF
-       CPPostcondition(COUNT(missed_molname)==0,cp_failure_level,routineP,failure)
+       CPASSERT(COUNT(missed_molname)==0)
        DEALLOCATE(missed_molname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Intermolecular constraints
        IF (gci%ntot /=0) THEN
           ALLOCATE(fixd_list(nfixd_list_gci),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           fixd_list(1:nfixd_list_gci)=fixd_list_gci(1:nfixd_list_gci)
           gci%fixd_list=>fixd_list
        END IF
        DEALLOCATE(fixd_list_gci,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     ! Final setup of the number of possible restraints
     gci%nrestraint = gci%ng3x3_restraint +&
@@ -980,7 +980,7 @@ CONTAINS
        ncolv_mol = ncolv_mol + 1
        kdim = SIZE(cons_info%colvar_set(j)%colvar%i_atom)
        ALLOCATE(colv_list(ncolv_mol)%i_atoms(kdim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        colv_list(ncolv_mol)%inp_seq_num    = j
        colv_list(ncolv_mol)%type_id        = cons_info%colvar_set(j)%colvar%type_id
        colv_list(ncolv_mol)%i_atoms        = cons_info%colvar_set(j)%colvar%i_atom
@@ -1210,10 +1210,10 @@ CONTAINS
                   i_rep_val=cind, r_vals=r_vals)
              SELECT CASE(lcolv(kk)%colvar%type_id)
              CASE(xyz_diag_colvar_id)
-                CPPostcondition(SIZE(r_vals)==3,cp_failure_level,routineP,failure)
+                CPASSERT(SIZE(r_vals)==3)
                 lcolv(kk)%colvar%xyz_diag_param%r0=r_vals
              CASE(xyz_outerdiag_colvar_id)
-                CPPostcondition(SIZE(r_vals)==6,cp_failure_level,routineP,failure)
+                CPASSERT(SIZE(r_vals)==6)
                 lcolv(kk)%colvar%xyz_outerdiag_param%r0(:,1)=r_vals(1:3)
                 lcolv(kk)%colvar%xyz_outerdiag_param%r0(:,2)=r_vals(4:6)
              END SELECT
@@ -1221,13 +1221,13 @@ CONTAINS
              SELECT CASE(lcolv(kk)%colvar%type_id)
              CASE(xyz_diag_colvar_id)
                 ALLOCATE(r_vals(3),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ind=first_atom-1+lcolv(kk)%colvar%xyz_diag_param%i_atom
                 r_vals=particle_set(ind)%r
                 lcolv(kk)%colvar%xyz_diag_param%r0=r_vals
              CASE(xyz_outerdiag_colvar_id)
                 ALLOCATE(r_vals(6),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ind=first_atom-1+lcolv(kk)%colvar%xyz_outerdiag_param%i_atoms(1)
                 r_vals(1:3)=particle_set(ind)%r
                 ind=first_atom-1+lcolv(kk)%colvar%xyz_outerdiag_param%i_atoms(2)
@@ -1253,7 +1253,7 @@ CONTAINS
                "This could be very probable due to a wrong connectivity, or an error",&
                " in the constraint specification in the input file.",&
                " Please check it carefully!"
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
     END DO
   END SUBROUTINE setup_lcolv
@@ -1309,7 +1309,7 @@ CONTAINS
                "This could be very probable due to a wrong connectivity, or an error",&
                " in the constraint specification in the input file.",&
                " Please check it carefully!"
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
     END DO
 
@@ -1377,7 +1377,7 @@ CONTAINS
                "This could be very probable due to a wrong connectivity, or an error",&
                " in the constraint specification in the input file.",&
                " Please check it carefully!"
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
     END DO
 
@@ -1424,13 +1424,13 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(molecule_kind)
     ALLOCATE(constr_x_mol(SIZE(molecule_kind_set)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, SIZE(constr_x_mol)
        NULLIFY(constr_x_mol(i)%constr)
        ALLOCATE(constr_x_mol(i)%constr(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END DO
-    CPPostcondition(SIZE(const_mol)==SIZE(const_molname),cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(const_mol)==SIZE(const_molname))
     iglob = 0
     DO i = 1, SIZE(const_mol)
        IF (const_intermolecular(i)) THEN

@@ -104,7 +104,7 @@ CONTAINS
       iparticle_local, isos, lp, mp, nnodes, node, np, nparticle_kind, &
       nparticle_local
     INTEGER, DIMENSION(:, :), POINTER        :: bds
-    LOGICAL                                  :: atenergy, atstress, failure, &
+    LOGICAL                                  :: atenergy, atstress, &
                                                 use_charge_array
     REAL(KIND=dp)                            :: alpha, denom, e_igdotr, &
                                                 factor, four_alpha_sq, gauss, &
@@ -150,9 +150,9 @@ CONTAINS
     CALL structure_factor_allocate ( pw_grid % bounds, nnodes, exp_igr)
 
     ALLOCATE (summe(1:pw_grid%ngpts_cut),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     ALLOCATE (charge(1:nnodes),STAT=isos)
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
 
     ! Initializing vg_coulomb and fg_coulomb
     vg_coulomb = 0.0_dp
@@ -291,7 +291,7 @@ CONTAINS
     CALL structure_factor_deallocate ( exp_igr )
 
     DEALLOCATE ( charge, summe, STAT = isos )
-    CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+    CPASSERT(isos==0)
     NULLIFY ( charge )
 
     CALL timestop(handle)

@@ -119,7 +119,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(kpp1_env,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r,&
          kpp1_env%rho_set, &
          kpp1_env%deriv_set, kpp1_env%spin_pot, kpp1_env%grad_pot,&
@@ -195,12 +195,12 @@ CONTAINS
     logger => cp_get_default_logger()
     ionode = logger%para_env%mepos==logger%para_env%source
 
-    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(k_p_p1),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rho1),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpp1_env))
+    CPASSERT(ASSOCIATED(k_p_p1))
+    CPASSERT(ASSOCIATED(rho))
+    CPASSERT(ASSOCIATED(rho1))
 
-    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(kpp1_env%ref_count>0)
     CALL kpp1_check_i_alloc(kpp1_env,qs_env=qs_env)
     CALL get_qs_env(qs_env=qs_env,&
          pw_env=pw_env,&
@@ -212,7 +212,7 @@ CONTAINS
     gapw=(section_get_ival(input,"DFT%QS%METHOD")==do_method_gapw)
     gapw_xc=(section_get_ival(input,"DFT%QS%METHOD")==do_method_gapw_xc)
     IF(gapw_xc) THEN
-       CPPrecondition(ASSOCIATED(rho1_xc),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(rho1_xc))
     END IF
 
     nspins = SIZE(k_p_p1)
@@ -239,11 +239,11 @@ CONTAINS
     kpp1_env%iter=kpp1_env%iter+1
 
 ! gets the tmp grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
          pw_pools=pw_pools, poisson_env=poisson_env)
     ALLOCATE(v_rspace_new(nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL pw_pool_create_pw(auxbas_pw_pool,v_hartree_gspace%pw,&
          use_data = COMPLEXDATA1D,&
          in_space = RECIPROCALSPACE)
@@ -337,7 +337,7 @@ CONTAINS
                           auxbas_pw_pool)
 
     ALLOCATE(v_xc(nspins),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ispin=1, nspins
        NULLIFY(v_xc(ispin)%pw)
        CALL pw_pool_create_pw(auxbas_pw_pool,v_xc(ispin)%pw,&
@@ -360,7 +360,7 @@ CONTAINS
        v_rspace_new(ispin)%pw => v_xc(ispin)%pw
     END DO
     DEALLOCATE(v_xc,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env, qs_env, xc_section)
 
@@ -370,7 +370,7 @@ CONTAINS
        CALL pw_release(rho1_r_pw(ispin)%pw)
     END DO
     DEALLOCATE(rho1_r_pw, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     !-------------------------------!
     ! Add both hartree and xc terms !
@@ -496,7 +496,7 @@ CONTAINS
        CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw)
     END DO
     DEALLOCATE(v_rspace_new, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
   END SUBROUTINE kpp1_calc_k_p_p1
@@ -636,8 +636,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(pw_env,auxbas_pw_pool,matrix_s,rho,rho_r,input)
 
-    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,failure)
-    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpp1_env))
+    CPASSERT(kpp1_env%ref_count>0)
 
 
     CALL get_qs_env(qs_env, pw_env=pw_env,&
@@ -650,7 +650,7 @@ CONTAINS
 
     IF (.NOT.ASSOCIATED(kpp1_env%v_rspace)) THEN
        ALLOCATE(kpp1_env%v_rspace(nspins),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO ispin=1,nspins
           CALL pw_pool_create_pw(auxbas_pw_pool, &
                kpp1_env%v_rspace(ispin)%pw,&
@@ -679,7 +679,7 @@ CONTAINS
        IF (nspins==1.AND.(excitations==tddfpt_excitations.and.&
             (lsd_singlets .OR. res_etype == tddfpt_triplet))) THEN
           ALLOCATE(my_rho_r(2),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ispin=1,2
              CALL pw_pool_create_pw(auxbas_pw_pool,my_rho_r(ispin)%pw, &
                   use_data=rho_r(1)%pw%in_use, in_space=rho_r(1)%pw%in_space)
@@ -687,7 +687,7 @@ CONTAINS
           END DO
        ELSE
           ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ispin=1,SIZE(rho_r)
              my_rho_r(ispin)%pw => rho_r(ispin)%pw
              CALL pw_retain(my_rho_r(ispin)%pw)
@@ -714,7 +714,7 @@ CONTAINS
           CALL pw_release(my_rho_r(ispin)%pw)
        END DO
        DEALLOCATE(my_rho_r,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE kpp1_check_i_alloc
@@ -750,8 +750,8 @@ CONTAINS
     IF (PRESENT(s_struct_changed)) my_s_struct_changed=s_struct_changed
     IF (PRESENT(psi0_changed)) my_psi0_changed=psi0_changed
 
-    CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,failure)
-    CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(kpp1_env))
+    CPASSERT(kpp1_env%ref_count>0)
     IF (my_s_struct_changed) THEN
        IF (ASSOCIATED(kpp1_env%v_ao)) THEN
           CALL cp_dbcsr_deallocate_matrix_set(kpp1_env%v_ao)
@@ -760,7 +760,7 @@ CONTAINS
     IF (my_s_struct_changed.or.my_psi0_changed) THEN
        IF (ASSOCIATED(kpp1_env%drho_r)) THEN
           DEALLOCATE(kpp1_env%drho_r, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
           CALL xc_dset_release(kpp1_env%deriv_set)
@@ -768,15 +768,15 @@ CONTAINS
        END IF
        IF (ASSOCIATED(kpp1_env%spin_pot)) THEN
           DEALLOCATE(kpp1_env%spin_pot, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(kpp1_env%grad_pot)) THEN
           DEALLOCATE(kpp1_env%grad_pot, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(kpp1_env%ndiag_term)) THEN
           DEALLOCATE(kpp1_env%ndiag_term, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
        CALL xc_rho_set_release(kpp1_env%rho_set) ! it would be better to pass a pw pool
     END IF
@@ -787,7 +787,7 @@ CONTAINS
                 CALL pw_release(kpp1_env%v_rspace(i)%pw)
              END DO
              DEALLOCATE(kpp1_env%v_rspace,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
        END IF
     END IF

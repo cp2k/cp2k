@@ -70,7 +70,7 @@ CONTAINS
     failure=.FALSE.
     skip=.FALSE.
     IF(PRESENT(skip_recursive_colvar))skip=skip_recursive_colvar
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="COLVAR",&
          description="This section specifies the nature of the collective variables.",&
          n_keywords=1, n_subsections=1, repeats=.TRUE.)
@@ -114,7 +114,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY( keyword)
     CALL section_create(section,name="COLVAR_FUNC_INFO",&
          description="Specify further data possibly used by colvars, depending "//&
@@ -149,8 +149,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(subsection),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(subsection))
+    CPASSERT(ASSOCIATED(section))
 
     CALL create_colvar_dist_section(subsection)
     CALL section_add_subsection(section, subsection)
@@ -265,7 +265,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="coordination",&
          description="Section to define the coordination number as a collective variable.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -401,7 +401,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CONDITIONED_DISTANCE",&
          description="Section to define the conditioned distance as a collective variable.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -510,7 +510,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="population",&
          description="Section to define the population of specie as a collective variable.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -613,7 +613,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="GYRATION_RADIUS",&
          description="Section to define the gyration radius as a collective variable.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -660,7 +660,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DISTANCE_FUNCTION",&
          description="Section to define functions between two distances as collective variables."//&
          " The function is defined as d1+coeff*d2",&
@@ -718,7 +718,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="torsion",&
          description="Section to define the torsion as a collective variables.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -758,7 +758,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="bond_rotation",&
          description="Section to define the rotation of a bond/line with respect to"//&
               "another bond/line",&
@@ -823,7 +823,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="angle",&
          description="Section to define the angle as a collective variables.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -862,7 +862,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="distance",&
          description="Section to define the distance as a collective variables.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -909,7 +909,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="XYZ_DIAG",&
          description="Section to define the distance of an atom from its starting "//&
          "position ((X-X(0))^2+(Y-Y(0))^2+(Z-Z(0))^2) or part of its components as a collective variable."//&
@@ -976,7 +976,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="XYZ_OUTERDIAG",&
          description="Section to define the cross term (XA-XA(0))*(XB-XB(0))+(XA-XA(0))*(YB-YB(0))"//&
          " or part of its components as a collective variable. The final term is given by the product "//&
@@ -1045,7 +1045,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="u",&
          description="Section to define the energy as a generalized collective variable.",&
          n_keywords=0, n_subsections=0, repeats=.FALSE.)
@@ -1130,7 +1130,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="distance_point_plane",&
          description="Section to define the distance of a point from a plane "//&
          "as a collective variables.",&
@@ -1187,7 +1187,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="angle_plane_plane",&
          description="This section defines the angle between two planes "//&
          "as a collective variables.",&
@@ -1251,7 +1251,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="POINT",&
          description="Enables the possibility to use geometrical centers instead of single atoms"//&
          " to define colvars",&
@@ -1312,7 +1312,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="qparm",&
          description="Section to define the Q parameter (crystalline order parameter) as a collective variable.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -1381,7 +1381,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="hydronium",&
          description="Section to define the formation of a hydronium as a collective variable.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -1511,7 +1511,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="rmsd",&
          description="Section to define a CV as function of RMSD computed with respect to"//&
          " given reference configurations. For 2 configurations the colvar is equal to:"//&
@@ -1587,7 +1587,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="REACTION_PATH",&
          description="Section defining a one dimensional reaction path in an Q-dimensional space of colvars. "//&
          "Constraining this colvar, allows to sample the space orthogonal to the reaction path, "//&
@@ -1613,7 +1613,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DISTANCE_FROM_PATH",&
          description="Section defining the distance from a one dimensional reaction "//&
          "path in an Q-dimensional space of colvars. "//&
@@ -1787,7 +1787,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="COMBINE_COLVAR",&
          description="Allows the possibility to combine several COLVARs into one COLVAR "//&
          "with a generic function.",&
@@ -1870,7 +1870,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="coord",&
          description="The positions for "//TRIM(name)//" used for restart",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -1901,7 +1901,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="wc",&
          description="Section to define the hbond wannier centre as a collective variables.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -1949,7 +1949,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="hbp",&
          description="Section to define the hbond wannier centre as a collective variables.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -2012,7 +2012,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RING_PUCKERING",&
          description="Section to define general ring puckering collective variables.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)

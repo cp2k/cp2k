@@ -165,7 +165,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, success
+    LOGICAL                                  :: success
 
     success = .FALSE.
     DO i=1,SIZE(container)
@@ -177,7 +177,7 @@ CONTAINS
           EXIT
        END IF
     END DO
-    CPPostcondition(success,cp_failure_level,routineP,failure)
+    CPASSERT(success)
 
   END SUBROUTINE add_basis_set_to_container
 
@@ -197,11 +197,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: basis_nr, i, ibas
-    LOGICAL                                  :: failure
 
     IF(PRESENT(inum)) THEN
-       CPPrecondition(inum <= SIZE(container),cp_failure_level,routineP,failure)
-       CPPrecondition(inum >= 1,cp_failure_level,routineP,failure)
+       CPASSERT(inum <= SIZE(container))
+       CPASSERT(inum >= 1)
        ibas = inum
     ELSE IF(PRESENT(basis_type)) THEN
        basis_nr = get_basis_type(basis_type)
@@ -213,7 +212,7 @@ CONTAINS
           END IF
        END DO
     ELSE
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
     !
     IF(ibas /= 0) THEN
@@ -251,11 +250,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: basis_nr, i
-    LOGICAL                                  :: failure
 
     IF(PRESENT(inumbas)) THEN
-       CPPrecondition(inumbas <= SIZE(container),cp_failure_level,routineP,failure)
-       CPPrecondition(inumbas >= 1,cp_failure_level,routineP,failure)
+       CPASSERT(inumbas <= SIZE(container))
+       CPASSERT(inumbas >= 1)
        basis_set => container(inumbas)%basis_set
        IF(PRESENT(basis_type)) THEN
           basis_type = container(inumbas)%basis_type
@@ -270,7 +268,7 @@ CONTAINS
           END IF
        END DO
     ELSE
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
 
   END SUBROUTINE get_basis_from_container

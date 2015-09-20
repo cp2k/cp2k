@@ -136,9 +136,9 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
 
   failure=.FALSE.
 
-  CPPrecondition(.NOT.ASSOCIATED(val),cp_failure_level,routineP,failure)
+  CPASSERT(.NOT.ASSOCIATED(val))
   ALLOCATE(val,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   NULLIFY(val%l_val,val%i_val,val%r_val,val%c_val,val%enum)
   val%type_of_var=no_t
   last_val_id=last_val_id+1
@@ -152,7 +152,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
 !FM        CPPrecondition(.NOT.PRESENT(l_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
      ALLOCATE(val%l_val(1),stat=stat)
-     CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+     CPASSERT(stat==0)
      val%l_val(1)=l_val
      val%type_of_var=logical_t
   END IF
@@ -160,7 +160,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
 !FM        CPPrecondition(.NOT.PRESENT(l_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
      ALLOCATE(val%l_val(SIZE(l_vals)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      val%l_val=l_vals
      val%type_of_var=logical_t
   END IF
@@ -175,7 +175,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
 !FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
      ALLOCATE(val%r_val(1),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      val%r_val(1)=r_val
      val%type_of_var=real_t
   END IF
@@ -183,7 +183,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
 !FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
      ALLOCATE(val%r_val(SIZE(r_vals)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      val%r_val=r_vals
      val%type_of_var=real_t
   END IF
@@ -198,7 +198,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
 !FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
      ALLOCATE(val%i_val(1),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      val%i_val(1)=i_val
      val%type_of_var=integer_t
   END IF
@@ -206,7 +206,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
 !FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
      ALLOCATE(val%i_val(SIZE(i_vals)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      val%i_val=i_vals
      val%type_of_var=integer_t
   END IF
@@ -217,21 +217,21 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
   END IF
 
   IF (PRESENT(c_val)) THEN
-     CPPrecondition(LEN_TRIM(c_val)<=default_string_length,cp_failure_level,routineP,failure)
+     CPASSERT(LEN_TRIM(c_val)<=default_string_length)
 !FM        CPPrecondition(.NOT.PRESENT(c_vals),cp_failure_level,routineP,failure)
 !FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,failure)
      narg=narg+1
      ALLOCATE(val%c_val(1),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      val%c_val(1)=c_val
      val%type_of_var=char_t
   END IF
   IF (PRESENT(c_vals)) THEN
 !FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,failure)
-     CPPrecondition(ALL(LEN_TRIM(c_vals)<=default_string_length),cp_failure_level,routineP,failure)
+     CPASSERT(ALL(LEN_TRIM(c_vals)<=default_string_length))
      narg=narg+1
      ALLOCATE(val%c_val(SIZE(c_vals)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      val%c_val=c_vals
      val%type_of_var=char_t
   END IF
@@ -247,7 +247,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
      len_c=LEN_TRIM(lc_val)
      nVal=MAX(1,CEILING(REAL(len_c,dp)/80._dp))
      ALLOCATE(val%c_val(nVal),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
 
      IF (len_c == 0) THEN
         val%c_val(1) = ""
@@ -260,10 +260,10 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
      val%type_of_var=lchar_t
   END IF
   IF (PRESENT(lc_vals)) THEN
-     CPPrecondition(ALL(LEN_TRIM(lc_vals)<=default_string_length),cp_failure_level,routineP,failure)
+     CPASSERT(ALL(LEN_TRIM(lc_vals)<=default_string_length))
      narg=narg+1
      ALLOCATE(val%c_val(SIZE(lc_vals)),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      val%c_val=lc_vals
      val%type_of_var=lchar_t
   END IF
@@ -272,12 +272,12 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
      val%c_val => lc_vals_ptr
      val%type_of_var=lchar_t
   END IF
-  CPPostcondition(narg<=1,cp_failure_level,routineP,failure)
+  CPASSERT(narg<=1)
   IF (PRESENT(enum)) THEN
      IF (ASSOCIATED(enum)) THEN
         IF (val%type_of_var/=no_t.AND.val%type_of_var/=integer_t.AND.&
              val%type_of_var/=enum_t) THEN
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END IF
         IF (ASSOCIATED(val%i_val)) THEN
            val%type_of_var=enum_t
@@ -286,7 +286,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
         END IF
      END IF
   END IF
-  CPPostcondition(ASSOCIATED(val%enum).eqv.val%type_of_var==enum_t,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(val%enum).eqv.val%type_of_var==enum_t)
 END SUBROUTINE val_create
 
 ! *****************************************************************************
@@ -306,29 +306,29 @@ SUBROUTINE val_release(val)
   failure=.FALSE.
 
   IF (ASSOCIATED(val)) THEN
-     CPPreconditionNoFail(val%ref_count>0,cp_failure_level,routineP)
+     CPASSERT(val%ref_count>0)
      val%ref_count=val%ref_count-1
      IF (val%ref_count==0) THEN
         IF (ASSOCIATED(val%l_val)) THEN
            DEALLOCATE(val%l_val,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(val%i_val)) THEN
            DEALLOCATE(val%i_val,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(val%r_val)) THEN
            DEALLOCATE(val%r_val,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         IF (ASSOCIATED(val%c_val)) THEN
            DEALLOCATE(val%c_val,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END IF
         CALL enum_release(val%enum)
         val%type_of_var=no_t
         DEALLOCATE(val,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
   END IF
   NULLIFY(val)
@@ -349,8 +349,8 @@ SUBROUTINE val_retain(val)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(val),cp_failure_level,routineP,failure)
-  CPPreconditionNoFail(val%ref_count>0,cp_failure_level,routineP)
+  CPASSERT(ASSOCIATED(val))
+  CPASSERT(val%ref_count>0)
   val%ref_count=val%ref_count+1
 END SUBROUTINE val_retain
 
@@ -417,10 +417,10 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
         IF (SIZE(val%l_val)>0) THEN
            l_val=val%l_val(1)
         ELSE
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END IF
      ELSE
-        CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
      END IF
   END IF
 
@@ -430,10 +430,10 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
         IF (SIZE(val%i_val)>0) THEN
            i_val=val%i_val(1)
         ELSE
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END IF
      ELSE
-        CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
      END IF
   END IF
 
@@ -443,10 +443,10 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
         IF (SIZE(val%r_val)>0) THEN
            r_val=val%r_val(1)
         ELSE
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END IF
      ELSE
-        CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
      END IF
   END IF
 
@@ -476,16 +476,16 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
               c_val=val%c_val(1)
            END IF
         ELSE
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END IF
      ELSE IF (ASSOCIATED(val%i_val).AND.ASSOCIATED(val%enum)) THEN
         IF (SIZE(val%i_val)>0) THEN
            c_val=enum_i2c(val%enum,val%i_val(1))
         ELSE
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END IF
      ELSE
-        CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
      END IF
   END IF
 
@@ -568,7 +568,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
                    val%l_val(i)
            END DO
         ELSE
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END IF
      CASE (integer_t)
         IF (ASSOCIATED(val%i_val)) THEN
@@ -599,7 +599,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
              i = i + 1
            END DO loop_i
         ELSE
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END IF
      CASE (real_t)
         IF (ASSOCIATED(val%r_val)) THEN
@@ -616,7 +616,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
               WRITE(unit=unit_nr,fmt="(' ',A)",advance="NO")TRIM(rcval)
            END DO
         ELSE
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END IF
      CASE (char_t)
         IF (ASSOCIATED(val%c_val)) THEN
@@ -639,7 +639,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
               END IF
            END DO
         ELSE
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END IF
      CASE (lchar_t)
         IF (ASSOCIATED(val%c_val)) THEN
@@ -651,7 +651,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
               WRITE(unit=unit_nr,fmt='(a)',advance="NO") TRIM(val%c_val(SIZE(val%c_val)))
            END IF
         ELSE
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END IF
      CASE (enum_t)
         IF (ASSOCIATED(val%i_val)) THEN
@@ -668,7 +668,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
               WRITE(unit=unit_nr,fmt="(' ',a)",advance="NO") TRIM(c_string)
            END DO
         ELSE
-           CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         END IF
 
      CASE(no_t)
@@ -724,7 +724,7 @@ END SUBROUTINE val_write
             WRITE (UNIT=string(2*i-1:),FMT="(L2)") val%l_val(i)
           END DO
         ELSE
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
         END IF
       CASE (integer_t)
         IF (ASSOCIATED(val%i_val)) THEN
@@ -732,7 +732,7 @@ END SUBROUTINE val_write
             WRITE (UNIT=string(12*i-11:),FMT="(I12)") val%i_val(i)
           END DO
         ELSE
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
         END IF
       CASE (real_t)
         IF (ASSOCIATED(val%r_val)) THEN
@@ -748,7 +748,7 @@ END SUBROUTINE val_write
             END DO
           END IF
         ELSE
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
         END IF
       CASE (char_t)
         IF (ASSOCIATED(val%c_val)) THEN
@@ -758,13 +758,13 @@ END SUBROUTINE val_write
             ipos = ipos + LEN_TRIM(ADJUSTL(val%c_val(i))) + 1
           END DO
         ELSE
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
         END IF
       CASE (lchar_t)
         IF (ASSOCIATED(val%c_val)) THEN
           CALL val_get(val,c_val=string)
         ELSE
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
         END IF
       CASE (enum_t)
         IF (ASSOCIATED(val%i_val)) THEN
@@ -773,7 +773,7 @@ END SUBROUTINE val_write
             WRITE (UNIT=string,FMT="(A)") TRIM(ADJUSTL(enum_string))
           END DO
         ELSE
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
         END IF
       CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -801,10 +801,10 @@ SUBROUTINE val_duplicate(val_in,val_out)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  CPPrecondition(ASSOCIATED(val_in),cp_failure_level,routineP,failure)
-  CPPrecondition(.NOT.ASSOCIATED(val_out),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(val_in))
+  CPASSERT(.NOT.ASSOCIATED(val_out))
   ALLOCATE(val_out,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   last_val_id=last_val_id+1
   val_out%id_nr=last_val_id
   val_out%type_of_var=val_in%type_of_var
@@ -815,22 +815,22 @@ SUBROUTINE val_duplicate(val_in,val_out)
   NULLIFY(val_out%l_val,val_out%i_val,val_out%c_val,val_out%r_val)
   IF (ASSOCIATED(val_in%l_val)) THEN
      ALLOCATE(val_out%l_val(SIZE(val_in%l_val)),stat=stat)
-     CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+     CPASSERT(stat==0)
      val_out%l_val=val_in%l_val
   END IF
   IF (ASSOCIATED(val_in%i_val)) THEN
      ALLOCATE(val_out%i_val(SIZE(val_in%i_val)),stat=stat)
-     CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+     CPASSERT(stat==0)
      val_out%i_val=val_in%i_val
   END IF
   IF (ASSOCIATED(val_in%r_val)) THEN
      ALLOCATE(val_out%r_val(SIZE(val_in%r_val)),stat=stat)
-     CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+     CPASSERT(stat==0)
      val_out%r_val=val_in%r_val
   END IF
   IF (ASSOCIATED(val_in%c_val)) THEN
      ALLOCATE(val_out%c_val(SIZE(val_in%c_val)),stat=stat)
-     CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+     CPASSERT(stat==0)
      val_out%c_val=val_in%c_val
   END IF
 END SUBROUTINE val_duplicate

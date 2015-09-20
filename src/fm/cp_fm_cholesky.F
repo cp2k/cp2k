@@ -65,7 +65,7 @@ CONTAINS
     my_n = MIN(matrix%matrix_struct%nrow_global,&
          matrix%matrix_struct%ncol_global)
     IF (PRESENT(n)) THEN
-       CPPrecondition(n<=my_n,cp_failure_level,routineP,failure)
+       CPASSERT(n<=my_n)
        my_n=n
     END IF
 
@@ -94,7 +94,7 @@ CONTAINS
     IF (PRESENT(info_out)) THEN
       info_out = info
     ELSE
-      CPPostcondition(info==0,cp_failure_level,routineP,failure)
+      CPASSERT(info==0)
     END IF
 
     CALL timestop(handle)
@@ -131,7 +131,7 @@ CONTAINS
     my_n = MIN(matrix%matrix_struct%nrow_global,&
          matrix%matrix_struct%ncol_global)
     IF (PRESENT(n)) THEN
-       CPPrecondition(n<=my_n,cp_failure_level,routineP,failure)
+       CPASSERT(n<=my_n)
        my_n=n
     END IF
 
@@ -158,7 +158,7 @@ CONTAINS
 
 #endif
 
-    CPPostcondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
 
     CALL timestop(handle)
 
@@ -223,7 +223,7 @@ CPSourceFileRef,&
 
 #endif
 
-    CPPostcondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
 
     CALL timestop(handle)
 

@@ -107,9 +107,9 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dimer_section, rot_opt_section
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(gopt_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(gopt_env))
     ALLOCATE (gopt_env,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     nshell = 0
 
     NULLIFY (gopt_env%dimer_env, gopt_env%gopt_dimer_env, gopt_env%gopt_dimer_param, gopt_env%cell_env)
@@ -194,8 +194,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(gopt_env%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(gopt_env))
+    CPASSERT(gopt_env%ref_count>0)
     gopt_env%ref_count=gopt_env%ref_count+1
   END SUBROUTINE gopt_f_retain
 
@@ -217,7 +217,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(gopt_env)) THEN
-       CPPreconditionNoFail(gopt_env%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(gopt_env%ref_count>0)
        gopt_env%ref_count=gopt_env%ref_count-1
        IF (gopt_env%ref_count==0) THEN
           CALL force_env_release(gopt_env%force_env)
@@ -230,7 +230,7 @@ CONTAINS
           CALL gopt_f_release(gopt_env%gopt_dimer_env)
           CALL gopt_param_release(gopt_env%gopt_dimer_param)
           DEALLOCATE(gopt_env, stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE gopt_f_release

@@ -97,10 +97,10 @@ CONTAINS
     CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_global=nmo)
 
     ALLOCATE(csc_diag(nmo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ALLOCATE(chc_diag(nmo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! storage matrix of size mos x mos, only the diagonal elements are used
     CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=nmo,ncol_global=nmo, &
@@ -204,13 +204,13 @@ CONTAINS
     END IF
 
     ALLOCATE(iconv(nmo), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(inotconv(nmo), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(ritz_coeff(nmo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(vnorm(nmo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     converged=.FALSE.
     DO iter = 1, max_iter
@@ -263,9 +263,9 @@ CONTAINS
 
       IF(nmo_converged>0) THEN
         ALLOCATE(iconv_set(nmo_converged,2), STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
         ALLOCATE(inotconv_set(nmo_not_converged,2), STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
         i_last = iconv(1)
         nset = 0
         DO j = 1,nmo_converged
@@ -541,13 +541,13 @@ CONTAINS
     END DO  ! iter
 
     DEALLOCATE(iconv,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(inotconv,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(ritz_coeff,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(vnorm,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
   END SUBROUTINE generate_extended_space
@@ -623,13 +623,13 @@ CONTAINS
 
     ! Allocate array for Ritz values
     ALLOCATE(ritz_coeff(nmo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(iconv(nmo), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(inotconv(nmo), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(vnorm(nmo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     converged=.FALSE.
     DO iter = 1, max_iter
@@ -699,9 +699,9 @@ CONTAINS
 
       IF(nmo_converged>0) THEN
         ALLOCATE(iconv_set(nmo_converged,2), STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
         ALLOCATE(inotconv_set(nmo_not_converged,2), STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
         i_last = iconv(1)
         nset = 0
         DO j = 1,nmo_converged
@@ -744,10 +744,10 @@ CONTAINS
 
       IF(REAL(nmo_converged,dp)/REAL(nmo,dp)>bdav_env%conv_percent) THEN
         DEALLOCATE(iconv_set,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
 
         DEALLOCATE (inotconv_set,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
 
         converged=.TRUE.
         t2 = m_walltime()
@@ -819,7 +819,7 @@ CONTAINS
 
         ! extract mo_notconv from mo_coeff full matrix
         ALLOCATE(eig_not_conv(nmo_not_converged),STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
 
         jj=1
         DO j=1,nset_not_conv
@@ -860,7 +860,7 @@ CONTAINS
         CALL cp_dbcsr_add(matrix_z,matrix_hc,-1.0_dp,1.0_dp)
 
         DEALLOCATE(eig_not_conv,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
 
 
         ! matrix_mm
@@ -1000,9 +1000,9 @@ CONTAINS
            jj=jj+n
          END DO
          DEALLOCATE(iconv_set,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          DEALLOCATE (inotconv_set,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
 
          CALL cp_dbcsr_release_p(mo_notconv)
          CALL cp_dbcsr_release_p(c_out)
@@ -1012,7 +1012,7 @@ CONTAINS
          eigenvalues(1:nmo) = evals(1:nmo)
       END IF
       DEALLOCATE(evals,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
       CALL cp_fm_release(matrix_nm_fm)
       CALL copy_fm_to_dbcsr(mo_coeff,mo_coeff_b)!fm->dbcsr
@@ -1029,13 +1029,13 @@ CONTAINS
 
 
     DEALLOCATE(ritz_coeff,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(iconv,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(inotconv,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(vnorm,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 

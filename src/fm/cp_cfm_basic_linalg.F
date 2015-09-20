@@ -151,8 +151,8 @@ CONTAINS
     IF(PRESENT(beta)) my_beta=beta
     NULLIFY(a,b)
 
-    CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,failure)
-    CPPrecondition(matrix_a%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_a))
+    CPASSERT(matrix_a%ref_count>0)
     ! to do: use dscal,dcopy,daxp
     myprow=matrix_a%matrix_struct%context%mepos(1)
     mypcol=matrix_a%matrix_struct%context%mepos(2)
@@ -170,9 +170,9 @@ CONTAINS
        END IF
 
     ELSE
-       CPPrecondition(PRESENT(matrix_b),cp_failure_level,routineP,failure)
-       CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,failure)
-       CPPrecondition(matrix_b%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(matrix_b))
+       CPASSERT(ASSOCIATED(matrix_b))
+       CPASSERT(matrix_b%ref_count>0)
        CALL cp_assert(matrix_a%matrix_struct%context%group==&
             matrix_b%matrix_struct%context%group,cp_failure_level,&
             cp_assertion_failed,fromWhere=routineP,&
@@ -205,7 +205,7 @@ CPSourceFileRef,&
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="to do (pdscal,pdcopy,pdaxpy)")
 #else
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
 #endif
        END IF
     END IF
@@ -243,7 +243,7 @@ CPSourceFileRef,&
     failure=.FALSE.
     NULLIFY(a,b)
 
-    CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_a))
     myprow=matrix_a%matrix_struct%context%mepos(1)
     mypcol=matrix_a%matrix_struct%context%mepos(2)
 
@@ -260,7 +260,7 @@ CPSourceFileRef,&
        END IF
 
     ELSE
-       CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(matrix_b))
        CALL cp_assert(matrix_a%matrix_struct%context%group==&
             matrix_b%matrix_struct%context%group,cp_failure_level,&
             cp_assertion_failed,fromWhere=routineP,&
@@ -293,7 +293,7 @@ CPSourceFileRef,&
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="to do (pdscal,pdcopy,pdaxpy)")
 #else
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
 #endif
        END IF
     END IF
@@ -610,7 +610,7 @@ CPSourceFileRef,&
     my_n = MIN(matrix%matrix_struct%nrow_global,&
          matrix%matrix_struct%ncol_global)
     IF (PRESENT(n)) THEN
-       CPPrecondition(n<=my_n,cp_failure_level,routineP,failure)
+       CPASSERT(n<=my_n)
        my_n=n
     END IF
 
@@ -626,7 +626,7 @@ CPSourceFileRef,&
 
 #endif
 
-    CPPostcondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
 
     CALL timestop(handle)
 

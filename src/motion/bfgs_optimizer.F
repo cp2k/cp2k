@@ -178,7 +178,7 @@ CONTAINS
     CALL cp_fm_create(hess_tmp, fm_struct_hes,name="hess_tmp")
     CALL cp_fm_create(eigvec_mat, fm_struct_hes,name="eigvec_mat")
     ALLOCATE (eigval(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     eigval(:) = 0.0_dp
 
     CALL force_env_get(force_env=force_env,subsys=subsys)
@@ -215,31 +215,31 @@ CONTAINS
     END IF
 
     ALLOCATE (xold(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     xold(:) = x0(:)
 
     ALLOCATE (g(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     g(:) = 0.0_dp
 
     ALLOCATE (gold(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     gold(:) = 0.0_dp
 
     ALLOCATE (dx(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     dx(:) = 0.0_dp
 
     ALLOCATE (dg(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     dg(:) = 0.0_dp
 
     ALLOCATE (work(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     work(:) = 0.0_dp
 
     ALLOCATE (dr(ndf),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     dr(:) = 0.0_dp
 
     ! refernce cell needed for smooth cell optimizations
@@ -360,21 +360,21 @@ CONTAINS
 
     CALL cp_blacs_env_release(blacs_env)
     DEALLOCATE (xold,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (g,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (gold,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (dx,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (dg,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (eigval,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (dr,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL cp_print_key_finished_output(output_unit,logger,geo_section,&
          "PRINT%PROGRAM_RUN_INFO")
@@ -994,15 +994,15 @@ CONTAINS
             local_data=local_data,nrow_local=nrow_local,ncol_local=ncol_local)
      natom=particles%n_els
      ALLOCATE(at_row(natom),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(rho_ij(natom,natom),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(d_ij(natom,natom),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(r_ij(natom,natom,3),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(fixed(3,natom),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      fixed=1.0_dp
      CALL fix_atom_control( force_env,fixed)
      DO i=1,3
@@ -1068,15 +1068,15 @@ CONTAINS
         END DO
      END DO
      DEALLOCATE(fixed,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      DEALLOCATE(rho_ij,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      DEALLOCATE(d_ij,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      DEALLOCATE(r_ij,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      DEALLOCATE(at_row,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
 
   END SUBROUTINE  construct_initial_hess
 

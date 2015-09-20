@@ -125,7 +125,7 @@ CONTAINS
 
     rho0_h_tot = 0.0_dp
     ALLOCATE(rho1_h_tot(1:nspins), rho1_s_tot(1:nspins),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     rho1_h_tot = 0.0_dp
     rho1_s_tot = 0.0_dp
 
@@ -179,7 +179,7 @@ CONTAINS
     END IF
 
    DEALLOCATE(rho1_h_tot,rho1_s_tot,STAT=istat)
-   CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+   CPASSERT(istat==0)
 
    CALL timestop(handle)
 

@@ -101,12 +101,12 @@ CONTAINS
           s_square = 0.0_dp
           s_square_ideal = 0.0_dp
           ! let's not do this
-          CPPrecondition(PRESENT(mo_derivs),cp_failure_level,routineP,failure)
+          CPASSERT(PRESENT(mo_derivs))
     CASE (2)
           CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=c_alpha,homo=nalpha,uniform_occupation=uniform_occupation)
-          CPPrecondition(uniform_occupation,cp_warning_level,routineP,failure)
+          IF(.NOT.uniform_occupation) CPWARN("Found non-uniform occupation")
           CALL get_mo_set(mo_set=mos(2)%mo_set,mo_coeff=c_beta,homo=nbeta,uniform_occupation=uniform_occupation)
-          CPPrecondition(uniform_occupation,cp_warning_level,routineP,failure)
+          IF(.NOT.uniform_occupation) CPWARN("Found non-uniform occupation")
           CALL cp_fm_get_info(c_alpha,ncol_global=na)
           CALL cp_fm_get_info(c_beta,ncol_global=nb)
           s_square_ideal = REAL((nalpha - nbeta)*(nalpha - nbeta + 2),KIND=dp)/4.0_dp
@@ -136,11 +136,11 @@ CONTAINS
           s_square = s_square_ideal + nb - tmp
           IF (PRESENT(mo_derivs)) THEN
             ! this gets really wrong for fractional occupations
-            CPPrecondition(SIZE(mo_derivs,1)==2,cp_failure_level,routineP,failure)
+            CPASSERT(SIZE(mo_derivs,1)==2)
             CALL get_mo_set(mo_set=mos(1)%mo_set,uniform_occupation=uniform_occupation)
-            CPPrecondition(uniform_occupation,cp_failure_level,routineP,failure)
+            CPASSERT(uniform_occupation)
             CALL get_mo_set(mo_set=mos(2)%mo_set,uniform_occupation=uniform_occupation)
-            CPPrecondition(uniform_occupation,cp_failure_level,routineP,failure)
+            CPASSERT(uniform_occupation)
             CALL cp_gemm('N','T',nrow,na,nb,-1.0_dp*strength,matrix_sc_b,matrix_overlap,1.0_dp,mo_derivs(1)%matrix)
             CALL cp_fm_release(matrix_sc_b)
             CALL cp_fm_get_info(c_alpha, matrix_struct=fm_struct_tmp)
@@ -206,9 +206,9 @@ CONTAINS
        energy= s2_restraint_control%strength*(s_square-s2_restraint_control%target)
        s2_restraint_control%s2_order_p=s_square
     CASE(do_s2_restraint) ! not yet implemented
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     CASE DEFAULT
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     CALL timestop(handle)

@@ -80,8 +80,8 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineP,failure)
-    CPPrecondition(input_file%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(input_file))
+    CPASSERT(input_file%ref_count>0)
     ! ext_restart
     IF(PRESENT(output_unit)) &
        CALL handle_ext_restart(input_declaration, input_file,para_env,output_unit)
@@ -372,7 +372,7 @@ CONTAINS
                       ! Copy over also the information on the multiple_unit_cell
                       CALL section_vals_val_get(section1,"TOPOLOGY%MULTIPLE_UNIT_CELL",i_vals=ivec)
                       ALLOCATE(iwork(3),stat=stat)
-                      CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                      CPASSERT(stat==0)
                       iwork=ivec
                       CALL section_vals_val_set(section2,"TOPOLOGY%MULTIPLE_UNIT_CELL",i_vals_ptr=iwork)
                    END IF
@@ -439,7 +439,7 @@ CONTAINS
                 CALL set_restart_info("QMMM TRANSLATION VECTOR",restarted_infos)
                 CALL section_vals_val_get(section1,"INITIAL_TRANSLATION_VECTOR",r_vals=vec)
                 ALLOCATE(work(3),stat=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 work = vec
                 CALL section_vals_val_set(section2,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work)
              END IF
@@ -637,7 +637,7 @@ CONTAINS
              CALL section_vals_val_get(restart_file,"MOTION%FREE_ENERGY%METADYN%MULTIPLE_WALKERS%WALKERS_STATUS",&
                   i_vals=rwalkers_status)
              ALLOCATE(iwalkers_status(SIZE(rwalkers_status)),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              iwalkers_status = rwalkers_status
              CALL section_vals_val_set(input_file,"MOTION%FREE_ENERGY%METADYN%MULTIPLE_WALKERS%WALKERS_STATUS",&
                   i_vals_ptr=iwalkers_status)
@@ -860,7 +860,7 @@ CONTAINS
     END IF
     IF (ASSOCIATED(restarted_infos)) THEN
        DEALLOCATE(restarted_infos,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE release_restart_info
 

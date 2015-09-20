@@ -79,9 +79,9 @@ CPSourceFileRef,&
        ELSE
           my_stride = stride(1:3)
        END IF
-       CPPrecondition(my_stride(1)>0,cp_failure_level,routineP,failure)
-       CPPrecondition(my_stride(2)>0,cp_failure_level,routineP,failure)
-       CPPrecondition(my_stride(3)>0,cp_failure_level,routineP,failure)
+       CPASSERT(my_stride(1)>0)
+       CPASSERT(my_stride(2)>0)
+       CPASSERT(my_stride(3)>0)
     END IF
 
     IF (unit_nr>0) THEN
@@ -94,10 +94,10 @@ CPSourceFileRef,&
          WRITE(unit_nr,*) "No Title"
       ENDIF
 
-      CPPrecondition(PRESENT(particles_z) .EQV. PRESENT(particles_r),cp_failure_level,routineP,failure)
+      CPASSERT(PRESENT(particles_z) .EQV. PRESENT(particles_r))
       np=0
       IF(PRESENT(particles_z)) THEN
-         CPPrecondition(SIZE(particles_z) == SIZE(particles_r, dim=2),cp_failure_level,routineP,failure)
+         CPASSERT(SIZE(particles_z) == SIZE(particles_r, dim=2))
          ! cube files can only be written for 99999 particles due to a format limitation (I5)
          ! so we limit the number of particles written.
          np=MIN(99999,SIZE(particles_z))
@@ -131,7 +131,7 @@ CPSourceFileRef,&
     U3=pw%pw_grid%bounds(2,3)
 
     ALLOCATE(buf(L3:U3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     my_rank     = pw%pw_grid%para%my_pos
     gid         = pw%pw_grid%para%group
@@ -144,10 +144,10 @@ CPSourceFileRef,&
     IF (unit_nr>0) checksum=1
 
     CALL mp_sum(checksum,gid)
-    CPPostcondition(checksum==1,cp_failure_level,routineP,failure)
+    CPASSERT(checksum==1)
 
     CALL mp_maxloc(rank,gid)
-    CPPostcondition(rank(1)>0,cp_failure_level,routineP,failure)
+    CPASSERT(rank(1)>0)
 
     dest = rank(2)
     DO I1=L1,U1,my_stride(1)

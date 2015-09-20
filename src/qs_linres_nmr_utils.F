@@ -144,7 +144,7 @@ CONTAINS
        CALL parser_get_next_line(parser,1)
        CALL parser_get_object(parser,nmr_env%n_nics)
        ALLOCATE(nmr_env%r_nics(3,nmr_env%n_nics),STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL parser_get_next_line(parser,2)
        DO j = 1,nmr_env%n_nics
           CALL parser_get_object(parser,label)
@@ -176,7 +176,7 @@ CONTAINS
     !ENDIF
     !
     ! check that the psi0 are localized and you have all the centers
-    CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,failure)
+    CPASSERT(linres_control%localized_psi0)
     IF(failure .AND. (output_unit>0)) THEN
        WRITE(output_unit,'(A)') &
             ' To get NMR parameters within PBC you need localized zero order orbitals '
@@ -216,7 +216,7 @@ CONTAINS
     ENDIF
 
     ALLOCATE (nmr_env%do_calc_cs_atom(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     nmr_env%do_calc_cs_atom = 0
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
@@ -230,7 +230,7 @@ CONTAINS
        nat_print = bounds(2) - bounds(1)  + 1
        IF(nat_print > 0) THEN
           ALLOCATE(nmr_env%cs_atom_list(nat_print),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           DO ir = 1,nat_print
              nmr_env%cs_atom_list(ir) = bounds(1) + (ir-1)
              nmr_env%do_calc_cs_atom(bounds(1) + (ir-1)) = 1
@@ -258,7 +258,7 @@ CONTAINS
 
        IF(.NOT. ASSOCIATED(nmr_env%cs_atom_list)) THEN
           ALLOCATE(nmr_env%cs_atom_list(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           DO ir = 1,natom
              nmr_env%cs_atom_list(ir) = ir
           ENDDO
@@ -266,7 +266,7 @@ CONTAINS
        ENDIF
        !
        ! check the list
-       CPPostcondition(ASSOCIATED(nmr_env%cs_atom_list),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(nmr_env%cs_atom_list))
        DO ir = 1,SIZE(nmr_env%cs_atom_list,1)
           IF(nmr_env%cs_atom_list(ir).LT.1.OR.nmr_env%cs_atom_list(ir).GT.natom) THEN
              CALL stop_program(routineN,moduleN,__LINE__,"Unknown atom(s)")
@@ -295,13 +295,13 @@ CONTAINS
     ! Initialize the chemical shift tensor
     ALLOCATE(nmr_env%chemical_shift(3,3,natom),&
              nmr_env%chemical_shift_loc(3,3,natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     nmr_env%chemical_shift = 0.0_dp
     nmr_env%chemical_shift_loc = 0.0_dp
     IF(nmr_env%do_nics) THEN
        ALLOCATE(nmr_env%chemical_shift_nics_loc(3,3,nmr_env%n_nics),&
                 nmr_env%chemical_shift_nics(3,3,nmr_env%n_nics),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        nmr_env%chemical_shift_nics_loc = 0.0_dp
        nmr_env%chemical_shift_nics = 0.0_dp
     ENDIF
@@ -343,24 +343,24 @@ CONTAINS
        !chemical_shift
        IF(ASSOCIATED(nmr_env%chemical_shift)) THEN
           DEALLOCATE(nmr_env%chemical_shift,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
        IF(ASSOCIATED(nmr_env%chemical_shift_loc)) THEN
           DEALLOCATE(nmr_env%chemical_shift_loc,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
        ! nics
        IF(ASSOCIATED(nmr_env%r_nics)) THEN
           DEALLOCATE(nmr_env%r_nics,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
        IF(ASSOCIATED(nmr_env%chemical_shift_nics)) THEN
           DEALLOCATE(nmr_env%chemical_shift_nics,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
        IF(ASSOCIATED(nmr_env%chemical_shift_nics_loc)) THEN
           DEALLOCATE(nmr_env%chemical_shift_nics_loc,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
     END IF  ! ref count
 

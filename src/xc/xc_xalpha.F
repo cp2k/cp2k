@@ -171,10 +171,10 @@ ELSE
 
     CALL section_vals_val_get(xa_params,"scale_x",r_val=sx)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
+    CPASSERT(ASSOCIATED(deriv_set))
+    CPASSERT(deriv_set%ref_count>0)
     CALL xc_rho_set_get(rho_set,rho_1_3=r13,rho=rho,&
          local_bounds=bo,rho_cutoff=epsilon_rho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
@@ -257,10 +257,10 @@ ELSE
 
     CALL section_vals_val_get(xa_params,"scale_x",r_val=sx)
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
+    CPASSERT(ASSOCIATED(deriv_set))
+    CPASSERT(deriv_set%ref_count>0)
     CALL xc_rho_set_get(rho_set,rhoa_1_3=rho_1_3(1)%array,&
          rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
          rhob=rho(2)%array, rho_cutoff=epsilon_rho,&

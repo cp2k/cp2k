@@ -104,9 +104,9 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPreconditionNoFail(.NOT.ASSOCIATED(ks_qmmm_env),cp_failure_level,routineP)
+    CPASSERT(.NOT.ASSOCIATED(ks_qmmm_env))
     ALLOCATE(ks_qmmm_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY( ks_qmmm_env%pw_env,&
              ks_qmmm_env%cube_info)
@@ -129,7 +129,7 @@ CONTAINS
        CALL init_d3_poly_module() ! a fairly arbitrary but sufficient spot to do this
        CALL pw_env_get(ks_qmmm_env%pw_env,pw_pools=pools)
        ALLOCATE(cube_info(SIZE(pools)), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO igrid=1,SIZE(pools)
           CALL init_cube_info(cube_info(igrid),&
             pools(igrid)%pool%pw_grid%dr(:),&
@@ -176,7 +176,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho))
     NULLIFY(dft_control,input,logger)
     logger => cp_get_default_logger()
 
@@ -197,7 +197,7 @@ CONTAINS
     IF(dft_control%qs_control%gapw) THEN
       CALL get_qs_env(qs_env=qs_env,&
                     rho0_s_rs=rho0_s_rs)
-       CPPrecondition(ASSOCIATED(rho0_s_rs),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(rho0_s_rs))
        qmmm_energy = qmmm_energy + pw_integral_ab (rho0_s_rs%pw, v_qmmm%pw)
     END IF
 

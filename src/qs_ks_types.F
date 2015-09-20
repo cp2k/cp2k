@@ -785,7 +785,7 @@ END SUBROUTINE qs_ks_env_create
     failure=.FALSE.
 
     IF (ASSOCIATED(ks_env)) THEN
-       CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(ks_env%ref_count>0)
        ks_env%ref_count=ks_env%ref_count-1
 
        IF (ks_env%ref_count<1) THEN
@@ -932,8 +932,8 @@ SUBROUTINE qs_ks_retain(ks_env)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,failure)
-  CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(ks_env))
+  CPASSERT(ks_env%ref_count>0)
   ks_env%ref_count=ks_env%ref_count+1
 END SUBROUTINE qs_ks_retain
 
@@ -970,7 +970,7 @@ END SUBROUTINE qs_ks_retain
     failure = .FALSE.
     my_mstruct_chg = .FALSE.
 
-    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ks_env))
 
     IF (PRESENT(rho_changed)) THEN
        IF (rho_changed) ks_env%rho_changed = .TRUE.

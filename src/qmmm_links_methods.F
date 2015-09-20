@@ -57,7 +57,7 @@ CONTAINS
 
     failure = .FALSE.
     n_imomm = SIZE(qmmm_links%imomm)
-    CPPrecondition(n_imomm /= 0,cp_failure_level,routineP,failure)
+    CPASSERT(n_imomm /= 0)
     DO ilink = 1, n_imomm
        my_link => qmmm_links%imomm(ilink)%link
        qm_index = my_link%qm_index
@@ -112,7 +112,7 @@ CPSourceFileRef,&
 
     failure = .FALSE.
     n_imomm = SIZE(qmmm_links%imomm)
-    CPPrecondition(n_imomm /= 0,cp_failure_level,routineP,failure)
+    CPASSERT(n_imomm /= 0)
     DO ilink = 1, n_imomm
        my_link => qmmm_links%imomm(ilink)%link
        qm_index = my_link%qm_index

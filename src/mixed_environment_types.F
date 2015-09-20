@@ -161,7 +161,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY( atomic_kinds, particles, molecules_new, molecule_kinds_new )
-    CPPrecondition(ASSOCIATED(mixed_env%subsys),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mixed_env%subsys))
 
     IF ( PRESENT ( input ) ) input => mixed_env%input
     IF ( PRESENT ( cell_ref ) ) cell_ref => mixed_env % cell_ref
@@ -263,7 +263,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
-    CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(mixed_env%ref_count>0)
 
     IF (PRESENT(cell_ref)) THEN
        CALL cell_retain(cell_ref)
@@ -342,7 +342,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(mixed_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL init_mixed_env(mixed_env,para_env=para_env)
   END SUBROUTINE mixed_env_create
 
@@ -361,8 +361,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(mixed_env),cp_failure_level,routineP,failure)
-    CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mixed_env))
+    CPASSERT(mixed_env%ref_count>0)
     mixed_env%ref_count=mixed_env%ref_count+1
   END SUBROUTINE mixed_env_retain
 
@@ -383,7 +383,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(mixed_env)) THEN
-       CPPrecondition(mixed_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(mixed_env%ref_count>0)
        mixed_env%ref_count=mixed_env%ref_count-1
        IF (mixed_env%ref_count<1) THEN
           ngroups = SIZE(mixed_env%sub_para_env)
@@ -394,18 +394,18 @@ CONTAINS
              END IF
           END DO
           DEALLOCATE(mixed_env%sub_para_env, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(mixed_env%sub_logger, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(mixed_env%energies, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           IF (ASSOCIATED(mixed_env%par)) THEN
              DEALLOCATE(mixed_env%par, stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(mixed_env%val)) THEN
              DEALLOCATE(mixed_env%val, stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           CALL cell_release(mixed_env%cell_ref)
           CALL cp_para_env_release(mixed_env%para_env)
@@ -414,10 +414,10 @@ CONTAINS
           CALL section_vals_release(mixed_env%input)
           IF (ASSOCIATED(mixed_env%group_distribution)) THEN
              DEALLOCATE(mixed_env%group_distribution, stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(mixed_env, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(mixed_env)

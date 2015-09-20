@@ -159,10 +159,10 @@ SUBROUTINE qs_env_setup(qs_env,unit_nr)
                     cell=cell,&
                     ks_env=ks_env)
 
-    CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_kind_set))
+    CPASSERT(ASSOCIATED(atomic_kind_set))
+    CPASSERT(ASSOCIATED(dft_control))
+    CPASSERT(ASSOCIATED(scf_control))
     ! allocate qs_charges
     CALL qs_charges_create(qs_charges,nspins=dft_control%nspins)
     CALL set_qs_env(qs_env, qs_charges=qs_charges)
@@ -173,7 +173,7 @@ SUBROUTINE qs_env_setup(qs_env,unit_nr)
        nvariables=outer_loop_variables_count(scf_control)
        nhistory=scf_control%outer_scf%extrapolation_order
        ALLOCATE(outer_scf_history(nvariables,nhistory),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL set_qs_env(qs_env,outer_scf_history=outer_scf_history)
        CALL set_qs_env(qs_env,outer_scf_ihistory=0)
     ENDIF
@@ -247,7 +247,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env)
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
 
     NULLIFY(dft_control)
     CALL get_qs_env(qs_env,&
@@ -259,14 +259,14 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env)
     IF(dft_control%qs_control%gapw) THEN
        qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
        IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-          CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(rho_core))
           CALL calculate_rho_core(rho_core, &
                qs_env%qs_charges%total_rho_core_rspace,qs_env,only_nopaw=.TRUE.)
        ELSE
           IF (ASSOCIATED(rho_core)) THEN
              CALL pw_release(rho_core%pw)
              DEALLOCATE(rho_core,STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
           ENDIF
        ENDIF
        ! force analytic ppl calculation
@@ -278,7 +278,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env)
     ELSE IF(dft_control%qs_control%scptb) THEN
        !??
     ELSE
-       CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(rho_core))
        CALL calculate_rho_core(rho_core, &
             qs_env%qs_charges%total_rho_core_rspace,qs_env)
     END IF
@@ -288,7 +288,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env)
     IF ( do_ppl ) THEN
        NULLIFY(vppl)
        CALL get_qs_env(qs_env,vppl=vppl)
-       CPPrecondition(ASSOCIATED(vppl),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(vppl))
        CALL calculate_ppl_grid(vppl,qs_env)
     END IF
 
@@ -475,16 +475,16 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env)
 
        ! reallocate rho_core
        CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_core=rho_core)
-       CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(new_pw_env))
        IF(dft_control%qs_control%gapw) THEN
          IF (ASSOCIATED(rho_core)) THEN
             CALL pw_release(rho_core%pw)
             DEALLOCATE(rho_core,stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
          END IF
          IF(dft_control%qs_control%gapw_control%nopaw_as_gpw ) THEN
            ALLOCATE(rho_core,stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+           CPASSERT(stat==0)
            CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
            CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
                 use_data=COMPLEXDATA1D)
@@ -498,10 +498,10 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env)
            IF(ASSOCIATED(rho0_rs)) THEN
               CALL pw_release(rho0_rs%pw)
               DEALLOCATE(rho0_rs,stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+              CPASSERT(stat==0)
            END IF
            ALLOCATE(rho0_rs,stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+           CPASSERT(stat==0)
            CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
            CALL pw_pool_create_pw(auxbas_pw_pool, rho0_rs%pw,&
            use_data=REALDATA3D,in_space=REALSPACE)
@@ -510,10 +510,10 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env)
            IF(ASSOCIATED(rho0_gs)) THEN
               CALL pw_release(rho0_gs%pw)
               DEALLOCATE(rho0_gs,stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+              CPASSERT(stat==0)
            END IF
            ALLOCATE(rho0_gs,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
            CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
            CALL pw_pool_create_pw(auxbas_pw_pool, rho0_gs%pw,&
            use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE)
@@ -542,10 +542,10 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env)
          IF (ASSOCIATED(rho_core)) THEN
             CALL pw_release(rho_core%pw)
             DEALLOCATE(rho_core,stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
          ENDIF
          ALLOCATE(rho_core,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_core%pw, &
               use_data=COMPLEXDATA1D)
@@ -560,10 +560,10 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env)
          IF (ASSOCIATED(vppl)) THEN
             CALL pw_release(vppl%pw)
             DEALLOCATE(vppl,stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
          ENDIF
          ALLOCATE(vppl,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, vppl%pw, use_data=REALDATA3D)
          vppl%pw%in_space=REALSPACE
@@ -585,10 +585,10 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env)
          IF (ASSOCIATED(rho_nlcc)) THEN
             CALL pw_release(rho_nlcc%pw)
             DEALLOCATE(rho_nlcc,stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
          ENDIF
          ALLOCATE(rho_nlcc,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc%pw, use_data=REALDATA3D)
          rho_nlcc%pw%in_space=REALSPACE
@@ -599,10 +599,10 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env)
          IF (ASSOCIATED(rho_nlcc_g)) THEN
             CALL pw_release(rho_nlcc_g%pw)
             DEALLOCATE(rho_nlcc_g,stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
          ENDIF
          ALLOCATE(rho_nlcc_g,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_nlcc_g%pw, use_data=COMPLEXDATA1D)
          rho_nlcc_g%pw%in_space=RECIPROCALSPACE
@@ -617,10 +617,10 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env)
          IF (ASSOCIATED(vee)) THEN
             CALL pw_release(vee%pw)
             DEALLOCATE(vee,stat=stat)
-            CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+            CPASSERT(stat==0)
          ENDIF
          ALLOCATE(vee,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, vee%pw, use_data=REALDATA3D)
          vee%pw%in_space=REALSPACE
@@ -635,10 +635,10 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env)
          IF (ASSOCIATED(external_vxc)) THEN
            CALL pw_release(external_vxc%pw)
            DEALLOCATE(external_vxc,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
          ENDIF
          ALLOCATE(external_vxc,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          CALL pw_env_get(new_pw_env,auxbas_pw_pool=auxbas_pw_pool)
          CALL pw_pool_create_pw(auxbas_pw_pool, external_vxc%pw, use_data=REALDATA3D)
          external_vxc%pw%in_space=REALSPACE

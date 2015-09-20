@@ -152,7 +152,7 @@ CONTAINS
     IF(.NOT. ASSOCIATED(xas_control%exc_atoms)) THEN
       xas_control%nexc_atoms = 1
       ALLOCATE(xas_control%exc_atoms(1),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       xas_control%exc_atoms(1) = 1
     END IF
 
@@ -258,9 +258,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(xas_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(xas_control))
     ALLOCATE(xas_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     xas_control%ref_count= 1
     xas_control%xas_method = xas_tp_hh
@@ -294,19 +294,19 @@ CONTAINS
 
     failure=.FALSE.
     IF(ASSOCIATED(xas_control)) THEN
-      CPPrecondition(xas_control%ref_count>0,cp_failure_level,routineP,failure)
+      CPASSERT(xas_control%ref_count>0)
       xas_control%ref_count=xas_control%ref_count-1
       IF (xas_control%ref_count==0) THEN
         IF (ASSOCIATED(xas_control%exc_atoms)) THEN
           DEALLOCATE(xas_control%exc_atoms,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
         IF (ASSOCIATED(xas_control%list_cubes)) THEN
           DEALLOCATE(xas_control%list_cubes,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
         DEALLOCATE(xas_control,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
     END IF
 
@@ -327,7 +327,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(xas_control),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(xas_control))
     xas_control%ref_count=xas_control%ref_count+1
 
   END SUBROUTINE xas_control_retain

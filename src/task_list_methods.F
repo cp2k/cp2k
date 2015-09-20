@@ -316,21 +316,21 @@ CONTAINS
 
     IF (ASSOCIATED(task_list%taskstart)) THEN
        DEALLOCATE (task_list%taskstart,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(task_list%taskstop)) THEN
        DEALLOCATE (task_list%taskstop,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(task_list%npairs)) THEN
        DEALLOCATE (task_list%npairs,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     ! First, count the number of unique atom pairs per grid level
 
     ALLOCATE (task_list%npairs(SIZE(rs_descs)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1 ; img_old = -1
     ipair = 0
@@ -365,9 +365,9 @@ CONTAINS
 
     ! Array sized for worst case
     ALLOCATE (task_list%taskstart(MAXVAL(task_list%npairs),SIZE(rs_descs)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (task_list%taskstop(MAXVAL(task_list%npairs),SIZE(rs_descs)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     iatom_old = -1 ; jatom_old = -1 ; igrid_level_old = -1 ; img_old = -1
     ipair = 0
@@ -414,7 +414,7 @@ CONTAINS
        DO igrid_level = 1, gridlevel_info%ngrid_levels
 
           ALLOCATE (blocks(natoms,natoms,nimages),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           blocks = -1
           DO ipair = 1, task_list%npairs(igrid_level)
              itask = task_list%taskstart(ipair,igrid_level)
@@ -444,7 +444,7 @@ CONTAINS
              END DO
           END DO
           DEALLOCATE (blocks,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
        END DO
 
@@ -954,7 +954,7 @@ CONTAINS
                            create_list=.FALSE.)
 
     DEALLOCATE (list,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -1142,14 +1142,14 @@ CONTAINS
     maxdest=SIZE(list,2)
 
     ALLOCATE (load_all(maxdest*ncpu),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !
     ! XXXXX this allocation can cause an out-of-memory if the number of MPI tasks is sufficient
     !
     ALLOCATE (load_per_source(maxdest*ncpu*ncpu),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (list_global(2,maxdest,ncpu),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     load_all(:)=RESHAPE(list(2,:,:),(/maxdest*ncpu/))
 
@@ -1189,11 +1189,11 @@ CONTAINS
     list(2,:,:)=RESHAPE(load_all,(/maxdest,ncpu/))
 
     DEALLOCATE (load_all,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (load_per_source,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (list_global,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -1406,7 +1406,7 @@ CONTAINS
                ENDIF
             ENDIF
           CASE DEFAULT
-            CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+            CPASSERT(.FALSE.)
           END SELECT
 
 
@@ -1464,17 +1464,17 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(.NOT.ASSOCIATED(list),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(list))
     ncpu=rs_descs(grid_level)%rs_desc%group_size
     ultimate_max=7
 
     ALLOCATE (list(2,ultimate_max,0:ncpu-1),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE (INDEX(ultimate_max),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (sublist(ultimate_max),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     sublist=HUGE(sublist)
 
     maxcount=1
@@ -1556,9 +1556,9 @@ CONTAINS
 
     ! allocate local arrays
     ALLOCATE (send_buf_i(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (recv_buf_i(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! communication step 1 : compute the total local cost of the tasks
     !                        each proc needs to know the amount of work he will receive
@@ -1637,9 +1637,9 @@ CONTAINS
 
     ! allocate local arrays
     ALLOCATE (recv_buf_i(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (loads(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     recv_buf_i = 0
     DO i = 1, SIZE(rs_descs)
@@ -1658,9 +1658,9 @@ CONTAINS
     ! load imbalance measures the load of a given CPU relative 
     ! to the optimal load distribution (load=average)
     ALLOCATE (load_imbalance(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (INDEX(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     load_imbalance(:) = recv_buf_i - average_cost
     no_overloaded = 0
@@ -1752,9 +1752,9 @@ CONTAINS
     ENDIF
 
     DEALLOCATE (index,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (load_imbalance,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -1809,17 +1809,17 @@ CONTAINS
 
     ! allocate local arrays
     ALLOCATE (send_sizes(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (recv_sizes(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (send_disps(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (recv_disps(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (send_buf_i(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (recv_buf_i(desc%group_size),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! fill send buffer, now counting how many tasks will be send (stored in an int8 array for convenience only).
     send_buf_i=0
@@ -1850,15 +1850,15 @@ CONTAINS
 
     ! deallocate old send/recv buffers
     DEALLOCATE (send_buf_i,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (recv_buf_i,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! allocate them with new sizes
     ALLOCATE (send_buf_i(SUM(send_sizes)),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (recv_buf_i(SUM(recv_sizes)),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! do packing
     send_buf_i = 0
@@ -1875,11 +1875,11 @@ CONTAINS
     CALL mp_alltoall(send_buf_i, send_sizes, send_disps, recv_buf_i, recv_sizes, recv_disps, desc % group)
 
     DEALLOCATE (send_buf_i,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ntasks_recv=SUM(recv_sizes)/task_dim
     ALLOCATE (tasks_recv(task_dim,ntasks_recv),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! do unpacking
     l = 0
@@ -1893,7 +1893,7 @@ CONTAINS
     ENDDO
 
     DEALLOCATE (recv_buf_i,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! send rvals (to be removed :-)
 
@@ -1905,9 +1905,9 @@ CONTAINS
     task_dim=SIZE(rval,1)
 
     ALLOCATE (send_buf_r(SUM(send_sizes)),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (recv_buf_r(SUM(recv_sizes)),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     !do packing
     send_sizes = 0
@@ -1924,9 +1924,9 @@ CONTAINS
          recv_buf_r, recv_sizes, recv_disps, desc % group)
 
     DEALLOCATE (send_buf_r,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (rval_recv(task_dim,SUM(recv_sizes)/task_dim),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! do unpacking
     l = 0
@@ -1940,15 +1940,15 @@ CONTAINS
     ENDDO
 
     DEALLOCATE (recv_buf_r,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (send_sizes,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (recv_sizes,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (send_disps,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (recv_disps,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -2012,7 +2012,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tasks),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tasks))
 
     ! *** figure out if we have distributed grids
     distributed_grids=.FALSE.
@@ -2026,9 +2026,9 @@ CONTAINS
     IF (distributed_grids) THEN
 
        ALLOCATE (loads(0:desc%group_size-1,SIZE(rs_descs)),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE (total_loads(0:desc%group_size-1),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        total_loads = 0
 
@@ -2076,7 +2076,7 @@ CONTAINS
                fixed_first_grid = .TRUE.
              ELSE
                ALLOCATE (trial_loads(0:desc%group_size-1),STAT=stat)
-               CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
 
                trial_loads(:) = total_loads + loads(:,igrid_level)
                max_load = MAXVAL(trial_loads)
@@ -2090,13 +2090,13 @@ CONTAINS
                IF (load_gap > replicated_load * 1.05_dp) THEN
 
                  ALLOCATE (INDEX(0:desc%group_size-1),STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
                  ALLOCATE (total_index(0:desc%group_size-1),STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
                  ALLOCATE (total_loads_tmp(0:desc%group_size-1),STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
                  ALLOCATE (real2virtual(0:desc%group_size-1),STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
 
                  total_loads_tmp(:) = total_loads
                  CALL sort(total_loads_tmp, desc%group_size, total_index)
@@ -2113,19 +2113,19 @@ CONTAINS
                  CALL rs_grid_reorder_ranks(rs_descs(igrid_level)%rs_desc, real2virtual)
 
                  DEALLOCATE (index,STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
                  DEALLOCATE (total_index,STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
                  DEALLOCATE (total_loads_tmp,STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
                  DEALLOCATE (real2virtual,STAT=stat)
-                 CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
                ELSE
                  total_loads(:) = trial_loads
                ENDIF
 
                DEALLOCATE (trial_loads,STAT=stat)
-               CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
 
              ENDIF
            ENDIF
@@ -2158,7 +2158,7 @@ CONTAINS
        ! we will be sending. These lists are needed for redistribute_matrix.
        !
        ALLOCATE (atom_pair_send(ntasks),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_atom_pair ( atom_pair_send, tasks, send=.TRUE.,&
             symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf, &
             nimages=nimages, rs_descs=rs_descs)
@@ -2171,20 +2171,20 @@ CONTAINS
        ! ENDIF
 
        ALLOCATE (atom_pair_recv(ntasks_recv),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL get_atom_pair ( atom_pair_recv, tasks_recv, send=.FALSE.,&
             symmetric=symmetric, natoms=natoms, maxset=maxset, maxpgf=maxpgf, &
             nimages=nimages, rs_descs=rs_descs)
 
        ! cleanup, at this point we  don't need the original tasks & rvals anymore
        DEALLOCATE (tasks,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE (rval,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE (loads,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE (total_loads,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
     ELSE
 
@@ -2201,9 +2201,9 @@ CONTAINS
     rval => rval_recv
 
     ALLOCATE (taskid(ntasks_recv),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (INDEX(ntasks_recv),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     taskid(:)=tasks_recv(3,1:ntasks_recv)
     CALL sort(taskid,SIZE(taskid),index)
@@ -2217,9 +2217,9 @@ CONTAINS
     ENDDO
 
     DEALLOCATE (taskid,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (index,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     !
     ! final lists are ready
@@ -2304,13 +2304,13 @@ CONTAINS
   ENDDO
 
   ALLOCATE (INDEX(SIZE(atom_pair)),STAT=stat)
-  CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   ! find unique atom pairs that I'm sending/receiving
   CALL sort(atom_pair,SIZE(atom_pair),index)
 
   DEALLOCATE (index,STAT=stat)
-  CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   IF (SIZE(atom_pair)>1) THEN
      j=1
@@ -2375,7 +2375,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
 
   failure = .FALSE.
   IF (.not.scatter) THEN
-    CPPrecondition(PRESENT(hmats),cp_failure_level,routineP,failure)
+    CPASSERT(PRESENT(hmats))
   END IF
 
   desc => rs_descs(1)%rs_desc
@@ -2383,21 +2383,21 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
 
   ! allocate local arrays
   ALLOCATE (send_sizes(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   ALLOCATE (recv_sizes(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   ALLOCATE (send_disps(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   ALLOCATE (recv_disps(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   ALLOCATE (send_pair_count(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   ALLOCATE (recv_pair_count(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   ALLOCATE (send_pair_disps(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   ALLOCATE (recv_pair_disps(desc%group_size),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   pmat => pmats(1)%matrix
   CALL cp_dbcsr_get_info (pmat, &
@@ -2405,7 +2405,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
        nblkcols_total=nblkcols_total)
   ALLOCATE (first_row(nblkrows_total), last_row(nblkrows_total),&
             first_col(nblkcols_total), last_col(nblkcols_total),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   CALL convert_sizes_to_offsets (cp_dbcsr_row_block_sizes(pmat), first_row, last_row)
   CALL convert_sizes_to_offsets (cp_dbcsr_col_block_sizes(pmat), first_col, last_col)
   ! set up send buffer sizes
@@ -2440,7 +2440,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
   ENDDO
 
   ALLOCATE (send_buf_r(SUM(send_sizes)),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   ! set up recv buffer
 
@@ -2471,7 +2471,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
      recv_pair_disps(i) = recv_pair_disps(i-1) + recv_pair_count(i-1)
   ENDDO
   ALLOCATE (recv_buf_r(SUM(recv_sizes)),STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
 !$omp parallel default(none), &
 !$omp          shared(desc,send_pair_count,send_pair_disps,natom8,nim8,nimages),&
@@ -2507,7 +2507,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
      pmat => pmats(img)%matrix
      CALL cp_dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
           block=p_block,found=found)
-     CPPostcondition(found,cp_failure_level,routineP,failure)
+     CPASSERT(found)
 
      DO k = 1, ncol
         DO j = 1, nrow
@@ -2558,10 +2558,10 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
      pmat => pmats(img)%matrix
      CALL cp_dbcsr_get_block_p(matrix=hmat,row=arow,col=acol,&
           BLOCK=h_block,found=found)
-     CPPostcondition(found,cp_failure_level,routineP,failure)
+     CPASSERT(found)
      CALL cp_dbcsr_get_block_p(matrix=pmat,row=arow,col=acol,&
           BLOCK=p_block,found=found)
-     CPPostcondition(found,cp_failure_level,routineP,failure)
+     CPASSERT(found)
 
 !$  call omp_set_lock(locks((arow-1)*nthread*10/nblkrows_total+1))
         DO k = 1, ncol
@@ -2609,7 +2609,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
         hmat => hmats(img)%matrix
         CALL cp_dbcsr_get_block_p(matrix=hmat,row=arow,col=acol,&
              BLOCK=h_block,found=found)
-        CPPostcondition(found,cp_failure_level,routineP,failure)
+        CPASSERT(found)
      ENDIF
 
      IF(scatter .AND. .NOT. ASSOCIATED(p_block)) THEN
@@ -2640,8 +2640,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
 
 !$omp single
 !$ IF (.not.scatter) THEN
-!$  DEALLOCATE (locks,STAT=stat)
-!$  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+!$  DEALLOCATE(locks)
 !$ END IF
 !$omp end single nowait
 
@@ -2655,29 +2654,29 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
 !$omp end parallel
 
   DEALLOCATE (send_buf_r,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DEALLOCATE (recv_buf_r,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   DEALLOCATE (send_sizes,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DEALLOCATE (recv_sizes,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DEALLOCATE (send_disps,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DEALLOCATE (recv_disps,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DEALLOCATE (send_pair_count,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DEALLOCATE (recv_pair_count,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DEALLOCATE (send_pair_disps,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   DEALLOCATE (recv_pair_disps,STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   DEALLOCATE (first_row, last_row, first_col, last_col, STAT=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   CALL timestop(handle)
 

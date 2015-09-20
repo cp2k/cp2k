@@ -166,33 +166,33 @@ CONTAINS
     nspin=SIZE(mo_array)
 
     ALLOCATE(occupation_numbers(nspin),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(scaling_factor(nspin),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (qs_ot_env(1)%settings%do_ener) THEN
       ALLOCATE(expectation_values(nspin),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     ENDIF
 
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,occupation_numbers=occupation_numbers(ispin)%array)
        ALLOCATE(scaling_factor(ispin)%array(SIZE(occupation_numbers(ispin)%array)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        scaling_factor(ispin)%array=2.0_dp*occupation_numbers(ispin)%array
        IF (qs_ot_env(1)%settings%do_ener) THEN
          ALLOCATE(expectation_values(ispin)%array(SIZE(occupation_numbers(ispin)%array)),stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
        ENDIF
     ENDDO
 
     ! optimizing orbital energies somehow implies non-equivalent orbitals
     IF (qs_ot_env(1)%settings%do_ener) THEN
-       CPPrecondition(qs_ot_env(1)%settings%do_rotation,cp_failure_level,routineP,failure)
+       CPASSERT(qs_ot_env(1)%settings%do_rotation)
     ENDIF
     ! add_nondiag_energy requires do_ener
     IF (qs_ot_env(1)%settings%add_nondiag_energy) THEN
-       CPPrecondition(qs_ot_env(1)%settings%do_ener,cp_failure_level,routineP,failure)
+       CPASSERT(qs_ot_env(1)%settings%do_ener)
     ENDIF
 
     ! get a rotational force
@@ -278,7 +278,7 @@ CONTAINS
     ! use it in the following, eventually, as occupations numbers get more integrated, it should become possible
     ! to remove this.
     ALLOCATE(matrix_dedc_scaled(SIZE(matrix_dedc)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ispin=1,SIZE(matrix_dedc)
        ALLOCATE(matrix_dedc_scaled(ispin)%matrix)
        CALL cp_dbcsr_init(matrix_dedc_scaled(ispin)%matrix)
@@ -345,26 +345,26 @@ CONTAINS
          "DFT%SCF%PRINT%PROGRAM_RUN_INFO")
     DO ispin=1,SIZE(scaling_factor)
       DEALLOCATE(scaling_factor(ispin)%array,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     ENDDO
     DEALLOCATE(scaling_factor,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (qs_ot_env(1)%settings%do_ener) THEN
        DO ispin=1,SIZE(expectation_values)
          DEALLOCATE(expectation_values(ispin)%array,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
        ENDDO
        DEALLOCATE(expectation_values,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
     DEALLOCATE(occupation_numbers,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ispin=1,SIZE(matrix_dedc_scaled)
        CALL cp_dbcsr_release(matrix_dedc_scaled(ispin)%matrix)
        DEALLOCATE(matrix_dedc_scaled(ispin)%matrix)
     ENDDO
     DEALLOCATE(matrix_dedc_scaled,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -394,7 +394,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, k, n, nspin
-    LOGICAL                                  :: failure, is_equal
+    LOGICAL                                  :: is_equal
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff_fm
 
@@ -455,7 +455,7 @@ CONTAINS
 
        IF (qs_ot_env(ispin)%settings%do_ener) THEN
           is_equal=SIZE(qs_ot_env ( ispin ) % ener_x)==SIZE(mo_array(ispin)%mo_set%eigenvalues)
-          CPPostcondition(is_equal,cp_failure_level,routineP,failure)
+          CPASSERT(is_equal)
           qs_ot_env ( ispin ) % ener_x = mo_array(ispin)%mo_set%eigenvalues
        ENDIF
 

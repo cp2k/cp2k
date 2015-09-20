@@ -224,7 +224,7 @@ CPSourceFileRef)
     CALL parser_get_next_line(parser,1)
     DO WHILE (INDEX(parser%input_line,"_atom_site_")/=0)
        ii          = ii + 1
-       CPPostcondition(ii<=20,cp_failure_level,routineP,failure)
+       CPASSERT(ii<=20)
 
        ifield (ii) = -1
        ! Check for   _atom_site_type_symbol
@@ -277,7 +277,7 @@ CPSourceFileRef)
              CALL cif_get_real(parser,atom_info%r(3,natom))
           CASE DEFAULT
              ! Never reach this point..
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END SELECT
           ii = ii + 1
        END DO
@@ -294,7 +294,7 @@ CPSourceFileRef)
           r2 = atom_info%r(1:3,jj)
           r  = pbc(r1-r2,cell)
           check = (SQRT(DOT_PRODUCT(r,r))>=threshold)
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
        END DO
     END DO
     ! Parse Symmetry Group and generation elements..
@@ -335,9 +335,9 @@ CPSourceFileRef,&
           ELSE
             iln3 = INDEX(parser%input_line(iln2+1:),"'")+iln2
           END IF
-          CPPostcondition(iln1/=0,cp_failure_level,routineP,failure)
-          CPPostcondition(iln2/=iln1,cp_failure_level,routineP,failure)
-          CPPostcondition(iln3/=iln2,cp_failure_level,routineP,failure)
+          CPASSERT(iln1/=0)
+          CPASSERT(iln2/=iln1)
+          CPASSERT(iln3/=iln2)
           CALL initf(3)
           CALL parsef(1,TRIM(parser%input_line(iln0+1:iln1-1)),s2a("x","y","z"))
           CALL parsef(2,TRIM(parser%input_line(iln1+1:iln2-1)),s2a("x","y","z"))

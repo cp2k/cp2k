@@ -617,7 +617,7 @@ CONTAINS
 
     ! Build a list of all fixed atoms (if any)
     ALLOCATE (is_fixed(natoms),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     is_fixed = use_perd_none
     molecule_kind_set => molecule_kinds%els
@@ -656,7 +656,7 @@ CONTAINS
        CALL compute_vcom(part,is_fixed,vcom,ecom)
        ekin = compute_ekin(part) - ecom
        IF (simpar%nfree == 0) THEN
-          CPPostcondition(ekin==0.0_dp,cp_failure_level,routineP,failure)
+          CPASSERT(ekin==0.0_dp)
           temp = 0.0_dp
        ELSE
           temp = 2.0_dp * ekin / REAL ( simpar%nfree,KIND=dp)
@@ -677,7 +677,7 @@ CONTAINS
     END IF
 
     DEALLOCATE (is_fixed,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO")
     CALL timestop(handle)
 
@@ -721,8 +721,7 @@ CONTAINS
 
     INTEGER                                  :: i, natoms, nshell, shell_index
     LOGICAL :: atomvel_explicit, atomvel_read, corevel_explicit, &
-      corevel_read, failure, is_ok, rescale_regions, shellvel_explicit, &
-      shellvel_read
+      corevel_read, is_ok, rescale_regions, shellvel_explicit, shellvel_read
     REAL(KIND=dp)                            :: ecom, ekin, fac_massc, &
                                                 fac_masss, mass
     REAL(KIND=dp), DIMENSION(3)              :: vc, vcom, vs
@@ -752,8 +751,8 @@ CONTAINS
     ! Core-Shell Model
     nshell = 0
     IF (shell_present) THEN
-       CPPostcondition(ASSOCIATED(core_part),cp_failure_level,routineP,failure)
-       CPPostcondition(ASSOCIATED(shell_part),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(core_part))
+       CPASSERT(ASSOCIATED(shell_part))
        nshell = SIZE(shell_part)
     END IF
 
@@ -765,7 +764,7 @@ CONTAINS
     CALL section_vals_get(atomvel_section,explicit=atomvel_explicit)
     CALL section_vals_get(shellvel_section,explicit=shellvel_explicit)
     CALL section_vals_get(corevel_section,explicit=corevel_explicit)
-    CPPostcondition(shellvel_explicit.EQV.corevel_explicit,cp_failure_level,routineP,failure)
+    CPASSERT(shellvel_explicit.EQV.corevel_explicit)
 
     CALL read_binary_velocities("",part,force_env%root_section,para_env,&
                                 subsys_section,atomvel_read)
@@ -1576,15 +1575,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
     NULLIFY(subsys, para_env)
-    CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(simpar))
+    CPASSERT(ASSOCIATED(md_ener))
+    CPASSERT(ASSOCIATED(force_env))
     CALL force_env_get(force_env,subsys=subsys,para_env=para_env)
     iw = cp_print_key_unit_nr(logger,force_env%root_section,"MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
          extension=".mdLog")
@@ -1636,14 +1634,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: comvel_tol, temp_old, vel_com
     REAL(KIND=dp), DIMENSION(3)              :: vcom_old
     TYPE(cp_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
     NULLIFY(subsys)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
     CALL force_env_get(force_env,subsys=subsys)
 
     ! Print COMVEL and COM Position
@@ -1704,7 +1702,7 @@ CONTAINS
                                                 imolecule_kind, iw, natoms, &
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: is_fixed
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: angvel_tol, rcom(3), &
                                                 temp_old, vang(3), vang_new(3)
     TYPE(cell_type), POINTER                 :: cell
@@ -1722,7 +1720,7 @@ CONTAINS
     CALL section_vals_val_get(md_section,"ANGVEL_TOL",explicit=explicit)
     IF ( explicit ) THEN
        NULLIFY(subsys, cell)
-       CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(force_env))
        CALL force_env_get(force_env,subsys=subsys,cell=cell)
 
        IF (SUM(cell%perd(1:3)) == 0) THEN
@@ -1736,7 +1734,7 @@ CONTAINS
           natoms = SIZE(particles%els)
           ! Build a list of all fixed atoms (if any)
           ALLOCATE (is_fixed(natoms),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
           is_fixed = use_perd_none
           molecule_kind_set => molecule_kinds%els
@@ -1769,7 +1767,7 @@ CONTAINS
           END IF
 
           DEALLOCATE (is_fixed,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
           CALL cp_print_key_finished_output(iw,logger,md_section,&
                "PRINT%PROGRAM_RUN_INFO")
@@ -1866,8 +1864,8 @@ CONTAINS
                       "Only the fixed atom constraint is implemented for core-shell models",&
                       only_ionode=.TRUE.)
 !MK    CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,failure)
-       CPPostcondition(ASSOCIATED(shell_particles),cp_failure_level,routineP,failure)
-       CPPostcondition(ASSOCIATED(core_particles),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(shell_particles))
+       CPASSERT(ASSOCIATED(core_particles))
        shell_particle_set => shell_particles%els
        core_particle_set  =>  core_particles%els
     END IF
@@ -2017,13 +2015,13 @@ CONTAINS
        END IF
 
        ALLOCATE (atom_index(natom),STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
        ALLOCATE (matom(natom),STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
        ALLOCATE (vatom(3,natom),STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
        ALLOCATE (weight(natom),STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
 
        DO iatom=1,natom
           is_ok = cp_sll_val_next(atom_list,val)
@@ -2088,18 +2086,18 @@ CONTAINS
        END DO
 
        DEALLOCATE (atom_index,STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
        DEALLOCATE (matom,STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
        DEALLOCATE (vatom,STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
        DEALLOCATE (weight,STAT=stat)
-       CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(stat == 0)
 
        IF (iw > 0) THEN
           ! Build a list of all fixed atoms (if any)
           ALLOCATE (is_fixed(nparticle),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           is_fixed = use_perd_none
           molecule_kind_set => molecule_kinds%els
           DO imolecule_kind=1,molecule_kinds%n_els
@@ -2115,7 +2113,7 @@ CONTAINS
           CALL compute_vcom(particle_set,is_fixed,vcom,ecom)
           ekin = compute_ekin(particle_set) - ecom
           IF (simpar%nfree == 0) THEN
-             CPPostcondition((ekin == 0.0_dp),cp_failure_level,routineP,failure)
+             CPASSERT(ekin == 0.0_dp)
              temp = 0.0_dp
           ELSE
              temp = 2.0_dp*ekin/REAL(simpar%nfree,KIND=dp)
@@ -2136,7 +2134,7 @@ CONTAINS
 !MK             WRITE (iw, '( A, T21, F20.12 , F20.12 , F20.12 )' ) ' Angular velocity:',vang(1:3)
 !MK          END IF
           DEALLOCATE (is_fixed,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
 
     END IF

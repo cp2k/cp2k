@@ -179,7 +179,7 @@ CONTAINS
 
     failure = .FALSE.
     check = .NOT.ASSOCIATED(se_taper%taper)
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     l_coulomb  = .FALSE.
     l_exchange = .FALSE.
     l_lrc      = .FALSE.
@@ -188,17 +188,17 @@ CONTAINS
     IF (PRESENT(lr_corr))  l_lrc      = lr_corr
     IF (l_coulomb)  THEN
        check = (.NOT.l_exchange).AND.(.NOT.l_lrc)
-       CPPrecondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        se_taper%taper => se_taper%taper_cou
     END IF
     IF (l_exchange) THEN
        check = (.NOT.l_coulomb).AND.(.NOT.l_lrc)
-       CPPrecondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        se_taper%taper => se_taper%taper_exc
     END IF
     IF (l_lrc)      THEN
        check = (.NOT.l_coulomb).AND.(.NOT.l_exchange)
-       CPPrecondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        se_taper%taper => se_taper%taper_lrc
     END IF
   END SUBROUTINE initialize_se_taper
@@ -218,7 +218,7 @@ CONTAINS
 
     failure = .FALSE.
     check = ASSOCIATED(se_taper%taper)
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     NULLIFY(se_taper%taper)
   END SUBROUTINE finalize_se_taper
 
@@ -250,10 +250,10 @@ CONTAINS
        IF (sep%natorb ==  4) nshell=2
        IF (sep%natorb ==  9) nshell=3
        ALLOCATE (nq(0:3),lq(0:3),zet(0:3),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ALLOCATE (symbol(0:3),STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        symbol=""
        nq=0
@@ -276,13 +276,13 @@ CONTAINS
        END IF
 
        DEALLOCATE (nq,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE (lq,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE (zet,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE (symbol,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,&
             "The pointer sep is not associated")

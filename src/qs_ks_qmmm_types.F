@@ -87,7 +87,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(ks_qmmm_env)) THEN
-       CPPrecondition(ks_qmmm_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(ks_qmmm_env%ref_count>0)
        ks_qmmm_env%ref_count=ks_qmmm_env%ref_count-1
 
        IF (ks_qmmm_env%ref_count<1) THEN
@@ -99,13 +99,13 @@ CONTAINS
                 CALL destroy_cube_info(ks_qmmm_env%cube_info(i))
              END DO
              DEALLOCATE(ks_qmmm_env%cube_info, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(ks_qmmm_env%matrix_h)) THEN
              CALL cp_dbcsr_deallocate_matrix_set(ks_qmmm_env%matrix_h)
           END IF
           DEALLOCATE(ks_qmmm_env, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(ks_qmmm_env)
@@ -128,8 +128,8 @@ SUBROUTINE qs_ks_qmmm_retain(ks_qmmm_env)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(ks_qmmm_env),cp_failure_level,routineP,failure)
-  CPPrecondition(ks_qmmm_env%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(ks_qmmm_env))
+  CPASSERT(ks_qmmm_env%ref_count>0)
   ks_qmmm_env%ref_count=ks_qmmm_env%ref_count+1
 END SUBROUTINE qs_ks_qmmm_retain
 

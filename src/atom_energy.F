@@ -121,7 +121,7 @@ CONTAINS
 
     ! read and set up inofrmation on the basis sets
     ALLOCATE(ae_basis,pp_basis,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     basis_section => section_vals_get_subs_vals(atom_section,"AE_BASIS")
     NULLIFY(ae_basis%grid)
     CALL init_atom_basis(ae_basis,basis_section,zval,"AE")
@@ -145,7 +145,7 @@ CONTAINS
     NULLIFY(potential_section)
     potential_section => section_vals_get_subs_vals(atom_section,"POTENTIAL")
     ALLOCATE(ae_pot,p_pot,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     CALL init_atom_potential(p_pot,potential_section,zval)
     CALL init_atom_potential(ae_pot,potential_section,-1)
 
@@ -184,10 +184,10 @@ CONTAINS
 
     ! integrals
     ALLOCATE(ae_int, pp_int,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     ALLOCATE(atom_info(n_rep,n_meth),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     DO in = 1, n_rep
       DO im = 1, n_meth
@@ -234,7 +234,7 @@ CONTAINS
              r_val= atom_info(in,im)%atom%zmpvxcgrid_tol)
 
         ALLOCATE(state,STAT=ierr)
-        CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+        CPASSERT(ierr==0)
 
         ! get the electronic configuration
         CALL section_vals_val_get(atom_section,"ELECTRON_CONFIGURATION", i_rep_val=in,&
@@ -296,7 +296,7 @@ CONTAINS
           !
           CALL set_atom(atom_info(in,im)%atom,basis=pp_basis,integrals=pp_int,potential=p_pot)
           state%maxn_calc(:) = MIN( state%maxn_calc(:), pp_basis%nbas(:) )
-          CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP,failure)
+          CPASSERT(ALL(state%maxn_calc(:) >= state%maxn_occ))
           had_pp = .TRUE.
         ELSE
           ! general integrals
@@ -309,7 +309,7 @@ CONTAINS
           !
           CALL set_atom(atom_info(in,im)%atom,basis=ae_basis,integrals=ae_int,potential=ae_pot)
           state%maxn_calc(:) = MIN( state%maxn_calc(:), ae_basis%nbas(:) )
-          CPPostcondition(ALL(state%maxn_calc(:) >= state%maxn_occ), cp_failure_level, routineP,failure)
+          CPASSERT(ALL(state%maxn_calc(:) >= state%maxn_occ))
           had_ae = .TRUE.
         END IF
 
@@ -467,10 +467,10 @@ CONTAINS
       END DO
     END DO
     DEALLOCATE(atom_info,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     DEALLOCATE(ae_pot,p_pot,ae_basis,pp_basis,ae_int,pp_int,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     CALL timestop(handle)
 
@@ -531,15 +531,15 @@ CONTAINS
     s1=SIZE(atom%orbitals%wfn,1)
     s2=SIZE(atom%orbitals%wfn,2)
     ALLOCATE(wfn(s1,s2,0:3,-nder:nder),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     s2=MAXVAL(state%maxn_occ)+nder
     ALLOCATE(rbasis(s1,s2,0:3),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     rbasis = 0._dp
 
     DO ider=-nder,nder
       dene = REAL(ider,KIND=dp)*delta
-      CPPostcondition(fhomo>ABS(dene), cp_failure_level, routineP,failure)
+      CPASSERT(fhomo>ABS(dene))
       state%occupation(lhomo,nhomo)=fhomo+dene
       CALL calculate_atom(atom,iw=0,noguess=.TRUE.)
       wfn(:,:,:,ider) = atom%orbitals%wfn
@@ -563,7 +563,7 @@ CONTAINS
             rbasis(:,i+3,l) = 0.125_dp*(wfn(:,i,l,3) - 3._dp*wfn(:,i,l,1) &
                                       + 3._dp*wfn(:,i,l,-1) - wfn(:,i,l,-3))/delta**3
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+            CPASSERT(.FALSE.)
         END SELECT
       END DO
 
@@ -581,7 +581,7 @@ CONTAINS
 
       ! check
       ALLOCATE(amat(n,n),STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
       amat(1:n,1:n) = MATMUL(TRANSPOSE(rbasis(1:m,1:n,l)),MATMUL(ovlp(1:m,1:m,l),rbasis(1:m,1:n,l)))
       DO i=1,n
         amat(i,i)=amat(i,i) - 1._dp
@@ -590,7 +590,7 @@ CONTAINS
          WRITE(iw,'(A,G20.10)') " Orthogonality error  ", MAXVAL(ABS(amat))
       END IF
       DEALLOCATE(amat,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
 
       ! Quickstep normalization
       WRITE(iw,'(/,A,T30,I3)') " Angular momentum :",l
@@ -607,7 +607,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(wfn,rbasis,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     WRITE(iw,'(" ",79("*"))')
 
@@ -640,7 +640,7 @@ CONTAINS
     IF(.NOT.atom%pp_calc) RETURN
     IF(atom%potential%ppot_type /= GTH_PSEUDO) RETURN
     pot => atom%potential%gth_pot
-    CPPostcondition(.NOT.pot%lsdpot, cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.pot%lsdpot)
 
     WRITE(iw,'(A)') '<UPF version="2.0.1">'
 
@@ -736,7 +736,7 @@ CONTAINS
        WRITE(iw,'(T8,A)') TRIM(string)
        WRITE(iw,'(T8,A)') 'columns="4">'
        ALLOCATE(corden(nr),STAT=ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        CALL atom_core_density(corden,pot,"RHO",atom%basis%grid%rad)
        IF(up) THEN
           WRITE(iw,'(T8,4ES25.12E3)') (corden(i),i=1,nr)
@@ -744,7 +744,7 @@ CONTAINS
           WRITE(iw,'(T8,4ES25.12E3)') (corden(i),i=nr,1,-1)
        END IF
        DEALLOCATE(corden,STAT=ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        WRITE(iw,'(T4,A)') '</PP_NLCC>'
     END IF
 
@@ -754,7 +754,7 @@ CONTAINS
     WRITE(iw,'(T8,A)') TRIM(string)
     WRITE(iw,'(T8,A)') 'columns="4">'
     ALLOCATE(locpot(nr),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     CALL atom_local_potential(locpot,pot,atom%basis%grid%rad)
     IF(up) THEN
        WRITE(iw,'(T8,4ES25.12E3)') (2.0_dp*locpot(i),i=1,nr)
@@ -762,13 +762,13 @@ CONTAINS
        WRITE(iw,'(T8,4ES25.12E3)') (2.0_dp*locpot(i),i=nr,1,-1)
     END IF
     DEALLOCATE(locpot,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     WRITE(iw,'(T4,A)') '</PP_LOCAL>'
 
     ! nonlocal PP
     WRITE(iw,'(T4,A)') '<PP_NONLOCAL>'
     ALLOCATE(rp(nr),ef(nr),beta(nr),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     ibeta = 0
     DO l=0,3
        IF(pot%nl(l) == 0) CYCLE
@@ -800,10 +800,10 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(rp,ef,beta,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     ! nonlocal PP matrix elements
     ALLOCATE(dij(nbeta,nbeta),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     dij = 0._dp
     DO l=0,3
        IF(pot%nl(l) == 0) CYCLE
@@ -816,12 +816,12 @@ CONTAINS
     WRITE(iw,'(T12,4ES25.12E3)') ((0.5_dp*dij(i,j),j=1,nbeta),i=1,nbeta)
     WRITE(iw,'(T8,A)') '</PP_DIJ>'
     DEALLOCATE(dij,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     WRITE(iw,'(T4,A)') '</PP_NONLOCAL>'
 
     ! atomic wavefunctions
     ALLOCATE(beta(nr),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     WRITE(iw,'(T4,A)') '<PP_PSWFC>'
     nwfn=0
     DO l=0,3
@@ -853,11 +853,11 @@ CONTAINS
     END DO
     WRITE(iw,'(T4,A)') '</PP_PSWFC>'
     DEALLOCATE(beta,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
     ! atomic charge
     ALLOCATE(dens(nr),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     WRITE(iw,'(T4,A)') '<PP_RHOATOM type="real"'
     CALL compose(string,"size",ival=nr)
     WRITE(iw,'(T8,A)') TRIM(string)
@@ -871,7 +871,7 @@ CONTAINS
     END IF
     WRITE(iw,'(T4,A)') '</PP_RHOATOM>'
     DEALLOCATE(dens,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
     WRITE(iw,'(A)') '</UPF>'
 

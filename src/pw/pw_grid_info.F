@@ -57,21 +57,20 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: my_icommensurate
-    LOGICAL                                  :: failure
 
     IF (ncommensurate>0) THEN
        my_icommensurate=icommensurate
-       CPPrecondition(icommensurate>0,cp_failure_level,routineP,failure)
-       CPPrecondition(icommensurate<=ncommensurate,cp_failure_level,routineP,failure)
+       CPASSERT(icommensurate>0)
+       CPASSERT(icommensurate<=ncommensurate)
     ELSE
        my_icommensurate=0
     END IF
 
     IF (my_icommensurate>1) THEN
-       CPPostcondition(PRESENT(ref_grid),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(ref_grid))
        n=ref_grid%npts/2**(my_icommensurate-1)
-       CPPostcondition(ALL(ref_grid%npts==n*2**(my_icommensurate-1)),cp_failure_level,routineP,failure)
-       CPPostcondition(ALL(pw_grid_n_for_fft(n)==n),cp_failure_level,routineP,failure)
+       CPASSERT(ALL(ref_grid%npts==n*2**(my_icommensurate-1)))
+       CPASSERT(ALL(pw_grid_n_for_fft(n)==n))
     ELSE
        n=pw_grid_find_n(hmat,cutoff=cutoff, fft_usage=fft_usage, ncommensurate=ncommensurate,&
             spherical=spherical, odd=odd, n_orig=n_orig)
@@ -121,14 +120,14 @@ CONTAINS
     ELSE
        my_icommensurate=0
     ENDIF
-    CPPrecondition(my_icommensurate <= my_ncommensurate,cp_failure_level,routineP,failure)
-    CPPrecondition((my_icommensurate > 0 .OR. my_ncommensurate <= 0),cp_failure_level,routineP,failure)
-    CPPrecondition(my_ncommensurate >= 0,cp_failure_level,routineP,failure)
+    CPASSERT(my_icommensurate <= my_ncommensurate)
+    CPASSERT(my_icommensurate > 0 .OR. my_ncommensurate <= 0)
+    CPASSERT(my_ncommensurate >= 0)
 
     IF (PRESENT(n_orig)) THEN
        n = n_orig
     ELSE
-       CPPrecondition(cutoff>0.0_dp,cp_failure_level,routineP,failure)
+       CPASSERT(cutoff>0.0_dp)
        n= pw_grid_n_from_cutoff (hmat, cutoff)
     END IF
 
@@ -173,7 +172,7 @@ CONTAINS
     IF (my_ncommensurate>0) THEN
        DO my_icommensurate=1,my_ncommensurate
           ftest = ANY( MODULO(n,2**(my_ncommensurate-my_icommensurate)).NE.0 )
-          CPPostcondition(.NOT. ftest,cp_failure_level,routineP,failure)
+          CPASSERT(.NOT. ftest)
        END DO
     ENDIF
 
@@ -202,7 +201,7 @@ CONTAINS
     failure=.FALSE.
     my_odd=.FALSE.
     IF (PRESENT(odd)) my_odd=odd
-    CPPrecondition(ALL(n>=0),cp_failure_level,routineP,failure)
+    CPASSERT(ALL(n>=0))
     IF (my_odd) THEN
        CALL fft_radix_operations ( n(1), nout(1), FFT_RADIX_NEXT_ODD )
        CALL fft_radix_operations ( n(2), nout(2), FFT_RADIX_NEXT_ODD )
@@ -250,7 +249,7 @@ CONTAINS
     DO i=1,3
        alat(i) = SUM ( hmat(:,i)**2 )
     ENDDO
-    CPPostcondition(ALL(alat/=0._dp),cp_failure_level,routineP,failure)
+    CPASSERT(ALL(alat/=0._dp))
     IF ( failure ) THEN
        n = -HUGE(0)
     ELSE

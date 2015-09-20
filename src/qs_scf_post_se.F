@@ -117,7 +117,7 @@ CONTAINS
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
     ! Here we start with data that needs a postprocessing...
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
@@ -238,7 +238,7 @@ CONTAINS
                                                 ix, j, nat, natom, natorb, &
                                                 nkind, nspin, reference, &
                                                 unit_nr
-    LOGICAL                                  :: do_berry, failure, found
+    LOGICAL                                  :: do_berry, found
     REAL(KIND=dp) :: charge_tot, ci(3), dci(3), dipole(3), dipole_deriv(3), &
       drcc(3), dria(3), dtheta, gvec(3), q, rcc(3), ria(3), tcharge(2), &
       theta, tmp(3), via(3), zeff
@@ -293,7 +293,7 @@ CONTAINS
        nkind = SIZE(atomic_kind_set)
        ! net charges
        ALLOCATE (ncharge(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        ncharge = 0.0_dp
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind),natom=nat)
@@ -379,7 +379,7 @@ CONTAINS
           CALL get_qs_kind(qs_kind_set(ikind),se_parameter=se_kind)
           CALL get_se_param(se_kind,natorb=natorb)
           ALLOCATE (mom(natorb,natorb,3),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           mom = 0.0_dp
           CALL atomic_moments(mom,basis_set)
           DO iatom=1,nat
@@ -388,7 +388,7 @@ CONTAINS
                 CALL cp_dbcsr_get_block_p(matrix=matrix_p(i)%matrix,row=iat,col=iat,&
                   block=pblock,found=found)
                 IF(found) THEN
-                  CPPostcondition(natorb==SIZE(pblock,1),cp_failure_level,routineP,failure)
+                  CPASSERT(natorb==SIZE(pblock,1))
                   ix=coset(1,0,0) - 1
                   dipole(1)=dipole(1) + SUM(pblock*mom(:,:,ix))
                   ix=coset(0,1,0) - 1
@@ -399,7 +399,7 @@ CONTAINS
              END DO
           END DO
           DEALLOCATE (mom,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END DO
        IF(unit_nr>0)THEN
           WRITE(unit_nr,'(1X,A,T48,3F11.6)')"DIPOLE "//TRIM(dipole_type)//"(A.U.)|",dipole
@@ -427,7 +427,6 @@ CONTAINS
                                                 ncob, nm, nset, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgf, nsgf
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
     REAL(KIND=dp), ALLOCATABLE, &
@@ -454,7 +453,7 @@ CONTAINS
       nm = MAX(nm,ncoa)
     END DO
     ALLOCATE (mab(nm,nm,4),work(nm,nm),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO iset=1,nset
       ncoa = npgf(iset)*ncoset(la_max(iset))
@@ -475,7 +474,7 @@ CONTAINS
       END DO
     END DO
     DEALLOCATE (mab,work,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE atomic_moments
 ! *****************************************************************************
@@ -502,7 +501,7 @@ CONTAINS
     INTEGER                                  :: i, iat, iatom, ikind, istat, &
                                                 j, nat, natom, natorb, nkind, &
                                                 nspin, unit_nr
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
     REAL(KIND=dp), ALLOCATABLE, &
@@ -536,7 +535,7 @@ CONTAINS
        CALL qs_rho_get(rho, rho_ao=matrix_p)
        nspin = SIZE(matrix_p)
        ALLOCATE (charges(natom,nspin),mcharge(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        charges = 0.0_dp
        mcharge = 0.0_dp
        ! calculate atomic charges
@@ -607,7 +606,7 @@ CONTAINS
        CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN")
 
        DEALLOCATE (charges,mcharge,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
     ! Compute the Lowdin charges
@@ -668,7 +667,7 @@ CONTAINS
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,&
                        dft_control=dft_control,&

@@ -77,8 +77,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
     res = ", File: '"//TRIM(parser%input_file_name)//"', Line: "//&
           TRIM(ADJUSTL(cp_to_string(parser%input_line_number)))//&
           ", Column: "//TRIM(ADJUSTL(cp_to_string(parser%icol)))
@@ -107,9 +107,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(parser%status),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
+    CPASSERT(ASSOCIATED(parser%status))
     parser%status%in_use                = .TRUE.
     parser%status%old_input_line        = parser%input_line
     parser%status%old_input_line_number = parser%input_line_number
@@ -137,8 +137,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
 
     ! Always store the new buffer (if it is really newly read)
     IF (parser%buffer%buffer_id/=parser%status%buffer%buffer_id) THEN
@@ -182,8 +182,8 @@ CONTAINS
     CALL timeset(routineN, handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
     IF (PRESENT(at_end)) at_end = .FALSE.
 
     DO iline=1,nline
@@ -276,8 +276,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
     parser%buffer%input_lines = ""
     IF (parser%para_env%mepos==parser%para_env%source) THEN
        iline = 0
@@ -381,8 +381,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
     para_env => parser%para_env
     IF (.NOT.failure .AND. para_env%num_pe>1) THEN
        CALL mp_bcast(parser%buffer%buffer_id,para_env%source,para_env%group)
@@ -508,8 +508,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
     ! Variable input string length (automatic search)
 
     ! Check for EOF
@@ -588,8 +588,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
     IF (PRESENT(string_length)) THEN
        length = MIN(string_length,max_line_length)
     ELSE
@@ -751,8 +751,8 @@ CONTAINS
 
     failure = .FALSE.
     test_result = ""
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
 
 
     ! Store current status
@@ -859,8 +859,8 @@ CONTAINS
     do_reset= .FALSE.
     IF (PRESENT(begin_line)) begin=begin_line
     IF (PRESENT(search_from_begin_of_file)) do_reset = search_from_begin_of_file
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
     IF (PRESENT(line)) line = ""
 
     ! Search for string pattern
@@ -1024,8 +1024,8 @@ CONTAINS
     LOGICAL                                  :: failure, my_at_end
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
     IF (PRESENT(skip_lines)) THEN
        nline = skip_lines
     ELSE
@@ -1116,9 +1116,9 @@ CONTAINS
     LOGICAL                                  :: failure, my_at_end
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.parser%ilist%in_use,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
+    CPASSERT(.NOT.parser%ilist%in_use)
     IF (PRESENT(skip_lines)) THEN
        nline = skip_lines
     ELSE
@@ -1198,9 +1198,9 @@ CONTAINS
     LOGICAL                                  :: failure, my_at_end
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.parser%ilist%in_use,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
+    CPASSERT(.NOT.parser%ilist%in_use)
     
 
     IF (PRESENT(skip_lines)) THEN
@@ -1274,9 +1274,9 @@ CONTAINS
 
     object = ""
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.parser%ilist%in_use,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parser))
+    CPASSERT(parser%ref_count>0)
+    CPASSERT(.NOT.parser%ilist%in_use)
     IF (PRESENT(skip_lines)) THEN
        nline = skip_lines
     ELSE

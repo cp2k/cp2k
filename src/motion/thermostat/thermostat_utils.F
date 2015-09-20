@@ -358,7 +358,7 @@ CONTAINS
     ! Now map the local atoms with the corresponding thermostat
     ALLOCATE(thermostat_info%map_loc_thermo_gen(natom_local),stat=stat)
     thermostat_info%map_loc_thermo_gen  = HUGE ( 0 )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     natom_local = 0
     DO ikind = 1, SIZE(molecule_kind_set)
        nmol_per_kind = local_molecules%n_el(ikind)
@@ -418,7 +418,7 @@ CONTAINS
     thermostat_info%dis_type              = dis_type
 
     DEALLOCATE(thermolist, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE setup_adiabatic_thermostat_info
 
@@ -467,7 +467,7 @@ CONTAINS
 !    CPPostcondition(.NOT.(ASSOCIATED(map_loc_thermo_gen)),cp_failure_level,routineP,failure)
     CALL section_vals_get(region_sections, n_repetition=nregions)
     ALLOCATE(thermolist(particles%n_els), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     thermolist = HUGE(0)
     molecule_set => molecules%els
     mregions = nregions
@@ -478,12 +478,12 @@ CONTAINS
           CALL section_vals_val_get(region_sections,"LIST", i_rep_section=ig,i_rep_val=jg,i_vals=tmplist)
           DO i = 1, SIZE(tmplist)
              ipart = tmplist(i)
-             CPPostcondition(((ipart>0).AND.(ipart<=particles%n_els)),cp_failure_level,routineP,failure)
+             CPASSERT(((ipart>0).AND.(ipart<=particles%n_els)))
              IF (thermolist(ipart)==HUGE(0)) THEN
                 itherm = itherm + 1
                 thermolist(ipart) = itherm
              ELSE
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END IF
           END DO
        END DO
@@ -502,7 +502,7 @@ CONTAINS
                             itherm = itherm + 1
                             thermolist(ipart) = itherm
                          ELSE
-                            CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                            CPASSERT(.FALSE.)
                          END IF
                       END DO
                    END DO
@@ -516,7 +516,7 @@ CONTAINS
             subsys_qm=.TRUE., ig=ig, sum_of_thermostats=sum_of_thermostats, nregions=nregions)
     END DO
 
-    CPPostcondition(.NOT.ALL(thermolist==HUGE(0)),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ALL(thermolist==HUGE(0)))
 
 !    natom_local = 0
 !    DO ikind = 1, SIZE(molecule_kind_set)
@@ -752,10 +752,10 @@ CONTAINS
     NULLIFY(logger)
     logger      => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
-    CPPostcondition(.NOT.(ASSOCIATED(map_loc_thermo_gen)),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.(ASSOCIATED(map_loc_thermo_gen)))
     CALL section_vals_get(region_sections, n_repetition=nregions)
     ALLOCATE(thermolist(particles%n_els), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     thermolist = HUGE(0)
     molecule_set => molecules%els
     mregions = nregions
@@ -765,11 +765,11 @@ CONTAINS
           CALL section_vals_val_get(region_sections,"LIST", i_rep_section=ig,i_rep_val=jg,i_vals=tmplist)
           DO i = 1, SIZE(tmplist)
              ipart = tmplist(i)
-             CPPostcondition(((ipart>0).AND.(ipart<=particles%n_els)),cp_failure_level,routineP,failure)
+             CPASSERT(((ipart>0).AND.(ipart<=particles%n_els)))
              IF (thermolist(ipart)==HUGE(0)) THEN
                 thermolist(ipart) = ig
              ELSE
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END IF
           END DO
        END DO
@@ -787,7 +787,7 @@ CONTAINS
                          IF (thermolist(ipart)==HUGE(0)) THEN
                             thermolist(ipart) = ig
                          ELSE
-                            CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                            CPASSERT(.FALSE.)
                          END IF
                       END DO
                    END DO
@@ -806,7 +806,7 @@ CONTAINS
        nregions = nregions + 1
        sum_of_thermostats = sum_of_thermostats + 1
        ALLOCATE(tmp(COUNT(thermolist==HUGE(0))),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ilist = 0
        DO i = 1, SIZE(thermolist)
           IF (thermolist(i)==HUGE(0)) THEN
@@ -821,13 +821,13 @@ CONTAINS
           WRITE (output_unit,'(A)')" WARNING| They will be included in a further unique thermostat!"
        END IF
        DEALLOCATE(tmp, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
-    CPPostcondition(ALL(thermolist/=HUGE(0)),cp_failure_level,routineP,failure)
+    CPASSERT(ALL(thermolist/=HUGE(0)))
 
     ! Now identify the local number of thermostats
     ALLOCATE(tmp(nregions),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     tmp = 0
     natom_local = 0
     DO ikind = 1, SIZE(molecule_kind_set)
@@ -844,11 +844,11 @@ CONTAINS
     END DO
     number = SUM(tmp)
     DEALLOCATE(tmp, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Now map the local atoms with the corresponding thermostat
     ALLOCATE(map_loc_thermo_gen(natom_local),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     natom_local = 0
     DO ikind = 1, SIZE(molecule_kind_set)
        nmol_per_kind = local_molecules%n_el(ikind)
@@ -864,7 +864,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(thermolist, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE get_defined_region_info
 
 ! *****************************************************************************
@@ -1208,13 +1208,13 @@ CONTAINS
     ! Just few checks for consistency
     IF (present_vel) THEN
        IF (shell_adiabatic) THEN
-          CPPostcondition(PRESENT(shell_vel),cp_failure_level,routineP,failure)
-          CPPostcondition(PRESENT(core_vel),cp_failure_level,routineP,failure)
+          CPASSERT(PRESENT(shell_vel))
+          CPASSERT(PRESENT(core_vel))
        END IF
     ELSE
        IF (shell_adiabatic) THEN
-          CPPostcondition(PRESENT(shell_particle_set),cp_failure_level,routineP,failure)
-          CPPostcondition(PRESENT(core_particle_set),cp_failure_level,routineP,failure)
+          CPASSERT(PRESENT(shell_particle_set))
+          CPASSERT(PRESENT(core_particle_set))
        END IF
     END IF
     Kind: DO ikind = 1, SIZE ( molecule_kind_set )
@@ -1310,10 +1310,10 @@ CONTAINS
     present_vel = PRESENT(shell_vel)
     ! Preliminary checks for consistency usage
     IF (present_vel) THEN
-       CPPostcondition(PRESENT(core_vel),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(core_vel))
     ELSE
-       CPPostcondition(PRESENT(shell_particle_set),cp_failure_level,routineP,failure)
-       CPPostcondition(PRESENT(core_particle_set),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(shell_particle_set))
+       CPASSERT(PRESENT(core_particle_set))
     END IF
     ! get force on first thermostat for all the chains in the system.
     map_info%v_scale = 1.0_dp
@@ -1393,11 +1393,11 @@ CONTAINS
     present_vel = PRESENT(vel)
     ! Preliminary checks for consistency usage
     IF (present_vel) THEN
-       CPPostcondition(PRESENT(shell_vel),cp_failure_level,routineP,failure)
-       CPPostcondition(PRESENT(core_vel),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(shell_vel))
+       CPASSERT(PRESENT(core_vel))
     ELSE
-       CPPostcondition(PRESENT(shell_particle_set),cp_failure_level,routineP,failure)
-       CPPostcondition(PRESENT(core_particle_set),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(shell_particle_set))
+       CPASSERT(PRESENT(core_particle_set))
     END IF
     ii = 0
     nparticle_kind = SIZE(atomic_kind_set)
@@ -1471,9 +1471,9 @@ CONTAINS
     failure = .FALSE.
     number = nhc%glob_num_nhc
     ALLOCATE(akin(number),stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(vpot(number),stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     akin = 0.0_dp
     vpot = 0.0_dp
     DO n = 1, nhc%loc_num_nhc
@@ -1498,26 +1498,26 @@ CONTAINS
     ! Possibly give back kinetic or potential energy arrays
     IF (PRESENT(array_pot)) THEN
        IF (ASSOCIATED(array_pot)) THEN
-          CPPrecondition(SIZE(array_pot)==number,cp_fatal_level,routineP,failure)
+          CPASSERT(SIZE(array_pot)==number)
        ELSE
           ALLOCATE(array_pot(number),stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDIF
        array_pot=vpot
     END IF
     IF (PRESENT(array_kin)) THEN
        IF (ASSOCIATED(array_kin)) THEN
-          CPPrecondition(SIZE(array_kin)==number,cp_fatal_level,routineP,failure)
+          CPASSERT(SIZE(array_kin)==number)
        ELSE
           ALLOCATE(array_kin(number),stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDIF
        array_kin=akin
     END IF
     DEALLOCATE(akin,stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(vpot,stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE get_nhc_energies
 
 ! *****************************************************************************
@@ -1555,7 +1555,7 @@ CONTAINS
     failure = .FALSE.
     number = glob_num
     ALLOCATE(akin(number),stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     akin     = 0.0_dp
     DO n = 1, loc_num
        imap = map_info%index(n)
@@ -1573,24 +1573,24 @@ CONTAINS
     ! Possibly give back kinetic or potential energy arrays
     IF (PRESENT(array_pot)) THEN
        IF (ASSOCIATED(array_pot)) THEN
-          CPPrecondition(SIZE(array_pot)==number,cp_fatal_level,routineP,failure)
+          CPASSERT(SIZE(array_pot)==number)
        ELSE
           ALLOCATE(array_pot(number),stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDIF
        array_pot=0.0_dp
     END IF
     IF (PRESENT(array_kin)) THEN
        IF (ASSOCIATED(array_kin)) THEN
-          CPPrecondition(SIZE(array_kin)==number,cp_fatal_level,routineP,failure)
+          CPASSERT(SIZE(array_kin)==number)
        ELSE
           ALLOCATE(array_kin(number),stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDIF
        array_kin=akin
     END IF
     DEALLOCATE(akin,stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE get_kin_energies
 
 ! *****************************************************************************
@@ -1629,9 +1629,9 @@ CONTAINS
     failure = .FALSE.
     number = glob_num
     ALLOCATE(akin(number),stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(deg_of_free(number),stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     akin         = 0.0_dp
     deg_of_free  = 0.0_dp
     DO n = 1, loc_num
@@ -1658,10 +1658,10 @@ CONTAINS
     ! Possibly give back temperatures of the full set of regions
     IF (PRESENT(array_temp)) THEN
        IF (ASSOCIATED(array_temp)) THEN
-          CPPrecondition(SIZE(array_temp)==number,cp_fatal_level,routineP,failure)
+          CPASSERT(SIZE(array_temp)==number)
        ELSE
           ALLOCATE(array_temp(number),stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDIF
        DO i = 1, number
           array_temp(i) = akin(i)/deg_of_free(i)
@@ -1669,9 +1669,9 @@ CONTAINS
        END DO
     END IF
     DEALLOCATE(akin,stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(deg_of_free,stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE get_temperatures
 
 ! *****************************************************************************
@@ -1706,14 +1706,14 @@ CONTAINS
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Energy associated with the Nose-Hoover thermostat
-          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%nhc))
           CALL get_nhc_energies (thermostat%nhc, thermostat_pot, thermostat_kin, para_env,&
                                  array_pot, array_kin)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Energy associated with the CSVR thermostat
-          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%csvr))
           ALLOCATE(thermo_energy(thermostat%csvr%loc_num_csvr),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i = 1,thermostat%csvr%loc_num_csvr
              thermo_energy(i) = thermostat%csvr%nvt(i)%thermostat_energy
           END DO
@@ -1721,13 +1721,13 @@ CONTAINS
                thermostat%csvr%glob_num_csvr,thermo_energy,&
                thermostat_kin, para_env, array_pot, array_kin)
           DEALLOCATE(thermo_energy,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
        ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
           ! Energy associated with the GLE thermostat
-          CPPostcondition(ASSOCIATED(thermostat%gle),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%gle))
           ALLOCATE(thermo_energy(thermostat%gle%loc_num_gle),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i = 1,thermostat%gle%loc_num_gle
              thermo_energy(i) = thermostat%gle%nvt(i)%thermostat_energy
           END DO
@@ -1735,7 +1735,7 @@ CONTAINS
                thermostat%gle%glob_num_gle,thermo_energy,&
                thermostat_kin, para_env, array_pot, array_kin)
           DEALLOCATE(thermo_energy,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
        ![NB] nothing to do for Ad-Langevin?
 
@@ -1771,11 +1771,11 @@ CONTAINS
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Energy associated with the Nose-Hoover thermostat
-          CPPostcondition(ASSOCIATED(thermostat%nhc),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%nhc))
           ALLOCATE(nkt(thermostat%nhc%loc_num_nhc), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(dof(thermostat%nhc%loc_num_nhc), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i = 1,thermostat%nhc%loc_num_nhc
              nkt(i) = thermostat%nhc%nvt(1,i)%nkt
              dof(i) = REAL(thermostat%nhc%nvt(1,i)%degrees_of_freedom,KIND=dp)
@@ -1783,17 +1783,17 @@ CONTAINS
           CALL get_temperatures ( thermostat%nhc%map_info, thermostat%nhc%loc_num_nhc, &
           thermostat%nhc%glob_num_nhc, nkt, dof, para_env, tot_temperature, array_temp)
           DEALLOCATE(nkt, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(dof, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_csvr) THEN
           ! Energy associated with the CSVR thermostat
-          CPPostcondition(ASSOCIATED(thermostat%csvr),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%csvr))
 
           ALLOCATE(nkt(thermostat%csvr%loc_num_csvr), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(dof(thermostat%csvr%loc_num_csvr), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i = 1,thermostat%csvr%loc_num_csvr
              nkt(i) = thermostat%csvr%nvt(i)%nkt
              dof(i) = REAL(thermostat%csvr%nvt(i)%degrees_of_freedom,KIND=dp)
@@ -1801,17 +1801,17 @@ CONTAINS
           CALL get_temperatures ( thermostat%csvr%map_info, thermostat%csvr%loc_num_csvr, &
           thermostat%csvr%glob_num_csvr, nkt, dof, para_env, tot_temperature, array_temp)
           DEALLOCATE(nkt, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(dof, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_al) THEN
           ! Energy associated with the AD_LANGEVIN thermostat
-          CPPostcondition(ASSOCIATED(thermostat%al),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%al))
 
           ALLOCATE(nkt(thermostat%al%loc_num_al), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(dof(thermostat%al%loc_num_al), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i = 1,thermostat%al%loc_num_al
              nkt(i) = thermostat%al%nvt(i)%nkt
              dof(i) = REAL(thermostat%al%nvt(i)%degrees_of_freedom,KIND=dp)
@@ -1819,17 +1819,17 @@ CONTAINS
           CALL get_temperatures ( thermostat%al%map_info, thermostat%al%loc_num_al, &
           thermostat%al%glob_num_al, nkt, dof, para_env, tot_temperature, array_temp)
           DEALLOCATE(nkt, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(dof, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ELSE IF (thermostat%type_of_thermostat==do_thermo_gle) THEN
           ! Energy associated with the GLE thermostat
-          CPPostcondition(ASSOCIATED(thermostat%gle),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(thermostat%gle))
 
           ALLOCATE(nkt(thermostat%gle%loc_num_gle), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(dof(thermostat%gle%loc_num_gle), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i = 1,thermostat%gle%loc_num_gle
              nkt(i) = thermostat%gle%nvt(i)%nkt
              dof(i) = REAL(thermostat%gle%nvt(i)%degrees_of_freedom,KIND=dp)
@@ -1837,9 +1837,9 @@ CONTAINS
           CALL get_temperatures ( thermostat%gle%map_info, thermostat%gle%loc_num_gle, &
           thermostat%gle%glob_num_gle, nkt, dof, para_env, tot_temperature, array_temp)
           DEALLOCATE(nkt, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(dof, STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
 
@@ -1943,9 +1943,9 @@ CONTAINS
             CALL m_flush(unit)
           END IF
           DEALLOCATE(array_kin, stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(array_pot, stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL cp_print_key_finished_output(unit,logger,thermostat%section,"PRINT%ENERGY")
        END IF
        ! Print Temperatures of the regions
@@ -1968,7 +1968,7 @@ CONTAINS
             CALL m_flush(unit)
           END IF
           DEALLOCATE(array_temp, stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           CALL cp_print_key_finished_output(unit,logger,thermostat%section,"PRINT%TEMPERATURE")
        END IF
     END IF
@@ -1996,7 +1996,7 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE(work(para_env%num_pe),stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, number
        work = 0.0_dp
        work(para_env%mepos+1) = array(i)
@@ -2005,7 +2005,7 @@ CONTAINS
        array(i) = 0.0_dp
        IF (ncheck/=0) THEN
           ALLOCATE(work2(ncheck),stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           ncheck = 0
           DO icheck = 1, para_env%num_pe
              IF (work(icheck)/=0.0_dp) THEN
@@ -2013,16 +2013,16 @@ CONTAINS
                 work2(ncheck) = work(icheck)
              END IF
           END DO
-          CPPrecondition(ncheck==SIZE(work2),cp_fatal_level,routineP,failure)
-          CPPrecondition(ALL(work2==work2(1)),cp_fatal_level,routineP,failure)
+          CPASSERT(ncheck==SIZE(work2))
+          CPASSERT(ALL(work2==work2(1)))
 
           array(i) = work2(1)
           DEALLOCATE(work2,stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
     DEALLOCATE(work,stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE communication_thermo_low1
 
 ! *****************************************************************************
@@ -2047,7 +2047,7 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE(work(number1,para_env%num_pe),stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, number2
        work = 0
        work(:,para_env%mepos+1) = array(:,i)
@@ -2061,7 +2061,7 @@ CONTAINS
        array(:,i) = 0
        IF (ncheck/=0) THEN
           ALLOCATE(work2(number1,ncheck),stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           ncheck = 0
           DO icheck = 1, para_env%num_pe
              IF (ANY(work(:,icheck)/=0)) THEN
@@ -2069,17 +2069,17 @@ CONTAINS
                 work2(:,ncheck) = work(:,icheck)
              END IF
           END DO
-          CPPrecondition(ncheck==SIZE(work2,2),cp_fatal_level,routineP,failure)
+          CPASSERT(ncheck==SIZE(work2,2))
           DO j = 1, ncheck
-             CPPrecondition(ALL(work2(:,j)==work2(:,1)),cp_fatal_level,routineP,failure)
+             CPASSERT(ALL(work2(:,j)==work2(:,1)))
           END DO
           array(:,i) = work2(:,1)
           DEALLOCATE(work2,stat=stat)
-          CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
     DEALLOCATE(work,stat=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE communication_thermo_low2
 
 END MODULE thermostat_utils

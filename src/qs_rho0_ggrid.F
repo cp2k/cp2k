@@ -165,8 +165,8 @@ MODULE qs_rho0_ggrid
     rs_grid => grids(igrid)%rs_grid
     pw_pool => pw_pools(igrid)%pool
 
-    CPPrecondition(ASSOCIATED(desc),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(desc))
+    CPASSERT(ASSOCIATED(pw_pool))
 
     IF (igrid /= auxbas_grid) THEN
       ALLOCATE (coeff_rspace,STAT=istat)
@@ -248,11 +248,11 @@ MODULE qs_rho0_ggrid
 
     IF (ASSOCIATED(cores)) THEN
       DEALLOCATE (cores,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
 
     DEALLOCATE(pab,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     IF(igrid /= auxbas_grid) THEN
       CALL rs_pw_transfer(rs_grid,coeff_rspace%pw,rs2pw)
@@ -267,7 +267,7 @@ MODULE qs_rho0_ggrid
       CALL pw_pool_give_back_pw(pw_pool,coeff_gspace%pw)
 
       DEALLOCATE(coeff_rspace,coeff_gspace,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
     ELSE
 
@@ -316,15 +316,15 @@ MODULE qs_rho0_ggrid
 
   NULLIFY(new_pw_env)
   CALL get_qs_env(qs_env, pw_env=new_pw_env)
-  CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(new_pw_env))
 
   NULLIFY(auxbas_pw_pool)
   CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool)
-  CPPrecondition(ASSOCIATED(auxbas_pw_pool),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(auxbas_pw_pool))
 
   ! reallocate rho0 on the global grid in real and reciprocal space
   NULLIFY(rho_rs,rho_gs)
-  CPPrecondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(rho0_mpole))
   rho_rs => rho0_mpole%rho0_s_rs
   rho_gs => rho0_mpole%rho0_s_gs
 
@@ -332,10 +332,10 @@ MODULE qs_rho0_ggrid
   IF (ASSOCIATED(rho_rs)) THEN
      CALL pw_release(rho_rs%pw)
      DEALLOCATE(rho_rs,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+     CPASSERT(stat==0)
   END IF
   ALLOCATE(rho_rs,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   CALL pw_pool_create_pw(auxbas_pw_pool, rho_rs%pw,&
            use_data=REALDATA3D,in_space=REALSPACE)
   rho0_mpole%rho0_s_rs => rho_rs
@@ -344,10 +344,10 @@ MODULE qs_rho0_ggrid
   IF (ASSOCIATED(rho_gs)) THEN
      CALL pw_release(rho_gs%pw)
      DEALLOCATE(rho_gs,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+     CPASSERT(stat==0)
   END IF
   ALLOCATE(rho_gs,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   CALL pw_pool_create_pw(auxbas_pw_pool, rho_gs%pw, &
        use_data=COMPLEXDATA1D)
   rho_gs%pw%in_space=RECIPROCALSPACE
@@ -478,7 +478,7 @@ MODULE qs_rho0_ggrid
 
     ! *** set up of the potential on the multigrids
     NULLIFY(rs_descs, pw_pools)
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools)
 
     ! *** assign from pw_env
@@ -491,9 +491,9 @@ MODULE qs_rho0_ggrid
     pw_pool => pw_pools(igrid)%pool
 
     ALLOCATE(coeff_gspace, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(coeff_rspace, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL pw_pool_create_pw(pw_pool,coeff_gspace%pw,&
                             use_data = COMPLEXDATA1D,&
                             in_space = RECIPROCALSPACE)
@@ -504,7 +504,7 @@ MODULE qs_rho0_ggrid
     IF (igrid /= auxbas_grid) THEN
        pw_aux => pw_pools(auxbas_grid)%pool
        ALLOCATE(coeff_gaux,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL pw_pool_create_pw(pw_aux, coeff_gaux%pw,&
                                use_data = COMPLEXDATA1D,&
                                in_space = RECIPROCALSPACE)
@@ -513,16 +513,16 @@ MODULE qs_rho0_ggrid
        CALL pw_transfer(coeff_gspace%pw,coeff_rspace%pw)
        CALL pw_pool_give_back_pw(pw_aux,coeff_gaux%pw)
        DEALLOCATE(coeff_gaux, STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        ALLOCATE(coeff_raux,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL pw_pool_create_pw(pw_aux, coeff_raux%pw,use_data=REALDATA3D,&
                                in_space=REALSPACE)
        scale = coeff_rspace%pw%pw_grid%dvol/coeff_raux%pw%pw_grid%dvol
        coeff_rspace%pw%cr3d = scale*coeff_rspace%pw%cr3d
        CALL pw_pool_give_back_pw(pw_aux,coeff_raux%pw)
        DEALLOCATE(coeff_raux, STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     ELSE
 
        IF(coeff_gspace%pw%pw_grid%spherical) THEN
@@ -534,7 +534,7 @@ MODULE qs_rho0_ggrid
     END IF
     CALL pw_pool_give_back_pw(pw_pool,coeff_gspace%pw)
     DEALLOCATE(coeff_gspace, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! *** set up the rs grid at level igrid
     CALL rs_grid_create(rs_v, rs_desc)
@@ -543,7 +543,7 @@ MODULE qs_rho0_ggrid
 
     CALL pw_pool_give_back_pw(pw_pool,coeff_rspace%pw)
     DEALLOCATE(coeff_rspace, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! *** Now the potential is on the right grid => integration
 
@@ -588,7 +588,7 @@ MODULE qs_rho0_ggrid
 
       nsotot = maxso*nset
       ALLOCATE(intloc(nsotot,nsotot),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
       ! Initialize the local KS integrals
 
@@ -598,7 +598,7 @@ MODULE qs_rho0_ggrid
       llmax = harmonics%llmax
 
       ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
       num_pe = para_env%num_pe
       mepos  = para_env%mepos
@@ -746,16 +746,16 @@ MODULE qs_rho0_ggrid
       END DO
 
       DEALLOCATE(intloc,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       DEALLOCATE(cg_list,cg_n_list,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
     END DO  ! ikind
 
     CALL rs_grid_release(rs_v)
 
     DEALLOCATE (hab,hdab,hadb,hab_sph,hdab_sph,pab,a_hdab,a_hdab_sph,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 

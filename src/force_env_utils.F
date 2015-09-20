@@ -99,8 +99,8 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count>0)
     my_log_unit=-1
     IF (PRESENT(log_unit)) my_log_unit=log_unit
     my_lagrange_mult=-1
@@ -133,7 +133,7 @@ CONTAINS
     IF (.NOT.ASSOCIATED(my_pos)) THEN
        has_pos=.TRUE.
        ALLOCATE(my_pos(3,particles%n_els),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        my_pos = 0.0_dp
        DO iparticle_kind=1,nparticle_kind
           nparticle_local = local_particles%n_el(iparticle_kind)
@@ -147,7 +147,7 @@ CONTAINS
     IF (.NOT.ASSOCIATED(my_vel)) THEN
        has_vel=.TRUE.
        ALLOCATE(my_vel(3,particles%n_els),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        my_vel = 0.0_dp
        DO iparticle_kind=1,nparticle_kind
           nparticle_local = local_particles%n_el(iparticle_kind)
@@ -216,12 +216,12 @@ CONTAINS
     IF (has_pos) THEN
        CALL update_particle_set ( particles%els, force_env%para_env%group, pos=my_pos)
        DEALLOCATE(my_pos,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (has_vel) THEN
        CALL update_particle_set ( particles%els, force_env%para_env%group, vel=my_vel)
        DEALLOCATE(my_vel,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL timestop(handle)
   END SUBROUTINE force_env_shake
@@ -275,8 +275,8 @@ CONTAINS
     failure=.FALSE.
 
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count>0)
     my_log_unit=-1
     IF (PRESENT(log_unit)) my_log_unit=log_unit
     my_lagrange_mult=-1
@@ -302,7 +302,7 @@ CONTAINS
     IF (.NOT.ASSOCIATED(my_vel)) THEN
        has_vel=.TRUE.
        ALLOCATE(my_vel(3,particles%n_els),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        my_vel = 0.0_dp
        DO iparticle_kind=1,nparticle_kind
           nparticle_local = local_particles%n_el(iparticle_kind)
@@ -372,7 +372,7 @@ CONTAINS
        CALL update_particle_set ( particles%els, force_env%para_env%group, vel=my_vel)
     END IF
     DEALLOCATE(my_vel,stat=stat)
-    CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE force_env_rattle
 
@@ -396,8 +396,8 @@ CONTAINS
 
     failure=.FALSE.
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count>0)
     rescale_force_section => section_vals_get_subs_vals(force_env%force_env_section,"RESCALE_FORCES")
     CALL section_vals_get(rescale_force_section, explicit=explicit)
     IF (.NOT.failure.AND.explicit) THEN
@@ -451,7 +451,7 @@ CONTAINS
     failure = .FALSE.
 
     IF (output_unit > 0) THEN
-      CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(cell))
       stress_tensor(:,:) = pv_virial(:,:)/cell%deth*pascal*1.0E-9_dp
       n = MIN(MAX(1,ndigits),20)
       fmtstr1 = "(/,T2,A,/,/,T13,A1,2(  X,A1))"
@@ -532,7 +532,7 @@ CONTAINS
     failure = .FALSE.
 
     IF (output_unit > 0) THEN
-      CPPrecondition(ASSOCIATED(particles),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(particles))
       n = MIN(MAX(1,ndigits),20)
       fmtstr1 = "(/,T2,A,/,/,T2,A,T11,A,T18,A,T35,A1,2(  X,A1))"
       WRITE (UNIT=fmtstr1(39:40),FMT="(I2)") n + 6

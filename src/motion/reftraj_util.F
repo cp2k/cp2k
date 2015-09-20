@@ -105,7 +105,7 @@ CONTAINS
     nline_to_skip = 0
 
     nskip = reftraj%info%first_snapshot-1
-    CPPostcondition(nskip>=0,cp_failure_level,routineP,failure)
+    CPASSERT(nskip>=0)
 
     IF(nskip > 0 ) THEN
       nline_to_skip = (natom+2)*nskip
@@ -192,10 +192,10 @@ CPSourceFileRef,&
 
     NULLIFY (molecule, molecules, molecule_kind, molecule_kind_set,&
              molecule_kinds, molecule_set, subsys, force_env, particles, particle_set)
-    CPPrecondition(.NOT. ASSOCIATED(msd),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT. ASSOCIATED(msd))
 
     ALLOCATE(msd, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     NULLIFY(msd%ref0_pos)
     NULLIFY(msd%ref0_com_molecule)
@@ -215,20 +215,20 @@ CPSourceFileRef,&
     CALL open_file(TRIM(filename),unit_number=msd%ref0_unit)
 
     ALLOCATE(msd%ref0_pos(3,reftraj%natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     msd%ref0_pos = 0.0_dp
 
     IF (para_env%mepos==para_env%source) THEN
       REWIND(msd%ref0_unit)
       READ(msd%ref0_unit,*,ERR=999,END=998) natom_read
-      CPPostcondition(natom_read==reftraj%natom,cp_failure_level,routineP,failure)
+      CPASSERT(natom_read==reftraj%natom)
       READ(msd%ref0_unit,'(A)',ERR=999,END=998) title
       msd%total_mass = 0.0_dp
       msd%ref0_com = 0.0_dp
       DO iatom = 1,natom_read
           READ(msd%ref0_unit,*,ERR=999,END=998)  AA, x, y, z
           name=TRIM(particle_set(iatom)%atomic_kind%element_symbol)
-          CPPostcondition((TRIM(AA)==name),cp_failure_level,routineP,failure)
+          CPASSERT((TRIM(AA)==name))
 
           x = cp_unit_to_cp2k(x,"angstrom")
           y = cp_unit_to_cp2k(y,"angstrom")
@@ -257,10 +257,10 @@ CPSourceFileRef,&
     CALL section_vals_val_get(msd_section,"DISPLACED_ATOM",l_val=msd%disp_atom)
     IF(msd%disp_atom) THEN
        ALLOCATE(msd%disp_atom_index(npart),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        msd%disp_atom_index = 0
        ALLOCATE(msd%disp_atom_dr(3,npart),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        msd%disp_atom_dr = 0.0_dp
        msd%msd_kind = .TRUE.
     END IF
@@ -272,7 +272,7 @@ CPSourceFileRef,&
       nkind = atomic_kinds%n_els
 
       ALLOCATE(msd%val_msd_kind(4,nkind),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       msd%val_msd_kind = 0.0_dp
     END IF
 
@@ -281,14 +281,14 @@ CPSourceFileRef,&
            molecule_kinds_new=molecule_kinds)
       nmolkind =  molecule_kinds%n_els
       ALLOCATE(msd%val_msd_molecule(4,nmolkind),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
       molecule_kind_set => molecule_kinds%els
       molecule_set => molecules%els
       nmol = molecules%n_els
 
       ALLOCATE(msd%ref0_com_molecule(3,nmol), STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
 
       DO ikind = 1, nmolkind
         molecule_kind => molecule_kind_set(ikind)

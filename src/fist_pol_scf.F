@@ -189,9 +189,9 @@ CONTAINS
 
     natoms = SIZE ( particle_set )
     ALLOCATE (efield1(3,natoms), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (efield2(9,natoms), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     nkind = SIZE(atomic_kind_set)
     IF (iw>0) WRITE(iw,FMT='(/,T5,"POL_SCF|","Method: self-consistent")')
@@ -309,9 +309,9 @@ CONTAINS
 
     ! Deallocate working arrays
     DEALLOCATE(efield1,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(efield2,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_print_key_finished_output(iw2,logger,mm_section,&
          "PRINT%EWALD_INFO")
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
@@ -416,17 +416,17 @@ CONTAINS
     ! allocate work arrays
     natoms = SIZE ( particle_set )
     ALLOCATE (efield1(3,natoms), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (tmp_dipoles(3,natoms), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (residual(3,natoms), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (conjugate(3,natoms), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (conjugate_applied(3,natoms), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (efield1_ext(3,natoms), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Compute the 'external' electrostatic field (all inducible dipoles
     ! equal to zero). this is required for the conjugate gradient solver.
@@ -652,17 +652,17 @@ CONTAINS
 
     ! Deallocate working arrays
     DEALLOCATE(efield1,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(tmp_dipoles,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(residual,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(conjugate,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(conjugate_applied,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(efield1_ext,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_print_key_finished_output(iw2,logger,mm_section,&
          "PRINT%EWALD_INFO")
     CALL cp_print_key_finished_output(iw,logger,mm_section,&

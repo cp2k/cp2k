@@ -92,56 +92,56 @@ CONTAINS
 
     ! check if all input is in place and flags are consistent
     IF (cts_env%update_q.AND.(.NOT.cts_env%update_p)) THEN
-       CPErrorMessage(cp_failure_level,routineP,"q-update is possible only with p-update")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("q-update is possible only with p-update")
+       CPASSERT(.FALSE.)
     ENDIF
 
     IF (cts_env%tensor_type.eq.tensor_up_down) THEN
-       CPErrorMessage(cp_failure_level,routineP,"riccati is not implemented for biorthogonal basis")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("riccati is not implemented for biorthogonal basis")
+       CPASSERT(.FALSE.)
     ENDIF
 
     IF (.NOT.ASSOCIATED(cts_env%matrix_ks)) THEN
-       CPErrorMessage(cp_failure_level,routineP,"KS matrix is not associated")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("KS matrix is not associated")
+       CPASSERT(.FALSE.)
     ENDIF
 
     IF (cts_env%use_virt_orbs.AND.(.NOT.cts_env%use_occ_orbs)) THEN
-       CPErrorMessage(cp_failure_level,routineP,"virtual orbs can be used only with occupied orbs")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("virtual orbs can be used only with occupied orbs")
+       CPASSERT(.FALSE.)
     ENDIF
 
     IF (cts_env%use_occ_orbs) THEN
      IF (.NOT.ASSOCIATED(cts_env%matrix_t)) THEN
-       CPErrorMessage(cp_failure_level,routineP,"T matrix is not associated")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("T matrix is not associated")
+       CPASSERT(.FALSE.)
      ENDIF
      IF (.NOT.ASSOCIATED(cts_env%matrix_qp_template)) THEN
-       CPErrorMessage(cp_failure_level,routineP,"QP template is not associated")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("QP template is not associated")
+       CPASSERT(.FALSE.)
      ENDIF
      IF (.NOT.ASSOCIATED(cts_env%matrix_pq_template)) THEN
-       CPErrorMessage(cp_failure_level,routineP,"PQ template is not associated")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("PQ template is not associated")
+       CPASSERT(.FALSE.)
      ENDIF
     ENDIF
 
     IF (cts_env%use_virt_orbs) THEN
      IF (.NOT.ASSOCIATED(cts_env%matrix_v)) THEN
-       CPErrorMessage(cp_failure_level,routineP,"V matrix is not associated")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("V matrix is not associated")
+       CPASSERT(.FALSE.)
      ENDIF
     ELSE
      IF (.NOT.ASSOCIATED(cts_env%matrix_p)) THEN
-       CPErrorMessage(cp_failure_level,routineP,"P matrix is not associated")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("P matrix is not associated")
+       CPASSERT(.FALSE.)
      ENDIF
     ENDIF
 
     IF (cts_env%tensor_type.NE.tensor_up_down.AND.&
        cts_env%tensor_type.NE.tensor_orthogonal) THEN
-       CPErrorMessage(cp_failure_level,routineP,"illegal tensor flag")
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPABORT("illegal tensor flag")
+       CPASSERT(.FALSE.)
     ENDIF
 
     ! start real calculations
@@ -287,7 +287,7 @@ CONTAINS
                 WRITE(unit_nr,'(T6,A)') &
                       "RICCATI: CG algorithm has NOT converged"
              ENDIF
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
            ENDIF
    
         ENDIF
@@ -414,7 +414,7 @@ CONTAINS
                 WRITE(unit_nr,'(T6,A)') &
                       "RICCATI: CG algorithm has NOT converged"
              ENDIF
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
            ENDIF
    
         ENDIF
@@ -437,15 +437,15 @@ CONTAINS
    
 
      CASE DEFAULT
-        CPErrorMessage(cp_failure_level,routineP,"illegal preconditioner type")
-        CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+        CPABORT("illegal preconditioner type")
+        CPASSERT(.FALSE.)
      END SELECT ! preconditioner type
 
      IF (cts_env%update_p) THEN
        
         IF (cts_env%tensor_type.eq.tensor_up_down) THEN
-           CPErrorMessage(cp_failure_level,routineP,"orbital update is NYI for this tensor type")
-           CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+           CPABORT("orbital update is NYI for this tensor type")
+           CPASSERT(.FALSE.)
         ENDIF
 
         ! transform occupied orbitals
@@ -542,8 +542,8 @@ CONTAINS
      ENDIF
      
     ELSE
-     CPErrorMessage(cp_failure_level,routineP,"illegal occ option")
-     CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+     CPABORT("illegal occ option")
+     CPASSERT(.FALSE.)
     ENDIF
 
     CALL timestop(handle)
@@ -798,9 +798,8 @@ CONTAINS
     INTEGER                                  :: handle, istep, iteration, &
                                                 nsteps, unit_nr, &
                                                 update_prec_freq
-    LOGICAL                                  :: failure, prepare_to_exit, &
-                                                present_oo, present_vv, &
-                                                quadratic_term, &
+    LOGICAL                                  :: prepare_to_exit, present_oo, &
+                                                present_vv, quadratic_term, &
                                                 restart_conjugator
     REAL(KIND=dp)                            :: best_norm, best_step_size, &
                                                 beta, c0, c1, c2, c3, denom, &
@@ -1084,8 +1083,8 @@ CONTAINS
              CASE (cg_zero)
                 beta=0.0_dp
              CASE DEFAULT
-                CPErrorMessage(cp_failure_level,routineP,"illegal conjugator")
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPABORT("illegal conjugator")
+                CPASSERT(.FALSE.)
              END SELECT
           ENDIF ! iteration.eq.0
           
@@ -1185,8 +1184,8 @@ CONTAINS
           CALL analytic_line_search(c0,c1,c2,c3,step_size,nsteps)
           
           IF (nsteps.eq.0) THEN
-             CPErrorMessage(cp_failure_level,routineP,"no step sizes!")
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPABORT("no step sizes!")
+             CPASSERT(.FALSE.)
           ENDIF
           ! if we have several possible step sizes
           ! choose one with the lowest objective function
@@ -1282,7 +1281,7 @@ CONTAINS
 
     INTEGER :: col, handle, hold, iblock_col, iblock_row, mynode, &
       nblkcols_tot, nblkrows_tot, p_nrows, q_nrows, row
-    LOGICAL                                  :: failure, tr
+    LOGICAL                                  :: tr
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: p_diagonal, q_diagonal
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_new_block
     TYPE(cp_dbcsr_type)                      :: pp_diag, qq_diag, t1, t2, tmp
@@ -1320,7 +1319,7 @@ CONTAINS
           IF (hold.EQ.mynode) THEN
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(tmp,iblock_row,iblock_col,p_new_block)
-             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(p_new_block))
              p_new_block(:,:) = 1.0_dp
           ENDIF ! mynode
        ENDDO
@@ -1586,8 +1585,7 @@ CONTAINS
     INTEGER                                  :: handle, iblock_col, &
                                                 iblock_row, iblock_size, &
                                                 info, lwork, orbital
-    LOGICAL                                  :: block_needed, do_eigenvalues, &
-                                                failure
+    LOGICAL                                  :: block_needed, do_eigenvalues
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues, work
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: data_copy
@@ -1634,21 +1632,21 @@ CONTAINS
           ALLOCATE(WORK(MAX(1,LWORK)))
           CALL DSYEV('V','L',iblock_size,data_copy,iblock_size,eigenvalues,WORK,LWORK,INFO)
           IF( INFO.NE.0 ) THEN
-             CPErrorMessage(cp_failure_level,routineP,"DSYEV failed")
-             CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPABORT("DSYEV failed")
+             CPASSERT(.FALSE.)
           END IF
 
           ! copy eigenvectors into a cp_dbcsr matrix
           NULLIFY (p_new_block)
           CALL cp_dbcsr_reserve_block2d(c,iblock_row,iblock_col,p_new_block)
-          CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(p_new_block))
           p_new_block(:,:) = data_copy(:,:)
 
           ! if requested copy eigenvalues into a cp_dbcsr matrix
           IF (do_eigenvalues) THEN
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(e,iblock_row,iblock_col,p_new_block)
-             CPPostcondition(ASSOCIATED(p_new_block),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(p_new_block))
              p_new_block(:,:) = 0.0_dp
              DO orbital=1,iblock_size
                 p_new_block(orbital,orbital)=eigenvalues(orbital)

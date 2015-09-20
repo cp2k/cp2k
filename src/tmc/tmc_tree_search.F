@@ -91,9 +91,9 @@ CONTAINS
     check_rejected = .FALSE.
     keep_on = .TRUE.
 
-    CPPrecondition(ASSOCIATED(global_tree_elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(global_tree_elem))
     st_elem => global_tree_elem%conf(global_tree_elem%mv_conf)%elem
-    CPPrecondition(ASSOCIATED(st_elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(st_elem))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -244,7 +244,7 @@ CONTAINS
     prob = 0.0_dp
     flag = .FALSE.
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(gt_head),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gt_head))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -293,7 +293,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(current),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(current))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -310,7 +310,7 @@ CONTAINS
     END IF
     ! end the timing
     CALL timestop(handle)
-    CPPostcondition(ASSOCIATED(parent),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(parent))
   END FUNCTION search_parent_element
 
 ! *****************************************************************************
@@ -333,7 +333,7 @@ CONTAINS
     found = .FALSE.
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(ptr),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ptr))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -367,7 +367,7 @@ CONTAINS
     ! end the timing
     CALL timestop(handle)
 
-    CPPostcondition(ASSOCIATED(ptr),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ptr))
   END SUBROUTINE search_next_gt_element_to_check
 
 ! *****************************************************************************
@@ -390,7 +390,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(gt_act_elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gt_act_elem))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -418,9 +418,9 @@ CONTAINS
     ! end the timing
     CALL timestop(handle)
 
-    CPPostcondition(ASSOCIATED(gt_act_elem),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(elem1),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(elem2),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gt_act_elem))
+    CPASSERT(ASSOCIATED(elem1))
+    CPASSERT(ASSOCIATED(elem2))
   END SUBROUTINE get_subtree_elements_to_check
 
 ! *****************************************************************************
@@ -441,8 +441,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(last_acc),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(last_acc))
+    CPASSERT(ASSOCIATED(tree_ptr))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -472,8 +472,8 @@ CONTAINS
     END SELECT
     ! end the timing
     CALL timestop(handle)
-    CPPostcondition(ASSOCIATED(last_acc),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(last_acc))
+    CPASSERT(ASSOCIATED(tree_ptr))
   END SUBROUTINE search_end_of_clean_g_tree
 
 ! *****************************************************************************
@@ -497,8 +497,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(last_acc),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tree_ptr))
+    CPASSERT(ASSOCIATED(last_acc))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -514,8 +514,8 @@ CONTAINS
     END IF
     ! end the timing
     CALL timestop(handle)
-    CPPostcondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(last_acc),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tree_ptr))
+    CPASSERT(ASSOCIATED(last_acc))
   END SUBROUTINE search_end_of_clean_tree
 
 ! *****************************************************************************
@@ -543,8 +543,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(pt_elem, act_pt_ptr)
-    CPPrecondition(ASSOCIATED(pt_elem_in),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pt_elem_in))
+    CPASSERT(ASSOCIATED(tmc_env))
     
     ! start the timing
     CALL timeset(routineN,handle)
@@ -596,7 +596,7 @@ CONTAINS
     END IF
     ! end the timing
     CALL timestop(handle)
-    CPPostcondition(ASSOCIATED(pt_elem_in),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pt_elem_in))
   END SUBROUTINE search_canceling_elements
 
 ! *****************************************************************************
@@ -621,9 +621,9 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(begin_ptr)
 
-    CPPrecondition(ASSOCIATED(global_tree_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(counters),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(counters(1:)).EQ.SIZE(global_tree_ptr%conf(:)),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(global_tree_ptr))
+    CPASSERT(ASSOCIATED(counters))
+    CPASSERT(SIZE(counters(1:)).EQ.SIZE(global_tree_ptr%conf(:)))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -660,7 +660,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(tmp_ptr)
 
-    CPPrecondition(ASSOCIATED(tree_ptr),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tree_ptr))
 
     SELECT CASE(tree_ptr%stat)
     CASE(status_accepted, status_accepted_result)
@@ -722,10 +722,10 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(begin_gt_ptr, begin_ptr)
 
-    CPPrecondition(ASSOCIATED(global_tree_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(end_of_clean_trees),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(counters),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(counters(1:)).EQ.SIZE(global_tree_ptr%conf(:)),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(global_tree_ptr))
+    CPASSERT(ASSOCIATED(end_of_clean_trees))
+    CPASSERT(ASSOCIATED(counters))
+    CPASSERT(SIZE(counters(1:)).EQ.SIZE(global_tree_ptr%conf(:)))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -769,7 +769,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(ptr),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ptr))
 
     counter = counter +1
 
@@ -795,7 +795,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(ptr),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ptr))
 
     counter = counter +1
 

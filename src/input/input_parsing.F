@@ -112,13 +112,13 @@ CONTAINS
     root_sect=.TRUE.
     IF (PRESENT(root_section)) root_sect=root_section
 
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(parser),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(ASSOCIATED(parser))
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(parser%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(section_vals%ref_count>0)
+    CPASSERT(parser%ref_count>0)
     IF (root_sect.and.parser%icol1>parser%icol2) &
          CALL cp_assert(.FALSE.,cp_failure_level,&
          cp_assertion_failed,routineP,&
@@ -371,7 +371,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(val),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(val))
     SELECT CASE(type_of_var)
     CASE(no_t)
     CASE (logical_t)
@@ -380,7 +380,7 @@ CONTAINS
           IF (.NOT.ASSOCIATED(default_value)) THEN
              IF (n_var<1) THEN
                 ALLOCATE(l_val_p(0),stat=stat)
-                CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+                CPASSERT(stat==0)
                 CALL val_create(val,l_vals_ptr=l_val_p)
              ELSE
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -388,7 +388,7 @@ CONTAINS
                      TRIM(parser_location(parser)),failure)
              END IF
           ELSE
-             CPPrecondition(ASSOCIATED(default_value%l_val),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(default_value%l_val))
              CALL val_create(val,l_vals=default_value%l_val)
           END IF
        ELSE
@@ -408,7 +408,7 @@ CONTAINS
              CALL cp_dealloc(l_first)
           ELSE
              ALLOCATE(l_val_p(n_var),stat=stat)
-             CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+             CPASSERT(stat==0)
              DO i=1,n_var
                 CALL parser_get_object(parser,l_val_p(i))
              END DO
@@ -423,7 +423,7 @@ CONTAINS
           IF (.NOT.ASSOCIATED(default_value)) THEN
              IF (n_var<1) THEN
                 ALLOCATE(i_val_p(0),stat=stat)
-                CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+                CPASSERT(stat==0)
                 CALL val_create(val,i_vals_ptr=i_val_p)
              ELSE
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -432,7 +432,7 @@ CONTAINS
              END IF
           ELSE
              check = ASSOCIATED(default_value%i_val)
-             CPPrecondition(check,cp_failure_level,routineP,failure)
+             CPASSERT(check)
              CALL val_create(val,i_vals=default_value%i_val)
           END IF
        ELSE
@@ -451,7 +451,7 @@ CONTAINS
              CALL cp_dealloc(i_first)
           ELSE
              ALLOCATE(i_val_p(n_var),stat=stat)
-             CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+             CPASSERT(stat==0)
              DO i=1,n_var
                 CALL parser_get_object(parser,i_val_p(i))
              END DO
@@ -466,7 +466,7 @@ CONTAINS
           IF (.NOT.ASSOCIATED(default_value)) THEN
              IF (n_var<1) THEN
                 ALLOCATE(r_val_p(0),stat=stat)
-                CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+                CPASSERT(stat==0)
                 CALL val_create(val,r_vals_ptr=r_val_p)
              ELSE
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -474,7 +474,7 @@ CONTAINS
                      TRIM(parser_location(parser)),failure)
              END IF
           ELSE
-             CPPrecondition(ASSOCIATED(default_value%r_val),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(default_value%r_val))
              CALL val_create(val,r_vals=default_value%r_val)
           END IF
        ELSE
@@ -495,7 +495,7 @@ CONTAINS
              CALL cp_dealloc(r_first)
           ELSE
              ALLOCATE(r_val_p(n_var),stat=stat)
-             CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+             CPASSERT(stat==0)
              c_val = ""
              DO i=1,n_var
                 CALL get_r_val(r_val_p(i), parser, unit, default_units, c_val)
@@ -510,7 +510,7 @@ CONTAINS
        IF (parser_test_next_token(parser)=="EOL") THEN
           IF (n_var<1) THEN
              ALLOCATE(c_val_p(1),stat=stat)
-             CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+             CPASSERT(stat==0)
              c_val_p(1)=' '
              CALL val_create(val,c_vals_ptr=c_val_p)
           ELSE
@@ -519,13 +519,13 @@ CONTAINS
                      routineP,"no value was given and there is no default value"//&
                      TRIM(parser_location(parser)),failure)
              ELSE
-                CPPrecondition(ASSOCIATED(default_value%c_val),cp_failure_level,routineP,failure)
+                CPASSERT(ASSOCIATED(default_value%c_val))
                 CALL val_create(val,c_vals=default_value%c_val)
              END IF
           END IF
        ELSE
           IF (n_var<1) THEN
-             CPAssert(n_var==-1,cp_failure_level,routineP,failure)
+             CPASSERT(n_var==-1)
              NULLIFY(c_last,c_first)
              CALL parser_get_object(parser,c_val)
              CALL cp_create(c_first,c_val)
@@ -541,7 +541,7 @@ CONTAINS
              CALL cp_dealloc(c_first)
           ELSE
              ALLOCATE(c_val_p(n_var),stat=stat)
-             CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+             CPASSERT(stat==0)
              DO i=1,n_var
                 CALL parser_get_object(parser,c_val_p(i))
              END DO
@@ -561,7 +561,7 @@ CONTAINS
             TRIM(parser_location(parser)),failure)
        IF (parser_test_next_token(parser)=="EOL") THEN
           ALLOCATE(c_val_p(1),stat=stat)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           c_val_p(1)=' '
        ELSE
           NULLIFY(c_last,c_first)
@@ -578,16 +578,16 @@ CONTAINS
           c_val_p => cp_to_array(c_first)
           CALL cp_dealloc(c_first)
        END IF
-       CPPostcondition(ASSOCIATED(c_val_p),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(c_val_p))
        CALL val_create(val,lc_vals_ptr=c_val_p)
     CASE (enum_t)
-       CPPrecondition(ASSOCIATED(enum),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(enum))
        NULLIFY(i_val_p)
        IF (parser_test_next_token(parser)=="EOL") THEN
           IF (.NOT.ASSOCIATED(default_value)) THEN
              IF (n_var<1) THEN
                 ALLOCATE(i_val_p(0),stat=stat)
-                CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+                CPASSERT(stat==0)
                 CALL val_create(val,i_vals_ptr=i_val_p)
              ELSE
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -595,7 +595,7 @@ CONTAINS
                      TRIM(parser_location(parser)),failure)
              END IF
           ELSE
-             CPPrecondition(ASSOCIATED(default_value%i_val),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(default_value%i_val))
              CALL val_create(val,i_vals=default_value%i_val,&
                   enum=default_value%enum)
           END IF
@@ -615,7 +615,7 @@ CONTAINS
              CALL cp_dealloc(i_first)
           ELSE
              ALLOCATE(i_val_p(n_var),stat=stat)
-             CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+             CPASSERT(stat==0)
              DO i=1,n_var
                 CALL parser_get_object(parser,c_val)
                 i_val_p(i)=enum_c2i(enum,c_val)
@@ -673,9 +673,9 @@ CPSourceFileRef,&
        IF ('STR'==parser_test_next_token(parser)) THEN
           CALL parser_get_object(parser,c_val)
           check = c_val(1:1)=="["
-          CPPrecondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           check = c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))=="]"
-          CPPrecondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           CALL cp_unit_create(my_unit,c_val(2:LEN_TRIM(c_val)-1))
        ELSE
           IF (c_val /= "") THEN

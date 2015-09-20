@@ -175,7 +175,7 @@ CONTAINS
 
     IF(rtp%linear_scaling) THEN
        ALLOCATE(rtp%rho,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        NULLIFY(rtp%rho%old)
        CALL cp_dbcsr_allocate_matrix_set(rtp%rho%old,2*nspin)
        NULLIFY(rtp%rho%next)
@@ -202,17 +202,17 @@ CONTAINS
             nrow_global=nao, ncol_global=nao,&
             template_fmstruct=ao_mo_fmstruct)
        ALLOCATE(rtp%mos,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(rtp%mos%old(2*nspin),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(rtp%mos%new(2*nspin),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(rtp%mos%next(2*nspin),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        NULLIFY(rtp%mos%admm)
        IF(dft_control%do_admm)THEN
           ALLOCATE(rtp%mos%admm(2*nspin),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        DO i=1,nspin
           DO j=1,2
@@ -259,17 +259,17 @@ CONTAINS
     END DO
     NULLIFY(rtp%S_inv)
     ALLOCATE(rtp%S_inv,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_init(rtp%S_inv)
     CALL cp_dbcsr_create(rtp%S_inv,template=template,matrix_type="S")
     NULLIFY(rtp%S_half)
     ALLOCATE(rtp%S_half,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_init(rtp%S_half)
     CALL cp_dbcsr_create(rtp%S_half,template=template,matrix_type="S")
     NULLIFY(rtp%S_minus_half)
     ALLOCATE(rtp%S_minus_half,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_init(rtp%S_minus_half)
     CALL cp_dbcsr_create(rtp%S_minus_half,template=template,matrix_type="S")
     NULLIFY(rtp%B_mat)
@@ -279,7 +279,7 @@ CONTAINS
     NULLIFY(rtp%SinvB)
     IF(.NOT.rtp_control%fixed_ions)THEN
        ALLOCATE(rtp%B_mat,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL cp_dbcsr_init(rtp%B_mat)
        CALL cp_dbcsr_create(rtp%B_mat,template=template,matrix_type="N")
        CALL cp_dbcsr_allocate_matrix_set(rtp%C_mat,3)
@@ -302,7 +302,7 @@ CONTAINS
        END DO
     END IF
     ALLOCATE(rtp%orders(2,nspin),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     rtp_control%converged=.FALSE.
     rtp%matrix_update=.TRUE.
     rtp%narn_old=0
@@ -375,7 +375,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(rtp),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rtp))
     IF (PRESENT(exp_H_old))exp_H_old=>rtp%exp_H_old
     IF (PRESENT(exp_H_new))exp_H_new=>rtp%exp_H_new
     IF (PRESENT(H_last_iter))H_last_iter=>rtp%H_last_iter
@@ -434,7 +434,7 @@ CONTAINS
        IF(ASSOCIATED(rtp%rho%new))&
             CALL cp_dbcsr_deallocate_matrix_set(rtp%rho%new)
        DEALLOCATE(rtp%rho,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
     IF(ASSOCIATED(rtp%mos)) THEN
       IF(ASSOCIATED(rtp%mos%old))&
@@ -446,7 +446,7 @@ CONTAINS
       IF(ASSOCIATED(rtp%mos%admm))&
          CALL cp_fm_vect_dealloc(rtp%mos%admm)
       DEALLOCATE(rtp%mos,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
     CALL cp_dbcsr_deallocate_matrix(rtp%S_inv)
     CALL cp_dbcsr_deallocate_matrix(rtp%S_half)
@@ -464,7 +464,7 @@ CONTAINS
     IF(ASSOCIATED(rtp%history))&
          CALL rtp_history_release(rtp)
     DEALLOCATE(rtp%orders,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(.NOT.rtp%linear_scaling) CALL cp_fm_struct_release(rtp%ao_ao_fmstruct)
   END SUBROUTINE rt_prop_release
 
@@ -488,7 +488,7 @@ CONTAINS
 
     NULLIFY(history)
     ALLOCATE(rtp%history,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     history=> rtp%history
 
     NULLIFY(history%rho_history,history%mo_history,history%s_history)
@@ -507,7 +507,7 @@ CONTAINS
        ELSE
           nmat=SIZE(rtp%mos%old)
           ALLOCATE(history%mo_history(nmat,aspc_order),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i=1,nmat
              DO j=1,aspc_order
                 NULLIFY(history%mo_history(i,j)%matrix)
@@ -517,7 +517,7 @@ CONTAINS
              END DO
           END DO
           ALLOCATE(history%s_history(aspc_order),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i=1,aspc_order
              NULLIFY(history%s_history(i)%matrix)
           END DO
@@ -554,7 +554,7 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE(rtp%history%mo_history,stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (ASSOCIATED(rtp%history%s_history)) THEN
        DO i=1,SIZE(rtp%history%s_history)
@@ -562,10 +562,10 @@ CONTAINS
              CALL cp_dbcsr_deallocate_matrix(rtp%history%s_history(i)%matrix)
           END DO
           DEALLOCATE(rtp%history%s_history,stat=stat)
-          CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+          CPASSERT(stat==0)
     END IF 
     DEALLOCATE(rtp%history,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE rtp_history_release
 

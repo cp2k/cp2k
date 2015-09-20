@@ -78,7 +78,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="mm",&
          description="This section contains all information to run a MM calculation.",&
          n_keywords=5, n_subsections=0, repeats=.FALSE.)
@@ -120,7 +120,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
          description="Section of possible print options in MM code.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -223,7 +223,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="FORCEFIELD",&
          description="Section specifying information regarding how to set up properly"// &
          " a force_field for the classical calculations.",&
@@ -385,7 +385,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="SPLINE",&
          description="specifies parameters to set up the splines used in the"//&
          " nonboned interactions (both pair body potential and many body potential)",&
@@ -466,7 +466,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TORSION",&
          description="Specifies the torsion potential of the MM system.",&
          n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -534,7 +534,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="IMPROPER",&
          description="Specifies the improper torsion potential of the MM system.",&
          n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -595,7 +595,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="OPBEND",&
          description="Specifies the out of plane bend potential of the MM system."//&
          "(Only defined for atom quadruples which are also defined as an improper"//&
@@ -659,7 +659,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BEND",&
          description="Specifies the bend potential of the MM system.",&
          n_keywords=1, n_subsections=1, repeats=.TRUE.)
@@ -779,7 +779,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(keyword)
 
     IF (TRIM(label)=="UB") THEN
@@ -871,7 +871,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="charges",&
          description="Allow to specify an array of classical charges, thus avoiding the"//&
          " packing and permitting the usage of different charges for same atomic types.",&
@@ -903,7 +903,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="charge",&
          description="This section specifies the charge of the MM atoms",&
          n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -942,7 +942,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="QUADRUPOLE",&
          description="This section specifies that we will perform an SCF quadrupole calculation of the MM atoms. "//&
                      "Needs KEYWORD POL_SCF in POISSON secton",&
@@ -983,7 +983,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DIPOLE",&
          description="This section specifies that we will perform an SCF dipole calculation of the MM atoms. "//&
                      "Needs KEYWORD POL_SCF in POISSON secton",&
@@ -1026,7 +1026,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DAMPING",&
          description="This section specifies optional electric field damping for the polarizable atoms. ",&
          n_keywords=4, n_subsections=0, repeats=.TRUE.)
@@ -1087,7 +1087,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section, name="SHELL",&
          description="This section specifies the parameters for shell-model potentials",&
          n_keywords=6, n_subsections=0, repeats=.TRUE., &
@@ -1187,7 +1187,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="nonbonded14",&
          description="This section specifies the input parameters for 1-4 NON-BONDED interactions.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -1229,7 +1229,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="nonbonded",&
          description="This section specifies the input parameters for NON-BONDED interactions.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -1309,7 +1309,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="neighbor_lists",&
          description="This section specifies the input parameters for the construction of"//&
          " neighbor lists.",&
@@ -1359,7 +1359,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="GENPOT",&
          description="This section specifies the input parameters for a generic potential type."//&
          "A functional form is specified. Mathematical Operators recognized are +, -, *, /, ** "//&
@@ -1454,7 +1454,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EAM",&
          description="This section specifies the input parameters for EAM potential type.",&
          citations=(/Foiles1986/),n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -1502,7 +1502,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="QUIP",&
          description="This section specifies the input parameters for QUIP potential type. " //&
                      "Mainly intended for things like GAP corrections to DFT "//&
@@ -1564,7 +1564,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="lennard-jones",&
          description="This section specifies the input parameters for LENNARD-JONES potential type."//&
          "Functional form: V(r) = 4.0 * EPSILON * [(SIGMA/r)^12-(SIGMA/r)^6].",&
@@ -1633,7 +1633,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="williams",&
          description="This section specifies the input parameters for WILLIAMS potential type."//&
          "Functional form: V(r) = A*EXP(-B*r) - C / r^6 .",&
@@ -1709,7 +1709,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="goodwin",&
          description="This section specifies the input parameters for GOODWIN potential type."//&
          "Functional form: V(r) = EXP(M*(-(r/DC)**MC+(D/DC)**MC))*VR0*(D/r)**M.",&
@@ -1798,7 +1798,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="ipbv",&
          description="This section specifies the input parameters for IPBV potential type."//&
          "Functional form: Implicit table function.",&
@@ -1853,7 +1853,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BMHFT",&
          description="This section specifies the input parameters for BMHFT potential type."//&
          "Functional form: V(r) = A * EXP(-B*r) - C/r^6 - D/r^8."//&
@@ -1944,7 +1944,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BMHFTD",&
          description="This section specifies the input parameters for BMHFTD potential type."//&
          "Functional form: V(r) = A*exp(-B*r) - f_6*(r)C/r^6 - f_8(r)*D/r^8."//&
@@ -2051,7 +2051,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BUCK4RANGES",&
          description="This section specifies the input parameters for the Buckingham 4-ranges"//&
          " potential type."//&
@@ -2169,7 +2169,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BUCKMORSE",&
          description="This section specifies the input parameters for"//&
          " Buckingham plus Morse potential type "//&
@@ -2288,7 +2288,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TERSOFF",&
          description="This section specifies the input parameters for Tersoff potential type.",&
          citations=(/Tersoff1988/),n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -2443,7 +2443,7 @@ CONTAINS
 
    failure=.FALSE.
 
-   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+   CPASSERT(.NOT.ASSOCIATED(section))
    CALL section_create(section,name="SIEPMANN",&
         description="This section specifies the input parameters for the"//&
                     " Siepmann-Sprik potential type. Consists of 4 terms:"//&
@@ -2542,7 +2542,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(print_key),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(print_key))
     CALL cp_print_key_section_create(print_key_section=print_key,name=TRIM(label),&
          description="Section controlling the calculation of "//TRIM(label)//"."//&
          " Note that the result in the periodic case might be defined modulo a certain period,"//&

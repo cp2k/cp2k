@@ -68,10 +68,10 @@ CONTAINS
     LOGICAL                                  :: check, failure
 
     failure=.FALSE.
-    CPPostcondition(ASSOCIATED(results),cp_failure_level,routineP,failure)
-    CPPostcondition(description(1:1)=='[',cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(results))
+    CPASSERT(description(1:1)=='[')
     check  = SIZE(results%result_label)==SIZE(results%result_value)
-    CPPostcondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     isize=SIZE(results%result_label)
     jsize=SIZE(values)
 
@@ -106,10 +106,10 @@ CONTAINS
     LOGICAL                                  :: check, failure
 
     failure=.FALSE.
-    CPPostcondition(ASSOCIATED(results),cp_failure_level,routineP,failure)
-    CPPostcondition(description(1:1)=='[',cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(results))
+    CPASSERT(description(1:1)=='[')
     check  = SIZE(results%result_label)==SIZE(results%result_value)
-    CPPostcondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     isize=SIZE(results%result_label)
     jsize=SIZE(values,1)*SIZE(values,2)
 
@@ -143,7 +143,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(results),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
     res_exist = .FALSE.
     DO i = 1, nlist
@@ -183,10 +183,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(results),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
-    CPPostcondition(description(1:1)=='[',cp_failure_level,routineP,failure)
-    CPPostcondition(SIZE(results%result_label)==nlist,cp_failure_level,routineP,failure)
+    CPASSERT(description(1:1)=='[')
+    CPASSERT(SIZE(results%result_label)==nlist)
     nrep = 0
     DO i = 1, nlist
        IF(TRIM(results%result_label(i))==TRIM(description)) nrep = nrep + 1
@@ -216,9 +216,9 @@ CPSourceFileRef,&
     IF(PRESENT(n_entries)) n_entries = size_res
     size_values = SIZE(values,1)
     IF(PRESENT(nval))THEN
-       CPPostcondition(size_res==size_values,cp_failure_level,routineP,failure)
+       CPASSERT(size_res==size_values)
     ELSE
-       CPPostcondition(nrep*size_res==size_values,cp_failure_level,routineP,failure)
+       CPASSERT(nrep*size_res==size_values)
     END IF
     k=0
     DO i = 1,nlist
@@ -265,10 +265,10 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(results),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
-    CPPostcondition(description(1:1)=='[',cp_failure_level,routineP,failure)
-    CPPostcondition(SIZE(results%result_label)==nlist,cp_failure_level,routineP,failure)
+    CPASSERT(description(1:1)=='[')
+    CPASSERT(SIZE(results%result_label)==nlist)
     nrep = 0
     DO i = 1, nlist
        IF(TRIM(results%result_label(i))==TRIM(description)) nrep = nrep + 1
@@ -298,9 +298,9 @@ CPSourceFileRef,&
     IF(PRESENT(n_entries)) n_entries = size_res
     size_values = SIZE(values,1)*SIZE(values,2)
     IF(PRESENT(nval))THEN
-       CPPostcondition(size_res==size_values,cp_failure_level,routineP,failure)
+       CPASSERT(size_res==size_values)
     ELSE
-       CPPostcondition(nrep*size_res==size_values,cp_failure_level,routineP,failure)
+       CPASSERT(nrep*size_res==size_values)
     END IF
     k=0
     DO i = 1,nlist
@@ -344,10 +344,10 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(results),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(results))
     nlist=SIZE(results%result_value)
-    CPPostcondition(description(1:1)=='[',cp_failure_level,routineP,failure)
-    CPPostcondition(SIZE(results%result_label)==nlist,cp_failure_level,routineP,failure)
+    CPASSERT(description(1:1)=='[')
+    CPASSERT(SIZE(results%result_label)==nlist)
     IF(PRESENT(n_rep))THEN
        n_rep=0
        DO i=1,nlist
@@ -367,7 +367,7 @@ CPSourceFileRef,&
                 n_entries = n_entries + SIZE(results%result_value(i)%value%logical_type)
              CASE DEFAULT
                 ! Type not implemented in cp_result_type
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END SELECT
              EXIT
           END IF
@@ -409,10 +409,10 @@ CPSourceFileRef,&
     TYPE(cp_result_type), POINTER            :: clean_results
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(results),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(results))
     new_size = 0
     IF(PRESENT(description))THEN
-       CPPostcondition(description(1:1)=='[',cp_failure_level,routineP,failure)
+       CPASSERT(description(1:1)=='[')
        nlist=SIZE(results%result_value)
        nrep=0
        DO i=1,nlist
@@ -434,15 +434,15 @@ CPSourceFileRef,&
                 END IF
              END IF
           END DO
-          CPPostcondition(nlist-entry_deleted>=0,cp_failure_level,routineP,failure)
+          CPASSERT(nlist-entry_deleted>=0)
           new_size = nlist-entry_deleted
           NULLIFY(clean_results)
           CALL cp_result_create(clean_results)
           CALL cp_result_clean(clean_results)
           ALLOCATE(clean_results%result_label(new_size), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(clean_results%result_value(new_size), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i = 1, new_size
              NULLIFY(clean_results%result_value(i)%value)
              CALL cp_result_value_create(clean_results%result_value(i)%value)
@@ -462,9 +462,9 @@ CPSourceFileRef,&
     ELSE
        CALL cp_result_clean(results)
        ALLOCATE(results%result_label(new_size), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(results%result_value(new_size), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE cp_results_erase
 
@@ -488,15 +488,15 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(results),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(results))
     nlist = 0
     IF (para_env%mepos==source) nlist = SIZE(results%result_value)
     CALL mp_bcast(nlist, source, para_env%group)
 
     ALLOCATE(size_value(nlist), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(type_in_use(nlist), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (para_env%mepos==source) THEN
        DO i = 1, nlist
           CALL get_nreps(results,description=results%result_label(i),&
@@ -509,9 +509,9 @@ CPSourceFileRef,&
     IF (para_env%mepos/=source) THEN
        CALL cp_result_clean(results)
        ALLOCATE(results%result_value(nlist),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(results%result_label(nlist),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, nlist
           results%result_label(i) = ""
           NULLIFY(results%result_value(i)%value)
@@ -531,13 +531,13 @@ CPSourceFileRef,&
           CALL mp_bcast(results%result_value(i)%value%logical_type, source, para_env%group)
        CASE DEFAULT
           ! Type not implemented in cp_result_type
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
     END DO
     DEALLOCATE(type_in_use, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(size_value, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE cp_results_mp_bcast
 
 END MODULE cp_result_methods

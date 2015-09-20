@@ -171,7 +171,7 @@ CONTAINS
     ! Allocate the core Hamiltonian matrix
     CALL cp_dbcsr_allocate_matrix_set(ks_qmmm_env_loc%matrix_h,1)
     ALLOCATE(ks_qmmm_env_loc%matrix_h(1)%matrix, STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL cp_dbcsr_init(ks_qmmm_env_loc%matrix_h(1)%matrix)
 

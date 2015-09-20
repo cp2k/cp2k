@@ -119,7 +119,7 @@ CONTAINS
 
     ! Intramolecular Restraints
     ALLOCATE(force(3,SIZE(particle_set)),stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     force = 0.0_dp
 
     ! Create the list of locally fixed atoms
@@ -228,7 +228,7 @@ CONTAINS
        END IF
     END IF
     DEALLOCATE(force,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Store restraint energies
     CALL force_env_get(force_env=force_env, additional_potential=extended_energies)

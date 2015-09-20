@@ -214,7 +214,7 @@ CONTAINS
 
     ! Setup the langevin regions information
     ALLOCATE(do_langevin(nparticle), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (simpar%do_thermal_region) THEN
        DO iparticle = 1, nparticle
           do_langevin(iparticle) = thermal_regions%do_langevin(iparticle)
@@ -229,7 +229,7 @@ CONTAINS
     ! for each region should depend on the temperature defined in the
     ! region
     ALLOCATE(var_w(nparticle), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     var_w(1:nparticle) = simpar%var_w
     IF (simpar%do_thermal_region) THEN
        DO ireg = 1, thermal_regions%nregions
@@ -244,15 +244,15 @@ CONTAINS
 
     ! Allocate work storage
     ALLOCATE (pos(3,nparticle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     pos(:,:) = 0.0_dp
 
     ALLOCATE (vel(3,nparticle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     vel(:,:) = 0.0_dp
 
     ALLOCATE (w(3,nparticle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     w(:,:) = 0.0_dp
 
     IF (simpar%constraint) CALL getold(gci,local_molecules,molecule_set,&
@@ -277,7 +277,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(var_w,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Apply fix atom constraint
     CALL fix_atom_control(force_env,w)
@@ -328,7 +328,7 @@ CONTAINS
     CALL update_particle_set(particle_set,para_env%group,pos=pos)
 
     DEALLOCATE(pos,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Update forces
     CALL force_env_calc_energy_force(force_env)
@@ -371,13 +371,13 @@ CONTAINS
     CALL update_particle_set(particle_set,para_env%group,vel=vel)
 
     DEALLOCATE(vel,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(w,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(do_langevin,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Update virial
     IF (simpar%constraint) CALL pv_constraint(gci,local_molecules,molecule_set,&
@@ -837,7 +837,7 @@ CONTAINS
        ! Allocate random number for Langevin Thermostat acting on COLVARS
        IF(force_env%meta_env%langevin) THEN
           ALLOCATE (rand(force_env%meta_env%n_colvar),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           rand(:) = 0.0_dp
        ENDIF
     ENDIF
@@ -954,7 +954,7 @@ CONTAINS
     IF (ASSOCIATED(force_env%meta_env)) THEN
        IF(force_env%meta_env%langevin) THEN
           DEALLOCATE(rand,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
     ENDIF
 
@@ -1064,7 +1064,7 @@ CONTAINS
        ! Allocate random number for Langevin Thermostat acting on COLVARS
        IF(force_env%meta_env%langevin) THEN
           ALLOCATE (rand(force_env%meta_env%n_colvar),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           rand(:) = 0.0_dp
        ENDIF
     ENDIF
@@ -1213,7 +1213,7 @@ CONTAINS
     IF (ASSOCIATED(force_env%meta_env)) THEN
        IF(force_env%meta_env%langevin) THEN
           DEALLOCATE(rand,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
     ENDIF
 
@@ -1343,7 +1343,7 @@ CONTAINS
        ! Allocate random number for Langevin Thermostat acting on COLVARS
        IF(force_env%meta_env%langevin) THEN
           ALLOCATE (rand(force_env%meta_env%n_colvar),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           rand(:) = 0.0_dp
        ENDIF
     ENDIF
@@ -1567,7 +1567,7 @@ CONTAINS
     IF (ASSOCIATED(force_env%meta_env)) THEN
        IF(force_env%meta_env%langevin) THEN
           DEALLOCATE(rand,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
     ENDIF
 
@@ -1629,7 +1629,7 @@ CONTAINS
     ! don't put any additional MPI call!) [tlaino]
     CALL parser_read_line(reftraj_env%info%traj_parser,1)
     READ(reftraj_env%info%traj_parser%input_line,FMT="(I8)") nread
-    CPPostcondition(nread==nparticle,cp_failure_level,routineP,failure)
+    CPASSERT(nread==nparticle)
     CALL parser_read_line(reftraj_env%info%traj_parser,1)
     test_ok = .FALSE.
     READ(reftraj_env%info%traj_parser%input_line,FMT="(T6,I8,T23,F12.3,T41,F20.10)",ERR=999)&
@@ -1668,7 +1668,7 @@ CPSourceFileRef,&
     IF(reftraj_env%info%variable_volume)THEN
        CALL parser_get_next_line(reftraj_env%info%cell_parser,1,at_end=my_end)
        CALL parse_cell_line(reftraj_env%info%cell_parser%input_line, cell_itimes, cell_time, h, vol)
-       CPPostcondition(trj_itimes==cell_itimes,cp_failure_level,routineP,failure)
+       CPASSERT(trj_itimes==cell_itimes)
        ! Check if we reached the end of the file and provide some info..
        IF (my_end) THEN
           CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&
@@ -2648,9 +2648,9 @@ CPSourceFileRef,&
 
     ! Allocate work storage for positions and velocities
     ALLOCATE (pos(3,nparticle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (vel(3,nparticle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     vel(:,:) = 0.0_dp
 
     IF (simpar%constraint) CALL getold(gci, local_molecules, molecule_set,  &
@@ -2732,7 +2732,7 @@ CPSourceFileRef,&
        IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
     END DO
     DEALLOCATE (pos,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Multiple time step (second part)
     ! Compute forces for respa force_env
@@ -2758,7 +2758,7 @@ CPSourceFileRef,&
     CALL update_particle_set ( particle_set, para_env%group, vel = vel)
 
     DEALLOCATE (vel,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE nve_respa
 

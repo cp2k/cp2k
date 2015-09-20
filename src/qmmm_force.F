@@ -110,8 +110,8 @@ CONTAINS
     CALL get_qs_env(qmmm_env%qs_env, input=force_env_section)
     print_key => section_vals_get_subs_vals(force_env_section,"QMMM%PRINT%DIPOLE")
 
-    CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
-    CPPrecondition(qmmm_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qmmm_env))
+    CPASSERT(qmmm_env%ref_count>0)
 
     CALL apply_qmmm_translate(qmmm_env)
 
@@ -122,10 +122,10 @@ CONTAINS
     qmmm_links      => qmmm_env%qm%qmmm_links
     qmmm_added_chrg =  (qmmm_env%qm%move_mm_charges .OR. qmmm_env%qm%add_mm_charges)
     IF (qmmm_link) THEN
-       CPPrecondition(ASSOCIATED(qmmm_links),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(qmmm_links))
        IF (ASSOCIATED(qmmm_links%imomm)) qmmm_link_imomm = (SIZE(qmmm_links%imomm) /= 0)
     END IF
-    CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qm_atom_index))
 
     particles_mm => subsys_mm%particles%els
     particles_qm => subsys_qm%particles%els
@@ -221,9 +221,9 @@ CONTAINS
          cp_p_file)) THEN
        description ='[DIPOLE]'
        CALL get_results(results=results_qm,description=description,n_rep=nres)
-       CPPrecondition(nres<=1,cp_failure_level,routineP,failure)
+       CPASSERT(nres<=1)
        CALL get_results(results=results_mm,description=description,n_rep=nres)
-       CPPrecondition(nres<=1,cp_failure_level,routineP,failure)
+       CPASSERT(nres<=1)
        CALL get_results(results=results_qm,description=description,values=dip_qm)
        CALL get_results(results=results_mm,description=description,values=dip_mm)
        dip_qmmm = dip_qm + dip_mm

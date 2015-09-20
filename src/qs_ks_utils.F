@@ -189,13 +189,13 @@ CONTAINS
 
     ! some assumptions need to be checked
     ! we have two spins
-    CPPrecondition(SIZE(mo_array,1)==2,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(mo_array,1)==2)
     Nspin=2
     ! we want uniform occupations
     CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
-    CPPrecondition(uniform_occupation, cp_failure_level, routineP,failure)
+    CPASSERT(uniform_occupation)
     CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff_b=mo_coeff, uniform_occupation=uniform_occupation)
-    CPPrecondition(uniform_occupation, cp_failure_level, routineP,failure)
+    CPASSERT(uniform_occupation)
 
     NULLIFY(dbcsr_deriv)
     CALL cp_dbcsr_init_p(dbcsr_deriv)
@@ -217,17 +217,17 @@ CONTAINS
     energy_scaling=rvec !? just wondering, should this add up to 1, in which case we should cpp?
 
     CALL section_vals_val_get(low_spin_roks_section,"SPIN_CONFIGURATION",n_rep_val=n_rep)
-    CPPostcondition(n_rep==Nterms, cp_failure_level, routineP,failure)
+    CPASSERT(n_rep==Nterms)
     CALL section_vals_val_get(low_spin_roks_section,"SPIN_CONFIGURATION",i_rep_val=1,i_vals=ivec)
     Nelectron=SIZE(ivec)
-    CPPostcondition(Nelectron==k_alpha-k_beta, cp_failure_level, routineP,failure)
+    CPASSERT(Nelectron==k_alpha-k_beta)
     ALLOCATE(occupations(2,Nelectron,Nterms))
     occupations=0
     DO iterm=1,Nterms
        CALL section_vals_val_get(low_spin_roks_section,"SPIN_CONFIGURATION",i_rep_val=iterm,i_vals=ivec)
-       CPPostcondition(Nelectron==SIZE(ivec), cp_failure_level, routineP,failure)
+       CPASSERT(Nelectron==SIZE(ivec))
        in_range=ALL(ivec>=1) .AND. ALL(ivec<=2)
-       CPPostcondition(in_range, cp_failure_level, routineP,failure)
+       CPASSERT(in_range)
        DO k=1,Nelectron
           occupations(ivec(k),k,iterm)=1
        ENDDO
@@ -262,9 +262,9 @@ CONTAINS
     CALL pw_env_get(pw_env,xc_pw_pool=xc_pw_pool)
 
     ALLOCATE(rho_r(Nspin),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(rho_g(Nspin),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ispin=1,Nspin
        CALL pw_pool_create_pw(auxbas_pw_pool,rho_r(ispin)%pw,&
                             use_data=REALDATA3D,&
@@ -288,7 +288,7 @@ CONTAINS
 
 
     ALLOCATE(scaling(k_alpha),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! for each term, add it with the given scaling factor to the energy, and compute the required derivatives
     DO iterm=1,Nterms
@@ -313,7 +313,7 @@ CONTAINS
            exc=xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section,&
                    pw_pool=xc_pw_pool)
        ELSE
-           CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,failure)
+           CPASSERT(.NOT.compute_virial)
            CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r,&
                    rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
                    pw_pool=xc_pw_pool, compute_virial=.FALSE., virial_xc=virial_xc_tmp)
@@ -461,12 +461,12 @@ CONTAINS
     CALL pw_env_get(pw_env,xc_pw_pool=xc_pw_pool)
 
     ! we have two spins
-    CPPrecondition(SIZE(mo_array,1)==2,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(mo_array,1)==2)
     ! we want uniform occupations
     CALL get_mo_set(mo_set=mo_array(1)%mo_set, uniform_occupation=uniform_occupation)
-    CPPrecondition(uniform_occupation, cp_failure_level, routineP,failure)
+    CPASSERT(uniform_occupation)
     CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff, uniform_occupation=uniform_occupation)
-    CPPrecondition(uniform_occupation, cp_failure_level, routineP,failure)
+    CPASSERT(uniform_occupation)
 
     NULLIFY (tmp_dbcsr)
     CALL cp_dbcsr_allocate_matrix_set(tmp_dbcsr,SIZE(mo_derivs,1))
@@ -493,7 +493,7 @@ CONTAINS
 
       Norb=k_alpha + k_beta
       ALLOCATE(sic_orbital_list(3,Norb),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       iorb=0
       DO i=1,k_alpha
@@ -515,10 +515,10 @@ CONTAINS
 
     CASE(sic_list_unpaired)
       ! we have two spins
-      CPPrecondition(SIZE(mo_array,1)==2,cp_failure_level,routineP,failure)
+      CPASSERT(SIZE(mo_array,1)==2)
       ! we have them restricted
-      CPPrecondition(SIZE(mo_derivs,1)==1,cp_failure_level,routineP,failure)
-      CPPrecondition(dft_control%restricted,cp_failure_level,routineP,failure)
+      CPASSERT(SIZE(mo_derivs,1)==1)
+      CPASSERT(dft_control%restricted)
 
       CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=mo_coeff)
       CALL cp_fm_get_info(mo_coeff,ncol_global=k_alpha)
@@ -528,7 +528,7 @@ CONTAINS
 
       Norb=k_alpha-k_beta
       ALLOCATE(sic_orbital_list(3,Norb),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       iorb=0
       DO i=k_beta+1,k_alpha
@@ -540,7 +540,7 @@ CONTAINS
       ENDDO
 
     CASE DEFAULT
-      CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
     END SELECT
 
     ! data needed for each of the orbs
@@ -588,20 +588,20 @@ CONTAINS
 
 
     ALLOCATE(mo_derivs_local(SIZE(mo_array,1)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO I=1,SIZE(mo_array,1)
        CALL get_mo_set(mo_set=mo_array(i)%mo_set,mo_coeff=mo_coeff)
        CALL cp_fm_create(mo_derivs_local(I)%matrix,mo_coeff%matrix_struct)
     ENDDO
 
     ALLOCATE(rho_r(2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     rho_r(1)%pw=>orb_rho_r%pw
     rho_r(2)%pw=>tmp_r%pw
     CALL pw_zero(tmp_r%pw)
 
     ALLOCATE(rho_g(2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     rho_g(1)%pw=>orb_rho_g%pw
     rho_g(2)%pw=>tmp_g%pw
     CALL pw_zero(tmp_g%pw)
@@ -646,7 +646,7 @@ CONTAINS
            exc=xc_exc_calc(rho_r=rho_r, rho_g=rho_g, tau=tau, xc_section=xc_section,&
                    pw_pool=xc_pw_pool)
        ELSE
-           CPPrecondition(.NOT.compute_virial,cp_failure_level,routineP,failure)
+           CPASSERT(.NOT.compute_virial)
            CALL xc_vxc_pw_create1(vxc_rho=vxc, rho_r=rho_r,&
                    rho_g=rho_g, tau=tau, vxc_tau=vxc_tau, exc=exc, xc_section=xc_section, &
                    pw_pool=xc_pw_pool, compute_virial=compute_virial, virial_xc=virial_xc_tmp)
@@ -755,7 +755,7 @@ CONTAINS
                    "sic and GAPW not yet compatible",failure)
 
     ! OK, right now we like two spins to do sic, could be relaxed for AD
-    CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,failure)
+    CPASSERT(dft_control%nspins == 2)
 
     CALL pw_pool_create_pw(auxbas_pw_pool, work_rho%pw, &
                             use_data = COMPLEXDATA1D,&
@@ -1249,7 +1249,7 @@ CONTAINS
        DO ispin=1,nspins
           IF (gapw_xc) THEN
              ! SIC not implemented (or at least not tested)
-             CPPrecondition(dft_control%sic_method_id==sic_none,cp_failure_level,routineP,failure)
+             CPASSERT(dft_control%sic_method_id==sic_none)
              !Only the xc potential, because it has to be integrated with the soft basis
              v_rspace_new(ispin)%pw%cr3d  =&
                  v_rspace_new(ispin)%pw%pw_grid%dvol * &
@@ -1314,7 +1314,7 @@ CONTAINS
                                           v_qmmm=vee,scale=-1.0_dp)
           END IF
           IF (do_ppl) THEN
-             CPPrecondition(.NOT.gapw,cp_failure_level,routineP,failure)
+             CPASSERT(.NOT.gapw)
              v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d + &
                                            vppl_rspace%pw%cr3d*vppl_rspace%pw%pw_grid%dvol
           END IF
@@ -1351,12 +1351,12 @@ CONTAINS
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_sic_rspace%pw)
        END SELECT
        DEALLOCATE(v_rspace_new,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
 
     ELSE
        ! not implemented (or at least not tested)
-       CPPrecondition(dft_control%sic_method_id==sic_none,cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT.dft_control%qs_control%ddapc_restraint_is_spin,cp_failure_level,routineP,failure)
+       CPASSERT(dft_control%sic_method_id==sic_none)
+       CPASSERT(.NOT.dft_control%qs_control%ddapc_restraint_is_spin)
        DO ispin=1,nspins
           ! the efield contribution
           IF (dft_control%apply_efield_field) THEN
@@ -1398,7 +1398,7 @@ CONTAINS
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace(ispin)%pw)
        END DO
        DEALLOCATE(v_tau_rspace, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
 
     ! Add contributions from ADMM if requested
@@ -1434,7 +1434,7 @@ CONTAINS
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new_aux_fit(ispin)%pw)
         END DO
         DEALLOCATE(v_rspace_new_aux_fit,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
       END IF
       ! Clean up v_tau_rspace_aux_fit, which is actually not needed
       IF( ASSOCIATED(v_tau_rspace_aux_fit)) THEN
@@ -1442,7 +1442,7 @@ CONTAINS
           CALL pw_pool_give_back_pw(auxbas_pw_pool,v_tau_rspace_aux_fit(ispin)%pw)
         END DO
         DEALLOCATE(v_tau_rspace_aux_fit, stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
       END IF
     END IF
 
@@ -1515,10 +1515,10 @@ CONTAINS
     ALLOCATE(v_rspace_new(nspins),stat=stat)
     CALL pw_pool_create_pw(pool=auxbas_pw_pool,pw=v_rspace_new(1)%pw,&
             use_data=REALDATA3D,in_space=REALSPACE)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL pw_pool_create_pw(pool=auxbas_pw_pool,pw=v_xc_rspace%pw,&
             use_data=REALDATA3D,in_space=REALSPACE)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL pw_zero(v_rspace_new(1)%pw)
     do_zmp_read=dft_control%apply_external_vxc

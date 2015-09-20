@@ -52,14 +52,14 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     my_x => pint_env%x
     my_ux => pint_env%ux
     IF (PRESENT(x)) my_x => x
     IF (PRESENT(ux)) my_ux => ux
-    CPPrecondition(ASSOCIATED(my_ux),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(my_x),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(my_ux))
+    CPASSERT(ASSOCIATED(my_x))
 
     IF (pint_env%transform == transformation_stage) THEN
       CALL staging_x2u(pint_env%staging_env,ux=my_ux,x=my_x)
@@ -93,14 +93,14 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     my_x => pint_env%x
     my_ux => pint_env%ux
     IF (PRESENT(x)) my_x => x
     IF (PRESENT(ux)) my_ux => ux
-    CPPrecondition(ASSOCIATED(my_ux),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(my_x),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(my_ux))
+    CPASSERT(ASSOCIATED(my_x))
 
     IF (pint_env%transform == transformation_stage) THEN
       CALL staging_u2x(pint_env%staging_env,ux=my_ux,x=my_x)
@@ -137,14 +137,14 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(pint_env),cp_failure_level,routineP,failure)
-    CPPrecondition(pint_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pint_env))
+    CPASSERT(pint_env%ref_count>0)
     my_f => pint_env%f
     my_uf => pint_env%uf
     IF (PRESENT(f)) my_f => f
     IF (PRESENT(uf)) my_uf => uf
-    CPPrecondition(ASSOCIATED(my_uf),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(my_f),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(my_uf))
+    CPASSERT(ASSOCIATED(my_f))
 
     IF (pint_env%transform == transformation_stage) THEN
       CALL staging_f2uf(pint_env%staging_env,uf=my_uf,f=my_f)

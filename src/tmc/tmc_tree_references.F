@@ -57,7 +57,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(tmp_pt_list_elem)
 
-    CPPrecondition(ASSOCIATED(gt_elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gt_elem))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -107,8 +107,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(gt_ptr),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(gt_ptr))
+    CPASSERT(ASSOCIATED(tmc_env))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -146,14 +146,14 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(tmp_gt_list_ptr)
 
-    CPPrecondition(ASSOCIATED(ptr),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ptr))
 
     ! start the timing
     CALL timeset(routineN,handle)
 
     pt_node_ref_loop: DO WHILE(ASSOCIATED(ptr%gt_nodes_references))
       tmp_gt_list_ptr => ptr%gt_nodes_references
-      CPPrecondition(ASSOCIATED(tmp_gt_list_ptr%gt_elem),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(tmp_gt_list_ptr%gt_elem))
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                    routineP,"found reference of global tree node "//&
                    cp_to_string(tmp_gt_list_ptr%gt_elem%nr)//&
@@ -199,7 +199,7 @@ CONTAINS
     ! end the timing
     CALL timestop(handle)
 
-    CPPostcondition(.NOT.ASSOCIATED(ptr%gt_nodes_references),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(ptr%gt_nodes_references))
   END SUBROUTINE remove_subtree_element_of_all_references
 
 ! *****************************************************************************
@@ -231,7 +231,7 @@ CONTAINS
     IF(.NOT.ASSOCIATED(elem)) RETURN
     IF(.NOT.ASSOCIATED(gt_ptr)) RETURN
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
 
     ! start the timing
     CALL timeset(routineN,handle)

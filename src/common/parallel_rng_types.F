@@ -193,7 +193,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
 
     u1 = 0.0_dp
@@ -545,7 +545,7 @@ CONTAINS
     IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream)
 
     ALLOCATE (rng_stream,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
 
     rng_stream%name = name
@@ -623,10 +623,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
     DEALLOCATE (rng_stream,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE delete_rng_stream
 
@@ -652,7 +652,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
     rng_record = " "
     WRITE (UNIT=rng_record,FMT=rng_record_format)&
@@ -711,7 +711,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
     IF (PRESENT(name)) name = rng_stream%name
     IF (PRESENT(distribution_type)) THEN
@@ -1030,8 +1030,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
-    CPPrecondition((rng_stream%distribution_type == UNIFORM),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
+    CPASSERT(rng_stream%distribution_type == UNIFORM)
 
     r = next_real_random_number(rng_stream)
     u = low + INT(r*REAL(high - low + 1,dp))
@@ -1063,7 +1063,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
     SELECT CASE (rng_stream%distribution_type)
     CASE (GAUSSIAN)
@@ -1151,7 +1151,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
     DO i=1,SIZE(array)
       array(i) = next_random_number(rng_stream)
@@ -1181,7 +1181,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
     DO j=1,SIZE(array,2)
       DO i=1,SIZE(array,1)
@@ -1213,7 +1213,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
     DO k=1,SIZE(array,3)
       DO j=1,SIZE(array,2)
@@ -1251,7 +1251,7 @@ CONTAINS
     IF (ASSOCIATED(rng_stream)) CALL delete_rng_stream(rng_stream)
 
     ALLOCATE (rng_stream,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     READ (UNIT=rng_record,FMT=rng_record_format)&
       rng_stream%name,&
@@ -1285,7 +1285,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
     rng_stream%cg = rng_stream%ig
     rng_stream%bg = rng_stream%ig
@@ -1328,7 +1328,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
 
     u = 0.0_dp
@@ -1461,7 +1461,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
     IF (PRESENT(name)) rng_stream%name = name
     IF (PRESENT(distribution_type)) THEN
@@ -1554,7 +1554,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
     IF (PRESENT(write_all)) THEN
       my_write_all = write_all

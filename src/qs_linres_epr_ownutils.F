@@ -392,7 +392,7 @@ CONTAINS
 
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
        ALLOCATE(vks_pw_spline(3,nspins),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        interp_section =>  section_vals_get_subs_vals(lr_section,&
                            "EPR%INTERPOLATOR")
@@ -419,7 +419,7 @@ CONTAINS
                      coeffs=vks_pw_spline(idir1,ispin)%pw,linOp=spl3_pbc,&
                      preconditioner=precond,pool=auxbas_pw_pool,&
                      eps_r=eps_r,eps_x=eps_x,max_iter=max_iter)
-             CPPostconditionNoFail(success,cp_warning_level,routineP)
+             CPASSERT(success)
              CALL pw_spline_precond_release(precond)
           END DO ! idir1
        END DO ! ispin
@@ -545,7 +545,7 @@ CONTAINS
        END DO
 
        DEALLOCATE(vks_pw_spline,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
     END IF ! gapw
 
@@ -679,7 +679,7 @@ CONTAINS
 
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
        ALLOCATE(bind_pw_spline(3,3),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        interp_section =>  section_vals_get_subs_vals(lr_section,&
                            "EPR%INTERPOLATOR")
@@ -705,7 +705,7 @@ CONTAINS
                   coeffs=bind_pw_spline(idir1,iB)%pw,linOp=spl3_pbc,&
                   preconditioner=precond,pool=auxbas_pw_pool,&
                   eps_r=eps_r,eps_x=eps_x,max_iter=max_iter)
-          CPPostconditionNoFail(success,cp_warning_level,routineP)
+          CPASSERT(success)
           CALL pw_spline_precond_release(precond)
        END DO ! idir1
 
@@ -787,7 +787,7 @@ CONTAINS
        END DO
 
        DEALLOCATE(bind_pw_spline,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
     END IF ! gapw
 
@@ -861,7 +861,7 @@ CONTAINS
     ! Initialize
     ! Allocate grids for the calculation of jrho and the shift
     ALLOCATE(shift_pw_gspace(3,nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ispin = 1,nspins
        DO idir = 1,3
           CALL pw_pool_create_pw(auxbas_pw_pool,shift_pw_gspace(idir,ispin)%pw,&
@@ -925,7 +925,7 @@ CONTAINS
        ENDDO
     ENDDO
     DEALLOCATE(shift_pw_gspace,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL pw_pool_give_back_pw(auxbas_pw_pool,shift_pw_rspace%pw)
     !
     ! Finalize

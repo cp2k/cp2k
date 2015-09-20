@@ -199,8 +199,8 @@ CONTAINS
     IF (PRESENT(consistent_energies)) energy_consistency = consistent_energies
     IF (PRESENT(linres)) linres_run = linres
 
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(force_env%ref_count>0)
     CALL force_env_get(force_env,subsys=subsys)
     CALL force_env_set(force_env,additional_potential=0.0_dp)
     CALL cp_subsys_get(subsys, virial=virial, atprop=atprop_env, cell=cell)
@@ -230,7 +230,7 @@ CONTAINS
        CASE ( use_mixed_force )
           CALL mixed_energy_forces(force_env,calculate_forces)
        CASE default
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
     END IF
     ! In case it is requested, we evaluate the stress tensor numerically
@@ -359,7 +359,7 @@ CONTAINS
            "Potential energy (Atomic):",sum_energy,&
            "Potential energy (Total) :",e_pot,&
            "Difference               :",checksum
-          CPPostcondition((checksum < ateps*ABS(e_pot)),cp_fatal_level,routineP,failure)
+          CPASSERT((checksum < ateps*ABS(e_pot)))
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                          "PRINT%PROGRAM_RUN_INFO")
@@ -422,7 +422,7 @@ CONTAINS
               "Checksum stress (Atomic) :",sum_stress_tensor,&
               "Checksum stress (Total)  :",sum_pv_virial,&
               "Difference               :",checksum
-             CPPostcondition((checksum < ateps),cp_fatal_level,routineP,failure)
+             CPASSERT(checksum < ateps)
           END IF
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
@@ -502,14 +502,14 @@ CONTAINS
     ! Save all original particle positions
     natom = particles%n_els
     ALLOCATE (ref_pos_atom(natom,3),STAT=istat)
-    CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(istat == 0)
     DO i=1,natom
        ref_pos_atom(i,:) = particles%els(i)%r
     END DO
     IF (ASSOCIATED(core_particles)) THEN
        ncore = core_particles%n_els
        ALLOCATE (ref_pos_core(ncore,3),STAT=istat)
-       CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(istat == 0)
        DO i=1,ncore
           ref_pos_core(i,:) = core_particles%els(i)%r
        END DO
@@ -517,7 +517,7 @@ CONTAINS
     IF (ASSOCIATED(shell_particles)) THEN
        nshell = shell_particles%n_els
        ALLOCATE (ref_pos_shell(nshell,3),STAT=istat)
-       CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(istat == 0)
        DO i=1,nshell
           ref_pos_shell(i,:) = shell_particles%els(i)%r
        END DO
@@ -611,15 +611,15 @@ CONTAINS
     ! Release storage
     IF (ASSOCIATED(ref_pos_atom)) THEN
        DEALLOCATE (ref_pos_atom,STAT=istat)
-       CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(istat == 0)
     END IF
     IF (ASSOCIATED(ref_pos_core)) THEN
        DEALLOCATE (ref_pos_core,STAT=istat)
-       CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(istat == 0)
     END IF
     IF (ASSOCIATED(ref_pos_shell)) THEN
        DEALLOCATE (ref_pos_shell,STAT=istat)
-       CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+       CPASSERT(istat == 0)
     END IF
     IF (ASSOCIATED(cell_local)) CALL cell_release(cell_local)
 
@@ -678,7 +678,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE ( force_env, stat=stat )
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+    CPASSERT(stat==0)
     NULLIFY (force_env%fist_env, force_env%qs_env, &
          force_env%para_env, force_env%globenv, &
          force_env%meta_env, force_env%sub_force_env, &
@@ -704,48 +704,48 @@ CONTAINS
     force_env%force_env_section => force_env_section
 
     IF (PRESENT(fist_env)) THEN
-       CPPrecondition(ASSOCIATED(fist_env),cp_failure_level,routineP,failure)
-       CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(fist_env))
+       CPASSERT(force_env%in_use==0)
        force_env%in_use=use_fist_force
        force_env%fist_env => fist_env
        CALL fist_env_retain(fist_env)
     END IF
     IF (PRESENT(eip_env)) THEN
-       CPPrecondition(ASSOCIATED(eip_env),cp_failure_level,routineP,failure)
-       CPPrecondition(force_env%in_use==0, cp_failure_level, routineP,failure)
+       CPASSERT(ASSOCIATED(eip_env))
+       CPASSERT(force_env%in_use==0)
        force_env%in_use = use_eip_force
        force_env%eip_env => eip_env
        CALL eip_env_retain(eip_env)
     END IF
     IF (PRESENT(qs_env)) THEN
-       CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
-       CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(qs_env))
+       CPASSERT(force_env%in_use==0)
        force_env%in_use=use_qs_force
        force_env%qs_env => qs_env
        CALL qs_env_retain(qs_env)
     END IF
     IF (PRESENT(qmmm_env)) THEN
-       CPPrecondition(ASSOCIATED(qmmm_env),cp_failure_level,routineP,failure)
-       CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(qmmm_env))
+       CPASSERT(force_env%in_use==0)
        force_env%in_use=use_qmmm
        force_env%qmmm_env => qmmm_env
        CALL qmmm_env_retain(qmmm_env)
     END IF
     IF (PRESENT(qmmmx_env)) THEN
-       CPPrecondition(ASSOCIATED(qmmmx_env),cp_failure_level,routineP,failure)
-       CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(qmmmx_env))
+       CPASSERT(force_env%in_use==0)
        force_env%in_use=use_qmmmx
        force_env%qmmmx_env => qmmmx_env
        CALL qmmmx_env_retain(qmmmx_env)
     END IF
     IF (PRESENT(mixed_env)) THEN
-       CPPrecondition(ASSOCIATED(mixed_env),cp_failure_level,routineP,failure)
-       CPPrecondition(force_env%in_use==0, cp_failure_level, routineP,failure)
+       CPASSERT(ASSOCIATED(mixed_env))
+       CPASSERT(force_env%in_use==0)
        force_env%in_use=use_mixed_force
        force_env%mixed_env => mixed_env
        CALL mixed_env_retain ( mixed_env)
     END IF
-    CPPostcondition(force_env%in_use/=0,cp_failure_level,routineP,failure)
+    CPASSERT(force_env%in_use/=0)
 
     IF (PRESENT(sub_force_env)) THEN
        force_env%sub_force_env => sub_force_env
@@ -818,7 +818,7 @@ CONTAINS
 
     failure=.FALSE.
     logger => cp_get_default_logger()
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
     ! Get infos about the mixed subsys
     CALL force_env_get(force_env=force_env,&
                        subsys=subsys_mix,&
@@ -836,20 +836,20 @@ CONTAINS
     mapping_section => section_vals_get_subs_vals(mixed_section,"MAPPING")
     ! Global Info
     ALLOCATE(subsystems(nforce_eval), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(particles(nforce_eval), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Local Info to sync
     ALLOCATE(global_forces(nforce_eval), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(energies(nforce_eval), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(glob_natoms(nforce_eval), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(virials(nforce_eval), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(results(nforce_eval), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     energies    = 0.0_dp
     glob_natoms = 0
     DO iforce_eval = 1, nforce_eval
@@ -906,7 +906,7 @@ CONTAINS
        ! Deallocate map_index array
        IF (ASSOCIATED(map_index)) THEN
           DEALLOCATE(map_index, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        CALL cp_rm_default_logger()
     END DO
@@ -919,7 +919,7 @@ CONTAINS
     ! Transfer forces
     DO iforce_eval = 1, nforce_eval
        ALLOCATE(global_forces(iforce_eval)%forces(3,glob_natoms(iforce_eval)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        global_forces(iforce_eval)%forces = 0.0_dp
        IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
           IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
@@ -965,7 +965,7 @@ CONTAINS
     SELECT CASE(mixing_type)
     CASE(mix_linear_combination)
        ! Support offered only 2 force_eval
-       CPPrecondition(nforce_eval==2,cp_failure_level,routineP,failure)
+       CPASSERT(nforce_eval==2)
        CALL section_vals_val_get(mixed_section,"LINEAR%LAMBDA",r_val=lambda)
        mixed_energy%pot=lambda*energies(1) + (1.0_dp-lambda)*energies(2)
        ! General Mapping of forces...
@@ -975,7 +975,7 @@ CONTAINS
             (1.0_dp-lambda), 2, nforce_eval, map_index, mapping_section, .FALSE.)
     CASE(mix_minimum)
        ! Support offered only 2 force_eval
-       CPPrecondition(nforce_eval==2,cp_failure_level,routineP,failure)
+       CPASSERT(nforce_eval==2)
        IF (energies(1)<energies(2)) THEN
           mixed_energy%pot=energies(1)
           CALL mixed_map_forces(particles_mix, virial_mix, results_mix, global_forces, virials, results,&
@@ -987,7 +987,7 @@ CONTAINS
        ENDIF
     CASE(mix_coupled)
        ! Support offered only 2 force_eval
-       CPPrecondition(nforce_eval==2,cp_failure_level,routineP,failure)
+       CPASSERT(nforce_eval==2)
        CALL section_vals_val_get(mixed_section,"COUPLING%COUPLING_PARAMETER",&
             r_val=coupling_parameter)
        sd = SQRT((energies(1)-energies(2))**2+4.0_dp*coupling_parameter**2)
@@ -1001,7 +1001,7 @@ CONTAINS
             der_2, 2, nforce_eval, map_index, mapping_section, .FALSE.)
     CASE(mix_restrained)
        ! Support offered only 2 force_eval
-       CPPrecondition(nforce_eval==2,cp_failure_level,routineP,failure)
+       CPASSERT(nforce_eval==2)
        CALL section_vals_val_get(mixed_section,"RESTRAINT%RESTRAINT_TARGET",&
             r_val=restraint_target)
        CALL section_vals_val_get(mixed_section,"RESTRAINT%RESTRAINT_STRENGTH",&
@@ -1023,7 +1023,7 @@ CONTAINS
        CALL parsef(1,TRIM(coupling_function),force_env%mixed_env%par)
        ! Now the hardest part.. map energy with corresponding force_eval
        mixed_energy%pot= evalf(1,force_env%mixed_env%val)
-       CPPrecondition(EvalErrType<=0,cp_failure_level,routineP,failure)
+       CPASSERT(EvalErrType<=0)
        CALL zero_virial(virial_mix, reset=.FALSE.)
        CALL cp_results_erase(results_mix)
        DO iforce_eval = 1, nforce_eval
@@ -1051,29 +1051,29 @@ CONTAINS
        force_env%mixed_env%coupling_function = TRIM(coupling_function)
        CALL finalizef()
     CASE DEFAULT
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     !Simply deallocate and loose the pointer references..
     DO iforce_eval = 1, nforce_eval
        DEALLOCATE(global_forces(iforce_eval)%forces,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL virial_release(virials(iforce_eval)%virial)
        CALL cp_result_release(results(iforce_eval)%results)
     END DO
     DEALLOCATE(global_forces, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(subsystems, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(particles, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(energies, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(glob_natoms, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(virials, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(results, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Print Section
     unit_nr=cp_print_key_unit_nr(logger,mixed_section,"PRINT%DIPOLE",&
          extension=".data",middle_name="MIXED_DIPOLE",log_filename=.FALSE.)

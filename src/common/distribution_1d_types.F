@@ -115,7 +115,7 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
   IF(PRESENT(n_lists)) my_n_lists=n_lists
 
   ALLOCATE(distribution_1d,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   distribution_1d_last_id_nr=distribution_1d_last_id_nr+1
   distribution_1d%id_nr=distribution_1d_last_id_nr
 
@@ -132,13 +132,13 @@ SUBROUTINE distribution_1d_create(distribution_1d,para_env,listbased_distributio
 
   ALLOCATE(distribution_1d%n_el(my_n_lists), distribution_1d%list(my_n_lists),&
        stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
 
   IF (PRESENT(n_el)) THEN
      distribution_1d%n_el(1:my_n_lists)=n_el(1:my_n_lists)
      DO ilist=1,my_n_lists
        ALLOCATE(distribution_1d%list(ilist)%array(n_el(ilist)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        distribution_1d%list(ilist)%array=-1
      END DO
   ELSE
@@ -169,8 +169,8 @@ SUBROUTINE distribution_1d_retain(distribution_1d)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(distribution_1d),cp_failure_level,routineP,failure)
-  CPPreconditionNoFail(distribution_1d%ref_count>0,cp_failure_level,routineP)
+  CPASSERT(ASSOCIATED(distribution_1d))
+  CPASSERT(distribution_1d%ref_count>0)
   distribution_1d%ref_count=distribution_1d%ref_count+1
 END SUBROUTINE distribution_1d_retain
 
@@ -198,18 +198,18 @@ SUBROUTINE distribution_1d_release(distribution_1d)
   failure=.FALSE.
 
   IF (ASSOCIATED(distribution_1d)) THEN
-     CPPreconditionNoFail(distribution_1d%ref_count>0,cp_failure_level,routineP)
+     CPASSERT(distribution_1d%ref_count>0)
      distribution_1d%ref_count=distribution_1d%ref_count-1
      IF (distribution_1d%ref_count==0) THEN
         DEALLOCATE(distribution_1d%n_el,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
 
         DO ilist=1,SIZE(distribution_1d%list)
            DEALLOCATE(distribution_1d%list(ilist)%array,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         END DO
         DEALLOCATE(distribution_1d%list,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
 
         !MK Delete Wiener process
 
@@ -228,17 +228,17 @@ SUBROUTINE distribution_1d_release(distribution_1d)
                 END IF
               END DO
               DEALLOCATE (local_particle_set(iparticle_kind)%rng,STAT=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+              CPASSERT(stat==0)
             END IF
           END DO
           DEALLOCATE(local_particle_set,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
         END IF
 
         CALL cp_para_env_release(distribution_1d%para_env)
 
         DEALLOCATE(distribution_1d,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
   END IF
 

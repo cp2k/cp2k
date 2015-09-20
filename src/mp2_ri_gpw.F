@@ -408,7 +408,7 @@ MODULE mp2_ri_gpw
       itmp=get_limit(dimen_RI,para_env_sub%num_pe,para_env_sub%mepos)
       lll=itmp(2)-itmp(1)+1
       ALLOCATE(qs_env%mp2_env%ri_grad%PQ_half(lll,my_group_L_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       qs_env%mp2_env%ri_grad%PQ_half(:,:)=my_Lrows(itmp(1):itmp(2),1:my_group_L_size)
     END IF
 
@@ -438,23 +438,23 @@ MODULE mp2_ri_gpw
 
     ! array that will store the (ia|K) integrals
     ALLOCATE(BIb_C(my_group_L_size,my_B_size,homo),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     BIb_C=0.0_dp
 
     IF(do_alpha_beta) THEN
       ALLOCATE(BIb_C_beta(my_group_L_size,my_B_size_beta,homo_beta),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       BIb_C_beta=0.0_dp
     END IF
 
     ! in the case of GW, we also need (nm|K) 
     IF(my_do_gw) THEN
       ALLOCATE(BIb_C_gw(my_group_L_size,my_B_all_size,gw_corr_lev_total),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       BIb_C_gw=0.0_dp
       IF(do_alpha_beta) THEN
         ALLOCATE(BIb_C_gw_beta(my_group_L_size,my_B_all_size,gw_corr_lev_total),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         BIb_C_gw_beta=0.0_dp
       END IF
     END IF
@@ -599,7 +599,7 @@ MODULE mp2_ri_gpw
                                     external_vector=my_Lrows(:,LLL-my_group_L_start+1))
   
         ALLOCATE(BIb_C_gw_trunc(my_group_L_size,my_B_all_size,gw_corr_lev_total),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         BIb_C_gw_trunc=0.0_dp
 
         CALL timeset(routineN//"_pot_trunc",handle3)
@@ -777,7 +777,7 @@ MODULE mp2_ri_gpw
     CALL mp_max(max_row_col_local,para_env_sub%group)
 
     ALLOCATE(local_col_row_info(0:max_row_col_local,2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     local_col_row_info=0
     ! 0,1 nrows
     local_col_row_info(0,1)=nrow_local
@@ -825,13 +825,13 @@ MODULE mp2_ri_gpw
     ! divide the b states in the sub_group in such a way to create
     ! b_start and b_end for each proc inside the sub_group
     ALLOCATE(sizes_B(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     sizes_B=0
     ALLOCATE(starts_B(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     starts_B=0
     ALLOCATE(ends_B(0:para_env_sub%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ends_B=0
 
     DO iproc=0, para_env_sub%num_pe-1
@@ -999,13 +999,13 @@ MODULE mp2_ri_gpw
     natom = SIZE(particle_set)
 
     ALLOCATE (kind_of(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL get_atomic_kind_set(atomic_kind_set,kind_of=kind_of)
 
     DO ikind=1, nkind
       CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,basis_type="RI_AUX")
-      CPPrecondition(ASSOCIATED(basis_set_a),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(basis_set_a))
     END DO
 
     dimen_RI=0
@@ -1017,13 +1017,13 @@ MODULE mp2_ri_gpw
 
     ! calculate wich rows of L^{-1} to have
     ALLOCATE(sizes_array(0:ngroup-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     sizes_array=0
     ALLOCATE(starts_array(0:ngroup-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     starts_array=0
     ALLOCATE(ends_array(0:ngroup-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ends_array=0
 
     DO igroup=0,ngroup-1
@@ -1046,15 +1046,15 @@ MODULE mp2_ri_gpw
       ! write arrays with number(=label) of every basis function, its quantum number (l,m)
       ! and the reference to the first basis function with (l,m) 
       ALLOCATE(ref_matrix(dimen_RI,10),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       ! naolimits(iatom,iset,1/2)=begin/end reference entries in L_local_q 
       ALLOCATE(naolimits(natom,100,2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
  
       ! array with reference (atom,set) for arbitrary (atom,set);
       ALLOCATE(ref_at_se_sgf_ofs(natom,100,4),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
  
  
       i_counter=0
@@ -1188,23 +1188,23 @@ MODULE mp2_ri_gpw
    
       ! array with number of q_a basis function at an atom
       ALLOCATE(diffbf_noinbas(i_counter_diff_bf),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
    
       ! array with number of a basis function with first unique (l,m) combination
       ALLOCATE(diffbfatanyatom_noinbas(i_counter_diff_bf_at_any_atom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
    
       ! array with number of q_a (at arbitrary atom) with q_a at specific atom
       ALLOCATE(diffbf_atom_arbitr_atom(i_counter_diff_bf),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
    
       ! array with atom and set number for every q_a bf
       ALLOCATE(atom_set_afo_diffbf(i_counter_diff_bf,2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
    
       ! array with atom and set number for every q_a bf
       ALLOCATE(atom_set_afo_diffbf_atanyatom(i_counter_diff_bf,2),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
    
       j=1
       DO i=1,dimen_RI
@@ -1229,7 +1229,7 @@ MODULE mp2_ri_gpw
   
      ! array with number of first set with quantum number l
      ALLOCATE(diffsets_atom_set_bf(i_counter_diff_sets,3),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   
      ! first set with new quantum number l is on atom 1, set 1
      diffsets_atom_set_bf(1,1)=1
@@ -1336,13 +1336,13 @@ MODULE mp2_ri_gpw
   
      ! calculate which potentials to calculate
      ALLOCATE(sizes_array_pot(0:ngroup-1),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      sizes_array_pot=0
      ALLOCATE(starts_array_pot(0:ngroup-1),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      starts_array_pot=0
      ALLOCATE(ends_array_pot(0:ngroup-1),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ends_array_pot=0
   
      DO igroup=0,ngroup-1
@@ -1364,10 +1364,10 @@ MODULE mp2_ri_gpw
      exp_q = 0.5_dp
   
      ALLOCATE(rho_r_array(i_counter_diff_bf_at_any_atom),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
  
      ALLOCATE(wf_vector(dimen_RI),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
  
   
      DO j=my_group_pot_start,my_group_pot_end
@@ -1464,7 +1464,7 @@ MODULE mp2_ri_gpw
      CALL cp_para_env_release(para_env_exc)
   
      ALLOCATE(L_local_col_q(i_counter_diff_bf,my_group_L_q_size),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   
      L_local_col_q=0.0_dp
   
@@ -1623,7 +1623,7 @@ MODULE mp2_ri_gpw
   !  3) Distribute (q_alpha|q_beta)_p to L_local_col
   
      ALLOCATE(L_local_col(dimen_RI,my_group_L_size),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      L_local_col=0.0_dp
   
      DO  iatom=1, natom
@@ -1768,14 +1768,14 @@ MODULE mp2_ri_gpw
   
   
                ALLOCATE(I_tmp(ncoa_a,nsgfb(jset)),STAT=istat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
                ALLOCATE(I_tmp2(nsgfa(iset),nsgfb(jset)),STAT=istat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
   
                ALLOCATE(f(0:la_max(iset)+lb_max(jset)+2),&
                         v(ncoa_a,ncoa_b,la_max(iset)+lb_max(jset)+1),&
                         vac(ncoa_a,ncoa_b),STAT=istat)
-               CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
                f=0.0_dp
                v=0.0_dp
                vac=0.0_dp
@@ -1876,11 +1876,11 @@ MODULE mp2_ri_gpw
      ! old algorithm
 
      ALLOCATE(L_local_col(dimen_RI,my_group_L_size),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      L_local_col=0.0_dp
   
      ALLOCATE(wf_vector(dimen_RI),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
   
      i_counter=0
      DO LLL=my_group_L_start, my_group_L_end
@@ -2071,13 +2071,13 @@ MODULE mp2_ri_gpw
 
     ! create the information array
     ALLOCATE(sub_sizes_array(0:para_env_exchange%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     sub_sizes_array=0
     ALLOCATE(sub_starts_array(0:para_env_exchange%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     sub_starts_array=0
     ALLOCATE(sub_ends_array(0:para_env_exchange%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     sub_ends_array=0
 
     sub_sizes_array(para_env_exchange%mepos)=my_group_L_size
@@ -2142,7 +2142,7 @@ MODULE mp2_ri_gpw
 
       DEALLOCATE(L_local_col)
       ALLOCATE(L_local_col(dimen_RI,rec_L_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       L_local_col(:,:)=L_external_col
 
       DEALLOCATE(L_external_col)
@@ -2186,7 +2186,7 @@ MODULE mp2_ri_gpw
       CALL cp_fm_to_fm(source=fm_matrix_L,destination=fm_matrix_L_diag)
 
       ALLOCATE(egen_L(dimen_RI),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       egen_L=0.0_dp
       CALL cp_fm_syevx(matrix=fm_matrix_L_diag,eigenvalues=egen_L) 
@@ -2205,7 +2205,7 @@ MODULE mp2_ri_gpw
 
     ! do cholesky decomposition
     CALL cp_fm_cholesky_decompose(matrix=fm_matrix_L, n=dimen_RI, info_out=info_chol)
-    CPPostcondition(info_chol==0,cp_failure_level,routineP,failure)
+    CPASSERT(info_chol==0)
 
     CALL cp_fm_triangular_invert(matrix_a=fm_matrix_L,uplo_tr='U')
 
@@ -2263,14 +2263,13 @@ MODULE mp2_ri_gpw
                                                 rec_col_row_info
     INTEGER, DIMENSION(:), POINTER           :: col_indices, col_indices_rec, &
                                                 row_indices, row_indices_rec
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_L, local_L_internal, &
                                                 rec_L
 
     CALL timeset(routineN,handle)
 
     ALLOCATE(my_Lrows(dimen_RI,my_group_L_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     my_Lrows=0.0_dp
 
     ! proc_map, vector that replicate the processor numbers also
@@ -2278,7 +2277,7 @@ MODULE mp2_ri_gpw
     ! needed to know which is the processor, to respect to another one,
     ! for a given shift
     ALLOCATE(proc_map(-para_env%num_pe:2*para_env%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO iiB=0,para_env%num_pe-1
       proc_map(iiB)=iiB
       proc_map(-iiB-1)=para_env%num_pe-iiB-1
@@ -2293,14 +2292,14 @@ MODULE mp2_ri_gpw
                         local_data=local_L_internal)
 
     ALLOCATE(local_L(nrow_local,ncol_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     local_L=local_L_internal(1:nrow_local,1:ncol_local)
 
     max_row_col_local=MAX(nrow_local,ncol_local)
     CALL mp_max(max_row_col_local,para_env%group)
 
     ALLOCATE(local_col_row_info(0:max_row_col_local,2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     local_col_row_info=0
     ! 0,1 nrows
     local_col_row_info(0,1)=nrow_local
@@ -2310,7 +2309,7 @@ MODULE mp2_ri_gpw
     local_col_row_info(1:ncol_local,2)=col_indices(1:ncol_local)
 
     ALLOCATE(rec_col_row_info(0:max_row_col_local,2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! accumulate data on my_Lrows starting from myself
     DO jjB=1, ncol_local
@@ -2339,15 +2338,15 @@ MODULE mp2_ri_gpw
       ncol_rec=rec_col_row_info(0,2)
 
       ALLOCATE(row_indices_rec(nrow_rec),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       row_indices_rec=rec_col_row_info(1:nrow_rec,1)
 
       ALLOCATE(col_indices_rec(ncol_rec),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       col_indices_rec=rec_col_row_info(1:ncol_rec,2)
 
       ALLOCATE(rec_L(nrow_rec,ncol_rec),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       rec_L=0.0_dp
 
       ! then send and receive the real data
@@ -2367,7 +2366,7 @@ MODULE mp2_ri_gpw
       local_col_row_info(:,:)=rec_col_row_info
       DEALLOCATE(local_L)
       ALLOCATE(local_L(nrow_rec,ncol_rec),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       local_L=rec_L
 
       DEALLOCATE(col_indices_rec)
@@ -2424,7 +2423,7 @@ MODULE mp2_ri_gpw
     failure=.FALSE.
 
     ALLOCATE(rec_col_row_info(0:max_row_col_local,2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     rec_col_row_info(:,:)=local_col_row_info
 
@@ -2432,11 +2431,11 @@ MODULE mp2_ri_gpw
     ncol_rec=rec_col_row_info(0,2)
 
     ALLOCATE(row_indices_rec(nrow_rec),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     row_indices_rec=rec_col_row_info(1:nrow_rec,1)
 
     ALLOCATE(col_indices_rec(ncol_rec),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     col_indices_rec=rec_col_row_info(1:ncol_rec,2)
 
     ! accumulate data on BIb_jb buffer starting from myself
@@ -2468,15 +2467,15 @@ MODULE mp2_ri_gpw
         ncol_rec=rec_col_row_info(0,2)
 
         ALLOCATE(row_indices_rec(nrow_rec),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         row_indices_rec=rec_col_row_info(1:nrow_rec,1)
 
         ALLOCATE(col_indices_rec(ncol_rec),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         col_indices_rec=rec_col_row_info(1:ncol_rec,2)
 
         ALLOCATE(rec_BI(nrow_rec,ncol_rec),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         rec_BI=0.0_dp
 
         ! then send and receive the real data
@@ -2689,7 +2688,7 @@ MODULE mp2_ri_gpw
                block_size,ngroup,ij_map,color_sub,my_ij_pairs,my_open_shell_SS,unit_nr)
     
     ALLOCATE(num_ij_pairs(0:para_env_exchange%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     num_ij_pairs=0
     num_ij_pairs(para_env_exchange%mepos)=my_ij_pairs
     CALL mp_sum(num_ij_pairs,para_env_exchange%group)
@@ -2767,7 +2766,7 @@ MODULE mp2_ri_gpw
 
           rec_L_size=sizes_array(proc_receive)
           ALLOCATE(BI_C_rec(rec_L_size,MAX(my_B_size,my_B_size_beta),my_block_size),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
  
           IF(ij_index<=send_ij_index) THEN
             ! ij_counter_send=(ij_index-MIN(1,proc_send))*ngroup+proc_send
@@ -2908,7 +2907,7 @@ MODULE mp2_ri_gpw
               rec_B_virtual_start=starts_B_virtual(proc_receive)
  
               ALLOCATE(external_i_aL(dimen_RI,rec_B_size),STAT=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
               external_i_aL=0.0_dp
 
               CALL  mp_sendrecv(local_i_aL(:,:,iiB),proc_send,&
@@ -2935,7 +2934,7 @@ MODULE mp2_ri_gpw
                  rec_B_virtual_start=starts_B_virtual_beta(proc_receive)
  
                  ALLOCATE(external_i_aL(dimen_RI,rec_B_size),STAT=stat)
-                 CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
                  external_i_aL=0.0_dp
              
                  CALL  mp_sendrecv(local_j_aL(:,:,jjB),proc_send,&
@@ -3013,7 +3012,7 @@ MODULE mp2_ri_gpw
                 send_B_virtual_start=starts_B_virtual(proc_send)
 
                 ALLOCATE(external_ab(my_B_size,rec_B_size),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 external_ab=0.0_dp
 
                 CALL  mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end,1:my_B_size),proc_send,&
@@ -3142,22 +3141,22 @@ MODULE mp2_ri_gpw
 
     IF(calc_forces) THEN
       DEALLOCATE(Y_i_aP, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       IF (.NOT. my_alpha_beta_case) THEN
          DEALLOCATE(Y_j_aP, STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
       ELSE
          DEALLOCATE(Y_j_aP_beta, STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
       ENDIF
       IF  (ALLOCATED(t_ab)) THEN
          DEALLOCATE(t_ab, STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
       ENDIF
       ! Deallocate additional integrals: alpha_beta case with forces
       IF (ALLOCATED(local_ba)) THEN
          DEALLOCATE(local_ba)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
       ENDIF
 
       ! here we check if there are almost degenerate ij
@@ -3228,7 +3227,7 @@ MODULE mp2_ri_gpw
       DEALLOCATE(sizes_array)
       iiB=SIZE(sizes_array_orig)
       ALLOCATE(sizes_array(0:iiB-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       sizes_array(:)=sizes_array_orig
       DEALLOCATE(sizes_array_orig)
 
@@ -3257,7 +3256,7 @@ MODULE mp2_ri_gpw
       ! sum Gamma and dereplicate 
       ALLOCATE(BIb_C(homo,my_B_size,my_group_L_size))
       IF (my_alpha_beta_case) ALLOCATE(BIb_C_beta(homo_beta,my_B_size_beta,my_group_L_size))
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DO proc_shift=1, para_env_rep%num_pe-1
         ! invert order
         proc_send=proc_map_rep(para_env_rep%mepos-proc_shift)
@@ -3293,14 +3292,14 @@ MODULE mp2_ri_gpw
          BIb_C(:,:,:)=mp2_env%ri_grad%Gamma_P_ia(1:homo,1:my_B_size,1:my_group_L_size)
          DEALLOCATE(mp2_env%ri_grad%Gamma_P_ia)
          ALLOCATE(mp2_env%ri_grad%Gamma_P_ia(homo,my_B_size,my_group_L_size),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          mp2_env%ri_grad%Gamma_P_ia(:,:,:)=BIb_C
          DEALLOCATE(BIb_C)
          IF (my_alpha_beta_case) THEN
             BIb_C_beta(:,:,:)=mp2_env%ri_grad%Gamma_P_ia_beta(1:homo_beta,1:my_B_size_beta,1:my_group_L_size)
             DEALLOCATE(mp2_env%ri_grad%Gamma_P_ia_beta)
             ALLOCATE(mp2_env%ri_grad%Gamma_P_ia_beta(homo_beta,my_B_size_beta,my_group_L_size),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
             mp2_env%ri_grad%Gamma_P_ia_beta(:,:,:)=BIb_C_beta
             DEALLOCATE(BIb_C_beta)
          ENDIF   
@@ -3328,7 +3327,7 @@ MODULE mp2_ri_gpw
       ! Here we restore BIb_C
       IF (my_open_shell_ss) THEN
          ALLOCATE(BIb_C(my_group_L_size,my_B_size,homo),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          BIb_C=0.0_dp
          ! copy the integrals (ia|Q) back
          DO jjB=1, homo
@@ -3462,21 +3461,21 @@ MODULE mp2_ri_gpw
     ! create the new limits for K according to the size
     ! of the integral group
     ALLOCATE(new_sizes_array(0:para_env_exchange%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     new_sizes_array=0
     ALLOCATE(ranges_info_array(4,0:para_env_rep%num_pe-1,0:para_env_exchange%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ranges_info_array=0
 
     ! info array for replication
     ALLOCATE(rep_ends_array(0:para_env_rep%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     rep_ends_array=0
     ALLOCATE(rep_starts_array(0:para_env_rep%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     rep_starts_array=0
     ALLOCATE(rep_sizes_array(0:para_env_rep%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     rep_sizes_array=0
 
     rep_sizes_array(para_env_rep%mepos)=my_group_L_size
@@ -3514,13 +3513,13 @@ MODULE mp2_ri_gpw
     IF(.FALSE.) THEN
       ! replication scheme using mp_sendrecv
       ALLOCATE(BIb_C_copy(my_group_L_size,my_B_size,homo),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       BIb_C_copy(:,:,:)=BIb_C
 
       DEALLOCATE(BIb_C)
 
       ALLOCATE(BIb_C(my_new_group_L_size,my_B_size,homo),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       BIb_C=0.0_dp
 
       start_point=ranges_info_array(3,0,para_env_exchange%mepos)
@@ -3549,14 +3548,14 @@ MODULE mp2_ri_gpw
       max_L_size=MAXVAL(sizes_array)
 
       ALLOCATE(BIb_C_copy(max_L_size,my_B_size,homo),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       BIb_C_copy=0.0_dp
       BIb_C_copy(1:my_group_L_size,1:my_B_size,1:homo)=BIb_C
 
       DEALLOCATE(BIb_C)
 
       ALLOCATE(BIb_C_gather(max_L_size,my_B_size,homo,0:para_env_rep%num_pe-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       BIb_C_gather=0.0_dp
 
       CALL mp_allgather(BIb_C_copy,BIb_C_gather,para_env_rep%group)
@@ -3564,7 +3563,7 @@ MODULE mp2_ri_gpw
       DEALLOCATE(BIb_C_copy)
 
       ALLOCATE(BIb_C(my_new_group_L_size,my_B_size,homo),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       BIb_C=0.0_dp
 
       ! reorder data
@@ -3668,53 +3667,53 @@ MODULE mp2_ri_gpw
     failure=.FALSE.
     
     ALLOCATE(local_i_aL(dimen_RI,my_B_size,block_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(local_j_aL(dimen_RI,my_B_size_beta,block_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(local_ab(virtual,my_B_size_beta),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF(calc_forces) THEN
       ALLOCATE(Y_i_aP(my_B_size,dimen_RI,block_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Y_i_aP=0.0_dp
       ! For  closed-shell, alpha-alpha and beta-beta my_B_size_beta=my_b_size
       ! Not for alpha-beta case: Y_j_aP_beta is sent and received as Y_j_aP
       ALLOCATE(Y_j_aP(my_B_size_beta,dimen_RI,block_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       Y_j_aP=0.0_dp
       ! Closed shell or alpha-alpha case
       IF (.NOT. (beta_beta .OR. alpha_beta)) THEN
          ALLOCATE(mp2_env%ri_grad%P_ij(homo,homo),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          ALLOCATE(mp2_env%ri_grad%P_ab(my_B_size,virtual),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          mp2_env%ri_grad%P_ij=0.0_dp
          mp2_env%ri_grad%P_ab=0.0_dp
          ALLOCATE(mp2_env%ri_grad%Gamma_P_ia(homo,my_B_size,my_group_L_size),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          mp2_env%ri_grad%Gamma_P_ia=0.0_dp
       ELSE
          IF (beta_beta) THEN
             ALLOCATE(mp2_env%ri_grad%P_ij_beta(homo,homo),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
             ALLOCATE(mp2_env%ri_grad%P_ab_beta(my_B_size,virtual),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
             mp2_env%ri_grad%P_ij_beta=0.0_dp
             mp2_env%ri_grad%P_ab_beta=0.0_dp
             ALLOCATE(mp2_env%ri_grad%Gamma_P_ia_beta(homo,my_B_size_beta,my_group_L_size),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
             mp2_env%ri_grad%Gamma_P_ia_beta=0.0_dp
          ENDIF
       ENDIF
       IF (.NOT. alpha_beta) THEN
          ! For non-alpha-beta case we need amplitudes
          ALLOCATE(t_ab(virtual,my_B_size_beta),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
       ELSE
          ! We need more integrals
          ALLOCATE(local_ba(virtual_beta,my_B_size),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
       ENDIF
     END IF
     !
@@ -3788,10 +3787,10 @@ MODULE mp2_ri_gpw
       total_ij_pairs_blocks=assigned_blocks+(total_ij_pairs-assigned_blocks*(block_size**2))
 
       ALLOCATE(ij_marker(homo,homo),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ij_marker=0
       ALLOCATE(ij_map(total_ij_pairs_blocks,3),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ij_map=0
       ij_counter=0
       my_ij_pairs=0
@@ -3837,7 +3836,7 @@ MODULE mp2_ri_gpw
       ! alpha-beta case no index symmetry
       total_ij_pairs=homo*homo_beta
       ALLOCATE(ij_map(total_ij_pairs,3),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ij_map=0
       ij_counter=0
       my_ij_pairs=0
@@ -3947,7 +3946,7 @@ MODULE mp2_ri_gpw
                                  my_new_group_L_size,new_sizes_array,ranges_info_array)
 
     ALLOCATE(integ_group_pos2color_sub(0:para_env_exchange%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     integ_group_pos2color_sub=0
     integ_group_pos2color_sub(para_env_exchange%mepos)=color_sub
     CALL mp_sum(integ_group_pos2color_sub,para_env_exchange%group)
@@ -3955,7 +3954,7 @@ MODULE mp2_ri_gpw
     IF(calc_forces) THEN
       iiB=SIZE(sizes_array)
       ALLOCATE(sizes_array_orig(0:iiB-1),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       sizes_array_orig(:)=sizes_array
     END IF  
  
@@ -3964,7 +3963,7 @@ MODULE mp2_ri_gpw
     DEALLOCATE(sizes_array)
 
     ALLOCATE(sizes_array(0:integ_group_size-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     sizes_array(:)=new_sizes_array
       
     DEALLOCATE(new_sizes_array)
@@ -4361,7 +4360,7 @@ MODULE mp2_ri_gpw
       ENDIF
 
       ALLOCATE(external_ab(virtual,rec_B_size),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       external_ab=0.0_dp
 
       IF (.NOT. alpha_beta) THEN
@@ -4406,7 +4405,7 @@ MODULE mp2_ri_gpw
          send_B_virtual_end=ends_B_virtual(proc_send)
          send_B_virtual_start=starts_B_virtual(proc_send)
          ALLOCATE(external_ab(virtual_beta,rec_B_size),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          external_ab=0.0_dp
          CALL  mp_sendrecv(local_ba(1:virtual_beta,1:my_B_size),proc_send,&
                         external_ab(1:virtual_beta,1:rec_B_size),proc_receive,&
@@ -4421,11 +4420,11 @@ MODULE mp2_ri_gpw
 
       IF((my_i/=my_j) .AND. (.NOT. alpha_beta)) THEN
         ALLOCATE(external_ab(my_B_size,virtual),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         external_ab=0.0_dp
         
         ALLOCATE(send_ab(send_B_size,virtual),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         send_ab=0.0_dp                
 
         CALL dgemm('N','T',send_B_size,virtual,my_B_size,1.0_dp,&
@@ -4477,7 +4476,7 @@ MODULE mp2_ri_gpw
     ENDIF
 
     ALLOCATE(external_ab(my_B_size,dimen_RI),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     external_ab=0.0_dp
     !
     DO proc_shift=1, para_env_sub%num_pe-1
@@ -4494,7 +4493,7 @@ MODULE mp2_ri_gpw
 
       IF (.NOT. alpha_beta) THEN
           ALLOCATE(send_ab(send_B_size,dimen_RI),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           send_ab=0.0_dp
           CALL dgemm('N','T',send_B_size,dimen_RI,my_B_size,1.0_dp,&
                      t_ab(send_B_virtual_start:send_B_virtual_end,1:my_B_size),send_B_size,&
@@ -4510,7 +4509,7 @@ MODULE mp2_ri_gpw
       ELSE  ! Alpha-beta case
           ! Alpha-alpha part
           ALLOCATE(send_ab(send_B_size,dimen_RI),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           send_ab=0.0_dp
           CALL dgemm('N','T',send_B_size,dimen_RI,my_B_size_beta,1.0_dp,&
                    local_ab(send_B_virtual_start:send_B_virtual_end,1:my_B_size_beta),send_B_size,&
@@ -4527,7 +4526,7 @@ MODULE mp2_ri_gpw
     IF (alpha_beta) THEN
         ! For beta-beta part (in alpha-beta case) we need a new parallel code
         ALLOCATE(external_ab(my_B_size_beta,dimen_RI),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         external_ab=0.0_dp
         DO proc_shift=1, para_env_sub%num_pe-1
           proc_send=sub_proc_map(para_env_sub%mepos+proc_shift)
@@ -4537,7 +4536,7 @@ MODULE mp2_ri_gpw
           send_B_virtual_end=ends_B_virtual_beta(proc_send)
           send_B_virtual_start=starts_B_virtual_beta(proc_send)
           ALLOCATE(send_ab(send_B_size,dimen_RI),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           send_ab=0.0_dp
  
           CALL dgemm('N','T',send_B_size,dimen_RI,my_B_size,1.0_dp,&
@@ -4569,7 +4568,7 @@ MODULE mp2_ri_gpw
         rec_B_virtual_start=starts_B_virtual(proc_receive)
 
         ALLOCATE(external_ab(dimen_RI,rec_B_size),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         external_ab=0.0_dp
 
         CALL  mp_sendrecv(local_i_aL(1:dimen_RI,1:my_B_size,iiB), proc_send,&
@@ -4652,7 +4651,6 @@ MODULE mp2_ri_gpw
       kkk, Lend_pos, lll, Lstart_pos, proc_receive, proc_send, proc_shift, &
       rec_block_size, rec_i, rec_ij_index, rec_j, send_L_size, start_point, &
       stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BI_C_rec, BI_C_rec_beta, &
                                                 BI_C_send, BI_C_send_beta
@@ -4744,12 +4742,12 @@ MODULE mp2_ri_gpw
         send_L_size=sizes_array(proc_send)
         IF (.NOT. alpha_beta) THEN
            ALLOCATE(BI_C_send(2*my_block_size,my_B_size,send_L_size),STAT=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+           CPASSERT(stat==0)
         ELSE
            ALLOCATE(BI_C_send(my_block_size,my_B_size,send_L_size),STAT=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+           CPASSERT(stat==0)
            ALLOCATE(BI_C_send_beta(my_block_size,my_B_size_beta,send_L_size),STAT=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+           CPASSERT(stat==0)
         ENDIF
         CALL timeset(routineN//"_comm2_w",handle2)
         BI_C_send=0.0_dp
@@ -4814,12 +4812,12 @@ MODULE mp2_ri_gpw
 
           IF (.NOT. alpha_beta) THEN
              ALLOCATE(BI_C_rec(2*rec_block_size,my_B_size,my_group_L_size),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ELSE
              ALLOCATE(BI_C_rec(rec_block_size,my_B_size,my_group_L_size),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(BI_C_rec_beta(rec_block_size,my_B_size_beta,my_group_L_size),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
 
           BI_C_rec=0.0_dp
@@ -4942,12 +4940,12 @@ MODULE mp2_ri_gpw
 
           IF (.NOT. alpha_beta) THEN
              ALLOCATE(BI_C_rec(2*rec_block_size,my_B_size,my_group_L_size),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ELSE   
              ALLOCATE(BI_C_rec(rec_block_size,my_B_size,my_group_L_size),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(BI_C_rec_beta(rec_block_size,my_B_size_beta,my_group_L_size),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           ENDIF
 
           BI_C_rec=0.0_dp
@@ -5147,7 +5145,6 @@ MODULE mp2_ri_gpw
       start_point, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: num_ijk, num_ijk_beta
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ijk_map, ijk_map_beta
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: amp_fac, null_mat_rec(2,2,2), &
                                                 null_mat_send(2,2,2), &
                                                 P_ij_elem
@@ -5202,13 +5199,13 @@ MODULE mp2_ri_gpw
      ENDIF
 
      ALLOCATE(local_i_aL(dimen_RI,size_B_i,1),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(local_j_aL(dimen_RI,size_B_j,1),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(local_k_aL(dimen_RI,size_B_k,1),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      ALLOCATE(t_ab(my_virtual,size_B_k),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
 
      DO ijk_index=1, max_ijk_loop
       IF (iloops .EQ. 2) my_ijk = my_ijk_beta
@@ -5260,7 +5257,7 @@ MODULE mp2_ri_gpw
 
           rec_L_size=sizes_array(proc_receive)
           ALLOCATE(BI_C_rec(rec_L_size,size_B_i,1),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
           IF(ijk_index<=send_ijk_index) THEN
             ! something to send
@@ -5381,7 +5378,7 @@ MODULE mp2_ri_gpw
         IF (iloops .EQ. 2) THEN ! For alpha-beta case for beta-beta density the dimensions are different
           DEALLOCATE(local_ab)
           ALLOCATE(local_ab(virtual_beta,size_B_k))
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           local_ab=0.0_dp
           CALL dgemm('T','N',size_B_i,size_B_k,dimen_RI,1.0_dp,&
                local_i_aL(:,:,1),dimen_RI,local_k_aL(:,:,1),dimen_RI,&
@@ -5406,7 +5403,7 @@ MODULE mp2_ri_gpw
           ENDIF
 
           ALLOCATE(external_i_aL(dimen_RI,rec_B_size),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           external_i_aL=0.0_dp
 
           CALL  mp_sendrecv(local_i_aL(:,:,1),proc_send,&
@@ -5468,7 +5465,7 @@ MODULE mp2_ri_gpw
               send_B_virtual_start=starts_B_virtual(proc_send)
 
               ALLOCATE(external_ab(size_B_i,rec_B_size),STAT=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
               external_ab=0.0_dp
               CALL  mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end,1:size_B_k),proc_send,&
                          external_ab(1:size_B_i,1:rec_B_size),proc_receive, para_env_sub%group)
@@ -5516,7 +5513,7 @@ MODULE mp2_ri_gpw
           ENDIF
 
           ALLOCATE(external_i_aL(dimen_RI,rec_B_size),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           external_i_aL=0.0_dp
 
           CALL  mp_sendrecv(local_j_aL(:,:,1),proc_send,&
@@ -5711,7 +5708,6 @@ MODULE mp2_ri_gpw
     INTEGER                                  :: iib, ijk_counter, jjb, kkb, &
                                                 my_homo, num_sing_ij, stat, &
                                                 total_ijk
-    LOGICAL                                  :: failure
 
     IF (alpha_beta) THEN 
        my_homo = homo_beta
@@ -5741,7 +5737,7 @@ MODULE mp2_ri_gpw
     ENDIF
     total_ijk=my_homo*num_sing_ij
     ALLOCATE(ijk_map(total_ijk,3),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ijk_map=0
 
     my_ijk=0
@@ -5761,7 +5757,7 @@ MODULE mp2_ri_gpw
     END DO
 
     ALLOCATE(num_ijk(0:para_env_exchange%num_pe-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     num_ijk=0
     num_ijk(para_env_exchange%mepos)=my_ijk
     CALL mp_sum(num_ijk,para_env_exchange%group)
@@ -5780,7 +5776,7 @@ MODULE mp2_ri_gpw
         ! total number of elemets that have to be computed
         total_ijk=homo*num_sing_ij
         ALLOCATE(ijk_map_beta(total_ijk,3),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ijk_map_beta=0
         my_ijk_beta=0
         ijk_counter=0
@@ -5798,7 +5794,7 @@ MODULE mp2_ri_gpw
           END DO
         END DO
         ALLOCATE(num_ijk_beta(0:para_env_exchange%num_pe-1),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         num_ijk_beta=0
         num_ijk_beta(para_env_exchange%mepos)=my_ijk_beta
         CALL mp_sum(num_ijk_beta,para_env_exchange%group)

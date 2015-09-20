@@ -388,10 +388,10 @@ CONTAINS
 
     NULLIFY(pw_pool)
     ALLOCATE(vxc_pw(nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ispin=1, nspins
        ALLOCATE(vxc_pw(ispin)%pw, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        vxc_pw(ispin)%pw%cr3d => vxc(:,:,ispin:ispin)
     END DO
 
@@ -400,10 +400,10 @@ CONTAINS
 
     DO ispin=1, nspins
        DEALLOCATE(vxc_pw(ispin)%pw, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END DO
     DEALLOCATE(vxc_pw, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! zero the derivative data for the next call
     pos => deriv_set%derivs
@@ -607,18 +607,18 @@ CONTAINS
     ! some checks
     IF (lsd) THEN
     ELSE
-       CPPrecondition(SIZE(rho,2)==1,cp_failure_level,routineP,failure)
+       CPASSERT(SIZE(rho,2)==1)
     END IF
     SELECT CASE(my_nspins)
     CASE(1)
-       CPPrecondition(.NOT.needs%rho_spin,cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT.needs%drho_spin,cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT.needs%norm_drho_spin,cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT.needs%drhoa_drhob,cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT.needs%rho_spin_1_3,cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.needs%rho_spin)
+       CPASSERT(.NOT.needs%drho_spin)
+       CPASSERT(.NOT.needs%norm_drho_spin)
+       CPASSERT(.NOT.needs%drhoa_drhob)
+       CPASSERT(.NOT.needs%rho_spin_1_3)
     CASE(2)
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
@@ -823,8 +823,8 @@ CONTAINS
 
     ! tau part
     IF (needs%tau.OR.needs%tau_spin) THEN
-       CPPrecondition(ASSOCIATED(tau),cp_failure_level,routineP,failure)
-       CPPrecondition(SIZE(tau,2)==my_nspins,cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(tau))
+       CPASSERT(SIZE(tau,2)==my_nspins)
     END IF
     IF (needs%tau) THEN
        IF (my_nspins==2) THEN

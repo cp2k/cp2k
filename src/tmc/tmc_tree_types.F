@@ -182,12 +182,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'add_to_list', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(elem_list_type), POINTER            :: last, list_elem_tmp
 
     NULLIFY(list_elem_tmp, last)
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
     
     ALLOCATE(list_elem_tmp)
     list_elem_tmp%elem => elem
@@ -253,10 +252,8 @@ CONTAINS
       routineN = 'write_subtree_elem_unformated', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(io_unit.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(io_unit.GT.0)
     WRITE(io_unit)   elem%nr, &
                      elem%sub_tree_nr, &
                      elem%stat, &
@@ -288,10 +285,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_subtree_elem_unformated', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(io_unit.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(io_unit.GT.0)
 
     READ(io_unit)   elem%nr, &
                     elem%sub_tree_nr, &
@@ -342,13 +337,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i_tmp
-    LOGICAL                                  :: failure, l_tmp
+    LOGICAL                                  :: l_tmp
 
     READ(io_unit) l_tmp
     IF(l_tmp) THEN 
       READ(io_unit) i_tmp
       IF(ASSOCIATED(array)) THEN
-        CPPostcondition(SIZE(array).EQ.i_tmp,cp_failure_level,routineP,failure)
+        CPASSERT(SIZE(array).EQ.i_tmp)
       ELSE
         ALLOCATE(array(i_tmp)) 
       END IF

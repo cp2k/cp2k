@@ -58,7 +58,7 @@ CONTAINS
   failure=.FALSE.
   CALL atprop_release(atprop_env)
   ALLOCATE(atprop_env,stat=stat)
-  CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+  CPASSERT(stat==0)
   NULLIFY(atprop_env%atener,atprop_env%atstress)
   NULLIFY(atprop_env%ateb,atprop_env%atevdw,atprop_env%atecc,atprop_env%atecoul)
   NULLIFY(atprop_env%ateself,atprop_env%atexc,atprop_env%ate1c)
@@ -83,7 +83,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  CPPrecondition(ASSOCIATED(atprop_env),cp_warning_level,routineP,failure)
+  CPASSERT(ASSOCIATED(atprop_env))
 
   IF(atprop_env%energy) THEN
     CALL atprop_array_init(atprop_env%atener,natom)
@@ -98,10 +98,10 @@ CONTAINS
 
   IF(atprop_env%stress) THEN
     IF(ASSOCIATED(atprop_env%atstress)) THEN
-      CPPrecondition(SIZE(atprop_env%atstress,3)==natom,cp_warning_level,routineP,failure)
+      CPASSERT(SIZE(atprop_env%atstress,3)==natom)
     ELSE
       ALLOCATE(atprop_env%atstress(3,3,natom),stat=stat)
-      CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
     atprop_env%atstress = 0._dp
   END IF
@@ -126,10 +126,10 @@ CONTAINS
     failure=.FALSE.
 
     IF(ASSOCIATED(atarray)) THEN
-      CPPrecondition(SIZE(atarray)==natom,cp_warning_level,routineP,failure)
+      CPASSERT(SIZE(atarray)==natom)
     ELSE
       ALLOCATE(atarray(natom),stat=stat)
-      CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
     atarray = 0._dp
 
@@ -152,7 +152,7 @@ CONTAINS
 
     IF(ASSOCIATED(atarray)) THEN
       DEALLOCATE(atarray,stat=stat)
-      CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+      CPASSERT(stat==0)
       NULLIFY(atarray)
     END IF
 
@@ -174,7 +174,7 @@ CONTAINS
     failure=.FALSE.
 
     IF(ASSOCIATED(array_b)) THEN
-      CPPrecondition(ASSOCIATED(array_a),cp_warning_level,routineP,failure)
+      CPASSERT(ASSOCIATED(array_a))
       array_a = array_a + array_b
     END IF
 
@@ -208,11 +208,11 @@ SUBROUTINE atprop_release(atprop_env)
      ! stress
      IF (ASSOCIATED(atprop_env%atstress)) THEN
         DEALLOCATE(atprop_env%atstress,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+        CPASSERT(stat==0)
      END IF
      ! atprop type
      DEALLOCATE(atprop_env,stat=stat)
-     CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+     CPASSERT(stat==0)
   END IF
   NULLIFY(atprop_env)
 END SUBROUTINE atprop_release

@@ -64,7 +64,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="VIBRATIONAL_ANALYSIS",&
          description="Section to setup parameters to perform a Normal Modes analysis.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -136,7 +136,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PRINT",&
          description="Section controlling the print information during a vibrational "//&
          "analysis.",n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -195,7 +195,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword, subsection, print_key)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MODE_SELECTIVE",&
          description="All parameters needed for to run a mode selective vibrational analysis",&
          n_keywords=5, n_subsections=1, repeats=.FALSE.)
@@ -296,7 +296,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="INVOLVED_ATOMS",&
          description="All parameters needed for the tracking of modes dominated by the motion of selected atoms ",&
          n_keywords=2, n_subsections=0, repeats=.FALSE.)

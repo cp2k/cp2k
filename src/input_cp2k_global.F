@@ -86,7 +86,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(print_key)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="GLOBAL",&
          description="Section with general information regarding which kind "//&
          "of simulation to perform an parameters for the whole PROGRAM",&
@@ -508,7 +508,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DBCSR",&
          description="Configuration options for the DBCSR library.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., &
@@ -712,10 +712,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_fm_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="FM",&
          description="Configuration options for the full matrices.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)

@@ -358,7 +358,7 @@ CONTAINS
 
              ALLOCATE(vh1_rad_h(grid_atom%nr,harmonics%max_iso_not0),STAT=istat)
              ALLOCATE(vh1_rad_s(grid_atom%nr,harmonics%max_iso_not0),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
 
              ! DO iat = 1, natom ! natom = # atoms for ikind
              !
@@ -457,7 +457,7 @@ CONTAINS
 
              DEALLOCATE(vh1_rad_h,STAT=istat)
              DEALLOCATE(vh1_rad_s,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
 
           END IF ! paw_atom
 

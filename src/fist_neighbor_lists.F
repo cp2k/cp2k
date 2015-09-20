@@ -155,21 +155,21 @@ CONTAINS
     ! if exclusions matters local particles are present. Seems like only the exclusions
     ! for the local particles are needed, which would imply a huge memory savings for fist
     IF (PRESENT(exclusions)) THEN
-      CPPostcondition(present_local_particles,cp_failure_level,routineP,failure)
+      CPASSERT(present_local_particles)
     ENDIF
 
     ! Allocate work storage
     nkind = SIZE(atomic_kind_set)
     ALLOCATE (atom(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (skip_kind(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! full_nl
     IF (PRESENT(full_nl)) THEN
        my_full_nl => full_nl
     ELSE
        ALLOCATE(my_full_nl(nkind,nkind),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        my_full_nl = .FALSE.
     END IF
     ! Initialize the local data structures
@@ -188,7 +188,7 @@ CONTAINS
        END IF
        IF (natom_local_a > 0) THEN
           ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ! Build index vector for mapping
           DO iatom_local=1,natom_local_a
              IF (present_local_particles) THEN
@@ -244,20 +244,20 @@ CONTAINS
        NULLIFY (atom(ikind)%list)
        IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
           DEALLOCATE (atom(ikind)%list_local_a_index,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
     IF (PRESENT(full_nl)) THEN
        NULLIFY(my_full_nl)
     ELSE
        DEALLOCATE(my_full_nl,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     DEALLOCATE (atom,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE (skip_kind,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL cp_print_key_finished_output(unit_nr=output_unit,&
          logger=logger,&
@@ -387,7 +387,7 @@ CONTAINS
     ! Let's map the sequence of the periodic images
     ncellmax = MAXVAL(ncell)
     ALLOCATE(cellmap(-ncellmax:ncellmax,-ncellmax:ncellmax,-ncellmax:ncellmax),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     cellmap=-1
     imap=0
     nkind00 = nkind*(nkind+1)/2
@@ -398,7 +398,7 @@ CONTAINS
                 IF (cellmap(icell,jcell,kcell)==-1) THEN
                    imap=imap+1
                    cellmap(icell,jcell,kcell)=imap
-                   CPPostcondition(imap<=nonbonded%nlists,cp_failure_level,routineP,failure)
+                   CPASSERT(imap<=nonbonded%nlists)
                    neighbor_kind_pair => nonbonded%neighbor_kind_pairs(imap)
 
                    neighbor_kind_pair%cell_vector(1) = icell
@@ -413,7 +413,7 @@ CONTAINS
     ALLOCATE(sphcub(-isubcell(1):isubcell(1),&
                     -isubcell(2):isubcell(2),&
                     -isubcell(3):isubcell(3)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     sphcub = .FALSE.
     IF (ALL(isubcell/=0)) THEN
        radius = REAL(isubcell(1),KIND=dp)**2+ REAL(isubcell(2),KIND=dp)**2+&
@@ -444,7 +444,7 @@ CONTAINS
     END IF
     ! Mapping locally all atoms in the zeroth cell
     ALLOCATE(coord(3,SIZE(particle_set)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO atom_a = 1, SIZE(particle_set)
        coord(:,atom_a) = pbc(particle_set(atom_a)%r,cell)
     END DO
@@ -462,7 +462,7 @@ CONTAINS
        DO j = 1,nsubcell(2)
           DO i = 1,nsubcell(1)
              ALLOCATE(subcell_a(i,j,k)%atom_list(subcell_a(i,j,k)%natom),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              subcell_a(i,j,k)%natom   = 0
           END DO
        END DO
@@ -486,7 +486,7 @@ CONTAINS
        DO j = 1,nsubcell(2)
           DO i = 1,nsubcell(1)
              ALLOCATE(subcell_b(i,j,k)%atom_list(subcell_b(i,j,k)%natom),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              subcell_b(i,j,k)%natom   = 0
           END DO
        END DO
@@ -500,9 +500,9 @@ CONTAINS
     tmpdim = MAXVAL(subcell_a(:,:,:)%natom)
     tmpdim = MAX(tmpdim,MAXVAL(subcell_b(:,:,:)%natom))
     ALLOCATE(work(3*tmpdim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(kind_of(SIZE(particle_set)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, SIZE(particle_set)
        kind_of(i) = particle_set(i)%atomic_kind%kind_number
     END DO
@@ -515,7 +515,7 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(work,kind_of,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     zdim  = nsubcell(3)
     ydim  = nsubcell(2)
     xdim  = nsubcell(1)
@@ -658,11 +658,11 @@ CONTAINS
     END DO loop_a_j
     END DO loop_a_k
     DEALLOCATE(coord,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(cellmap,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(sphcub,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL deallocate_subcell(subcell_a)
     CALL deallocate_subcell(subcell_b)
 
@@ -792,7 +792,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     ! define a lookup table to get jkind for a given id_kind
     ALLOCATE(indj(nkinds*(nkinds+1)/2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     id_kind = 0
     DO jkind = 1, nkinds
        DO ikind = jkind, nkinds
@@ -812,9 +812,9 @@ CONTAINS
              ! stay packed in the beginning. Sorting is skipped altogether when
              ! all pairs have scaled interactions.
              ALLOCATE(work(1:npairs-nscale),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(list_copy(2,1:npairs-nscale),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ! Copy of the pair list is required to perform the permutation below
              ! correctly.
              list_copy = neighbor_kind_pair%list(:,nscale+1:npairs)
@@ -827,7 +827,7 @@ CONTAINS
                 neighbor_kind_pair%list(2,ipair) = list_copy(2,tmp)
              END DO
              DEALLOCATE(work,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DEALLOCATE(list_copy,stat=stat)
           END IF
           ! 2) determine the intervals (groups) in the pair list that correspond
@@ -839,25 +839,25 @@ CONTAINS
           ! present, and also provide storage for the pairs with exclusion
           ! flags, which are unsorted.
           max_alloc_size = nkinds*(nkinds+1)/2 + nscale
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           IF (ASSOCIATED(neighbor_kind_pair%grp_kind_start)) THEN
              DEALLOCATE(neighbor_kind_pair%grp_kind_start,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           ALLOCATE(neighbor_kind_pair%grp_kind_start(max_alloc_size),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           IF (ASSOCIATED(neighbor_kind_pair%grp_kind_end)) THEN
              DEALLOCATE(neighbor_kind_pair%grp_kind_end,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           ALLOCATE(neighbor_kind_pair%grp_kind_end(max_alloc_size),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           IF (ASSOCIATED(neighbor_kind_pair%ij_kind)) THEN
              DEALLOCATE(neighbor_kind_pair%ij_kind,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           ALLOCATE(neighbor_kind_pair%ij_kind(2,max_alloc_size),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ! Start the first interval.
           ipair = 1
           neighbor_kind_pair%ngrp_kind = 1
@@ -894,10 +894,10 @@ CONTAINS
        END IF
        ! Clean the memory..
        DEALLOCATE(neighbor_kind_pair%id_kind,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END DO
     DEALLOCATE(indj,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE sort_neighbor_lists
 

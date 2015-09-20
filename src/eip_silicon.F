@@ -108,7 +108,7 @@ CONTAINS
     failure = .FALSE.
     logger => cp_get_default_logger()
 
-    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(eip_env))
 
 
     CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
@@ -121,7 +121,7 @@ CONTAINS
     !natom = local_particles%n_el(1)
 
     ALLOCATE(rxyz(3,natom), stat=stat)
-    CPPostcondition(stat == 0, cp_failure_level, routineP,failure)
+    CPASSERT(stat == 0)
 
     DO i = 1,natom
       !iparticle = local_particles%list(1)%array(i)
@@ -165,7 +165,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(rxyz, stat=stat)
-    CPPostconditionNoFail(stat==0, cp_warning_level, routineP)
+    CPASSERT(stat==0)
 
     ! Print
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -283,7 +283,7 @@ CONTAINS
     failure = .FALSE.
     logger => cp_get_default_logger()
 
-    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(eip_env))
 
 
     CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
@@ -296,7 +296,7 @@ CONTAINS
     !natom = local_particles%n_el(1)
 
     ALLOCATE(rxyz(3,natom), stat=stat)
-    CPPostcondition(stat == 0, cp_failure_level, routineP,failure)
+    CPASSERT(stat == 0)
 
     DO i = 1,natom
       !iparticle = local_particles%list(1)%array(i)
@@ -340,7 +340,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(rxyz, stat=stat)
-    CPPostconditionNoFail(stat==0, cp_warning_level, routineP)
+    CPASSERT(stat==0)
 
     ! Print
     IF (BTEST(cp_print_key_should_output(logger%iter_info, &

@@ -94,8 +94,7 @@ CONTAINS
       nr_a, nra, nrb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nrt
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, failure, found, &
-                                                use_virial
+    LOGICAL                                  :: defined, found, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
     REAL(KIND=dp)                            :: delta, dr, econst, eheat, &
                                                 eisol, kh, udd, uff, upp, &
@@ -182,12 +181,12 @@ CONTAINS
        END IF
        natom = SIZE (particle_set)
        ALLOCATE (atom_of_kind(natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        delta = dft_control%qs_control%se_control%delta
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 atom_of_kind=atom_of_kind)
        ALLOCATE(diagmat_p,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL cp_dbcsr_init (diagmat_p)
        CALL cp_dbcsr_get_block_diag(matrix_p(1)%matrix, diagmat_p)
        CALL cp_dbcsr_replicate_all(diagmat_p)
@@ -196,14 +195,14 @@ CONTAINS
      ! Allocate the core Hamiltonian matrix
      CALL cp_dbcsr_allocate_matrix_set(matrix_h,1)
      ALLOCATE(matrix_h(1)%matrix,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      CALL cp_dbcsr_init(matrix_h(1)%matrix)
      CALL cp_dbcsr_copy(matrix_h(1)%matrix,matrix_s(1)%matrix,"CORE HAMILTONIAN MATRIX")
      CALL cp_dbcsr_set(matrix_h(1)%matrix,0.0_dp)
 
      ! Allocate a diagonal block matrix
      ALLOCATE(diagmat_h,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      CALL cp_dbcsr_init(diagmat_h)
      CALL cp_dbcsr_get_block_diag(matrix_s(1)%matrix, diagmat_h)
      CALL cp_dbcsr_set(diagmat_h, 0.0_dp)
@@ -216,18 +215,18 @@ CONTAINS
      nkind = SIZE(atomic_kind_set)
 
      ALLOCATE (se_defined(nkind),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      ALLOCATE (hmt(16,nkind),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      ALLOCATE (umt(16,nkind),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
 
      ALLOCATE (ZSt(nkind),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      ALLOCATE (ZPt(nkind),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      ALLOCATE (nrt(nkind),STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
 
      econst   = 0.0_dp
      DO ikind=1,nkind
@@ -276,10 +275,10 @@ CONTAINS
                   do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
               NULLIFY(h_blocka)
               CALL cp_dbcsr_get_block_p(diagmat_h,iatom,iatom,h_blocka,found)
-              CPPostcondition(ASSOCIATED(h_blocka),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(h_blocka))
               IF(calculate_forces) THEN
                 CALL cp_dbcsr_get_block_p(diagmat_p,iatom,iatom,pamat,found)
-                CPPostcondition(ASSOCIATED(pamat),cp_failure_level,routineP,failure)
+                CPASSERT(ASSOCIATED(pamat))
               END IF
           END SELECT
         END IF
@@ -288,7 +287,7 @@ CONTAINS
 
           SELECT CASE (dft_control%qs_control%method_id)
              CASE DEFAULT
-               CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+               CPASSERT(.FALSE.)
              CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
                    do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
                DO i=1,SIZE(h_blocka,1)
@@ -307,7 +306,7 @@ CONTAINS
           NULLIFY (h_block)
           CALL cp_dbcsr_get_block_p(matrix_h(1)%matrix,&
                irow,icol,h_block,found)
-          CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(h_block))
           ! two-centre one-electron term
           NULLIFY(s_block)
 
@@ -331,7 +330,7 @@ CONTAINS
 
           CALL cp_dbcsr_get_block_p(matrix_s(1)%matrix,&
                irow,icol,s_block,found)
-          CPPostcondition(ASSOCIATED(s_block),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(s_block))
           IF ( irow == iatom ) THEN
             DO i=1,SIZE(h_block,1)
               DO j=1,SIZE(h_block,2)
@@ -358,7 +357,7 @@ CONTAINS
 !            endif
 
             CALL cp_dbcsr_get_block_p(matrix_p(1)%matrix,irow,icol,pabmat,found)
-            CPPostcondition(ASSOCIATED(pabmat),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(pabmat))
             DO icor=1,3
               force_ab(icor) = 0._dp
 
@@ -372,7 +371,7 @@ CONTAINS
 !              enddo
 
               CALL cp_dbcsr_get_block_p(matrix_s(icor+1)%matrix,irow,icol,dsmat,found)
-              CPPostcondition(ASSOCIATED(dsmat),cp_failure_level,routineP,failure)
+              CPASSERT(ASSOCIATED(dsmat))
               dsmat=2._dp*kh*dsmat*pabmat
               IF ( irow == iatom ) THEN
                  DO i=1,SIZE(h_block,1)
@@ -407,7 +406,7 @@ CONTAINS
      CALL neighbor_list_iterator_release(nl_iterator)
 
      DEALLOCATE (se_defined,hmt,umt,ZSt,ZPt,nrt,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
 
      CALL cp_dbcsr_sum_replicated(diagmat_h)
      CALL cp_dbcsr_distribute(diagmat_h)
@@ -431,7 +430,7 @@ CONTAINS
           CALL cp_dbcsr_add(matrix_p(1)%matrix,matrix_p(2)%matrix,alpha_scalar=1.0_dp,beta_scalar=-1.0_dp)
        END IF
        DEALLOCATE(atom_of_kind,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL cp_dbcsr_deallocate_matrix(diagmat_p)
      END IF
 

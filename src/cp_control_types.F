@@ -473,9 +473,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(mulliken_restraint_control))
     ALLOCATE(mulliken_restraint_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     mulliken_restraint_control%ref_count=1
     mulliken_restraint_control%strength=0.1_dp
@@ -499,8 +499,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,failure)
-    CPPrecondition(mulliken_restraint_control%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mulliken_restraint_control))
+    CPASSERT(mulliken_restraint_control%ref_count>0)
     mulliken_restraint_control%ref_count=mulliken_restraint_control%ref_count-1
     IF (mulliken_restraint_control%ref_count==0) THEN
        IF (ASSOCIATED(mulliken_restraint_control%atoms)) &
@@ -528,7 +528,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(mulliken_restraint_control),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mulliken_restraint_control))
 
     mulliken_restraint_control%ref_count=mulliken_restraint_control%ref_count+1
   END SUBROUTINE mulliken_control_retain
@@ -550,9 +550,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(ddapc_restraint_control))
     ALLOCATE(ddapc_restraint_control,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ddapc_restraint_control%density_type=do_full_density
     ddapc_restraint_control%ref_count=1
@@ -581,8 +581,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,failure)
-    CPPrecondition(ddapc_restraint_control%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ddapc_restraint_control))
+    CPASSERT(ddapc_restraint_control%ref_count>0)
     ddapc_restraint_control%ref_count=ddapc_restraint_control%ref_count-1
     IF (ddapc_restraint_control%ref_count==0) THEN
        IF (ASSOCIATED(ddapc_restraint_control%atoms)) &
@@ -612,7 +612,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(ddapc_restraint_control),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ddapc_restraint_control))
 
     ddapc_restraint_control%ref_count=ddapc_restraint_control%ref_count+1
   END SUBROUTINE ddapc_control_retain
@@ -634,9 +634,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(becke_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(becke_control))
     ALLOCATE(becke_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
 
     becke_control%ref_count=1
@@ -666,8 +666,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(becke_control),cp_failure_level,routineP,failure)
-    CPPrecondition(becke_control%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(becke_control))
+    CPASSERT(becke_control%ref_count>0)
     becke_control%ref_count=becke_control%ref_count-1
     IF (becke_control%ref_count==0) THEN
        IF (ASSOCIATED(becke_control%atoms)) &
@@ -697,7 +697,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(becke_control),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(becke_control))
     becke_control%ref_count=becke_control%ref_count+1
   END SUBROUTINE becke_control_retain
 
@@ -718,9 +718,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(s2_restraint_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(s2_restraint_control))
     ALLOCATE(s2_restraint_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     s2_restraint_control%ref_count=1
     s2_restraint_control%strength=0.1_dp
@@ -744,8 +744,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(s2_restraint_control),cp_failure_level,routineP,failure)
-    CPPrecondition(s2_restraint_control%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(s2_restraint_control))
+    CPASSERT(s2_restraint_control%ref_count>0)
     s2_restraint_control%ref_count=s2_restraint_control%ref_count-1
     IF (s2_restraint_control%ref_count==0) THEN
        s2_restraint_control%ref_count=0
@@ -770,7 +770,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(s2_restraint_control),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(s2_restraint_control))
     s2_restraint_control%ref_count=s2_restraint_control%ref_count+1
   END SUBROUTINE s2_control_retain
 
@@ -792,9 +792,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(dft_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(dft_control))
     ALLOCATE (dft_control,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     dft_control%ref_count=1
     last_dft_control_id=last_dft_control_id+1
     dft_control%id_nr=last_dft_control_id
@@ -826,8 +826,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(dft_control%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(dft_control))
+    CPASSERT(dft_control%ref_count>0)
     dft_control%ref_count=dft_control%ref_count+1
   END SUBROUTINE dft_control_retain
 
@@ -850,7 +850,7 @@ CONTAINS
     failure = .FALSE.
 
     IF (ASSOCIATED(dft_control)) THEN
-       CPPreconditionNoFail(dft_control%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(dft_control%ref_count>0)
        dft_control%ref_count=dft_control%ref_count-1
        IF (dft_control%ref_count==0) THEN
           CALL qs_control_release(dft_control%qs_control)
@@ -861,16 +861,16 @@ CONTAINS
           CALL sccs_control_release(dft_control%sccs_control)
           IF (ASSOCIATED(dft_control%period_efield))THEN
              DEALLOCATE(dft_control%period_efield%polarisation,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
              DEALLOCATE(dft_control%period_efield,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(dft_control%rtp_control)) THEN
              DEALLOCATE(dft_control%rtp_control,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(dft_control, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
 
@@ -890,9 +890,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(gapw_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(gapw_control))
     ALLOCATE (gapw_control,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE gapw_control_create
 
 ! *****************************************************************************
@@ -909,9 +909,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(qs_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(qs_control))
     ALLOCATE (qs_control,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY(qs_control%e_cutoff)
     NULLIFY(qs_control%gapw_control)
@@ -957,11 +957,11 @@ CONTAINS
 
        IF (ASSOCIATED(qs_control%e_cutoff)) THEN
           DEALLOCATE(qs_control%e_cutoff,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(qs_control%gapw_control))THEN
           DEALLOCATE(qs_control%gapw_control,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF(ASSOCIATED(qs_control%ddapc_restraint_control))THEN
           DO i = 1 , SIZE(qs_control%ddapc_restraint_control)
@@ -970,7 +970,7 @@ CONTAINS
           DEALLOCATE(qs_control%ddapc_restraint_control)
        END IF
        DEALLOCATE(qs_control,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE qs_control_release
 
@@ -988,9 +988,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(tddfpt_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(tddfpt_control))
     ALLOCATE (tddfpt_control,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(tddfpt_control%lumos)
     NULLIFY(tddfpt_control%lumos_eigenvalues)
 
@@ -1021,14 +1021,14 @@ CONTAINS
              dummy = ASSOCIATED(tddfpt_control%lumos(ispin)%matrix)
           END DO
           DEALLOCATE(tddfpt_control%lumos,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(tddfpt_control%lumos_eigenvalues)) THEN
           DEALLOCATE(tddfpt_control%lumos_eigenvalues,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE(tddfpt_control,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE tddfpt_control_release
 
@@ -1053,22 +1053,22 @@ CONTAINS
           IF(ASSOCIATED(efield_fields(i)%efield))THEN
              IF(ASSOCIATED(efield_fields(i)%efield%envelop_r_vars))THEN
                 DEALLOCATE(efield_fields(i)%efield%envelop_r_vars,stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              IF(ASSOCIATED(efield_fields(i)%efield%envelop_i_vars))THEN
                 DEALLOCATE(efield_fields(i)%efield%envelop_i_vars,stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              IF(ASSOCIATED(efield_fields(i)%efield%polarisation))THEN
                 DEALLOCATE(efield_fields(i)%efield%polarisation,stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              DEALLOCATE(efield_fields(i)%efield,stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
        END DO
        DEALLOCATE(efield_fields,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE efield_fields_release
 
@@ -1087,9 +1087,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(dftb_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(dftb_control))
     ALLOCATE(dftb_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY(dftb_control%sk_pair_list)
   END SUBROUTINE dftb_control_create
@@ -1112,10 +1112,10 @@ CONTAINS
     IF (ASSOCIATED(dftb_control)) THEN
        IF (ASSOCIATED(dftb_control%sk_pair_list)) THEN
           DEALLOCATE(dftb_control%sk_pair_list,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE(dftb_control,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE dftb_control_release
 
@@ -1134,9 +1134,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(scptb_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(scptb_control))
     ALLOCATE(scptb_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE scptb_control_create
 
@@ -1157,7 +1157,7 @@ CONTAINS
 
     IF (ASSOCIATED(scptb_control)) THEN
        DEALLOCATE(scptb_control,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE scptb_control_release
 
@@ -1177,9 +1177,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(se_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(se_control))
     ALLOCATE(se_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE se_control_create
 
 ! *****************************************************************************
@@ -1200,7 +1200,7 @@ CONTAINS
 
     IF (ASSOCIATED(se_control)) THEN
        DEALLOCATE(se_control,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE se_control_release
 
@@ -1219,9 +1219,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(admm_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(admm_control))
     ALLOCATE(admm_control,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE admm_control_create
 
@@ -1242,7 +1242,7 @@ CONTAINS
 
     IF (ASSOCIATED(admm_control)) THEN
        DEALLOCATE(admm_control,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE admm_control_release
 
@@ -1265,9 +1265,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(sccs_control),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(sccs_control))
     ALLOCATE (sccs_control,STAT=istat)
-    CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(istat == 0)
 
     sccs_control%ref_count = 1
     sccs_control%derivative_method = 0
@@ -1309,11 +1309,11 @@ CONTAINS
     failure = .FALSE.
 
     IF (ASSOCIATED(sccs_control)) THEN
-       CPPrecondition((sccs_control%ref_count > 0),cp_failure_level,routineP,failure)
+       CPASSERT(sccs_control%ref_count > 0)
        sccs_control%ref_count = sccs_control%ref_count - 1
        IF (sccs_control%ref_count == 0) THEN
           DEALLOCATE (sccs_control,STAT=istat)
-          CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+          CPASSERT(istat == 0)
        END IF
     END IF
 

@@ -70,8 +70,8 @@ MODULE cell_opt
     failure = .FALSE.
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(ASSOCIATED(globenv))
     NULLIFY (gopt_param,force_env_section,gopt_env,x0)
     root_section      => force_env%root_section
     force_env_section => force_env%force_env_section
@@ -92,7 +92,7 @@ MODULE cell_opt
     ! Reset counter for next iteration
     CALL section_vals_val_set(geo_section,"STEP_START_VAL",i_val=0)
     DEALLOCATE(x0, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL gopt_f_release(gopt_env)
     CALL gopt_param_release(gopt_param)
     CALL timestop(handle)
@@ -125,13 +125,13 @@ MODULE cell_opt
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(gopt_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(x0),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(force_env_section),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(geo_section),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(ASSOCIATED(globenv))
+    CPASSERT(ASSOCIATED(gopt_param))
+    CPASSERT(ASSOCIATED(gopt_env))
+    CPASSERT(ASSOCIATED(x0))
+    CPASSERT(ASSOCIATED(force_env_section))
+    CPASSERT(ASSOCIATED(geo_section))
 
     SELECT CASE (gopt_param%method_id)
     CASE (default_bfgs_method_id)
@@ -144,7 +144,7 @@ MODULE cell_opt
        CALL geoopt_cg(force_env,gopt_param,globenv,&
             geo_section, gopt_env, x0)
     CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
   END SUBROUTINE cp_cell_opt_low

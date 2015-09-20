@@ -150,17 +150,17 @@ CONTAINS
                 dispersion_env%max_elem = max_elem
                 dispersion_env%maxc     = maxc
                 ALLOCATE(dispersion_env%maxci(max_elem),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(dispersion_env%c6ab(max_elem,max_elem,maxc,maxc,3),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(dispersion_env%r0ab(max_elem,max_elem),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(dispersion_env%rcov(max_elem),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(dispersion_env%r2r4(max_elem),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(dispersion_env%cn(max_elem),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
 
                 ! get filename of parameter file
                 filename = dispersion_env%parameter_file_name
@@ -200,17 +200,17 @@ CONTAINS
     DO ikind = 1, nkind
        CALL get_atomic_kind(atomic_kind_set(ikind),element_symbol=symbol,z=elem)
        ALLOCATE(disp,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        SELECT CASE (vdw_type)
        CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        CASE (xc_vdw_fun_none)
           disp%defined = .FALSE.
        CASE (xc_vdw_fun_pairpot)
           ! setup information on pair potentials
           SELECT CASE (dispersion_env%pp_type)
           CASE DEFAULT
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           CASE (vdw_pairpot_dftd2)
              CALL cite_reference(Grimme2006)
              disp%type = dftd2_pp
@@ -278,7 +278,7 @@ CONTAINS
                 CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", n_rep_val=n_rep)
                 IF (n_rep > 0) THEN
                    ALLOCATE(dispersion_env%cnkind(n_rep),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    DO i=1,n_rep
                       CALL section_vals_val_get(pp_section,"KIND_COORDINATION_NUMBERS", i_rep_val=i,&
                         c_vals=tmpstringlist)
@@ -289,13 +289,13 @@ CONTAINS
                 CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", n_rep_val=n_rep)
                 IF (n_rep > 0) THEN
                    ALLOCATE(dispersion_env%cnlist(n_rep),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    DO i=1,n_rep
                       CALL section_vals_val_get(pp_section,"ATOM_COORDINATION_NUMBERS", i_rep_val=i,&
                         c_vals=tmpstringlist)
                       nl = SIZE(tmpstringlist)
                       ALLOCATE(dispersion_env%cnlist(i)%atom(nl-1),STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                      CPASSERT(stat==0)
                       dispersion_env%cnlist(i)%natom = nl-1
                       READ(tmpstringlist(1),*) dispersion_env%cnlist(i)%cnum
                       DO j=1,nl-1
@@ -967,7 +967,7 @@ CONTAINS
           NULLIFY (force)
           CALL get_qs_env(qs_env=qs_env,force=force)
           ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind,kind_of=kind_of)
           use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
           IF (use_virial .AND. debugall) THEN
@@ -976,12 +976,12 @@ CONTAINS
        ELSE IF ( ( dispersion_env%pp_type == vdw_pairpot_dftd3 .OR.&
                    dispersion_env%pp_type == vdw_pairpot_dftd3bj) .AND. dispersion_env%doabc ) THEN
           ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind,kind_of=kind_of)
        END IF
 
        ALLOCATE (dodisp(nkind),ghost(nkind),atomnumber(nkind),c6d2(nkind),radd2(nkind),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DO ikind=1,nkind
           CALL get_atomic_kind(atomic_kind_set(ikind), z=za)
           CALL get_qs_kind(qs_kind_set(ikind), dispersion=disp_a, ghost=ghost_a)
@@ -992,7 +992,7 @@ CONTAINS
           radd2(ikind)=disp_a%vdw_radii
        END DO
        ALLOCATE (rcpbc(3,natom),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DO iatom=1,natom
          rcpbc(:,iatom) = pbc(particle_set(iatom)%r(:),cell)
        END DO
@@ -1051,15 +1051,15 @@ CONTAINS
           CALL get_qs_env(qs_env=qs_env,particle_set=particle_set)
           natom = SIZE (particle_set)
           ALLOCATE (cnumbers(natom),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           cnumbers = 0._dp
           IF(calculate_forces .OR. debugall) THEN
             ALLOCATE (dcnum(natom),STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
             dcnum(:)%neighbors=0
             DO iatom=1,natom
               ALLOCATE (dcnum(iatom)%nlist(10),dcnum(iatom)%dvals(10),dcnum(iatom)%rik(3,10),STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+              CPASSERT(istat==0)
             END DO
           END IF
           sab_cn => dispersion_env%sab_cn
@@ -1139,7 +1139,7 @@ CONTAINS
           IF (dispersion_env%c9cnst) THEN
             IF (unit_nr>0) WRITE(unit_nr,*) " Use reference coordination numbers for C9 term"
             ALLOCATE (cnumfix(natom),STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
             cnumfix = 0._dp
             ! first use the default values
             DO iatom=1,natom
@@ -1152,8 +1152,8 @@ CONTAINS
               DO i=1,SIZE(dispersion_env%cnkind)
                 ikind=dispersion_env%cnkind(i)%kind
                 cnum=dispersion_env%cnkind(i)%cnum
-                CPPrecondition(ikind <= nkind,cp_failure_level,routineP,failure)
-                CPPrecondition(ikind > 0,cp_failure_level,routineP,failure)
+                CPASSERT(ikind <= nkind)
+                CPASSERT(ikind > 0)
                 CALL get_atomic_kind(atomic_kind_set(ikind), natom=na,atom_list=atom_list)
                 DO ia=1,na
                   iatom=atom_list(ia)
@@ -1601,7 +1601,7 @@ CONTAINS
           ! Long range correction (atomic contributions not implemented)
           IF (dispersion_env%lrc) THEN
              ALLOCATE (cnkind(nkind),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              cnkind = 0._dp
              ! first use the default values
              DO ikind=1,nkind
@@ -1651,25 +1651,25 @@ CONTAINS
                END DO
              END IF
              DEALLOCATE (cnkind,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
           END IF
        END IF
 
        IF ( dispersion_env%pp_type == vdw_pairpot_dftd3 .OR.&
             dispersion_env%pp_type == vdw_pairpot_dftd3bj ) THEN
           DEALLOCATE (cnumbers,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           IF ( dispersion_env%doabc .AND. dispersion_env%c9cnst ) THEN
             DEALLOCATE (cnumfix,STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
           END IF
           IF(calculate_forces .OR. debugall) THEN
             DO iatom=1,natom
               DEALLOCATE (dcnum(iatom)%nlist,dcnum(iatom)%dvals,dcnum(iatom)%rik,STAT=istat)
-              CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+              CPASSERT(istat==0)
             END DO
             DEALLOCATE (dcnum,STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
           END IF
        END IF
 
@@ -1741,11 +1741,11 @@ CONTAINS
 
        IF(calculate_forces .OR. debugall .OR. dispersion_env%doabc) THEN
           DEALLOCATE(atom_of_kind,kind_of,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
 
        DEALLOCATE (dodisp,ghost,atomnumber,rcpbc,radd2,c6d2,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        IF(ASSOCIATED(dispersion_env%dftd_section)) THEN
           CALL cp_print_key_finished_output(unit_nr,logger,dispersion_env%dftd_section,&
@@ -1775,7 +1775,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ALL(ABS(cell)<=ncell),cp_failure_level,routineP,failure)
+    CPASSERT(ALL(ABS(cell)<=ncell))
 
     ix = cell(1)
     IF (ix/=0) THEN
@@ -1883,7 +1883,7 @@ CONTAINS
     CALL mp_bcast(nl,para_env%source,para_env%group)
     CALL mp_bcast(nlines,para_env%source,para_env%group)
     ALLOCATE(pars(nl),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(para_env%source==para_env%mepos) THEN
       READ(funit,*) pars(1:nl)
       CALL close_file(unit_number=funit)
@@ -1911,7 +1911,7 @@ CONTAINS
     ENDDO
 
     DEALLOCATE(pars,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE dftd3_c6_param
 
@@ -2982,7 +2982,7 @@ CONTAINS
       natom=SIZE(dcnum)
       !pack my dcnum data
       ALLOCATE (nloc(natom),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       DO ia=1,natom
         nloc(ia)=dcnum(ia)%neighbors
       END DO
@@ -2990,7 +2990,7 @@ CONTAINS
       ntmax = ntot
       CALL mp_max(ntmax,group)
       ALLOCATE (list(ntmax),dvals(ntmax),rik(3,ntmax),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       list=0
       dvals=0._dp
       rik=0._dp
@@ -3030,9 +3030,9 @@ CONTAINS
         END DO
       END DO
       DEALLOCATE (nloc,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       DEALLOCATE (list,dvals,rik,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END IF
 
   END SUBROUTINE dcnum_distribute

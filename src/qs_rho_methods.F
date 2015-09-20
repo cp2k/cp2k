@@ -138,7 +138,7 @@ CONTAINS
     nimg = dft_control%nimages
 
     IF (my_admm) THEN
-       CPPostcondition(.NOT.do_kpoints, cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.do_kpoints)
        CALL get_qs_env(qs_env, matrix_s_aux_fit=matrix_s, sab_aux_fit=sab_orb)
        refmatrix => matrix_s(1)%matrix
     ELSE
@@ -373,7 +373,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
     NULLIFY(rho_xc_ao,rho_xc_g,rho_xc_r,drho_xc_g, tau_xc_r, tau_xc_g, tot_rho_r, tot_rho_r_xc)
     NULLIFY(lri_env, lri_density, para_env, atomic_kind_set)
 
-    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_struct))
 
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&
@@ -435,7 +435,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
     IF (dft_control%drho_by_collocation) THEN
        CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
        DO ispin=1,nspins
-         CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,failure)
+         CPASSERT(.NOT.PRESENT(task_list_external))
          rho_ao => rho_ao_kp(ispin,:)
          CALL calculate_drho_elec(matrix_p_kp=rho_ao,&
            drho=drho_r(3*(ispin-1)+1:3*ispin),&
@@ -453,7 +453,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
        ENDIF
        CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
        DO ispin=1,nspins
-          CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.PRESENT(task_list_external))
           rho_ao => rho_ao_kp(ispin,:)
           CALL calculate_rho_elec(matrix_p_kp=rho_ao,&
                rho=tau_r(ispin),&
@@ -467,7 +467,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
 
    ! GAPW o GAPW_XC require the calculation of hard and soft local densities
     IF(gapw ) THEN
-       CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.PRESENT(task_list_external))
        CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
        IF(PRESENT(local_rho_set)) THEN
           CALL calculate_rho_atom_coeff(qs_env,rho_ao_kp,local_rho_set%rho_atom_set)
@@ -476,7 +476,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
        ENDIF
     ENDIF
     IF(gapw_xc) THEN
-       CPPrecondition(.NOT.PRESENT(task_list_external),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.PRESENT(task_list_external))
        CALL get_qs_env(qs_env=qs_env,rho_xc=rho_xc)
        CALL qs_rho_get(rho_xc,&
                        rho_ao_kp=rho_xc_ao,&
@@ -578,10 +578,10 @@ END SUBROUTINE qs_rho_update_rho
     NULLIFY(tot_rho_r_in, tot_rho_r_out, tot_rho_g_in, tot_rho_g_out)
     NULLIFY(rho_r_sccs_in, rho_r_sccs_out)
 
-    CPPrecondition(ASSOCIATED(rho_input), cp_failure_level, routineP,failure)
-    CPPrecondition(ASSOCIATED(rho_output), cp_failure_level, routineP,failure)
-    CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP,failure)
-    CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(rho_input))
+    CPASSERT(ASSOCIATED(rho_output))
+    CPASSERT(ASSOCIATED(qs_env))
+    CPASSERT(qs_env%ref_count>0)
 
     CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, dft_control=dft_control)
     CALL pw_env_get(pw_env=pw_env, auxbas_pw_pool=auxbas_pw_pool)

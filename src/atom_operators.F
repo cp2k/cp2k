@@ -116,11 +116,11 @@ CONTAINS
       END DO
 
       ALLOCATE (integrals%ovlp(n,n,0:3),STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
       integrals%ovlp = 0._dp
 
       ALLOCATE (integrals%kin(n,n,0:3),STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
       integrals%kin = 0._dp
 
       integrals%status = 1
@@ -128,23 +128,23 @@ CONTAINS
       IF ( PRESENT(potential) ) THEN
         IF ( potential%confinement ) THEN
           ALLOCATE (integrals%conf(n,n,0:3),STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
           integrals%conf = 0._dp
           m = basis%grid%nr
           ALLOCATE (cpot(1:m),STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
           rc = potential%rcon
           sc = potential%scon
           cpot(1:m) = (basis%grid%rad(1:m)/rc)**sc
           CALL numpot_matrix(integrals%conf,cpot,basis,0)
           DEALLOCATE (cpot,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
         END IF
       END IF
 
       SELECT CASE (basis%basis_type)
         CASE DEFAULT
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
         CASE (GTO_BASIS)
           DO l=0,3
             n = integrals%n(l)
@@ -167,7 +167,7 @@ CONTAINS
                 DO nu = 0, nx, 2
                   ll = ll + 1
                   ALLOCATE (integrals%ceri(ll)%int(nn1,nn2),STAT=ierr)
-                  CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                  CPASSERT(ierr==0)
                   integrals%ceri(ll)%int = 0._dp
                   eri => integrals%ceri(ll)%int
                   CALL sg_coulomb ( eri, nu, basis%am(1:n1,l1), l1, basis%am(1:n2,l2), l2 )
@@ -186,7 +186,7 @@ CONTAINS
                 DO nu = ABS(l1-l2),l1+l2,2
                   ll = ll + 1
                   ALLOCATE (integrals%eeri(ll)%int(nn1,nn2),STAT=ierr)
-                  CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                  CPASSERT(ierr==0)
                   integrals%eeri(ll)%int = 0._dp
                   eri => integrals%eeri(ll)%int
                   CALL sg_exchange ( eri, nu, basis%am(1:n1,l1), l1, basis%am(1:n2,l2), l2 )
@@ -200,14 +200,14 @@ CONTAINS
             m = basis%nprim(l)
             IF (n>0 .AND. m>0) THEN
               ALLOCATE (omat(m,m),STAT=ierr)
-              CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+              CPASSERT(ierr==0)
 
               CALL  sg_overlap ( omat(1:m,1:m), l, basis%am(1:m,l), basis%am(1:m,l) )
               CALL contract2(integrals%ovlp(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l))
               CALL  sg_kinetic ( omat(1:m,1:m), l, basis%am(1:m,l), basis%am(1:m,l) )
               CALL contract2(integrals%kin(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l))
               DEALLOCATE (omat,STAT=ierr)
-              CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+              CPASSERT(ierr==0)
             END IF
           END DO
           IF ( integrals%eri_coulomb ) THEN
@@ -230,17 +230,17 @@ CONTAINS
                 DO nu = 0, nx, 2
                   ll = ll + 1
                   ALLOCATE (integrals%ceri(ll)%int(nn1,nn2),STAT=ierr)
-                  CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                  CPASSERT(ierr==0)
                   integrals%ceri(ll)%int = 0._dp
                   ALLOCATE (omat(mm1,mm2),STAT=ierr)
-                  CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                  CPASSERT(ierr==0)
 
                   eri => integrals%ceri(ll)%int
                   CALL sg_coulomb ( omat, nu, basis%am(1:m1,l1), l1, basis%am(1:m2,l2), l2 )
                   CALL contract4 ( eri, omat, basis%cm(1:m1,1:n1,l1), basis%cm(1:m2,1:n2,l2))
 
                   DEALLOCATE (omat,STAT=ierr)
-                  CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                  CPASSERT(ierr==0)
                 END DO
               END DO
             END DO
@@ -260,17 +260,17 @@ CONTAINS
                 DO nu = ABS(l1-l2),l1+l2,2
                   ll = ll + 1
                   ALLOCATE (integrals%eeri(ll)%int(nn1,nn2),STAT=ierr)
-                  CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                  CPASSERT(ierr==0)
                   integrals%eeri(ll)%int = 0._dp
                   ALLOCATE (omat(mm1,mm2),STAT=ierr)
-                  CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                  CPASSERT(ierr==0)
 
                   eri => integrals%eeri(ll)%int
                   CALL sg_exchange ( omat, nu, basis%am(1:m1,l1), l1, basis%am(1:m2,l2), l2 )
                   CALL contract4 ( eri, omat, basis%cm(1:m1,1:n1,l1), basis%cm(1:m2,1:n2,l2))
 
                   DEALLOCATE (omat,STAT=ierr)
-                  CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                  CPASSERT(ierr==0)
                 END DO
               END DO
             END DO
@@ -283,23 +283,23 @@ CONTAINS
             CALL sto_kinetic ( integrals%kin(1:n,1:n,l), l, basis%ns(1:n,l), basis%as(1:n,l), &
                                basis%ns(1:n,l), basis%as(1:n,l) )
           END DO
-          CPAssert(.NOT.integrals%eri_coulomb,cp_failure_level,routineP,failure)
-          CPAssert(.NOT.integrals%eri_exchange,cp_failure_level,routineP,failure)
+          CPASSERT(.NOT.integrals%eri_coulomb)
+          CPASSERT(.NOT.integrals%eri_exchange)
         CASE (NUM_BASIS)
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
       END SELECT
 
       ! setup transformation matrix to get an orthogonal basis, remove linear dependencies
       NULLIFY(integrals%utrans,integrals%uptrans)
       n = MAXVAL(basis%nbas)
       ALLOCATE (integrals%utrans(n,n,0:3),integrals%uptrans(n,n,0:3),STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
       integrals%utrans = 0._dp
       integrals%uptrans = 0._dp
       integrals%nne = integrals%n
       lwork = 10*n
       ALLOCATE(omat(n,n),w(n),vmat(n,n),work(lwork),STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
       DO l = 0, 3
         n = integrals%n(l)
         IF ( n > 0 ) THEN
@@ -319,11 +319,11 @@ CONTAINS
             integrals%uptrans(i,i,l)=1._dp
           ENDDO
           CALL lapack_sgesv ( ii, ii, omat(1:ii,1:ii), ii, ipiv, integrals%uptrans(1:ii,1:ii,l), ii, info )
-          CPPostcondition(info==0,cp_failure_level,routineP,failure)
+          CPASSERT(info==0)
         END IF
       END DO
       DEALLOCATE(omat,vmat,w,work,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
 
     END IF
 
@@ -364,22 +364,22 @@ CONTAINS
       NULLIFY ( integrals%core, integrals%hnl )
 
       ALLOCATE (integrals%hnl(n,n,0:3),STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
       integrals%hnl = 0._dp
 
       ALLOCATE (integrals%core(n,n,0:3),STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
       integrals%core = 0._dp
 
       ALLOCATE (integrals%clsd(n,n,0:3),STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
       integrals%clsd = 0._dp
 
       integrals%ppstat = 1
 
       SELECT CASE (basis%basis_type)
         CASE DEFAULT
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
         CASE (GTO_BASIS)
 
           SELECT CASE (potential%ppot_type)
@@ -393,7 +393,7 @@ CONTAINS
               DO l=0,3
                 n = integrals%n(l)
                 ALLOCATE (omat(n,n),spmat(n,5),STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                CPASSERT(ierr==0)
 
                 omat = 0._dp
                 CALL sg_erf ( omat(1:n,1:n), l, alpha, basis%am(1:n,l), basis%am(1:n,l) )
@@ -436,10 +436,10 @@ CONTAINS
                     MATMUL(potential%gth_pot%hnl(1:m,1:m,l),TRANSPOSE(spmat(1:n,1:m))))
 
                 DEALLOCATE (omat,spmat,STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                CPASSERT(ierr==0)
               END DO
             CASE DEFAULT
-              CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
           END SELECT
 
         CASE (CGTO_BASIS)
@@ -450,13 +450,13 @@ CONTAINS
                 n = integrals%n(l)
                 m = basis%nprim(l)
                 ALLOCATE (omat(m,m),STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                CPASSERT(ierr==0)
 
                 CALL sg_nuclear ( omat(1:m,1:m), l, basis%am(1:m,l), basis%am(1:m,l) )
                 CALL contract2(integrals%core(1:n,1:n,l),omat(1:m,1:m),basis%cm(1:m,1:n,l))
 
                 DEALLOCATE (omat,STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                CPASSERT(ierr==0)
               END DO
             CASE (GTH_PSEUDO)
               alpha = 1._dp/potential%gth_pot%rc/SQRT(2._dp)
@@ -465,7 +465,7 @@ CONTAINS
                 m = basis%nprim(l)
                 IF(n>0 .AND. m>0) THEN
                   ALLOCATE (omat(m,m),spmat(n,5),xmat(m),STAT=ierr)
-                  CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                  CPASSERT(ierr==0)
 
                   omat = 0._dp
                   CALL sg_erf ( omat(1:m,1:m), l, alpha, basis%am(1:m,l), basis%am(1:m,l) )
@@ -512,11 +512,11 @@ CONTAINS
                   END IF
 
                   DEALLOCATE (omat,spmat,xmat,STAT=ierr)
-                  CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                  CPASSERT(ierr==0)
                 END IF
               END DO
             CASE DEFAULT
-              CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
           END SELECT
 
         CASE (STO_BASIS)
@@ -532,7 +532,7 @@ CONTAINS
               rad => basis%grid%rad
               m = basis%grid%nr
               ALLOCATE (cpot(1:m),STAT=ierr)
-              CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+              CPASSERT(ierr==0)
               rc = potential%gth_pot%rc
               alpha = 1._dp/rc/SQRT(2._dp)
 
@@ -558,13 +558,13 @@ CONTAINS
               DO l=0,3
                 n = integrals%n(l)
                 ALLOCATE (omat(n,n),STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                CPASSERT(ierr==0)
                 omat = 0._dp
                 CALL sto_nuclear ( omat(1:n,1:n), basis%ns(1:n,l), basis%as(1:n,l),&
                                    basis%ns(1:n,l), basis%as(1:n,l) )
                 integrals%core(1:n,1:n,l) = integrals%core(1:n,1:n,l) - potential%gth_pot%zion*omat(1:n,1:n)
                 DEALLOCATE (omat,STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                CPASSERT(ierr==0)
               END DO
 
               IF (potential%gth_pot%lsdpot) THEN
@@ -583,7 +583,7 @@ CONTAINS
                 n = integrals%n(l)
                 ! non local pseudopotential
                 ALLOCATE (spmat(n,5),STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                CPASSERT(ierr==0)
                 spmat = 0._dp
                 k = potential%gth_pot%nl(l)
                 DO i=1,k
@@ -597,19 +597,19 @@ CONTAINS
                     MATMUL(potential%gth_pot%hnl(1:k,1:k,l),TRANSPOSE(spmat(1:n,1:k))))
 
                 DEALLOCATE (spmat,STAT=ierr)
-                CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+                CPASSERT(ierr==0)
 
               END DO
 
               DEALLOCATE (cpot,STAT=ierr)
-              CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+              CPASSERT(ierr==0)
 
             CASE DEFAULT
-              CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
           END SELECT
 
         CASE (NUM_BASIS)
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
       END SELECT
 
     END IF
@@ -654,7 +654,7 @@ CONTAINS
 
     SELECT CASE (reltyp)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (do_nonrel_atom,do_zoramp_atom,do_sczoramp_atom)
         dkhorder = -1
       CASE (do_dkh0_atom)
@@ -673,7 +673,7 @@ CONTAINS
 
     SELECT CASE (reltyp)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (do_nonrel_atom)
         ! nothing to do
         NULLIFY (integrals%tzora,integrals%hdkh)
@@ -684,11 +684,11 @@ CONTAINS
         IF ( integrals%zorastat == 0 ) THEN
           n = MAXVAL(basis%nbas)
           ALLOCATE (integrals%tzora(n,n,0:3),STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
           integrals%tzora = 0._dp
           m = basis%grid%nr
           ALLOCATE (modpot(1:m),cpot(1:m),STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
           CALL calculate_model_potential(modpot,basis%grid,zcore)
           ! Zora potential
           cpot(1:m) = modpot(1:m)/(4._dp*cspeed*cspeed - 2._dp*modpot(1:m))
@@ -704,7 +704,7 @@ CONTAINS
           ! scaled ZORA
           IF( reltyp == do_sczoramp_atom ) THEN
              ALLOCATE (hmat(n,n,0:3),wfn(n,n,0:3),ener(n,0:3),pvp(n,n,0:3),sps(n,n),STAT=ierr)
-             CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+             CPASSERT(ierr==0)
              hmat(:,:,:) = integrals%kin + integrals%tzora
              ! model potential
              CALL numpot_matrix(hmat,modpot,basis,0)
@@ -753,11 +753,11 @@ CONTAINS
              END DO
 
              DEALLOCATE (hmat,wfn,ener,pvp,sps,STAT=ierr)
-             CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+             CPASSERT(ierr==0)
           END IF
           !
           DEALLOCATE (modpot,cpot,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
 
           integrals%zorastat = 1
 
@@ -770,12 +770,12 @@ CONTAINS
         IF ( integrals%dkhstat == 0 ) THEN
           n = MAXVAL(basis%nbas)
           ALLOCATE (integrals%hdkh(n,n,0:3),STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
           integrals%hdkh = 0._dp
 
           m = MAXVAL(basis%nprim)
           ALLOCATE (tp(m,m,0:3),sp(m,m,0:3),vp(m,m,0:3),pvp(m,m,0:3),STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
           tp = 0._dp
           sp = 0._dp
           vp = 0._dp
@@ -783,7 +783,7 @@ CONTAINS
 
           SELECT CASE (basis%basis_type)
             CASE DEFAULT
-              CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
             CASE (GTO_BASIS, CGTO_BASIS)
 
               DO l=0,3
@@ -803,9 +803,9 @@ CONTAINS
               END DO
 
             CASE (STO_BASIS)
-              CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
             CASE (NUM_BASIS)
-              CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+              CPASSERT(.FALSE.)
           END SELECT
 
           CALL dkh_integrals(integrals,basis,dkhorder,sp,tp,vp,pvp)
@@ -813,10 +813,10 @@ CONTAINS
           integrals%dkhstat = 1
 
           DEALLOCATE (tp,sp,vp,pvp,STAT=ierr)
-          CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+          CPASSERT(ierr==0)
 
         ELSE
-          CPPostcondition(ASSOCIATED(integrals%hdkh), cp_failure_level, routineP,failure)
+          CPASSERT(ASSOCIATED(integrals%hdkh))
         END IF
 
     END SELECT
@@ -848,7 +848,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :, :), POINTER    :: hdkh
 
     failure = .FALSE.
-    CPPrecondition(order>=0, cp_failure_level, routineP,failure)
+    CPASSERT(order>=0)
 
     hdkh => integrals%hdkh
 
@@ -859,17 +859,17 @@ CONTAINS
         CALL dkh_atom_transformation(sp(1:m,1:m,l),vp(1:m,1:m,l),tp(1:m,1:m,l),pvp(1:m,1:m,l),m,order)
         SELECT CASE (basis%basis_type)
           CASE DEFAULT
-            CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+            CPASSERT(.FALSE.)
           CASE (GTO_BASIS)
-            CPAssert(n==m,cp_failure_level,routineP,failure)
+            CPASSERT(n==m)
             integrals%hdkh(1:n,1:n,l) = tp(1:n,1:n,l) + vp(1:n,1:n,l)
           CASE (CGTO_BASIS)
             CALL contract2(integrals%hdkh(1:n,1:n,l),tp(1:m,1:m,l),basis%cm(1:m,1:n,l))
             CALL contract2add(integrals%hdkh(1:n,1:n,l),vp(1:m,1:m,l),basis%cm(1:m,1:n,l))
           CASE (STO_BASIS)
-            CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+            CPASSERT(.FALSE.)
           CASE (NUM_BASIS)
-            CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+            CPASSERT(.FALSE.)
         END SELECT
       ELSE
         integrals%hdkh(1:n,1:n,l) = 0._dp
@@ -894,33 +894,33 @@ CONTAINS
 
     IF ( ASSOCIATED(integrals%ovlp) ) THEN
       DEALLOCATE (integrals%ovlp,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(integrals%kin) ) THEN
       DEALLOCATE (integrals%kin,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(integrals%conf) ) THEN
       DEALLOCATE (integrals%conf,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     DO ll=1,SIZE(integrals%ceri)
       IF ( ASSOCIATED(integrals%ceri(ll)%int) ) THEN
         DEALLOCATE (integrals%ceri(ll)%int,STAT=ierr)
-        CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+        CPASSERT(ierr==0)
       END IF
       IF ( ASSOCIATED(integrals%eeri(ll)%int) ) THEN
         DEALLOCATE (integrals%eeri(ll)%int,STAT=ierr)
-        CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+        CPASSERT(ierr==0)
       END IF
     END DO
     IF ( ASSOCIATED(integrals%utrans) ) THEN
       DEALLOCATE (integrals%utrans,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(integrals%uptrans) ) THEN
       DEALLOCATE (integrals%uptrans,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
     END IF
 
     integrals%status = 0
@@ -943,15 +943,15 @@ CONTAINS
 
     IF ( ASSOCIATED(integrals%hnl) ) THEN
       DEALLOCATE (integrals%hnl,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(integrals%core) ) THEN
       DEALLOCATE (integrals%core,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(integrals%clsd) ) THEN
       DEALLOCATE (integrals%clsd,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
     END IF
 
     integrals%ppstat = 0
@@ -974,11 +974,11 @@ CONTAINS
 
     IF ( ASSOCIATED(integrals%tzora) ) THEN
       DEALLOCATE (integrals%tzora,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
     END IF
     IF ( ASSOCIATED(integrals%hdkh) ) THEN
       DEALLOCATE (integrals%hdkh,STAT=ierr)
-      CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+      CPASSERT(ierr==0)
     END IF
 
     integrals%zorastat = 0
@@ -1000,13 +1000,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ierr, ii, l, ll, n, z
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pot, rho
     TYPE(atom_state)                         :: state
 
     n = SIZE(modpot)
     ALLOCATE(rho(n),pot(n),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     ! fill default occupation
     state%core = 0._dp
@@ -1041,7 +1040,7 @@ CONTAINS
     modpot = modpot + pot
 
     DEALLOCATE(rho,pot,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE calculate_model_potential
 ! *****************************************************************************
@@ -1126,9 +1125,9 @@ CONTAINS
     mm2 = SIZE(omat,2)
 
     ALLOCATE(amat(m1,m1),atran(n1,n1),bmat(m2,m2),btran(n2,n2),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     ALLOCATE(hint(mm1,nn2),STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     DO i1=1,mm1
       CALL iunpack(bmat(1:m2,1:m2),omat(i1,1:mm2),m2)
@@ -1143,9 +1142,9 @@ CONTAINS
     END DO
 
     DEALLOCATE(amat,atran,bmat,btran,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
     DEALLOCATE(hint,STAT=ierr)
-    CPPostcondition(ierr==0, cp_failure_level, routineP,failure)
+    CPASSERT(ierr==0)
 
     CALL timestop(handle)
 

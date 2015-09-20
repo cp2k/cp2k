@@ -83,9 +83,9 @@ CONTAINS
     rnd = 0.0_dp
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,failure)
-    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(conf))
+    CPASSERT(env_id.GT.0)
+    CPASSERT(ASSOCIATED(tmc_env))
 
     SELECT CASE(tmc_env%params%task_type)
     CASE(task_type_gaussian_adaptation)
@@ -96,7 +96,7 @@ CONTAINS
         CALL get_scaled_cell(cell=tmc_env%params%cell , box_scale=conf%box_scale, &
                              scaled_cell=tmp_cell)
         CALL set_cell(env_id=env_id, new_cell=tmp_cell%hmat, ierr=ierr)
-        CPPostcondition(ierr.EQ.0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr.EQ.0)
         DEALLOCATE(tmp_cell)
       END IF
 
@@ -173,8 +173,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: tmp_cell
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(box_scale),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(cell))
+    CPASSERT(ASSOCIATED(box_scale))
 
     new_scaled_cell = .FALSE.
 
@@ -223,7 +223,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: tmp_cell
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(cell))
 
     ALLOCATE(tmp_cell)
     CALL cell_copy(cell_in=cell, cell_out=tmp_cell)
@@ -263,14 +263,14 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(tmp_box_scale)
 
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(x1).EQ.3,cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(x2).EQ.3,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(cell))
+    CPASSERT(SIZE(x1).EQ.3)
+    CPASSERT(SIZE(x2).EQ.3)
 
     dist_vec(:) = x2(:)-x1(:) ! distance vector between atoms
     ALLOCATE(tmp_box_scale(3))
     IF(PRESENT(box_scale)) THEN
-      CPPrecondition(SIZE(box_scale).EQ.3,cp_failure_level,routineP,failure)
+      CPASSERT(SIZE(box_scale).EQ.3)
       tmp_box_scale(:) = box_scale
     ELSE
       tmp_box_scale(:) = 1.0_dp
@@ -298,8 +298,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(center),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(pos).GE.SIZE(center),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(center))
+    CPASSERT(SIZE(pos).GE.SIZE(center))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -337,8 +337,8 @@ CONTAINS
     REAL(KIND=dp)                            :: mass_sum, mass_tmp
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(center),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(pos).GE.SIZE(center),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(center))
+    CPASSERT(SIZE(pos).GE.SIZE(center))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -347,7 +347,7 @@ CONTAINS
     mass_sum = 0.0_dp
     DO i=1, SIZE(pos), SIZE(center)
       IF(PRESENT(atoms)) THEN
-        CPPrecondition(SIZE(atoms).EQ.SIZE(pos)/SIZE(center),cp_failure_level,routineP,failure)
+        CPASSERT(SIZE(atoms).EQ.SIZE(pos)/SIZE(center))
         mass_tmp = atoms(INT(i/REAL(SIZE(center),KIND=dp))+1)%mass
         center(:) = center(:) + pos(i:i+SIZE(center)-1)/&
                     (SIZE(pos)/REAL(SIZE(center),KIND=dp))*mass_tmp
@@ -392,8 +392,8 @@ CONTAINS
 
     kB = boltzmann/joule
 
-    CPPreconditionNoFail(ASSOCIATED(vel),cp_failure_level,routineP)
-    CPPreconditionNoFail(ASSOCIATED(atoms),cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(vel))
+    CPASSERT(ASSOCIATED(atoms))
 
     CALL set_rng_stream(rng_stream=rng_stream, bg=rnd_seed(:,:,1), &
                         cg=rnd_seed(:,:,2), ig=rnd_seed(:,:,3))
@@ -431,8 +431,8 @@ CONTAINS
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: mass_tmp
 
-    CPPreconditionNoFail(ASSOCIATED(vel),cp_failure_level,routineP)
-    CPPreconditionNoFail(ASSOCIATED(atoms),cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(vel))
+    CPASSERT(ASSOCIATED(atoms))
     ekin = 0.0_dp
 
     DO i=1, SIZE(vel)
@@ -495,7 +495,7 @@ CONTAINS
        extrapolate=a**7*b+c
        res_err=e3-extrapolate
     ENDIF
-    CPPostcondition(extrapolate.NE.HUGE(extrapolate),cp_failure_level,routineP,failure)
+    CPASSERT(extrapolate.NE.HUGE(extrapolate))
   CONTAINS
 ! *****************************************************************************
 !> \brief ...
@@ -582,9 +582,9 @@ CONTAINS
                                                 E_sigma_tmp, prior_sigma
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem_old),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(elem_new),cp_failure_level,routineP,failure)
-    CPPrecondition(rnd_nr.GT.0.0_dp,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem_old))
+    CPASSERT(ASSOCIATED(elem_new))
+    CPASSERT(rnd_nr.GT.0.0_dp)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -661,9 +661,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%params))
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
 
     eff(:) = 0.0_dp
 

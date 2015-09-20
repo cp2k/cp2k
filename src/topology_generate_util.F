@@ -109,10 +109,10 @@ CONTAINS
     ! convert a simple list of bonds to a list of bonds per atom
     ! (each bond is present in the forward and backward direction
     ALLOCATE(atom_bond_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO I=1,natom
        ALLOCATE(atom_bond_list(I)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a) - nbond_prev
@@ -121,7 +121,7 @@ CONTAINS
 
     nmol=0
     check=ALL(id_molname==str2id(s2s("__UNDEF__"))).OR.ALL(id_molname/=str2id(s2s("__UNDEF__")))
-    CPPostcondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     DO i = 1, natom
        IF (id2str(id_molname(i))=="__UNDEF__") THEN
           molname = TRIM(basename)//ADJUSTL(cp_to_string(nmol))
@@ -131,10 +131,10 @@ CONTAINS
     END DO
     DO I=1,natom
        DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     DEALLOCATE(atom_bond_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE topology_generate_molname
 
@@ -169,7 +169,7 @@ CONTAINS
           WRITE(*,*)"Atom (",i,") has already a molecular name assigned ! ("//TRIM(id2str(id_molname(i)))//")."
           WRITE(*,*)"New molecular name would be: ("//TRIM(molname)//")."
           WRITE(*,*)"Detecting something wrong in the molecular setup!"
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
     END IF
     id_molname(i) = str2id(molname)
@@ -236,19 +236,19 @@ CONTAINS
     natom = topology%natoms
     stat  = 0
     IF (ASSOCIATED(atom_info%map_mol_typ)) DEALLOCATE(atom_info%map_mol_typ,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (atom_info%map_mol_typ(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (ASSOCIATED(atom_info%map_mol_num)) DEALLOCATE(atom_info%map_mol_num,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (atom_info%map_mol_num(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (ASSOCIATED(atom_info%map_mol_res)) DEALLOCATE(atom_info%map_mol_res,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (atom_info%map_mol_res(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Initialisation
     atom_info%map_mol_typ(:) =  0
@@ -306,17 +306,17 @@ CONTAINS
        END IF
     END DO
     DEALLOCATE (wrk1,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (iw > 0) WRITE (iw,'(/,T2,A)') "Start of molecule generation"
 
     ! convert a simple list of bonds to a list of bonds per atom
     ! (each bond is present in the forward and backward direction
     ALLOCATE(atom_bond_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO I=1,natom
        ALLOCATE(atom_bond_list(I)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
@@ -324,19 +324,19 @@ CONTAINS
     CALL find_molecule(atom_bond_list,atom_info%map_mol_num,atom_info%id_molname)
     DO I=1,natom
        DEALLOCATE(atom_bond_list(I)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     DEALLOCATE(atom_bond_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (iw > 0) WRITE (iw,'(/,T2,A)') "End of molecule generation"
 
     ! Modify according map_mol_typ the array map_mol_num
     IF (iw > 0) WRITE (iw,'(/,T2,A)') "Checking for non-continuous generated molecules"
     ! Check molecule number
     ALLOCATE(wrk1(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(wrk2(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     wrk1 = atom_info%map_mol_num
 
     IF (debug_this_module) THEN
@@ -383,9 +383,9 @@ CONTAINS
             "It may help to fix this issue.")
     END IF
     DEALLOCATE(wrk1, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(wrk2,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (iw > 0) WRITE (iw,'(/,T2,A)') "End of check"
 
     IF (iw > 0) WRITE (UNIT=iw,FMT="(/,T2,A)") "Start of renumbering molecules"
@@ -406,7 +406,7 @@ CONTAINS
        DO i=2,natom
           IF (atom_info%map_mol_typ(i) /= mol_typ) THEN
              myind = atom_info%map_mol_num(i) - mol_num + 1
-             CPPostcondition(myind/=atom_info%map_mol_num(i-1),cp_failure_level,routineP,failure)
+             CPASSERT(myind/=atom_info%map_mol_num(i-1))
              mol_typ = atom_info%map_mol_typ(i)
              mol_num = atom_info%map_mol_num(i)
           END IF
@@ -475,9 +475,9 @@ CONTAINS
        IF (iw>0) WRITE(iw,*)"MAP_MOL_TYP ",atom_info%map_mol_typ
        IF (iw>0) WRITE(iw,*)"MAP_MOL_RES ",atom_info%map_mol_res
        ALLOCATE(qm_atom_index(SIZE(qmmm_env%qm_atom_index)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        qm_atom_index = qmmm_env%qm_atom_index
-       CPPostcondition(ALL(qm_atom_index /= 0),cp_failure_level,routineP,failure)
+       CPASSERT(ALL(qm_atom_index /= 0))
        DO myind = 1, SIZE(qm_atom_index)
           IF (qm_atom_index(myind) ==0) CYCLE
           CALL find_boundary(atom_info%map_mol_typ,natom,ifirst,ilast,&
@@ -485,7 +485,7 @@ CONTAINS
           CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,natom,ifirst,ilast,&
                atom_info%map_mol_typ(qm_atom_index(myind)),atom_info%map_mol_num(qm_atom_index(myind)))
           IF (iw>0) WRITE(iw,*)"qm fragment:: ifirst, ilast",ifirst,ilast
-          CPPostcondition(((ifirst/=0).OR.(ilast/=natom)),cp_failure_level,routineP,failure)
+          CPASSERT(((ifirst/=0).OR.(ilast/=natom)))
           DO iatm = ifirst, ilast
              atom_info%id_molname(iatm) = str2id(s2s("_QM_"//&
                   TRIM(id2str(atom_info%id_molname(iatm)))))
@@ -501,14 +501,14 @@ CONTAINS
           IF (iw>0) WRITE(iw,*)" Another QM fragment? :: ",do_again
           IF (ifirst /= 1) THEN
              jump1 = atom_info%map_mol_typ(ifirst)  - atom_info%map_mol_typ(ifirst-1)
-             CPPostcondition(jump1<=1.AND.jump1>=0,cp_failure_level,routineP,failure)
+             CPASSERT(jump1<=1.AND.jump1>=0)
              jump1 = ABS(jump1-1)
           ELSE
              jump1 = 0
           END IF
           IF (ilast /= natom) THEN
              jump2 = atom_info%map_mol_typ(ilast+1) - atom_info%map_mol_typ(ilast)
-             CPPostcondition(jump2<=1.AND.jump2>=0,cp_failure_level,routineP,failure)
+             CPASSERT(jump2<=1.AND.jump2>=0)
              jump2 = ABS(jump2-1)
           ELSE
              jump2 = 0
@@ -542,7 +542,7 @@ CONTAINS
           IF (.NOT.do_again) EXIT
        END DO
        DEALLOCATE(qm_atom_index,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        IF(iw>0) THEN
           WRITE(iw,*)"After the QM/MM Setup:"
@@ -564,7 +564,7 @@ CONTAINS
           IF (atom_in_kind <= 1) CYCLE
           CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
           WRITE(iw,*) "Boundary atoms:",first,last
-          CPPostcondition(last-first+1==atom_in_kind,cp_failure_level,routineP,failure)
+          CPASSERT(last-first+1==atom_in_kind)
           max_mol_num = MAXVAL(atom_info%map_mol_num(first:last))
           WRITE(iw,*)"Number of molecules of kind",i,"is ::",max_mol_num
           atom_in_mol = atom_in_kind / max_mol_num
@@ -646,7 +646,7 @@ CONTAINS
          extension=".subsysLog")
     ! Get atoms that one considers isolated (like ions in solution)
     ALLOCATE(isolated_atoms(0), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     generate_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE")
     isolated_section => section_vals_get_subs_vals(generate_section,"ISOLATED_ATOMS")
     CALL section_vals_get(isolated_section, explicit=explicit)
@@ -666,13 +666,13 @@ CONTAINS
     NULLIFY(radius)
     ! Allocate temporary arrays
     ALLOCATE(radius(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(list(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(h_list(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(pbc_coord(3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     h_list = .FALSE.
     CALL timeset(TRIM(routineN)//"_1",handle2)
     DO iatom=1,natom
@@ -717,7 +717,7 @@ CONTAINS
                " Present THRESHOLD (",my_maxrad*bondparm_factor," ). "//&
                " Present BONDLENGTH_MAX (",r_max(1,1)," )"
        END IF
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
     DO i=1,natom
        particle_set(i)%atomic_kind => atomic_kind_set(1)
@@ -744,11 +744,11 @@ CONTAINS
        npairs = npairs + nonbonded%neighbor_kind_pairs(i)%npairs
     END DO
     ALLOCATE(bond_a(npairs),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(bond_b(npairs),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(map_nb(npairs),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     idim = 0
     DO j = 1, SIZE(nonbonded%neighbor_kind_pairs)
        DO i = 1, nonbonded%neighbor_kind_pairs(j)%npairs
@@ -762,20 +762,20 @@ CONTAINS
     CALL timeset(TRIM(routineN)//"_4",handle2)
     ! We have a list of neighbors let's order the list w.r.t. the particle number
     ALLOCATE(bond_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO I = 1, natom
        ALLOCATE(bond_list(I)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(bond_list(I)%array2(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     CALL reorder_structure(bond_list, bond_a, bond_b, map_nb, SIZE(bond_a))
     DEALLOCATE(bond_a,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(bond_b,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(map_nb,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Find the Real bonds in the system
     ! Let's start with heavy atoms.. hydrogens will be treated only later on...
     ! Heavy atoms loop
@@ -916,7 +916,7 @@ CONTAINS
                   " Present THRESHOLD (",my_maxrad*bondparm_factor," ). "//&
                   " Present BONDLENGTH_MAX (",r_max(1,1)," )"
           END IF
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
     END DO
     IF (connectivity_ok.AND.(output_unit>0)) THEN
@@ -929,18 +929,18 @@ CONTAINS
     ! Deallocate temporary working arrays
     DO I = 1, natom
        DEALLOCATE(bond_list(I)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(bond_list(I)%array2,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     DEALLOCATE(bond_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(pbc_coord,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(radius,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(list,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL deallocate_particle_set(particle_set)
     CALL deallocate_atomic_kind_set(atomic_kind_set)
     !
@@ -977,7 +977,7 @@ CONTAINS
     END IF
     CALL timestop(handle2)
     DEALLOCATE(isolated_atoms,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/GENERATE_INFO")
@@ -1020,18 +1020,18 @@ CONTAINS
     failure = .FALSE.
     natom   = SIZE(atom_info%id_atmname)
     ALLOCATE(bond_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO I = 1, natom
        ALLOCATE(bond_list(I)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     CALL reorder_structure(bond_list, bond_a, bond_b, SIZE(bond_a))
     ALLOCATE(mol_map(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(mol_map_o(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(wrk(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO i = 1, natom
        mol_map(i) = atom_info%id_molname(i)
@@ -1053,7 +1053,7 @@ CONTAINS
     !
 
     ALLOCATE(mol_info_tmp(natom,2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     itype = mol_map(1)
     nsize = 1
@@ -1073,10 +1073,10 @@ CONTAINS
     mol_info_tmp(nsize,2) = idim
 
     ALLOCATE(mol_info(nsize,4),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     mol_info(1:nsize,1:2) = mol_info_tmp(1:nsize,1:2)
     DEALLOCATE(mol_info_tmp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO i =1, nsize
        mol_info(i,3) = 0
@@ -1084,7 +1084,7 @@ CONTAINS
     END DO
     !
     ALLOCATE(icheck(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     icheck = .FALSE.
     DO i = 1, natom
        IF (icheck(i)) CYCLE
@@ -1125,21 +1125,21 @@ CONTAINS
     END DO
 
     DEALLOCATE(icheck,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(mol_info,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(mol_map,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(mol_map_o,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(wrk,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO I = 1, natom
        DEALLOCATE(bond_list(I)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     DEALLOCATE(bond_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END FUNCTION check_generate_mol
 
@@ -1195,27 +1195,27 @@ CONTAINS
     IF (explicit) THEN
        NULLIFY(Ilist1, Ilist2, Ilist3, Ilist4, atlist)
        ALLOCATE(Ilist1(nvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(Ilist2(nvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        Ilist1 = Iarray1(1:nvar)
        Ilist2 = Iarray2(1:nvar)
        SELECT CASE(nsize)
        CASE(2) !do nothing
        CASE(3)
           ALLOCATE(Ilist3(nvar),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           Ilist3 = Iarray3(1:nvar)
        CASE(4)
           ALLOCATE(Ilist3(nvar),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(Ilist4(nvar),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           Ilist3 = Iarray3(1:nvar)
           Ilist4 = Iarray4(1:nvar)
        CASE DEFAULT
           ! Should never reach this point
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
        CALL list_canonical_order(Ilist1, Ilist2, Ilist3, Ilist4, nsize, is_impr)
        !
@@ -1227,7 +1227,7 @@ CONTAINS
           DO j = 1, n_rep_val
              CALL section_vals_val_get(section,"ATOMS",i_rep_section=i,i_rep_val=j,&
                   i_vals=atlist)
- CPPostcondition(SIZE(atlist)==nsize,cp_failure_level,routineP,failure)
+ CPASSERT(SIZE(atlist)==nsize)
              CALL integer_to_string(nsize-1,fmt)
              CALL check_element_list(do_it,do_action,atlist,Ilist1,Ilist2,Ilist3,Ilist4,&
                   is_impr)
@@ -1309,22 +1309,22 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE(Ilist1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(Ilist2,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        SELECT CASE(nsize)
        CASE(2) ! do nothing
        CASE(3)
           DEALLOCATE(Ilist3,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        CASE(4)
           DEALLOCATE(Ilist3,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(Ilist4,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        CASE DEFAULT
           ! Should never reach this point
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
     END IF
   END SUBROUTINE connectivity_external_control
@@ -1635,10 +1635,10 @@ CONTAINS
        CALL reallocate(conn_info%theta_c,1,nsize)
        ! Get list of bonds to pre-process theta
        ALLOCATE(bond_list(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO I = 1, natom
           ALLOCATE(bond_list(I)%array1(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDDO
        CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond)
        ! All the dirty job is handled by this routine.. for bends it_levl is equal 3
@@ -1653,10 +1653,10 @@ CONTAINS
        CALL timestop(handle2)
        DO I = 1, natom
           DEALLOCATE(bond_list(I)%array1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDDO
        DEALLOCATE(bond_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF (output_unit>0) THEN
           WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Preliminary Number of Bends generated:",&
                ntheta
@@ -1727,31 +1727,31 @@ CONTAINS
 
     failure = .FALSE.
     check   = max_levl>=2.AND.max_levl<=4
-    CPPostcondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     IF (.NOT.PRESENT(Ilist)) THEN
        SELECT CASE(max_levl)
        CASE(2)
-    CPPostcondition(.NOT.PRESENT(Iarray2),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.PRESENT(Iarray3),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.PRESENT(Oarray3),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.PRESENT(Oarray4),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.PRESENT(Iarray2))
+    CPASSERT(.NOT.PRESENT(Iarray3))
+    CPASSERT(.NOT.PRESENT(Oarray3))
+    CPASSERT(.NOT.PRESENT(Oarray4))
        CASE(3)
-    CPPostcondition(PRESENT(Iarray2),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.PRESENT(Iarray3),cp_failure_level,routineP,failure)
-    CPPostcondition(PRESENT(Oarray3),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.PRESENT(Oarray4),cp_failure_level,routineP,failure)
+    CPASSERT(PRESENT(Iarray2))
+    CPASSERT(.NOT.PRESENT(Iarray3))
+    CPASSERT(PRESENT(Oarray3))
+    CPASSERT(.NOT.PRESENT(Oarray4))
        CASE(4)
-    CPPostcondition(PRESENT(Iarray2),cp_failure_level,routineP,failure)
-    CPPostcondition(PRESENT(Iarray3),cp_failure_level,routineP,failure)
-    CPPostcondition(PRESENT(Oarray3),cp_failure_level,routineP,failure)
-    CPPostcondition(PRESENT(Oarray4),cp_failure_level,routineP,failure)
+    CPASSERT(PRESENT(Iarray2))
+    CPASSERT(PRESENT(Iarray3))
+    CPASSERT(PRESENT(Oarray3))
+    CPASSERT(PRESENT(Oarray4))
        END SELECT
     END IF
     natom   = SIZE(Iarray1)
     IF (.NOT.PRESENT(Ilist)) THEN
        ! Start a new loop.. Only the first time the routine is called
        ALLOCATE(my_list(max_levl),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, natom
           my_levl =  1
           my_list = -1
@@ -1769,7 +1769,7 @@ CONTAINS
                                     Ilist  =my_list)
        END DO
        DEALLOCATE(my_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        SELECT CASE(it_levl)
        CASE(2)
@@ -1831,12 +1831,12 @@ CONTAINS
                 Oarray4(nvar) = Ilist(4)
              CASE DEFAULT
                 !should never reach this point
- CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+ CPASSERT(.FALSE.)
              END SELECT
              Ilist(it_levl) = -1
           ELSE
              !should never reach this point
- CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+ CPASSERT(.FALSE.)
           END IF
        END DO
     END IF
@@ -1933,10 +1933,10 @@ CONTAINS
        ! Get list of bonds to pre-process phi
        natom = topology%natoms
        ALLOCATE(bond_list(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO I = 1, natom
           ALLOCATE(bond_list(I)%array1(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDDO
        CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond)
        ! All the dirty job is handled by this routine.. for torsions it_levl is equal 4
@@ -1951,10 +1951,10 @@ CONTAINS
                                  Oarray4 =conn_info%phi_d)
        DO I = 1, natom
           DEALLOCATE(bond_list(I)%array1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDDO
        DEALLOCATE(bond_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF (output_unit>0) THEN
           WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Preliminary Number of Torsions generated:",&
                nphi
@@ -2031,10 +2031,10 @@ CONTAINS
        CALL reallocate(conn_info%impr_d,1,nsize)
        ! Get list of bonds to pre-process phi
        ALLOCATE(bond_list(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO I = 1, natom
           ALLOCATE(bond_list(I)%array1(0),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDDO
        CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond)
        DO I = 1, natom
@@ -2071,10 +2071,10 @@ CONTAINS
        END DO
        DO I = 1, natom
           DEALLOCATE(bond_list(I)%array1,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        ENDDO
        DEALLOCATE(bond_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! External defined impropers (useful for complex connectivity)
        impr_section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%GENERATE%IMPROPER")
        CALL connectivity_external_control(section=impr_section,&
@@ -2139,30 +2139,30 @@ CONTAINS
 
     ! Get list of bonds (sic). Get a list of bonded neighbors for every atom.
     ALLOCATE(bond_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, natom
        ALLOCATE(bond_list(i)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     nbond = SIZE(conn_info%bond_a)
     CALL reorder_structure(bond_list, conn_info%bond_a, conn_info%bond_b, nbond)
 
     ! Get a list of next nearest neighbors for every atom.
     ALLOCATE(theta_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, natom
        ALLOCATE(theta_list(i)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     ntheta = SIZE(conn_info%theta_a)
     CALL reorder_structure(theta_list, conn_info%theta_a, conn_info%theta_c, ntheta)
 
     ! Get a list of next next nearest neighbors for every atom.
     ALLOCATE(phi_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, natom
        ALLOCATE(phi_list(i)%array1(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     nphi = SIZE(conn_info%phi_a)
     CALL reorder_structure(phi_list, conn_info%phi_a, conn_info%phi_d, nphi)
@@ -2196,24 +2196,24 @@ CONTAINS
     ! Deallocate bond_list
     DO i = 1, natom
        DEALLOCATE(bond_list(i)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     DEALLOCATE(bond_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Deallocate theta_list
     DO i = 1, natom
        DEALLOCATE(theta_list(i)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     DEALLOCATE(theta_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Deallocate phi_list
     DO i = 1, natom
        DEALLOCATE(phi_list(i)%array1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDDO
     DEALLOCATE(phi_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Final output
     IF (output_unit>0 .AND. ionfo > 0) THEN

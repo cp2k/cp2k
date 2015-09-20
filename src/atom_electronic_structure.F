@@ -81,9 +81,9 @@ CONTAINS
       CASE (do_uks_atom, do_uhf_atom)
         CALL calculate_atom_unrestricted(atom,iw,noguess)
       CASE (do_rohf_atom)
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
     END SELECT
 
     CALL timestop(handle)
@@ -145,23 +145,23 @@ CONTAINS
 
     SELECT CASE (method)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (do_rks_atom)
         need_x = do_hfx
         need_xc = .TRUE.
       CASE (do_uks_atom)
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (do_rhf_atom)
         need_x = .TRUE.
         need_xc = .FALSE.
         hf_frac = 1._dp
       CASE (do_uhf_atom)
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (do_rohf_atom)
         need_x = .TRUE.
         need_xc = .FALSE.
         hf_frac = 1._dp
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
     END SELECT
 
 ! ZMP starting to read external density for the zmp calculation
@@ -196,11 +196,11 @@ CONTAINS
     ! Pseudopotentials
     SELECT CASE (atom%potential%ppot_type)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (NO_PSEUDO)
         SELECT CASE (reltyp)
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+            CPASSERT(.FALSE.)
           CASE (do_nonrel_atom)
             hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
           CASE (do_zoramp_atom, do_sczoramp_atom)
@@ -268,7 +268,7 @@ CONTAINS
       ! Pseudopotential energy
       SELECT CASE (atom%potential%ppot_type)
         CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+          CPASSERT(.FALSE.)
         CASE (NO_PSEUDO)
           atom%energy%eploc = 0._dp
           atom%energy%epnl = 0._dp
@@ -292,7 +292,7 @@ CONTAINS
       jmat%op = 0._dp
       SELECT CASE (atom%coulomb_integral_type)
         CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+          CPASSERT(.FALSE.)
         CASE (do_analytic)
           CALL ceri_contract(jmat%op,atom%integrals%ceri,atom%orbitals%pmat,atom%integrals%n)
         CASE (do_semi_analytic)
@@ -311,7 +311,7 @@ CONTAINS
         kmat%op = 0._dp
         SELECT CASE (atom%exchange_integral_type)
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+            CPASSERT(.FALSE.)
           CASE (do_analytic)
             CALL eeri_contract(kmat%op,atom%integrals%eeri,atom%orbitals%pmat,atom%integrals%n)
           CASE (do_semi_analytic)
@@ -467,14 +467,14 @@ CONTAINS
 
     SELECT CASE (method)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (do_rks_atom)
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (do_uks_atom)
         need_x = do_hfx
         need_xc = .TRUE.
       CASE (do_rhf_atom)
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (do_uhf_atom)
         need_x = .TRUE.
         need_xc = .FALSE.
@@ -483,7 +483,7 @@ CONTAINS
         need_x = .TRUE.
         need_xc = .FALSE.
         hf_frac = 1._dp
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
     END SELECT
 
     ! set alpha and beta occupations
@@ -520,11 +520,11 @@ CONTAINS
     lsdpot=.FALSE.
     SELECT CASE (atom%potential%ppot_type)
       CASE DEFAULT
-        CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+        CPASSERT(.FALSE.)
       CASE (NO_PSEUDO)
         SELECT CASE (reltyp)
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+            CPASSERT(.FALSE.)
           CASE (do_nonrel_atom)
             hcore%op = atom%integrals%kin - atom%zcore*atom%integrals%core
           CASE (do_zoramp_atom, do_sczoramp_atom)
@@ -610,7 +610,7 @@ CONTAINS
       ! Pseudopotential energy
       SELECT CASE (atom%potential%ppot_type)
         CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+          CPASSERT(.FALSE.)
         CASE (NO_PSEUDO)
           atom%energy%eploc = 0._dp
           atom%energy%epnl = 0._dp
@@ -634,7 +634,7 @@ CONTAINS
       jmat%op = 0._dp
       SELECT CASE (atom%coulomb_integral_type)
         CASE DEFAULT
-          CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+          CPASSERT(.FALSE.)
         CASE (do_analytic)
           CALL ceri_contract(jmat%op,atom%integrals%ceri,atom%orbitals%pmat,atom%integrals%n)
         CASE (do_semi_analytic)
@@ -654,7 +654,7 @@ CONTAINS
         kmatb%op = 0._dp
         SELECT CASE (atom%exchange_integral_type)
           CASE DEFAULT
-            CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+            CPASSERT(.FALSE.)
           CASE (do_analytic)
             CALL eeri_contract(kmata%op,atom%integrals%eeri,atom%orbitals%pmata,atom%integrals%n)
             CALL eeri_contract(kmatb%op,atom%integrals%eeri,atom%orbitals%pmatb,atom%integrals%n)

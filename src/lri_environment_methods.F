@@ -446,7 +446,7 @@ CONTAINS
               CALL cp_dbcsr_get_block_p(matrix=pmat,row=jatom,col=iatom,block=pbij,found=found)
               trans = .TRUE.
             END IF
-            CPPostcondition(found,cp_failure_level,routineP,failure)
+            CPASSERT(found)
 
             lrho => lri_rho%lri_atom(iac)%lri_node(ilist)%lri_rhoab(jneighbor)
             lrii => lri_env%lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
@@ -490,7 +490,7 @@ CONTAINS
 
             ! solve the linear system of equations
             ALLOCATE(m(nn),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
             m = 0._dp
             IF(iatom == jatom.AND.dab < lri_env%delta) THEN
               m(1:nfa) = lrho%tvec(1:nfa) + lrho%lambda * lrii%n(1:nfa)
@@ -502,7 +502,7 @@ CONTAINS
                          m(1),1,0.0_dp,lrho%avec,1)
             ENDIF
             DEALLOCATE(m,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
            
          END DO
          CALL neighbor_list_iterator_release(nl_iterator)
@@ -574,7 +574,7 @@ CONTAINS
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=nat)
       ALLOCATE(atom_of_kind(nat),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
 
@@ -641,7 +641,7 @@ CONTAINS
       CALL set_qs_env(qs_env, lri_density=lri_density)
 
       DEALLOCATE(atom_of_kind,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
     END IF
 
@@ -809,7 +809,7 @@ CONTAINS
                            scon_orba,scon_orbb,scon_rib,Waux_mat,dWaux_mat,&
                            lrii%calc_force_pair)
       DEALLOCATE(Waux_mat,dWaux_mat,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     ENDIF
 
     CALL timestop(handle)
@@ -858,13 +858,13 @@ CONTAINS
     nn = nfa + nfb
  
     ALLOCATE(R(nba,nbb,nn),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(dlambdadp(nba,nbb),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(Q(nba,nbb,nn),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(abxint_work(nba,nbb,nn),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     R(:,:,:)  = 0._dp
     dlambdadp = 0._dp
@@ -900,13 +900,13 @@ CONTAINS
     ENDIF
     
     DEALLOCATE(abxint_work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(R,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(dlambdadp,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(Q,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
   
@@ -946,25 +946,25 @@ CONTAINS
        CALL invmat_symm(sinv)
     CASE(do_lri_pseudoinv_svd)
        ALLOCATE(s(n,n),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        s(:,:) = sinv
        CALL get_pseudo_inverse_svd(s,sinv,rskip)
        DEALLOCATE(s,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     CASE(do_lri_pseudoinv_diag)
        ALLOCATE(s(n,n),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        s(:,:) = sinv
        CALL get_pseudo_inverse_diag(s,sinv,rskip)
        DEALLOCATE(s,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     CASE(do_lri_inv_auto)
        ! decide whether to calculate inverse or pseudoinverse
        ALLOCATE(s(n,n),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        s(:,:) = sinv
        ALLOCATE(work(3*n),iwork(n),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! norm of matrix
        anorm = dlange('1',n,n,sinv,n,work)
        ! Cholesky factorization (fails if matrix not positive definite)
@@ -984,7 +984,7 @@ CONTAINS
            CALL get_pseudo_inverse_svd(s,sinv,rskip)
        END IF
        DEALLOCATE(s,work,iwork,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     CASE DEFAULT
        CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,&
                  routineP,"No initialization for LRI overlap available?",&

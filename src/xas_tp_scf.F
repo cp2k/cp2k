@@ -173,12 +173,12 @@ CONTAINS
     failure=.FALSE.
     converged = .TRUE.
 
-    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
-    CPPrecondition(xas_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
-    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(xas_env))
+    CPASSERT(xas_env%ref_count>0)
+    CPASSERT(ASSOCIATED(scf_env))
+    CPASSERT(scf_env%ref_count>0)
+    CPASSERT(ASSOCIATED(qs_env))
+    CPASSERT(qs_env%ref_count>0)
 
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
@@ -198,7 +198,7 @@ CONTAINS
 
     !   GAPW method must be used
     gapw = dft_control%qs_control%gapw
-    CPPrecondition(gapw,cp_failure_level,routineP,failure)
+    CPASSERT(gapw)
     xas_control => dft_control%xas_control
 
     CALL cp_add_iter_level(logger%iter_info,"XAS_SCF")
@@ -442,7 +442,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(xas_env))
 
     CALL get_qs_env(qs_env,&
                     cell=cell,&
@@ -462,23 +462,23 @@ CONTAINS
          excvec_coeff=excvec_coeff,&
          nvirtual2=nvirtual2,xas_estate=xas_estate,&
          excvec_overlap=excvec_overlap,nexc_search=nexc_search,scf_control=scf_control)
-    CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(excvec_overlap))
 
     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,&
          eigenvalues=eigenvalues)
 
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     vecbuffer = 0.0_dp
     ALLOCATE(vecbuffer2(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     vecbuffer2 = 0.0_dp
     natom=SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL get_particle_set(particle_set, qs_kind_set, first_sgf=first_sgf)
     ALLOCATE(centers_wfn(3,nexc_search),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     centers_wfn=0.0_dp
 
     ! Possible only for emission only
@@ -572,7 +572,7 @@ CONTAINS
 
        NULLIFY(uno_orbs,uno_evals,local_preconditioner)
        ALLOCATE(local_preconditioner,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL init_preconditioner(local_preconditioner,para_env=para_env,&
                                 blacs_env=blacs_env)
 
@@ -599,7 +599,7 @@ CONTAINS
        CALL destroy_preconditioner(local_preconditioner)
 
        DEALLOCATE(local_preconditioner,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
     CALL mp_sync(para_env%group)
@@ -627,11 +627,11 @@ CONTAINS
     END IF
 
     DEALLOCATE(vecbuffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(vecbuffer2,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(centers_wfn,first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -684,7 +684,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(xas_env))
     IF(.NOT. failure) THEN
        CALL get_qs_env(qs_env=qs_env,dft_control=dft_control, &
             matrix_ks=matrix_ks,mos=mos,para_env=para_env)

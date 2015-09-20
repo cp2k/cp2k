@@ -91,10 +91,10 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(direction, elem_center, mol_in_sb)
 
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_params))
+    CPASSERT(ASSOCIATED(move_types))
+    CPASSERT(ASSOCIATED(rng_stream))
+    CPASSERT(ASSOCIATED(elem))
 
     move_rejected = .FALSE.
 
@@ -112,7 +112,7 @@ CONTAINS
     END IF
 
     ! at least one atom should be in the sub box
-    CPPrecondition(ANY(elem%elem_stat(:).EQ.status_ok),cp_warning_level,routineP,failure)
+    CPASSERT(ANY(elem%elem_stat(:).EQ.status_ok))
     IF(failure) THEN
       act_nr_elem_mv = -1
     ELSE IF(tmc_params%nr_elem_mv.EQ.0) THEN
@@ -322,7 +322,7 @@ CONTAINS
     !-- velocity changes for MD 
     !-- here all velocities are changed
     CASE(mv_type_MD)
-      CPPreconditionNoFail(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP)
+      CPASSERT(ASSOCIATED(tmc_params%atoms))
       change_all_velocities_loop: DO i=1, SIZE(elem%pos)
         !-- attention, move type size is in atomic units of velocity
         IF(elem%elem_stat(i).NE.status_frozen) THEN
@@ -395,8 +395,8 @@ CONTAINS
     start_ind = -1
     end_ind   = -1
 
-    CPPrecondition(ASSOCIATED(mol_arr),cp_failure_level,routineP,failure)
-    CPPrecondition(mol.LE.MAXVAL(mol_arr(:)),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mol_arr))
+    CPASSERT(mol.LE.MAXVAL(mol_arr(:)))
     ! get start index
     loop_start: DO i=1, SIZE(mol_arr)
       IF(mol_arr(i) .EQ. mol) THEN
@@ -412,9 +412,9 @@ CONTAINS
       END IF
     END DO loop_end
     ! check if all atoms inbetween attend to molecule
-    CPPostcondition(ALL(mol_arr(start_ind:end_ind).EQ.mol),cp_failure_level,routineP,failure)
-    CPPostcondition(start_ind.GT.0,cp_failure_level,routineP,failure)
-    CPPostcondition(end_ind.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(ALL(mol_arr(start_ind:end_ind).EQ.mol))
+    CPASSERT(start_ind.GT.0)
+    CPASSERT(end_ind.GT.0)
     ! convert to indeces mapped for the position array (multiple dim per atom)
     start_ind = (start_ind-1)*tmc_params%dim_per_elem+1
     end_ind   = (end_ind-1)*tmc_params%dim_per_elem+1
@@ -445,14 +445,14 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(subbox_center),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(box_scale),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pos))
+    CPASSERT(ASSOCIATED(subbox_center))
+    CPASSERT(ASSOCIATED(box_scale))
     ! if pressure is defined, no scale should be 0
     flag = .NOT.((tmc_params%pressure.GT.0.0_dp).AND.(ANY(box_scale.EQ.0.0_dp)))
-    CPPrecondition(flag,cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(pos).EQ.3,cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(pos).EQ.SIZE(subbox_center),cp_failure_level,routineP,failure)
+    CPASSERT(flag)
+    CPASSERT(SIZE(pos).EQ.3)
+    CPASSERT(SIZE(pos).EQ.SIZE(subbox_center))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -505,8 +505,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(center_of_sub_box, atom_tmp)
 
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_params))
+    CPASSERT(ASSOCIATED(elem))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -589,11 +589,11 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(elem_center)
 
-    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,failure)
-    CPPrecondition(dim_per_elem.EQ.3,cp_failure_level,routineP,failure)
-    CPPrecondition(ind_start.GT.0.AND.ind_start.LT.SIZE(pos),cp_failure_level,routineP,failure)
-    CPPrecondition(ind_end.GT.0.AND.ind_end.LT.SIZE(pos),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pos))
+    CPASSERT(dim_per_elem.EQ.3)
+    CPASSERT(ind_start.GT.0.AND.ind_start.LT.SIZE(pos))
+    CPASSERT(ind_end.GT.0.AND.ind_end.LT.SIZE(pos))
+    CPASSERT(ASSOCIATED(move_types))
 
     ! calculate rotation matrix (using quanternions)
     rnd = next_random_number(rng_stream) ! next random number
@@ -653,7 +653,7 @@ CONTAINS
     failure = .FALSE.
     kB = boltzmann/joule
 
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rng_stream))
 
     !phi = move_types%mv_size(mv_type_MD,1) ! TODO parallel tempering move sizes for vel_change
     ! hence first producing a gaussian random number
@@ -715,9 +715,9 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(mol_arr)
 
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(rng_stream))
+    CPASSERT(ASSOCIATED(tmc_params))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -821,8 +821,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(distO, distH1, distH2)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(ASSOCIATED(tmc_params))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -959,10 +959,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(4)              :: distances
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
-    CPPrecondition(i_orig.GE.1.AND.i_orig.LE.SIZE(elem%pos),cp_failure_level,routineP,failure)
-    CPPrecondition(i_neighbor.GE.1.AND.i_neighbor.LE.SIZE(elem%pos),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(elem))
+    CPASSERT(i_orig.GE.1.AND.i_orig.LE.SIZE(elem%pos))
+    CPASSERT(i_neighbor.GE.1.AND.i_neighbor.LE.SIZE(elem%pos))
+    CPASSERT(ASSOCIATED(tmc_params))
 
     ! 1. proton of orig with neighbor O
     distances(1) = nearest_distance(&
@@ -1029,8 +1029,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(ind_arr, tmp_cell)
 
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(elem),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_params))
+    CPASSERT(ASSOCIATED(elem))
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1185,13 +1185,13 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(scaling, disp)
 
-    CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
-    CPPrecondition(T_ind.GT.0.AND.T_ind.LE.tmc_params%nr_temp,cp_failure_level,routineP,failure)
-    CPPrecondition(tmc_params%dim_per_elem.EQ.3,cp_failure_level,routineP,failure)
-    CPPrecondition(tmc_params%cell%orthorhombic,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(conf))
+    CPASSERT(ASSOCIATED(move_types))
+    CPASSERT(ASSOCIATED(rng_stream))
+    CPASSERT(ASSOCIATED(tmc_params))
+    CPASSERT(T_ind.GT.0.AND.T_ind.LE.tmc_params%nr_temp)
+    CPASSERT(tmc_params%dim_per_elem.EQ.3)
+    CPASSERT(tmc_params%cell%orthorhombic)
 
     ! start the timing
     CALL timeset(routineN,handle)
@@ -1263,7 +1263,7 @@ CONTAINS
        DO mol=1, MAXVAL(conf%mol(:))
          ! move the molecule related to the molecule center of mass
          ! get center of mass
-         CPPreconditionNoFail(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP)
+         CPASSERT(ASSOCIATED(tmc_params%atoms))
 
          CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=conf%mol, mol=mol, &
                               start_ind=ind, end_ind=ind_e)
@@ -1313,11 +1313,11 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(conf),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(move_types),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_params%atoms),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(conf))
+    CPASSERT(ASSOCIATED(move_types))
+    CPASSERT(ASSOCIATED(rng_stream))
+    CPASSERT(ASSOCIATED(tmc_params))
+    CPASSERT(ASSOCIATED(tmc_params%atoms))
 
     ! loop until two different atoms are found
     atom_search_loop: DO 

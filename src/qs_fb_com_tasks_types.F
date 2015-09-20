@@ -172,8 +172,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP,failure)
-    CPPreconditionNoFail(com_tasks%obj%ref_count>0, cp_failure_level, routineP)
+    CPASSERT(ASSOCIATED(com_tasks%obj))
+    CPASSERT(com_tasks%obj%ref_count>0)
     com_tasks%obj%ref_count = com_tasks%obj%ref_count + 1
   END SUBROUTINE fb_com_tasks_retain
 
@@ -193,8 +193,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP,failure)
-    CPPreconditionNoFail(atom_pairs%obj%ref_count>0, cp_failure_level, routineP)
+    CPASSERT(ASSOCIATED(atom_pairs%obj))
+    CPASSERT(atom_pairs%obj%ref_count>0)
     atom_pairs%obj%ref_count = atom_pairs%obj%ref_count + 1
   END SUBROUTINE fb_com_atom_pairs_retain
 
@@ -217,17 +217,17 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(com_tasks%obj)) THEN
-       CPPreconditionNoFail(com_tasks%obj%ref_count>0, cp_failure_level, routineP)
+       CPASSERT(com_tasks%obj%ref_count>0)
        com_tasks%obj%ref_count = com_tasks%obj%ref_count - 1
        IF (com_tasks%obj%ref_count == 0) THEN
           com_tasks%obj%ref_count = 1
           IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
              DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+             CPASSERT(stat==0)
           END IF
           com_tasks%obj%ref_count = 0
           DEALLOCATE(com_tasks%obj, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
     ELSE
        NULLIFY(com_tasks%obj)
@@ -254,17 +254,17 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(atom_pairs%obj)) THEN
-       CPPreconditionNoFail(atom_pairs%obj%ref_count>0, cp_failure_level, routineP)
+       CPASSERT(atom_pairs%obj%ref_count>0)
        atom_pairs%obj%ref_count = atom_pairs%obj%ref_count - 1
        IF (atom_pairs%obj%ref_count == 0) THEN
           atom_pairs%obj%ref_count = 1
           IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
              DEALLOCATE(atom_pairs%obj%pairs, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+             CPASSERT(stat==0)
           END IF
           atom_pairs%obj%ref_count = 0
           DEALLOCATE(atom_pairs%obj, stat=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
     ELSE
        NULLIFY(atom_pairs%obj)
@@ -395,9 +395,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(com_tasks%obj), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(com_tasks%obj))
     ALLOCATE(com_tasks%obj, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     com_tasks%obj%task_dim = TASK_N_RECORDS
     com_tasks%obj%ntasks = 0
     com_tasks%obj%nencode = 0
@@ -425,9 +425,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(atom_pairs%obj))
     ALLOCATE(atom_pairs%obj, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     atom_pairs%obj%npairs = 0
     atom_pairs%obj%natoms_encode = 0
     NULLIFY(atom_pairs%obj%pairs)
@@ -453,10 +453,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(com_tasks%obj))
     IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
        DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        NULLIFY(com_tasks%obj%tasks)
     END IF
     com_tasks%obj%task_dim = TASK_N_RECORDS
@@ -482,10 +482,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(atom_pairs%obj))
     IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
        DEALLOCATE(atom_pairs%obj%pairs, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        NULLIFY(atom_pairs%obj%pairs)
     END IF
     atom_pairs%obj%npairs = 0
@@ -521,7 +521,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(com_tasks%obj))
     IF (PRESENT(task_dim)) task_dim = com_tasks%obj%task_dim
     IF (PRESENT(ntasks)) ntasks = com_tasks%obj%ntasks
     IF (PRESENT(nencode)) nencode = com_tasks%obj%nencode
@@ -555,7 +555,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(atom_pairs%obj))
     IF (PRESENT(npairs)) npairs = atom_pairs%obj%npairs
     IF (PRESENT(natoms_encode)) natoms_encode = atom_pairs%obj%natoms_encode
     IF (PRESENT(pairs)) pairs => atom_pairs%obj%pairs
@@ -591,14 +591,14 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(com_tasks%obj), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(com_tasks%obj))
     IF (PRESENT(task_dim)) com_tasks%obj%task_dim = task_dim
     IF (PRESENT(ntasks)) com_tasks%obj%ntasks = ntasks
     IF (PRESENT(nencode)) com_tasks%obj%nencode = nencode
     IF (PRESENT(tasks)) THEN
        IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
           DEALLOCATE(com_tasks%obj%tasks, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
        com_tasks%obj%tasks => tasks
     END IF
@@ -633,13 +633,13 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(atom_pairs%obj), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(atom_pairs%obj))
     IF (PRESENT(npairs)) atom_pairs%obj%npairs = npairs
     IF (PRESENT(natoms_encode)) atom_pairs%obj%natoms_encode = natoms_encode
     IF (PRESENT(pairs)) THEN
        IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
           DEALLOCATE(atom_pairs%obj%pairs, STAT=stat)
-          CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+          CPASSERT(stat==0)
        END IF
        atom_pairs%obj%pairs => pairs
     END IF
@@ -710,18 +710,18 @@ CONTAINS
 
     ! allocate local arrays
     ALLOCATE(send_sizes(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_disps(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_buf(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(recv_sizes(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_disps(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_buf(para_env%num_pe), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! first count how many local recv/send tasks need to be sent to
     ! other processes, and share this information with the other
@@ -759,13 +759,13 @@ CONTAINS
     ! reallocate send and recv buffers to the correct sizes for
     ! transferring the actual tasks
     DEALLOCATE(send_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! now that the send buffer is of correct size, do packing
     ! send_buf and recv_buf may be zero sized
@@ -787,17 +787,17 @@ CONTAINS
 
     ! deallocate send buffers
     DEALLOCATE(send_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! allocate the output task list
     ntasks_out = SUM(recv_sizes) / task_dim
     ! this will not be deallocated in this subroutine
     ALLOCATE(tasks_out(task_dim,ntasks_out), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! do unpacking
     itask = 0
@@ -828,11 +828,11 @@ CONTAINS
 
     ! deallocate recv buffers
     DEALLOCATE(recv_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -893,7 +893,7 @@ CONTAINS
     NULLIFY(pairs, tasks)
 
     check_ok = fb_com_atom_pairs_has_data(atom_pairs)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
 
     ! initialise atom_pairs
     CALL fb_com_atom_pairs_init(atom_pairs)
@@ -915,7 +915,7 @@ CONTAINS
                           tasks=tasks)
 
     ALLOCATE(pairs(ntasks), STAT=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ! we can have cases where ntasks == 0
     IF (SIZE(pairs) > 0) pairs = 0
     npairs = ntasks
@@ -947,11 +947,11 @@ CONTAINS
     ! than once)
     IF (npairs > 0) THEN
        ALLOCATE(tmp_index(npairs), STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        ! only sort the actual pairs recorded in the send list
        CALL sort(pairs, npairs, tmp_index)
        DEALLOCATE(tmp_index, STAT=stat)
-       CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     ! remove duplicates
@@ -1159,10 +1159,10 @@ CONTAINS
                SIZE(sendrecv_disps) == nprocs .AND. &
                SIZE(sendrecv_pair_counts) == nprocs .AND. &
                SIZE(sendrecv_pair_disps) == nprocs
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
 
     check_ok = fb_com_atom_pairs_has_data(atom_pairs)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
 
     CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs, &
                                pairs=pairs, &
@@ -1247,11 +1247,11 @@ CONTAINS
             row_block_size_data, col_block_size_data)
 
     check_ok = fb_com_atom_pairs_has_data(atom_pairs_send)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = fb_com_atom_pairs_has_data(atom_pairs_send)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = fb_matrix_data_has_data(matrix_storage)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
 
     ! get com pair informations
     CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_send, &
@@ -1271,13 +1271,13 @@ CONTAINS
 
     ! allocate temporary arrays for send
     ALLOCATE(send_sizes(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_pair_count(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_pair_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_send, &
@@ -1291,17 +1291,17 @@ CONTAINS
 
     ! allocate send buffer
     ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! allocate temporary arrays for recv
     ALLOCATE(recv_sizes(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_pair_count(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_pair_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_recv, &
@@ -1315,7 +1315,7 @@ CONTAINS
 
     ! allocate recv buffer
     ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! do packing
     DO ipe = 1, numprocs
@@ -1352,22 +1352,22 @@ CONTAINS
 
     ! cleanup temporary arrays no longer needed
     DEALLOCATE(send_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_pair_count, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_pair_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! unpack into matrix_data object
     NULLIFY(mat_block)
     nrows_blk_max = MAXVAL(row_block_size_data)
     ncols_blk_max = MAXVAL(col_block_size_data)
     ALLOCATE(mat_block(nrows_blk_max,ncols_blk_max), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DO ipe = 1, numprocs
        recv_sizes(ipe) = 0
        DO ipair = 1, recv_pair_count(ipe)
@@ -1394,19 +1394,19 @@ CONTAINS
        END DO ! ipair
     END DO ! ipe
     DEALLOCATE(mat_block, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! cleanup rest of the temporary arrays
     DEALLOCATE(recv_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_pair_count, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_pair_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -1466,11 +1466,11 @@ CONTAINS
             row_block_size_data, col_block_size_data)
 
     check_ok = fb_com_atom_pairs_has_data(atom_pairs_send)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = fb_com_atom_pairs_has_data(atom_pairs_send)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
     check_ok = fb_matrix_data_has_data(matrix_storage)
-    CPPostcondition(check_ok, cp_failure_level, routineP,failure)
+    CPASSERT(check_ok)
 
     ! get com pair informations
     CALL fb_com_atom_pairs_get(atom_pairs=atom_pairs_send, &
@@ -1490,13 +1490,13 @@ CONTAINS
 
     ! allocate temporary arrays for send
     ALLOCATE(send_sizes(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_pair_count(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(send_pair_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! setup send buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_send, &
@@ -1510,17 +1510,17 @@ CONTAINS
 
     ! allocate send buffer
     ALLOCATE(send_buf(SUM(send_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! allocate temporary arrays for recv
     ALLOCATE(recv_sizes(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_pair_count(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(recv_pair_disps(numprocs), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! setup recv buffer sizes
     CALL fb_com_atom_pairs_calc_buffer_sizes(atom_pairs_recv, &
@@ -1534,7 +1534,7 @@ CONTAINS
 
     ! allocate recv buffer
     ALLOCATE(recv_buf(SUM(recv_sizes)), STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! do packing
     DO ipe = 1, numprocs
@@ -1570,15 +1570,15 @@ CONTAINS
 
     ! cleanup temporary arrays no longer needed
     DEALLOCATE(send_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_pair_count, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(send_pair_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! unpack into DBCSR matrix
     DO ipe = 1, numprocs
@@ -1598,15 +1598,15 @@ CONTAINS
 
     ! cleanup rest of the temporary arrays
     DEALLOCATE(recv_buf, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_sizes, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_pair_count, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(recv_pair_disps, STAT=stat)
-    CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
 
     ! dbcsr matrix is not finalised in this subroutine
 

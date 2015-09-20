@@ -107,7 +107,7 @@ CONTAINS
     IF (ASSOCIATED(paw_proj_set)) CALL deallocate_paw_proj_set(paw_proj_set)
 
     ALLOCATE (paw_proj_set,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY (paw_proj_set%nprj)
     NULLIFY (paw_proj_set%lx)
@@ -158,60 +158,60 @@ CONTAINS
     failure = .FALSE.
 
     DEALLOCATE (paw_proj_set%zisomin,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%zprjisomin,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%nprj,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%lx,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%ly,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%lz,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%ll,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%m,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%first_prj,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%last_prj,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%first_prjs,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%zetprj,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%cprj,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%cprj_s,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%csprj,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%local_oce_cphi_h,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%local_oce_cphi_s,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%local_oce_sphi_h,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%local_oce_sphi_s,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%sphi_h,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%sphi_s,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%gccprj,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%isoprj,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%rzetprj,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%o2nindex,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (paw_proj_set%n2oindex,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE (paw_proj_set,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE deallocate_paw_proj_set
 
 ! *****************************************************************************
@@ -311,8 +311,8 @@ CONTAINS
     NULLIFY (cphi,sphi,lmax,lmin,npgf,nshell,zet,zetp,smat,work,gcca)
 
     failure =.FALSE.
-    CPPrecondition(ASSOCIATED(paw_proj),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(orb_basis),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(paw_proj))
+    CPASSERT(ASSOCIATED(orb_basis))
 
     IF(.NOT. failure) THEN
        CALL get_gto_basis_set(gto_basis_set=orb_basis,name=bsname,&
@@ -325,18 +325,18 @@ CONTAINS
             gcc=gcca)
 
        paw_proj%maxl = maxl
-       CPPrecondition(.NOT. ASSOCIATED(paw_proj%zisomin),cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT. ASSOCIATED(paw_proj%zprjisomin),cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT. ASSOCIATED(paw_proj%nprj),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT. ASSOCIATED(paw_proj%zisomin))
+       CPASSERT(.NOT. ASSOCIATED(paw_proj%zprjisomin))
+       CPASSERT(.NOT. ASSOCIATED(paw_proj%nprj))
 
        ALLOCATE(paw_proj%zisomin(0:maxl),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%zisomin(0:maxl) = 0.0_dp
        ALLOCATE(paw_proj%zprjisomin(0:maxl),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%zprjisomin(0:maxl) = 0.0_dp
        ALLOCATE(paw_proj%nprj(0:maxl),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%nprj(0:maxl) = 0
 
        output_unit = cp_print_key_unit_nr(logger,force_env_section,&
@@ -348,7 +348,7 @@ CONTAINS
        END IF
 
        ALLOCATE(set_radius(nset),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        set_radius = 0.0_dp
        DO iset = 1,nset
           DO is = 1,nshell(iset)
@@ -358,7 +358,7 @@ CONTAINS
        END DO  ! iset
 
        ALLOCATE(set_radius2(maxpgf,0:maxl,nset),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        set_radius2 = 0.0_dp
        DO iset = 1,nset
           DO lshell = lmin(iset),lmax(iset)
@@ -387,16 +387,16 @@ CONTAINS
 
        !   *** Allocate exponents and coefficients ***
        ALLOCATE(paw_proj%zetprj(maxnprj,0:maxl),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%zetprj(1:maxnprj,0:maxl)=0.0_dp
        ALLOCATE(paw_proj%gccprj(maxnprj,maxpgf,0:maxl,nset),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%gccprj=0.0_dp
        ALLOCATE(paw_proj%rzetprj(maxnprj,0:maxl),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%rzetprj(1:maxnprj,0:maxl)=0.0_dp
        ALLOCATE(paw_proj%isoprj(maxnprj,0:maxl),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%isoprj = .FALSE.
 
        mp = 0
@@ -411,11 +411,11 @@ CONTAINS
           np = paw_proj%nprj(lshell)
 
           ALLOCATE(isoprj(np),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           isoprj = .FALSE.
 
           ALLOCATE(zet(np),zetp(np),gcc(np,np),smat(np,np),work(np,np),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
           zet(:) = 0.0_dp
           zetp(:) = 0.0_dp
@@ -509,7 +509,7 @@ CONTAINS
           ENDDO
 
           !     FIXME ... catch the case where np == 0
-          CPPrecondition(np > 0,cp_failure_level,routineP,failure)
+          CPASSERT(np > 0)
 
           !     *** Compute inverse of the transpose ***
           IF (eps_svd.EQ.0.0_dp) THEN
@@ -588,9 +588,9 @@ CONTAINS
 
           !   *** Release the working storage for the current value lshell ***
           DEALLOCATE(isoprj,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(gcc,zet,zetp,smat,work,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
        ENDDO                 ! lshell
        CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
@@ -598,9 +598,9 @@ CONTAINS
 
        !   *** Release the working storage for the current value lshell ***
        DEALLOCATE(set_radius,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(set_radius2,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        !   *** Count primitives basis functions for the projectors
        paw_proj%ncgauprj = 0
@@ -700,23 +700,23 @@ CONTAINS
        !   local coefficients for the one center expansions : oce
        !   the coefficients are calculated for the full and soft expansions
        ALLOCATE(paw_proj%local_oce_cphi_h(maxco,ncgf),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%local_oce_cphi_h = 0.0_dp
        ALLOCATE(paw_proj%local_oce_sphi_h(maxco,nsgf),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%local_oce_sphi_h = 0.0_dp
        ALLOCATE(paw_proj%sphi_h(maxco,nsgf),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%sphi_h = 0.0_dp
 
        ALLOCATE(paw_proj%local_oce_cphi_s(maxco,ncgf),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%local_oce_cphi_s = 0.0_dp
        ALLOCATE(paw_proj%local_oce_sphi_s(maxco,nsgf),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%local_oce_sphi_s = 0.0_dp
        ALLOCATE(paw_proj%sphi_s(maxco,nsgf),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%sphi_s = 0.0_dp
 
        !   *** Cartesian ***
@@ -808,9 +808,9 @@ CONTAINS
 
        !Index transformation OLD-NEW
        ALLOCATE(paw_proj%o2nindex(maxso*nset),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(paw_proj%n2oindex(maxso*nset),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%o2nindex = 0
        paw_proj%n2oindex = 0
        ico = 1
@@ -834,7 +834,7 @@ CONTAINS
        paw_proj%nsatbas = mp
        paw_proj%nsotot = nset*maxso
        ALLOCATE(paw_proj%csprj(nsgauprj,mp),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        paw_proj%csprj = 0._dp
        DO k=1,mp
          ico = paw_proj%n2oindex(k)

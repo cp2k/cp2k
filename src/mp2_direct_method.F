@@ -168,7 +168,7 @@ MODULE mp2_direct_method
     INTEGER, SAVE                            :: shm_number_of_p_entries
     LOGICAL                                  :: alpha_beta_case, &
                                                 copy_integrals, do_periodic, &
-                                                failure, treat_lsd_in_core
+                                                treat_lsd_in_core
     LOGICAL, DIMENSION(:, :), POINTER        :: shm_atomic_pair_list
     REAL(KIND=dp) :: cartesian_estimate, coeffs_kind_max0, &
       compression_factor, compression_factor_disk, cost_tmp, eps_schwarz, &
@@ -362,7 +362,7 @@ MODULE mp2_direct_method
     natom = SIZE(particle_set,1)
 
     ALLOCATE(kind_of(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              kind_of=kind_of)
@@ -383,24 +383,24 @@ MODULE mp2_direct_method
     ENDDO
     !! Allocate the arrays for the integrals.
     ALLOCATE(primitive_integrals(nsgf_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     primitive_integrals = 0.0_dp
 
     ALLOCATE(ee_work(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_work2(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_buffer1(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_buffer2(ncos_max**4),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(ee_primitives_tmp(nsgf_max**4),STAT=stat) ! XXXXX could be wrong
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     nspins = dft_control%nspins
 
     ALLOCATE(max_contraction(max_set,natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     max_contraction=0.0_dp
     max_pgf = 0
@@ -426,19 +426,19 @@ MODULE mp2_direct_method
     ! ** Allocate buffers for pgf_lists
     nneighbors = SIZE(actual_x_data%neighbor_cells)
     ALLOCATE(pgf_list_ij(max_pgf**2), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(pgf_list_kl(max_pgf**2), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(pgf_product_list(nneighbors**3), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(nimages(max_pgf**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO i=1,max_pgf**2
       ALLOCATE(pgf_list_ij(i)%image_list(nneighbors), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(pgf_list_kl(i)%image_list(nneighbors), STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END DO
 
     ! ** Set pointers
@@ -475,7 +475,7 @@ MODULE mp2_direct_method
 
     !! Helper array to map local basis function indeces to global ones
     ALLOCATE(last_sgf_global(0:natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     last_sgf_global(0)=0
     DO iatom=1,natom
       ikind = kind_of(iatom)
@@ -512,16 +512,16 @@ MODULE mp2_direct_method
 
 !!!!!!!!!
     ALLOCATE(list_ij%elements(natom**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(list_kl%elements(natom**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 !!!!!!!!!
 
     coeffs_kind_max0=MAXVAL(screen_coeffs_kind(:,:)%x(2))
     ALLOCATE(set_list_ij((max_set*natom)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(set_list_kl((max_set*natom)**2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     !! precalculate maximum density matrix elements in blocks
     actual_x_data%pmax_block = 0.0_dp
@@ -591,7 +591,7 @@ MODULE mp2_direct_method
      ! orbital transformation is called for each processor, needs for balancing
      ! the point to point send
      ALLOCATE(proc_num_task(0:para_env%num_pe-1),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
 
      proc_num_task=0
 
@@ -633,7 +633,7 @@ MODULE mp2_direct_method
 
      ! distribute the RS pair over all processor
      ALLOCATE(kl_list_proc(proc_num_task(para_env%mepos),3),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
 
      kl_list_proc=0
 
@@ -682,10 +682,10 @@ MODULE mp2_direct_method
 
      total_num_RS_task=SUM(proc_num_task)
      ALLOCATE(task_counter_RS(total_num_RS_task,4),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
 
      ALLOCATE(cost_RS(total_num_RS_task),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
 
      task_counter_RS=0
      cost_RS=0.0_dp
@@ -755,7 +755,7 @@ MODULE mp2_direct_method
 
                 IF(ALLOCATED(BI1)) DEALLOCATE(BI1)
                 ALLOCATE(BI1(dimen,Ni_occupied,nsgfb(jset),nsgfa(iset)),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
 
                 BI1=0.D+00
 
@@ -834,7 +834,7 @@ MODULE mp2_direct_method
                   IF(case_index==2) THEN
                     IF(ALLOCATED(MNRS)) DEALLOCATE(MNRS)
                     ALLOCATE(MNRS(nsgfd(lset),nsgfc(kset),nsgfb(jset),nsgfa(iset)),STAT=stat)
-                    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                    CPASSERT(stat==0)
 
                     MNRS=0.D+00
 
@@ -955,14 +955,14 @@ MODULE mp2_direct_method
             CALL mp_sum(task_counter_RS,para_env%group)
             CALL mp_sum(cost_RS,para_env%group)
             ALLOCATE(task_counter_RS_temp(total_num_RS_task,4),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
 
             ALLOCATE(cost_RS_temp(total_num_RS_task),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
 
             step_size=1
             ALLOCATE(same_size_kl_elements_counter((nsgf_max**2+1)/step_size+1),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
 
             same_size_kl_elements_counter=0
 
@@ -1012,7 +1012,7 @@ MODULE mp2_direct_method
 
             DEALLOCATE(kl_list_proc)
             ALLOCATE(kl_list_proc(proc_num_task(para_env%mepos),2),STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
 
             kl_list_proc=0
 
@@ -1039,7 +1039,7 @@ MODULE mp2_direct_method
 
         IF(mp2_env%direct_canonical%big_send) THEN
           ALLOCATE(zero_mat_big(dimen,2,ij_elem_max),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
         END IF
 
@@ -1065,10 +1065,10 @@ MODULE mp2_direct_method
               elements_ij_proc_rec=size_parameter_rec(5)
               IF(.NOT. mp2_env%direct_canonical%big_send) THEN
                 ALLOCATE(BIb_RS_mat_rec(dimen,Rsize_rec+Ssize_rec),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
               ELSE
                 ALLOCATE(BIb_RS_mat_rec_big(dimen,Rsize_rec+Ssize_rec,ij_elem_max),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
               END IF
             ELSE
               elements_ij_proc_rec=elements_ij_proc
@@ -1107,7 +1107,7 @@ MODULE mp2_direct_method
 
                     END IF
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                 END SELECT
 
               END DO
@@ -1136,7 +1136,7 @@ MODULE mp2_direct_method
                     BIb_RS_mat_rec_big(1:dimen,Rsize_rec+1:Rsize_rec+Ssize_rec,1:elements_ij_proc)
 
                 CASE DEFAULT
-                  CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                  CPASSERT(.FALSE.)
               END SELECT
             END IF
 
@@ -1158,7 +1158,7 @@ MODULE mp2_direct_method
         logger => cp_get_default_logger()
 
     DEALLOCATE(primitive_integrals,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF(.NOT.alpha_beta_case) THEN
       CALL transform_virtual_orbitals_and_accumulate(dimen,occupied,dimen-occupied,i_batch_start,&
@@ -1175,7 +1175,7 @@ MODULE mp2_direct_method
     IF(copy_integrals) THEN
       IF(.NOT.alpha_beta_case) THEN
         ALLOCATE(Integ_MP2(dimen-occupied,dimen-occupied,occupied,occupied),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         Integ_MP2=0.0_dp
         DO i=1, elements_ij_proc
           iiB=ij_list_proc(i,1)
@@ -1184,7 +1184,7 @@ MODULE mp2_direct_method
         END DO
       ELSE
         ALLOCATE(Integ_MP2(dimen-occupied,dimen-occupied_beta,occupied,occupied_beta),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         Integ_MP2=0.0_dp
         DO i=1, elements_ij_proc
           iiB=ij_list_proc(i,1)
@@ -1196,30 +1196,30 @@ MODULE mp2_direct_method
     DEALLOCATE(BIb)
 
     DEALLOCATE(set_list_ij, set_list_kl, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO i=1,max_pgf**2
       DEALLOCATE(pgf_list_ij(i)%image_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DEALLOCATE(pgf_list_kl(i)%image_list, STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END DO
 
     DEALLOCATE(pgf_list_ij, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(pgf_list_kl, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(pgf_product_list, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(max_contraction, kind_of, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(ee_work, ee_work2, ee_buffer1, ee_buffer2, ee_primitives_tmp, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(nimages, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF(mp2_env%potential_parameter%potential_type == do_mp2_potential_TShPSC) THEN
       init_TShPSC_lmax = -1
@@ -1405,7 +1405,7 @@ MODULE mp2_direct_method
         S_offset_rec=size_parameter_rec(4)
         elements_ij_proc_rec=size_parameter_rec(5)
         ALLOCATE(BIb_RS_mat_rec(dimen,Rsize_rec+Ssize_rec),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
 
       ELSE
         elements_ij_proc_rec=elements_ij_proc
@@ -1487,7 +1487,7 @@ MODULE mp2_direct_method
 
              END IF
            CASE DEFAULT
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
          END SELECT
 
       END DO ! loop over the ij of the processor
@@ -1587,7 +1587,7 @@ MODULE mp2_direct_method
         S_offset_rec=size_parameter_rec(4)
         elements_ij_proc_rec=size_parameter_rec(5)
         ALLOCATE(BIb_RS_mat_rec(dimen,Rsize_rec+Ssize_rec,ij_elem_max),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
       ELSE
         elements_ij_proc_rec=elements_ij_proc
       END IF
@@ -1663,7 +1663,7 @@ MODULE mp2_direct_method
           BIb_RS_mat_rec(1:dimen,Rsize_rec+1:Rsize_rec+Ssize_rec,1:elements_ij_proc)
 
       CASE DEFAULT
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
       END SELECT
 
       IF(proc_send/=para_env%mepos) THEN
@@ -1725,7 +1725,7 @@ MODULE mp2_direct_method
     failure=.FALSE.
 
     ALLOCATE(BIa(dimen,virtual),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     BIa=zero
     DO index_ij=1, elements_ij_proc
@@ -1737,7 +1737,7 @@ MODULE mp2_direct_method
 
     DEALLOCATE(BIa)
     ALLOCATE(BIa(virtual,virtual),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     BIa=zero
     DO index_ij=1, elements_ij_proc
@@ -1830,7 +1830,7 @@ MODULE mp2_direct_method
     failure=.FALSE.
 
     ALLOCATE(BIa(dimen,virt_i),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO index_ij=1, elements_ij_proc
 
@@ -1851,7 +1851,7 @@ MODULE mp2_direct_method
 
     DEALLOCATE(BIa)
     ALLOCATE(BIa(virt_i,virt_j),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO index_ij=1, elements_ij_proc
 

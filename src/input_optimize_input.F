@@ -53,7 +53,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="OPTIMIZE_INPUT",&
          description="describes an input optimization job, in which parameters in input files get optimized.",&
          repeats=.FALSE.)

@@ -58,7 +58,7 @@ CONTAINS
     INTEGER                                  :: istat
 
     ALLOCATE ( mc_env, stat=istat )
-    CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+    CPASSERT(istat==0)
 
     last_mc_env_id=last_mc_env_id+1
     mc_env%id_nr=last_mc_env_id
@@ -134,8 +134,8 @@ SUBROUTINE mc_env_retain(mc_env)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(mc_env),cp_failure_level,routineP,failure)
-  CPPreconditionNoFail(mc_env%ref_count>0,cp_failure_level,routineP)
+  CPASSERT(ASSOCIATED(mc_env))
+  CPASSERT(mc_env%ref_count>0)
   mc_env%ref_count=mc_env%ref_count+1
 END SUBROUTINE mc_env_retain
 
@@ -158,7 +158,7 @@ SUBROUTINE mc_env_release(mc_env)
   failure=.FALSE.
 
   IF (ASSOCIATED(mc_env)) THEN
-     CPPreconditionNoFail(mc_env%ref_count>0,cp_failure_level,routineP)
+     CPASSERT(mc_env%ref_count>0)
      mc_env%ref_count=mc_env%ref_count-1
      IF (mc_env%ref_count==0) THEN
         mc_env%ref_count=1
@@ -166,7 +166,7 @@ SUBROUTINE mc_env_release(mc_env)
         NULLIFY ( mc_env % force_env)
         mc_env%ref_count=0
         DEALLOCATE(mc_env,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
   END IF
   NULLIFY(mc_env)

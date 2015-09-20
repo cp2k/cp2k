@@ -105,8 +105,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: handle, iw, j, natom, stat
-    LOGICAL                                  :: failure, my_end, &
-                                                setup_velocities
+    LOGICAL                                  :: my_end, setup_velocities
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: velocity
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -259,7 +258,7 @@ CPSourceFileRef,&
                conv_factor=1.0_dp)
        END IF
        DEALLOCATE(velocity,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (my_end) THEN
        CALL cp_assert(j==natom,cp_warning_level,cp_assertion_failed,routineP,&
@@ -473,93 +472,93 @@ CPSourceFileRef,&
              ! Allocate temporary arrays
              IF (do_connectivity) THEN
                 check = PRESENT(atom_info).AND.PRESENT(conn_info)
-                CPPrecondition(check,cp_failure_level,routineP,failure)
+                CPASSERT(check)
                 natom_prev = 0
                 IF(ASSOCIATED(atom_info%id_molname)) natom_prev = SIZE(atom_info%id_molname)
                 ! Allocate for extracting connectivity infos
                 ALLOCATE(labres (nres               ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(ipres  (nres               ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              IF (do_forcefield) THEN
                 ! Allocate for extracting forcefield infos
                 ALLOCATE(iac    (natom              ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(ico    (ntypes*ntypes      ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(rk     (numbnd             ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(req    (numbnd             ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(tk     (numang             ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(teq    (numang             ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(pk     (nptra              ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(pn     (nptra              ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(phase  (nptra              ),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(cn1    (ntypes*(ntypes+1)/2),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(cn2    (ntypes*(ntypes+1)/2),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(asol   (ntypes*(ntypes+1)/2),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(bsol   (ntypes*(ntypes+1)/2),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              ! Always Allocate
              ALLOCATE(ibh    (nbonh              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(jbh    (nbonh              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(icbh   (nbonh              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(ib     (nbona              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(jb     (nbona              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(icb    (nbona              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(ith    (ntheth             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(jth    (ntheth             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(kth    (ntheth             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(icth   (ntheth             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(it     (ntheta             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(jt     (ntheta             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(kt     (ntheta             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(ict    (ntheta             ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(iph    (nphih              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(jph    (nphih              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(kph    (nphih              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(lph    (nphih              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(icph   (nphih              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(ip     (nphia              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(jp     (nphia              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(kp     (nphia              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(lp     (nphia              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              ALLOCATE(icp    (nphia              ),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           CASE("ATOM_NAME")
              ! Atom names are just ignored according the CP2K philosophy
              CYCLE
@@ -567,13 +566,13 @@ CPSourceFileRef,&
              IF (.NOT.do_connectivity) CYCLE
              CALL reallocate(atom_info%id_atmname,1,natom_prev+natom)
              ALLOCATE(strtmp_a(natom), stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              CALL rd_amber_section(parser, section, strtmp_a , natom)
              DO i=1,natom
                 atom_info%id_atmname(natom_prev+i)=str2id(strtmp_a(i))
              ENDDO
              DEALLOCATE(strtmp_a, stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           CASE("CHARGE")
              IF (.NOT.do_connectivity) CYCLE
              CALL reallocate(atom_info%atm_charge,1,natom_prev+natom)
@@ -686,9 +685,9 @@ CPSourceFileRef,&
        ! Conform Amber Names with CHARMM convention (kind<->charge)
        ! ----------------------------------------------------------
        ALLOCATE(isymbl(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(iwork(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        DO i=1,SIZE(isymbl)
           isymbl(i) = id2str(atom_info%id_atmname(natom_prev+i))
@@ -723,13 +722,13 @@ CPSourceFileRef,&
 
        ! Deallocate when extracting connectivity infos
        DEALLOCATE(iwork,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(isymbl,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(labres,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(ipres,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ! ----------------------------------------------------------
        ! Copy connectivity
@@ -784,9 +783,9 @@ CPSourceFileRef,&
 
        IF (nphih+nphia /= 0) THEN
           ALLOCATE(full_torsions(4,nphih+nphia),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(iwork(nphih+nphia),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
           DO i = 1, nphih
              full_torsions(1,i)          = iph(i)
@@ -825,9 +824,9 @@ CPSourceFileRef,&
           CALL reallocate(conn_info%phi_d,1,unique_torsions)
 
           DEALLOCATE(full_torsions,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(iwork,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        ! IMPROPERS
        CALL reallocate(conn_info%impr_a,1,0)
@@ -944,82 +943,82 @@ CPSourceFileRef,&
 
        ! Deallocate at the end of the dirty job
        DEALLOCATE(iac,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(ico,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(rk,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(req,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(tk,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(teq,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(pk,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(pn,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(phase,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(cn1,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(cn2,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(asol,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(bsol,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL timestop(handle2)
     END IF
     ! Always Deallocate
     DEALLOCATE(ibh,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(jbh,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(icbh,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ib,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(jb,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(icb,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ith,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(jth,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(kth,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(icth,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(it,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(jt,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(kt,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ict,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(iph,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(jph,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(kph,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(lph,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(icph,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(ip,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(jp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(kp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(lp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(icp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL parser_release(parser)
     CALL timestop(handle)
     RETURN
@@ -1066,11 +1065,11 @@ CPSourceFileRef,&
     iend = i - 1
     isize= iend-istart+1
     ALLOCATE(cwork(isize),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(lindx(isize),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(cindx(isize),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ind = 0
     DO k = istart, iend
        ind = ind + 1
@@ -1110,11 +1109,11 @@ CPSourceFileRef,&
        END DO
     END IF
     DEALLOCATE(cwork, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(lindx, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(cindx, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE conform_atom_type_low
 
@@ -1529,9 +1528,9 @@ CPSourceFileRef,&
     CALL timeset(routineN, handle)
     IF (nbond/=0) THEN
        ALLOCATE(work_label(2,nbond),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(iwork(nbond),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, nbond
           name_atm_a = particle_set(ib(i))%atomic_kind%name
           name_atm_b = particle_set(jb(i))%atomic_kind%name
@@ -1573,9 +1572,9 @@ CPSourceFileRef,&
        END DO
 
        DEALLOCATE(work_label,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(iwork, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL timestop(handle)
   END SUBROUTINE post_process_bonds_info
@@ -1625,9 +1624,9 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
     IF (ntheta/=0) THEN
        ALLOCATE(work_label(3,ntheta),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(iwork(ntheta),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, ntheta
           name_atm_a = particle_set(it(i))%atomic_kind%name
           name_atm_b = particle_set(jt(i))%atomic_kind%name
@@ -1678,9 +1677,9 @@ CPSourceFileRef,&
        END DO
 
        DEALLOCATE(work_label,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(iwork, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL timestop(handle)
   END SUBROUTINE post_process_bends_info
@@ -1737,9 +1736,9 @@ CPSourceFileRef,&
     CALL timeset(routineN, handle)
     IF (nphi/=0) THEN
        ALLOCATE(work_label(6,nphi),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(iwork(nphi),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i = 1, nphi
           name_atm_a = particle_set(ip(i))%atomic_kind%name
           name_atm_b = particle_set(jp(i))%atomic_kind%name
@@ -1778,7 +1777,7 @@ CPSourceFileRef,&
        m(iphi)    = NINT(pn   (icp(iwork(1))))
        IF (m(iphi)-pn   (icp(iwork(1))).GT.EPSILON(1.0_dp)) THEN
          ! non integer torsions not supported
-         CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+         CPASSERT(.FALSE.)
        ENDIF
 
        phi0(iphi) = phase(icp(iwork(1)))
@@ -1812,16 +1811,16 @@ CPSourceFileRef,&
              m(iphi)    = NINT(pn   (icp(iwork(i))))
              IF (m(iphi)-pn   (icp(iwork(i))).GT.EPSILON(1.0_dp)) THEN
                ! non integer torsions not supported
-               CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+               CPASSERT(.FALSE.)
              ENDIF
              phi0(iphi) = phase(icp(iwork(i)))
           END IF
        END DO
 
        DEALLOCATE(work_label,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(iwork, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL timestop(handle)
   END SUBROUTINE post_process_torsions_info
@@ -1869,9 +1868,9 @@ CPSourceFileRef,&
     failure = .FALSE.
     CALL timeset(routineN, handle)
     ALLOCATE(work_label(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(iwork(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, natom
        name_atm_a = particle_set(i)%atomic_kind%name
        l_dum = qmmm_ff_precond_only_qm(id1=name_atm_a)
@@ -1888,7 +1887,7 @@ CPSourceFileRef,&
     F12 = cn1( ico(ntypes*(iac(iwork(1))-1) + iac(iwork(1))))
     F6  = cn2( ico(ntypes*(iac(iwork(1))-1) + iac(iwork(1))))
     check = (F6==0.0_dp).EQV.(F12==0.0_dp)
-    CPPostcondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     my_sigma = 0.0_dp
     my_eps   = 0.0_dp
     IF (F6/=0.0_dp) THEN
@@ -1912,7 +1911,7 @@ CPSourceFileRef,&
           F12 = cn1( ico(ntypes*(iac(iwork(i))-1) + iac(iwork(i))))
           F6  = cn2( ico(ntypes*(iac(iwork(i))-1) + iac(iwork(i))))
           check = (F6==0.0_dp).EQV.(F12==0.0_dp)
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           my_sigma = 0.0_dp
           my_eps   = 0.0_dp
           IF (F6/=0.0_dp) THEN
@@ -1927,9 +1926,9 @@ CPSourceFileRef,&
     END DO
 
     DEALLOCATE(work_label,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(iwork,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE post_process_LJ_info
 

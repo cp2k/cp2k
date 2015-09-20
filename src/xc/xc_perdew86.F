@@ -142,10 +142,10 @@ CONTAINS
     NULLIFY(bo,rho,e_0,e_rho,e_ndrho,&
          e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
          e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho)
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
+    CPASSERT(ASSOCIATED(deriv_set))
+    CPASSERT(deriv_set%ref_count>0)
 
     ! calculate the perdew_zunger correlation
     CALL pz_lda_eval( pz_orig, rho_set, deriv_set, order, p86_params)
@@ -158,7 +158,7 @@ CONTAINS
     m = ABS(order)
 
     ALLOCATE ( rs(npoints), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL calc_rs_pw ( rho, rs, npoints )
     IF ( order>=0 ) THEN
@@ -217,7 +217,7 @@ CONTAINS
             error_level=cp_failure_level)
     END IF
     DEALLOCATE ( rs, STAT=stat )
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
     CALL timestop(handle)
 
   END SUBROUTINE p86_lda_eval

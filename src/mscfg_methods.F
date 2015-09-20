@@ -92,7 +92,7 @@ CONTAINS
     failure = .FALSE.
 
     CALL force_env_get(force_env,qs_env=qs_env)
-    CPPostcondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
     CALL get_qs_env(qs_env,&
       molecule_set=molecule_set)
 
@@ -179,7 +179,7 @@ CONTAINS
     CALL force_env_get(force_env, force_env_section=force_env_section, &
             qs_env=qs_env)
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=force_method)
-    CPPostcondition(force_method.eq.do_qs,cp_failure_level,routineP,failure)
+    CPASSERT(force_method.eq.do_qs)
     root_section   => force_env%root_section
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS")
     dft_section    => section_vals_get_subs_vals(force_env_section,"DFT")
@@ -198,7 +198,7 @@ CONTAINS
          cell=cell)
     CALL cp_subsys_get(subsys, particles=particles)
     CALL get_qs_env(qs_env, mscfg_env=mscfg_env)
-    CPPostcondition(ASSOCIATED(mscfg_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mscfg_env))
     !
     ! These flags determine the options of molecular runs (e.g. cell size)
     !
@@ -247,7 +247,7 @@ CONTAINS
        ! Get atom type names
        !
        ALLOCATE(atom_type(isize), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO j = 1, isize
           my_targ = atom_index(j)
           DO k = 1, SIZE(particles%els)
@@ -288,7 +288,7 @@ CONTAINS
        !
        mscfg_env%energy_of_frag(ifrag) = qs_energy%total
        nmosets_of_frag=SIZE(mos_of_frag)
-       CPPostcondition(nmosets_of_frag.le.mscfg_max_moset_size,cp_failure_level,routineP,failure)
+       CPASSERT(nmosets_of_frag.le.mscfg_max_moset_size)
        mscfg_env%nmosets_of_frag(ifrag)=nmosets_of_frag
        DO imo=1,nmosets_of_frag
           ! the matrices have been allocated already - copy the results there  
@@ -305,9 +305,9 @@ CONTAINS
        NULLIFY(qs_energy)
        CALL qs_env_release(qs_env_loc)
        DEALLOCATE(atom_index, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(atom_type, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
     END DO
 
@@ -397,8 +397,7 @@ CONTAINS
     INTEGER                                  :: almo_guess_type, &
                                                 frz_term_type, &
                                                 method_name_id, scf_guess_type
-    LOGICAL                                  :: failure, is_crystal, &
-                                                is_fast_dirty
+    LOGICAL                                  :: is_crystal, is_fast_dirty
     TYPE(molecular_scf_guess_env_type), &
       POINTER                                :: mscfg_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -416,10 +415,10 @@ CONTAINS
     IF (method_name_id.eq.do_qs) THEN
 
        CALL force_env_get(force_env, qs_env=qs_env)
-       CPPostcondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(qs_env))
        
        CALL get_qs_env(qs_env, mscfg_env=mscfg_env)
-       CPPostcondition(ASSOCIATED(mscfg_env),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(mscfg_env))
      
        !!!! RZK-warning: All decisions are based on the values of input keywords
        !!!! The real danger is that many of these keywords might not be even

@@ -169,7 +169,7 @@ CPSourceFileRef,&
     CASE(use_perd_none)
        cell%perd = (/0,0,0/)
     CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     ! Load requested cell symmetry
@@ -216,7 +216,7 @@ CPSourceFileRef,&
     IF (PRESENT(check_this_section)) my_check = check_this_section
     res=ASSOCIATED(input_file)
     IF (res) THEN
-       CPPrecondition(input_file%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(input_file%ref_count>0)
        IF (.NOT.my_check) THEN
           glob_section => section_vals_get_subs_vals(input_file,"GLOBAL")
           CALL section_vals_get(glob_section,explicit=res)
@@ -328,15 +328,15 @@ CPSourceFileRef,&
          only_ionode=.TRUE.)
     ! Copy cell information in the A, B, C fields..(we may need them later on..)
     ALLOCATE(cell_par(3), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     cell_par = hmat(:,1)
     CALL section_vals_val_set(cell_section,"A",r_vals_ptr=cell_par)
     ALLOCATE(cell_par(3), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     cell_par = hmat(:,2)
     CALL section_vals_val_set(cell_section,"B",r_vals_ptr=cell_par)
     ALLOCATE(cell_par(3), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     cell_par = hmat(:,3)
     CALL section_vals_val_set(cell_section,"C",r_vals_ptr=cell_par)
     ! Unset possible keywords

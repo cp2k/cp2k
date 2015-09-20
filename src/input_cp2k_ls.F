@@ -62,7 +62,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"LS_SCF",&
          description="Specifies the parameters of the linear scaling SCF routines",&
          n_keywords=24, n_subsections=3, repeats=.FALSE., &
@@ -297,7 +297,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,"CHEBYSHEV",&
          description="Specifies the parameters needed for the chebyshev expansion based properties.",&
@@ -378,7 +378,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"CURVY_STEPS",&
          description="Specifies the parameters of the linear scaling SCF routines",&
          n_keywords=24, n_subsections=3, repeats=.FALSE., &
@@ -454,7 +454,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,"PEXSI",&
          description="Specifies the parameters of the PEXSI library. The density matrix is calculated "//&

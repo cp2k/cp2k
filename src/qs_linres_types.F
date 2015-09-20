@@ -250,9 +250,9 @@ CONTAINS
 
      failure =.FALSE.
 
-     CPPrecondition(.NOT.ASSOCIATED(linres_control),cp_failure_level,routineP,failure)
+     CPASSERT(.NOT.ASSOCIATED(linres_control))
      ALLOCATE (linres_control,STAT=istat)
-     CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      linres_control%ref_count=1
      NULLIFY(linres_control%qs_loc_env)
      linres_control%property            = HUGE(0)!is that used?
@@ -287,14 +287,14 @@ CONTAINS
      failure =.FALSE.
 
      IF (ASSOCIATED(linres_control)) THEN
-       CPPostcondition(linres_control%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(linres_control%ref_count>0)
        linres_control%ref_count=linres_control%ref_count-1
        IF(linres_control%ref_count<1)THEN
          IF(ASSOCIATED(linres_control%qs_loc_env)) THEN
            CALL qs_loc_env_release(linres_control%qs_loc_env)
          END IF
          DEALLOCATE(linres_control,STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
        END IF
      END IF
      NULLIFY(linres_control)
@@ -315,8 +315,8 @@ CONTAINS
 
      failure =.FALSE.
 
-     CPPrecondition(ASSOCIATED(linres_control),cp_failure_level,routineP,failure)
-     CPPostcondition(linres_control%ref_count>0,cp_failure_level,routineP,failure)
+     CPASSERT(ASSOCIATED(linres_control))
+     CPASSERT(linres_control%ref_count>0)
      linres_control%ref_count=linres_control%ref_count+1
 
   END SUBROUTINE linres_control_retain
@@ -336,7 +336,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(current_env%ref_count==0, cp_failure_level,routineP,failure)
+    CPASSERT(current_env%ref_count==0)
     current_env%ref_count = 1
     current_env%nao           = HUGE(1)
     current_env%gauge         = HUGE(1)
@@ -381,7 +381,7 @@ CONTAINS
 
      failure =.FALSE.
 
-     CPPrecondition(nmr_env%ref_count==0, cp_failure_level,routineP,failure)
+     CPASSERT(nmr_env%ref_count==0)
      nmr_env%ref_count = 1
      NULLIFY(nmr_env%chemical_shift)
      NULLIFY(nmr_env%chemical_shift_loc)
@@ -408,7 +408,7 @@ CONTAINS
 
      failure =.FALSE.
 
-     CPPrecondition(issc_env%ref_count==0, cp_failure_level,routineP,failure)
+     CPASSERT(issc_env%ref_count==0)
      issc_env%ref_count = 1
      NULLIFY(issc_env%issc)
      NULLIFY(issc_env%issc_loc)
@@ -442,7 +442,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(epr_env%ref_count==0, cp_failure_level,routineP,failure)
+    CPASSERT(epr_env%ref_count==0)
     epr_env%ref_count = 1
     NULLIFY(epr_env%nablavks_set)
     NULLIFY(epr_env%nablavks_atom_set)
@@ -538,7 +538,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(current_env%ref_count>0, cp_failure_level,routineP,failure)
+    CPASSERT(current_env%ref_count>0)
 
     IF(PRESENT(simple_done     )) simple_done(1:6)      = current_env%simple_done(1:6)
     IF(PRESENT(simple_converged)) simple_converged(1:6) = current_env%simple_converged(1:6)
@@ -611,7 +611,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(nmr_env%ref_count>0, cp_failure_level,routineP,failure)
+    CPASSERT(nmr_env%ref_count>0)
 
     IF(PRESENT(n_nics             )) n_nics              =  nmr_env%n_nics
     IF(PRESENT(cs_atom_list       )) cs_atom_list        => nmr_env%cs_atom_list
@@ -685,7 +685,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(issc_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(issc_env%ref_count>0)
 
     IF(PRESENT(issc_on_atom_list)) issc_on_atom_list => issc_env%issc_on_atom_list
     IF(PRESENT(issc_gapw_radius )) issc_gapw_radius  =  issc_env%issc_gapw_radius
@@ -733,7 +733,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(current_env%ref_count>0, cp_failure_level,routineP,failure)
+    CPASSERT(current_env%ref_count>0)
 
 
     IF(PRESENT(jrho1_atom_set)) THEN
@@ -774,7 +774,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(nmr_env%ref_count>0, cp_failure_level,routineP,failure)
+    CPASSERT(nmr_env%ref_count>0)
 
     IF(PRESENT(shift_factor   )) nmr_env%chi_factor      = chi_factor
     IF(PRESENT(shift_factor   )) nmr_env%chi_factor      = chi_factor
@@ -797,7 +797,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(issc_env%ref_count>0, cp_failure_level,routineP,failure)
+    CPASSERT(issc_env%ref_count>0)
 
   END SUBROUTINE set_issc_env
 
@@ -834,7 +834,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(epr_env%ref_count>0, cp_failure_level,routineP,failure)
+    CPASSERT(epr_env%ref_count>0)
 
     IF(PRESENT(g_total)) g_total => epr_env%g_total
     IF(PRESENT(g_so)) g_so => epr_env%g_so
@@ -878,7 +878,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(epr_env%ref_count>0, cp_failure_level,routineP,failure)
+    CPASSERT(epr_env%ref_count>0)
 
     IF(PRESENT(g_free_factor)) epr_env%g_free_factor=g_free_factor
     IF(PRESENT(g_zke_factor)) epr_env%g_zke_factor=g_zke_factor
@@ -927,7 +927,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(nablavks_atom_set(natom), STAT=istat)
-    CPPrecondition(istat==0, cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO iat = 1,natom
        NULLIFY(nablavks_atom_set(iat)%nablavks_vec_rad_h)
@@ -952,7 +952,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(nablavks_atom_set),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(nablavks_atom_set))
     natom = SIZE(nablavks_atom_set)
 
     DO iat = 1,natom
@@ -962,20 +962,20 @@ CONTAINS
              DO i=1,n
                 DO idir = 1,3
                    DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h(idir,i)%r_coef,STAT=istat)
-                   CPPrecondition(istat==0, cp_failure_level,routineP,failure)
+                   CPASSERT(istat==0)
                    DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s(idir,i)%r_coef,STAT=istat)
-                   CPPrecondition(istat==0, cp_failure_level,routineP,failure)
+                   CPASSERT(istat==0)
                 ENDDO
              ENDDO
           ENDIF
           DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_h,STAT=istat)
-          CPPrecondition(istat==0, cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           DEALLOCATE(nablavks_atom_set(iat)%nablavks_vec_rad_s,STAT=istat)
-          CPPrecondition(istat==0, cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
     ENDDO
     DEALLOCATE(nablavks_atom_set, STAT=istat)
-    CPPrecondition(istat==0, cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
   END SUBROUTINE deallocate_nablavks_atom_set
 
 ! *****************************************************************************
@@ -998,7 +998,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE(jrho_atom_set(natom), STAT=istat)
-    CPPrecondition(istat==0, cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO iat = 1,natom
        NULLIFY(jrho_atom_set(iat)%cjc0_h)
@@ -1045,7 +1045,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(jrho_atom_set),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(jrho_atom_set))
     natom = SIZE(jrho_atom_set)
 
     DO iat = 1,natom
@@ -1064,7 +1064,7 @@ CONTAINS
                            jrho_atom_set(iat)%cjc_iii_h(i)%r_coef,&
                            jrho_atom_set(iat)%cjc_iii_s(i)%r_coef,&
                            STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
              END DO
           END IF
           DEALLOCATE(jrho_atom_set(iat)%cjc0_h,&
@@ -1076,7 +1076,7 @@ CONTAINS
                      jrho_atom_set(iat)%cjc_iii_h,&
                      jrho_atom_set(iat)%cjc_iii_s,&
                      STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
 
        IF(ASSOCIATED(jrho_atom_set(iat)%jrho_a_h)) THEN
@@ -1100,7 +1100,7 @@ CONTAINS
                            jrho_atom_set(iat)%jrho_b_h_iii(i)%r_coef,&
                            jrho_atom_set(iat)%jrho_b_s_iii(i)%r_coef,&
                            STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
              END DO
           END IF
           DEALLOCATE(jrho_atom_set(iat)%jrho_h,&
@@ -1118,7 +1118,7 @@ CONTAINS
                      jrho_atom_set(iat)%jrho_b_h_iii,&
                      jrho_atom_set(iat)%jrho_b_s_iii,&
                      STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
 
        IF(ASSOCIATED(jrho_atom_set(iat)%jrho_vec_rad_h)) THEN
@@ -1131,18 +1131,18 @@ CONTAINS
                    DEALLOCATE(jrho_atom_set(iat)%jrho_vec_rad_h(idir,i)%r_coef,&
                               jrho_atom_set(iat)%jrho_vec_rad_s(idir,i)%r_coef,&
                               STAT=istat)
-                   CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(istat==0)
                 END DO
              END DO
           ENDIF
           DEALLOCATE(jrho_atom_set(iat)%jrho_vec_rad_h,&
                      jrho_atom_set(iat)%jrho_vec_rad_s,&
                      STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        END IF
     END DO
     DEALLOCATE(jrho_atom_set,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE deallocate_jrho_atom_set
 
@@ -1169,14 +1169,14 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(jrho1_atom))
 
 
     DO idir = 1,3
        ALLOCATE(jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef(nr,na),&
                 jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef(nr,na),&
                 STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        jrho1_atom%jrho_vec_rad_h(idir,ispin)%r_coef = 0.0_dp
        jrho1_atom%jrho_vec_rad_s(idir,ispin)%r_coef = 0.0_dp
     ENDDO
@@ -1196,7 +1196,7 @@ CONTAINS
              jrho1_atom%jrho_b_h_iii(ispin)%r_coef(nr,max_iso_not0),&
              jrho1_atom%jrho_b_s_iii(ispin)%r_coef(nr,max_iso_not0),&
              STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     jrho1_atom%jrho_h(ispin)%r_coef = 0.0_dp
     jrho1_atom%jrho_s(ispin)%r_coef = 0.0_dp
@@ -1233,7 +1233,7 @@ CONTAINS
 
     failure = .FALSE.
     !
-    CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(jrho1_atom))
     !
     jrho1_atom%jrho_h(ispin)%r_coef = 0.0_dp
     jrho1_atom%jrho_s(ispin)%r_coef = 0.0_dp
@@ -1277,7 +1277,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(jrho1_atom_set))
     DO i = 1,SIZE(jrho1_atom_set(iatom)%cjc0_h,1)
        ALLOCATE(jrho1_atom_set(iatom)%cjc0_h(i)%r_coef(nsotot,nsotot),&
                 jrho1_atom_set(iatom)%cjc0_s(i)%r_coef(nsotot,nsotot),&
@@ -1288,7 +1288,7 @@ CONTAINS
                 jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef(nsotot,nsotot),&
                 jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef(nsotot,nsotot),&
                 STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        jrho1_atom_set(iatom)%cjc0_h(i)%r_coef = 0.0_dp
        jrho1_atom_set(iatom)%cjc0_s(i)%r_coef = 0.0_dp
        jrho1_atom_set(iatom)%cjc_h(i)%r_coef = 0.0_dp
@@ -1322,7 +1322,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(jrho1_atom_set))
     DO i = 1,SIZE(jrho1_atom_set(iatom)%cjc0_h,1)
        DEALLOCATE(jrho1_atom_set(iatom)%cjc0_h(i)%r_coef,&
                   jrho1_atom_set(iatom)%cjc0_s(i)%r_coef,&
@@ -1333,7 +1333,7 @@ CONTAINS
                   jrho1_atom_set(iatom)%cjc_iii_h(i)%r_coef,&
                   jrho1_atom_set(iatom)%cjc_iii_s(i)%r_coef,&
                   STAT=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     ENDDO
     CALL timestop(handle)
   END SUBROUTINE deallocate_jrho_coeff
@@ -1372,7 +1372,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(jrho1_atom_set),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(jrho1_atom_set))
 
     IF(PRESENT(cjc_h         )) cjc_h          => jrho1_atom_set(iatom)%cjc_h
     IF(PRESENT(cjc_s         )) cjc_s          => jrho1_atom_set(iatom)%cjc_s
@@ -1411,7 +1411,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(atomic_kind_set))
 
     IF(ASSOCIATED(jrho1_atom_set)) THEN
        CALL deallocate_jrho_atom_set(jrho1_atom_set)
@@ -1456,7 +1456,7 @@ CONTAINS
                    jrho1_atom_set(iatom)%cjc_iii_h(nspins),&
                    jrho1_atom_set(iatom)%cjc_iii_s(nspins),&
                    STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
 
           DO ispin = 1,nspins
              DO idir = 1,3
@@ -1528,7 +1528,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(qs_kind_set),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_kind_set))
 
     IF(ASSOCIATED(nablavks_atom_set)) THEN
       CALL deallocate_nablavks_atom_set(nablavks_atom_set)
@@ -1559,17 +1559,17 @@ CONTAINS
           !*** allocate the radial density for each LM,for each atom ***
 
             ALLOCATE (nablavks_atom_set(iatom)%nablavks_vec_rad_h(3,nspins),STAT=istat)
-            CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
             ALLOCATE (nablavks_atom_set(iatom)%nablavks_vec_rad_s(3,nspins),STAT=istat)
-            CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
             DO ispin = 1,nspins
               DO idir = 1,3
                 NULLIFY(nablavks_atom_set(iatom)%nablavks_vec_rad_h(idir,ispin)%r_coef)
                 NULLIFY(nablavks_atom_set(iatom)%nablavks_vec_rad_s(idir,ispin)%r_coef)
                 ALLOCATE(nablavks_atom_set(iatom)%nablavks_vec_rad_h(idir,ispin)%r_coef(nr,na),STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
                 ALLOCATE(nablavks_atom_set(iatom)%nablavks_vec_rad_s(idir,ispin)%r_coef(nr,na),STAT=istat)
-                CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                CPASSERT(istat==0)
               END DO
             END DO  ! ispin
        END DO  ! iat
@@ -1594,7 +1594,7 @@ CONTAINS
 
      failure =.FALSE.
 
-     CPPrecondition(polar_env%ref_count==0, cp_failure_level,routineP,failure)
+     CPASSERT(polar_env%ref_count==0)
      polar_env%ref_count = 1
 !        polar_env%do_raman=.FALSE.
      NULLIFY(polar_env%polar)
@@ -1632,7 +1632,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(polar_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(polar_env%ref_count>0)
 
     IF(PRESENT(polar))             polar => polar_env%polar
     IF(PRESENT(psi1_dBerry )) psi1_dBerry => polar_env%psi1_dBerry
@@ -1658,7 +1658,7 @@ CONTAINS
 
     failure =.FALSE.
 
-    CPPrecondition(polar_env%ref_count>0, cp_failure_level,routineP,failure)
+    CPASSERT(polar_env%ref_count>0)
 
   END SUBROUTINE set_polar_env
 ! *****************************************************************************

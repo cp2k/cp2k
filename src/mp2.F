@@ -266,7 +266,7 @@ MODULE mp2
     natom = SIZE(particle_set,1)
 
     ALLOCATE(kind_of(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
     nkind = SIZE(atomic_kind_set,1)
@@ -283,7 +283,7 @@ MODULE mp2
     END DO
 
     CALL get_mo_set( mo_set=mos(1)%mo_set,nao=nao)
-    CPPostcondition(dimen==nao,cp_failure_level,routineP,failure)
+    CPASSERT(dimen==nao)
 
     ! diagonalize the KS matrix in order to have the full set of MO's
     ! get S and KS matrices in fm_type (create also a working array)
@@ -312,7 +312,7 @@ MODULE mp2
 
     NULLIFY(mos_mp2)
     ALLOCATE(mos_mp2(nspins),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ispin=1, nspins
       CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=maxocc,nelectron=nelectron)
 
@@ -370,7 +370,7 @@ MODULE mp2
     !   build the table of index
     t1=m_walltime()
     ALLOCATE(mp2_biel%index_table(natom,max_nset),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL build_index_table(natom,max_nset,mp2_biel%index_table,basis_parameter,kind_of)
 
@@ -463,10 +463,10 @@ MODULE mp2
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
          ALLOCATE(C_alpha(dimen,dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
          ALLOCATE(Auto_alpha(dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
          CALL cp_fm_get_submatrix(mo_coeff,C_alpha, 1, 1, dimen, dimen, .FALSE.)
          Auto_alpha(:)=mo_eigenvalues(:)
@@ -477,10 +477,10 @@ MODULE mp2
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
          ALLOCATE(C_beta(dimen,dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
          ALLOCATE(Auto_beta(dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
          CALL cp_fm_get_submatrix(mo_coeff,C_beta, 1, 1, dimen, dimen, .FALSE.)
          Auto_beta(:)=mo_eigenvalues(:)
@@ -529,10 +529,10 @@ MODULE mp2
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
          ALLOCATE(C(dimen,dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
          ALLOCATE(Auto(dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
 
          CALL cp_fm_get_submatrix(mo_coeff,C, 1, 1, dimen, dimen, .FALSE.)
@@ -557,10 +557,10 @@ MODULE mp2
                     eigenvalues=mo_eigenvalues,&
                     mo_coeff=mo_coeff)
        ALLOCATE(C(dimen,dimen),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        ALLOCATE(Auto(dimen),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        CALL cp_fm_get_submatrix(mo_coeff,C, 1, 1, dimen, dimen, .FALSE.)
        Auto(:)=mo_eigenvalues(:)
@@ -572,10 +572,10 @@ MODULE mp2
                       eigenvalues=mo_eigenvalues,&
                       mo_coeff=mo_coeff)
          ALLOCATE(C_beta(dimen,dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
          ALLOCATE(Auto_beta(dimen),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
          CALL cp_fm_get_submatrix(mo_coeff,C_beta, 1, 1, dimen, dimen, .FALSE.)
          Auto_beta(:)=mo_eigenvalues(:)
@@ -634,7 +634,7 @@ MODULE mp2
                           mos_mp2,para_env,unit_nr,calc_forces,calc_ex,do_ri_sos_laplace_mp2=.TRUE.)
 
      CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
    END SELECT
    t2=m_walltime()
    IF (unit_nr>0) WRITE(unit_nr,*)
@@ -888,7 +888,7 @@ MODULE mp2
     total_I_size_batch_group=occ_i/number_i_subset
     IF(total_I_size_batch_group<1) total_I_size_batch_group=1
     ALLOCATE(vector_batch_I_size_group(0:number_i_subset-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     vector_batch_I_size_group=0
     DO i=0, number_i_subset-1
@@ -909,7 +909,7 @@ MODULE mp2
     total_J_size_batch_group=occ_j/number_j_subset
     IF(total_J_size_batch_group<1) total_J_size_batch_group=1
     ALLOCATE(vector_batch_J_size_group(0:number_j_subset-1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     vector_batch_J_size_group=0
     DO i=0, number_J_subset-1
@@ -967,7 +967,7 @@ MODULE mp2
     ! create the size of the batches inside the group
     my_batch_size=my_I_batch_size
     ALLOCATE(batch_sizes(my_batch_size),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     batch_sizes=-HUGE(0)
     batch_number=0
@@ -983,11 +983,11 @@ MODULE mp2
     END IF
 
     ALLOCATE(batch_sizes_tmp(batch_number),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     batch_sizes_tmp(1:batch_number)=batch_sizes(1:batch_number)
     DEALLOCATE(batch_sizes)
     ALLOCATE(batch_sizes(batch_number),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     batch_sizes(:)=batch_sizes_tmp
     DEALLOCATE(batch_sizes_tmp)
 
@@ -1002,7 +1002,7 @@ MODULE mp2
     END IF
 
     ! Batches sizes exceed the occupied orbitals allocated for group
-    CPPostcondition(SUM(batch_sizes)<=my_batch_size,cp_failure_level,routineP,failure)
+    CPASSERT(SUM(batch_sizes)<=my_batch_size)
 
     virt_i=dimen-occ_i
     virt_j=dimen-occ_j
@@ -1021,7 +1021,7 @@ MODULE mp2
 
          counter=-1
          ALLOCATE(ij_matrix(Ni_occupied,Nj_occupied),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
          ij_matrix=0
          DO i=1, Ni_occupied
@@ -1034,7 +1034,7 @@ MODULE mp2
          END DO
 
          ALLOCATE(ij_list_proc_temp(Ni_occupied*occ_j,2),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
          elements_ij_proc=0
          DO i=1, Ni_occupied
@@ -1202,7 +1202,7 @@ MODULE mp2
                                                 gw_corr_lev_virt, homo, irep, &
                                                 ispin, myfun, n_rep_hf, nmo, &
                                                 ns, stat
-    LOGICAL                                  :: do_hfx, failure
+    LOGICAL                                  :: do_hfx
     REAL(KIND=dp)                            :: hfx_fraction, t1, t2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vec_Sigma_x_minus_vxc_gw
@@ -1328,7 +1328,7 @@ MODULE mp2
 
       IF(ispin==1) THEN 
         ALLOCATE(vec_Sigma_x_minus_vxc_gw(nmo,dft_control%nspins),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         vec_Sigma_x_minus_vxc_gw=0.0_dp
       END IF
  
@@ -1395,7 +1395,7 @@ MODULE mp2
     END DO
 
     ALLOCATE(mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(nmo,dft_control%nspins),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! store vec_Sigma_x_minus_vxc_gw in the mp2_environment
     mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,:) = vec_Sigma_x_minus_vxc_gw(:,:)

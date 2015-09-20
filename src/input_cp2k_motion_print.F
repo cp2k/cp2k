@@ -258,8 +258,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(keyword),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section))
+    CPASSERT(.NOT.ASSOCIATED(keyword))
 
     IF (pos) THEN
 

@@ -72,7 +72,7 @@ CONTAINS
     nc = nsubcell(3)
 
     ALLOCATE (subcell(na,nb,nc),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     delta_a = 1.0_dp/REAL(na,dp)
     delta_b = 1.0_dp/REAL(nb,dp)
@@ -107,7 +107,7 @@ CONTAINS
           END IF
           IF (PRESENT(maxatom)) THEN
              ALLOCATE (subcell(i,j,k)%atom_list(maxatom),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           a_min = a_max
         END DO
@@ -143,15 +143,15 @@ CONTAINS
           DO j=1,SIZE(subcell,2)
              DO i=1,SIZE(subcell,1)
                 DEALLOCATE (subcell(i,j,k)%atom_list,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END DO
           END DO
        END DO
 
        DEALLOCATE (subcell,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END IF
 
   END SUBROUTINE deallocate_subcell

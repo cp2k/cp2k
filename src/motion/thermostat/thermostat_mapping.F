@@ -111,8 +111,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY ( const_mol, tot_const, point)
-    CPPostcondition(.NOT.ASSOCIATED(deg_of_freedom),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.ASSOCIATED(massive_atom_list),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(deg_of_freedom))
+    CPASSERT(.NOT.ASSOCIATED(massive_atom_list))
 
     nkind = SIZE(molecule_kind_set)
     CALL adiabatic_region_evaluate(map_info%dis_type, natoms_local, nmol_local,&
@@ -127,21 +127,21 @@ CONTAINS
        ! STOP PROGRAM
     END SELECT
     ALLOCATE (map_info%s_kin(nsize),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (map_info%v_scale(nsize),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (map_info%p_kin(3,natoms_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (map_info%p_scale(3,natoms_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 ! nullify thermostat pointers
     ! Allocate index array to 1
     ALLOCATE ( map_info%index(1), STAT=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE ( map_info%map_index(1), STAT=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (deg_of_freedom(1),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL massive_list_generate (molecule_set, molecule_kind_set, &
          local_molecules, para_env, massive_atom_list, region, shell)
@@ -158,11 +158,11 @@ CONTAINS
 !    check = (number==number_of_thermostats)
 !    CPPrecondition(check,cp_fatal_level,routineP,failure)
     DEALLOCATE (const_mol,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (tot_const,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (point, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -229,7 +229,7 @@ CONTAINS
     IF ( region==do_region_global) THEN
        ! Global Region
        check = ( map_info%dis_type == do_thermo_communication )
-       CPPostcondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        DO ikind = 1, nkind
           DO jj = point ( 1, ikind ), point ( 2, ikind )
              IF ( map_loc_thermo_gen ( jj ) /= HUGE ( 0 ) ) THEN
@@ -301,7 +301,7 @@ CONTAINS
        ELSE IF ( map_info%dis_type == do_thermo_communication ) THEN
           ! This case is quite rare and happens only when we have one molecular
           ! kind and one molecule..
-          CPPostcondition(nkind==1,cp_failure_level,routineP,failure)
+          CPASSERT(nkind==1)
           number = number + 1
           ntherm = ntherm + 1
           map_info%index(ntherm)     = ntherm
@@ -321,7 +321,7 @@ CONTAINS
                END DO
           END DO
        ELSE
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
        IF (nglob_cns/=0) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
@@ -330,7 +330,7 @@ CONTAINS
     ELSE IF ( region==do_region_massive) THEN
        ! Massive Region
        check = ( map_info%dis_type == do_thermo_no_communication )
-       CPPostcondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        DO ikind = 1, nkind
           nmol_local =  local_molecules % n_el ( ikind )
           DO imol_local = 1, nmol_local
@@ -429,7 +429,6 @@ CONTAINS
     INTEGER :: atm_offset, first_atom, handle, icount, ikind, ilist, imol, &
       imol_local, katom, last_atom, natom, nc, nfixd, nkind, nmol_per_kind, &
       nmolecule, nshell, stat
-    LOGICAL                                  :: failure
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -457,16 +456,16 @@ CONTAINS
        END IF
     END DO
 
-    CPPostcondition(.NOT.ASSOCIATED(const_mol),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.ASSOCIATED(tot_const),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.ASSOCIATED(point),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(const_mol))
+    CPASSERT(.NOT.ASSOCIATED(tot_const))
+    CPASSERT(.NOT.ASSOCIATED(point))
     IF ( dis_type == do_thermo_no_communication ) THEN
        ALLOCATE ( const_mol (nmol_local), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( tot_const (nmol_local), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( point (2, nmol_local), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
 
        point (:,:)= 0
        atm_offset = 0
@@ -513,11 +512,11 @@ CONTAINS
        END DO
     ELSE IF ( dis_type == do_thermo_communication ) THEN
        ALLOCATE ( const_mol ( nkind ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( tot_const ( nkind ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( point ( 2, nkind ), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        point ( :, : ) = 0
        atm_offset     = 0
        ! nc keeps track of all constraints but not fixed ones..
@@ -599,8 +598,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY ( const_mol, tot_const, point)
-    CPPostcondition(.NOT.ASSOCIATED(deg_of_freedom),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.ASSOCIATED(massive_atom_list),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(deg_of_freedom))
+    CPASSERT(.NOT.ASSOCIATED(massive_atom_list))
 
     nkind = SIZE(molecule_kind_set)
     CALL mapping_region_evaluate(map_info%dis_type, natoms_local, nmol_local,&
@@ -615,20 +614,20 @@ CONTAINS
        nsize = sum_of_thermostats
     END SELECT
     ALLOCATE (map_info%s_kin(nsize),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (map_info%v_scale(nsize),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (map_info%p_kin(3,natoms_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (map_info%p_scale(3,natoms_local),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Allocate index array
     ALLOCATE ( map_info%index(number), STAT=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE ( map_info%map_index(number), STAT=stat)
-    CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (deg_of_freedom(number),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL massive_list_generate (molecule_set, molecule_kind_set, &
          local_molecules, para_env, massive_atom_list, region, shell)
@@ -639,13 +638,13 @@ CONTAINS
          map_loc_thermo_gen)
 
     check = (number==number_of_thermostats)
-    CPPrecondition(check,cp_fatal_level,routineP,failure)
+    CPASSERT(check)
     DEALLOCATE (const_mol,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (tot_const,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (point, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -711,7 +710,7 @@ CONTAINS
     IF ( region==do_region_global) THEN
        ! Global Region
        check = ( map_info%dis_type == do_thermo_communication )
-       CPPostcondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        DO ikind = 1, nkind
           DO jj = point ( 1, ikind ), point ( 2, ikind )
              DO ii = 1, 3
@@ -728,13 +727,13 @@ CONTAINS
     ELSE IF ( region==do_region_defined) THEN
        ! User defined Region to thermostat
        check = ( map_info%dis_type == do_thermo_communication )
-       CPPostcondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        ! Lets' identify the matching of the local thermostat w.r.t. the global one
        itmp = SIZE(map_loc_thermo_gen)
        ALLOCATE(tmp(itmp),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(wrk(itmp),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        tmp(:) = map_loc_thermo_gen
        CALL sort(tmp, itmp, wrk)
        number = 1
@@ -750,9 +749,9 @@ CONTAINS
           END IF
        END DO
        DEALLOCATE(tmp,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(wrk,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO jj = 1, SIZE(map_loc_thermo_gen)
           DO ii = 1, 3
              imap = map_loc_thermo_gen(jj)
@@ -787,7 +786,7 @@ CONTAINS
        ELSE IF ( map_info%dis_type == do_thermo_communication ) THEN
           ! This case is quite rare and happens only when we have one molecular
           ! kind and one molecule..
-          CPPostcondition(nkind==1,cp_failure_level,routineP,failure)
+          CPASSERT(nkind==1)
           number = number + 1
           map_info%index(number)     = number
           map_info%map_index(number) = number
@@ -799,7 +798,7 @@ CONTAINS
              END DO
           END DO
        ELSE
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
        IF (nglob_cns/=0) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
@@ -808,7 +807,7 @@ CONTAINS
     ELSE IF ( region==do_region_massive) THEN
        ! Massive Region
        check = ( map_info%dis_type == do_thermo_no_communication )
-       CPPostcondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        DO ikind = 1, nkind
           nmol_local =  local_molecules % n_el ( ikind )
           DO imol_local = 1, nmol_local
@@ -895,7 +894,6 @@ CONTAINS
     INTEGER :: atm_offset, first_atom, handle, i, iatm, icount, id_region, &
       ikind, ilist, imol, imol_local, j, jatm, katom, last_atom, natom, nc, &
       nfixd, nkind, nmol_per_kind, nmolecule, nshell, stat
-    LOGICAL                                  :: failure
     TYPE(colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: colv_list
     TYPE(fixd_constraint_type), &
@@ -929,16 +927,16 @@ CONTAINS
        END IF
     END DO
 
-    CPPostcondition(.NOT.ASSOCIATED(const_mol),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.ASSOCIATED(tot_const),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.ASSOCIATED(point),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(const_mol))
+    CPASSERT(.NOT.ASSOCIATED(tot_const))
+    CPASSERT(.NOT.ASSOCIATED(point))
     IF ( dis_type == do_thermo_no_communication ) THEN
        ALLOCATE ( const_mol (nmol_local), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( tot_const (nmol_local), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE ( point (2, nmol_local), STAT = stat )
-       CPPrecondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
 
        point (:,:)= 0
        atm_offset = 0
@@ -987,11 +985,11 @@ CONTAINS
        IF (region==do_region_defined) THEN
           ! Setup of the arbitrary region
           ALLOCATE ( tot_const (sum_of_thermostats), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE ( point (2, 0), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE ( const_mol (0), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           atm_offset = 0
           tot_const  = 0
           const_mol  = 0
@@ -1119,11 +1117,11 @@ CONTAINS
           CALL mp_sum(tot_const, para_env%group)
        ELSE
           ALLOCATE ( const_mol ( nkind ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE ( tot_const ( nkind ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE ( point ( 2, nkind ), STAT = stat )
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           point ( :, : ) = 0
           atm_offset     = 0
           ! nc keeps track of all constraints but not fixed ones..
@@ -1220,18 +1218,18 @@ CONTAINS
     END DO
 
     ALLOCATE(array_num_massive_atm(para_env%num_pe), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL mp_allgather(num_massive_atm_local,array_num_massive_atm,para_env%group)
 
     num_massive_atm = SUM(array_num_massive_atm)
     ALLOCATE(massive_atom_list(num_massive_atm), STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     offset = 0
     DO iproc=1,para_env%num_pe
        ncount = array_num_massive_atm(iproc)
        ALLOCATE(work(ncount), STAT = stat )
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF(para_env%mepos == (iproc-1)) THEN
           DO i=1,ncount
              work(i) = local_atm_list(i)
@@ -1244,7 +1242,7 @@ CONTAINS
           massive_atom_list(offset+i) = work(i)
        END DO
        DEALLOCATE(work, STAT = stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        offset = offset + array_num_massive_atm(iproc)
     END DO
 
@@ -1257,9 +1255,9 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"work")
 
     DEALLOCATE(local_atm_list, STAT = stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(array_num_massive_atm, STAT = stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -1281,23 +1279,22 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, stat
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
     ALLOCATE (map_info%s_kin(num_thermo),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (map_info%v_scale(num_thermo),stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (map_info%p_kin(1,ndeg),stat=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (map_info%p_scale(1,ndeg),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Allocate the index array
     ALLOCATE (map_info%index(1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (map_info%map_index(1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Begin the mapping loop
     DO i = 1, ndeg

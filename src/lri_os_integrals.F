@@ -122,15 +122,15 @@ CONTAINS
     ENDIF
     lds = ncoset(maxl)
     ALLOCATE(sint(maxco,maxco),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(calculate_forces) THEN
      !derivatives will be stored in devab(:,:,2:4)
      ALLOCATE(swork(lds,lds,4),devab(maxco,maxco,4),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
      devab = 0._dp
     ELSE
      ALLOCATE(swork(lds,lds,1),STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
     ENDIF
     sint  = 0._dp
     swork = 0._dp
@@ -185,11 +185,11 @@ CONTAINS
 
     IF(calculate_forces) THEN
      DEALLOCATE(devab,STAT=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
     ENDIF
 
     DEALLOCATE(sint,swork,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -321,16 +321,16 @@ CONTAINS
              m3=sgfc+nsgfca(kaset)-1
              IF(ncoa*ncob*ncoc > 0) THEN
                 ALLOCATE(saba(ncoa,ncob,ncoc),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 saba(:,:,:)    = 0._dp
                 ! integrals
                 IF(calculate_forces) THEN
                    ALLOCATE(sdaba(ncoa,ncob,ncoc,3),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    ALLOCATE(sabda(ncoa,ncob,ncoc,3),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    ALLOCATE(sdabda(ncoa,ncob,ncoc,3),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    sdaba(:,:,:,:) = 0._dp
                    sabda(:,:,:,:) = 0._dp
                    sdabda(:,:,:,:) = 0._dp
@@ -348,7 +348,7 @@ CONTAINS
                    ENDDO
 
                    DEALLOCATE(sdaba,sabda,sdabda,STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                 ELSE
                    CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                                  lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
@@ -366,7 +366,7 @@ CONTAINS
                      sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_ca(:,sgfc:),&
                      ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfca(kaset))
                 DEALLOCATE(saba,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
           END DO
        END DO
@@ -502,11 +502,11 @@ CONTAINS
              m3=sgfc+nsgfcb(kbset)-1
              IF(ncoa*ncob*ncoc > 0) THEN
                 ALLOCATE(sabb(ncoa,ncob,ncoc),STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 sabb(:,:,:) = 0._dp
                 IF(calculate_forces) THEN
                    ALLOCATE(sdabb(ncoa,ncob,ncoc,3),STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                    sdabb(:,:,:,:) = 0._dp
                    CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                                 lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
@@ -518,7 +518,7 @@ CONTAINS
                          ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfcb(kbset))
                    ENDDO
                    DEALLOCATE(sdabb,STAT=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                 ELSE
                    CALL overlap3(la_max(iset),npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
                                 lb_max(jset),npgfb(jset),zetb(:,jset),rpgfb(:,jset),lb_min(jset),&
@@ -536,7 +536,7 @@ CONTAINS
                      sphi_a(:,sgfa:),sphi_b(:,sgfb:),sphi_cb(:,sgfc:),&
                      ncoa,ncob,ncoc,nsgfa(iset),nsgfb(jset),nsgfcb(kbset))
                 DEALLOCATE(sabb,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              ENDIF
           END DO
 
@@ -626,9 +626,9 @@ CONTAINS
     maxl = MAX(maxla,maxlb)
     lds = ncoset(maxl)
     ALLOCATE(sint(maxco,maxco,maxco,maxco),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(swork(lds,lds),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     sint  = 0._dp
     swork = 0._dp
 
@@ -701,7 +701,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(sint,swork,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -731,7 +731,6 @@ CONTAINS
 
     INTEGER                                  :: m1, m2, msphia, msphib, nn, &
                                                 stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: cpp
 
@@ -744,14 +743,14 @@ CONTAINS
     nn = SIZE(abint,1)
 
     ALLOCATE(cpp(nsgfa,m2),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL dgemm("T","N",nsgfa,m2,ncoa,1._dp,sphi_a,msphia,sab,m1,0.0_dp,cpp,nsgfa)
     CALL dgemm("N","N",nsgfa,nsgfb,ncob,1._dp,cpp,nsgfa,sphi_b,msphib,0.0_dp,&
                abint,nn)
 
     DEALLOCATE(cpp,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE ab_contract
 
@@ -783,7 +782,6 @@ CONTAINS
 
     INTEGER                                  :: handle, isgfc, m1, m2, m3, &
                                                 msphia, msphib, msphic, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: temp_ccc, work_cpc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -800,11 +798,11 @@ CONTAINS
     m3 = SIZE(sabc,3)
 
     ALLOCATE(cpp(nsgfa,m2,m3),cpc(nsgfa,m2,nsgfc),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     cpp = 0._dp
     cpc = 0._dp
     ALLOCATE(work_cpc(nsgfa,m2),temp_ccc(nsgfa,nsgfb),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     work_cpc(:,:) = 0._dp
     temp_ccc(:,:) = 0._dp
 
@@ -820,7 +818,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(cpp,cpc,work_cpc,temp_ccc,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -862,7 +860,6 @@ CONTAINS
     INTEGER                                  :: handle, isgfc, isgfd, m1, m2, &
                                                 m3, m4, msphia, msphib, &
                                                 msphic, msphid, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: temp_cccc, work_cpcc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -884,15 +881,15 @@ CONTAINS
 
     ALLOCATE(cppp(nsgfa,m2,m3,m4),cppc(nsgfa,m2,m3,nsgfd),&
              cpcc(nsgfa,m2,nsgfc,nsgfd),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(work_cppc(nsgfa,m2,m3),temp_cpcc(nsgfa,m2,nsgfc),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     work_cppc = 0._dp
     temp_cpcc = 0._dp
 
     ALLOCATE(work_cpcc(nsgfa,m2),temp_cccc(nsgfa,nsgfb),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     work_cpcc = 0._dp
     temp_cccc = 0._dp
 
@@ -915,9 +912,9 @@ CONTAINS
     END DO
 
     DEALLOCATE(cpcc,cppc,cppp,stat=STAT)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(work_cpcc,work_cppc,temp_cpcc,temp_cccc,stat=STAT)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 

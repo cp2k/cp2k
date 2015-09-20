@@ -121,11 +121,11 @@ CONTAINS
     END IF
 
     iter_delta = 0.0_dp
-    CPPrecondition(ASSOCIATED(p_mix_new),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_mix_new))
     DO ic=1,SIZE(p_mix_new,2)
        DO ispin=1,SIZE(p_mix_new,1)
           IF (my_invert) THEN
-             CPPrecondition(my_p_mix/=0.0_dp,cp_failure_level,routineP,failure)
+             CPASSERT(my_p_mix/=0.0_dp)
              IF (my_p_mix/=1.0_dp) THEN
                 CALL cp_dbcsr_add(matrix_a=p_mix_new(ispin,ic)%matrix,&
                      alpha_scalar=1.0_dp/my_p_mix,&
@@ -490,11 +490,11 @@ CONTAINS
        CALL cp_dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_new_block, blk)
        CALL cp_dbcsr_get_block_p(matrix=m2,row=iblock_row,col=iblock_col,&
             BLOCK=p_old_block,found=found)
-       CPPostcondition(ASSOCIATED(p_old_block),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(p_old_block))
        IF(PRESENT(m3)) THEN
           CALL cp_dbcsr_get_block_p(matrix=m3,row=iblock_row,col=iblock_col,&
                BLOCK=p_delta_block,found=found)
-          CPPostcondition(ASSOCIATED(p_delta_block),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(p_delta_block))
 
           DO j=1,SIZE(p_new_block,2)
              DO i=1,SIZE(p_new_block,1)
@@ -562,8 +562,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(ksa),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ksb),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ksa))
+    CPASSERT(ASSOCIATED(ksb))
 
     CALL cp_fm_get_info(matrix=ksa,&
                         matrix_struct=ksa_struct,&
@@ -578,7 +578,7 @@ CONTAINS
                         local_data=fb)
 
     compatible_matrices = cp_fm_struct_equivalent(ksa_struct,ksb_struct)
-    CPPrecondition(compatible_matrices,cp_failure_level,routineP,failure)
+    CPASSERT(compatible_matrices)
 
     IF (SUM(occb) == 0.0_dp) fb = 0.0_dp
 
@@ -643,8 +643,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(ksa),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(ksb),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ksa))
+    CPASSERT(ASSOCIATED(ksb))
 
     CALL cp_fm_get_info(matrix=ksa,&
                         matrix_struct=ksa_struct,&
@@ -659,7 +659,7 @@ CONTAINS
                         local_data=fb)
 
     compatible_matrices = cp_fm_struct_equivalent(ksa_struct,ksb_struct)
-    CPPrecondition(compatible_matrices,cp_failure_level,routineP,failure)
+    CPASSERT(compatible_matrices)
 
     beta = 1.0_dp/(1.0_dp - f)
 

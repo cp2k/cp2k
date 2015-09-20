@@ -145,7 +145,7 @@ CONTAINS
 
        ! Create a fake semi-empirical type to handle the classical atom
        ALLOCATE(Forces_QM(3,number_qm_atoms),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL semi_empirical_create(se_kind_mm)
        CALL se_param_set_default(se_kind_mm,0,do_method_pchg)
        itype    = get_se_type(se_kind_mm%typ)
@@ -216,7 +216,7 @@ CONTAINS
              END DO Atoms
           END DO Kinds
        END DO
-       CPPrecondition(iqm==number_qm_atoms,cp_failure_level,routineP,failure)
+       CPASSERT(iqm==number_qm_atoms)
        ! Transfer QM gradients to the QM particles..
        CALL mp_sum(Forces_QM, para_env%group)
        iqm = 0
@@ -236,7 +236,7 @@ CONTAINS
        ! MM forces will be handled directly from the QMMM module in the same way
        ! as for GPW/GAPW methods
        DEALLOCATE(Forces_QM,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL semi_empirical_release(se_kind_mm)
 
     END IF

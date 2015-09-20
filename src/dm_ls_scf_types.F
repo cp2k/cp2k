@@ -168,7 +168,7 @@ CONTAINS
     CALL cp_para_env_release(ls_scf_env%para_env)
 
     DEALLOCATE(ls_scf_env%ls_mstruct%atom_to_molecule,stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ! set up the buffer for the history of matrices
     DO istore=1,MIN(ls_scf_env%scf_history%istore,ls_scf_env%scf_history%nstore)
@@ -177,7 +177,7 @@ CONTAINS
        ENDDO
     ENDDO
     DEALLOCATE(ls_scf_env%scf_history%matrix,stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     IF (ASSOCIATED(ls_scf_env%chebyshev%print_key_dos)) &
         CALL section_vals_release(ls_scf_env%chebyshev%print_key_dos)
@@ -185,11 +185,11 @@ CONTAINS
         CALL section_vals_release(ls_scf_env%chebyshev%print_key_cube)
     IF (ASSOCIATED(ls_scf_env%chebyshev%min_energy)) THEN
        DEALLOCATE(ls_scf_env%chebyshev%min_energy,stat=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     ENDIF
     IF (ASSOCIATED(ls_scf_env%chebyshev%max_energy)) THEN
        DEALLOCATE(ls_scf_env%chebyshev%max_energy,stat=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     ENDIF
 
     IF (ASSOCIATED(ls_scf_env%mixing_store)) THEN
@@ -201,7 +201,7 @@ CONTAINS
     ENDIF
 
     DEALLOCATE(ls_scf_env,stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 

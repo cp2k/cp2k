@@ -55,14 +55,14 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(.NOT.ASSOCIATED(buffer),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(buffer))
     ALLOCATE(buffer, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     buffer%size = buffer_size
     ALLOCATE(buffer%input_lines(buffer%size), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(buffer%input_line_numbers(buffer%size), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     buffer%buffer_id           = 0
     buffer%input_line_numbers  = 0
     buffer%istat               = 0
@@ -87,16 +87,16 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(buffer),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(buffer))
     DEALLOCATE(buffer%input_lines, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(buffer%input_line_numbers, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (ASSOCIATED(buffer%sub_buffer)) THEN
        CALL release_buffer_type(buffer%sub_buffer)
     END IF
     DEALLOCATE(buffer, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE release_buffer_type
 
 ! ****************************************************************************
@@ -118,9 +118,9 @@ CONTAINS
     LOGICAL                                  :: failure, my_force
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(buffer_in),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(buffer_out),cp_failure_level,routineP,failure)
-    CPPostcondition(buffer_in%size==buffer_out%size,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(buffer_in))
+    CPASSERT(ASSOCIATED(buffer_out))
+    CPASSERT(buffer_in%size==buffer_out%size)
     my_force = .FALSE.
     IF (PRESENT(force)) my_force = force
     ! Copy buffer structure
@@ -157,8 +157,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(buffer),cp_failure_level,routineP,failure)
-    CPPostcondition(.NOT.ASSOCIATED(sub_buffer),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(buffer))
+    CPASSERT(.NOT.ASSOCIATED(sub_buffer))
     CALL create_buffer_type(sub_buffer)
     CALL copy_buffer_type(buffer, sub_buffer)
     sub_buffer%present_line_number = 0
@@ -181,8 +181,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(buffer),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(sub_buffer),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(buffer))
+    CPASSERT(ASSOCIATED(sub_buffer))
     CALL copy_buffer_type(sub_buffer,buffer)
     CALL release_buffer_type(sub_buffer)
   END SUBROUTINE finalize_sub_buffer

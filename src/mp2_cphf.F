@@ -660,10 +660,10 @@ MODULE mp2_cphf
       DEALLOCATE(mat_mu_nu(ispin)%matrix,STAT=stat)
     END DO
     DEALLOCATE(mat_mu_nu,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_release(P_mu_nu%matrix)
     DEALLOCATE(P_mu_nu%matrix,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! release fm stuff
     CALL cp_fm_release(fm_G_mu_nu)
     CALL cp_fm_release(mo_coeff_o)
@@ -1672,9 +1672,9 @@ MODULE mp2_cphf
 
       ! allocate stuff
       ALLOCATE(xn(1:max_num_iter),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(Ax(1:max_num_iter),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       ! create fm structure
       NULLIFY(fm_struct_tmp)
@@ -1714,11 +1714,11 @@ MODULE mp2_cphf
 
       ! allocate array containing the various scalar products
       ALLOCATE(x_norm(1:max_num_iter),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(xi_b(1:max_num_iter),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(xi_Axi(1:max_num_iter,0:max_num_iter),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       x_norm=0.0_dp
       xi_b=0.0_dp
       xi_Axi=0.0_dp
@@ -1737,7 +1737,7 @@ MODULE mp2_cphf
         ! first compute the projection of the actual b_i into all previous x_i
         ! already scaled with the norm of each x_i
         ALLOCATE(proj_bi_xj(iiter-1),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         DO iiB=1, iiter-1
           proj_bi_xj(iiB)=0.0_dp
           proj_bi_xj(iiB)=accurate_sum(b_i%local_data(1:nrow_local,1:ncol_local)*&
@@ -1753,7 +1753,7 @@ MODULE mp2_cphf
                                            xn(iiB)%matrix%local_data(:,:)*proj_bi_xj(iiB)
         END DO
         DEALLOCATE(proj_bi_xj,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
          
         ! create Ax(iiter) that will store the matrix vector product for this cycle
         NULLIFY(Ax(iiter)%matrix)
@@ -1774,7 +1774,7 @@ MODULE mp2_cphf
         ! iiter+1 -> <x_i|b>
         ! iiter+2 -> <x_i|x_i>
         ALLOCATE(temp_vals(iiter+2),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         temp_vals=0.0_dp
         ! <Ax_i|x_j>
         DO iiB=1, iiter
@@ -1795,15 +1795,15 @@ MODULE mp2_cphf
         x_norm(iiter) = temp_vals(iiter+2)
         ! deallocate temp_vals
         DEALLOCATE(temp_vals,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
 
         ! solve reduced system 
         IF(ALLOCATED(A_small)) DEALLOCATE(A_small)
         IF(ALLOCATED(b_small)) DEALLOCATE(b_small)
         ALLOCATE(A_small(iiter,iiter),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         ALLOCATE(b_small(iiter,1),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         A_small(1:iiter,1:iiter)=xi_Axi(1:iiter,1:iiter)
         b_small(1:iiter,1)=xi_b(1:iiter)
 
@@ -1846,11 +1846,11 @@ MODULE mp2_cphf
       END DO
 
       DEALLOCATE(x_norm,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DEALLOCATE(xi_b,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DEALLOCATE(xi_Axi,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       CALL cp_fm_release(precond)
       CALL cp_fm_release(b_i)
@@ -1863,9 +1863,9 @@ MODULE mp2_cphf
         CALL cp_fm_release(xn(iiter)%matrix)
       END DO
       DEALLOCATE(xn,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DEALLOCATE(Ax,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
     END IF
 

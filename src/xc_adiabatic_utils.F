@@ -110,7 +110,7 @@ CONTAINS
                     ks_env=ks_env)
 
     nimages = dft_control%nimages
-    CPPrecondition(nimages==1,cp_failure_level,routineP,failure)
+    CPASSERT(nimages==1)
 
     CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
 
@@ -151,7 +151,7 @@ CONTAINS
                                                   scale_dEx2)
           END IF
           IF( calculate_forces ) THEN
-             CPPrecondition(.NOT.use_virial,cp_failure_level,routineP,failure)
+             CPASSERT(.NOT.use_virial)
              !! we also have to scale the forces!!!!
              CALL derivatives_four_center(qs_env, rho_ao, hfx_sections, para_env, 1, use_virial, &
                                           adiabatic_rescale_factor=scale_dEx1)

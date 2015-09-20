@@ -88,9 +88,9 @@ CONTAINS
     NULLIFY (optimizer, para_env)
     logger => cp_get_default_logger()
     root_section => force_env%root_section
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,failure)
-    CPPrecondition(gopt_param%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(force_env))
+    CPASSERT(ASSOCIATED(gopt_param))
+    CPASSERT(gopt_param%ref_count>0)
 
     CALL force_env_get(force_env, para_env=para_env, cell=cell)
 

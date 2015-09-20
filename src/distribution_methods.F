@@ -814,7 +814,7 @@ CONTAINS
 
     ELSE
        ! expects nothing else
-       CPPostcondition(.FALSE., cp_failure_level, routineP,failure)
+       CPASSERT(.FALSE.)
     ENDIF
 
 

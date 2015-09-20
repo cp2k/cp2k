@@ -376,44 +376,44 @@ CONTAINS
 
       IF (ASSOCIATED(rho_h)) THEN
         DEALLOCATE (rho_h,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(rho_s)) THEN
         DEALLOCATE (rho_s,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(vxc_h)) THEN
         DEALLOCATE (vxc_h,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (ASSOCIATED(vxc_s)) THEN
         DEALLOCATE (vxc_s,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
 
       IF (gradient_f) THEN
 
         IF (ASSOCIATED(drho_h)) THEN
           DEALLOCATE (drho_h,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
 
         IF (ASSOCIATED(drho_s)) THEN
           DEALLOCATE (drho_s,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
 
         IF (ASSOCIATED(vxg_h)) THEN
           DEALLOCATE (vxg_h,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
 
         IF (ASSOCIATED(vxg_s)) THEN
           DEALLOCATE (vxg_s,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
 
       END IF
@@ -422,22 +422,22 @@ CONTAINS
 
         IF (ASSOCIATED(tau_h)) THEN
           DEALLOCATE (tau_h,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
 
         IF (ASSOCIATED(tau_s)) THEN
           DEALLOCATE (tau_s,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
 
         IF (ASSOCIATED(vtau_h)) THEN
           DEALLOCATE (vtau_h,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
 
         IF (ASSOCIATED(vtau_s)) THEN
           DEALLOCATE (vtau_s,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
         END IF
 
       END IF
@@ -623,10 +623,10 @@ CONTAINS
 
       ALLOCATE (rho_h(1:na,1:nspins),rho1_h(1:na,1:nspins), &
                 rho_s(1:na,1:nspins),rho1_s(1:na,1:nspins),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
 
       ALLOCATE (vxc_h(1:na,1:nr,1:nspins), vxc_s(1:na,1:nr,1:nspins),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       vxc_h = 0.0_dp
       vxc_s = 0.0_dp
 
@@ -635,10 +635,10 @@ CONTAINS
       IF (gradient_functional) THEN
          ALLOCATE(drho_h(1:4,1:na,1:nr,1:nspins), drho1_h(1:4,1:na,1:nr,1:nspins), &
                   drho_s(1:4,1:na,1:nr,1:nspins), drho1_s(1:4,1:na,1:nr,1:nspins), stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
 
          ALLOCATE(vxg_h(1:3,1:na,1:nr,1:nspins), vxg_s(1:3,1:na,1:nr,1:nspins), stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          vxg_h = 0.0_dp
          vxg_s = 0.0_dp
       END IF
@@ -717,13 +717,13 @@ CONTAINS
 
       ! some cleanup
       DEALLOCATE(rho_h, rho_s, rho1_h, rho1_s, vxc_h, vxc_s, stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       NULLIFY(rho_h, rho_s, weight)
       IF (gradient_functional) THEN
          DEALLOCATE(drho_h, drho_s, vxg_h, vxg_s, stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          DEALLOCATE(drho1_h, drho1_s, stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          NULLIFY(drho_h, drho_s, drho1_h, drho1_s, vxg_h, vxc_s)
       END IF
 
@@ -784,17 +784,17 @@ CONTAINS
     REAL(KIND=dp)                            :: rad, urad
 
    failure = .FALSE.
-   CPPostcondition(ASSOCIATED(r_h),cp_failure_level,routineP,failure)
-   CPPostcondition(ASSOCIATED(r_s),cp_failure_level,routineP,failure)
-   CPPostcondition(ASSOCIATED(rho_h),cp_failure_level,routineP,failure)
-   CPPostcondition(ASSOCIATED(rho_s),cp_failure_level,routineP,failure)
+   CPASSERT(ASSOCIATED(r_h))
+   CPASSERT(ASSOCIATED(r_s))
+   CPASSERT(ASSOCIATED(rho_h))
+   CPASSERT(ASSOCIATED(rho_s))
    IF (grad_func) THEN
-      CPPostcondition(ASSOCIATED(dr_h),cp_failure_level,routineP,failure)
-      CPPostcondition(ASSOCIATED(dr_s),cp_failure_level,routineP,failure)
-      CPPostcondition(ASSOCIATED(r_h_d),cp_failure_level,routineP,failure)
-      CPPostcondition(ASSOCIATED(r_s_d),cp_failure_level,routineP,failure)
-      CPPostcondition(ASSOCIATED(drho_h),cp_failure_level,routineP,failure)
-      CPPostcondition(ASSOCIATED(drho_s),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(dr_h))
+      CPASSERT(ASSOCIATED(dr_s))
+      CPASSERT(ASSOCIATED(r_h_d))
+      CPASSERT(ASSOCIATED(r_s_d))
+      CPASSERT(ASSOCIATED(drho_h))
+      CPASSERT(ASSOCIATED(drho_s))
    END IF
 
    IF (failure) RETURN
@@ -903,10 +903,10 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(trho_h),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(trho_s),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(tau_h),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(tau_s),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(trho_h))
+    CPASSERT(ASSOCIATED(trho_s))
+    CPASSERT(ASSOCIATED(tau_h))
+    CPASSERT(ASSOCIATED(tau_s))
 
     IF (failure) RETURN
 
@@ -1017,7 +1017,7 @@ CONTAINS
                                      "vx",na*nr*dp_size)
 
     ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     NULLIFY (int_hh,int_ss)
 
@@ -1032,7 +1032,7 @@ CONTAINS
       DO iset2 = 1,nset
          CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                 max_s_harm,lmax_expansion,cg_list,cg_n_list,max_iso_not0_local)
-         CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,failure)
+         CPASSERT(max_iso_not0_local.LE.max_iso_not0)
 
         n2 = nsoset(lmax(iset2))
         DO ipgf1  = 1,npgf(iset1)
@@ -1086,7 +1086,7 @@ CONTAINS
                     iso2 = cg_list(2,icg,iso)
                     l = indso(1,iso1) + indso(1,iso2)
 
-                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,failure)
+                    CPASSERT(l<=lmax_expansion)
                     DO ia = 1,na
                        matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
                             gVg_h(ia,l)*&
@@ -1126,7 +1126,7 @@ CONTAINS
                        "g1,g2,gg,matso_h,matso_s,gVg_s,gVg_h")
 
    DEALLOCATE(cg_list,cg_n_list,STAT=istat)
-   CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+   CPASSERT(istat==0)
 
    CALL timestop(handle)
 
@@ -1214,7 +1214,7 @@ CONTAINS
                                      "gVXCg_h,gVXCg_s",12*na*maxl*dp_size)
     ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),&
              dcg_list(2,nsoset(maxl)**2,max_s_harm),dcg_n_list(max_s_harm),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     NULLIFY(int_hh,int_ss)
 
@@ -1236,7 +1236,7 @@ CONTAINS
        DO iset2 = 1,nset
           CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                  max_s_harm,lmax_expansion,cg_list,cg_n_list,max_iso_not0_local)
-          CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,failure)
+          CPASSERT(max_iso_not0_local.LE.max_iso_not0)
           CALL get_none0_cg_list(my_CG_dxyz,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                  max_s_harm,lmax_expansion,dcg_list,dcg_n_list,dmax_iso_not0_local)
           !CPPrecondition(dmax_iso_not0_local.LE.dmax_iso_not0,cp_failure_level,routineP,failure)
@@ -1342,7 +1342,7 @@ CONTAINS
                     l = indso(1,iso1) + indso(1,iso2)
 
                     !test reduce expansion local densities
-                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,failure)
+                    CPASSERT(l<=lmax_expansion)
                     IF(.NOT. failure) THEN
 
                        DO ia = 1,na
@@ -1370,7 +1370,7 @@ CONTAINS
 
                     l = indso(1,iso1) + indso(1,iso2)
                     !test reduce expansion local densities
-                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineP,failure)
+                    CPASSERT(l<=lmax_expansion)
                     IF(.NOT. failure) THEN
 
                        DO ia = 1,na
@@ -1418,7 +1418,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "g1,g2,gg,matso_h,matso_s,gVXCg_s,gVXCg_h,gVXGg_h,gVXGg_s")
     DEALLOCATE(cg_list,cg_n_list,dcg_list,dcg_n_list,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -1487,17 +1487,17 @@ CONTAINS
     nr = grid_atom%nr
     na = grid_atom%ng_sphere
     ALLOCATE(g1(nr),g2(nr),gg(nr),dd(nr),gr(nr),ww(na),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE(fgr(nr,0:maxl,0:maxl),dgr(nr,0:lmax_expansion),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ALLOCATE(cg_list(2,nsoset(maxl)**2,max_s_harm),cg_n_list(max_s_harm),&
              dcg_list(2,nsoset(maxl)**2,max_s_harm),dcg_n_list(max_s_harm),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     ALLOCATE(matso_h(nsoset(maxl),nsoset(maxl)),&
              matso_s(nsoset(maxl),nsoset(maxl)),STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     NULLIFY(int_hh,int_ss)
     CALL get_rho_atom(rho_atom=rho_atom,ga_Vlocal_gb_h=int_hh,ga_Vlocal_gb_s=int_ss)
@@ -1508,9 +1508,9 @@ CONTAINS
     DO ispin=1,nspins
       maxiso = SIZE(harmonics%slm,2)
       ALLOCATE(vth(nr,maxiso),vts(nr,maxiso),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       ALLOCATE(dvth(nr,maxiso),dvts(nr,maxiso),STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
       DO iso=1,maxiso
          ww(1:na) = harmonics%slm(1:na,iso)
          vth(1:nr,iso) = MATMUL(ww(1:na),vtau_h(1:na,1:nr,ispin))
@@ -1526,7 +1526,7 @@ CONTAINS
         DO iset2 = 1,nset
            CALL get_none0_cg_list(my_CG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                   max_s_harm,lmax_expansion,cg_list,cg_n_list,max_iso_not0_local)
-           CPPrecondition(max_iso_not0_local.LE.max_iso_not0,cp_failure_level,routineP,failure)
+           CPASSERT(max_iso_not0_local.LE.max_iso_not0)
            CALL get_none0_cg_list(my_dCG,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                   max_s_harm,lmax_expansion,dcg_list,dcg_n_list,dmax_iso_not0_local)
 
@@ -1628,17 +1628,17 @@ CONTAINS
         m1 = m1 + maxso
       END DO  ! iset1
       DEALLOCATE(vth,vts,dvth,dvts,STAT=istat)
-      CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+      CPASSERT(istat==0)
     END DO ! ispin
 
     DEALLOCATE(matso_h,matso_s,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(g1,g2,gg,dd,gr,ww,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(fgr,dgr,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE(cg_list,cg_n_list,dcg_list,dcg_n_list,STAT=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     vtau_h = 2._dp*vtau_h
     vtau_s = 2._dp*vtau_s

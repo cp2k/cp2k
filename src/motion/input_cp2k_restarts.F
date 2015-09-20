@@ -566,7 +566,7 @@ CONTAINS
        ELSEIF (PRESENT(helium_env)) THEN
           para_env => helium_env%logger%para_env
        ELSE
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END IF
     END IF
 
@@ -590,7 +590,7 @@ CONTAINS
     IF (ASSOCIATED(itimes)) THEN
        IF (itimes>=0) THEN
           CALL section_vals_val_set(motion_section,"MD%STEP_START_VAL",i_val=itimes)
-          CPAssert(ASSOCIATED(t),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(t))
           CALL section_vals_val_set(motion_section,"MD%TIME_START_VAL",r_val=t)
        END IF
     END IF
@@ -627,45 +627,45 @@ CONTAINS
           ! Virial averages
           IF (ASSOCIATED(averages%virial)) THEN
              ALLOCATE(buffer(9),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              buffer = RESHAPE(averages%virial%pv_total,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_TOT",r_vals_ptr=buffer)
 
              ALLOCATE(buffer(9),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              buffer = RESHAPE(averages%virial%pv_virial,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_VIR",r_vals_ptr=buffer)
 
              ALLOCATE(buffer(9),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              buffer = RESHAPE(averages%virial%pv_kinetic,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_KIN",r_vals_ptr=buffer)
 
              ALLOCATE(buffer(9),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              buffer = RESHAPE(averages%virial%pv_constraint,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_CNSTR",r_vals_ptr=buffer)
 
              ALLOCATE(buffer(9),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              buffer = RESHAPE(averages%virial%pv_xc,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_XC",r_vals_ptr=buffer)
 
              ALLOCATE(buffer(9),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              buffer = RESHAPE(averages%virial%pv_fock_4c,(/9/))
              CALL section_vals_val_set(work_section,"AVE_PV_FOCK_4C",r_vals_ptr=buffer)
           END IF
           ! Colvars averages
           IF (SIZE(averages%avecolvar)>0) THEN
              ALLOCATE(buffer(SIZE(averages%avecolvar)),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              buffer = averages%avecolvar
              CALL section_vals_val_set(work_section,"AVE_COLVARS",r_vals_ptr=buffer)
           END IF
           IF (SIZE(averages%aveMmatrix)>0) THEN
              ALLOCATE(buffer(SIZE(averages%aveMmatrix)),stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              buffer = averages%aveMmatrix
              CALL section_vals_val_set(work_section,"AVE_MMATRIX",r_vals_ptr=buffer)
           END IF
@@ -709,13 +709,13 @@ CONTAINS
           nhc_len     = SIZE(nhc%nvt,1)
           tot_nhcneed = nhc%glob_num_nhc
           ALLOCATE(eta(tot_nhcneed*nhc_len), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(veta(tot_nhcneed*nhc_len), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(fnhc(tot_nhcneed*nhc_len), STAT = stat )
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(mnhc(tot_nhcneed*nhc_len), STAT = stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           counter = 0
           DO i=1,SIZE(nhc%nvt,1)
              DO j=1,SIZE(nhc%nvt,2)
@@ -740,9 +740,9 @@ CONTAINS
     CALL timeset(routineN//"_NPT",handle2)
     IF (ASSOCIATED(npt)) THEN
        ALLOCATE(veta(SIZE(npt,1)*SIZE(npt,2)), STAT = stat )
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(mnhc(SIZE(npt,1)*SIZE(npt,2)), STAT = stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        counter = 0
        DO i=1,SIZE(npt,1)
           DO j=1,SIZE(npt,2)
@@ -830,7 +830,7 @@ CONTAINS
        ! Multiple Walkers
        IF (meta_env%do_multiple_walkers) THEN
           ALLOCATE(walkers_status(meta_env%multiple_walkers%walkers_tot_nr),stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           walkers_status = meta_env%multiple_walkers%walkers_status
           work_section => section_vals_get_subs_vals(meta_env%metadyn_section,"MULTIPLE_WALKERS")
           CALL section_vals_val_set(work_section,"WALKERS_STATUS",i_vals_ptr=walkers_status)
@@ -858,7 +858,7 @@ CONTAINS
              ! Update Collective Variables
              IF (coords%in_use == do_band_collective) THEN
                 ALLOCATE (wrk(coords%size_wrk(1)),stat=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
                 wrk = coords%wrk(:,isec)
                 CALL section_vals_val_set(replica_section,"COLLECTIVE",r_vals_ptr=wrk,&
                      i_rep_section=isec)
@@ -920,7 +920,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iatom, ibead, &
                                                 inos, istat
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
     TYPE(section_vals_type), POINTER         :: pint_section, tmpsec
 
@@ -942,7 +942,7 @@ CONTAINS
     ! update bead coordinates in the global input structure
     NULLIFY(r_vals)
     ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
-    CPAssert(istat==0, cp_failure_level, routineP,failure)
+    CPASSERT(istat==0)
 
     i=1
     CALL pint_u2x(pint_env)
@@ -958,7 +958,7 @@ CONTAINS
     ! update bead velocities in the global input structure
     NULLIFY(r_vals)
     ALLOCATE(r_vals(pint_env%p*pint_env%ndim),STAT=istat)
-    CPAssert(istat==0, cp_failure_level, routineP,failure)
+    CPASSERT(istat==0)
     i=1
     CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v)
     DO iatom=1, pint_env%ndim
@@ -985,7 +985,7 @@ CONTAINS
       ! update thermostat coordinates in the global input structure
       NULLIFY(r_vals)
       ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
-      CPAssert(istat==0, cp_failure_level, routineP,failure)
+      CPASSERT(istat==0)
       i=1
       DO iatom=1, pint_env%ndim
         DO ibead=1, pint_env%p
@@ -1001,7 +1001,7 @@ CONTAINS
       ! update thermostat velocities in the global input structure
       NULLIFY(r_vals)
       ALLOCATE(r_vals(pint_env%p*pint_env%ndim*pint_env%nnos),STAT=istat)
-      CPAssert(istat==0, cp_failure_level, routineP,failure)
+      CPASSERT(istat==0)
       i=1
       DO iatom=1, pint_env%ndim
         DO ibead=1, pint_env%p
@@ -1059,7 +1059,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -1081,14 +1081,14 @@ CONTAINS
     NULLIFY(real_msg)
     msglen = SIZE(helium%pos)
     ALLOCATE(real_msg(msglen),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
     real_msg(:) = PACK( helium%pos, .TRUE. )
 
     ! allocate the buffer for message passing
     NULLIFY(real_msg_gather)
     msglen = SIZE(helium%pos) * logger%para_env%num_pe
     ALLOCATE(real_msg_gather(msglen),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
 
     ! pass the message from all processors to logger%para_env%source
     real_msg_gather(:) = 0.0_dp
@@ -1107,7 +1107,7 @@ CONTAINS
 
     ! DEALLOCATE since this array is only used locally
     DEALLOCATE(real_msg,STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
 
     !
     ! save permutation state
@@ -1116,7 +1116,7 @@ CONTAINS
     NULLIFY(int_msg_gather)
     msglen = SIZE(helium%permutation) * logger%para_env%num_pe
     ALLOCATE(int_msg_gather(msglen),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
 
     ! pass the message from all processors to logger%para_env%source
     int_msg_gather(:) = 0
@@ -1140,7 +1140,7 @@ CONTAINS
     NULLIFY(real_msg)
     msglen = 40
     ALLOCATE(real_msg(msglen),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
     CALL get_rng_stream(helium%rng_stream_uniform,bg=bg,cg=cg,ig=ig,&
          buffer=bu,buffer_filled=lbf)
     offset = 0
@@ -1173,7 +1173,7 @@ CONTAINS
     NULLIFY(real_msg_gather)
     msglen = SIZE(real_msg)*logger%para_env%num_pe
     ALLOCATE(real_msg_gather(msglen),STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
     real_msg_gather(:) = 0.0_dp
     CALL mp_gather(real_msg,real_msg_gather,logger%para_env%source,logger%para_env%group)
 
@@ -1189,7 +1189,7 @@ CONTAINS
 
     ! DEALLOCATE since this array is only used locally
     DEALLOCATE(real_msg,STAT=status)
-    CPPostcondition(status==0,cp_failure_level,routineP,failure)
+    CPASSERT(status==0)
 
     IF (helium%solute_present) THEN
       !
@@ -1214,7 +1214,7 @@ CONTAINS
       ! forces should be the same on all processors, but we don't check that here
       NULLIFY(real_msg_gather)
       ALLOCATE(real_msg_gather(msglen),STAT=status)
-      CPPostcondition(status==0,cp_failure_level,routineP,failure)
+      CPASSERT(status==0)
       real_msg_gather(:) = PACK( helium%force_avrg, .TRUE. )
 
       ! update forces in the global input structure
@@ -1252,13 +1252,13 @@ CONTAINS
         CALL mp_sum(message,logger%para_env%group)
       END DO
       itmp = logger%para_env%num_pe
-      CPPostcondition(itmp>0,cp_failure_level,routineP,failure)
+      CPASSERT(itmp>0)
       rtmp = 1.0_dp / REAL(itmp,dp)
       helium%rho_inst(:,:,:,:) = helium%rho_inst(:,:,:,:) * rtmp
 
       ! average over steps performed so far in this run
       nsteps = helium%current_step-helium%first_step
-      CPPostcondition(nsteps>0,cp_failure_level,routineP,failure)
+      CPASSERT(nsteps>0)
       rtmp = 1.0_dp / REAL(nsteps,dp)
       helium%rho_inst(:,:,:,:) = helium%rho_inst(:,:,:,:) * rtmp
 
@@ -1275,7 +1275,7 @@ CONTAINS
       NULLIFY(real_msg)
       msglen = SIZE(helium%rho_inst)
       ALLOCATE(real_msg(msglen),STAT=status)
-      CPPostcondition(status==0,cp_failure_level,routineP,failure)
+      CPASSERT(status==0)
       real_msg(:) = PACK( helium%rho_inst, .TRUE. )
       CALL section_vals_val_set(helium%input, &
            "MOTION%PINT%HELIUM%RHO%CUBE_DATA%_DEFAULT_KEYWORD_", &
@@ -1325,8 +1325,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(work_section),cp_failure_level,routineP,failure)
-    CPPrecondition((work_section%ref_count>0),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(work_section))
+    CPASSERT(work_section%ref_count>0)
 
     NULLIFY (my_val,old_val,section,vals)
 
@@ -1408,10 +1408,10 @@ CONTAINS
     failure = .FALSE.
     ! Thermostat Energies
     ALLOCATE(work(csvr%glob_num_csvr),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE(thermo_energy(csvr%loc_num_csvr),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1,csvr%loc_num_csvr
        thermo_energy(i) = csvr%nvt(i)%thermostat_energy
     END DO
@@ -1419,18 +1419,18 @@ CONTAINS
                csvr%glob_num_csvr,thermo_energy,&
                dum, para_env, array_kin=work)
     DEALLOCATE(thermo_energy,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! If check passes then let's dump the info on the restart file
     work_section => section_vals_get_subs_vals(csvr_section,"THERMOSTAT_ENERGY")
     CALL dump_csvr_energy_info(work, csvr%glob_num_csvr, work_section)
     DEALLOCATE (work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Thermostat Random Number info for restart
     work_section => section_vals_get_subs_vals(csvr_section,"RNG_INIT")
     ALLOCATE (dwork(rng_record_length,csvr%glob_num_csvr),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     dwork = 0
     DO i=1,csvr%loc_num_csvr
        my_index = csvr%map_info%index(i)
@@ -1449,7 +1449,7 @@ CONTAINS
     END IF
     CALL section_rng_val_set(rng_section=work_section,nsize=csvr%glob_num_csvr,ascii=dwork)
     DEALLOCATE (dwork,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE dump_csvr_restart_info
 
@@ -1481,9 +1481,9 @@ CONTAINS
 
     ! chi and mass
     ALLOCATE(work(al%glob_num_al),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(t_array(al%loc_num_al),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! copy chi into temporary
     DO i = 1,al%loc_num_al
@@ -1512,9 +1512,9 @@ CONTAINS
     CALL dump_csvr_energy_info(work, al%glob_num_al, work_section)
 
     DEALLOCATE (t_array,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE (work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE dump_al_restart_info
 
@@ -1550,9 +1550,9 @@ CONTAINS
 
     ! Thermostat Energies
     ALLOCATE(work(gle%glob_num_gle),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(thermo_energy(gle%loc_num_gle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1,gle%loc_num_gle
        thermo_energy(i) = gle%nvt(i)%thermostat_energy
     END DO
@@ -1560,20 +1560,20 @@ CONTAINS
                gle%glob_num_gle,thermo_energy,&
                dum, para_env, array_kin=work)
     DEALLOCATE(thermo_energy,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! If check passes then let's dump the info on the restart file
     work_section => section_vals_get_subs_vals(gle_section,"THERMOSTAT_ENERGY")
     CALL dump_csvr_energy_info(work, gle%glob_num_gle, work_section)
     DEALLOCATE (work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Thermostat Random Number info for restart
     work_section => section_vals_get_subs_vals(gle_section,"RNG_INIT")
     glob_num = gle%glob_num_gle
     loc_num = gle%loc_num_gle
     ALLOCATE (dwork(rng_record_length,glob_num),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     dwork = 0
     DO i=1,loc_num
        j = gle%map_info%index(i)
@@ -1592,17 +1592,17 @@ CONTAINS
     END IF
     CALL section_rng_val_set(rng_section=work_section,nsize=glob_num,ascii=dwork)
     DEALLOCATE (dwork,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ALLOCATE ( gle_per_proc(para_env%num_pe),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     gle_per_proc(:) = 0
     CALL mp_allgather(gle%loc_num_gle,gle_per_proc,para_env%group)
 
     ! Thermostat S variable info for restart
     NULLIFY(s_tmp)
     ALLOCATE (s_tmp((gle%ndim)*gle%glob_num_gle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     s_tmp=0.0_dp
 
     NULLIFY(work,index)
@@ -1638,15 +1638,15 @@ CONTAINS
     CALL section_vals_val_set(work_section,"_DEFAULT_KEYWORD_",r_vals_ptr=s_tmp)
     ELSE
       DEALLOCATE(s_tmp,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
 
     DEALLOCATE(gle_per_proc, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE ( work, STAT = stat )
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE ( index, STAT = stat )
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE dump_gle_restart_info
 
@@ -1868,8 +1868,8 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY (my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(coord_section),cp_failure_level,routineP,failure)
-    CPPrecondition(coord_section%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(coord_section))
+    CPASSERT(coord_section%ref_count>0)
     section => coord_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
@@ -1886,7 +1886,7 @@ CONTAINS
     END IF
     DO irk=1,nsize/nfield
        ALLOCATE (my_c(nfield),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF (nfield == 3) THEN
           my_c(1:3) = get_particle_pos_or_vel(irk,particle_set,array(1:narray))
           my_c(1:3) = my_c(1:3)*conv_factor
@@ -2009,8 +2009,8 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(ss_section),cp_failure_level,routineP,failure)
-    CPPrecondition(ss_section%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ss_section))
+    CPASSERT(ss_section%ref_count>0)
     section => ss_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
@@ -2028,7 +2028,7 @@ CONTAINS
     lsize = SIZE(meta_env%hills_env%ss_history,1)
     DO irk=1,meta_env%hills_env%n_hills
        ALLOCATE(ss_val(lsize),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Always stored in A.U.
        ss_val = meta_env%hills_env%ss_history(:,irk)
        CALL val_create(my_val,r_vals_ptr=ss_val)
@@ -2083,8 +2083,8 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(ds_section),cp_failure_level,routineP,failure)
-    CPPrecondition(ds_section%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ds_section))
+    CPASSERT(ds_section%ref_count>0)
     section => ds_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
@@ -2102,7 +2102,7 @@ CONTAINS
     lsize = SIZE(meta_env%hills_env%delta_s_history,1)
     DO irk=1,meta_env%hills_env%n_hills
        ALLOCATE(ds_val(lsize),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Always stored in A.U.
        ds_val = meta_env%hills_env%delta_s_history(:,irk)
        CALL val_create(my_val,r_vals_ptr=ds_val)
@@ -2156,8 +2156,8 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(ww_section),cp_failure_level,routineP,failure)
-    CPPrecondition(ww_section%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ww_section))
+    CPASSERT(ww_section%ref_count>0)
     section => ww_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
@@ -2225,8 +2225,8 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(invdt_section),cp_failure_level,routineP,failure)
-    CPPrecondition(invdt_section%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(invdt_section))
+    CPASSERT(invdt_section%ref_count>0)
     section => invdt_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&

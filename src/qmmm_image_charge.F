@@ -183,10 +183,10 @@ CONTAINS
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
 
     ALLOCATE(pot_const(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(.NOT.ASSOCIATED(coeff)) THEN
        ALLOCATE(coeff(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
     coeff=0.0_dp
 
@@ -199,12 +199,12 @@ CONTAINS
     !LU factorization of T  by DGETRF done in calculate_image_matrix
     CALL DGETRS('N',natom,1,qs_env%image_matrix,natom,qs_env%ipiv,&
                 pot_const,natom,info)
-    CPPrecondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
 
     coeff = pot_const
 
     DEALLOCATE(pot_const,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -253,20 +253,20 @@ CONTAINS
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
    
     ALLOCATE(pot_const(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(vmetal_const(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(r(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(d(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(z(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(Ad(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(.NOT.ASSOCIATED(coeff)) THEN
        ALLOCATE(coeff(natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
    
     CALL integrate_potential_ga_rspace(v_hartree_rspace,qmmm_env,qs_env,&
@@ -341,15 +341,15 @@ CONTAINS
    
     CALL pw_release(v_metal_rspace_guess%pw)
     DEALLOCATE(pot_const,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(vmetal_const,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(r,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(d,z,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(Ad,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
    
     CALL timestop(handle)
 
@@ -383,7 +383,6 @@ CONTAINS
                                                 handle, iatom, j, k, natom, &
                                                 npme, stat
     INTEGER, DIMENSION(:), POINTER           :: cores
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab
@@ -399,7 +398,7 @@ CONTAINS
     NULLIFY(cores,hab,cell,auxbas_rs_desc,pw_env,para_env,&
            dft_control,rs_v)
     ALLOCATE (hab(1,1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
@@ -470,7 +469,7 @@ CONTAINS
     CALL mp_sum(int_res,para_env%group)
 
     DEALLOCATE (hab,cores,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL rs_grid_release(rs_v)
 
@@ -524,9 +523,9 @@ CONTAINS
     use_virial=.FALSE.
    
     ALLOCATE (hab(1,1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (pab(1,1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
    
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env=pw_env,auxbas_rs_desc=auxbas_rs_desc, &
@@ -554,7 +553,7 @@ CONTAINS
    
     IF(.NOT.ASSOCIATED(forces)) THEN
      ALLOCATE(forces(3,natom), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+     CPASSERT(stat==0)
     ENDIF
    
     forces(:,:)=0.0_dp
@@ -602,7 +601,7 @@ CONTAINS
     CALL mp_sum(forces,para_env%group)
 
     DEALLOCATE (hab,pab,cores,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL rs_grid_release(rs_v)
 
@@ -696,16 +695,16 @@ CONTAINS
    
     IF (.NOT.ASSOCIATED(image_matrix)) THEN
         ALLOCATE(image_matrix(natom,natom),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
     ENDIF
     IF (PRESENT(ipiv)) THEN
        IF (.NOT.ASSOCIATED(ipiv)) THEN
            ALLOCATE(ipiv(natom),stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+           CPASSERT(stat==0)
        ENDIF
     ENDIF
     ALLOCATE(int_res(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
    
     image_matrix=0.0_dp
     IF(PRESENT(ipiv)) ipiv=0
@@ -767,9 +766,9 @@ CONTAINS
     IF (qmmm_env%image_charge_pot%coeff_iterative) THEN
        !inversion --> preconditioner matrix for CG
        CALL DPOTRF('L',natom,qs_env%image_matrix,natom,stat)
-       CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+       CPASSERT(stat==0)
        CALL DPOTRI('L',natom,qs_env%image_matrix,natom,stat)
-       CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+       CPASSERT(stat==0)
        DO j=1,natom
         DO k=j+1,natom
          qs_env%image_matrix(j,k)=qs_env%image_matrix(k,j)
@@ -780,7 +779,7 @@ CONTAINS
        !pivoting prior to DGETRS (Gaussian elimination)
        IF(PRESENT(ipiv)) THEN
           CALL DGETRF(natom,natom,image_matrix,natom,ipiv,stat)
-          CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+          CPASSERT(stat==0)
        ENDIF
     ENDIF
 
@@ -789,7 +788,7 @@ CONTAINS
     CALL pw_release(rho_gb%pw)
 
     DEALLOCATE(int_res,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
    
     CALL timestop(handle)
 
@@ -1021,7 +1020,7 @@ CONTAINS
  
     IF (.NOT.ASSOCIATED(image_matrix)) THEN
        ALLOCATE(image_matrix(natom,natom),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
    
     image_matrix=0.0_dp 

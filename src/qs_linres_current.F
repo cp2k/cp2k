@@ -274,7 +274,7 @@ CONTAINS
     !
     ! allocate temporary arrays
     ALLOCATE(psi1(nspins),p_psi1(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ispin = 1,nspins
        CALL cp_fm_create(  psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct)
        CALL cp_fm_create(p_psi1(ispin)%matrix,psi0_order(ispin)%matrix%matrix_struct)
@@ -290,19 +290,19 @@ CONTAINS
     !
     ! prepare for allocation
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
     ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
     DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (last_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     !
     DO ispin = 1,nspins
@@ -365,7 +365,7 @@ CONTAINS
           !
           ! Allocate buffer vectors
           ALLOCATE(ddk(3,nmo),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           !
           ! Construct the 3 density matrices for the field in direction iB
           !
@@ -460,7 +460,7 @@ CONTAINS
           !
           ! Deallocate buffer vectors
           DEALLOCATE(ddk,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           !
        ENDDO ! ispin
 
@@ -546,7 +546,7 @@ CONTAINS
           CALL cp_fm_release(p_psi1(ispin)%matrix)
        ENDDO
        DEALLOCATE(psi1,p_psi1,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        CALL cp_dbcsr_deallocate_matrix_set(density_matrix0)
        CALL cp_dbcsr_deallocate_matrix_set(density_matrix_a)
@@ -731,9 +731,9 @@ CONTAINS
     cube_info=>pw_env%cube_info
 
     !   Check that the neighbor list with all the pairs is associated
-    CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(sab_orb))
     ! *** set up the pw multi-grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pw_env))
     CALL pw_env_get(pw_env, rs_descs=rs_descs, rs_grids=rs_rho)
 
     distributed_rs_grids=.FALSE.
@@ -780,7 +780,7 @@ CONTAINS
 
     ! hard code matrix index (no kpoints)
     nimages = dft_control%nimages
-    CPPostcondition(nimages==1,cp_failure_level,routineP,failure)
+    CPASSERT(nimages==1)
     cindex = 1
 
     DO ikind=1,nkind
@@ -836,7 +836,7 @@ CONTAINS
     ENDIF
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,softb=my_soft,basis_set=basis_set_a)
@@ -933,7 +933,7 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE (basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     IF (distributed_rs_grids) THEN
        CALL cp_dbcsr_finalize(deltajp_a(1)%matrix)
@@ -949,7 +949,7 @@ CONTAINS
          skip_load_balance_distributed=.FALSE.)
 
     ALLOCATE(rs_current(gridlevel_info%ngrid_levels))
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        ! Here we need to reallocate the distributed rs_grids, which may have been reordered
@@ -1049,7 +1049,7 @@ CONTAINS
                      nimages,natom,maxset,maxpgf)
 
        ! apparently generalised collocation not implemented correctly yet
-       CPPostcondition(tasks(4,itask).NE.2,cp_failure_level,routineP,failure)
+       CPASSERT(tasks(4,itask).NE.2)
 
        IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
 
@@ -1290,15 +1290,15 @@ CONTAINS
 
     IF ( nthread > 1 ) THEN
        DEALLOCATE (lgrid%r,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
     DEALLOCATE (jpabt_a,jpabt_b,jpabt_c,jpabt_d,workt,tasks,dist_ab,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     IF (distributed_rs_grids) THEN
        DEALLOCATE(atom_pair_send,atom_pair_recv,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     ENDIF
 
     CALL density_rs2pw(pw_env,rs_current,current_rs,current_gs)
@@ -1311,7 +1311,7 @@ CONTAINS
 
     ! Free the array of grids (grids themselves are released in density_rs2pw)
     DEALLOCATE (rs_current,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -1341,7 +1341,7 @@ CONTAINS
     TYPE(realspaces_grid_p_type), DIMENSION(:), POINTER :: rs_gauge
 
     TYPE(box_type), DIMENSION(:,:,:), POINTER :: box
-    LOGICAL :: use_old_gauge_atom, failure
+    LOGICAL                                   :: use_old_gauge_atom
 
     NULLIFY(rs_gauge,box)
 
@@ -1367,11 +1367,11 @@ CONTAINS
        !
        ! allocate and build the gauge
        ALLOCATE (rs_gauge(1)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        ALLOCATE (rs_gauge(2)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        ALLOCATE (rs_gauge(3)%rs(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DO igrid_level = pw_env%gridlevel_info%ngrid_levels,1,-1
 
           CALL rs_grid_create(rs_gauge(1)%rs(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
@@ -1394,7 +1394,7 @@ CONTAINS
        !
        ! allocate the buf
        ALLOCATE (current_env%rs_buf(pw_env%gridlevel_info%ngrid_levels),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DO igrid_level = 1,pw_env%gridlevel_info%ngrid_levels
          CALL rs_grid_create(current_env%rs_buf(igrid_level)%rs_grid, rs_descs(igrid_level)%rs_desc)
        END DO
@@ -2285,19 +2285,19 @@ CONTAINS
     ! prepare for allocation
     natom = SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
     ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
     DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (last_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     !
     ALLOCATE(op_mom_ao(1)%matrix)
@@ -2364,7 +2364,7 @@ CONTAINS
     CALL cp_fm_struct_release(tmp_fm_struct)
     !
     ALLOCATE(p_rxp(3),r_p1(3),r_p2(3),rr_rxp(9,3),rr_p1(9,3),rr_p2(9,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
                              ncol_global=max_states,para_env=para_env,&
                              context=mo_coeff%matrix_struct%context)
@@ -2620,7 +2620,7 @@ CONTAINS
        ENDDO
     ENDDO
     DEALLOCATE(p_rxp,r_p1,r_p2,rr_rxp,rr_p1,rr_p2,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -2725,19 +2725,19 @@ CONTAINS
     ! prepare for allocation
     natom = SIZE(particle_set,1)
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
     ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
     DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (last_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     !
     ALLOCATE(op_mom_ao(1)%matrix)
@@ -2810,7 +2810,7 @@ CONTAINS
     CALL set_vecp(iB,iiB,iiiB)
     DO ispin = 1,nspins
        !
-       CPPostcondition(nbr_center(ispin)==1,cp_failure_level,routineP,failure)
+       CPASSERT(nbr_center(ispin)==1)
        !
        ! get ground state MOS
        nmo = nstates(ispin)

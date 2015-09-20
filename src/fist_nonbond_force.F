@@ -108,8 +108,7 @@ CONTAINS
       shell_b, shell_type
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: all_terms, do_multipoles, &
-                                                failure, full_nl, &
-                                                shell_present
+                                                full_nl, shell_present
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_shell_kind
     REAL(KIND=dp) :: alpha, beta, beta_a, beta_b, energy, etot, fac_ei, &
       fac_kind, fac_vdw, fscalar, mm_radius_a, mm_radius_b, qcore_a, qcore_b, &
@@ -163,7 +162,7 @@ CONTAINS
     END IF
     shell_present = .FALSE.
     IF (PRESENT(fshell_nonbond)) THEN
-       CPPostcondition(PRESENT(fcore_nonbond),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(fcore_nonbond))
        fshell_nonbond = 0.0_dp
        fcore_nonbond = 0.0_dp
        shell_present = .TRUE.
@@ -179,7 +178,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"qshell",dp_size*nkind)
     ALLOCATE (is_shell_kind(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"is_shell_kind",int_size*nkind)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
        atomic_kind => atomic_kind_set(ikind)
        CALL get_atomic_kind(atomic_kind,&
@@ -214,7 +213,7 @@ CONTAINS
           !$omp          private(shell_kind,beta,beta_a,beta_b,spl_f,spline_data) &
           !$omp          private(shell_type,all_terms,rab_cc,rab_cs,rab_sc,rab_ss) &
           !$omp          private(rab_list,rab2_list,rab_com,rab2_com,pv,pv_thread) &
-          !$omp          private(rab,rab2,rab2_max,fscalar,energy,failure) &
+          !$omp          private(rab,rab2,rab2_max,fscalar,energy) &
           !$omp          private(shell_a,shell_b,etot,fatom_a,fatom_b) &
           !$omp          private(fcore_a,fcore_b,fshell_a,fshell_b,i,j) &
           !$omp          shared(shell_present) &
@@ -315,8 +314,8 @@ CONTAINS
              spline_data => pot%pair_spline_data
              shell_type = pot%shell_type
              IF (shell_type /= nosh_nosh) THEN
-                CPPrecondition(.NOT.do_multipoles,cp_failure_level,routineP,failure)
-                CPPostcondition(shell_present,cp_failure_level,routineP,failure)
+                CPASSERT(.NOT.do_multipoles)
+                CPASSERT(shell_present)
              END IF
              rab2_max = pot%rcutsq
 

@@ -466,7 +466,7 @@ CONTAINS
           ! final scale
           CALL cp_dbcsr_scale(tmp1,35.0_dp/128.0_dp)    
        CASE DEFAULT
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
 
        ! tmp2 = Yk * tmp1 = Y(k+1)

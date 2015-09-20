@@ -302,16 +302,16 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     END IF
     l_ub=l_bounds(2,:)-l_bounds(1,:)+l_shift
     DO i=0,2
-        CPPrecondition(l_ub(i)<ldim2(i),cp_failure_level,routineP,failure)
+        CPASSERT(l_ub(i)<ldim2(i))
     END DO
     IF (failure) RETURN
 
     DO i=0,2
         period(permut(i))=periodic(i)
     END DO
-    CPPrecondition(ALL(l_bounds(2,:)<ndim.or.period(:)==1),cp_failure_level,routineP,failure)
-    CPPrecondition(ALL(l_bounds(1,:)>=0 .or.period(:)==1),cp_failure_level,routineP,failure)
-    CPPrecondition(ALL(l_bounds(2,:)-l_bounds(1,:)<ndim),cp_failure_level,routineP,failure)
+    CPASSERT(ALL(l_bounds(2,:)<ndim.or.period(:)==1))
+    CPASSERT(ALL(l_bounds(1,:)>=0 .or.period(:)==1))
+    CPASSERT(ALL(l_bounds(2,:)-l_bounds(1,:)<ndim))
     rPos=0.0_dp
     DO j=0,2
         DO i=0,2
@@ -507,7 +507,7 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     ! k bounds (cache a la cube_info?)
     has_overlap=.FALSE.
     ALLOCATE(k_bounds(0:1,0:max_j-1,0:MAX(0,imax-imin+1)),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+    CPASSERT(stat==0)
     ! k_bounds=0
     istart=imin
     iiShift=shiftPos(0)-l_bounds(2,0)+istart
@@ -591,18 +591,18 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     ALLOCATE(poly_ijk(size_ijk),&
         poly_jk(size_jk),&
         xi(grad+1),stat=stat)
-    CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+    CPASSERT(stat==0)
 
     IF(integrate) THEN
         ALLOCATE(k_vals(0:grad),stat=stat)
-        CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+        CPASSERT(stat==0)
     ELSE
         ALLOCATE(poly_k(0:size_k-1),stat=stat)
-        CPPostconditionNoFail(stat==0,cp_fatal_level,routineP)
+        CPASSERT(stat==0)
     ENDIF
 
     IF (integrate) THEN
-       CPPreconditionNoFail(SIZE(poly)==poly_size3(grad),cp_failure_level,routineP)
+       CPASSERT(SIZE(poly)==poly_size3(grad))
        poly_ijk=0.0_dp
     ELSE
        CALL poly_affine_t3(poly,scaled_h,-resPosReal+p_shift,poly_ijk,&

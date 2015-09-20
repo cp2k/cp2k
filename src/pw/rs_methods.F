@@ -83,7 +83,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(f),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(f))
 
     ! Setup
     rs_desc => rs_grid%desc
@@ -161,7 +161,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(f),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(f))
 
     ! Setup
     rs_desc => rs_grid%desc
@@ -239,7 +239,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(f),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(f))
 
     ! Setup
     rs_desc => rs_grid%desc

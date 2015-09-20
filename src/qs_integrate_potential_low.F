@@ -151,7 +151,7 @@ CONTAINS
     IF(PRESENT(use_subpatch)) THEN
        IF(use_subpatch)THEN
          subpatch_integrate = .TRUE.
-         CPPrecondition(PRESENT(subpatch_pattern),cp_failure_level,routineP,failure)
+         CPASSERT(PRESENT(subpatch_pattern))
        ENDIF
     ENDIF
 
@@ -391,7 +391,7 @@ CONTAINS
         offset=MODULO(cubecenter(i)+lb_cube(i)+rsgrid%desc%lb(i)-rsgrid%lb_local(i),ng(i))+1-lb_cube(i)
         ! check for out of bounds
         IF (ub_cube(i)+offset>UBOUND(grid,i).OR.lb_cube(i)+offset<LBOUND(grid,i)) THEN
-           CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         ENDIF
         DO ig=lb_cube(i),ub_cube(i)
            map(ig,i) = ig+offset
@@ -732,7 +732,7 @@ CONTAINS
             scale=rsgrid%desc%ngpts/ABS(cell%deth))
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
         ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)
-        CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+        CPASSERT(stat==0)
         CALL poly_d32cp2k(coef_xyz,lp,poly_d3)
         CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
                                   rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
@@ -740,7 +740,7 @@ CONTAINS
                                   ncoset(lb_max_local))
 
         DEALLOCATE(coef_xyz,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+        CPASSERT(stat==0)
     END SUBROUTINE
 
 ! *****************************************************************************
@@ -776,7 +776,7 @@ CONTAINS
             scale=rsgrid%desc%ngpts/ABS(cell%deth))
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
         ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6),stat=stat)
-        CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+        CPASSERT(stat==0)
         CALL poly_d32cp2k(coef_xyz,lp,poly_d3)
         CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
                                   rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
@@ -784,7 +784,7 @@ CONTAINS
 
 
         DEALLOCATE(coef_xyz,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+        CPASSERT(stat==0)
     END SUBROUTINE
 
 ! *****************************************************************************

@@ -190,10 +190,10 @@ CONTAINS
        NULLIFY(norm_drho(ispin)%array, rho(ispin)%array, rho_1_3(ispin)%array)
     END DO
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,failure)
-    CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
+    CPASSERT(ASSOCIATED(deriv_set))
+    CPASSERT(deriv_set%ref_count>0)
     IF (lsd) THEN
        CALL xc_rho_set_get(rho_set,rhoa_1_3=rho_1_3(1)%array,&
             rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
@@ -216,9 +216,9 @@ CONTAINS
     CALL xgga_init(rho_cutoff)
 
     ALLOCATE ( s(npoints), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE ( fs(npoints,m+1), STAT=stat )
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO ispin=1,nspin
        IF (lsd) THEN
@@ -262,7 +262,7 @@ CONTAINS
           CALL efactor_ev93 ( s, fs, m )
           IF (lsd) tact = 1.0_dp
        CASE DEFAULT
-          CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
 
        IF ( order>=0 ) THEN
@@ -330,9 +330,9 @@ CONTAINS
     END DO
 
     DEALLOCATE ( s, STAT=stat )
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
     DEALLOCATE ( fs, STAT=stat )
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
   END SUBROUTINE xgga_eval

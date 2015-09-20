@@ -320,16 +320,16 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE(fe_env%cg_data(ng_points),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i = 1, ng_points
        ALLOCATE(fe_env%cg_data(i)%avg(ncolvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(fe_env%cg_data(i)%var(ncolvar,ncolvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END DO
     IF (PRESENT(wrk)) THEN
        ALLOCATE(wrk(ng_points),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE create_tmp_data
 
@@ -356,15 +356,15 @@ CONTAINS
     failure = .FALSE.
     DO i = 1, ng_points
        DEALLOCATE(fe_env%cg_data(i)%avg,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(fe_env%cg_data(i)%var,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END DO
     DEALLOCATE(fe_env%cg_data,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (PRESENT(wrk)) THEN
        DEALLOCATE(wrk,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE destroy_tmp_data
 
@@ -571,13 +571,13 @@ CONTAINS
        CALL create_tmp_data(fe_env,ng_points=ng_points,ncolvar=ncolvar)
        CALL create_csg_data(fe_env,ng_points,output_unit)
        ALLOCATE(covmx(ncolvar,ncolvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(avgmx(ncolvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(cov_std(ncolvar*(ncolvar+1)/2,ncolvar*(ncolvar+1)/2),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(avg_std(ncolvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        covmx = 0.0_dp
        avgmx = 0.0_dp
        DO i = 1, ng_points
@@ -623,13 +623,13 @@ CONTAINS
        END IF
        CALL destroy_tmp_data(fe_env,ng_points=ng_points)
        DEALLOCATE(covmx,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(avgmx,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(cov_std,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(avg_std,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL timestop(handle)
   END SUBROUTINE ui_check_convergence
@@ -667,9 +667,9 @@ CONTAINS
     ! Averages
     nvar = ncolvar
     ALLOCATE(wrk(nvar,nvar),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(eig(nvar),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     fac = REAL(SIZE(fe_env%cg_data),KIND=dp)
     wrk = 0.0_dp
     eig = 0.0_dp
@@ -693,19 +693,19 @@ CONTAINS
        avg_std(i) = eig(i)
     END DO
     DEALLOCATE(wrk,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(eig,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Standard Deviations
     nvar = ncolvar*(ncolvar+1)/2
     ALLOCATE(wrk(nvar,nvar),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(eig(nvar),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(awrk(nvar),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(tmp(nvar),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     wrk = 0.0_dp
     eig = 0.0_dp
     ind = 0
@@ -747,13 +747,13 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(wrk,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(eig,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(awrk,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(tmp,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE compute_avg_std_errors
 
@@ -876,7 +876,7 @@ CONTAINS
     DO i = 1, SIZE(my_par)
        IF (my_par(i)==par) EXIT
     END DO
-    CPPrecondition(i<=SIZE(my_par),cp_failure_level,routineP,failure)
+    CPASSERT(i<=SIZE(my_par))
     ipar = i
     dedf = evalfd(1,ipar,my_val,dx,err)
     IF (ABS(err)>lerr) THEN

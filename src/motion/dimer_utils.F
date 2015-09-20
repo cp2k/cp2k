@@ -60,7 +60,7 @@ CONTAINS
        WRITE(output_unit,*)"NVEC and THETA should be orthogonal! Residue: ",&
             ABS(DOT_PRODUCT(nvec,theta))
     END IF
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     nvec  = nvec * COS(dt) + theta * SIN(dt)
 
   END SUBROUTINE rotate_dimer
@@ -97,7 +97,7 @@ CONTAINS
     i_rep_val  = 0
     Main_Loop: DO i = 1, SIZE(dimer_env%nvec), size_array
        ALLOCATE(array(size_array), stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        i_rep_val = i_rep_val + 1
        DO j = 1, size_array
           isize = isize + 1
@@ -112,7 +112,7 @@ CONTAINS
        CALL section_vals_val_set(nvec_section,"_DEFAULT_KEYWORD_",r_vals_ptr=array,&
             i_rep_val=i_rep_val)
     END DO Main_Loop
-    CPPostcondition(isize==SIZE(dimer_env%nvec),cp_failure_level,routineP,failure)
+    CPASSERT(isize==SIZE(dimer_env%nvec))
   END SUBROUTINE update_dimer_vec
 
 ! *****************************************************************************

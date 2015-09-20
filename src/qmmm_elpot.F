@@ -76,7 +76,7 @@ CONTAINS
                                                 ndim, Np, output_unit, stat, &
                                                 unit_nr
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: A, G, rc, Rmax, Rmin, t, t1, &
                                                 t2, x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radius
@@ -96,11 +96,11 @@ CONTAINS
     !
     IF (SIZE(mm_el_pot_radius) /= 0) THEN
        ALLOCATE(radius(1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
        radius(1) = mm_el_pot_radius(1)
     ELSE
        ALLOCATE(radius(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
     END IF
     Loop_on_all_values: DO I = 2, SIZE(mm_el_pot_radius)
        Found=.FALSE.
@@ -118,15 +118,15 @@ CONTAINS
        END IF
     END DO Loop_on_all_values
     !
-    CPPrecondition(.NOT.ASSOCIATED(potentials),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(potentials))
     ALLOCATE(potentials(SIZE(radius)),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
 
     Potential_Type: DO K = 1, SIZE(radius)
 
        rc = radius(K)
        ALLOCATE(potentials(K)%Pot, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb)
           NULLIFY(pot0_2)
@@ -134,7 +134,7 @@ CONTAINS
           NULLIFY(pot0_2)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           ALLOCATE(pot0_2(2,np), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END SELECT
 
        SELECT CASE(qmmm_coupl_type)
@@ -165,7 +165,7 @@ CONTAINS
              END DO
           END IF
           pgf => pgfs(K)%pgf
-          CPPostcondition(pgf%Elp_Radius==rc,cp_failure_level,routineP,failure)
+          CPASSERT(pgf%Elp_Radius==rc)
           ig_start = 1
           IF (compatibility.AND.(qmmm_coupl_type==do_qmmm_gauss)) ig_start = 2
           DO Ig = ig_start, pgf%number_of_gaussians
@@ -213,14 +213,14 @@ CONTAINS
           END IF
        CASE DEFAULT
           DEALLOCATE(potentials(K)%Pot)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           NULLIFY(potentials(K)%Pot)
           IF (output_unit>0) WRITE(output_unit,'(A)')" QMMM Potential - Spline Interpolation - not Initialized!"
           CYCLE Potential_Type
        END SELECT
        NULLIFY(mm_atom_index)
        ALLOCATE(mm_atom_index(1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
        ! Build mm_atom_index List
        DO J= 1, SIZE(mm_el_pot_radius)
           IF (rc.EQ.mm_el_pot_radius(J)) THEN
@@ -238,7 +238,7 @@ CONTAINS
 
     END DO Potential_Type
     DEALLOCATE(radius, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
   END SUBROUTINE qmmm_potential_init
 
 ! *****************************************************************************

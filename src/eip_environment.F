@@ -91,7 +91,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(eip_env), cp_failure_level, routineP,failure)
+    CPASSERT(ASSOCIATED(eip_env))
 
     ! nullifying  pointers
     NULLIFY(cell_section, colvar_section, eip_section, cell, cell_ref, &
@@ -198,7 +198,7 @@ CONTAINS
     natom = SIZE(particle_set)
 
     ALLOCATE(eip_env%eip_forces(3,natom), stat=stat)
-    CPPostcondition(stat == 0, cp_failure_level, routineP,failure)
+    CPASSERT(stat == 0)
 
     eip_env%eip_forces(:,:) = 0.0_dp
 

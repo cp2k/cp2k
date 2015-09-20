@@ -115,7 +115,7 @@ CONTAINS
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=natom)
       ALLOCATE(atom_of_kind(natom),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                atom_of_kind=atom_of_kind)
       CALL neighbor_list_iterator_create(nl_iterator,soo_list)
@@ -139,7 +139,7 @@ CONTAINS
          nn=nfa+nfb
 
          ALLOCATE(h_work(nba,nbb),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          h_work(:,:)=0.0_dp
 
          IF (iatom <= jatom) THEN
@@ -184,14 +184,14 @@ CONTAINS
          ENDIF
  
          DEALLOCATE(h_work,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
       END DO
 
       CALL cp_dbcsr_finalize(h_matrix)
  
       CALL neighbor_list_iterator_release(nl_iterator)
       DEALLOCATE(atom_of_kind,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
   
     END IF
 

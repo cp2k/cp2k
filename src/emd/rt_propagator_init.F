@@ -251,7 +251,7 @@ CONTAINS
          name="tmp_EVEC")
 
     ALLOCATE(eigval_H(ndim),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL copy_dbcsr_to_fm(s_mat(1)%matrix,tmp)
     CALL cp_fm_upper_to_full(tmp,eigvec_H)
 
@@ -290,7 +290,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(eigval_H,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL copy_fm_to_dbcsr(S_inv_fm,S_inv)
     CALL cp_fm_release(S_inv_fm)

@@ -49,12 +49,12 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(taper),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(taper))
     ALLOCATE (taper,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (range > EPSILON(0.0_dp)) THEN
        taper%apply_taper = .TRUE.
-       CPPrecondition(range>0.0_dp,cp_failure_level,routineP,failure)
+       CPASSERT(range>0.0_dp)
        taper%r0     = 2.0_dp*rc - 20.0_dp * range
        taper%rscale = 1.0_dp/range
     ELSE
@@ -79,7 +79,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(taper)) THEN
        DEALLOCATE (taper,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE taper_release
 

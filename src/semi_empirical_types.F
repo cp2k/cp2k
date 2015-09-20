@@ -191,15 +191,15 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(sep),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(sep))
     ALLOCATE (sep,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (sep%beta(0:3),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (sep%sto_exponents(0:3),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (sep%zn(0:3),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(sep%basis)
     NULLIFY(sep%w)
     NULLIFY(sep%w_mpole)
@@ -228,29 +228,29 @@ CONTAINS
        CALL semi_empirical_mpole_p_release(sep%w_mpole)
        IF (ASSOCIATED(sep%beta)) THEN
           DEALLOCATE (sep%beta,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(sep%sto_exponents)) THEN
           DEALLOCATE (sep%sto_exponents,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(sep%zn)) THEN
           DEALLOCATE (sep%zn,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(sep%w)) THEN
           DEALLOCATE (sep%w,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        IF (ASSOCIATED(sep%expns3_int)) THEN
           DO i = 1, SIZE(sep%expns3_int)
              CALL semi_empirical_expns3_release(sep%expns3_int(i)%expns3)
           END DO
           DEALLOCATE (sep%expns3_int,STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        DEALLOCATE (sep,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE semi_empirical_release
@@ -268,7 +268,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(sep),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(sep))
     sep%defined            = .FALSE.
     sep%dorb               = .FALSE.
     sep%extended_basis_set = .FALSE.
@@ -565,9 +565,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(rotmat),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(rotmat))
     ALLOCATE (rotmat,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE rotmat_create
 
@@ -587,7 +587,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(rotmat)) THEN
        DEALLOCATE (rotmat,STAT=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE rotmat_release
@@ -666,9 +666,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(se_taper),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(se_taper))
     ALLOCATE(se_taper, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(se_taper%taper)
     NULLIFY(se_taper%taper_cou)
     NULLIFY(se_taper%taper_exc)
@@ -707,7 +707,7 @@ CONTAINS
        CALL taper_release(se_taper%taper_add)
 
        DEALLOCATE(se_taper, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
   END SUBROUTINE se_taper_release
 

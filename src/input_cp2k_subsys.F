@@ -96,7 +96,7 @@ CONTAINS
     my_label    = "CELL"
     IF (PRESENT(periodic)) my_periodic = periodic
     IF (PRESENT(label))    my_label = label
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,TRIM(my_label),&
          description="Input parameters needed to set up the "//TRIM(my_label)//".",&
          n_keywords=6, n_subsections=1, repeats=.FALSE.)
@@ -239,7 +239,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RNG_INIT",&
          description="Information to initialize the parallel random number generator streams",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -270,7 +270,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="subsys",&
          description="a subsystem: coordinates, topology, molecules and cell",&
          n_keywords=0, n_subsections=9, repeats=.FALSE.)
@@ -349,7 +349,7 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(print_key, keyword)
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
          description="Controls printings related to the subsys",&
          n_keywords=0, n_subsections=9, repeats=.FALSE.)
@@ -593,7 +593,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="multipoles",&
          description="Specifies the dipoles and quadrupoles for particles.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -644,7 +644,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(print_key),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(print_key))
 
 
     NULLIFY(keyword)
@@ -710,7 +710,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="velocity",&
          description="The velocities for simple systems or "//&
                      "the centroid mode in PI runs, xyz format by default",&
@@ -753,7 +753,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="shell_velocity",&
          description="The velocities of shells for shell-model potentials, "//&
          "in xyz format  ",&
@@ -788,7 +788,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="core_velocity",&
          description="The velocities of cores for shell-model potentials, "//&
          "in xyz format  ",&
@@ -938,7 +938,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="coord",&
          description="The coordinates for simple systems (like the QM ones)"//&
          " xyz format by default. More complex systems should be given with"//&
@@ -986,7 +986,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="shell_coord",&
          description="The shell coordinates for the shell-model potentials"//&
          " xyz format with an additional column for the index of the corresponding particle",&
@@ -1034,7 +1034,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="core_coord",&
          description="The core coordinates for the shell-model potentials"//&
          " xyz format with an additional column for the index of the corresponding particle",&
@@ -1083,7 +1083,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="KIND",&
          description="The description of the kind of the atoms (mostly for QM)",&
@@ -1335,7 +1335,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
 
     CALL section_create(section,&
@@ -1467,7 +1467,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TOPOLOGY",&
          description="Section specifying information regarding how to handle the topology"// &
          " for classical runs.",&
@@ -1699,7 +1699,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(keyword)
     CALL section_create(section,TRIM(header),&
          description="Speficy bonds (via atom kinds) for fine tuning of 1-2 "//&
@@ -1732,7 +1732,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(keyword)
     CALL section_create(section,"CENTER_COORDINATES",&
          description="Allows centering the coordinates of the system in the box. "//&
@@ -1771,7 +1771,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection, subsubsection
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(keyword, subsection, subsubsection)
     CALL section_create(section,name="MOL_SET",&
          description="Specify the connectivity of a full system specifying the connectivity"//&
@@ -1869,7 +1869,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(keyword,subsection)
     CALL section_create(section,name="GENERATE",&
          description="Setup of keywords controlling the generation of the connectivity",&
@@ -2065,7 +2065,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
          description="Section of possible print options in GENERATE code.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)
@@ -2104,7 +2104,7 @@ CONTAINS
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section))
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="CONN_FILE_NAME",&
          variants=(/"CONN_FILE"/),&
@@ -2165,7 +2165,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
 
     CALL section_create(section,&

@@ -155,7 +155,7 @@ CONTAINS
     dokp = (nimages > 1)
 
     ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
     IF (calculate_forces) THEN
@@ -181,7 +181,7 @@ CONTAINS
     ldai = ncoset(maxl+nder+1)
 
     ALLOCATE (basis_set_list(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -222,16 +222,16 @@ CONTAINS
     CALL neighbor_list_iterator_create(ap_iterator,sac_ppl,search=.TRUE.)
 
     ALLOCATE(hab(ldsab,ldsab,maxnset,maxnset),work(ldsab,ldsab*maxder),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ldai = ncoset(2*maxlgto+2*nder)
       ALLOCATE (ppl_work(ldai,ldai,MAX(maxder,2*maxlgto+2*nder+1)),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       IF (calculate_forces) THEN
          ALLOCATE(pab(maxco,maxco,maxnset,maxnset),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          ldai = ncoset(maxlgto)
          ALLOCATE (ppl_fwork(ldai,ldai,maxder),STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
       END IF
       
     DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos)==0)
@@ -347,7 +347,7 @@ CONTAINS
           IF (lpotextended) THEN
             CALL get_potential(potential=gth_potential,&
                  nexp_lpot=nexp_lpot,alpha_lpot=alpha_lpot,nct_lpot=nct_lpot,cval_lpot=cval_lpot)
-            CPPrecondition(nexp_lpot<nexp_max,cp_failure_level,routineP,failure)
+            CPASSERT(nexp_lpot<nexp_max)
             nexp_ppl=nexp_lpot+1
             alpha_ppl(2:nexp_lpot+1) = alpha_lpot(1:nexp_lpot)
             nct_ppl(2:nexp_lpot+1) = nct_lpot(1:nexp_lpot)
@@ -465,11 +465,11 @@ CONTAINS
     CALL neighbor_list_iterator_release(ap_iterator)
         
     DEALLOCATE(hab,work,ppl_work,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
         
     IF (calculate_forces) THEN
        DEALLOCATE(pab,ppl_fwork,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
 !$OMP END PARALLEL
@@ -477,7 +477,7 @@ CONTAINS
     CALL neighbor_list_iterator_release(nl_iterator)
 
     DEALLOCATE (atom_of_kind,basis_set_list,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (calculate_forces) THEN
        ! *** If LSD, then recover alpha density and beta density     ***

@@ -186,7 +186,7 @@ CONTAINS
     NULLIFY (atomic_kind_set)
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set)
     ALLOCATE (atom_of_kind(natom),kind_of(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          atom_of_kind=atom_of_kind,&
          kind_of=kind_of)
@@ -199,12 +199,12 @@ CONTAINS
        !   *** Allocate the force data structure ***
        nkind = SIZE(atomic_kind_set)
        ALLOCATE (natom_of_kind(nkind),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             natom_of_kind=natom_of_kind)
        CALL allocate_qs_force(force,natom_of_kind)
        DEALLOCATE (natom_of_kind,STAT=istat)
-       CPPostconditionNoFail(istat==0,cp_warning_level,routineP)
+       CPASSERT(istat==0)
        CALL qs_subsys_set(subsys,force=force)
     END IF
     CALL zero_qs_force(force)
@@ -477,7 +477,7 @@ CONTAINS
     CALL set_ks_env(ks_env,matrix_w=Null(),matrix_w_kp=Null())
 
     DEALLOCATE (atom_of_kind,kind_of,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 

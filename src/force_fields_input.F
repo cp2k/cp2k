@@ -114,7 +114,7 @@ CONTAINS
     CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy)
     CALL section_vals_val_get(ff_section,"SPLINE%NPOINTS",i_val=ff_type%npoints)
     CALL section_vals_val_get(ff_section,"IGNORE_MISSING_CRITICAL_PARAMS",l_val=ff_type%ignore_missing_critical)
-    CPPostcondition(ff_type%max_energy<=ff_type%emax_spline,cp_failure_level,routineP,failure)
+    CPASSERT(ff_type%max_energy<=ff_type%emax_spline)
     ! Read the parameter file name only if the force field type requires it..
     SELECT CASE(ff_type%ff_type)
     CASE(do_ff_charmm,do_ff_amber,do_ff_g96,do_ff_g87)
@@ -1130,21 +1130,21 @@ CPSourceFileRef,&
         nonbonded%pot(start+isec)%pot%set(1)%buck4r%poly2(0:3) = x(7:10)
       ELSE
         nonbonded%pot(start+isec)%pot%set(1)%buck4r%npoly1 = np1-1
-        CPPostcondition((np1 - 1 <= 10),cp_failure_level,routineP,failure)
+        CPASSERT(np1 - 1 <= 10)
         nonbonded%pot(start+isec)%pot%set(1)%buck4r%poly1(0:np1-1) = coeff1(0:np1-1)
         nonbonded%pot(start+isec)%pot%set(1)%buck4r%npoly2 = np2-1
-        CPPostcondition((np2 - 1 <= 10),cp_failure_level,routineP,failure)
+        CPASSERT(np2 - 1 <= 10)
         nonbonded%pot(start+isec)%pot%set(1)%buck4r%poly2(0:np2-1) = coeff2(0:np2-1)
       END IF
       nonbonded%pot(start+isec)%pot%rcutsq = rcut*rcut
 
       IF (ASSOCIATED(coeff1)) THEN
         DEALLOCATE (coeff1,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
       IF (ASSOCIATED(coeff2)) THEN
         DEALLOCATE (coeff2,STAT=istat)
-        CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
       END IF
       CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,n_rep_val=n_rep)
       IF (n_rep == 1) CALL section_vals_val_get(section,"RMIN",i_rep_section=isec,&
@@ -1453,7 +1453,7 @@ CPSourceFileRef,&
     IF (n_damp > 0) THEN
       failure=.FALSE.
       ALLOCATE (damping_list(1:n_damp),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     ENDIF
 
 ! *** Reads DIPOLE sections *****
@@ -1622,7 +1622,7 @@ CPSourceFileRef,&
        CALL uppercase(bond_a(start+isec))
        CALL uppercase(bond_b(start+isec))
        CALL section_vals_val_get(section,"K",i_rep_section=isec,r_vals=Kvals)
-       CPPostcondition(SIZE(Kvals) <= 3, cp_failure_level, routineP,failure)
+       CPASSERT(SIZE(Kvals) <= 3)
        bond_k(:,start+isec) = 0.0_dp
        DO k=1,SIZE(Kvals)
           bond_k(k,start+isec) = Kvals(k)
@@ -1684,7 +1684,7 @@ CPSourceFileRef,&
        CALL uppercase(bend_b(start+isec))
        CALL uppercase(bend_c(start+isec))
        CALL section_vals_val_get(section,"K",i_rep_section=isec,r_vals=Kvals)
-       CPPostcondition(SIZE(Kvals) == 1, cp_failure_level, routineP,failure)
+       CPASSERT(SIZE(Kvals) == 1)
        bend_k(start+isec) = Kvals(1)
        CALL section_vals_val_get(section,"THETA0",i_rep_section=isec,r_val=bend_theta0(start+isec))
        CALL section_vals_val_get(section,"CB",i_rep_section=isec,r_val=bend_cb(start+isec))
@@ -1742,7 +1742,7 @@ CPSourceFileRef,&
           CALL uppercase(ub_b(start+isec))
           CALL uppercase(ub_c(start+isec))
           CALL section_vals_val_get(subsection,"K",r_vals=Kvals)
-          CPPostcondition(SIZE(Kvals) <= 3, cp_failure_level, routineP,failure)
+          CPASSERT(SIZE(Kvals) <= 3)
           ub_k(:,start+isec) = 0.0_dp
           DO k=1,SIZE(Kvals)
              ub_k(k,start+isec) = Kvals(k)

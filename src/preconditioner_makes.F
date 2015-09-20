@@ -162,7 +162,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
   
-    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_s))
   
     IF(.NOT.ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
        ALLOCATE(preconditioner_env%sparse_matrix)
@@ -198,8 +198,8 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(matrix_t),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(matrix_t))
+    CPASSERT(ASSOCIATED(matrix_s))
 
     IF(.NOT.ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
        ALLOCATE(preconditioner_env%sparse_matrix)

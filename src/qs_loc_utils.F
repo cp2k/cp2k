@@ -134,7 +134,7 @@ CONTAINS
     DO i=1,SIZE(mo_loc_history)
        CALL cp_fm_get_info(mo_loc_history(i)%matrix, ncol_global=ncol_hist)
        CALL cp_fm_get_info(mo_loc(i)%matrix,         ncol_global=ncol_loc)
-       CPPrecondition(ncol_hist==ncol_loc,cp_failure_level,routineP,failure)
+       CPASSERT(ncol_hist==ncol_loc)
        CALL cp_fm_to_fm(mo_loc(i)%matrix, mo_loc_history(i)%matrix)
     ENDDO
 
@@ -168,7 +168,7 @@ CONTAINS
 
     CALL cp_fm_get_info(mo_new, nrow_global=nrow, ncol_global=ncol)
     CALL cp_fm_get_info(mo_ref, ncol_global=ncol_ref)
-    CPPrecondition(ncol==ncol_ref,cp_failure_level,routineP,failure)
+    CPASSERT(ncol==ncol_ref)
 
     NULLIFY(fm_struct_tmp,o1,o2,o3,o4,smo)
     CALL cp_fm_create(smo,mo_ref%matrix_struct)
@@ -402,6 +402,9 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:, :)      :: zij_fm_set
     REAL(dp), INTENT(OUT)                    :: tolerance
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'check_tolerance_real', &
+      routineP = moduleN//':'//routineN
+
     INTEGER                                  :: iatom, istat, istate, jstate, &
                                                 natom, ncol_local, &
                                                 nrow_global, nrow_local
@@ -419,7 +422,7 @@ CONTAINS
          ncol_local = ncol_local, nrow_global = nrow_global, &
          row_indices = row_indices, col_indices = col_indices)
     ALLOCATE(diag(nrow_global,natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,"check_tolerance_real",failure)
+    CPASSERT(istat==0)
 
     CALL cp_fm_create(force , zij_fm_set(1,1)%matrix%matrix_struct)
     CALL cp_fm_set_all (force, 0._dp)
@@ -444,7 +447,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(diag,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,"check_tolerance_real",failure)
+    CPASSERT(istat==0)
 
     CALL cp_fm_maxabsval ( force, tolerance)
 
@@ -523,7 +526,7 @@ CONTAINS
           my_nspins = 1
        END IF
        ALLOCATE (moloc_coeff(my_nspins), STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        DO ispin = s_spin,l_spin
           NULLIFY(tmp_fm_struct,mo_coeff)
           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,nao=nao,nmo=nmo)
@@ -534,11 +537,11 @@ CONTAINS
 
           CALL cp_fm_get_info(moloc_coeff(ispin)%matrix, nrow_global=naosub, &
                ncol_global=nmosub)
-          CPPostcondition(nao==naosub,cp_failure_level,routineP,failure)
+          CPASSERT(nao==naosub)
           IF(localized_wfn_control%do_homo)THEN
-             CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,failure)
+             CPASSERT(nmo>=nmosub)
           ELSE
-             CPPostcondition(nao-nmo>=nmosub,cp_failure_level,routineP,failure)
+             CPASSERT(nao-nmo>=nmosub)
           END IF
           CALL cp_fm_set_all(moloc_coeff(ispin)%matrix,0.0_dp)
           CALL cp_fm_struct_release ( tmp_fm_struct)
@@ -558,12 +561,12 @@ CONTAINS
           END IF
           IF(localized_wfn_control%set_of_states == state_loc_list) THEN
              ALLOCATE(vecbuffer(1,nao),STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              IF(localized_wfn_control%do_homo)THEN
                  my_occ =  occupations(localized_wfn_control%loc_states(1, ispin))
              END IF
              nmosub = SIZE(localized_wfn_control%loc_states,1)
-             CPPostcondition(nmosub>0,cp_failure_level,routineP,failure)
+             CPASSERT(nmosub>0)
              imoloc = 0
              DO i = lb,ub
                 ! Get the index in the subset
@@ -586,7 +589,7 @@ CONTAINS
                      nao,1,transpose=.TRUE.)
              END DO
              DEALLOCATE(vecbuffer,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
           ELSE
              my_occ  = occupations( lb )
              occ_imo = occupations( ub )
@@ -630,7 +633,7 @@ CONTAINS
           END IF
           CALL set_qs_loc_env(qs_loc_env=qs_loc_env, dim_op=dim_op)
           ALLOCATE ( qs_loc_env % op_sm_set ( 2, dim_op ), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           DO i=1, dim_op
              DO j=1, SIZE ( qs_loc_env % op_sm_set, 1 )
                 NULLIFY(qs_loc_env%op_sm_set(j,i)%matrix)
@@ -645,7 +648,7 @@ CONTAINS
        ELSEIF ( localized_wfn_control%operator_type== op_loc_pipek) THEN
           natoms = SIZE ( qs_loc_env % particle_set, 1 )
           ALLOCATE ( qs_loc_env % op_fm_set ( natoms , 1 ), STAT = istat )
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           CALL set_qs_loc_env(qs_loc_env=qs_loc_env, dim_op=natoms)
           DO ispin = 1, SIZE(qs_loc_env % op_fm_set ,2)
              CALL get_mo_set(mos(ispin)%mo_set,nmo=nmo)
@@ -655,7 +658,7 @@ CONTAINS
                 CALL cp_fm_create (qs_loc_env % op_fm_set(iatom,ispin)%matrix , tmp_fm_struct)
 
                 CALL cp_fm_get_info(qs_loc_env %op_fm_set(iatom,ispin)%matrix, nrow_global=nmosub)
-                CPPostcondition(nmo>=nmosub,cp_failure_level,routineP,failure)
+                CPASSERT(nmo>=nmosub)
                 CALL cp_fm_set_all(qs_loc_env %op_fm_set(iatom,ispin)%matrix,0.0_dp)
              END DO  ! iatom
           END DO  ! ispin
@@ -772,9 +775,9 @@ CONTAINS
          cell=cell, dim_op=dim_op)
 
     ALLOCATE (op_cos(dim_op),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (op_sin(dim_op),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO i = 1, dim_op
        NULLIFY (op_cos(i)%block)
        NULLIFY (op_sin(i)%block)
@@ -796,7 +799,7 @@ CONTAINS
     cell%perd(1:3) = 1
 
     ALLOCATE (basis_set_list(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ikind=1,nkind
       qs_kind => qs_kind_set(ikind)
       CALL get_qs_kind(qs_kind=qs_kind,basis_set=basis_set_a)
@@ -922,10 +925,10 @@ CONTAINS
        NULLIFY(op_sin(i)%block)
     END DO
     DEALLOCATE(op_cos,op_sin, STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     DEALLOCATE(cosab,sinab,work,basis_set_list,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
   END SUBROUTINE get_berry_operator
@@ -1154,12 +1157,12 @@ CONTAINS
     max_nloc = MAXVAL(qs_loc_env%localized_wfn_control%nloc_states(:))
 
     ALLOCATE (vecbuffer(1,nao),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     IF(ASSOCIATED(qs_loc_env%localized_wfn_control%loc_states)) THEN
       DEALLOCATE(qs_loc_env%localized_wfn_control%loc_states,STAT=istat)
     END IF
     ALLOCATE(qs_loc_env%localized_wfn_control%loc_states(max_nloc,2),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     qs_loc_env%localized_wfn_control%loc_states = 0
 
     DO ispin=1,nspin
@@ -1174,14 +1177,14 @@ CONTAINS
          IF(do_homo) THEN
            READ (rst_unit) nmo_read, homo_read, lfomo_read, nelectron_read
            ALLOCATE(eig_read(nmo_read), occ_read(nmo_read), STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
            eig_read = 0.0_dp
            occ_read = 0.0_dp
            READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
          ELSE
            READ (rst_unit) nmo_read
            ALLOCATE(eig_read(nmo_read), STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
            eig_read = 0.0_dp
            READ (rst_unit) eig_read(1:nmo_read)
          END IF
@@ -1201,11 +1204,11 @@ CONTAINS
            mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
            mos(ispin)%mo_set%occupation_numbers(1:nmo) = occ_read(1:nmo)
            DEALLOCATE(eig_read, occ_read, STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
          ELSE
            evals(ispin)%array(1:nmo) = eig_read(1:nmo)
            DEALLOCATE(eig_read, STAT=istat)
-           CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+           CPASSERT(istat==0)
          END IF
 
       END IF
@@ -1231,7 +1234,7 @@ CONTAINS
     CALL mp_bcast(qs_loc_env%localized_wfn_control%loc_states,source,group)
 
     DEALLOCATE(vecbuffer,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     END IF
 
@@ -1504,9 +1507,9 @@ CONTAINS
     my_do_xas=.FALSE.
     IF(PRESENT(do_xas)) THEN
        my_do_xas=do_xas
-       CPPrecondition(PRESENT(nloc_xas),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(nloc_xas))
     END IF
-    CPPrecondition(ASSOCIATED(loc_section),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(loc_section))
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
@@ -1568,7 +1571,7 @@ CONTAINS
               IF(n_list/=0) THEN
                  localized_wfn_control%set_of_states=state_loc_list
                  ALLOCATE(localized_wfn_control%loc_states(n_list,2),STAT=stat)
-                 CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
                  localized_wfn_control%loc_states = 0
                  localized_wfn_control%loc_states(:,1) = loc_list(:)
                  localized_wfn_control%loc_states(:,2) = loc_list(:)
@@ -1578,7 +1581,7 @@ CONTAINS
                    localized_wfn_control%loc_states(:,2) = 0
                  END IF
                  DEALLOCATE(loc_list, STAT=stat)
-                 CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
                END IF
             END IF
 
@@ -1601,13 +1604,13 @@ CONTAINS
               IF(n_list/=0) THEN
                  localized_wfn_control%set_of_states=state_loc_list
                  ALLOCATE(localized_wfn_control%loc_states(n_list,2),STAT=stat)
-                 CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
                  localized_wfn_control%loc_states = 0
                  localized_wfn_control%loc_states(:,1) = loc_list(:)
                  localized_wfn_control%loc_states(:,2) = loc_list(:)
                  localized_wfn_control%nloc_states(1) = n_list
                  DEALLOCATE(loc_list, STAT=stat)
-                 CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                 CPASSERT(stat==0)
               END IF
             END IF
           END IF
@@ -1765,7 +1768,7 @@ CONTAINS
 
     DO ispin = 1,nspins
        ALLOCATE(localized_wfn_control%centers_set(ispin)%array(6,nmoloc(ispin)), STAT = istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        localized_wfn_control%centers_set(ispin)%array = 0.0_dp
     END DO
 
@@ -1803,7 +1806,7 @@ CONTAINS
     SELECT CASE(localized_wfn_control%set_of_states )
     CASE(state_loc_list)
        ! List
-       CPPrecondition(ASSOCIATED(localized_wfn_control%loc_states),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(localized_wfn_control%loc_states))
        DO ispin = 1,nspins
           localized_wfn_control%lu_bound_states(1,ispin) = 1
           localized_wfn_control%lu_bound_states(2,ispin) = nmoloc(ispin)
@@ -1815,7 +1818,7 @@ CONTAINS
     CASE(state_loc_range)
        ! Range
        ALLOCATE(localized_wfn_control%loc_states(max_nmoloc,2),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        localized_wfn_control%loc_states = 0
        DO ispin = 1,nspins
           localized_wfn_control%lu_bound_states(1,ispin) = &
@@ -1826,12 +1829,12 @@ CONTAINS
           DO i = 1,nmoloc(ispin)
              localized_wfn_control%loc_states(i,ispin) = localized_wfn_control%lu_bound_states(1,ispin) + i -1
           END DO
-          CPPostcondition(max_iloc<=nmo(ispin),cp_failure_level,routineP,failure)
+          CPASSERT(max_iloc<=nmo(ispin))
        END DO
     CASE(energy_loc_range)
        ! Energy
        ALLOCATE(localized_wfn_control%loc_states(max_nmoloc,2),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        localized_wfn_control%loc_states = 0
        DO ispin = 1,nspins
           DO i = 1,nmoloc(ispin)
@@ -1841,7 +1844,7 @@ CONTAINS
     CASE(state_loc_all)
        ! All
        ALLOCATE(localized_wfn_control%loc_states(max_nmoloc,2),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        localized_wfn_control%loc_states = 0
 
        DO ispin = 1,nspins

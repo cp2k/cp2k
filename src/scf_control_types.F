@@ -165,7 +165,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE (scf_control,STAT=stat)
-    CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(stat == 0)
 
 
     ! Load the default values
@@ -279,9 +279,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_control))
 
-    CPPrecondition(scf_control%ref_count > 0,cp_failure_level,routineP,failure)
+    CPASSERT(scf_control%ref_count > 0)
     scf_control%ref_count = scf_control%ref_count + 1
 
   END SUBROUTINE scf_c_retain
@@ -308,17 +308,17 @@ CONTAINS
     failure = .FALSE.
 
     IF (ASSOCIATED(scf_control)) THEN
-      CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,failure)
+      CPASSERT(scf_control%ref_count>0)
       scf_control%ref_count = scf_control%ref_count - 1
       IF (scf_control%ref_count < 1) THEN
         IF (ASSOCIATED(scf_control%smear%list)) THEN
            DEALLOCATE(scf_control%smear%list,stat=stat)
-           CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+           CPASSERT(stat==0)
         ENDIF
         DEALLOCATE(scf_control%smear,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+        CPASSERT(stat==0)
         DEALLOCATE(scf_control,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+        CPASSERT(stat==0)
       END IF
     END IF
 
@@ -354,8 +354,8 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,failure)
-    CPPrecondition((scf_control%ref_count > 0),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_control))
+    CPASSERT(scf_control%ref_count > 0)
     IF (.NOT.failure) THEN
        scf_section => section_vals_get_subs_vals(inp_section,"SCF")
        CALL section_vals_val_get(scf_section,"DIAGONALIZATION%_SECTION_PARAMETERS_",&
@@ -439,7 +439,7 @@ CONTAINS
 
        ! Extra MOs, e.g. for smearing
        CALL section_vals_val_get(scf_section,"added_mos",i_vals=added_mos)
-       CPPrecondition(ASSOCIATED(added_mos),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(added_mos))
        IF (SIZE(added_mos) > 0) THEN
           scf_control%added_mos(1) = added_mos(1)
           IF (SIZE(added_mos) > 1) THEN
@@ -510,9 +510,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(smear),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(smear))
     ALLOCATE(smear,stat=stat)
-    CPPostcondition((stat == 0),cp_failure_level,routineP,failure)
+    CPASSERT(stat == 0)
     smear%do_smear = .FALSE.
     smear%method = smear_energy_window
     smear%electronic_temperature = 0.0_dp
@@ -556,9 +556,9 @@ CONTAINS
          IF (smear%method==smear_list) THEN
             CALL section_vals_val_get(smear_section,"LIST",&
                                       r_vals=r_vals)
-            CPPrecondition(ASSOCIATED(r_vals),cp_failure_level,routineP,failure)
+            CPASSERT(ASSOCIATED(r_vals))
             ALLOCATE(smear%list(SIZE(r_vals)),stat=stat)
-            CPPostcondition(stat==0,cp_warning_level,routineP,failure)
+            CPASSERT(stat==0)
             smear%list=r_vals
          END IF
          CALL section_vals_val_get(smear_section,"FIXED_MAGNETIC_MOMENT",&
@@ -604,8 +604,8 @@ CONTAINS
     NULLIFY (scf_section)
     NULLIFY (section)
 
-    CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,failure)
-    CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_control))
+    CPASSERT(scf_control%ref_count>0)
 
     IF (.NOT.failure) THEN
 
@@ -714,7 +714,7 @@ CONTAINS
                 CASE (outer_scf_becke_constraint)
                    WRITE (output_unit,'(T25,A)') "Becke weight population constraint enforced"
                 CASE DEFAULT
-                   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                   CPASSERT(.FALSE.)
                 END SELECT
                 WRITE (output_unit,'(T25,A,T72,ES9.2)') "eps_scf",scf_control%outer_scf%eps_scf
                 WRITE (output_unit,'(T25,A,T72,I9)') "max_scf",scf_control%outer_scf%max_scf
@@ -731,7 +731,7 @@ CONTAINS
                    WRITE (output_unit,'(T25,A,T72,I9)') "DIIS buffer length", &
                         scf_control%outer_scf%diis_buffer_length
                 CASE DEFAULT
-                   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                   CPASSERT(.FALSE.)
                 END SELECT
                 WRITE (output_unit,'(T25,A,T72,ES9.2)') "step_size",scf_control%outer_scf%step_size
              ELSE

@@ -161,9 +161,9 @@ CONTAINS
     ! If forces are required allocate these temporary arrays
     IF (need_f) THEN
        ALLOCATE(Forces(3,qmmm_env%num_mm_atoms),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(Forces_added_charges(3,qmmm_env%added_charges%num_mm_atoms),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        Forces(:,:)               = 0.0_dp
        Forces_added_charges(:,:) = 0.0_dp
     END IF
@@ -186,7 +186,7 @@ CONTAINS
                "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
        CASE DEFAULT
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
     ELSEIF (dft_control%qs_control%dftb) THEN
        ! DFTB
@@ -206,7 +206,7 @@ CONTAINS
                error_level=cp_failure_level)
        CASE DEFAULT
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
        IF (need_f) THEN
           Forces(:,:) = Forces(:,:) / REAL(para_env%num_pe,KIND=dp)
@@ -284,7 +284,7 @@ CONTAINS
                   "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
           CASE DEFAULT
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"- Unknown Coupling..."
- CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+ CPASSERT(.FALSE.)
           END SELECT
        END IF
     END IF
@@ -358,7 +358,7 @@ CONTAINS
           mm_particles(IndMM)%f(:) = - Forces(:,Imm) + mm_particles(IndMM)%f(:)
        END DO
        DEALLOCATE(Forces, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
           DO Imm = 1, qmmm_env%added_charges%num_mm_atoms
              IndMM = qmmm_env%added_charges%mm_atom_index(Imm)
@@ -368,7 +368,7 @@ CONTAINS
           END DO
        END IF
        DEALLOCATE(Forces_added_charges, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO")
     CALL timestop(handle)
@@ -437,10 +437,10 @@ CONTAINS
     failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(grids,tmp)
-    CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_chrg),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qmmm_env%mm_atom_index),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(Forces),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(mm_particles))
+    CPASSERT(ASSOCIATED(qmmm_env%mm_atom_chrg))
+    CPASSERT(ASSOCIATED(qmmm_env%mm_atom_index))
+    CPASSERT(ASSOCIATED(Forces))
     !Statements
     ngrids=SIZE(pw_pools)
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE)
@@ -486,7 +486,7 @@ CONTAINS
        ALLOCATE(tmp(rho%pw_grid%bounds_local(1,2):rho%pw_grid%bounds_local(2,2),&
             rho%pw_grid%bounds_local(1,3):rho%pw_grid%bounds_local(2,3)),&
             stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        tmp=rho%cr3d(lb(1),:,:)
        CALL mp_isend(msgin=tmp,dest=pos_of_x(rho%pw_grid%bounds(2,1)),comm=group,&
             request=request,tag=112)
@@ -495,7 +495,7 @@ CONTAINS
        ALLOCATE(tmp(rho%pw_grid%bounds_local(1,2):rho%pw_grid%bounds_local(2,2),&
             rho%pw_grid%bounds_local(1,3):rho%pw_grid%bounds_local(2,3)),&
             stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL mp_irecv(msgout=tmp,source=pos_of_x(rho%pw_grid%bounds(1,1)),&
             comm=group,request=request,tag=112)
        CALL mp_wait(request)
@@ -513,7 +513,7 @@ CONTAINS
     END IF
     IF (ASSOCIATED(tmp)) THEN
        DEALLOCATE(tmp, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        NULLIFY(tmp)
     END IF
     ! Further setup of parallelization scheme
@@ -532,7 +532,7 @@ CONTAINS
                               param_section=interp_section)
        END DO
     CASE DEFAULT
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     CALL qmmm_force_with_gaussian_low(grids, mm_particles,&
@@ -626,7 +626,6 @@ CONTAINS
                                                 LIndMM, myind, n_rep_real(3), &
                                                 stat
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvol, height, &
                                                 sph_chrg_factor, W
     REAL(KIND=dp), ALLOCATABLE, &
@@ -656,11 +655,11 @@ CONTAINS
           dvol      = grids(ilevel)%pw%pw_grid%dvol
           bo        = grids(ilevel) % pw % pw_grid % bounds_local
           ALLOCATE (xdat(2,bo(1,1):bo(2,1)), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE (ydat(2,bo(1,2):bo(2,2)), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE (zdat(2,bo(1,3):bo(2,3)), STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
              IF (par_scheme==do_par_atom) THEN
                 myind = myind + 1
@@ -713,11 +712,11 @@ CONTAINS
              END IF
           END DO Atoms
           DEALLOCATE (xdat, STAT=stat)
- CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+ CPASSERT(stat==0)
           DEALLOCATE (ydat, STAT=stat)
- CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+ CPASSERT(stat==0)
           DEALLOCATE (zdat, STAT=stat)
- CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+ CPASSERT(stat==0)
        END DO Gaussian
     END DO Radius
     CALL timestop(handle2)
@@ -836,7 +835,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(grid)
     ALLOCATE(LForces(3,num_mm_atoms), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     LForces = 0.0_dp
     dr1c  = cgrid%pw_grid%dr(1)
     dr2c  = cgrid%pw_grid%dr(2)
@@ -1177,7 +1176,7 @@ CONTAINS
                                             qmmm_spherical_cutoff=qmmm_spherical_cutoff)
     END IF
     DEALLOCATE(LForces, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LG
 
@@ -1251,7 +1250,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure = .FALSE.
     ALLOCATE(LForces(3,num_mm_atoms), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     LForces = 0.0_dp
     n1   = cgrid%pw_grid%npts(1)
     n2   = cgrid%pw_grid%npts(2)
@@ -1361,7 +1360,7 @@ CONTAINS
     END IF
 
     DEALLOCATE(LForces, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE qmmm_forces_with_gaussian_LR
 
@@ -1401,7 +1400,6 @@ CONTAINS
 
     INTEGER                                  :: handle, I, IndMM, iw, J, K, &
                                                 stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: Coord_save
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err
@@ -1429,7 +1427,7 @@ CONTAINS
     CALL pw_pool_create_pw(pw_pools(1)%pool, v_qmmm_rspace%pw,&
          use_data=REALDATA3D, in_space=REALSPACE)
     ALLOCATE(Num_Forces(3,num_mm_atoms),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ks_qmmm_env_loc =>  qs_env%ks_qmmm_env
     IF (iw>0) WRITE(iw,'(/A)')"DEBUG SECTION:"
     Atoms: DO I = 1, num_mm_atoms
@@ -1466,7 +1464,7 @@ CONTAINS
                 CYCLE Diff
              CASE DEFAULT
                 IF (iw>0) WRITE(iw,'(T3,A)')"Unknown Coupling..."
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END SELECT
              energy(K) =  pw_integral_ab ( rho, v_qmmm_rspace%pw)
           END DO Diff
@@ -1502,21 +1500,21 @@ CONTAINS
                WRITE(iw,100)IndMM,Analytical_Forces(1,I),Num_Forces(1,I),Err(1),&
                                   Analytical_Forces(2,I),Num_Forces(2,I),Err(2),&
                                   Analytical_Forces(3,I),Num_Forces(3,I),Err(3)
-          CPPostcondition(ABS(Err(1))<=MaxErr,cp_failure_level,routineP,failure)
-          CPPostcondition(ABS(Err(2))<=MaxErr,cp_failure_level,routineP,failure)
-          CPPostcondition(ABS(Err(3))<=MaxErr,cp_failure_level,routineP,failure)
+          CPASSERT(ABS(Err(1))<=MaxErr)
+          CPASSERT(ABS(Err(2))<=MaxErr)
+          CPASSERT(ABS(Err(3))<=MaxErr)
        END DO
     CASE(do_qmmm_none)
        IF (iw>0) WRITE(iw,'(T3,A)')"No QM/MM Derivatives to debug. Just Mechanical Coupling!"
     CASE DEFAULT
        IF (iw>0) WRITE(iw,'(T3,A)')"Unknown Coupling..."
-       CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO")
 
     CALL pw_pool_give_back_pw ( pw_pools(1)%pool, v_qmmm_rspace%pw)
     DEALLOCATE(Num_Forces,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
 100 FORMAT(I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
   END SUBROUTINE qmmm_debug_forces
@@ -1585,11 +1583,11 @@ CONTAINS
     END DO
     bo2 = grids(auxbas_grid)%pw%pw_grid%bounds
     ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (ydat(bo2(1,2):bo2(2,2)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (zdat(bo2(1,3):bo2(2,3)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     Icount = Icount + 1
     DO i = 1, 3
@@ -1625,21 +1623,21 @@ CONTAINS
          WRITE(iw,100)Icount, debug_force(1), force(1), Err(1),&
                               debug_force(2), force(2), Err(2),&
                               debug_force(3), force(3), Err(3)
-    CPPostcondition(ABS(Err(1))<=MaxErr,cp_failure_level,routineP,failure)
-    CPPostcondition(ABS(Err(2))<=MaxErr,cp_failure_level,routineP,failure)
-    CPPostcondition(ABS(Err(3))<=MaxErr,cp_failure_level,routineP,failure)
+    CPASSERT(ABS(Err(1))<=MaxErr)
+    CPASSERT(ABS(Err(2))<=MaxErr)
+    CPASSERT(ABS(Err(3))<=MaxErr)
 
     IF (ASSOCIATED(xdat)) THEN
        DEALLOCATE (xdat, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
     IF (ASSOCIATED(ydat)) THEN
        DEALLOCATE (ydat, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
     IF (ASSOCIATED(zdat)) THEN
        DEALLOCATE (zdat, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ENDIF
 
     CALL pw_pools_give_back_pws(aug_pools,grids)
@@ -1699,7 +1697,6 @@ CONTAINS
 
     INTEGER                                  :: handle, I, igrid, IndMM, J, &
                                                 K, ngrids, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: Coord_save
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err
@@ -1707,7 +1704,7 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
     ALLOCATE(Num_Forces(3,num_mm_atoms),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(grids)
     CALL timeset(routineN,handle)
     ngrids = SIZE(aug_pools)
@@ -1758,13 +1755,13 @@ CONTAINS
             WRITE(iw,100)IndMM,debug_force(1,I),Num_Forces(1,I),Err(1),&
                                debug_force(2,I),Num_Forces(2,I),Err(2),&
                                debug_force(3,I),Num_Forces(3,I),Err(3)
-       CPPostcondition(ABS(Err(1))<=MaxErr,cp_failure_level,routineP,failure)
-       CPPostcondition(ABS(Err(2))<=MaxErr,cp_failure_level,routineP,failure)
-       CPPostcondition(ABS(Err(3))<=MaxErr,cp_failure_level,routineP,failure)
+       CPASSERT(ABS(Err(1))<=MaxErr)
+       CPASSERT(ABS(Err(2))<=MaxErr)
+       CPASSERT(ABS(Err(3))<=MaxErr)
     END DO
 
     DEALLOCATE(Num_Forces,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL pw_pools_give_back_pws(aug_pools,grids)
     CALL timestop(handle)
 100 FORMAT("MM Atom LR    : ",I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")
@@ -1822,7 +1819,6 @@ CONTAINS
 
     INTEGER                                  :: handle, I, igrid, IndMM, J, &
                                                 K, ngrids, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: Coord_save
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err
@@ -1830,7 +1826,7 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
     ALLOCATE(Num_Forces(3,num_mm_atoms),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     NULLIFY(grids)
     CALL timeset(routineN,handle)
     ngrids = SIZE(aug_pools)
@@ -1881,13 +1877,13 @@ CONTAINS
             WRITE(iw,100)IndMM,debug_force(1,I),Num_Forces(1,I),Err(1),&
                                debug_force(2,I),Num_Forces(2,I),Err(2),&
                                debug_force(3,I),Num_Forces(3,I),Err(3)
-       CPPostcondition(ABS(Err(1))<=MaxErr,cp_failure_level,routineP,failure)
-       CPPostcondition(ABS(Err(2))<=MaxErr,cp_failure_level,routineP,failure)
-       CPPostcondition(ABS(Err(3))<=MaxErr,cp_failure_level,routineP,failure)
+       CPASSERT(ABS(Err(1))<=MaxErr)
+       CPASSERT(ABS(Err(2))<=MaxErr)
+       CPASSERT(ABS(Err(3))<=MaxErr)
     END DO
 
     DEALLOCATE(Num_Forces,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL pw_pools_give_back_pws(aug_pools,grids)
     CALL timestop(handle)
 100 FORMAT("MM Atom LR    : ",I5,2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ",2F15.9," ( ",F7.2," ) ")

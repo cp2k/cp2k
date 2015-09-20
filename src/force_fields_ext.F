@@ -305,7 +305,7 @@ CONTAINS
     CALL timestop(handle)
 
     DEALLOCATE(namearray,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE read_force_field_gromos
 
 ! *****************************************************************************

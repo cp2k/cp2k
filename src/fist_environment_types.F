@@ -341,7 +341,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
-    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(fist_env%ref_count>0)
 
     IF (PRESENT(qmmm)) fist_env%qmmm = qmmm
     IF (PRESENT(qmmm_env)) THEN
@@ -447,7 +447,7 @@ CONTAINS
     failure=.FALSE.
 
     ALLOCATE(fist_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL init_fist_env(fist_env,para_env=para_env)
   END SUBROUTINE fist_env_create
 
@@ -467,8 +467,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(fist_env),cp_failure_level,routineP,failure)
-    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(fist_env))
+    CPASSERT(fist_env%ref_count>0)
     fist_env%ref_count=fist_env%ref_count+1
   END SUBROUTINE fist_env_retain
 
@@ -491,7 +491,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(fist_env)) THEN
-       CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(fist_env%ref_count>0)
        fist_env%ref_count=fist_env%ref_count-1
        IF (fist_env%ref_count<1) THEN
           CALL qmmm_env_mm_release(fist_env%qmmm_env)
@@ -507,7 +507,7 @@ CONTAINS
           CALL exclusion_release(fist_env%exclusions)
 
           DEALLOCATE(fist_env, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(fist_env)

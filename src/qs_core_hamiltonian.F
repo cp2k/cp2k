@@ -355,7 +355,7 @@ CONTAINS
     CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,nimages)
     DO img=1,nimages
        ALLOCATE(matrix_h(1,img)%matrix,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        CALL cp_dbcsr_init(matrix_h(1,img)%matrix)
        IF (.NOT.ofdft) THEN
           CALL cp_dbcsr_copy(matrix_h(1,img)%matrix,matrix_t(1,img)%matrix,&
@@ -505,7 +505,7 @@ CONTAINS
     failure = .FALSE.
     natom = SIZE(particle_set)
     ALLOCATE (kind_of(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL get_atomic_kind_set(atomic_kind_set,kind_of=kind_of)
 
@@ -521,7 +521,7 @@ CONTAINS
     CALL cp_dbcsr_iterator_stop(iter)
 
     DEALLOCATE (kind_of,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE build_atomic_relmat
 

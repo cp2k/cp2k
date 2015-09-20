@@ -297,13 +297,13 @@ CONTAINS
       " Prepare the list of atoms for LDOS.   Number of lists: ", nldos
       do_ldos = .TRUE.
       ALLOCATE(ldos_p(nldos),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(ldos_index(nldos),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DO ildos=1,nldos
         WRITE(ldos_index(ildos),'(I0)') ildos
         ALLOCATE(ldos_p(ildos)%ldos,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         NULLIFY(ldos_p(ildos)%ldos%pdos_array)
         NULLIFY(ldos_p(ildos)%ldos%list_index)
 
@@ -332,10 +332,10 @@ CONTAINS
              l_val=ldos_p(ildos)%ldos%separate_components)
         IF(ldos_p(ildos)%ldos%separate_components) THEN
           ALLOCATE(ldos_p(ildos)%ldos%pdos_array(nsoset(maxlgto),nmo+nvirt),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
         ELSE
           ALLOCATE(ldos_p(ildos)%ldos%pdos_array(0:maxlgto,nmo+nvirt),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
         END IF
         ldos_p(ildos)%ldos%pdos_array=0.0_dp
         ldos_p(ildos)%ldos%maxl = -1
@@ -351,9 +351,9 @@ CONTAINS
       IF (output_unit > 0) WRITE(UNIT=output_unit,FMT='(/,(T3,A,T61,I10))')&
       " Prepare the list of points for R_LDOS.   Number of lists: ", n_r_ldos
       ALLOCATE(r_ldos_p(n_r_ldos),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       ALLOCATE(r_ldos_index(n_r_ldos),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       CALL get_qs_env(qs_env=qs_env,&
            cell=cell,&
            dft_control=dft_control,&
@@ -371,7 +371,7 @@ CONTAINS
       DO ildos=1,n_r_ldos
         WRITE(r_ldos_index(ildos),'(I0)') ildos
         ALLOCATE(r_ldos_p(ildos)%ldos,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         NULLIFY(r_ldos_p(ildos)%ldos%pdos_array)
         NULLIFY(r_ldos_p(ildos)%ldos%list_index)
 
@@ -395,7 +395,7 @@ CONTAINS
         END IF
 
         ALLOCATE(r_ldos_p(ildos)%ldos%pdos_array(nmo+nvirt),STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         r_ldos_p(ildos)%ldos%pdos_array=0.0_dp
         read_r(1:3, ildos) = .FALSE.
         CALL section_vals_val_get(ldos_section,"XRANGE",i_rep_section=ildos,explicit=read_r(1,ildos))
@@ -438,7 +438,7 @@ CONTAINS
         dvol = wf_r%pw%pw_grid%dvol
         np_tot = wf_r%pw%pw_grid%npts(1)*wf_r%pw%pw_grid%npts(2)*wf_r%pw%pw_grid%npts(3)
         ALLOCATE(r_ldos_p(ildos)%ldos%index_grid_local(3,np_tot), STAT =stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
 
         r_ldos_p(ildos)%ldos%npoints = 0
         DO jz=bo(1,3),bo(2,3)
@@ -512,18 +512,18 @@ CONTAINS
     CALL section_vals_val_get(dft_section,"PRINT%PDOS%COMPONENTS",l_val=separate_components)
     IF (separate_components) THEN
       ALLOCATE(pdos_array(nsoset(maxlgto),nkind,nmo+nvirt),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     ELSE
       ALLOCATE(pdos_array(0:maxlgto,nkind,nmo+nvirt),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
     IF(do_virt) THEN
        ALLOCATE(eigenvalues(nmo+nvirt),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        eigenvalues(1:nmo) = mo_set%eigenvalues(1:nmo)
        eigenvalues(nmo+1:nmo+nvirt) = evals_virt(1:nvirt)
        ALLOCATE(occupation_numbers(nmo+nvirt),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        occupation_numbers(:) = 0.0_dp
        occupation_numbers(1:nmo) = mo_set%occupation_numbers(1:nmo)
     ELSE
@@ -534,10 +534,10 @@ CONTAINS
     pdos_array = 0.0_dp
     nao = mo_set%nao
     ALLOCATE(vecbuffer(1,nao),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     vecbuffer = 0.0_dp
     ALLOCATE(firstrow(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     firstrow=0
 
     !Adjust energy range for r_ldos
@@ -682,7 +682,7 @@ CONTAINS
 
     CALL cp_fm_release(matrix_shalfc)
     DEALLOCATE(vecbuffer,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
 
     CALL section_vals_val_get(dft_section,"PRINT%PDOS%APPEND",l_val=append)
@@ -730,7 +730,7 @@ CONTAINS
           iterstep,", E(Fermi) = ",e_fermi," a.u."
         IF (separate_components) THEN
           ALLOCATE(tmp_str(0:0,0:maxl,-maxl:maxl),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           tmp_str = ""
           DO j = 0, maxl
              DO i = -j,j
@@ -746,7 +746,7 @@ CONTAINS
               (pdos_array(lshell,ikind,imo),lshell=1,nsoset(maxl))
           END DO
           DEALLOCATE(tmp_str,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
         ELSE
           WRITE (UNIT=iw,FMT=fmtstr2)&
             "#     MO Eigenvalue [a.u.]      Occupation",&
@@ -797,7 +797,7 @@ CONTAINS
              ", E(Fermi) = ",e_fermi," a.u."
           IF(ldos_p(ildos)%ldos%separate_components) THEN
             ALLOCATE(tmp_str(0:0,0:ldos_p(ildos)%ldos%maxl,-ldos_p(ildos)%ldos%maxl:ldos_p(ildos)%ldos%maxl),stat=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
             tmp_str = ""
             DO j = 0, ldos_p(ildos)%ldos%maxl
                DO i = -j,j
@@ -813,7 +813,7 @@ CONTAINS
                 (ldos_p(ildos)%ldos%pdos_array(lshell,imo),lshell=1,nsoset(ldos_p(ildos)%ldos%maxl))
             END DO
             DEALLOCATE(tmp_str,stat=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
           ELSE
             WRITE (UNIT=iw,FMT=fmtstr2)&
               "#     MO Eigenvalue [a.u.]      Occupation",&
@@ -874,31 +874,31 @@ CONTAINS
 
     ! deallocate local variables
     DEALLOCATE(pdos_array, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(firstrow, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF(do_ldos) THEN
        DO ildos = 1,nldos
          DEALLOCATE(ldos_p(ildos)%ldos%pdos_array, STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          DEALLOCATE(ldos_p(ildos)%ldos%list_index, STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          DEALLOCATE(ldos_p(ildos)%ldos, STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
        END DO
        DEALLOCATE(ldos_p, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(ldos_index, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(do_r_ldos) THEN
        DO ildos = 1,n_r_ldos
          DEALLOCATE(r_ldos_p(ildos)%ldos%index_grid_local,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          DEALLOCATE(r_ldos_p(ildos)%ldos%pdos_array,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          DEALLOCATE(r_ldos_p(ildos)%ldos%list_index,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
          IF(.NOT. read_r(1,ildos)) THEN
            DEALLOCATE(r_ldos_p(ildos)%ldos%x_range)
          END IF
@@ -912,25 +912,25 @@ CONTAINS
            DEALLOCATE(r_ldos_p(ildos)%ldos%eval_range)
          END IF
          DEALLOCATE(r_ldos_p(ildos)%ldos,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
        END DO
        DEALLOCATE(read_r,STAT=stat)
        DEALLOCATE(r_ldos_p, STAT=stat)
        DEALLOCATE(r_ldos_index, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
+       CPASSERT(stat==0)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw)
        CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw)
     END IF
     IF(do_virt) THEN
       DEALLOCATE(evals_virt,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       CALL cp_fm_release(mo_virt)
       CALL cp_fm_release(matrix_work)
       DEALLOCATE(eigenvalues,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       DEALLOCATE(occupation_numbers,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     END IF
 
     CALL timestop(handle)
@@ -981,7 +981,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(evals_virt,mo_virt)
     ALLOCATE(evals_virt(nvirt),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL get_qs_env(qs_env,matrix_ks=ks_matrix, matrix_s=s_matrix, &
          scf_control=scf_control)

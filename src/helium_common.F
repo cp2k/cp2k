@@ -360,7 +360,7 @@ MODULE helium_common
 !    CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     ! calculate the histogram of distances
     helium%rdf_inst(:) = 0.0_dp
@@ -424,7 +424,7 @@ MODULE helium_common
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     helium%rho_inst(:,:,:,:) = 0.0_dp
     r0(:) = helium%origin(:)
@@ -444,11 +444,11 @@ MODULE helium_common
         ! check that bin numbers are within bounds
         itmp = helium%rho_nbin
         ltmp = (0 .LT. bx) .AND. ( bx .LE. itmp )
-        CPPrecondition(ltmp,cp_failure_level,routineP,failure)
+        CPASSERT(ltmp)
         ltmp = (0 .LT. by) .AND. ( by .LE. itmp )
-        CPPrecondition(ltmp,cp_failure_level,routineP,failure)
+        CPASSERT(ltmp)
         ltmp = (0 .LT. bz) .AND. ( bz .LE. itmp )
-        CPPrecondition(ltmp,cp_failure_level,routineP,failure)
+        CPASSERT(ltmp)
 
         helium%rho_inst(1,bx,by,bz) = helium%rho_inst(1,bx,by,bz) + c
 
@@ -519,7 +519,7 @@ MODULE helium_common
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     b = helium%beads
     n = helium%atoms

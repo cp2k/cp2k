@@ -80,7 +80,7 @@ CONTAINS
        CALL deallocate_particle_set(particle_set)
     END IF
     ALLOCATE (particle_set(nparticle),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO iparticle=1,nparticle
       NULLIFY (particle_set(iparticle)%atomic_kind)
@@ -114,7 +114,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(particle_set)) THEN
       DEALLOCATE (particle_set,STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer particle_set is not associated and "//&

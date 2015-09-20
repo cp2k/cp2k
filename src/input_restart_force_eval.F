@@ -173,10 +173,10 @@ CONTAINS
     SELECT CASE(force_env%in_use)
     CASE(use_qmmm)
        CALL section_vals_get(qmmm_section, explicit=explicit)
-       CPPostcondition(explicit,cp_failure_level,routineP,failure)
+       CPASSERT(explicit)
 
        ALLOCATE(work(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        work = force_env%qmmm_env%qm%transl_v
        CALL section_vals_val_set(qmmm_section,"INITIAL_TRANSLATION_VECTOR",r_vals_ptr=work)
     END SELECT
@@ -204,7 +204,6 @@ CONTAINS
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, nparticle, &
       nparticle_kind, nparticle_local
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ascii
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -220,7 +219,7 @@ CONTAINS
        nparticle = particles%n_els
 
        ALLOCATE (ascii(rng_record_length,nparticle),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        ascii = 0
 
        DO iparticle=1,nparticle
@@ -242,7 +241,7 @@ CONTAINS
        CALL section_rng_val_set(rng_section=rng_section,nsize=nparticle,ascii=ascii)
 
        DEALLOCATE (ascii,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
   END SUBROUTINE update_rng_particle
@@ -295,7 +294,7 @@ CONTAINS
     ! Remove the multiple_unit_cell from the input structure.. at this point we have
     ! already all the information we need..
     ALLOCATE(multiple_unit_cell(3),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     multiple_unit_cell = 1
     CALL section_vals_val_set(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&
          i_vals_ptr=multiple_unit_cell)
@@ -498,8 +497,8 @@ CONTAINS
     NULLIFY(my_val, old_val, section, vals)
     my_shell = .FALSE.
     IF(PRESENT(shell)) my_shell = shell
-    CPPrecondition(ASSOCIATED(coord_section),cp_failure_level,routineP,failure)
-    CPPrecondition(coord_section%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(coord_section))
+    CPASSERT(coord_section%ref_count>0)
     section => coord_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
@@ -633,8 +632,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(dipoles_section),cp_failure_level,routineP,failure)
-    CPPrecondition(dipoles_section%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(dipoles_section))
+    CPASSERT(dipoles_section%ref_count>0)
     section => dipoles_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
@@ -654,7 +653,7 @@ CONTAINS
     END IF
     DO irk=1,nloop
        ALLOCATE(work(3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Always stored in A.U.
        work = dipoles(1:3,irk)
        CALL val_create(my_val,r_vals_ptr=work)
@@ -714,8 +713,8 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
-    CPPrecondition(ASSOCIATED(quadrupoles_section),cp_failure_level,routineP,failure)
-    CPPrecondition(quadrupoles_section%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(quadrupoles_section))
+    CPASSERT(quadrupoles_section%ref_count>0)
     section => quadrupoles_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
@@ -735,7 +734,7 @@ CONTAINS
     END IF
     DO irk=1,nloop
        ALLOCATE(work(6),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Always stored in A.U.
        ind = 0
        DO i = 1, 3
@@ -814,12 +813,12 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(particles),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(particles))
     IF (.NOT.core_or_shell) THEN
-       CPPrecondition(ASSOCIATED(molecules),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(molecules))
     END IF
     IF (scaled_coordinates) THEN
-       CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(cell))
     END IF
 
     kind_name = ""

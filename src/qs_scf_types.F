@@ -152,7 +152,7 @@ CONTAINS
     failure = .FALSE.
 
     ALLOCATE (scf_env,STAT=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
     scf_env%ref_count = 1
     scf_env%print_count = 0
     last_scf_env_id = last_scf_env_id + 1
@@ -222,8 +222,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_env))
+    CPASSERT(scf_env%ref_count>0)
     scf_env%ref_count = scf_env%ref_count + 1
 
     CALL timestop(handle)
@@ -250,8 +250,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_env))
+    CPASSERT(scf_env%ref_count>0)
 
     IF (ASSOCIATED(scf_env%p_mix_new)) THEN
        CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
@@ -286,7 +286,7 @@ CONTAINS
     failure = .FALSE.
 
     IF (ASSOCIATED(scf_env)) THEN
-       CPPreconditionNoFail(scf_env%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(scf_env%ref_count>0)
        scf_env%ref_count = scf_env%ref_count - 1
        IF (scf_env%ref_count < 1) THEN
           CALL cp_fm_vect_dealloc(scf_env%scf_work1)
@@ -295,29 +295,29 @@ CONTAINS
           CALL cp_fm_release(scf_env%ortho_m1)
           IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
              ! we should not end up here, and give back using the pools
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP)
+             CPASSERT(.TRUE.)
              CALL cp_dbcsr_deallocate_matrix(scf_env%ortho_dbcsr)
           END IF
           IF (ASSOCIATED(scf_env%buf1_dbcsr)) THEN
              ! we should not end up here, and give back using the pools
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP)
+             CPASSERT(.TRUE.)
              CALL cp_dbcsr_deallocate_matrix(scf_env%buf1_dbcsr)
           END IF
           IF (ASSOCIATED(scf_env%buf2_dbcsr)) THEN
              ! we should not end up here, and give back using the pools
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP)
+             CPASSERT(.TRUE.)
              CALL cp_dbcsr_deallocate_matrix(scf_env%buf2_dbcsr)
           END IF
           CALL cp_fm_release(scf_env%s_half)
           CALL cp_fm_release(scf_env%s_minus_one)
           IF (ASSOCIATED(scf_env%p_mix_new)) THEN
              ! we should not end up here, and give back using the pools
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP)
+             CPASSERT(.TRUE.)
              CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
           END IF
           IF (ASSOCIATED(scf_env%p_delta)) THEN
              ! we should not end up here, and give back using the pools
-             CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP)
+             CPASSERT(.TRUE.)
              CALL cp_dbcsr_deallocate_matrix_set(scf_env%p_delta)
           END IF
           IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
@@ -326,35 +326,35 @@ CONTAINS
                 DEALLOCATE (scf_env%ot_preconditioner(i)%preconditioner)
              END DO
              DEALLOCATE (scf_env%ot_preconditioner,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(scf_env%qs_ot_env)) THEN
              DO i=1,SIZE(scf_env%qs_ot_env)
                 CALL qs_ot_destroy(scf_env%qs_ot_env(i))
              END DO
              DEALLOCATE(scf_env%qs_ot_env, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           CALL qs_diis_b_release(scf_env%scf_diis_buffer)
           IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
              DEALLOCATE(scf_env%outer_scf%variables,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(scf_env%outer_scf%count)) THEN
              DEALLOCATE(scf_env%outer_scf%count,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN
              DEALLOCATE(scf_env%outer_scf%gradient,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(scf_env%outer_scf%energy)) THEN
              DEALLOCATE(scf_env%outer_scf%energy,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(scf_env%cc_buffer)) THEN
              DEALLOCATE(scf_env%cc_buffer,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(scf_env%mixing_store)) THEN
              CALL mixing_storage_release(scf_env%mixing_store)
@@ -372,7 +372,7 @@ CONTAINS
              CALL fb_env_release(scf_env%filter_matrix_env)
           END IF
           DEALLOCATE(scf_env, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
 
@@ -403,9 +403,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(krylov_space),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(krylov_space))
     ALLOCATE(krylov_space, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
 
     NULLIFY(krylov_space%c_eval,krylov_space%t_eval)
@@ -454,27 +454,27 @@ CONTAINS
     IF(ASSOCIATED(krylov_space)) THEN
 
         DEALLOCATE(krylov_space%c_eval,STAT=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
         DEALLOCATE(krylov_space%t_eval,STAT=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
 
         DO i = 1,SIZE(krylov_space%v_mat)
           CALL cp_fm_release(krylov_space%v_mat(i)%matrix)
         END DO
         DEALLOCATE(krylov_space%v_mat,STAT=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
 
         DO i = 1,SIZE(krylov_space%mo_conv)
           CALL cp_fm_release(krylov_space%mo_conv(i)%matrix)
         END DO
         DEALLOCATE(krylov_space%mo_conv,STAT=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
 
         DO i = 1,SIZE(krylov_space%mo_refine)
           CALL cp_fm_release(krylov_space%mo_refine(i)%matrix)
         END DO
         DEALLOCATE(krylov_space%mo_refine,STAT=stat)
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+      CPASSERT(stat==0)
 
         DO i = 1,SIZE(krylov_space%chc_mat)
           CALL cp_fm_release(krylov_space%chc_mat(i)%matrix)
@@ -492,7 +492,7 @@ CONTAINS
         CALL cp_fm_release(krylov_space%block5_mat)
 
         DEALLOCATE(krylov_space,STAT=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
 
       NULLIFY(krylov_space)
     END IF
@@ -523,9 +523,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(subspace_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(subspace_env))
     ALLOCATE(subspace_env, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
 
 
     NULLIFY(subspace_env%p_matrix_store)
@@ -582,7 +582,7 @@ CONTAINS
 
        IF (ASSOCIATED(subspace_env%p_matrix_store)) THEN
 
-           CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP) ! should be given back using the pools
+           CPASSERT(.TRUE.)
            CALL cp_dbcsr_deallocate_matrix_set(subspace_env%p_matrix_store)
        ENDIF
        DO i = 1,SIZE(subspace_env%chc_mat)
@@ -603,7 +603,7 @@ CONTAINS
         END IF
 
        DEALLOCATE(subspace_env, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
     END IF
 
  END SUBROUTINE diag_subspace_env_release

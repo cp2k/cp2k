@@ -170,7 +170,7 @@ CONTAINS
     ! allocate the vectors
     ALLOCATE(psi0_order(nspins))
     ALLOCATE(psi1(nspins),h1_psi0(nspins),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ispin = 1,nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
        psi0_order(ispin)%matrix => mo_coeff
@@ -433,7 +433,7 @@ CONTAINS
        CALL cp_fm_release(h1_psi0(ispin)%matrix)
     ENDDO
     DEALLOCATE(psi1,h1_psi0,psi0_order,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     !
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          &                            "PRINT%PROGRAM_RUN_INFO")
@@ -877,7 +877,7 @@ CONTAINS
     natom = SIZE(particle_set,1)
     !
     ! check that the psi0 are localized and you have all the centers
-    CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,failure)
+    CPASSERT(linres_control%localized_psi0)
     IF(failure.AND.(output_unit>0)) THEN
        WRITE(output_unit,'(A)') &
             ' To get indirect spin-spin coupling parameters within PBC you need to localize zero order orbitals '
@@ -915,7 +915,7 @@ CONTAINS
     !
     IF(.NOT.ASSOCIATED(issc_env%issc_on_atom_list)) THEN
        ALLOCATE(issc_env%issc_on_atom_list(natom),STAT=istat)
-       CPPrecondition(istat.EQ.0,cp_warning_level,routineP,failure)
+       CPASSERT(istat.EQ.0)
        DO iatom = 1,natom
           issc_env%issc_on_atom_list(iatom) = iatom
        ENDDO
@@ -927,7 +927,7 @@ CONTAINS
     ALLOCATE(issc_env%issc(3,3,issc_env%issc_natms,issc_env%issc_natms,4),&
              issc_env%issc_loc(3,3,issc_env%issc_natms,issc_env%issc_natms,4),&
              STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     issc_env%issc(:,:,:,:,:) = 0.0_dp
     issc_env%issc_loc(:,:,:,:,:) = 0.0_dp
     !
@@ -936,7 +936,7 @@ CONTAINS
              issc_env%psi1_efg(nspins,6),issc_env%psi1_pso(nspins,3),issc_env%psi1_fc(nspins),&
              issc_env%dso_psi0(nspins,3),issc_env%psi1_dso(nspins,3),&
              STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ispin = 1,nspins
        !mo_coeff => current_env%psi0_order(ispin)%matrix
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
@@ -967,19 +967,19 @@ CONTAINS
     !
     ! prepare for allocation
     ALLOCATE (first_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (last_sgf(natom),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL get_particle_set(particle_set, qs_kind_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
     ALLOCATE (row_blk_sizes(natom), STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     CALL convert_offsets_to_sizes (first_sgf, row_blk_sizes, last_sgf)
     DEALLOCATE (first_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DEALLOCATE (last_sgf,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     !
     ! efg, pso and fc operators
@@ -1101,15 +1101,15 @@ CONTAINS
     IF(issc_env%ref_count == 0 ) THEN
        IF(ASSOCIATED(issc_env%issc_on_atom_list)) THEN
           DEALLOCATE(issc_env%issc_on_atom_list,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        IF(ASSOCIATED(issc_env%issc)) THEN
           DEALLOCATE(issc_env%issc,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        IF(ASSOCIATED(issc_env%issc_loc)) THEN
           DEALLOCATE(issc_env%issc_loc,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        !
        !efg_psi0
@@ -1120,7 +1120,7 @@ CONTAINS
              ENDDO
           ENDDO
           DEALLOCATE(issc_env%efg_psi0,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        !
        !pso_psi0
@@ -1131,7 +1131,7 @@ CONTAINS
              ENDDO
           ENDDO
           DEALLOCATE(issc_env%pso_psi0,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        !
        !dso_psi0
@@ -1142,7 +1142,7 @@ CONTAINS
              ENDDO
           ENDDO
           DEALLOCATE(issc_env%dso_psi0,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        !
        !fc_psi0
@@ -1151,7 +1151,7 @@ CONTAINS
              CALL cp_fm_release(issc_env%fc_psi0(ispin)%matrix)
           ENDDO
           DEALLOCATE(issc_env%fc_psi0,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        !
        !psi1_efg
@@ -1162,7 +1162,7 @@ CONTAINS
              ENDDO
           ENDDO
           DEALLOCATE(issc_env%psi1_efg,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        !
        !psi1_pso
@@ -1173,7 +1173,7 @@ CONTAINS
              ENDDO
           ENDDO
           DEALLOCATE(issc_env%psi1_pso,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        !
        !psi1_dso
@@ -1184,7 +1184,7 @@ CONTAINS
              ENDDO
           ENDDO
           DEALLOCATE(issc_env%psi1_dso,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        !
        !psi1_fc
@@ -1193,7 +1193,7 @@ CONTAINS
              CALL cp_fm_release(issc_env%psi1_fc(ispin)%matrix)
           ENDDO
           DEALLOCATE(issc_env%psi1_fc,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
        ENDIF
        !
        ! cubes

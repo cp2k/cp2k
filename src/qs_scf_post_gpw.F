@@ -288,9 +288,9 @@ CONTAINS
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,failure)
-    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(scf_env))
+    CPASSERT(scf_env%ref_count>0)
+    CPASSERT(ASSOCIATED(qs_env))
     ! Here we start with data that needs a postprocessing...
     CALL get_qs_env(qs_env,&
          dft_control=dft_control,&
@@ -312,8 +312,8 @@ CONTAINS
     IF (cp_print_key_should_output(logger%iter_info,input,&
          "DFT%PRINT%KINETIC_ENERGY")/=0) THEN
        CALL get_qs_env(qs_env,kinetic_kp=kinetic_m)
-       CPPrecondition(ASSOCIATED(kinetic_m),cp_failure_level,routineP,failure)
-       CPPrecondition(ASSOCIATED(kinetic_m(1,1)%matrix),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(kinetic_m))
+       CPASSERT(ASSOCIATED(kinetic_m(1,1)%matrix))
        CALL calculate_ptrace(kinetic_m,rho_ao,e_kin,dft_control%nspins)
        unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%KINETIC_ENERGY",&
             extension=".Log")
@@ -465,11 +465,11 @@ CONTAINS
                " Unclear how we define MOs / localization in the restricted case ... skipping"
        ELSE
           ALLOCATE(occupied_orbs(dft_control%nspins),stat=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           ALLOCATE(occupied_evals(dft_control%nspins),stat=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           ALLOCATE(homo_localized(dft_control%nspins),stat=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                   eigenvalues=mo_eigenvalues)
@@ -500,9 +500,9 @@ CONTAINS
                homo_localized, do_homo)
           CALL cp_fm_vect_dealloc(homo_localized)
           DEALLOCATE(occupied_orbs,stat=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           DEALLOCATE(occupied_evals,stat=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           ! Print Total Dipole if the localization has been performed
           IF (qs_loc_env_homo%do_localize) THEN
              CALL qs_scf_post_loc_dip(input, dft_control, qs_loc_env_homo, logger, qs_env)
@@ -566,9 +566,9 @@ CONTAINS
           END IF
 
           ALLOCATE(unoccupied_orbs(dft_control%nspins),STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           ALLOCATE(unoccupied_evals(dft_control%nspins),STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           CALL  make_lumo(qs_env,scf_env,unoccupied_orbs,unoccupied_evals,min_lumos,nlumos)
           lumo_ptr=>unoccupied_orbs
           DO ispin=1,dft_control%nspins
@@ -595,7 +595,7 @@ CONTAINS
 
           IF(p_loc_lumo)THEN
              ALLOCATE(lumo_localized(dft_control%nspins),STAT=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              DO ispin=1,dft_control%nspins
                 CALL cp_fm_create(lumo_localized(ispin)%matrix,unoccupied_orbs(ispin)%matrix%matrix_struct)
                 CALL cp_fm_to_fm(unoccupied_orbs(ispin)%matrix,lumo_localized(ispin)%matrix)
@@ -648,7 +648,7 @@ CONTAINS
     END IF
     IF(ASSOCIATED(marked_states))THEN
        DEALLOCATE(marked_states,stat=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     END IF
 
     ! This is just a deallocation for printing MO_CUBES or TDDFPT
@@ -656,15 +656,15 @@ CONTAINS
        IF(compute_lumos) THEN
           DO ispin=1,dft_control%nspins
              DEALLOCATE(unoccupied_evals(ispin)%array,stat=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              IF (.NOT.dft_control%do_tddfpt_calculation) &
                   CALL cp_fm_release(unoccupied_orbs(ispin)%matrix)
           ENDDO
           DEALLOCATE(unoccupied_evals,stat=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
           IF (.NOT.dft_control%do_tddfpt_calculation) THEN
             DEALLOCATE(unoccupied_orbs,stat=istat)
-            CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+            CPASSERT(istat==0)
           END IF
        ENDIF
     ENDIF
@@ -677,9 +677,9 @@ CONTAINS
               error_level=cp_warning_level)
       ELSE
          ALLOCATE(unoccupied_orbs_stm(dft_control%nspins),STAT=istat)
-         CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          ALLOCATE(unoccupied_evals_stm(dft_control%nspins),STAT=istat)
-         CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          CALL  make_lumo(qs_env,scf_env,unoccupied_orbs_stm,unoccupied_evals_stm,&
                          nlumo_stm,nlumos)
 
@@ -688,13 +688,13 @@ CONTAINS
 
          DO ispin=1,dft_control%nspins
              DEALLOCATE(unoccupied_evals_stm(ispin)%array,stat=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              CALL cp_fm_release(unoccupied_orbs_stm(ispin)%matrix)
          ENDDO
          DEALLOCATE(unoccupied_evals_stm,stat=istat)
-         CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
          DEALLOCATE(unoccupied_orbs_stm,stat=istat)
-         CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+         CPASSERT(istat==0)
        END IF
     END IF
 
@@ -785,7 +785,7 @@ CONTAINS
         CALL get_qs_env(qs_env=qs_env,WannierCentres=wc)
         IF (.NOT. ASSOCIATED(wc)) THEN
           ALLOCATE(wc(dft_control%nspins),stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
         ENDIF
     ENDIF
     DO ispin=1,dft_control%nspins
@@ -825,9 +825,9 @@ CONTAINS
              ns=SIZE(qs_loc_env%localized_wfn_control%loc_states,1)
              IF (.NOT. ASSOCIATED(wc(ispin)%centres)) THEN
                ALLOCATE(wc(ispin)%WannierHamDiag(ns),stat=stat)
-               CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
                ALLOCATE(wc(ispin)%centres(3,ns),stat=stat)
-               CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+               CPASSERT(stat==0)
              ENDIF
 
              wc(ispin)%centres(:,:)=scenter(1+(ispin-1)*3:ispin*3,:)
@@ -846,13 +846,13 @@ CONTAINS
              IF(ASSOCIATED(marked_states_spin))THEN
                 IF(.NOT.ASSOCIATED(marked_states))THEN
                    ALLOCATE(marked_states(SIZE(marked_states_spin),dft_control%nspins,2),stat=stat)
-                   CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(stat==0)
                 END IF
                 mystate=1
                 IF(qs_loc_env%tag_mo=="LUMO")mystate=2
                 marked_states(:,ispin,mystate)=marked_states_spin(:)
                 DEALLOCATE(marked_states_spin,stat=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
           ENDIF
        END IF
@@ -891,7 +891,6 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, ispin, istat, &
                                                 n, nao, nmo, output_unit
-    LOGICAL                                  :: failure
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -934,7 +933,7 @@ CONTAINS
        nlumos=MAX(1,MIN(nlumo,nao-nmo))
        IF (nlumo==-1) nlumos=nao-nmo
        ALLOCATE(unoccupied_evals(ispin)%array(nlumos),stat=istat)
-       CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
        CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=blacs_env, &
             nrow_global=n,ncol_global=nlumos)
        CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp,name="lumos")
@@ -1558,9 +1557,9 @@ CONTAINS
        IF(qs_env%et_coupling%first_run)THEN
           NULLIFY(my_mos)
           ALLOCATE(my_mos(dft_control%nspins),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(qs_env%et_coupling%et_mo_coeff(dft_control%nspins),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ispin =1,dft_control%nspins
              NULLIFY(my_mos(ispin)%matrix)
              CALL cp_fm_create(matrix=my_mos(ispin)%matrix,&
@@ -1627,7 +1626,7 @@ CONTAINS
       IF(.NOT. gapw) THEN
         ! allocate
         ALLOCATE(elf_r(dft_control%nspins),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                             pw_pools=pw_pools)
         DO ispin = 1,dft_control%nspins
@@ -1672,7 +1671,7 @@ CONTAINS
 
         ! deallocate
         DEALLOCATE(elf_r,stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+        CPASSERT(stat==0)
 
       ELSE
          ! not implemented
@@ -1754,15 +1753,15 @@ CONTAINS
     cfermi = (3.0_dp/10.0_dp)*(pi*pi*3.0_dp)**f23
 
     ALLOCATE(rho_r(nspin),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(tau_r(nspin),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(tau_g(nspin),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(drho_r(3*nspin),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(drho_g(3*nspin),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO ispin = 1,nspin
        rho_r(ispin)%pw => rho_struct_r(ispin)%pw
@@ -1861,15 +1860,15 @@ CONTAINS
     END DO  !ispin
 
     DEALLOCATE(rho_r,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(tau_r,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(tau_g,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(drho_r,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(drho_g,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -2073,7 +2072,7 @@ CONTAINS
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
                     molecule_set=molecule_set, &
@@ -2297,7 +2296,7 @@ CONTAINS
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,&
                        atomic_kind_set=atomic_kind_set,&
@@ -2397,7 +2396,7 @@ CONTAINS
              END IF
              ! calculate atomic density and core density
              ALLOCATE(ppdens(ngto,2,nkind),aedens(ngto,2,nkind),ccdens(ngto,2,nkind),stat=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
              DO ikind=1,nkind
                atomic_kind => atomic_kind_set(ikind)
                qs_kind     => qs_kind_set(ikind)
@@ -2444,7 +2443,7 @@ CONTAINS
                    CALL mp_sum(niso,para_env%group)
 
                    ALLOCATE(bfun(nr,niso),stat=istat)
-                   CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(istat==0)
                    bfun = 0._dp
                    DO ispin = 1,dft_control%nspins
                       IF(ASSOCIATED(rho_atom%rho_rad_h(1)%r_coef)) THEN
@@ -2466,7 +2465,7 @@ CONTAINS
                       END IF
                    END DO
                    DEALLOCATE(bfun,stat=istat)
-                   CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+                   CPASSERT(istat==0)
                 END DO
              ELSE
                 IF (unit_nr>0) THEN
@@ -2480,7 +2479,7 @@ CONTAINS
              END IF
 
              DEALLOCATE(ppdens,aedens,ccdens,stat=istat)
-             CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+             CPASSERT(istat==0)
 
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                                "DFT%PRINT%E_DENSITY_CUBE")
@@ -2488,7 +2487,7 @@ CONTAINS
           END IF
           IF (dft_control%qs_control%gapw.AND.print_total_density) THEN
              ! total density in g-space not implemented for k-points
-             CPPrecondition(.NOT.do_kpoints,cp_failure_level,routineP,failure)
+             CPASSERT(.NOT.do_kpoints)
              ! Print total electronic density
              CALL get_qs_env(qs_env=qs_env,&
                              pw_env=pw_env)
@@ -2971,7 +2970,7 @@ CONTAINS
        ! Write the xc matrix
        IF (write_xc) THEN
           CALL get_qs_env(qs_env=qs_env, matrix_vxc_kp=matrix_vxc)
-          CPPrecondition(ASSOCIATED(matrix_vxc),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(matrix_vxc))
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/MATRIX_VXC",&
                                     extension=".Log")
           CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
@@ -3065,7 +3064,7 @@ CONTAINS
     !
     CALL get_qs_env(qs_env,nkind=nkind,natom=natom)
     ALLOCATE(hirshfeld_env%charges(natom),stat=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ! input options
     CALL section_vals_val_get(input_section,"SELF_CONSISTENT",l_val=do_sc)
     CALL section_vals_val_get(input_section,"SHAPE_FUNCTION",i_val=shapef)
@@ -3080,7 +3079,7 @@ CONTAINS
     CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
     nspin=SIZE(matrix_p,1)
     ALLOCATE(charges(natom,nspin),stat=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     SELECT CASE (refc)
        CASE (ref_charge_atomic)
           DO ikind=1,nkind
@@ -3134,7 +3133,7 @@ CONTAINS
     !
     CALL release_hirshfeld_type(hirshfeld_env)
     DEALLOCATE(charges,stat=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE hirshfeld_charges
 
@@ -3165,17 +3164,17 @@ CONTAINS
 
     n = SIZE(ca)
     ALLOCATE(smat(n,n),tmat(n,n),v(n,1),ipiv(n),stat=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL sg_overlap ( smat, l, a, a )
     CALL sg_overlap ( tmat, l, a, b )
     v(:,1) = MATMUL(tmat,cb)
     CALL lapack_sgesv ( n, 1, smat, n, ipiv, v, n, info )
-    CPPostcondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
     ca(:) = v(:,1)
     
     DEALLOCATE(smat,tmat,v,ipiv,stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE project_function_a
 
@@ -3209,7 +3208,7 @@ CONTAINS
     n = SIZE(ca)
     nr = grid_atom%nr
     ALLOCATE(smat(n,n),v(n,1),ipiv(n),afun(nr),stat=istat)
-    CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL sg_overlap ( smat, l, a, a )
     DO i=1,n
@@ -3217,11 +3216,11 @@ CONTAINS
        v(i,1) = SUM(afun(:)*bfun(:)*grid_atom%wr(:))
     END DO
     CALL lapack_sgesv ( n, 1, smat, n, ipiv, v, n, info )
-    CPPostcondition(info==0,cp_failure_level,routineP,failure)
+    CPASSERT(info==0)
     ca(:) = v(:,1)
 
     DEALLOCATE(smat,v,ipiv,afun,stat=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE project_function_b
 

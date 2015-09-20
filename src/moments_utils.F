@@ -86,7 +86,7 @@ CONTAINS
       POINTER                                :: qs_kind_set
 
     failure = .FALSE.
-    CPPostcondition(PRESENT(ifirst).EQV.PRESENT(ilast),cp_failure_level,routineP,failure)
+    CPASSERT(PRESENT(ifirst).EQV.PRESENT(ilast))
     NULLIFY ( cell, particle_set, qs_kind_set, local_particles, para_env )
     IF (PRESENT(qs_env)) THEN
        CALL get_qs_env ( qs_env, cell=cell, particle_set=particle_set, &

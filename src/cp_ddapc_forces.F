@@ -107,9 +107,9 @@ CONTAINS
     NULLIFY(d_el, M, para_env)
     CALL timeset(routineN,handle)
     CALL get_qs_env(qs_env, para_env=para_env)
-    CPPostcondition(PRESENT(charges),cp_failure_level,routineP,failure)
-    CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,failure)
-    CPPostcondition(cell%orthorhombic,cp_failure_level,routineP,failure)
+    CPASSERT(PRESENT(charges))
+    CPASSERT(ASSOCIATED(radii))
+    CPASSERT(cell%orthorhombic)
     rcut = MIN(cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3))/2.0_dp
     CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep)
     IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut)
@@ -133,7 +133,7 @@ CONTAINS
     rmax3  = CEILING(rcut/cell%hmat(3,3))
 
     ALLOCATE(d_el(3,SIZE(particle_set)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     d_el = 0.0_dp
     fac    = 1.e0_dp/cell%deth
     fac3   = fac/8.0_dp
@@ -229,7 +229,7 @@ CONTAINS
     IF (apply_qmmm_periodic) M => qs_env%cp_ddapc_env%Mr
     CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set)
     DEALLOCATE(d_el, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE ewald_ddapc_force
 
@@ -280,17 +280,17 @@ CONTAINS
                     para_env=para_env,&
                     force=force)
     ALLOCATE (atom_of_kind(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (kind_of(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (chf(3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
 
     ALLOCATE(uv(SIZE(M,1)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     uv(:) = MATMUL(M,charges)
     DO k = 1, natom
        DO j = 1, 3
@@ -305,13 +305,13 @@ CONTAINS
        force(ikind)%ch_pulay(1:3,i) = force(ikind)%ch_pulay(1:3,i) + chf(1:3,iatom) + d_el(1:3,iatom)
     END DO
     DEALLOCATE(atom_of_kind, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(kind_of, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(chf, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(uv, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE cp_decpl_ddapc_forces
 
@@ -406,7 +406,7 @@ CONTAINS
       ENDDO
 
     CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
   END SUBROUTINE evaluate_restraint_functional
@@ -464,17 +464,17 @@ CONTAINS
                     para_env=para_env,&
                     force=force)
     ALLOCATE (atom_of_kind(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (kind_of(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (chf(3,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
                              kind_of=kind_of)
 
     ALLOCATE(uv(SIZE(dq,1)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     uv = 0.0_dp
     CALL evaluate_restraint_functional(ddapc_restraint_control, n_gauss, uv,&
          charges, dum)
@@ -491,13 +491,13 @@ CONTAINS
        force(ikind)%ch_pulay(1:3,i) = force(ikind)%ch_pulay(1:3,i) + chf(1:3,iatom)
     END DO
     DEALLOCATE(atom_of_kind, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(kind_of, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(chf, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(uv, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
 
   END SUBROUTINE restraint_functional_force
@@ -559,7 +559,7 @@ CONTAINS
           CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%ATOM_LIST",i_vals=list)
           CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%WEIGHT_TYPE",i_val=weight)
           ALLOCATE(R0(SIZE(list)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           SELECT CASE(weight)
           CASE (weight_type_unit)
              R0 = 0.0_dp
@@ -578,17 +578,17 @@ CONTAINS
           END SELECT
           center = R0
           DEALLOCATE(R0, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
-    CPPostcondition(n_rep1/=0.OR.n_rep2/=0,cp_failure_level,routineP,failure)
+    CPASSERT(n_rep1/=0.OR.n_rep2/=0)
     ! Potential calculation
     ALLOCATE(LocP(0:lmax,SIZE(particle_set)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(pos(SIZE(particle_set)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(d_el(3,SIZE(particle_set)), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     d_el = 0.0_dp
     ! Determining the single atomic contribution to the dielectric dipole
     DO i = 1, SIZE(particle_set)
@@ -644,13 +644,13 @@ CONTAINS
        END DO
     END DO
     DEALLOCATE(pos,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(LocP,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     M => qs_env%cp_ddapc_env%Ms
     CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set)
     DEALLOCATE(d_el, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE solvation_ddapc_force
 
 END MODULE cp_ddapc_forces

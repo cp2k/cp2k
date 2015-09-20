@@ -155,11 +155,11 @@ CONTAINS
      CALL section_vals_val_get(stm_section,"TH_TORB", n_rep_val=n_rep)
      IF(n_rep==0) THEN
         ALLOCATE (stm_th_torb(1), STAT=istat)
-        CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
         stm_th_torb(1) = 0
      ELSE
         ALLOCATE (stm_th_torb(n_rep), STAT=istat)
-        CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
        DO irep = 1,n_rep
           CALL section_vals_val_get(stm_section,"TH_TORB",&
                i_rep_val=irep,i_val=stm_th_torb(irep))
@@ -182,7 +182,7 @@ CONTAINS
 
      nspin = SIZE(mos,1)
      ALLOCATE(nadd_unocc(nspin),STAT=istat)
-     CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      nadd_unocc=0
      IF(ASSOCIATED(unoccupied_orbs)) THEN
        DO ispin =1,nspin
@@ -191,9 +191,9 @@ CONTAINS
      END IF
 
      ALLOCATE(mo_arrays(nspin), STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
      ALLOCATE(evals(nspin),STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
      ALLOCATE(occupation(nspin),STAT=istat)
      DO ispin=1,nspin
           IF(nadd_unocc(ispin)==0) THEN
@@ -229,27 +229,27 @@ CONTAINS
      DO ispin = 1,nspin
        IF(nadd_unocc(ispin)>0) THEN
             DEALLOCATE(evals(ispin)%array,STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
             DEALLOCATE(occupation(ispin)%array,STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
             CALL cp_fm_release( mo_arrays(ispin)%matrix)
        END IF
      END DO
      DEALLOCATE(mo_arrays,STAT=istat)
-        CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
      DEALLOCATE(evals,STAT=istat)
-        CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+        CPASSERT(istat==0)
      DEALLOCATE(occupation,STAT=istat)
-          CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+          CPASSERT(istat==0)
 
      CALL cp_dbcsr_deallocate_matrix(stm_density_ao)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw)
      CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_g%pw)
 
      DEALLOCATE (stm_th_torb, STAT=istat)
-     CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
      DEALLOCATE (nadd_unocc, STAT=istat)
-     CPPrecondition(istat==0,cp_failure_level,routineP,failure)
+     CPASSERT(istat==0)
 
     CALL timestop(handle)
 

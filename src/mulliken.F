@@ -414,20 +414,20 @@ END SUBROUTINE rf_deriv_check
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(p_matrix),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(s_matrix),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_matrix))
+    CPASSERT(ASSOCIATED(s_matrix))
     ! here we get the numbers for charges
     nspin=SIZE(p_matrix)
     CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
     ALLOCATE(charges(nblock,nspin),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL compute_charges(p_matrix,s_matrix,charges,para_env)
 
     CALL print_atomic_charges(particle_set,qs_kind_set,scr,title,electronic_charges=charges)
 
     DEALLOCATE(charges,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -532,13 +532,13 @@ END SUBROUTINE rf_deriv_check
     CALL timeset(routineN,handle)
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(p_matrix_kp),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(s_matrix_kp),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(p_matrix_kp))
+    CPASSERT(ASSOCIATED(s_matrix_kp))
 
     nspin=SIZE(p_matrix)
     CALL cp_dbcsr_get_info(s_matrix,nblkrows_total=nblock)
     ALLOCATE(charges(nblock,nspin),charges_im(nblock,nspin),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     charges = 0.0_dp
 
     DO ic=1,SIZE(s_matrix_kp,2)
@@ -553,7 +553,7 @@ END SUBROUTINE rf_deriv_check
     CALL print_atomic_charges(particle_set,qs_kind_set,scr,title,electronic_charges=charges)
 
     DEALLOCATE(charges,charges_im,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
     CALL timestop(handle)
 
@@ -593,7 +593,7 @@ END SUBROUTINE rf_deriv_check
        natom = SIZE(mcharge,1)
        nspin = SIZE(mcharge,2)
        ALLOCATE(mcharge_im(natom,nspin),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        DO ic=1,SIZE(s_matrix_kp,2)
           NULLIFY(p_matrix,s_matrix)
@@ -606,7 +606,7 @@ END SUBROUTINE rf_deriv_check
        END DO
 
        DEALLOCATE(mcharge_im,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
     END IF
 
@@ -651,7 +651,7 @@ END SUBROUTINE rf_deriv_check
        nspin = SIZE(mcharge,2)
        nder  = SIZE(dmcharge,2)
        ALLOCATE(mcharge_im(natom,nspin),dmcharge_im(natom,nder),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
        DO ic=1,SIZE(s_matrix_kp,2)
           NULLIFY(p_matrix,s_matrix)
@@ -665,7 +665,7 @@ END SUBROUTINE rf_deriv_check
        END DO
 
        DEALLOCATE(mcharge_im,dmcharge_im,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
     END IF
 

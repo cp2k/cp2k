@@ -154,7 +154,7 @@ CONTAINS
        DO ispin=1,nspin
           DO img=1,nimg
              ALLOCATE(matrix_w(ispin,img)%matrix,STAT=istat)
-             CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+             CPASSERT(istat==0)
              CALL cp_dbcsr_init(matrix_w(ispin,img)%matrix)
              CALL cp_dbcsr_copy(matrix_w(ispin,img)%matrix,matrix,name="W MATRIX")
              CALL cp_dbcsr_set(matrix_w(ispin,img)%matrix,0.0_dp)
@@ -166,7 +166,7 @@ CONTAINS
           CALL cp_dbcsr_allocate_matrix_set(matrix_w_mp2,dft_control%nspins)
           DO ispin=1,nspin
              ALLOCATE(matrix_w_mp2(ispin)%matrix,STAT=istat)
-             CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+             CPASSERT(istat==0)
              CALL cp_dbcsr_init(matrix_w_mp2(ispin)%matrix)
              CALL cp_dbcsr_copy(matrix_w_mp2(ispin)%matrix,matrix,&
                   name="W MATRIX MP2")
@@ -413,7 +413,7 @@ CONTAINS
                                    template_fmstruct=mo_coeff%matrix_struct)
 
           ALLOCATE(fmwork(2),STAT=istat)
-          CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+          CPASSERT(istat==0)
           DO is=1,SIZE(fmwork)
              NULLIFY(fmwork(is)%matrix)
              CALL cp_fm_create(fmwork(is)%matrix,matrix_struct=ao_ao_fmstruct)
@@ -430,7 +430,7 @@ CONTAINS
              CALL cp_fm_release(fmwork(is)%matrix)
           END DO
           DEALLOCATE(fmwork,STAT=istat)
-          CPPostcondition(istat==0,cp_warning_level,routineP,failure)
+          CPASSERT(istat==0)
 
        ELSE
 
@@ -650,13 +650,13 @@ CONTAINS
 
     INTEGER                                  :: blk, iblock_col, iblock_row, &
                                                 nblock
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(kind=dp)                            :: btr, mult
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_block, b_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL cp_dbcsr_get_info(bmat,nblkrows_total=nblock)
-    CPPostcondition(nblock==SIZE(atrace),cp_warning_level,routineP,failure)
+    CPASSERT(nblock==SIZE(atrace))
 
     CALL cp_dbcsr_iterator_start(iter, bmat)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))

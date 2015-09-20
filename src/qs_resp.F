@@ -154,7 +154,7 @@ CONTAINS
             resp_section,cons_section,rest_section,poisson_section,resp_env,rep_sys)
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, input=input,&
          subsys=subsys,particle_set=particle_set, cell=cell)
@@ -178,14 +178,14 @@ CONTAINS
        nvar=natom+resp_env%ncons
 
        ALLOCATE(ipiv(nvar),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
        IF(.NOT.ASSOCIATED(resp_env%matrix)) THEN 
         ALLOCATE(resp_env%matrix(nvar,nvar),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+        CPASSERT(stat==0)
        ENDIF
        IF(.NOT.ASSOCIATED(resp_env%rhs)) THEN
         ALLOCATE(resp_env%rhs(nvar),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+        CPASSERT(stat==0)
        ENDIF
        ipiv =0
        resp_env%matrix = 0.0_dp
@@ -220,16 +220,16 @@ CONTAINS
 
        !solve system for the values of the charges and the lagrangian multipliers
        CALL DGETRF(nvar,nvar,resp_env%matrix,nvar,ipiv,info)
-       CPPrecondition(info==0,cp_failure_level,routineP,failure)
+       CPASSERT(info==0)
 
        CALL DGETRS('N',nvar,1,resp_env%matrix,nvar,ipiv,resp_env%rhs,nvar,info)
-       CPPrecondition(info==0,cp_failure_level,routineP,failure)
+       CPASSERT(info==0)
 
        CALL print_resp_charges(qs_env,resp_env,output_unit,natom)
        CALL print_pot_from_resp_charges(qs_env,resp_env,particles,natom,output_unit)
 
        DEALLOCATE(ipiv, stat=stat)
-       CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+       CPASSERT(stat==0)
        CALL resp_dealloc(resp_env,rep_sys)
        CALL cp_print_key_finished_output(output_unit,logger,resp_section,&
             "PRINT%PROGRAM_RUN_INFO")
@@ -258,7 +258,7 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(resp_env)) CALL resp_dealloc(resp_env,rep_sys)
     ALLOCATE(resp_env, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
 
     NULLIFY(resp_env%matrix,&
             resp_env%fitpoints,&
@@ -301,36 +301,36 @@ CONTAINS
     IF (ASSOCIATED(resp_env)) THEN
      IF (ASSOCIATED(resp_env%matrix)) THEN
       DEALLOCATE(resp_env%matrix, stat=stat)
-      CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+      CPASSERT(stat==0)
      ENDIF
      IF (ASSOCIATED(resp_env%rhs)) THEN
       DEALLOCATE(resp_env%rhs, stat=stat)
-      CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+      CPASSERT(stat==0)
      ENDIF
      IF (ASSOCIATED(resp_env%fitpoints)) THEN
       DEALLOCATE(resp_env%fitpoints, stat=stat)
-      CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+      CPASSERT(stat==0)
      ENDIF
      IF (ASSOCIATED(resp_env%rmin_kind))THEN
       DEALLOCATE(resp_env%rmin_kind, stat=stat)
-      CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+      CPASSERT(stat==0)
      ENDIF
      IF (ASSOCIATED(resp_env%rmax_kind))THEN
       DEALLOCATE(resp_env%rmax_kind, stat=stat)
-      CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+      CPASSERT(stat==0)
      ENDIF
      DEALLOCATE(resp_env, stat=stat)
-     CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+     CPASSERT(stat==0)
     ENDIF
     IF (ASSOCIATED(rep_sys)) THEN
      DO i=1, SIZE(rep_sys)
       DEALLOCATE(rep_sys(i)%p_resp%atom_surf_list, stat=stat)
-      CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+      CPASSERT(stat==0)
       DEALLOCATE(rep_sys(i)%p_resp, stat=stat)
-      CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+      CPASSERT(stat==0)
      ENDDO
      DEALLOCATE(rep_sys, stat=stat)
-     CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+     CPASSERT(stat==0)
     ENDIF
 
   END SUBROUTINE resp_dealloc
@@ -385,10 +385,10 @@ CONTAINS
     CALL section_vals_get(slab_section, explicit=explicit, n_repetition=nrep)
     IF(explicit) THEN
      ALLOCATE(rep_sys(nrep), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+     CPASSERT(stat==0)
      DO i=1, nrep
       ALLOCATE(rep_sys(i)%p_resp, stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+      CPASSERT(stat==0)
       NULLIFY(rep_sys(i)%p_resp%range_surf, rep_sys(i)%p_resp%atom_surf_list)
       CALL section_vals_val_get(slab_section,"RANGE",r_vals=rep_sys(i)%p_resp%range_surf,&
                                 i_rep_section=i)
@@ -422,7 +422,7 @@ CONTAINS
         !instead of using EQUAL_CHARGES the constraint sections could be repeated
         resp_env%ncons=resp_env%ncons+SIZE(atom_list_cons)-2
         DEALLOCATE(atom_list_cons,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+        CPASSERT(stat==0)
        ENDDO
     ENDIF
     CALL section_vals_get(rest_section, explicit=explicit)
@@ -503,9 +503,9 @@ CPSourceFileRef,&
       CALL section_vals_val_get(sphere_section,"RMIN_KIND", n_rep_val=nrep_rmin)
       CALL section_vals_val_get(sphere_section,"RMAX_KIND", n_rep_val=nrep_rmax)
       ALLOCATE(resp_env%rmin_kind(nkind),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+      CPASSERT(stat==0)
       ALLOCATE(resp_env%rmax_kind(nkind),stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+      CPASSERT(stat==0)
       resp_env%rmin_kind(:)=rmin
       resp_env%rmax_kind(:)=rmax
       DO j=1, nrep_rmin
@@ -600,7 +600,7 @@ CPSourceFileRef,&
      num_atom=num_atom + SIZE(indexes)
     ENDDO 
     ALLOCATE(atom_list(num_atom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     atom_list=0
     num_atom=1
     DO i=1,n_var
@@ -612,10 +612,10 @@ CPSourceFileRef,&
     !check atom list
     num_atom=num_atom-1
     CALL qs_subsys_get(subsys, nparticle=max_index)
-    CPPrecondition(SIZE(atom_list) /= 0,cp_failure_level,routineP,failure)
+    CPASSERT(SIZE(atom_list) /= 0)
     index_in_range=(MAXVAL(atom_list)<= max_index)&
                          .AND.(MINVAL(atom_list) > 0)
-    CPPostcondition(index_in_range,cp_failure_level,routineP,failure)
+    CPASSERT(index_in_range)
     DO i=1,num_atom
      DO j=i+1,num_atom
       atom_a=atom_list(i)
@@ -707,9 +707,9 @@ CPSourceFileRef,&
     nkind=SIZE(atomic_kind_set)
 
     ALLOCATE(dist(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
     ALLOCATE(not_in_range(natom,2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
 
     !only store fitting points when printing RESP potential
     IF (BTEST(cp_print_key_should_output(logger%iter_info,resp_section,&
@@ -717,7 +717,7 @@ CPSourceFileRef,&
      IF(.NOT.ASSOCIATED(resp_env%fitpoints)) THEN
         now = 1000
         ALLOCATE(resp_env%fitpoints(3,now),stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+        CPASSERT(stat==0)
      ELSE
         now = SIZE(resp_env%fitpoints,2)
      END IF
@@ -801,9 +801,9 @@ CPSourceFileRef,&
     rhs=rhs/resp_env%npoints
 
     DEALLOCATE(dist,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
     DEALLOCATE(not_in_range,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -875,7 +875,7 @@ CPSourceFileRef,&
     CALL get_fitting_points(qs_env,resp_env,rep_sys,particles=particles,&
          cell=cell)
     ALLOCATE(vpot(resp_env%npoints,natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
     normalize_factor=SQRT((resp_env%eta/pi)**3)
 
     DO i=1,natom
@@ -910,7 +910,7 @@ CPSourceFileRef,&
     ENDDO
 
     DEALLOCATE(vpot,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
     
     resp_env%npoints_proc=resp_env%npoints
     CALL mp_sum(resp_env%npoints,para_env%group)
@@ -992,15 +992,15 @@ CPSourceFileRef,&
     IF(.NOT.ASSOCIATED(resp_env%fitpoints)) THEN
        now = 1000
        ALLOCATE(resp_env%fitpoints(3,now),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
     ELSE
        now = SIZE(resp_env%fitpoints,2)
     END IF
 
     ALLOCATE(dist(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
     ALLOCATE(not_in_range(natom,2),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
 
     !every proc gets another bo, grid is distributed
     DO jz=bo(1,3),bo(2,3)
@@ -1093,9 +1093,9 @@ CPSourceFileRef,&
     CALL cp_print_key_finished_output(output_unit,logger,resp_section,&
                        "PRINT%COORD_FIT_POINTS")
     DEALLOCATE(dist,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
     DEALLOCATE(not_in_range,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
  
@@ -1225,9 +1225,9 @@ CPSourceFileRef,&
     ENDIF
 
     ALLOCATE(tmp_size(1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
     ALLOCATE(tmp_npoints(1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+    CPASSERT(stat==0)
 
     !sending data of all other prosc to proc which makes the output (proc 0) 
     IF(output_unit>0) THEN
@@ -1238,7 +1238,7 @@ CPSourceFileRef,&
             request=req(1))
        CALL mp_wait(req(1))
        ALLOCATE(tmp_points(3,tmp_size(1)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
        CALL mp_irecv(msgout=tmp_points,source=i-1,comm=para_env%group,&
             request=req(3))
        CALL mp_wait(req(3))
@@ -1259,7 +1259,7 @@ CPSourceFileRef,&
         WRITE(UNIT=output_unit,FMT="(A,2X,3F10.5)") "X", r(1), r(2),r(3)
        ENDDO 
        DEALLOCATE(tmp_points,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+       CPASSERT(stat==0)
       ENDDO
     ELSE
      tmp_size(1)=SIZE(resp_env%fitpoints,2)
@@ -1277,9 +1277,9 @@ CPSourceFileRef,&
     ENDIF
 
     DEALLOCATE(tmp_size,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
     DEALLOCATE(tmp_npoints,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
  
@@ -1335,7 +1335,7 @@ CPSourceFileRef,&
        CALL section_vals_val_get(rest_section,"ATOM_COEF",i_rep_section=i,explicit=explicit_coeff)
        IF (explicit_coeff) THEN
         CALL section_vals_val_get(rest_section,"ATOM_COEF",i_rep_section=i,r_vals=atom_coef)
-        CPPrecondition(SIZE(atom_list_res)==SIZE(atom_coef),cp_failure_level,routineP,failure)
+        CPASSERT(SIZE(atom_list_res)==SIZE(atom_coef))
        ENDIF
        DO m=1,SIZE(atom_list_res)
          IF (explicit_coeff) THEN
@@ -1355,7 +1355,7 @@ CPSourceFileRef,&
          ENDIF
        ENDDO
        DEALLOCATE(atom_list_res,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+       CPASSERT(stat==0)
     ENDDO
 
     ! if heavies are restrained to zero, add these as well
@@ -1384,7 +1384,7 @@ CPSourceFileRef,&
          ncons_v=ncons_v+1
          CALL section_vals_val_get(cons_section,"ATOM_COEF",i_rep_section=i,r_vals=atom_coef)
          CALL section_vals_val_get(cons_section,"TARGET",i_rep_section=i,r_val=TARGET)
-         CPPrecondition(SIZE(atom_list_cons)==SIZE(atom_coef),cp_failure_level,routineP,failure)
+         CPASSERT(SIZE(atom_list_cons)==SIZE(atom_coef))
          DO m=1,SIZE(atom_list_cons)
             resp_env%matrix(atom_list_cons(m),ncons_v)=atom_coef(m)
             resp_env%matrix(ncons_v,atom_list_cons(m))=atom_coef(m)
@@ -1403,7 +1403,7 @@ CPSourceFileRef,&
          ENDDO
        ENDIF
        DEALLOCATE(atom_list_cons,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_failure_level,routineP)
+       CPASSERT(stat==0)
     ENDDO
     CALL timestop(handle)
 

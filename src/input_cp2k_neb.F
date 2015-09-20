@@ -69,7 +69,7 @@ CONTAINS
                                                 subsubsection
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="band",&
          description="The section that controls a BAND run",&
          n_keywords=1, n_subsections=0, repeats=.FALSE., &
@@ -328,7 +328,7 @@ CONTAINS
                                                 subsubsection
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section))
     NULLIFY(keyword, print_key, subsection, subsubsection)
 
     CALL keyword_create(keyword, name="OPT_TYPE",&

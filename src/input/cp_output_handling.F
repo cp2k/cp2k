@@ -182,7 +182,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(print_key_section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(print_key_section))
     my_print_level=debug_print_level
     IF (PRESENT(print_level)) my_print_level=print_level
 
@@ -222,14 +222,14 @@ CONTAINS
 
     ! Enforce the presence or absence of both.. or give an error
     check = (PRESENT(each_iter_names)).EQV.(PRESENT(each_iter_values))
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     ext_each = (PRESENT(each_iter_names)).AND.(PRESENT(each_iter_values))
 
     DO i_each = 1, SIZE(each_possible_labels)
        my_value = 1
        IF (ext_each) THEN
           check    = SUM(INDEX(each_iter_names,each_possible_labels(i_each)))<=1
-          CPPrecondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
           DO i_iter = 1, SIZE(each_iter_names)
              IF (INDEX(TRIM(each_iter_names(i_iter)),TRIM(each_possible_labels(i_each)))/=0) THEN
                 my_value = each_iter_values(i_iter)
@@ -352,8 +352,8 @@ CONTAINS
     failure=.FALSE.
     res=0
     IF (PRESENT(first_time)) first_time=.FALSE.
-    CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,failure)
-    CPPrecondition(basis_section%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(basis_section))
+    CPASSERT(basis_section%ref_count>0)
     IF (PRESENT(used_print_key)) NULLIFY(used_print_key)
     IF (failure) THEN
        IF (iteration_info%print_level>=debug_print_level) res=cp_out_default
@@ -373,8 +373,8 @@ CONTAINS
        ELSE
           print_key => basis_section
        END IF
-       CPPrecondition(ASSOCIATED(print_key),cp_failure_level,routineP,failure)
-       CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(print_key))
+       CPASSERT(print_key%ref_count>0)
        IF (to_path+1<end_str) THEN
           CALL section_vals_val_get(print_key,print_key_path((to_path+1):end_str),&
                l_val=flags)
@@ -438,12 +438,12 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,failure)
-    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(iteration_info))
+    CPASSERT(iteration_info%ref_count>0)
     IF (.NOT.ASSOCIATED(print_key)) THEN
        res=(iteration_info%print_level > debug_print_level)
     ELSE
-       CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(print_key%ref_count>0)
        CALL section_vals_val_get(print_key,"_SECTION_PARAMETERS_",i_val=print_level)
        res=iteration_info%print_level>=print_level
     END IF
@@ -475,13 +475,13 @@ CONTAINS
     LOGICAL                                  :: failure, first, level_passed
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,failure)
-    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(iteration_info))
+    CPASSERT(iteration_info%ref_count>0)
     IF (.NOT.ASSOCIATED(print_key)) THEN
        res=(iteration_info%print_level > debug_print_level)
        first=ALL(iteration_info%iteration(1:iteration_info%n_rlevel)==1)
     ELSE
-       CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(print_key%ref_count>0)
        res   = .FALSE.
        first = .FALSE.
        CALL section_vals_val_get(print_key,"ADD_LAST",i_val=add_last)
@@ -546,8 +546,8 @@ CONTAINS
     res=""
     my_for_file=.FALSE.
     IF (PRESENT(for_file)) my_for_file=for_file
-    CPPrecondition(ASSOCIATED(iter_info),cp_failure_level,routineP,failure)
-    CPPrecondition(iter_info%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(iter_info))
+    CPASSERT(iter_info%ref_count>0)
     NULLIFY(my_print_key)
     IF (PRESENT(print_key)) my_print_key => print_key
     s_level=1
@@ -608,8 +608,8 @@ CONTAINS
     IF (PRESENT(increment))  my_increment = increment
     IF (PRESENT(iter_nr_out)) iter_nr_out = -1
 
-    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,failure)
-    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(iteration_info))
+    CPASSERT(iteration_info%ref_count>0)
     IF (PRESENT(iter_nr)) THEN
        iteration_info%iteration(iteration_info%n_rlevel)=iter_nr
     ELSE
@@ -644,8 +644,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,failure)
-    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(iteration_info))
+    CPASSERT(iteration_info%ref_count>0)
     found = .FALSE.
     DO i = 1, SIZE(each_possible_labels)
        IF (TRIM(level_name)==TRIM(each_possible_labels(i))) THEN
@@ -692,16 +692,16 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,failure)
-    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(iteration_info))
+    CPASSERT(iteration_info%ref_count>0)
     IF (PRESENT(n_rlevel_att)) THEN
-       CPPrecondition(n_rlevel_att==iteration_info%n_rlevel,cp_failure_level,routineP,failure)
+       CPASSERT(n_rlevel_att==iteration_info%n_rlevel)
     END IF
     CALL cp_iteration_info_release(iteration_info)
     ! This check that the iteration levels are consistently created and destroyed..
     ! Never remove this check..
     check = iteration_info%level_name(iteration_info%n_rlevel)==level_name
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     iteration_info%n_rlevel=iteration_info%n_rlevel-1
     CALL reallocate(iteration_info%iteration,  1, iteration_info%n_rlevel)
     CALL reallocate(iteration_info%level_name, 1, iteration_info%n_rlevel)
@@ -874,10 +874,10 @@ CONTAINS
     IF (PRESENT(local))         my_local         = local
     IF (PRESENT(is_new_file))   is_new_file      = .FALSE.
     NULLIFY(print_key)
-    CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,failure)
-    CPPrecondition(basis_section%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(logger%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(basis_section))
+    CPASSERT(ASSOCIATED(logger))
+    CPASSERT(basis_section%ref_count>0)
+    CPASSERT(logger%ref_count>0)
     my_should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
          basis_section,print_key_path,used_print_key=print_key),cp_p_file)
     IF (PRESENT(ignore_should_output)) my_should_output=my_should_output.or.ignore_should_output
@@ -1022,10 +1022,10 @@ CONTAINS
     NULLIFY(print_key)
     IF (PRESENT(local)) my_local=local
     IF (PRESENT(on_file)) my_on_file=on_file
-    CPPrecondition(ASSOCIATED(basis_section),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,failure)
-    CPPrecondition(basis_section%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(logger%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(basis_section))
+    CPASSERT(ASSOCIATED(logger))
+    CPASSERT(basis_section%ref_count>0)
+    CPASSERT(logger%ref_count>0)
     my_should_output=BTEST(cp_print_key_should_output(logger%iter_info,basis_section,&
          print_key_path,used_print_key=print_key),cp_p_file)
     IF (PRESENT(ignore_should_output)) my_should_output=my_should_output.or.ignore_should_output
@@ -1033,14 +1033,14 @@ CONTAINS
          logger%para_env%source==logger%para_env%mepos)) THEN
        CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath)
        IF (my_on_file.OR.outPath.NE.'__STD_OUT__') THEN
-          CPPrecondition(unit_nr>0,cp_failure_level,routineP,failure)
+          CPASSERT(unit_nr>0)
           CALL close_file(unit_nr,"KEEP")
           unit_nr=-1
        ELSE
           unit_nr=-1
        ENDIF
     END IF
-    CPPostcondition(unit_nr==-1,cp_failure_level,routineP,failure)
+    CPASSERT(unit_nr==-1)
     unit_nr=-1
   END SUBROUTINE cp_print_key_finished_output
 

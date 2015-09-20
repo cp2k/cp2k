@@ -118,11 +118,11 @@ CONTAINS
     IF(.NOT.ASSOCIATED(cancel_list)) RETURN
     NULLIFY(tmp_element)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%params),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(work_list),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
+    CPASSERT(ASSOCIATED(tmc_env%params))
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
+    CPASSERT(ASSOCIATED(work_list))
+    CPASSERT(ASSOCIATED(para_env))
 
 
     stat = TMC_STATUS_FAILED
@@ -142,9 +142,9 @@ CONTAINS
         END IF
       END DO working_elem_loop
 
-      CPPostcondition(wg.GE.0,cp_failure_level,routineP,failure)
-      CPPostcondition(stat.NE.TMC_STATUS_FAILED,cp_failure_level,routineP,failure)
-      CPPostcondition(work_list(wg)%elem%stat.NE.status_calc_approx_ener,cp_failure_level,routineP,failure)
+      CPASSERT(wg.GE.0)
+      CPASSERT(stat.NE.TMC_STATUS_FAILED)
+      CPASSERT(work_list(wg)%elem%stat.NE.status_calc_approx_ener)
 
       
       IF(DEBUG.GE.1) &
@@ -189,13 +189,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: dest, stat, wg
-    LOGICAL                                  :: failure
     TYPE(elem_list_type), POINTER            :: list_tmp
 
     NULLIFY(list_tmp)
 
-    CPPrecondition(ASSOCIATED(ana_worker_info),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_worker_info))
+    CPASSERT(ASSOCIATED(para_env))
 
 
     wg_loop:DO wg=1, SIZE(ana_worker_info)
@@ -254,13 +253,13 @@ CONTAINS
     restarted_elem_nr = 0
     NULLIFY(init_conf, worker_info, ana_worker_info, gt_elem_tmp, tree_elem_counters)
 
-    CPPrecondition(ASSOCIATED(tmc_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env))
 
-    CPPrecondition(tmc_env%tmc_comp_set%group_nr==0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%tmc_comp_set),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_w),cp_failure_level,routineP,failure)
+    CPASSERT(tmc_env%tmc_comp_set%group_nr==0)
+    CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set))
+    CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set%para_env_m_w))
 
-    CPPrecondition(ASSOCIATED(tmc_env%m_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_env%m_env))
 
     !-- run time measurment, to end just in time
     ! start the timing
@@ -453,7 +452,7 @@ CONTAINS
         ! -- CANCEL_RECEIPT ------------------
         CASE(TMC_CANCELING_RECEIPT)
           ! worker should got cancel message before
-          CPPrecondition(worker_info(wg)%canceled ,cp_failure_level,routineP,failure)
+          CPASSERT(worker_info(wg)%canceled)
           worker_info(wg)%canceled = .FALSE.
           worker_info(wg)%busy = .FALSE.
 
@@ -491,7 +490,7 @@ CONTAINS
         ! -- START_CONF_RESULT ---------------
         CASE(TMC_STAT_START_CONF_RESULT)
            ! start configuration should already be handeled
-           CPPrecondition(.FALSE. ,cp_failure_level,routineP,failure)
+           CPASSERT(.FALSE.)
         ! -- ENERGY RESULT -----------------
         CASE(TMC_STAT_APPROX_ENERGY_RESULT)
           nr_of_job(3) = nr_of_job(3) +1
@@ -974,7 +973,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(time.GE.0.0_dp,cp_failure_level,routineP,failure)
+    CPASSERT(time.GE.0.0_dp)
 
     IF(time.GT.walltime_delay)THEN
       walltime_delay = INT(time)+1

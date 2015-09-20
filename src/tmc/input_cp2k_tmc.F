@@ -53,7 +53,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TMC",&
          description="A parallelized MC algorithm, presampling the configurations, espacially the Markov chain elements",&
          n_keywords=1, n_subsections=1, repeats=.FALSE.)
@@ -384,7 +384,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(subsection)
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="NMC_MOVES",&
           description="This section specifies the TMC move types, "//&
                       "which are performed within the nested Monte Carlo (NMC). "//&
@@ -448,7 +448,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MOVE_TYPE",&
          description="This section specifies the TMC move type, "//&
                      "and its properties. "//&
@@ -525,7 +525,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TMC_ANALYSIS",&
          description="Analysing the Markov Chain elments with the specified methods",&
          n_keywords=1, n_subsections=1, repeats=.FALSE.)
@@ -551,7 +551,7 @@ CONTAINS
     NULLIFY(keyword)
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TMC_ANALYSIS_FILES",&
          description="Analysing the Markov Chain elments with the specified methods, "//&
                      "reading form default or specified files",&

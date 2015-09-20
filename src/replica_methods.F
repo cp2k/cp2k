@@ -114,8 +114,8 @@ MODULE replica_methods
                                                 para_env_inter_rep
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(rep_env),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(input_declaration),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(rep_env))
+    CPASSERT(ASSOCIATED(input_declaration))
 
     NULLIFY(cart,para_env_f,para_env_inter_rep)
     logger => cp_get_default_logger()
@@ -147,7 +147,7 @@ MODULE replica_methods
        CALL cp_para_env_create(para_env_inter_rep,comm_inter_rep,&
             owns_group=.TRUE.)
        ALLOCATE(rep_env,stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     ALLOCATE(gridinfo(2,0:para_env%num_pe-1))
     gridinfo=0
@@ -220,7 +220,7 @@ MODULE replica_methods
        END IF
        CALL create_force_env(new_env_id,input_declaration,input_file_path,&
              output_file_path,para_env_f%group,ierr=ierr)
-       CPAssert(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
 
        ! Delete input files..
        IF (para_env_f%source==para_env_f%mepos) THEN
@@ -231,11 +231,11 @@ MODULE replica_methods
 
        rep_env%f_env_id=new_env_id
        CALL get_nparticle(new_env_id,nparticle,ierr)
-       CPPostcondition(ierr==0,cp_fatal_level,routineP,failure)
+       CPASSERT(ierr==0)
        rep_env%nparticle = nparticle
        rep_env%ndim = 3*nparticle
        ALLOCATE(rep_env%replica_owner(nrep),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
 
        i0=nrep/para_env_inter_rep%num_pe
        ir=MODULO(nrep,para_env_inter_rep%num_pe)
@@ -249,7 +249,7 @@ MODULE replica_methods
        IF (rep_env%my_rep_group<ir) nrep_local=nrep_local+1
        ALLOCATE(rep_env%local_rep_indices(nrep_local),&
                 rep_env%rep_is_local(nrep),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        nrep_local=0
        rep_env%rep_is_local = .FALSE.
        DO irep=1,nrep
@@ -259,7 +259,7 @@ MODULE replica_methods
              rep_env%rep_is_local(irep) = .TRUE.
           END IF
        END DO
-       CPPostcondition(nrep_local==SIZE(rep_env%local_rep_indices),cp_failure_level,routineP,failure)
+       CPASSERT(nrep_local==SIZE(rep_env%local_rep_indices))
 
        rep_env%cart => cart
        rep_env%para_env => para_env_full
@@ -268,24 +268,24 @@ MODULE replica_methods
 
        ALLOCATE (rep_env%r(rep_env%ndim,nrep),rep_env%v(rep_env%ndim,nrep),&
                  rep_env%f(rep_env%ndim+1,nrep), stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
 
        rep_env%r=0._dp
        rep_env%f=0._dp
        rep_env%v=0._dp
        CALL set_vel(rep_env%f_env_id, rep_env%v(:,1), rep_env%ndim, ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        DO i=1,nrep
           IF (rep_env%rep_is_local(i)) THEN
              CALL get_pos(rep_env%f_env_id,rep_env%r(:,i),rep_env%ndim,ierr)
-             CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+             CPASSERT(ierr==0)
           END IF
        END DO
     END IF
     IF (.NOT.failure.AND.ASSOCIATED(rep_env)) THEN
        CALL rep_envs_add_rep_env(rep_env)
        CALL rep_env_init_low(rep_env%id_nr,ierr)
-       CPAssert(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
     END IF
   END SUBROUTINE rep_env_create
 
@@ -332,7 +332,7 @@ MODULE replica_methods
           CALL force_env_get(f_env%force_env,qs_env=qs_env)
           CALL get_qs_env(qs_env,dft_control=dft_control)
           ALLOCATE(rep_env%wf_history(SIZE(rep_env%local_rep_indices)),stat=stat)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i=1,SIZE(rep_env%wf_history)
              NULLIFY(rep_env%wf_history(i)%wf_history)
              IF (i==1) THEN
@@ -357,7 +357,7 @@ MODULE replica_methods
        END IF
     END IF
     ALLOCATE(rep_env%results(rep_env%nrep),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i=1, rep_env%nrep
        NULLIFY(rep_env%results(i)%results)
        IF (i==1) THEN
@@ -373,7 +373,7 @@ MODULE replica_methods
     CALL rep_env_sync(rep_env,rep_env%f)
 
     CALL f_env_rm_defaults(f_env,ierr)
-    CPAssert(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
   END SUBROUTINE rep_env_init_low
 
 
@@ -400,14 +400,14 @@ MODULE replica_methods
     failure=.FALSE.
 
     CALL timeset(routineN,handle)
-    CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,failure)
-    CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rep_env))
+    CPASSERT(rep_env%ref_count>0)
     my_calc_f=0
     IF (PRESENT(calc_f)) THEN
        IF (calc_f) my_calc_f=1
     END IF
     CALL rep_env_calc_e_f_low(rep_env%id_nr,my_calc_f,ierr)
-    CPAssert(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     CALL timestop(handle)
   END SUBROUTINE rep_env_calc_e_f
 
@@ -473,8 +473,8 @@ MODULE replica_methods
 
     failure=.FALSE.
     NULLIFY(f_env,qs_env,subsys)
-    CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,failure)
-    CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rep_env))
+    CPASSERT(rep_env%ref_count>0)
     my_calc_f=3*rep_env%nparticle
     IF (PRESENT(calc_f)) THEN
        IF (.NOT.calc_f) my_calc_f=0
@@ -486,13 +486,13 @@ MODULE replica_methods
     !     md_iter=logger%iter_info%iteration(2)+1
     md_iter=logger%iter_info%iteration(2)
     CALL f_env_rm_defaults(f_env,ierr)
-    CPAssert(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     DO i=1,SIZE(rep_env%local_rep_indices)
        irep = rep_env%local_rep_indices(i)
        ndim = 3*rep_env%nparticle
        IF (rep_env%sync_v) THEN
           CALL set_vel(rep_env%f_env_id,rep_env%v(:,irep),ndim,ierr)
-          CPAssert(ierr==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr==0)
           IF (failure) EXIT
        END IF
 
@@ -506,7 +506,7 @@ MODULE replica_methods
           CALL set_qs_env(qs_env,&
                wf_history=rep_env%wf_history(i)%wf_history)
           CALL f_env_rm_defaults(f_env,ierr)
-          CPAssert(ierr==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr==0)
        END IF
 
        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
@@ -514,11 +514,11 @@ MODULE replica_methods
        CALL force_env_get(f_env%force_env, subsys=subsys)
        CALL cp_subsys_set(subsys, results=rep_env%results(irep)%results)
        CALL f_env_rm_defaults(f_env,ierr)
-       CPAssert(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        CALL calc_force(rep_env%f_env_id,rep_env%r(:,irep),ndim,&
                           rep_env%f(ndim+1,irep),rep_env%f(:ndim,irep),&
                           my_calc_f,ierr)
-       CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+       CPASSERT(ierr==0)
        IF (failure) EXIT
     END DO
     CALL rep_env_sync(rep_env,rep_env%f)

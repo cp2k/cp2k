@@ -121,7 +121,7 @@ CONTAINS
     NULLIFY(atomic_kind_set, atprop)
     NULLIFY(ks_env, ks_matrix, rho, energy)
     logger => cp_get_default_logger()
-    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env,&
                     dft_control=dft_control,&
@@ -148,10 +148,10 @@ CONTAINS
 
        ! Check for properly allocation of Matrixes
        nspins=dft_control%nspins
-       CPPrecondition(((nspins>=1).AND.(nspins<=2)),cp_failure_level,routineP,failure)
-       CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,failure)
-       CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,failure)
-       CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,failure)
+       CPASSERT(((nspins>=1).AND.(nspins<=2)))
+       CPASSERT(ASSOCIATED(matrix_h))
+       CPASSERT(ASSOCIATED(rho))
+       CPASSERT(SIZE(ks_matrix)>0)
 
        se_control  => dft_control%qs_control%se_control
        scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF")
@@ -262,7 +262,7 @@ CONTAINS
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set, &
                   mo_coeff_b=mo_coeff, occupation_numbers=occupation_numbers )
              IF(.NOT.mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
-                CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              ENDIF
              CALL cp_dbcsr_get_info(mo_coeff,nfullcols_total=ncol_global)
              CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin)%matrix,mo_coeff,&

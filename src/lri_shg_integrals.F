@@ -73,7 +73,6 @@ CONTAINS
       lca_max, lcb_max, li_max, lj_max, lmax, mdim(4), size_int(4,2), stat, &
       temp
     INTEGER, DIMENSION(:), POINTER           :: li_max_all
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Rc, Rs
@@ -102,9 +101,9 @@ CONTAINS
     lmax = li_max
  
     ALLOCATE(li_max_all(0:lj_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(Rc(0:lmax,-2*lmax:2*lmax),Rs(0:lmax,-2*lmax:2*lmax),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     Rc=0._dp
     Rs=0._dp
     mdim(1) = nsoset(li_max) + 1
@@ -112,9 +111,9 @@ CONTAINS
     mdim(3) = li_max+lj_max  + 1
     mdim(4) = 4
     ALLOCATE(Waux_mat(mdim(1),mdim(2),mdim(3),mdim(4)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(dWaux_mat(3,mdim(1),mdim(2),mdim(3),mdim(4)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     !Waux_mat = 0._dp !.. takes time
 
     !*** Waux_mat (li_max,lj_max) contains elements not needed,
@@ -149,7 +148,7 @@ CONTAINS
     ENDIF
 
     DEALLOCATE(Rc,Rs,li_max_all,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -271,9 +270,9 @@ CONTAINS
     nds_max = laa_max_set + lb_max_set + ndev + 1
     nl_set = INT((laa_max_set)/2)
     ALLOCATE(swork(npgfa_set,npgfb_set,npgfca_set,0:nl_set,nds_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(swork_cont(nshella_set,nshellb_set,nshellca_set,0:nl_set,nds_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO iset=1,nseta
 
@@ -395,9 +394,9 @@ CONTAINS
     END DO
 
     DEALLOCATE(swork_cont,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(swork,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -519,9 +518,9 @@ CONTAINS
     nds_max = la_max_set + lbb_max_set + ndev + 1
     nl_set = INT((lbb_max_set)/2)
     ALLOCATE(swork(1:npgfa_set,1:npgfb_set,1:npgfcb_set,0:nl_set,1:nds_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(swork_cont(nshella_set,nshellb_set,nshellcb_set,0:nl_set,nds_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO iset=1,nseta
 
@@ -642,9 +641,9 @@ CONTAINS
     END DO
 
     DEALLOCATE(swork_cont,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(swork,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -733,9 +732,9 @@ CONTAINS
     IF(calculate_forces) ndev = 1
     nds_max = la_max_set + lb_max_set + ndev + 1
     ALLOCATE(swork(npgfa_set,npgfb_set,nds_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(swork_cont(nshella_set,nshellb_set,nds_max),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO iset=1,nseta
 
@@ -782,7 +781,7 @@ CONTAINS
     END DO
 
     DEALLOCATE(swork,swork_cont,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 

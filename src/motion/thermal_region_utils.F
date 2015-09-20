@@ -124,7 +124,7 @@ CONTAINS
          thermal_regions%nregions = nregions
          thermal_regions%section => thermal_region_section
          ALLOCATE(thermal_regions%thermal_region(nregions), STAT=stat)
-         CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+         CPASSERT(stat==0)
          CALL force_env_get(force_env, subsys=subsys)
          CALL cp_subsys_get(subsys, particles=particles)
          IF (simpar%ensemble == langevin_ensemble) THEN
@@ -133,7 +133,7 @@ CONTAINS
             CALL section_vals_val_get(thermal_region_section, "DO_LANGEVIN_DEFAULT", &
                                       l_val=do_langevin_default)
             ALLOCATE(thermal_regions%do_langevin(particles%n_els), STAT=stat)
-            CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+            CPASSERT(stat==0)
             thermal_regions%do_langevin = do_langevin_default
          END IF
          DO ireg = 1,nregions
@@ -154,7 +154,7 @@ CONTAINS
               CALL reallocate(t_region%part_index,1,t_region%npart+SIZE(tmplist))
               DO i = 1, SIZE(tmplist)
                  ipart = tmplist(i)
-                 CPPostcondition(((ipart>0).AND.(ipart<=particles%n_els)),cp_failure_level,routineP,failure)
+                 CPASSERT(((ipart>0).AND.(ipart<=particles%n_els)))
                  t_region%npart = t_region%npart + 1
                  t_region%part_index(t_region%npart) = ipart
                  particles%els(ipart)%t_region_index = ireg
@@ -230,7 +230,7 @@ CONTAINS
             END IF
             nregions = thermal_regions%nregions
             ALLOCATE (temp(0:nregions), STAT=istat)
-            CPPrecondition(istat==0,cp_fatal_level,routineP,failure)
+            CPASSERT(istat==0)
             temp = 0.0_dp
             temp(0) =  thermal_regions%temp_reg0
             DO ireg = 1,nregions
@@ -240,7 +240,7 @@ CONTAINS
             fmd=TRIM(fmd)
             WRITE(UNIT=unit,FMT=fmd) itimes,time, temp(0:nregions)
             DEALLOCATE(temp, STAT=istat)
-            CPPrecondition(istat==0,cp_fatal_level,routineP,failure)
+            CPASSERT(istat==0)
           END IF
           CALL cp_print_key_finished_output(unit,logger,thermal_regions%section,"PRINT%TEMPERATURE")
        END IF
@@ -300,9 +300,9 @@ CONTAINS
                 END IF
                 natoms = SIZE(thermal_regions%do_langevin)
                 ALLOCATE(temperature(natoms), STAT=stat)
-                CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+                CPASSERT(stat==0)
                 ALLOCATE(region_id(natoms), STAT=stat)
-                CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+                CPASSERT(stat==0)
                 temperature(:) = simpar%temp_ext
                 region_id(:) = 0
                 DO ireg = 1, thermal_regions%nregions
@@ -324,9 +324,9 @@ CONTAINS
                    END IF
                 END DO
                 DEALLOCATE(region_id, STAT=stat)
-                CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+                CPASSERT(stat==0)
                 DEALLOCATE(temperature, STAT=stat)
-                CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+                CPASSERT(stat==0)
              END IF
              CALL cp_print_key_finished_output(print_unit, logger, thermal_regions%section, &
                                                "PRINT%LANGEVIN_REGIONS")

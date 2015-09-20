@@ -148,10 +148,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(tmc_ana))
 
     ALLOCATE(tmc_ana,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY(tmc_ana%dirs, tmc_ana%cell, tmc_ana%atoms, tmc_ana%density_3d, &
             tmc_ana%pair_correl, tmc_ana%dip_mom, tmc_ana%last_elem, &
@@ -200,7 +200,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPostcondition(ASSOCIATED(tmc_ana),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(tmc_ana))
 
     IF(ASSOCIATED(tmc_ana%dirs)) &
       DEALLOCATE(tmc_ana%dirs)
@@ -220,7 +220,7 @@ CONTAINS
       CALL tmc_ana_displacement_release(ana_disp=tmc_ana%displace)
 
     DEALLOCATE(tmc_ana,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE tmc_ana_env_release
 
@@ -246,10 +246,10 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(ana_dens),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(ana_dens))
 
     ALLOCATE(ana_dens,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY(ana_dens%sum_density, ana_dens%sum_dens2)
 
@@ -283,12 +283,12 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPostcondition(ASSOCIATED(ana_dens),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_dens))
 
     DEALLOCATE(ana_dens%sum_density)
     DEALLOCATE(ana_dens%sum_dens2)
     DEALLOCATE(ana_dens,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE tmc_ana_dens_release
 
   !============================================================================
@@ -314,9 +314,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(ana_pair_correl),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(ana_pair_correl))
     ALLOCATE(ana_pair_correl,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY(ana_pair_correl%g_r, ana_pair_correl%pairs)
     ana_pair_correl%conf_counter = 0
@@ -343,12 +343,12 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPostcondition(ASSOCIATED(ana_pair_correl),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_pair_correl))
 
     DEALLOCATE(ana_pair_correl%g_r)
     DEALLOCATE(ana_pair_correl%pairs)
     DEALLOCATE(ana_pair_correl, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE tmc_ana_pair_correl_release
 
 ! *****************************************************************************
@@ -371,11 +371,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: last, list_nr
-    LOGICAL                                  :: failure
 
-    CPPrecondition(ASSOCIATED(pair_list),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(pair_list))
     IF(PRESENT(list_end)) THEN
-      CPPrecondition(list_end.LE.SIZE(pair_list),cp_failure_level,routineP,failure)
+      CPASSERT(list_end.LE.SIZE(pair_list))
       last = list_end
     ELSE
       last = SIZE(pair_list)
@@ -423,9 +422,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(ana_dip_mom),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(ana_dip_mom))
     ALLOCATE(ana_dip_mom,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     NULLIFY(ana_dip_mom%charges_inp, ana_dip_mom%charges)
 
@@ -459,13 +458,13 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPostcondition(ASSOCIATED(ana_dip_mom),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_dip_mom))
 
     IF(ASSOCIATED(ana_dip_mom%charges_inp)) DEALLOCATE(ana_dip_mom%charges_inp)
     IF(ASSOCIATED(ana_dip_mom%charges))     DEALLOCATE(ana_dip_mom%charges)
     DEALLOCATE(ana_dip_mom%last_dip_cl)
     DEALLOCATE(ana_dip_mom, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE tmc_ana_dipole_moment_release
 
 ! *****************************************************************************
@@ -486,9 +485,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(ana_dip_ana),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(ana_dip_ana))
     ALLOCATE(ana_dip_ana,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ana_dip_ana%conf_counter = 0
     ana_dip_ana%ana_type     = -1
@@ -521,7 +520,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPostcondition(ASSOCIATED(ana_dip_ana),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_dip_ana))
 
     DEALLOCATE(ana_dip_ana%mu_psv)
     DEALLOCATE(ana_dip_ana%mu_pv)
@@ -529,7 +528,7 @@ CONTAINS
     DEALLOCATE(ana_dip_ana%mu2_pv_mat)
 
     DEALLOCATE(ana_dip_ana, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE tmc_ana_dipole_analysis_release
 
   !============================================================================
@@ -554,11 +553,11 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(ana_disp),cp_failure_level,routineP,failure)
-    CPPrecondition(dim_per_elem.GT.0,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(ana_disp))
+    CPASSERT(dim_per_elem.GT.0)
 
     ALLOCATE(ana_disp,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ana_disp%disp = 0.0_dp
     ana_disp%conf_counter = 0
@@ -581,9 +580,9 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPrecondition(ASSOCIATED(ana_disp),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ana_disp))
 
     DEALLOCATE(ana_disp,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE tmc_ana_displacement_release
 END MODULE tmc_analysis_types

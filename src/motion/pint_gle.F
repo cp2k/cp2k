@@ -90,7 +90,6 @@ MODULE pint_gle
 
     INTEGER                                  :: handle, iadd, ib, ideg, idim, &
                                                 imap, istat, ndim, num
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha, beta, mf, rr
     REAL(dp), DIMENSION(:, :), POINTER       :: a_mat, e_tmp, h_tmp, s_tmp
     TYPE(gle_type), POINTER                  :: gle
@@ -103,12 +102,12 @@ MODULE pint_gle
     ndim = gle%ndim
 
     ALLOCATE (s_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     s_tmp = 0.0_dp
     ALLOCATE (e_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     ALLOCATE (h_tmp(ndim,gle%loc_num_gle),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
 
     DO ideg = 1,gle%loc_num_gle
        imap = gle%map_info%index(ideg)
@@ -156,7 +155,7 @@ MODULE pint_gle
     END DO
        pint_env%e_kin_t=0.0_dp
     DEALLOCATE(e_tmp,s_tmp,h_tmp,STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+       CPASSERT(istat==0)
     CALL timestop(handle)
   END SUBROUTINE
 END MODULE

@@ -81,7 +81,7 @@ CONTAINS
     failure = .FALSE.
     CALL timeset(routineN,handle)
 
-    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(cell))
 
     CALL pw_pool_create_pw ( pw_pool, influence_fn,&
                use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)

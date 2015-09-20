@@ -169,7 +169,7 @@ CONTAINS
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        IF(nbond>0) THEN
           ALLOCATE(map_bond_kind(nbond),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           counter=0
          IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,nbond
@@ -219,7 +219,7 @@ CONTAINS
           CALL set_molecule_kind(molecule_kind=molecule_kind,&
                bond_kind_set=bond_kind_set,bond_list=bond_list)
           DEALLOCATE(map_bond_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
     CALL timestop(handle2)
@@ -276,7 +276,7 @@ CONTAINS
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        IF(nbend>0) THEN
           ALLOCATE(map_bend_kind(nbend),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           counter=0
          IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,nbend
@@ -336,7 +336,7 @@ CONTAINS
           CALL set_molecule_kind(molecule_kind=molecule_kind,&
                bend_kind_set=bend_kind_set,bend_list=bend_list)
           DEALLOCATE(map_bend_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
     CALL timestop(handle2)
@@ -391,7 +391,7 @@ CONTAINS
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        IF(nub>0) THEN
           ALLOCATE(map_ub_kind(nub),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           counter=0
           DO j=1,nub
              atm_a = ub_list(j)%a
@@ -443,7 +443,7 @@ CONTAINS
           CALL set_molecule_kind(molecule_kind=molecule_kind,&
                ub_kind_set=ub_kind_set,ub_list=ub_list)
           DEALLOCATE(map_ub_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
     CALL timestop(handle2)
@@ -501,7 +501,7 @@ CONTAINS
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        IF(ntorsion>0) THEN
           ALLOCATE(map_torsion_kind(ntorsion),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           counter=0
          IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,ntorsion
@@ -571,7 +571,7 @@ CONTAINS
           CALL set_molecule_kind(molecule_kind=molecule_kind,&
                torsion_kind_set=torsion_kind_set,torsion_list=torsion_list)
           DEALLOCATE(map_torsion_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
     CALL timestop(handle2)
@@ -628,7 +628,7 @@ CONTAINS
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        IF(nimpr>0) THEN
           ALLOCATE(map_impr_kind(nimpr),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           counter=0
          IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,nimpr
@@ -698,7 +698,7 @@ CONTAINS
           CALL set_molecule_kind(molecule_kind=molecule_kind,&
                impr_kind_set=impr_kind_set,impr_list=impr_list)
           DEALLOCATE(map_impr_kind,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END DO
     CALL timestop(handle2)
@@ -758,7 +758,7 @@ CONTAINS
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        IF(nopbend>0) THEN
           ALLOCATE(map_opbend_kind(nopbend),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           counter=0
          IF((ff_type%ff_type==do_ff_g96).OR.(ff_type%ff_type==do_ff_g87)) THEN
           DO j=1,nopbend
@@ -828,7 +828,7 @@ CONTAINS
          CALL set_molecule_kind(molecule_kind=molecule_kind,&
               opbend_kind_set=opbend_kind_set,opbend_list=opbend_list)
          DEALLOCATE(map_opbend_kind,STAT=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
        END IF
     END DO
     CALL timestop(handle2)
@@ -1968,13 +1968,13 @@ CONTAINS
     END IF
 
     ! Allocate array to particle_set size
-    CPPostcondition(.NOT.(ASSOCIATED(charges)),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.(ASSOCIATED(charges)))
     ALLOCATE(charges(SIZE(particle_set)),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     ! Fill with input values
     CALL section_vals_val_get(charges_section,"_DEFAULT_KEYWORD_",n_rep_val=nval)
-    CPPostcondition(nval==SIZE(charges),cp_failure_level,routineP,failure)
+    CPASSERT(nval==SIZE(charges))
     CALL section_vals_list_get(charges_section,"_DEFAULT_KEYWORD_",list=list)
     DO iatom=1,nval
        ! we use only the first default_string_length characters of each line
@@ -2038,7 +2038,7 @@ CPSourceFileRef,&
                 DO ilink = 1, SIZE(qmmm_env%mm_link_atoms)
                    IF (iatom == qmmm_env%mm_link_atoms(ilink)) EXIT
                 END DO
-                CPPostcondition(ilink <= SIZE(qmmm_env%mm_link_atoms),cp_failure_level,routineP,failure)
+                CPASSERT(ilink <= SIZE(qmmm_env%mm_link_atoms))
                 scale_factor = qmmm_env%fist_scale_charge_link(ilink)
              END IF
              charges(iatom) = charges(iatom) * scale_factor
@@ -2192,7 +2192,7 @@ CPSourceFileRef,&
                 DO ilink = 1, SIZE(qmmm_env%mm_link_atoms)
                    IF (ANY(my_atom_list == qmmm_env%mm_link_atoms(ilink))) EXIT
                 END DO
-                CPPostcondition(ilink <= SIZE(qmmm_env%mm_link_atoms),cp_failure_level,routineP,failure)
+                CPASSERT(ilink <= SIZE(qmmm_env%mm_link_atoms))
                 scale_factor = qmmm_env%fist_scale_charge_link(ilink)
              END IF
              charge = charge * scale_factor
@@ -2575,7 +2575,7 @@ CPSourceFileRef,&
              particle_set(i)%shell_index = 0
           END IF
        END DO
-       CPPostcondition(counter==nshell_tot,cp_failure_level,routineP,failure)
+       CPASSERT(counter==nshell_tot)
     END IF
 
     ! Read the shell (and core) coordinates from the restart file, if available
@@ -2608,7 +2608,7 @@ CPSourceFileRef,&
           molecule=>molecule_set(molecule_list(1))
           CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
           ALLOCATE (shell_list_tmp(natom),STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           counter = 0
           DO j = first, last
              atomic_kind => particle_set(j)%atomic_kind
@@ -2632,10 +2632,10 @@ CPSourceFileRef,&
              CALL get_molecule_kind(molecule_kind=molecule_kind,shell_list=shell_list)
              IF (ASSOCIATED(shell_list)) THEN
                 DEALLOCATE(shell_list,STAT=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
              ALLOCATE (shell_list(counter), STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              DO j=1,counter
                 shell_list(j)%a = shell_list_tmp(j)
                 atomic_kind => particle_set(shell_list_tmp(j)+first-1)%atomic_kind
@@ -2647,12 +2647,12 @@ CPSourceFileRef,&
              CALL set_molecule_kind(molecule_kind=molecule_kind, nshell=counter,shell_list=shell_list)
           END IF
           DEALLOCATE (shell_list_tmp,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           n = n + nmol*counter
        END DO ! i molecule kind
     END IF
-    CPPostcondition(first_shell-1==nshell_tot,cp_failure_level,routineP,failure)
-    CPPostcondition(n==nshell_tot,cp_failure_level,routineP,failure)
+    CPASSERT(first_shell-1==nshell_tot)
+    CPASSERT(n==nshell_tot)
     CALL timestop(handle2)
 
   END SUBROUTINE force_field_pack_shell
@@ -3390,7 +3390,7 @@ CPSourceFileRef,&
     ! allocate the array with interaction cutoffs for the electrostatics, used
     ! to make the electrostatic interaction continuous at ewald_env%rcut
     ALLOCATE(interaction_cutoffs(3,nkinds,nkinds), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     interaction_cutoffs = 0.0_dp
 
     ! compute the interaction cutoff if SHIFT_CUTOFF is active
@@ -3622,7 +3622,7 @@ CPSourceFileRef,&
       ((atm1==my_atm2).AND.(atm2==my_atm1))) found = .TRUE.
           CASE DEFAULT
              ! Should never reach this point
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END SELECT
           IF (found) EXIT
        END DO

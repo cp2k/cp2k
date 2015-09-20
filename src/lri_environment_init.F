@@ -69,7 +69,6 @@ CONTAINS
     INTEGER                                  :: ikind, istat, lmax_ikind_orb, &
                                                 lmax_ikind_ri, maxl_orb, &
                                                 maxl_ri, nkind
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(gto_basis_set_type), POINTER        :: lri_basis_set, orb_basis_set
@@ -82,7 +81,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set)
     nkind = SIZE(atomic_kind_set)
     ALLOCATE(lri_env%orb_basis(nkind),lri_env%ri_basis(nkind),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     maxl_orb = 0
     maxl_ri = 0
     DO ikind=1,nkind
@@ -151,17 +150,17 @@ CONTAINS
 
     IF (ASSOCIATED(lri_env)) THEN
        IF (ASSOCIATED(lri_env%orb_basis)) THEN
-          CPPreconditionNoFail(ASSOCIATED(lri_env%ri_basis),cp_warning_level,routineP)
+          CPASSERT(ASSOCIATED(lri_env%ri_basis))
           nkind = SIZE(lri_env%orb_basis)
           CALL deallocate_bas_properties(lri_env)
           ALLOCATE (lri_env%bas_prop(nkind),STAT=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO ikind = 1, nkind
              NULLIFY(orb_basis, ri_basis)
              orb_basis => lri_env%orb_basis(ikind)%gto_basis_set
              IF (ASSOCIATED(orb_basis)) THEN
                 ri_basis => lri_env%ri_basis(ikind)%gto_basis_set
-                CPPreconditionNoFail(ASSOCIATED(ri_basis),cp_warning_level,routineP)
+                CPASSERT(ASSOCIATED(ri_basis))
                 NULLIFY(ri_norm_r)
                 CALL basis_norm_radial(ri_basis,ri_norm_r)
                 NULLIFY(orb_norm_r)
@@ -184,7 +183,7 @@ CONTAINS
                 CALL contraction_matrix_shg(orb_basis,scon_orb)
                 lri_env%bas_prop(ikind)%scon_orb => scon_orb
                 DEALLOCATE (orb_norm_r,ri_norm_r,ri_norm_s,STAT=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
           END DO
        END IF
@@ -208,14 +207,13 @@ CONTAINS
 
     INTEGER                                  :: ipgf, iset, isgf, ishell, &
                                                 jpgf, l, nbas, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aai, aaj, cci, ccj, expa, ppl
 
     NULLIFY(norm)
 
     nbas = basis%nsgf
     ALLOCATE (norm(nbas),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     norm = 0._dp
 
     DO iset=1,basis%nset
@@ -257,14 +255,13 @@ CONTAINS
 
     INTEGER                                  :: ipgf, iset, isgf, ishell, &
                                                 jpgf, l, nbas, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aai, aaj, cci, ccj, expa, ppl
 
     NULLIFY(norm)
 
     nbas = basis%nsgf
     ALLOCATE (norm(nbas),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     norm = 0._dp
 
     DO iset=1,basis%nset
@@ -346,12 +343,11 @@ CONTAINS
 
     INTEGER                                  :: ipgf, iset, isgf, ishell, l, &
                                                 nbas, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aa, cc, pp
 
     nbas = basis%nsgf
     ALLOCATE (int_aux(nbas),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     int_aux = 0._dp
 
     DO iset=1,basis%nset
@@ -392,14 +388,13 @@ CONTAINS
     INTEGER                                  :: ipgf, iset, isgf, ishell, &
                                                 jpgf, jset, jsgf, jshell, l, &
                                                 li, lj, nbas, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aai, aaj, cci, ccj, expa, &
                                                 m_i, m_j, norm_i, norm_j, oo, &
                                                 ppl
 
     nbas = basis%nsgf
     ALLOCATE (ovlp(nbas,nbas),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ovlp = 0._dp
 
     DO iset=1,basis%nset
@@ -457,7 +452,6 @@ CONTAINS
     INTEGER                                  :: ipgf, iset, ishell, l, &
                                                 maxpgf, maxshell, nset, stat
     INTEGER, DIMENSION(:), POINTER           :: npgf, nshell
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: gcc, norm_w
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: norm, zet
 
@@ -469,9 +463,9 @@ CONTAINS
     maxpgf   = SIZE(basis%gcc,1)
     maxshell = SIZE(basis%gcc,2)
     ALLOCATE(norm(basis%nset,maxshell),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(scon_shg(maxpgf,maxshell,nset),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL basis_norm_shg(basis,norm)
 
@@ -487,7 +481,7 @@ CONTAINS
     END DO
    
    DEALLOCATE(norm,STAT=stat)
-   CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+   CPASSERT(stat==0)
 
   END SUBROUTINE contraction_matrix_shg
 
@@ -529,17 +523,17 @@ CONTAINS
     CALL clebsch_gordon_init(maxl)
    
     ALLOCATE(my_cg(nsfunc1,nsfunc2,nsfunc),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     my_cg =0.0_dp
     ALLOCATE(ncg_none0(nsfunc1,nsfunc2),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ncg_none0 = 0
     ALLOCATE(cg_none0_list(nsfunc1,nsfunc2,nlist_max),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     cg_none0_list = 0
 
     ALLOCATE(rga(maxl,2),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     rga = 0.0_dp
     DO lc1 = 0,maxl1
        DO iso1=nsoset(lc1-1)+1,nsoset(lc1)
@@ -597,7 +591,7 @@ CONTAINS
     ENDDO      ! lc1
 
     DEALLOCATE(rga,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL clebsch_gordon_deallocate()
 
   END SUBROUTINE get_clebsch_gordon_coefficients

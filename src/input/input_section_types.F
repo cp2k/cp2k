@@ -165,14 +165,14 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     my_n_keywords=10
     IF (PRESENT(n_keywords)) my_n_keywords=n_keywords
     my_n_subsections=0
     IF (PRESENT(n_subsections)) my_n_subsections=n_subsections
 
     ALLOCATE(section,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     last_section_id=last_section_id+1
     section%id_nr=last_section_id
     section%ref_count=1
@@ -195,18 +195,18 @@ CONTAINS
     NULLIFY(section%citations)
     IF (PRESENT(citations)) THEN
        ALLOCATE(section%citations(SIZE(citations)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        section%citations=citations
     ENDIF
 
     ALLOCATE(section%keywords(-1:my_n_keywords),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i=-1,my_n_keywords
        NULLIFY(section%keywords(i)%keyword)
     END DO
 
     ALLOCATE(section%subsections(my_n_subsections),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i=1,my_n_subsections
        NULLIFY(section%subsections(i)%section)
     END DO
@@ -227,8 +227,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(section%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(section))
+    CPASSERT(section%ref_count>0)
     section%ref_count=section%ref_count+1
   END SUBROUTINE section_retain
 
@@ -249,19 +249,19 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(section)) THEN
-       CPPreconditionNoFail(section%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(section%ref_count>0)
        section%ref_count=section%ref_count-1
        IF (section%ref_count==0) THEN
           IF (ASSOCIATED(section%citations)) THEN
              DEALLOCATE(section%citations,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           ENDIF
           IF (ASSOCIATED(section%keywords)) THEN
              DO i=-1,UBOUND(section%keywords,1)
                 CALL keyword_release(section%keywords(i)%keyword)
              END DO
              DEALLOCATE(section%keywords,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           section%n_keywords=0
           IF (ASSOCIATED(section%subsections)) THEN
@@ -269,11 +269,11 @@ CONTAINS
                 CALL section_release(section%subsections(i)%section)
              END DO
              DEALLOCATE(section%subsections,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(section%description)
           DEALLOCATE(section,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
        NULLIFY(section)
     END IF
@@ -340,7 +340,7 @@ CONTAINS
        my_recurse=0
        IF (PRESENT(recurse)) my_recurse=recurse
        IF (ASSOCIATED(section)) THEN
-          CPPrecondition(section%ref_count>0,cp_failure_level,routineP,failure)
+          CPASSERT(section%ref_count>0)
 
           IF (.not.my_hide_root)&
                WRITE(unit_nr,"('*** section &',a,' ***')")TRIM(section%name)
@@ -407,7 +407,7 @@ CONTAINS
     failure=.FALSE.
     IF (ASSOCIATED(section)) THEN
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
-       CPPrecondition(section%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(section%ref_count>0)
        CALL open_file(unit_number=unit_nr,file_name=TRIM(local_prefix)//".html",&
                       file_status="UNKNOWN",file_action="WRITE")
        WRITE(unit_nr,FMT='(A)') "<HTML><BODY>"
@@ -509,7 +509,7 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(section)) THEN
-       CPPrecondition(section%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(section%ref_count>0)
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
        WRITE(unit_nr,FMT='(A)') &
             '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//TRIM(section%name)//"</A>"
@@ -546,13 +546,13 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
-    CPPrecondition(section%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section))
+    CPASSERT(section%ref_count>0)
     res=-1
     upc_name=subsection_name
     CALL uppercase(upc_name)
     DO isub=1,section%n_subsections
-       CPInvariant(ASSOCIATED(section%subsections(isub)%section),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(section%subsections(isub)%section))
        IF (section%subsections(isub)%section%name==upc_name) THEN
           res=isub
           EXIT
@@ -608,9 +608,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
-    CPPrecondition(section%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(section%keywords),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section))
+    CPASSERT(section%ref_count>0)
+    CPASSERT(ASSOCIATED(section%keywords))
     res=-2
     upc_name=keyword_name
     CALL uppercase(upc_name)
@@ -623,7 +623,7 @@ CONTAINS
     END DO
     IF (res==-2) THEN
        k_search_loop: DO ik=1,section%n_keywords
-          CPInvariant(ASSOCIATED(section%keywords(ik)%keyword),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(section%keywords(ik)%keyword))
           DO in=1,SIZE(section%keywords(ik)%keyword%names)
              IF (section%keywords(ik)%keyword%names(in)==upc_name) THEN
                 res = ik
@@ -655,11 +655,11 @@ CONTAINS
     failure = .FALSE.
     IF (INDEX(keyword_name,"%")/=0) THEN
        my_index = INDEX(keyword_name,"%") + 1
-       CPPrecondition(ASSOCIATED(section%subsections),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(section%subsections))
        DO ik = LBOUND(section%subsections,1), UBOUND(section%subsections,1)
           IF (section%subsections(ik)%section%name==keyword_name(1:my_index-2)) EXIT
        END DO
-       CPPrecondition(ik<=UBOUND(section%subsections,1),cp_failure_level,routineP,failure)
+       CPASSERT(ik<=UBOUND(section%subsections,1))
        res => section_get_keyword(section%subsections(ik)%section,keyword_name(my_index:))
     ELSE
        ik=section_get_keyword_index(section,keyword_name)
@@ -700,8 +700,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
-    CPPrecondition(section%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section))
+    CPASSERT(section%ref_count>0)
     IF (PRESENT(frozen)) frozen=section%frozen
     IF (PRESENT(repeats)) repeats=section%repeats
     IF (PRESENT(id_nr)) id_nr=section%id_nr
@@ -731,11 +731,11 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
-    CPPrecondition(section%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.section%frozen,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,failure)
-    CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section))
+    CPASSERT(section%ref_count>0)
+    CPASSERT(.NOT.section%frozen)
+    CPASSERT(ASSOCIATED(keyword))
+    CPASSERT(keyword%ref_count>0)
     CALL keyword_retain(keyword)
     IF (keyword%names(1)=="_SECTION_PARAMETERS_") THEN
        CALL keyword_release(section%keywords(-1)%keyword)
@@ -759,7 +759,7 @@ CONTAINS
 
        IF (UBOUND(section%keywords,1)==section%n_keywords) THEN
           ALLOCATE(new_keywords(-1:section%n_keywords+10),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DO i=-1,section%n_keywords
              new_keywords(i)%keyword => section%keywords(i)%keyword
           END DO
@@ -767,7 +767,7 @@ CONTAINS
              NULLIFY(new_keywords(i)%keyword)
           END DO
           DEALLOCATE(section%keywords,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           section%keywords => new_keywords
        END IF
        section%n_keywords=section%n_keywords+1
@@ -794,13 +794,13 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section),cp_failure_level,routineP,failure)
-    CPPrecondition(section%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(subsection),cp_failure_level,routineP,failure)
-    CPPrecondition(subsection%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section))
+    CPASSERT(section%ref_count>0)
+    CPASSERT(ASSOCIATED(subsection))
+    CPASSERT(subsection%ref_count>0)
     IF (SIZE(section%subsections)<section%n_subsections+1) THEN
        ALLOCATE(new_subsections(section%n_subsections+10),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        DO i=1,section%n_subsections
           new_subsections(i)%section => section%subsections(i)%section
        END DO
@@ -808,7 +808,7 @@ CONTAINS
           NULLIFY(new_subsections(i)%section)
        END DO
        DEALLOCATE(section%subsections,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
        section%subsections => new_subsections
     END IF
     DO i=1,section%n_subsections
@@ -841,9 +841,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section_vals))
     ALLOCATE(section_vals,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     last_section_vals_id=last_section_vals_id+1
     section_vals%id_nr=last_section_vals_id
     section_vals%ref_count=1
@@ -851,9 +851,9 @@ CONTAINS
     section_vals%section => section
     section%frozen=.TRUE.
     ALLOCATE(section_vals%values(-1:section%n_keywords,0),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(section_vals%subs_vals(section%n_subsections,1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO i=1,section%n_subsections
        NULLIFY(section_vals%subs_vals(i,1)%section_vals)
        CALL section_vals_create(section_vals%subs_vals(i,1)%section_vals,&
@@ -876,8 +876,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(section_vals%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(section_vals%ref_count>0)
     section_vals%ref_count=section_vals%ref_count+1
   END SUBROUTINE section_vals_retain
 
@@ -900,7 +900,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(section_vals)) THEN
-       CPPreconditionNoFail(section_vals%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(section_vals%ref_count>0)
        section_vals%ref_count=section_vals%ref_count-1
        IF (section_vals%ref_count==0) THEN
           CALL section_release(section_vals%section)
@@ -914,20 +914,20 @@ CONTAINS
              END DO
           END DO
           DEALLOCATE(section_vals%values,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           DO j=1,SIZE(section_vals%subs_vals,2)
              DO i=1,SIZE(section_vals%subs_vals,1)
                 CALL section_vals_release(section_vals%subs_vals(i,j)%section_vals)
              END DO
           END DO
           DEALLOCATE(section_vals%subs_vals,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
           IF (ASSOCIATED(section_vals%ibackup)) THEN
              DEALLOCATE(section_vals%ibackup,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(section_vals,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE section_vals_release
@@ -960,8 +960,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(section_vals%ref_count>0)
     IF (PRESENT(ref_count)) ref_count=section_vals%ref_count
     IF (PRESENT(id_nr)) id_nr=section_vals%id_nr
     IF (PRESENT(section)) section => section_vals%section
@@ -996,8 +996,8 @@ CONTAINS
                                                 my_can_return_null
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(section_vals%ref_count>0)
 
     my_can_return_null=.FALSE.
     IF (PRESENT(can_return_null)) my_can_return_null=can_return_null
@@ -1016,7 +1016,7 @@ CONTAINS
        my_index=my_index-1
     ENDIF
 
-    CPPrecondition(irep<=SIZE(section_vals%subs_vals,2),cp_failure_level,routineP,failure)
+    CPASSERT(irep<=SIZE(section_vals%subs_vals,2))
 
     isection=section_get_subsection_index(section_vals%section,subsection_name(1:my_index))
     IF (isection>0) res => section_vals%subs_vals(isection,irep)%section_vals
@@ -1056,12 +1056,12 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(section_vals%ref_count>0)
     NULLIFY(res)
     irep=1
     IF (PRESENT(i_rep_section)) irep=i_rep_section
-    CPPrecondition(irep<=SIZE(section_vals%subs_vals,2),cp_failure_level,routineP,failure)
+    CPASSERT(irep<=SIZE(section_vals%subs_vals,2))
     isect_att=0
     DO i=1,section_vals%section%n_subsections
        IF (SIZE(section_vals%subs_vals(i,irep)%section_vals%values,2)>0) THEN
@@ -1098,12 +1098,12 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(section_vals%ref_count>0)
     NULLIFY(res)
     irep=1
     IF (PRESENT(i_rep_section)) irep=i_rep_section
-    CPPrecondition(irep<=SIZE(section_vals%subs_vals,2),cp_failure_level,routineP,failure)
+    CPASSERT(irep<=SIZE(section_vals%subs_vals,2))
     i_section = section_get_subsection_index(section_vals%section,subsection_name)
     res => section_vals%subs_vals(i_section,irep)%section_vals
   END FUNCTION section_vals_get_subs_vals3
@@ -1128,17 +1128,17 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(section_vals%ref_count>0)
     ALLOCATE(new_values(-1:UBOUND(section_vals%values,1),SIZE(section_vals%values,2)+1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO j=1,SIZE(section_vals%values,2)
        DO i=-1,UBOUND(section_vals%values,1)
           new_values(i,j)%list => section_vals%values(i,j)%list
        END DO
     END DO
     DEALLOCATE(section_vals%values,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+    CPASSERT(stat==0)
     section_vals%values => new_values
     j=SIZE ( new_values, 2 )
     DO i=-1,UBOUND(new_values,1)
@@ -1148,14 +1148,14 @@ CONTAINS
     IF (SIZE(new_values,2)>1) THEN
        ALLOCATE(new_sps(SIZE(section_vals%subs_vals,1),&
             SIZE(section_vals%subs_vals,2)+1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DO j=1,SIZE(section_vals%subs_vals,2)
           DO i=1,SIZE(section_vals%subs_vals,1)
              new_sps(i,j)%section_vals => section_vals%subs_vals(i,j)%section_vals
           END DO
        END DO
        DEALLOCATE(section_vals%subs_vals,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
        section_vals%subs_vals => new_sps
        j = SIZE ( new_sps, 2 )
        DO i=1,SIZE(new_sps,1)
@@ -1187,11 +1187,11 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(section_vals)) THEN
-       CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(section_vals%ref_count>0)
        NULLIFY(el, vals)
        ! Allocate a null 0 dimension array of values
        ALLOCATE(new_values(-1:section_vals%section%n_keywords,0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Release old values
        DO j=1,SIZE(section_vals%values,2)
           DO i=-1,UBOUND(section_vals%values,1)
@@ -1203,7 +1203,7 @@ CONTAINS
           END DO
        END DO
        DEALLOCATE(section_vals%values,stat=stat)
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+       CPASSERT(stat==0)
        section_vals%values => new_values
     END IF
   END SUBROUTINE section_vals_remove_values
@@ -1366,8 +1366,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(section_vals%ref_count>0)
 
     my_index=INDEX(keyword_name,'%')+1
     len_key=LEN_TRIM(keyword_name)
@@ -1466,8 +1466,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(section_vals%ref_count>0)
     NULLIFY(list)
     my_index=INDEX(keyword_name,'%')+1
     len_key=LEN_TRIM(keyword_name)
@@ -1552,8 +1552,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(section_vals%ref_count>0)
 
     my_index=INDEX(keyword_name,'%')+1
     len_key=LEN_TRIM(keyword_name)
@@ -1609,7 +1609,7 @@ CONTAINS
             " empty value in setting "//&
             "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
             TRIM(section%name),failure)
-       CPPrecondition(valSet,cp_failure_level,routineP,failure)
+       CPASSERT(valSet)
        IF (keyword%type_of_var==lchar_t) THEN
           CALL val_create(my_val, lc_val=c_val, lc_vals_ptr=c_vals_ptr)
        ELSE
@@ -1618,8 +1618,8 @@ CONTAINS
                r_vals_ptr=r_vals_ptr,&
                c_vals_ptr=c_vals_ptr,enum=keyword%enum)
        END IF
-       CPPostcondition(ASSOCIATED(my_val),cp_failure_level,routineP,failure)
-       CPPostcondition(my_val%type_of_var==keyword%type_of_var,cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(my_val))
+       CPASSERT(my_val%type_of_var==keyword%type_of_var)
     END IF
     vals => s_vals%values(ik,irs)%list
     IF (irk==-1) THEN
@@ -1678,8 +1678,8 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(pos)
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(section_vals%ref_count>0)
 
     my_index=INDEX(keyword_name,'%')+1
     len_key=LEN_TRIM(keyword_name)
@@ -1763,8 +1763,8 @@ CONTAINS
     IF (PRESENT(hide_root)) my_hide_root=hide_root
     IF (PRESENT(hide_defaults)) my_hide_defaults=hide_defaults
 
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(section_vals%ref_count>0)
     IF ((.NOT.failure).AND.(unit_nr>0)) THEN
        CALL section_vals_get(section_vals, explicit=explicit, n_repetition=nr, section=section)
        IF (explicit.OR.(.NOT.my_hide_defaults)) THEN
@@ -1880,7 +1880,7 @@ CONTAINS
 
     IF (ASSOCIATED(section)) THEN
 
-       CPPrecondition(section%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(section%ref_count>0)
 
        ! Indentation for current level, next level, etc.
 
@@ -1956,7 +1956,7 @@ CONTAINS
 
     failure = .FALSE.
     IF (ASSOCIATED(section)) THEN
-       CPPrecondition(section%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(section%ref_count>0)
        imatch=typo_match(TRIM(section%name),TRIM(unknown_string))
        IF (imatch>0) THEN
           WRITE(line,'(T2,A)') " subsection "//TRIM(section%name)//" in section "//TRIM(location_string)
@@ -2014,10 +2014,10 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: s_vals
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(new_section_vals),cp_failure_level,routineP,failure)
-    CPPrecondition(new_section_vals%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals))
+    CPASSERT(section_vals%ref_count>0)
+    CPASSERT(ASSOCIATED(new_section_vals))
+    CPASSERT(new_section_vals%ref_count>0)
 
     irep=1
     IF (PRESENT(i_rep_section)) irep=i_rep_section
@@ -2035,7 +2035,7 @@ CONTAINS
        s_vals=> section_vals
     END IF
 
-    CPPrecondition(irep<=SIZE(s_vals%subs_vals,2),cp_failure_level,routineP,failure)
+    CPASSERT(irep<=SIZE(s_vals%subs_vals,2))
 
     isection=section_get_subsection_index(s_vals%section,subsection_name(my_index:LEN_TRIM(subsection_name)))
     IF(isection<=0)&
@@ -2072,8 +2072,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(section_vals_in),cp_failure_level,routineP,failure)
-    CPPrecondition(.NOT.ASSOCIATED(section_vals_out),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals_in))
+    CPASSERT(.NOT.ASSOCIATED(section_vals_out))
     CALL section_vals_create(section_vals_out,section_vals_in%section)
     CALL section_vals_copy(section_vals_in,section_vals_out,i_rep_start,i_rep_end)
   END SUBROUTINE section_vals_duplicate
@@ -2105,8 +2105,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(v2,el)
 
-    CPPrecondition(ASSOCIATED(section_vals_in),cp_failure_level,routineP,failure)
-    CPPrecondition(ASSOCIATED(section_vals_out),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(section_vals_in))
+    CPASSERT(ASSOCIATED(section_vals_out))
     !  IF(section_vals_in%section%id_nr/=section_vals_out%section%id_nr)&
     !     CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
     !          CPSourceFileRef,&

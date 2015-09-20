@@ -73,9 +73,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(md_ener),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(md_ener))
     ALLOCATE(md_ener,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     last_md_ener_id=last_md_ener_id+1
     md_ener%id_nr=last_md_ener_id
 
@@ -106,8 +106,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(md_ener),cp_failure_level,routineP,failure)
-    CPPrecondition(md_ener%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(md_ener))
+    CPASSERT(md_ener%ref_count>0)
     md_ener%ref_count=md_ener%ref_count+1
   END SUBROUTINE retain_md_ener
 
@@ -130,36 +130,36 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(md_ener)) THEN
-       CPPrecondition(md_ener%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(md_ener%ref_count>0)
        md_ener%ref_count=md_ener%ref_count-1
        IF (md_ener%ref_count==0) THEN
           IF(ASSOCIATED(md_ener%temp_kind))THEN
              DEALLOCATE(md_ener%temp_kind,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF(ASSOCIATED(md_ener%ekin_kind))THEN
              DEALLOCATE(md_ener%ekin_kind,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF(ASSOCIATED(md_ener%nfree_kind))THEN
              DEALLOCATE(md_ener%nfree_kind,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF(ASSOCIATED(md_ener%temp_shell_kind))THEN
              DEALLOCATE(md_ener%temp_shell_kind,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF(ASSOCIATED(md_ener%ekin_shell_kind))THEN
              DEALLOCATE(md_ener%ekin_shell_kind,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
           IF(ASSOCIATED(md_ener%nfree_shell_kind))THEN
              DEALLOCATE(md_ener%nfree_shell_kind,STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END IF
 
           DEALLOCATE(md_ener,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
   END SUBROUTINE release_md_ener

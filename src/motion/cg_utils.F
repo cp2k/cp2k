@@ -175,9 +175,9 @@ CONTAINS
     IF (PRESENT(use_only_grad)) my_use_only_grad = use_only_grad
     IF (norm_ls_vec/=0.0_dp) THEN
        ALLOCATE(ls_norm(SIZE(ls_vec)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(gradient2(SIZE(ls_vec)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ls_norm = ls_vec / norm_ls_vec
        dx      = norm_ls_vec
        dx_thrs = gopt_param%cg_ls%max_step
@@ -234,9 +234,9 @@ CONTAINS
           WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
        END IF
        DEALLOCATE(ls_norm,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(gradient2,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        ! Do Nothing, since.. if the effective force is 0 means that we are already
        ! in the saddle point..
@@ -278,7 +278,7 @@ CONTAINS
     norm_tls_vec = SQRT(DOT_PRODUCT(tls_vec,tls_vec))
     IF (norm_tls_vec/=0.0_dp) THEN
        ALLOCATE(tls_norm(SIZE(tls_vec)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        tls_norm = tls_vec / norm_tls_vec
        dimer_env%tsl%tls_vec => tls_norm
@@ -326,7 +326,7 @@ CONTAINS
                        final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
 
        DEALLOCATE(tls_norm,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        ! Do Nothing, since.. if the effective force is 0 means that we are already
        ! in the saddle point..
@@ -393,7 +393,7 @@ CONTAINS
        ! Evaluate (by interpolation) the norm of the rotational force in the
        ! minimum of the rotational search (this is for print-out only)
        ALLOCATE(work(SIZE(dimer_env%nvec)),stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        work = dimer_env%rot%g1
        work = SIN(dimer_env%rot%angle1-dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1+&
               SIN(dimer_env%rot%angle2)/SIN(dimer_env%rot%angle1)*dimer_env%rot%g1p+&
@@ -403,7 +403,7 @@ CONTAINS
        work = work  - DOT_PRODUCT(work, dimer_env%nvec) * dimer_env%nvec
        opt_energy = SQRT(DOT_PRODUCT(work, work))
        DEALLOCATE(work,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     dimer_env%rot%angle2 = angle
     CALL timestop(handle)
@@ -455,9 +455,9 @@ CONTAINS
     rms_dr    = gopt_param%rms_dr
     rms_force = gopt_param%rms_force
     ALLOCATE(pcom(SIZE(xvec)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(xicom(SIZE(xvec)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     pcom  = xvec
     xicom = xi
@@ -491,11 +491,11 @@ CONTAINS
     step = xmin
     xvec  = xvec + xicom
     DEALLOCATE(pcom,  stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(xicom, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(hist, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (output_unit>0) THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
        WRITE(UNIT=output_unit,FMT="(T2,A,T22,A,I7,T78,A)")&
@@ -549,9 +549,9 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(pcom,xicom)
     ALLOCATE(pcom(SIZE(xvec)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(xicom(SIZE(xvec)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     pcom  = xvec
     xicom = xi
@@ -568,9 +568,9 @@ CONTAINS
     step = xmin
     xvec  = xvec + xicom
     DEALLOCATE(pcom,  stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(xicom, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE linmin_gold
 
@@ -618,9 +618,9 @@ CONTAINS
     failure = .FALSE.
     hist    = PRESENT(histpoint)
     IF (hist) THEN
-       CPPrecondition(.NOT.ASSOCIATED(histpoint),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.ASSOCIATED(histpoint))
        ALLOCATE(histpoint(3,3), stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     gold = (1.0_dp+SQRT(5.0_dp))/2.0_dp
     IF (hist) THEN
@@ -917,7 +917,7 @@ CONTAINS
             "***","BRENT - NUMBER OF ITERATIONS EXCEEDED ","***"
        WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
     END IF
-    CPPrecondition((iter/=itmax+1),cp_failure_level,routineP,failure)
+    CPASSERT(iter/=itmax+1)
     xmin=x
     dbrent=fx
     CALL timestop(handle)
@@ -953,12 +953,12 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE(xvec(SIZE(pcom)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     xvec = pcom + x*xicom
     CALL cp_eval_at(gopt_env, xvec, my_val, master=gopt_env%force_env%para_env%mepos,&
                     final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
     DEALLOCATE(xvec, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL timestop(handle)
 
@@ -995,18 +995,18 @@ CONTAINS
 
     failure = .FALSE.
     ALLOCATE(xvec(SIZE(pcom)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(grad(SIZE(pcom)), stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     xvec = pcom + x * xicom
     CALL cp_eval_at(gopt_env, xvec, energy, grad, master=gopt_env%force_env%para_env%mepos,&
                     final_evaluation=.FALSE., para_env=gopt_env%force_env%para_env)
     my_val = DOT_PRODUCT(grad,xicom)
     fval   = energy
     DEALLOCATE(xvec, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(grad, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
 
   END FUNCTION cg_deval1d
@@ -1041,7 +1041,7 @@ CONTAINS
 
     failure=.FALSE.
     np=SIZE(x)
-    CPPrecondition(np>1,cp_failure_level,routineP,failure)
+    CPASSERT(np>1)
     sum_x=0._dp
     sum_xx=0._dp
     min_pos=1
@@ -1072,11 +1072,11 @@ CONTAINS
          iwork,info)
     lwork=CEILING(tmpw(1))
     ALLOCATE(work(lwork),stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL dgesdd('S',SIZE(f,1),SIZE(f,2),f,SIZE(f,1),diag,u,SIZE(u,1),vt,SIZE(vt,1),work,lwork,&
          iwork,info)
     DEALLOCATE(work, stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL dgemv('T',SIZE(u,1),SIZE(u,2),1._dp,u,SIZE(u,1),b,1,0._dp,res1,1)
     DO i=1,3
        res2(i)=res1(i)/diag(i)
@@ -1127,13 +1127,13 @@ CONTAINS
     ELSE
        dimer_env => gopt_env%dimer_env
        check = ABS(DOT_PRODUCT(g,g)-1.0_dp)<MAX(1.0E-9_dp,dimer_thrs)
-       CPPrecondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
 
        check = ABS(DOT_PRODUCT(xi,xi)-1.0_dp)<MAX(1.0E-9_dp,dimer_thrs)
-       CPPrecondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
 
        check = ABS(DOT_PRODUCT(h,dimer_env%cg_rot%nvec_old))<MAX(1.0E-9_dp,dimer_thrs)
-       CPPrecondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        gg  = dimer_env%cg_rot%norm_theta_old**2
        IF (Fletcher_Reeves) THEN
           dgg = dimer_env%cg_rot%norm_theta**2

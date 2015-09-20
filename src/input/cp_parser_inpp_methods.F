@@ -73,7 +73,7 @@ CONTAINS
     output_unit = cp_logger_get_default_io_unit(logger)
 
     failure = .TRUE.
-    CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(inpp))
 
     ! find location of directive in line and check whether it is commented out
     indi = INDEX(input_line,"@")
@@ -135,7 +135,7 @@ CONTAINS
        ! Let's check that files already opened won't be again opened
        DO i = 1, inpp%io_stack_level
           check = TRIM(filename)/=TRIM(inpp%io_stack_filename(i))
-          CPPostcondition(check,cp_failure_level,routineP,failure)
+          CPASSERT(check)
        END DO
 
        ! this stops on so we can always assume success
@@ -347,7 +347,7 @@ CONTAINS
              DO WHILE (input_line(indf:indf)/=" ")
                 indf = indf + 1
              END DO
-             CPPostcondition((indf-indi)<=default_string_length,cp_failure_level,routineP,failure)
+             CPASSERT((indf-indi)<=default_string_length)
              mytag =input_line(indi:indf-1)
              CALL uppercase(mytag)
              IF(INDEX(mytag,"@ENDIF")>0) THEN
@@ -410,7 +410,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .FALSE.
-    CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(inpp))
     IF(inpp%io_stack_level > 0) THEN
        CALL close_file(input_unit)
        input_unit=inpp%io_stack_channel(inpp%io_stack_level)
@@ -449,14 +449,14 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure = .TRUE.
-    CPPostcondition(ASSOCIATED(inpp),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(inpp))
 
     ! process line until all variables named with the convention ${VAR} are expanded
     DO WHILE (INDEX(input_line,'${') > 0)
        pos1=INDEX(input_line,'${')
        pos1=pos1+2
        pos2=INDEX(input_line(pos1:),'}')
-       CPPostcondition(pos2>0,cp_failure_level,routineP,failure)
+       CPASSERT(pos2>0)
        IF(pos2==0) THEN
           WRITE(UNIT=message,FMT="(3A,I6)") &
                "INPP_@SET: Missing '}' in file: ",&
@@ -467,7 +467,7 @@ CONTAINS
        pos2=pos1+pos2-2
        varname=input_line(pos1:pos2)
        idx=inpp_find_variable(inpp,varname)
-       CPPostcondition(idx>0,cp_failure_level,routineP,failure)
+       CPASSERT(idx>0)
        IF(idx==0) THEN
           WRITE(UNIT=message,FMT="(5A,I6)") &
                "INPP_@SET: Variable ${",TRIM(varname),"} not defined in file: ",&
@@ -490,13 +490,13 @@ CONTAINS
        pos1=INDEX(input_line,'$')
        pos1=pos1+1
        pos2=INDEX(input_line(pos1:),' ')
-       CPPostcondition(pos2>=0,cp_failure_level,routineP,failure)
+       CPASSERT(pos2>=0)
        IF(pos2==0) pos2 = LEN_TRIM(input_line(pos1:))+1
 
        pos2=pos1+pos2-1
        varname=input_line(pos1:pos2)
        idx=inpp_find_variable(inpp,varname)
-       CPPostcondition(idx>=0,cp_failure_level,routineP,failure)
+       CPASSERT(idx>=0)
        IF(idx==0) THEN
           WRITE(UNIT=message,FMT="(5A,I6)") &
                "INPP_@SET: Variable $",TRIM(varname)," not defined in file: ",&

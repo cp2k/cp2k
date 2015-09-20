@@ -130,12 +130,12 @@ CONTAINS
        END DO
        CALL force_env_set(force_env, additional_potential=energy)
        DEALLOCATE(my_par,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(my_val,stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        IF (a_var/=0) THEN
           DEALLOCATE (nparticle,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
        CALL finalizef()
     END DO

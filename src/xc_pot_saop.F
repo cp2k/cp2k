@@ -219,7 +219,7 @@ CONTAINS
     END IF
 
     ALLOCATE(rho_r(nspins), single_mo_coeff(nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_allocate_matrix_set(orbital_density_matrix,nspins)
     CALL qs_rho_get(rho_struct, rho_r=rho_struct_r, rho_ao=rho_struct_ao)
     DO ispin=1,nspins
@@ -267,7 +267,7 @@ CONTAINS
     CALL section_vals_set_subs_vals(xc_section_tmp,"XC_FUNCTIONAL",&
          xc_fun_section_tmp)
 
-    CPPostcondition(.NOT.compute_virial,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.compute_virial)
     CALL xc_vxc_pw_create(vxc_tmp, vxc_tau, xc_energy, rho_r, rho_g, tau,&
                           xc_section_tmp, auxbas_pw_pool,  &
                           compute_virial=.FALSE.,virial_xc=virial_xc_tmp)
@@ -277,7 +277,7 @@ CONTAINS
     CALL section_vals_val_set(xc_fun_section_tmp,"PZ81%_SECTION_PARAMETERS_",&
          l_val=.TRUE.)
 
-    CPPostcondition(.NOT.compute_virial,cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.compute_virial)
     CALL xc_vxc_pw_create(vxc_LB, vxc_tau, xc_energy, rho_r, rho_g, tau,&
                           xc_section_tmp, auxbas_pw_pool, &
                           compute_virial=.FALSE.,virial_xc=virial_xc_tmp)
@@ -393,7 +393,7 @@ CONTAINS
     ! Assemble SAOP !
     !---------------!
     ALLOCATE(vxc_SAOP(nspins), stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO ispin=1, nspins
 
@@ -494,10 +494,10 @@ CONTAINS
        CALL pw_release(vxc_tmp(ispin)%pw)
     END DO
     DEALLOCATE(vxc_GLLB, vxc_LB, vxc_tmp, orbital_density_matrix, single_mo_coeff, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DEALLOCATE(rho_r, vxc_SAOP, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL section_vals_release(xc_fun_section_tmp)
     CALL section_vals_release(xc_section_tmp)
@@ -633,7 +633,7 @@ CONTAINS
     ALLOCATE(mo_coeff(nspins), single_mo_coeff(nspins), &
              mo_eigenvalues(nspins),&
              stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     CALL cp_dbcsr_allocate_matrix_set(orbital_density_matrix,nspins)
 
@@ -696,19 +696,19 @@ CONTAINS
        CALL xc_rho_set_atom_update(orb_rho_set_s, needs, nspins, bounds)
 
        ALLOCATE(rho_h(1:na,1:nspins), rho_s(1:na,1:nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(weight(1:na,1:nr), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(vxc_LB_h(1:na,1:nr,1:nspins), vxc_LB_s(1:na,1:nr,1:nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(vxc_GLLB_h(1:na,1:nr,1:nspins), vxc_GLLB_s(1:na,1:nr,1:nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(vxc_tmp_h(1:na,1:nr,1:nspins), vxc_tmp_s(1:na,1:nr,1:nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(vxc_SAOP_h(1:na,1:nr,1:nspins), vxc_SAOP_s(1:na,1:nr,1:nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(drho_h(1:4,1:na,1:nr,1:nspins), drho_s(1:4,1:na,1:nr,1:nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
 !      Distribute the atoms of this kind
        num_pe = para_env%num_pe
@@ -785,7 +785,7 @@ CONTAINS
 
           vxc_GLLB_h = 0.0_dp
           deriv => xc_dset_get_derivative(deriv_set, "")
-          CPPostcondition(ASSOCIATED(deriv),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(deriv))
           CALL xc_derivative_get(deriv,deriv_data=e_uniform)
           DO ispin=1, nspins
              dummy => vxc_GLLB_h(:,:,ispin:ispin)
@@ -811,7 +811,7 @@ CONTAINS
 
           vxc_GLLB_s = 0.0_dp
           deriv => xc_dset_get_derivative(deriv_set, "")
-          CPPostcondition(ASSOCIATED(deriv),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(deriv))
           CALL xc_derivative_get(deriv,deriv_data=e_uniform)
           DO ispin=1, nspins
              dummy => vxc_GLLB_s(:,:,ispin:ispin)
@@ -830,7 +830,7 @@ CONTAINS
              DO orb=1, homo(ispin)-1
 
                 ALLOCATE(coeff_col(nrow(ispin),1), stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
 
                 efac = K_rho * SQRT(mo_eigenvalues(ispin)%array(homo(ispin)) - &
                                     mo_eigenvalues(ispin)%array(orb))
@@ -849,7 +849,7 @@ CONTAINS
                                         alpha=1.0_dp)
 
                 DEALLOCATE(coeff_col, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
 
                 ! This calculates the CPC and density on the grids for every atom even though
                 ! we need it only for iatom at the moment. It seems that to circumvent this,
@@ -927,7 +927,7 @@ CONTAINS
              DO orb=1, homo(ispin)
 
                 ALLOCATE(coeff_col(nrow(ispin),1), stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
 
                 we_LB   = EXP(-2.0_dp*(mo_eigenvalues(ispin)%array(homo(ispin)) - &
                                        mo_eigenvalues(ispin)%array(orb))**2)
@@ -955,7 +955,7 @@ CONTAINS
                                         alpha=1.0_dp)
 
                 DEALLOCATE(coeff_col, stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
 
                 ! This calculates the CPC and density on the grids for every atom even though
                 ! we need it only for iatom at the moment. It seems that to circumvent this,
@@ -1047,23 +1047,23 @@ CONTAINS
           CASE (oe_saop)
              CALL gaVxcgb_noGC(vxc_SAOP_h,vxc_SAOP_s,qs_kind_set(ikind),rho_atom,nspins)
           CASE default
-             CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END SELECT
 
        END DO
 
        DEALLOCATE(rho_h, rho_s, weight, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(vxc_LB_h, vxc_LB_s, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(vxc_GLLB_h, vxc_GLLB_s, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(vxc_tmp_h, vxc_tmp_s, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(vxc_SAOP_h, vxc_SAOP_s, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(drho_h, drho_s, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
 
        CALL xc_dset_release(deriv_set)
        CALL xc_rho_set_release(rho_set_h)
@@ -1093,7 +1093,7 @@ CONTAINS
        CALL cp_fm_release(single_mo_coeff(ispin)%matrix)
     END DO
     DEALLOCATE(mo_coeff, single_mo_coeff, mo_eigenvalues, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL cp_dbcsr_deallocate_matrix_set(orbital_density_matrix)
 
   END SUBROUTINE gapw_add_atomic_saop_pot

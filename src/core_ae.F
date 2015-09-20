@@ -143,7 +143,7 @@ CONTAINS
     dokp = (nimages > 1)
 
     ALLOCATE (atom_of_kind(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,atom_of_kind=atom_of_kind)
 
     IF (calculate_forces) THEN
@@ -167,19 +167,19 @@ CONTAINS
     ldsab = MAX(maxco,maxsgf)
     ldai = ncoset(maxl+nder+1)
     ALLOCATE(hab(ldsab,ldsab,maxnset*maxnset),work(ldsab,ldsab),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (verf(ldai,ldai,2*maxl+nder+1),vnuc(ldai,ldai,2*maxl+nder+1),ff(0:2*maxl+nder),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     IF (calculate_forces) THEN
        ALLOCATE(pab(maxco,maxco,maxnset*maxnset),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
     ! iterator for basis/potential list
     CALL neighbor_list_iterator_create(ap_iterator,sac_ae,search=.TRUE.)
 
     ALLOCATE (basis_set_list(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
       CALL get_qs_kind(qs_kind_set(ikind),basis_set=basis_set_a)
       IF (ASSOCIATED(basis_set_a)) THEN
@@ -251,7 +251,7 @@ CONTAINS
           NULLIFY(p_block)
           CALL cp_dbcsr_get_block_p(matrix=matrix_p(1,img)%matrix,&
                   row=irow,col=icol,BLOCK=p_block,found=found)
-          CPPostcondition(ASSOCIATED(p_block),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(p_block))
           ! *** Decontract density matrix block ***
           DO iset=1,nseta
              ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -317,7 +317,7 @@ CONTAINS
                       na_plus = npgfa(iset)*ncoset(la_max(iset)+nder)
                       nb_plus = npgfb(jset)*ncoset(lb_max(jset))
                       ALLOCATE(habd(na_plus,nb_plus),STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                      CPASSERT(stat==0)
                       habd = 0._dp
                       CALL verfc(&
                               la_max(iset)+nder,npgfa(iset),zeta(:,iset),rpgfa(:,iset),la_min(iset),&
@@ -334,7 +334,7 @@ CONTAINS
                                       lb_max(jset),lb_min(jset),npgfb(jset),zetb(:,jset),rab)
 
                       DEALLOCATE(habd,STAT=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+                      CPASSERT(stat==0)
 
                       atom_c = atom_of_kind(katom)
                       force(ikind)%all_potential(1,atom_a) =force(ikind)%all_potential(1,atom_a) + f0*force_a(1)
@@ -399,13 +399,13 @@ CONTAINS
     CALL neighbor_list_iterator_release(ap_iterator)
 
     DEALLOCATE (atom_of_kind,basis_set_list,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(hab,work,verf,vnuc,ff,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     IF (calculate_forces) THEN
        DEALLOCATE(pab,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (calculate_forces) THEN
        ! *** If LSD, then recover alpha density and beta density     ***

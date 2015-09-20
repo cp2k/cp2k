@@ -73,9 +73,9 @@ CONTAINS
     CALL timeset(routineN,handle)
       failure=.FALSE.
 
-      CPPrecondition(.NOT.ASSOCIATED(fp_env),cp_failure_level,routineP,failure)
+      CPASSERT(.NOT.ASSOCIATED(fp_env))
       ALLOCATE(fp_env,stat=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+      CPASSERT(stat==0)
       fp_env%ref_count=1
 
       fp_env%use_fp=.FALSE.
@@ -103,7 +103,7 @@ CONTAINS
 
      failure=.FALSE.
      IF (ASSOCIATED(fp_env)) THEN
-        CPPrecondition(fp_env%ref_count>0,cp_failure_level,routineP,failure)
+        CPASSERT(fp_env%ref_count>0)
         fp_env%ref_count=fp_env%ref_count-1
         IF (fp_env%ref_count==0) THEN
            IF (ASSOCIATED(fp_env%inner_atoms)) DEALLOCATE(fp_env%inner_atoms)
@@ -130,7 +130,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
       failure=.FALSE.
-      CPPrecondition(ASSOCIATED(fp_env),cp_failure_level,routineP,failure)
+      CPASSERT(ASSOCIATED(fp_env))
       fp_env%ref_count=fp_env%ref_count+1
 
   END SUBROUTINE fp_env_retain
@@ -155,7 +155,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(fp_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(fp_env))
     CALL section_vals_get(fp_section,explicit=fp_env%use_fp)
     IF (fp_env%use_fp) THEN
        CALL section_vals_val_get(fp_section,"CENTRAL_ATOM",i_val=fp_env%central_atom)
@@ -204,7 +204,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
     logger => cp_get_default_logger()
-    CPPrecondition(ASSOCIATED(fp_env),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(fp_env))
 
     IF (fp_env%use_fp) THEN
        PRINT=>section_vals_get_subs_vals(fp_section,"CONTROL")

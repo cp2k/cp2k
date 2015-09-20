@@ -102,9 +102,9 @@ CONTAINS
     logger => cp_get_default_logger()
     failure = .FALSE.
     present_mat = PRESENT(mat)
-    CPPostcondition(ASSOCIATED(particles),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(particles))
     IF (present_mat) THEN
-       CPPostcondition(.NOT.ASSOCIATED(mat),cp_failure_level,routineP,failure)
+       CPASSERT(.NOT.ASSOCIATED(mat))
     END IF
     IF (.NOT.keep_rotations) THEN
        rcom  = 0.0_dp
@@ -113,11 +113,11 @@ CONTAINS
        DO iparticle = 1, natoms
           mass = 1.0_dp
           IF (mass_weighted) mass = particles(iparticle)%atomic_kind%mass
-          CPPostcondition(mass>=0.0_dp,cp_failure_level,routineP,failure)
+          CPASSERT(mass>=0.0_dp)
           masst = masst + mass
           rcom =  particles(iparticle)%r * mass + rcom
        END DO
-       CPPostcondition(masst>0.0_dp,cp_failure_level,routineP,failure)
+       CPASSERT(masst>0.0_dp)
        rcom = rcom / masst
        ! Intertia Tensor
        Ip   = 0.0_dp
@@ -158,7 +158,7 @@ CONTAINS
     END IF
     ! Build up the Translational vectors
     ALLOCATE(Tr(natoms*3,3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     Tr   = 0.0_dp
     DO k = 1, 3
        iseq = 0
@@ -179,7 +179,7 @@ CONTAINS
     dof = 3
     ! Build up the Rotational vectors
     ALLOCATE(Rot(natoms*3,3),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     lrot = 0
     IF (.NOT.keep_rotations) THEN
        DO iparticle = 1, natoms
@@ -232,7 +232,7 @@ CONTAINS
     IF (present_mat) THEN
        ! Give back the vectors generating the rototranslating Frame
        ALLOCATE(mat(natoms*3,dof),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        iseq = 0
        DO i = 1, 3
           mat(:,i)=Tr(:,i)
@@ -243,9 +243,9 @@ CONTAINS
        END DO
     END IF
     DEALLOCATE(Tr,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(Rot,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL timestop(handle)
   END SUBROUTINE rot_ana
 
@@ -334,7 +334,7 @@ CONTAINS
        id_dcd = "FML "
        id_wpc = "FORCE_MIXING_LABELS"
     CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_fatal_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     charge_occup = .FALSE.
@@ -343,7 +343,7 @@ CONTAINS
 
     CALL force_env_get(force_env, cell=cell, subsys=subsys)
     IF (PRESENT(particles)) THEN
-       CPPostcondition(ASSOCIATED(particles),cp_fatal_level,routineP,failure)
+       CPASSERT(ASSOCIATED(particles))
        my_particles => particles
     ELSE
        CALL cp_subsys_get(subsys=subsys, particles=my_particles)
@@ -427,11 +427,11 @@ CPSourceFileRef,&
               "Step ",it,", E = ",etot
           END IF
        CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_fatal_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
        IF (TRIM(my_pk_name) == "FORCE_MIXING_LABELS") THEN
           ALLOCATE (fml_array(3*SIZE(particle_set)),STAT=istat)
-          CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+          CPASSERT(istat == 0)
           fml_array = 0.0_dp
           CALL force_env_get(force_env, force_env_section=force_env_section)
           force_mixing_restart_section => section_vals_get_subs_vals(force_env_section, &
@@ -444,7 +444,7 @@ CPSourceFileRef,&
                 CALL section_vals_val_get(force_mixing_restart_section,"LABELS",i_vals=force_mixing_labels)
                 DO i=1, SIZE(force_mixing_indices)
                   ii = force_mixing_indices(i)
-                  CPPostcondition(ii <= SIZE(particle_set),cp_failure_level,routineP,failure)
+                  CPASSERT(ii <= SIZE(particle_set))
                   fml_array((ii-1)*3+1:(ii-1)*3+3) = force_mixing_labels(i)
                 END DO
              ENDIF
@@ -452,7 +452,7 @@ CPSourceFileRef,&
           CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell,&
                                           array=fml_array)
           DEALLOCATE (fml_array,STAT=istat)
-          CPPostcondition((istat == 0),cp_failure_level,routineP,failure)
+          CPASSERT(istat == 0)
        ELSE
           CALL write_particle_coordinates(particle_set,traj_unit,outformat,TRIM(id_wpc),TRIM(title),cell,&
                                           unit_conv=unit_conv,&

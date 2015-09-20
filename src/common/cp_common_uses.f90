@@ -30,7 +30,7 @@
                                              cp_caller_error,&
                                              cp_wrong_args_error,&
                                              cp_unimplemented_error_nr,&
-                                             cp_a_l,&
+                                             cp__a,cp__b,cp__w,&
                                              cp_error_message
 
 ! The following macros are here to facilitate the use of error handling
@@ -54,44 +54,8 @@
 #define CPSourceFileRef __FILE__//' line '//TRIM(ADJUSTL(cp_to_string(__LINE__)))
 #endif
 
-! if the following macro is defined the longest form of macro
-! expansions is used (and the error messages are more meaningful)
 
-! inlines the test but does not write the file name, but that should
-! be easily recovered from the routineP variable (that should contain
-! the module name).
-!
-! We are trying to use a small amount of characters
-! the test is not inlined (you have always a function call)
-
-#define CPPrecondition(cond,level,routineP,failure) \
-IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__,failure)
-#define CPPostcondition(cond,level,routineP,failure) \
-IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__,failure)
-#define CPInvariant(cond,level,routineP,failure) \
-IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__,failure)
-#define CPAssert(cond,level,routineP,failure) \
-IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__,failure)
-#define CPErrorMessage(level,routineP,msg) \
-CALL cp_error_message(level,routineP,msg)
-#define CPPreconditionNoFail(cond,level,routineP) \
-IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__)
-#define CPPostconditionNoFail(cond,level,routineP) \
-IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__)
-#define CPInvariantNoFail(cond,level,routineP) \
-IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__)
-#define CPAssertNoFail(cond,level,routineP) \
-IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__)
-#define CPPreconditionNoErr(cond, level, routineN) \
-IF(.NOT.(cond))CALL cp_a_l(level,routineN,__LINE__)
-#define CPPostconditionNoErr(cond, level, routineN) \
-IF(.NOT.(cond))CALL cp_a_l(level,routineN ,__LINE__)
-#define CPInvariantNoErr(cond,level,routineP) \
-IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__)
-#define CPAssertNoErr(cond,level,routineP) \
-IF(.NOT.(cond))CALL cp_a_l(level,routineP,__LINE__)
-
-! new assert macro, meant to replace all of the above
-#define ASSERT(cond) \
-IF(.NOT.(cond))CALL cp_a_l(CP_FAILURE_LEVEL,routineP,__LINE__)
+#define CPWARN(msg) CALL cp__w(routineP,__LINE__,msg)
+#define CPABORT(msg) CALL cp__b(routineP,__LINE__,msg)
+#define CPASSERT(cond) IF(.NOT.(cond))CALL cp__a(routineP,__LINE__)
 

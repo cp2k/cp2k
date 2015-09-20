@@ -388,7 +388,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: homo, ispin
-    LOGICAL                                  :: energy_consistency, failure
+    LOGICAL                                  :: energy_consistency
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -428,7 +428,7 @@ CONTAINS
           END DO
           IF(dft_control%do_admm) THEN
              CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit)
-             CPPrecondition(ASSOCIATED(qs_env%mos_aux_fit),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(qs_env%mos_aux_fit))
              DO ispin=1,SIZE(qs_env%mos_aux_fit)
                 CALL get_mo_set(qs_env%mos_aux_fit(ispin)%mo_set,mo_coeff=mo_coeff_aux_fit,homo=homo)
                 IF (.NOT.ASSOCIATED(mo_coeff_aux_fit)) THEN

@@ -135,9 +135,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(rho_set))
     ALLOCATE(rho_set, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     rho_set%ref_count=1
     last_rho_set_id=last_rho_set_id+1
     rho_set%id_nr=last_rho_set_id
@@ -178,8 +178,8 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(rho_set%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
     rho_set%ref_count=rho_set%ref_count+1
   END SUBROUTINE xc_rho_set_retain
 
@@ -201,7 +201,7 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(rho_set)) THEN
-       CPPreconditionNoFail(rho_set%ref_count>0,cp_failure_level,routineP)
+       CPASSERT(rho_set%ref_count>0)
        rho_set%ref_count=rho_set%ref_count-1
        IF (rho_set%ref_count==0) THEN
           IF (PRESENT(pw_pool)) THEN
@@ -210,7 +210,7 @@ CONTAINS
                 CALL xc_rho_set_clean(rho_set,pw_pool)
                 rho_set%ref_count=0
              ELSE
-                CPPrecondition(.FALSE.,cp_warning_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END IF
           END IF
 
@@ -218,37 +218,37 @@ CONTAINS
           rho_set%local_bounds(1,:)=HUGE(0)
           IF (rho_set%owns%rho .AND. ASSOCIATED(rho_set%rho)) THEN
              DEALLOCATE(rho_set%rho, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (rho_set%owns%rho_spin) THEN
              IF (ASSOCIATED(rho_set%rhoa)) THEN
                 DEALLOCATE(rho_set%rhoa, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
              IF (ASSOCIATED(rho_set%rhob)) THEN
                 DEALLOCATE(rho_set%rhob, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
           END IF
           IF (rho_set%owns%rho_1_3.AND.ASSOCIATED(rho_set%rho_1_3)) THEN
              DEALLOCATE(rho_set%rho_1_3, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (rho_set%owns%rho_spin) THEN
              IF (ASSOCIATED(rho_set%rhoa_1_3)) THEN
                 DEALLOCATE(rho_set%rhoa_1_3, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
              IF (ASSOCIATED(rho_set%rhob_1_3)) THEN
                 DEALLOCATE(rho_set%rhob_1_3, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
           END IF
           IF (rho_set%owns%drho) THEN
              DO i=1,3
                 IF (ASSOCIATED(rho_set%drho(i)%array)) THEN
                    DEALLOCATE(rho_set%drho(i)%array, stat=stat)
-                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                   CPASSERT(stat==0)
                 END IF
              END DO
           END IF
@@ -256,64 +256,64 @@ CONTAINS
              DO i=1,3
                 IF (ASSOCIATED(rho_set%drhoa(i)%array)) THEN
                    DEALLOCATE(rho_set%drhoa(i)%array, stat=stat)
-                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                   CPASSERT(stat==0)
                 END IF
                 IF (ASSOCIATED(rho_set%drhob(i)%array)) THEN
                    DEALLOCATE(rho_set%drhob(i)%array, stat=stat)
-                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                   CPASSERT(stat==0)
                 END IF
              END DO
           END IF
           IF (rho_set%owns%laplace_rho.AND.ASSOCIATED(rho_set%laplace_rho)) THEN
              DEALLOCATE(rho_set%laplace_rho, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
 
           IF (rho_set%owns%norm_drho.AND.ASSOCIATED(rho_set%norm_drho)) THEN
              DEALLOCATE(rho_set%norm_drho, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (rho_set%owns%laplace_rho_spin) THEN
              IF (ASSOCIATED(rho_set%laplace_rhoa)) THEN
                 DEALLOCATE(rho_set%laplace_rhoa, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
              IF (ASSOCIATED(rho_set%laplace_rhob)) THEN
                 DEALLOCATE(rho_set%laplace_rhob, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
           END IF
 
           IF (rho_set%owns%norm_drho_spin) THEN
              IF (ASSOCIATED(rho_set%norm_drhoa)) THEN
                 DEALLOCATE(rho_set%norm_drhoa, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
              IF (ASSOCIATED(rho_set%norm_drhob)) THEN
                 DEALLOCATE(rho_set%norm_drhob, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
           END IF
           IF (rho_set%owns%drhoa_drhob.AND.ASSOCIATED(rho_set%drhoa_drhob)) THEN
              DEALLOCATE(rho_set%drhoa_drhob, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (rho_set%owns%tau.AND.ASSOCIATED(rho_set%tau)) THEN
              DEALLOCATE(rho_set%tau, stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+             CPASSERT(stat==0)
           END IF
           IF (rho_set%owns%tau_spin) THEN
              IF (ASSOCIATED(rho_set%tau_a)) THEN
                 DEALLOCATE(rho_set%tau_a, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
              IF (ASSOCIATED(rho_set%tau_b)) THEN
                 DEALLOCATE(rho_set%tau_b, stat=stat)
-                CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+                CPASSERT(stat==0)
              END IF
           END IF
           DEALLOCATE(rho_set, stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+          CPASSERT(stat==0)
        END IF
     END IF
     NULLIFY(rho_set)
@@ -381,41 +381,41 @@ CONTAINS
     my_can_return_null=.FALSE.
     IF (PRESENT(can_return_null)) my_can_return_null=can_return_null
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
     IF (PRESENT(rho)) THEN
        rho => rho_set%rho
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rho),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(rho))
     END IF
     IF (PRESENT(drho)) THEN
        drho => rho_set%drho
        IF (.NOT.my_can_return_null) THEN
           DO i=1,3
-             CPPrecondition(ASSOCIATED(rho_set%drho(i)%array),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(rho_set%drho(i)%array))
           END DO
        END IF
     END IF
     IF (PRESENT(norm_drho)) THEN
        norm_drho => rho_set%norm_drho
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drho),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(norm_drho))
     END IF
     IF (PRESENT(laplace_rho)) THEN
        laplace_rho => rho_set%laplace_rho
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rho),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(laplace_rho))
     END IF
     IF (PRESENT(rhoa)) THEN
        rhoa => rho_set%rhoa
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhoa),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(rhoa))
     END IF
     IF (PRESENT(rhob)) THEN
        rhob => rho_set%rhob
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhob),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(rhob))
     END IF
     IF (PRESENT(drhoa)) THEN
        drhoa => rho_set%drhoa
        IF (.NOT.my_can_return_null) THEN
           DO i=1,3
-             CPAssert(ASSOCIATED(rho_set%drhoa(i)%array),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(rho_set%drhoa(i)%array))
           END DO
        END IF
     END IF
@@ -423,53 +423,53 @@ CONTAINS
        drhob => rho_set%drhob
        IF (.NOT.my_can_return_null) THEN
           DO i=1,3
-             CPPrecondition(ASSOCIATED(rho_set%drhob(i)%array),cp_failure_level,routineP,failure)
+             CPASSERT(ASSOCIATED(rho_set%drhob(i)%array))
           END DO
        END IF
     END IF
     IF (PRESENT(laplace_rhoa)) THEN
        laplace_rhoa => rho_set%laplace_rhoa
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rhoa),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(laplace_rhoa))
     END IF
     IF (PRESENT(laplace_rhob)) THEN
        laplace_rhob => rho_set%laplace_rhob
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(laplace_rhob),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(laplace_rhob))
     END IF
    IF (PRESENT(norm_drhoa)) THEN
        norm_drhoa => rho_set%norm_drhoa
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drhoa),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(norm_drhoa))
     END IF
     IF (PRESENT(norm_drhob)) THEN
        norm_drhob => rho_set%norm_drhob
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(norm_drhob),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(norm_drhob))
     END IF
     IF (PRESENT(drhoa_drhob)) THEN
        drhoa_drhob => rho_set%drhoa_drhob
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(drhoa_drhob),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(drhoa_drhob))
     END IF
     IF (PRESENT(rho_1_3)) THEN
        rho_1_3 => rho_set%rho_1_3
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rho_1_3),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(rho_1_3))
     END IF
     IF (PRESENT(rhoa_1_3)) THEN
        rhoa_1_3 => rho_set%rhoa_1_3
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhoa_1_3),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(rhoa_1_3))
     END IF
     IF (PRESENT(rhob_1_3)) THEN
        rhob_1_3 => rho_set%rhob_1_3
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhob_1_3),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(rhob_1_3))
     END IF
     IF (PRESENT(tau)) THEN
        tau => rho_set%tau
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(tau))
     END IF
     IF (PRESENT(tau_a)) THEN
        tau_a => rho_set%tau_a
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau_a),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(tau_a))
     END IF
     IF (PRESENT(tau_b)) THEN
        tau_b => rho_set%tau_b
-       CPPrecondition(my_can_return_null.OR.ASSOCIATED(tau_b),cp_failure_level,routineP,failure)
+       CPASSERT(my_can_return_null.OR.ASSOCIATED(tau_b))
     END IF
     IF (PRESENT(rho_cutoff)) rho_cutoff=rho_set%rho_cutoff
     IF (PRESENT(drho_cutoff)) drho_cutoff=rho_set%drho_cutoff
@@ -496,8 +496,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
 
 
     IF (rho_set%owns%rho) THEN
@@ -656,8 +656,8 @@ CONTAINS
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
     nd_laplace = RESHAPE((/2,0,0,0,2,0,0,0,2/),(/3,3/))
 
-    CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,failure)
-    CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(rho_set))
+    CPASSERT(rho_set%ref_count>0)
     CALL cp_assert(ALL(rho_set%local_bounds==pw_pool%pw_grid%bounds_local),&
          cp_failure_level,cp_assertion_failed,routineP,&
          "pw_pool cr3d have different size than expected",failure)
@@ -669,22 +669,22 @@ CONTAINS
     ! some checks
     SELECT CASE(nspins)
     CASE(1)
-       CPPrecondition(SIZE(rho_r)==1,cp_failure_level,routineP,failure)
-       CPPrecondition(ASSOCIATED(rho_r(1)%pw),cp_failure_level,routineP,failure)
-       CPPrecondition(rho_r(1)%pw%in_use==REALDATA3D,cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT.needs%rho_spin,cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT.needs%drho_spin,cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT.needs%norm_drho_spin,cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT.needs%drhoa_drhob,cp_failure_level,routineP,failure)
-       CPPrecondition(.NOT.needs%rho_spin_1_3,cp_failure_level,routineP,failure)
+       CPASSERT(SIZE(rho_r)==1)
+       CPASSERT(ASSOCIATED(rho_r(1)%pw))
+       CPASSERT(rho_r(1)%pw%in_use==REALDATA3D)
+       CPASSERT(.NOT.needs%rho_spin)
+       CPASSERT(.NOT.needs%drho_spin)
+       CPASSERT(.NOT.needs%norm_drho_spin)
+       CPASSERT(.NOT.needs%drhoa_drhob)
+       CPASSERT(.NOT.needs%rho_spin_1_3)
     CASE(2)
-       CPPrecondition(SIZE(rho_r)==2,cp_failure_level,routineP,failure)
-       CPPrecondition(ASSOCIATED(rho_r(1)%pw),cp_failure_level,routineP,failure)
-       CPPrecondition(ASSOCIATED(rho_r(2)%pw),cp_failure_level,routineP,failure)
-       CPPrecondition(rho_r(1)%pw%in_use==REALDATA3D,cp_failure_level,routineP,failure)
-       CPPrecondition(rho_r(2)%pw%in_use==REALDATA3D,cp_failure_level,routineP,failure)
+       CPASSERT(SIZE(rho_r)==2)
+       CPASSERT(ASSOCIATED(rho_r(1)%pw))
+       CPASSERT(ASSOCIATED(rho_r(2)%pw))
+       CPASSERT(rho_r(1)%pw%in_use==REALDATA3D)
+       CPASSERT(rho_r(2)%pw%in_use==REALDATA3D)
     CASE default
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
 
     CALL xc_rho_set_clean(rho_set,pw_pool=pw_pool)
@@ -740,7 +740,7 @@ CONTAINS
                   pw_out=my_rho_r(ispin)%pw,&
                   coeffs=nn50_coeffs)
           CASE default
-             CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+             CPASSERT(.FALSE.)
           END SELECT
        END IF
 
@@ -815,7 +815,7 @@ CONTAINS
                     message="Drho collocation not implemented", &
                     error_level=cp_failure_level)
              CASE default
-                CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END SELECT
              CALL pw_pool_give_back_pw(pw_pool, tmp_g)
              IF (my_rho_g_local) THEN
@@ -862,7 +862,7 @@ CONTAINS
                     message="Drho collocation not implemented", &
                     error_level=cp_failure_level)
              CASE default
-                CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END SELECT
           END IF
 
@@ -1156,10 +1156,10 @@ CONTAINS
 
     ! tau part
     IF (needs%tau.OR.needs%tau_spin) THEN
-       CPPrecondition(ASSOCIATED(tau),cp_failure_level,routineP,failure)
+       CPASSERT(ASSOCIATED(tau))
        DO ispin=1,nspins
-          CPPrecondition(ASSOCIATED(tau(ispin)%pw),cp_failure_level,routineP,failure)
-          CPPrecondition(ASSOCIATED(tau(ispin)%pw%cr3d),cp_failure_level,routineP,failure)
+          CPASSERT(ASSOCIATED(tau(ispin)%pw))
+          CPASSERT(ASSOCIATED(tau(ispin)%pw%cr3d))
        END DO
     END IF
     IF (needs%tau) THEN
@@ -1185,14 +1185,14 @@ CONTAINS
        rho_set%has%tau=.TRUE.
     END IF
     IF (needs%tau_spin) THEN
-       CPPrecondition(nspins==2,cp_failure_level,routineP,failure)
+       CPASSERT(nspins==2)
        rho_set%tau_a => tau(1)%pw%cr3d
        rho_set%tau_b => tau(2)%pw%cr3d
        rho_set%owns%tau_spin=.FALSE.
        rho_set%has%tau_spin=.TRUE.
     END IF
 
-    CPPostcondition(xc_rho_cflags_equal(rho_set%has,needs),cp_failure_level,routineP,failure)
+    CPASSERT(xc_rho_cflags_equal(rho_set%has,needs))
 
   END SUBROUTINE xc_rho_set_update
 

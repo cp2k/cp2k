@@ -98,7 +98,6 @@ CONTAINS
       n_rep_real(3), n_rep_real_val, ncoarsel, ncoarset, Ndim, output_unit, &
       stat
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: Ak, alpha, box(3), Fac(3), fs, g, g2, Gk, Gmax, &
       mymaxradius, npl, npt, Prefactor, rc, rc2, Rmax, tmp, vec(3), vol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, Lg
@@ -125,28 +124,28 @@ CONTAINS
     n_rep_real = n_rep_real_val
     IF (compatibility.AND.(qmmm_coupl_type==do_qmmm_gauss)) ig_start = 2
 
-    CPPrecondition(.NOT.ASSOCIATED(per_potentials),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(per_potentials))
     ALLOCATE(per_potentials(SIZE(pgfs)),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
-    CPPrecondition(SIZE(pgfs)==SIZE(potentials),cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
+    CPASSERT(SIZE(pgfs)==SIZE(potentials))
     Potential_Type: DO K = 1, SIZE(pgfs)
 
        rc = pgfs(K)%pgf%Elp_Radius
        ALLOCATE(per_potentials(K)%Pot, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb,do_qmmm_pcharge)
           ! Not yet implemented for this case
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           ALLOCATE(Lg(Ndim), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(gx(Ndim), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(gy(Ndim), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(gz(Ndim), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END SELECT
 
        LG = 0.0_dp
@@ -157,7 +156,7 @@ CONTAINS
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb,do_qmmm_pcharge)
           ! Not yet implemented for this case
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        CASE(do_qmmm_gauss,do_qmmm_swave)
           pgf => pgfs(K)%pgf
           idim = 0
@@ -211,7 +210,7 @@ CONTAINS
              box (2) = (qm_cell_small%hmat(2,2) - mm_cell%hmat(2,2))/2.0_dp
              box (3) = (qm_cell_small%hmat(3,3) - mm_cell%hmat(3,3))/2.0_dp
              IF (ANY(box > 0.0_dp)) THEN
-                CPPostcondition(.FALSE.,cp_fatal_level,routineP,failure)
+                CPASSERT(.FALSE.)
              END IF
              n_rep_real(1) = CEILING(( box(1) + mymaxradius ) / mm_cell%hmat(1,1))
              n_rep_real(2) = CEILING(( box(2) + mymaxradius ) / mm_cell%hmat(2,2))
@@ -220,7 +219,7 @@ CONTAINS
 
        CASE DEFAULT
           DEALLOCATE(per_potentials(K)%Pot)
-          CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+          CPASSERT(stat==0)
           NULLIFY(per_potentials(K)%Pot)
           IF (output_unit>0) WRITE(output_unit,'(A)')" QMMM Periodic Potential - not Initialized!"
           CYCLE Potential_Type
@@ -228,7 +227,7 @@ CONTAINS
 
        NULLIFY(mm_atom_index)
        ALLOCATE(mm_atom_index(SIZE(potentials(K)%pot%mm_atom_index)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,Failure)
+       CPASSERT(stat==0)
        mm_atom_index = potentials(K)%pot%mm_atom_index
 
        NULLIFY(per_potentials(K)%Pot%LG, per_potentials(K)%Pot%mm_atom_index,&
@@ -370,8 +369,8 @@ CONTAINS
     failure = .FALSE.
     logger => cp_get_default_logger()
     ounit = cp_logger_get_default_io_unit(logger)
-    CPPrecondition(.NOT.ASSOCIATED(ewald_env),cp_failure_level,routineP,failure) 
-    CPPrecondition(.NOT.ASSOCIATED(ewald_pw),cp_failure_level,routineP,failure) 
+    CPASSERT(.NOT.ASSOCIATED(ewald_env))
+    CPASSERT(.NOT.ASSOCIATED(ewald_pw))
 
     ! Create Ewald environments
     poisson_section => section_vals_get_subs_vals(qmmm_periodic,"POISSON")
@@ -401,7 +400,7 @@ CONTAINS
             error_level=cp_fatal_level)
        CASE DEFAULT
           ! We should never get to this point
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure) 
+          CPASSERT(.FALSE.)
     END SELECT
 
     iw=cp_print_key_unit_nr(logger,print_section,"PERIODIC_INFO",extension=".log")

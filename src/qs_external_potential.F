@@ -253,7 +253,7 @@ CONTAINS
     my_force = .FALSE.
     IF (PRESENT(calc_derivatives)) my_force=calc_derivatives
     check=PRESENT(dfunc).EQV.PRESENT(calc_derivatives)
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     CALL section_vals_val_get(ext_pot_section,"DX",r_val=dx)
     CALL section_vals_val_get(ext_pot_section,"ERROR_LIMIT",r_val=lerr)
     CALL get_generic_info(ext_pot_section, "FUNCTION", coupling_function, my_par, my_val,&
@@ -283,9 +283,9 @@ CONTAINS
        END DO
     END IF
     DEALLOCATE(my_par,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(my_val,stat=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     CALL finalizef()
     CALL timestop(handle)
   END SUBROUTINE get_external_potential
@@ -327,7 +327,7 @@ CONTAINS
     my_force = .FALSE.
     IF (PRESENT(calc_derivatives)) my_force=calc_derivatives
     check=PRESENT(dfunc).EQV.PRESENT(calc_derivatives)
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     
     IF (my_force) THEN
       ALLOCATE(grid_buffer(0:3,0:3,0:3))

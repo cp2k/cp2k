@@ -85,7 +85,7 @@ CONTAINS
     CALL timeset(routineN,handle)
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(root_section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(root_section))
     CALL section_create(root_section,name="__ROOT__",&
          description="input file of cp2k",n_keywords=0, n_subsections=10,&
          repeats=.FALSE.)
@@ -351,7 +351,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MULTIPLE_FORCE_EVALS",&
          description="Describes how to handle multiple force_evals.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -393,7 +393,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXT_RESTART",&
          description="Section for external restart, specifies an external "//&
          "input file where to take positions,...",&
@@ -626,7 +626,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="farming",&
          description="Describes a farming job, in which multiple inputs are executed."//newline//&
          "The RUN_TYPE in the global section has to be set to NONE for FARMING."//newline//&
@@ -778,7 +778,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RS_PW_TRANSFER",&
          description="Describes how to benchmark the rs_pw_transfer routines.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
@@ -834,7 +834,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PW_TRANSFER",&
          description="Benchmark and test the pw_transfer routines.",&
          n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -916,7 +916,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CP_FM_GEMM",&
          description="Benchmark and test the cp_fm_gemm routines by multiplying C=A*B  ",&
          n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -1008,7 +1008,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EIGENSOLVER",&
          description="Benchmark and test the eigensolver routines.",&
          n_keywords=1, n_subsections=0, repeats=.TRUE.)
@@ -1072,7 +1072,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CP_DBCSR",&
          description="Benchmark and test the cp_dbcsr routines",&
          n_keywords=1, n_subsections=0, repeats=.TRUE.)

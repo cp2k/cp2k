@@ -59,10 +59,10 @@ CONTAINS
 
     failure = .FALSE.
     check = .NOT.ASSOCIATED(thermal_regions)
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
 
     ALLOCATE(thermal_regions,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     thermal_regions%ref_count =  1
     thermal_regions%nregions = 0
     NULLIFY(thermal_regions%thermal_region)
@@ -85,7 +85,7 @@ CONTAINS
 
     failure=.FALSE.
     IF (ASSOCIATED(thermal_regions)) THEN
-       CPPrecondition(thermal_regions%ref_count>0,cp_failure_level,routineP,failure)
+       CPASSERT(thermal_regions%ref_count>0)
        thermal_regions%ref_count=thermal_regions%ref_count+1
     END IF
 
@@ -110,23 +110,23 @@ CONTAINS
     check = ASSOCIATED(thermal_regions)
     IF (check) THEN
        check = thermal_regions%ref_count>0
-       CPPrecondition(check,cp_failure_level,routineP,failure)
+       CPASSERT(check)
        thermal_regions%ref_count=thermal_regions%ref_count-1
        IF (thermal_regions%ref_count<1) THEN
           IF (ASSOCIATED(thermal_regions%thermal_region)) THEN
             DO ireg = 1,SIZE(thermal_regions%thermal_region)
               DEALLOCATE(thermal_regions%thermal_region(ireg)%part_index,STAT=stat)
-              CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+              CPASSERT(stat==0)
             END DO
             DEALLOCATE(thermal_regions%thermal_region,STAT=stat)
-            CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+            CPASSERT(stat==0)
           END IF
           IF (ASSOCIATED(thermal_regions%do_langevin)) THEN
              DEALLOCATE(thermal_regions%do_langevin, STAT=stat)
-             CPPostcondition(stat==0, cp_failure_level, routineP,failure)
+             CPASSERT(stat==0)
           END IF
           DEALLOCATE(thermal_regions, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     END IF
 

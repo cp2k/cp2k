@@ -234,8 +234,8 @@ CONTAINS
     CALL section_vals_get(mindist_section,      explicit=my_subsection(23))
 
     ! Only one colvar can be present
-    CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,failure)
-    CPPostcondition(.NOT.ASSOCIATED(colvar),cp_failure_level,routinep,failure)
+    CPASSERT(COUNT(my_subsection) == 1)
+    CPASSERT(.NOT.ASSOCIATED(colvar))
 
     IF      (my_subsection(1)) THEN
        ! Distance
@@ -285,7 +285,7 @@ CONTAINS
        ELSE
           ! KINDS
           CALL section_vals_val_get(coordination_section,"KINDS_FROM",n_rep_val=n_var)
-          CPPostcondition(n_var>0,cp_failure_level,routinep,failure)
+          CPASSERT(n_var>0)
           DO k = 1, n_var
              CALL section_vals_val_get(coordination_section,"KINDS_FROM",i_rep_val=k,c_vals=c_kinds)
              CALL reallocate(colvar%coord_param%c_kinds_from,1, ndim+SIZE(c_kinds))
@@ -315,7 +315,7 @@ CONTAINS
        ELSE
           ! KINDS
           CALL section_vals_val_get(coordination_section,"KINDS_TO",n_rep_val=n_var)
-          CPPostcondition(n_var>0,cp_failure_level,routinep,failure)
+          CPASSERT(n_var>0)
           DO k = 1, n_var
              CALL section_vals_val_get(coordination_section,"KINDS_TO",i_rep_val=k,c_vals=c_kinds)
              CALL reallocate(colvar%coord_param%c_kinds_to,1, ndim+SIZE(c_kinds))
@@ -352,7 +352,7 @@ CONTAINS
           ELSE
              ! KINDS
              CALL section_vals_val_get(coordination_section,"KINDS_TO_B",n_rep_val=n_var_k)
-             CPPostcondition(n_var_k>0,cp_failure_level,routinep,failure)
+             CPASSERT(n_var_k>0)
              DO k = 1, n_var_k
                 CALL section_vals_val_get(coordination_section,"KINDS_TO_B",i_rep_val=k,c_vals=c_kinds)
                 CALL reallocate(colvar%coord_param%c_kinds_to_b,1, ndim+SIZE(c_kinds))
@@ -387,7 +387,7 @@ CONTAINS
        CALL colvar_create(colvar, plane_distance_colvar_id)
        CALL colvar_check_points(colvar, plane_dist_section)
        CALL section_vals_val_get(plane_dist_section,"ATOMS_PLANE",i_vals=iatms)
-       CPPostcondition(SIZE(iatms) == 3,cp_failure_level,routinep,failure)
+       CPASSERT(SIZE(iatms) == 3)
        colvar%plane_distance_param%plane = iatms
        CALL section_vals_val_get(plane_dist_section,"ATOM_POINT",i_val=iatm)
        colvar%plane_distance_param%point = iatm
@@ -508,7 +508,7 @@ CONTAINS
           CALL section_vals_val_get(path_section,"SUBSET_TYPE",i_val=colvar%reaction_path_param%subset)
           IF (colvar%reaction_path_param%subset==rmsd_all) THEN
              ALLOCATE(colvar%reaction_path_param%i_rmsd(colvar%reaction_path_param%n_components),STAT=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              DO i = 1, colvar%reaction_path_param%n_components
                 colvar%reaction_path_param%i_rmsd(i) = i
              END DO
@@ -537,7 +537,7 @@ CONTAINS
           colvar_subsection => section_vals_get_subs_vals(path_section,"COLVAR")
           CALL section_vals_get(colvar_subsection,n_repetition=ncol)
           ALLOCATE(colvar%reaction_path_param%colvar_p(ncol),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           IF (ncol>0) THEN
              DO i= 1, ncol
                 NULLIFY(colvar%reaction_path_param%colvar_p(i)%colvar)
@@ -558,11 +558,11 @@ CONTAINS
           colvar%reaction_path_param%function_bounds(2)=iend
           colvar%reaction_path_param%nr_frames= 2 !iend - istart + 1
           ALLOCATE(colvar%reaction_path_param%f_vals(ncol,istart:iend),stat=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+          CPASSERT(stat == 0)
           CALL section_vals_val_get(path_section,"VARIABLE",c_vals=my_par,i_rep_val=1)
           CALL section_vals_val_get(path_section,"FUNCTION",n_rep_val=ncol)
           check = (ncol==SIZE(colvar%reaction_path_param%colvar_p))
-          CPPostcondition(check,cp_failure_level,routinep,failure)
+          CPASSERT(check)
           CALL initf(ncol)
           DO i=1,ncol
              CALL section_vals_val_get(path_section,"FUNCTION",c_val=path_function,i_rep_val=i)
@@ -580,16 +580,16 @@ CONTAINS
           IF(iw1>0)THEN
              CALL section_vals_val_get(path_section,"MAP%GRID_SPACING",n_rep_val=ncol)
              ALLOCATE(grid_sp(ncol),stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              DO i=1,ncol
                 CALL section_vals_val_get(path_section,"MAP%GRID_SPACING",r_val=grid_sp(i))
              END DO
              CALL section_vals_val_get(path_section,"MAP%RANGE",n_rep_val=ncol)
-             CPPostcondition(ncol ==SIZE(grid_sp) ,cp_failure_level,routinep,failure)
+             CPASSERT(ncol ==SIZE(grid_sp))
              ALLOCATE(p_range(2,ncol),stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              ALLOCATE(p_bounds(2,ncol),stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              DO i=1,ncol
                 CALL section_vals_val_get(path_section,"MAP%RANGE",r_vals=g_range)
                 p_range(:,i)=g_range(:)
@@ -597,28 +597,28 @@ CONTAINS
                 p_bounds(1,i)=FLOOR(MIN(p_range(1,i) , p_range(2,i))/grid_sp(i))
              END DO
              ALLOCATE(s1v(2,istart:iend),stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              ALLOCATE(s1(2),stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              ALLOCATE(grid_point(ncol),stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              v_count=0
              kk=rec_eval_grid(iw1,ncol,colvar%reaction_path_param%f_vals,v_count,&
                   grid_point,grid_sp,colvar%reaction_path_param%step_size,istart,&
                   iend,s1v,s1,p_bounds,colvar%reaction_path_param%lambda,ifunc=ifunc,&
                   nconf=colvar%reaction_path_param%nr_frames)
              DEALLOCATE(grid_sp,stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              DEALLOCATE(p_range,stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              DEALLOCATE(p_bounds,stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              DEALLOCATE(s1v,stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              DEALLOCATE(s1,stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              DEALLOCATE(grid_point,stat=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
           END IF
           CALL cp_print_key_finished_output(iw1,logger,path_section,&
                "MAP")
@@ -631,7 +631,7 @@ CONTAINS
        colvar_subsection => section_vals_get_subs_vals(combine_section,"COLVAR")
        CALL section_vals_get(colvar_subsection,n_repetition=ncol)
        ALLOCATE(colvar%combine_cvs_param%colvar_p(ncol),stat=stat)
-       CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+       CPASSERT(stat==0)
        ! In case we need to print some information..
        iw = cp_print_key_unit_nr(logger,colvar_section,&
             "PRINT%PROGRAM_RUN_INFO",extension=".colvarLog")
@@ -654,7 +654,7 @@ CONTAINS
        ! Variables
        CALL section_vals_val_get(combine_section,"VARIABLES",c_vals=my_par)
        ALLOCATE(colvar%combine_cvs_param%variables(SIZE(my_par)),stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+       CPASSERT(stat == 0)
        colvar%combine_cvs_param%variables = my_par
        ! Check that the number of COLVAR provided is equal to the number of variables..
        CALL cp_assert(SIZE(my_par)==ncol,cp_fatal_level,cp_assertion_failed,routineP,&
@@ -664,7 +664,7 @@ CONTAINS
 CPSourceFileRef)
        ! Parameters
        ALLOCATE(colvar%combine_cvs_param%c_parameters(0),stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+       CPASSERT(stat == 0)
        CALL section_vals_val_get(combine_section,"PARAMETERS",n_rep_val=ncol)
        DO i = 1,ncol
           isize = SIZE(colvar%combine_cvs_param%c_parameters)
@@ -673,7 +673,7 @@ CPSourceFileRef)
           colvar%combine_cvs_param%c_parameters(isize+1:isize+SIZE(my_par)) = my_par
        END DO
        ALLOCATE(colvar%combine_cvs_param%v_parameters(0),stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+       CPASSERT(stat == 0)
        CALL section_vals_val_get(combine_section,"VALUES",n_rep_val=ncol)
        DO i = 1,ncol
           isize = SIZE(colvar%combine_cvs_param%v_parameters)
@@ -709,7 +709,7 @@ CPSourceFileRef)
        ELSE
           ! KINDS
           CALL section_vals_val_get(population_section,"KINDS_FROM",n_rep_val=n_var)
-          CPPostcondition(n_var>0,cp_failure_level,routinep,failure)
+          CPASSERT(n_var>0)
           DO k = 1, n_var
              CALL section_vals_val_get(population_section,"KINDS_FROM",i_rep_val=k,c_vals=c_kinds)
              CALL reallocate(colvar%population_param%c_kinds_from,1, ndim+SIZE(c_kinds))
@@ -739,7 +739,7 @@ CPSourceFileRef)
        ELSE
           ! KINDS
           CALL section_vals_val_get(population_section,"KINDS_TO",n_rep_val=n_var)
-          CPPostcondition(n_var>0,cp_failure_level,routinep,failure)
+          CPASSERT(n_var>0)
           DO k = 1, n_var
              CALL section_vals_val_get(population_section,"KINDS_TO",i_rep_val=k,c_vals=c_kinds)
              CALL reallocate(colvar%population_param%c_kinds_to,1, ndim+SIZE(c_kinds))
@@ -819,7 +819,7 @@ CPSourceFileRef)
        ELSE
           ! KINDS
           CALL section_vals_val_get(gyration_section,"KINDS",n_rep_val=n_var)
-          CPPostcondition(n_var>0,cp_failure_level,routinep,failure)
+          CPASSERT(n_var>0)
           DO k = 1, n_var
              CALL section_vals_val_get(gyration_section,"KINDS",i_rep_val=k,c_vals=c_kinds)
              CALL reallocate(colvar%gyration_param%c_kinds,1, ndim+SIZE(c_kinds))
@@ -845,18 +845,18 @@ CPSourceFileRef)
 
        colvar%rmsd_param%nr_frames=nr_frame
        ! Calculation is aborted if reference frame are less than 2
-       CPPostcondition((nr_frame>=1.AND.nr_frame<=2),cp_failure_level,routineP,failure)
+       CPASSERT(nr_frame>=1.AND.nr_frame<=2)
        CALL read_frames(frame_section,para_env,nr_frame,colvar%rmsd_param%r_ref,&
               colvar%rmsd_param%n_atoms)
 
        ALLOCATE(colvar%rmsd_param%weights(colvar%rmsd_param%n_atoms), STAT=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+       CPASSERT(stat == 0)
        colvar%rmsd_param%weights = 0.0_dp
 
        CALL section_vals_val_get(rmsd_section,"SUBSET_TYPE",i_val=colvar%rmsd_param%subset)
        IF (colvar%rmsd_param%subset==rmsd_all) THEN
           ALLOCATE(colvar%rmsd_param%i_rmsd(colvar%rmsd_param%n_atoms),STAT=stat)
-          CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+          CPASSERT(stat == 0)
           DO i = 1, colvar%rmsd_param%n_atoms
              colvar%rmsd_param%i_rmsd(i) = i
           END DO
@@ -913,7 +913,7 @@ CPSourceFileRef)
                 colvar%rmsd_param%weights(ii) = weights(i)
              END DO
              DEALLOCATE (weights, STAT=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
           ELSE
              CALL cp_assert(.FALSE.,cp_fatal_level,cp_assertion_failed,routineP,&
                   "CV RMSD: if SUBSET_TYPE=WEIGHT_LIST a list of weights need to be provided. "//&
@@ -977,9 +977,9 @@ CPSourceFileRef)
        CALL section_vals_val_get(wrk_section,"RCUT",r_val=colvar%HBP%shift)
 
        ALLOCATE(colvar%HBP%ids(colvar%HBP%nPoints,3),STAT=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+       CPASSERT(stat == 0)
        ALLOCATE(colvar%HBP%ewc(colvar%HBP%nPoints),STAT=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+       CPASSERT(stat == 0)
        DO i = 1, colvar%HBP%nPoints
         CALL section_vals_val_get(wrk_section,"ATOMS",i_rep_val=i,i_vals=iatms)
         colvar%HBP%ids(i,:) = iatms
@@ -990,7 +990,7 @@ CPSourceFileRef)
        CALL section_vals_val_get(ring_puckering_section,"ATOMS",i_vals=iatms)
        colvar%ring_puckering_param%nring = SIZE(iatms)
        ALLOCATE(colvar%ring_puckering_param%atoms(SIZE(iatms)),stat=stat)
-       CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+       CPASSERT(stat == 0)
        colvar%ring_puckering_param%atoms = iatms
        CALL section_vals_val_get(ring_puckering_section,"COORDINATE",&
             i_val=colvar%ring_puckering_param%iq)
@@ -1031,7 +1031,7 @@ CPSourceFileRef)
        ELSE
          !KINDS
           CALL section_vals_val_get(mindist_section,"KINDS_FROM",n_rep_val=n_var)
-          CPPostcondition(n_var>0,cp_failure_level,routinep,failure)
+          CPASSERT(n_var>0)
           DO k = 1, n_var
              CALL section_vals_val_get(mindist_section,"KINDS_FROM",i_rep_val=k,c_vals=c_kinds)
              CALL reallocate(colvar%mindist_param%k_coord_from,1, ndim+SIZE(c_kinds))
@@ -1062,7 +1062,7 @@ CPSourceFileRef)
        ELSE
          !KINDS
           CALL section_vals_val_get(mindist_section,"KINDS_TO",n_rep_val=n_var)
-          CPPostcondition(n_var>0,cp_failure_level,routinep,failure)
+          CPASSERT(n_var>0)
           DO k = 1, n_var
              CALL section_vals_val_get(mindist_section,"KINDS_TO",i_rep_val=k,c_vals=c_kinds)
              CALL reallocate(colvar%mindist_param%k_coord_to,1, ndim+SIZE(c_kinds))
@@ -1395,14 +1395,14 @@ CPSourceFileRef)
     NULLIFY(point_sections)
     NULLIFY(atoms)
     NULLIFY(weights)
-    CPPostcondition(ASSOCIATED(colvar),cp_warning_level,routineP,failure)
+    CPASSERT(ASSOCIATED(colvar))
     point_sections => section_vals_get_subs_vals(section,"POINT")
     CALL section_vals_get(point_sections, explicit=explicit)
     IF (explicit) THEN
        colvar%use_points = .TRUE.
        CALL section_vals_get(point_sections,n_repetition=npoints)
        ALLOCATE(colvar%points(npoints),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Read points definition
        DO i = 1, npoints
           natoms = 0
@@ -1419,7 +1419,7 @@ CPSourceFileRef)
                natoms = natoms + SIZE(atoms)
              END DO
              ALLOCATE(colvar%points(i)%atoms(natoms),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              natoms = 0
              DO irep=1,nrep
                CALL section_vals_val_get(point_sections,"ATOMS",i_rep_section=i,i_rep_val=irep,i_vals=atoms)
@@ -1428,7 +1428,7 @@ CPSourceFileRef)
              END DO
              ! Define weights of the list
              ALLOCATE(colvar%points(i)%weights(natoms),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              colvar%points(i)%weights = 1.0_dp/REAL(natoms,KIND=dp)
              CALL section_vals_val_get(point_sections,"WEIGHTS",i_rep_section=i,n_rep_val=nrep)
              IF (nrep/=0) THEN
@@ -1438,7 +1438,7 @@ CPSourceFileRef)
                    colvar%points(i)%weights(nweights+1:) = weights(:)
                    nweights = nweights + SIZE(weights)
                 END DO
-                CPPostcondition(natoms==nweights,cp_failure_level,routineP,failure)
+                CPASSERT(natoms==nweights)
              END IF
           CASE(do_clv_fix_point )
              ! Define the point as a fixed point in space..
@@ -1478,7 +1478,7 @@ CPSourceFileRef)
     failure=.FALSE.
 
     colvar_ok=ASSOCIATED(colvar)
-    CPAssert(colvar_ok,cp_failure_level,routineP,failure)
+    CPASSERT(colvar_ok)
 
     IF (PRESENT(pos)) THEN
        DO i = 1, SIZE(colvar%i_atom)
@@ -1539,7 +1539,7 @@ CPSourceFileRef)
        !!! FIXME this is rubbish at the moment as we have no force to be computed on this
        CALL HBP_colvar(colvar, cell, particles=particles)
     CASE DEFAULT
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     ! Check for fixed atom constraints
     IF (PRESENT(fixd_list)) CALL check_fixed_atom_cns_colv(fixd_list, colvar)
@@ -1572,7 +1572,7 @@ CPSourceFileRef)
     NULLIFY(subsys,cell,colvar,qs_env)
     CALL force_env_get(force_env,subsys=subsys,cell=cell,qs_env=qs_env)
     colvar_ok=ASSOCIATED(subsys%colvar_p)
-    CPAssert(colvar_ok,cp_failure_level,routineP,failure)
+    CPASSERT(colvar_ok)
 
     colvar => subsys%colvar_p(icolvar)%colvar
     ! Initialize the content of the derivative
@@ -1625,7 +1625,7 @@ CPSourceFileRef)
     CASE (mindist_colvar_id)
        CALL mindist_colvar(colvar,cell,subsys=subsys)
     CASE DEFAULT
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
     ! Check for fixed atom constraints
     CALL check_fixed_atom_cns_colv(subsys%gci%fixd_list,colvar)
@@ -1699,7 +1699,7 @@ CPSourceFileRef)
     CASE (HBP_colvar_id)
        CALL HBP_colvar(colvar, cell, particles=particles)
     CASE DEFAULT
-       CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+       CPASSERT(.FALSE.)
     END SELECT
   END SUBROUTINE colvar_recursive_eval
 
@@ -1799,11 +1799,11 @@ CPSourceFileRef)
     failure=.FALSE.
     NULLIFY(particles_i)
 
-    CPPrecondition(colvar%type_id==xyz_diag_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==xyz_diag_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -1871,7 +1871,7 @@ CPSourceFileRef)
           xi(3)=1.0_dp
        CASE DEFAULT
           !Not implemented for anything which is not a single component.
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
        END SELECT
        fi(:)= xi
     ENDIF
@@ -1910,11 +1910,11 @@ CPSourceFileRef)
     failure=.FALSE.
     NULLIFY(particles_i)
 
-    CPPrecondition(colvar%type_id==xyz_outerdiag_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==xyz_outerdiag_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -2043,14 +2043,14 @@ CPSourceFileRef)
           NULLIFY(values, parameters, subsystems, particles, global_forces, map_index, glob_natoms)
           nforce_eval = SIZE(force_env%sub_force_env)
           ALLOCATE(glob_natoms(nforce_eval), stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(subsystems(nforce_eval), stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ALLOCATE(particles(nforce_eval), stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           ! Local Info to sync
           ALLOCATE(global_forces(nforce_eval), stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
 
           glob_natoms=0
           DO iforce_eval = 1, nforce_eval
@@ -2080,7 +2080,7 @@ CPSourceFileRef)
           ! Transfer forces
           DO iforce_eval = 1, nforce_eval
              ALLOCATE(global_forces(iforce_eval)%forces(3,glob_natoms(iforce_eval)),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
              global_forces(iforce_eval)%forces = 0.0_dp
              IF (ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) THEN
                 IF ( force_env%sub_force_env(iforce_eval)%force_env%para_env%mepos==&
@@ -2103,7 +2103,7 @@ CPSourceFileRef)
           CALL parsef(1,TRIM(coupling_function),parameters)
           ! Store the value of the COLVAR
           colvar%ss = evalf(1,values)
-          CPPrecondition(EvalErrType<=0,cp_failure_level,routineP,failure)
+          CPASSERT(EvalErrType<=0)
 
           DO iforce_eval = 1, nforce_eval
              CALL section_vals_val_get(wrk_section,"DX",r_val=dx)
@@ -2133,26 +2133,26 @@ CPSourceFileRef)
              ! Deallocate map_index array
              IF (ASSOCIATED(map_index)) THEN
                 DEALLOCATE(map_index, stat=stat)
-                CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+                CPASSERT(stat==0)
              END IF
           END DO
           CALL finalizef()
           DO iforce_eval = 1, nforce_eval
              DEALLOCATE(global_forces(iforce_eval)%forces,stat=stat)
-             CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+             CPASSERT(stat==0)
           END DO
           DEALLOCATE(glob_natoms, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(values, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(parameters, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(global_forces, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(subsystems, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
           DEALLOCATE(particles, stat=stat)
-          CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+          CPASSERT(stat==0)
        END IF
     ELSE
         CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -2191,11 +2191,11 @@ CPSourceFileRef)
     failure=.FALSE.
     NULLIFY(particles_i)
 
-    CPPrecondition(colvar%type_id==plane_distance_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==plane_distance_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -2315,11 +2315,11 @@ CPSourceFileRef)
     NULLIFY(particles_i)
 
     check = colvar%type_id==plane_plane_angle_colvar_id
-    CPPrecondition(check,cp_failure_level,routineP,failure)
+    CPASSERT(check)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -2354,7 +2354,7 @@ CPSourceFileRef)
     END IF
     a1    = DOT_PRODUCT(xpn1,xpn1)
     norm1 = SQRT(a1)
-    CPPrecondition(norm1/=0.0_dp,cp_failure_level,routineP,failure)
+    CPASSERT(norm1/=0.0_dp)
 
     ! Plane 2
     IF (colvar%plane_plane_angle_param%plane2%type_of_def==plane_def_atoms) THEN
@@ -2386,7 +2386,7 @@ CPSourceFileRef)
     END IF
     a2    = DOT_PRODUCT(xpn2,xpn2)
     norm2 = SQRT(a2)
-    CPPrecondition(norm2/=0.0_dp,cp_failure_level,routineP,failure)
+    CPASSERT(norm2/=0.0_dp)
 
     ! The value of the angle is defined only between 0 and Pi
     prod_12  = DOT_PRODUCT(xpn1,xpn2)
@@ -2538,11 +2538,11 @@ CPSourceFileRef)
     failure=.FALSE.
     NULLIFY(particles_i)
 
-    CPPrecondition(colvar%type_id==rotation_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==rotation_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -2627,11 +2627,11 @@ CPSourceFileRef)
     failure=.FALSE.
     NULLIFY(particles_i)
 
-    CPPrecondition(colvar%type_id==dfunct_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==dfunct_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -2705,11 +2705,11 @@ CPSourceFileRef)
     failure=.FALSE.
     NULLIFY(particles_i)
 
-    CPPrecondition(colvar%type_id==angle_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==angle_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -2781,11 +2781,11 @@ CPSourceFileRef)
     failure=.FALSE.
     NULLIFY(particles_i)
 
-    CPPrecondition(colvar%type_id==dist_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==dist_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -2861,11 +2861,11 @@ CPSourceFileRef)
 
     failure=.FALSE.
     NULLIFY(particles_i)
-    CPPrecondition(colvar%type_id==torsion_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==torsion_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -3028,11 +3028,11 @@ CPSourceFileRef)
     l=colvar%qparm_param%l
     alpha=colvar%qparm_param%alpha
     NULLIFY(particles_i)
-    CPPrecondition(colvar%type_id==qparm_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==qparm_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -3185,31 +3185,31 @@ CPSourceFileRef)
     q=colvar%hydronium_param%q
 
     NULLIFY(particles_i)
-    CPPrecondition(colvar%type_id==hydronium_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==hydronium_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
 
     ALLOCATE ( dfunc_nh ( 3, n_oxygens, n_hydrogens ), stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE ( nhcoord  ( n_oxygens), stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE ( M (  n_oxygens ), stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE ( dM ( 3, n_oxygens,n_hydrogens ), stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     ALLOCATE ( dfunc_no ( 3, n_oxygens, n_oxygens ), stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE ( no       (  n_oxygens), stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     ALLOCATE ( qloc (  n_oxygens), stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     ! Zero Arrays:
     dfunc_nh = 0._dp
@@ -3322,19 +3322,19 @@ CPSourceFileRef)
 
     colvar%ss=LOG(qtot)/lambda
     DEALLOCATE ( dfunc_nh, stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE ( nhcoord, stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE ( M, stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE ( dM, stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE ( dfunc_no, stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE ( no, stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE ( qloc, stat=stat )
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
   END SUBROUTINE hydronium_colvar
 
 ! *****************************************************************************
@@ -3375,11 +3375,11 @@ CPSourceFileRef)
     ! If we defined the coordination number with KINDS then we have still
     ! to fill few missing informations...
     NULLIFY(particles_i)
-    CPPrecondition(colvar%type_id==coord_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==coord_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -3510,11 +3510,11 @@ CPSourceFileRef)
     ! If we defined the coordination number with KINDS then we have still
     ! to fill few missing informations...
     NULLIFY(particles_i)
-    CPPrecondition(colvar%type_id==mindist_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==mindist_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -3530,17 +3530,17 @@ CPSourceFileRef)
 
     NULLIFY(nLcoord,dnLcoord,dqfunc_dr,dqfunc_dnL,expnL,sum_rij)
     ALLOCATE (nLcoord(n_coord_from),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE (dnLcoord(3,n_coord_from,n_coord_to),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE (expnL(n_coord_from),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE (sum_rij(n_coord_from),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE (dqfunc_dr(3,n_dist_from,n_coord_from),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE (dqfunc_dnL(n_coord_from),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     ! coordination numbers
     nLcoord = 0.0_dp
@@ -3649,17 +3649,17 @@ CPSourceFileRef)
 
 
     DEALLOCATE(nLcoord,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(dnLcoord,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE (expnL,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE (dqfunc_dr,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE (sum_rij,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE (dqfunc_dnL,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
   END SUBROUTINE mindist_colvar
 
@@ -3694,20 +3694,20 @@ CPSourceFileRef)
       POINTER                                :: my_particles
 
     failure=.FALSE.
-    CPPrecondition(colvar%type_id==combine_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==combine_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
 
     ncolv=SIZE(colvar%combine_cvs_param%colvar_p)
     ALLOCATE(ss_vals(ncolv),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(dss_vals(ncolv),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     ! Evaluate the individual COLVARs
     DO i=1,ncolv
@@ -3720,11 +3720,11 @@ CPSourceFileRef)
     ndim = SIZE(colvar%combine_cvs_param%c_parameters)+&
            SIZE(colvar%combine_cvs_param%variables)
     ALLOCATE(my_par(ndim),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     my_par(1:SIZE(colvar%combine_cvs_param%variables)) =colvar%combine_cvs_param%variables
     my_par(SIZE(colvar%combine_cvs_param%variables)+1:)=colvar%combine_cvs_param%c_parameters
     ALLOCATE(my_val(ndim),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     my_val(1:SIZE(colvar%combine_cvs_param%variables)) =ss_vals
     my_val(SIZE(colvar%combine_cvs_param%variables)+1:)=colvar%combine_cvs_param%v_parameters
     CALL parsef(1,TRIM(colvar%combine_cvs_param%function),my_par)
@@ -3745,14 +3745,14 @@ CPSourceFileRef,&
        END IF
     END DO
     DEALLOCATE(my_val,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(my_par,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     CALL finalizef()
 
     ! Evaluate forces
     ALLOCATE(fi(3,colvar%n_atom_s),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ii=0
     DO i=1,ncolv
        DO j=1,colvar%combine_cvs_param%colvar_p(i)%colvar%n_atom_s
@@ -3766,11 +3766,11 @@ CPSourceFileRef,&
     END DO
 
     DEALLOCATE(fi,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ss_vals,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(dss_vals,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
   END SUBROUTINE combine_colvar
 
 ! *****************************************************************************
@@ -3804,11 +3804,11 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(colvar%type_id==reaction_path_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==reaction_path_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -3843,7 +3843,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, iend, ii, istart, j, k, &
                                                 ncolv, nconf, stat
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, step_size
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: s1, ss_vals
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1, f_vals, fi, s1v
@@ -3858,10 +3857,10 @@ CPSourceFileRef,&
     ncolv=colvar%reaction_path_param%n_components
     lambda=colvar%reaction_path_param%lambda
     ALLOCATE(f_vals(ncolv,istart:iend),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     f_vals(:,:)=colvar%reaction_path_param%f_vals
     ALLOCATE(ss_vals(ncolv),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     DO i=1,ncolv
        CALL colvar_recursive_eval(colvar%reaction_path_param%colvar_p(i)%colvar,cell,particles)
@@ -3869,14 +3868,14 @@ CPSourceFileRef,&
     ENDDO
 
     ALLOCATE(s1v(2,istart:iend),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(ds1v(ncolv,2,istart:iend),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     ALLOCATE(s1(2),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(ds1(ncolv,2),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     DO k=istart,iend
        s1v(1,k)=REAL(k,kind=dp)*step_size*EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
@@ -3896,7 +3895,7 @@ CPSourceFileRef,&
     colvar%ss=s1(1)/s1(2)/REAL(nconf-1,dp)
 
     ALLOCATE(fi(3,colvar%n_atom_s),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     ii=0
     DO i=1,ncolv
@@ -3912,19 +3911,19 @@ CPSourceFileRef,&
     END DO
 
     DEALLOCATE(fi,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(f_vals,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ss_vals,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(s1v,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ds1v,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(s1,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ds1,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
   END SUBROUTINE rpath_colvar
 
@@ -3970,21 +3969,21 @@ CPSourceFileRef,&
     natom = SIZE(particles)
 
     ALLOCATE(r0(3*natom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(r(3*natom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(riat(3,rmsd_atom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(vec_dif(rmsd_atom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(dvec_dif(3,rmsd_atom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(s1v(2,nconf),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(ds1v(3,rmsd_atom,2,nconf),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(ds1(3,rmsd_atom,2),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DO i = 1,natom
       ii = (i-1)*3
       r0(ii+1) = particles(i)%r(1)
@@ -4043,7 +4042,7 @@ CPSourceFileRef,&
     colvar%ss = s1(1)/s1(2)/REAL(nconf-1,dp)
 
     ALLOCATE(fi(3,rmsd_atom),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     DO iat = 1,rmsd_atom
       fi(1,iat) = 2.0_dp*lambda/s1(2)/REAL(nconf-1,dp)*(ds1(1,iat,1) - ds1(1,iat,2)*s1(1)/s1(2))
@@ -4053,23 +4052,23 @@ CPSourceFileRef,&
     END DO
 
     DEALLOCATE(fi,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(r0,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(r,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(riat,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(vec_dif,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(dvec_dif,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(s1v,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ds1v,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ds1,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
   END SUBROUTINE rpath_dist_rmsd
 
@@ -4114,22 +4113,22 @@ CPSourceFileRef,&
     natom = SIZE(particles)
 
     ALLOCATE(r0(3*natom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(r(3*natom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(riat(3,rmsd_atom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(s1v(2,nconf),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(ds1v(3,rmsd_atom,2,nconf),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(ds1(3,rmsd_atom,2),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(drmsd(3,natom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     drmsd = 0.0_dp
     ALLOCATE (weight(natom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     DO i = 1,natom
       ii = (i-1)*3
@@ -4188,7 +4187,7 @@ CPSourceFileRef,&
    colvar%ss = s1(1)/s1(2)/REAL(nconf-1,dp)
 
     ALLOCATE(fi(3,rmsd_atom),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     DO iat = 1,rmsd_atom
       fi(1,iat) = -lambda/s1(2)/REAL(nconf-1,dp)*(ds1(1,iat,1) - ds1(1,iat,2)*s1(1)/s1(2))
@@ -4198,23 +4197,23 @@ CPSourceFileRef,&
     END DO
 
     DEALLOCATE(fi,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(r0,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(r,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(riat,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(s1v,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ds1v,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ds1,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(drmsd,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(weight,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
   END SUBROUTINE  rpath_rmsd
 
@@ -4245,11 +4244,11 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(colvar%type_id==distance_from_path_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==distance_from_path_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -4285,7 +4284,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, iend, ii, istart, j, k, &
                                                 ncolv, stat
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: lambda, s1
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ds1, s1v, ss_vals
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: ds1v, f_vals, fi
@@ -4296,10 +4294,10 @@ CPSourceFileRef,&
     ncolv=colvar%reaction_path_param%n_components
     lambda=colvar%reaction_path_param%lambda
     ALLOCATE(f_vals(ncolv,istart:iend),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     f_vals(:,:)=colvar%reaction_path_param%f_vals
     ALLOCATE(ss_vals(ncolv),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     DO i=1,ncolv
        CALL colvar_recursive_eval(colvar%reaction_path_param%colvar_p(i)%colvar,cell,particles)
@@ -4307,11 +4305,11 @@ CPSourceFileRef,&
     ENDDO
 
     ALLOCATE(s1v(istart:iend),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(ds1v(ncolv,istart:iend),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(ds1(ncolv),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     DO k=istart,iend
        s1v(k)=EXP(-lambda*DOT_PRODUCT(ss_vals(:)-f_vals(:,k),ss_vals(:)-f_vals(:,k)))
@@ -4327,7 +4325,7 @@ CPSourceFileRef,&
     colvar%ss=-1.0_dp/lambda*LOG(s1)
 
     ALLOCATE(fi(3,colvar%n_atom_s),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     ii=0
     DO i=1,ncolv
@@ -4343,17 +4341,17 @@ CPSourceFileRef,&
     END DO
 
     DEALLOCATE(fi,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(f_vals,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ss_vals,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(s1v,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ds1v,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ds1,stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
   END SUBROUTINE dpath_colvar
 
@@ -4397,21 +4395,21 @@ CPSourceFileRef,&
     natom = SIZE(particles)
 
     ALLOCATE(r0(3*natom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(r(3*natom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(riat(3,rmsd_atom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(vec_dif(rmsd_atom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(dvec_dif(3,rmsd_atom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(s1v(nconf),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(ds1v(3,rmsd_atom,nconf),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(ds1(3,rmsd_atom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DO i = 1,natom
       ii = (i-1)*3
       r0(ii+1) = particles(i)%r(1)
@@ -4461,7 +4459,7 @@ CPSourceFileRef,&
     colvar%ss=-1.0_dp/lambda*LOG(s1)
 
     ALLOCATE(fi(3,rmsd_atom),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     DO iat = 1,rmsd_atom
       fi(:,iat) = 2.0_dp*(riat(:,iat)-ds1(:,iat)/s1)
@@ -4469,23 +4467,23 @@ CPSourceFileRef,&
     END DO
 
     DEALLOCATE(fi,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(r0,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(r,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(riat,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(vec_dif,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(dvec_dif,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(s1v,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ds1v,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ds1,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
   END SUBROUTINE  dpath_dist_rmsd
 
 ! *****************************************************************************
@@ -4527,22 +4525,22 @@ CPSourceFileRef,&
     natom = SIZE(particles)
 
     ALLOCATE(r0(3*natom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(r(3*natom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(riat(3,rmsd_atom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(s1v(nconf),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(ds1v(3,rmsd_atom,nconf),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(ds1(3,rmsd_atom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     ALLOCATE(drmsd(3,natom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     drmsd = 0.0_dp
     ALLOCATE (weight(natom),STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
 
     DO i = 1,natom
@@ -4593,7 +4591,7 @@ CPSourceFileRef,&
     colvar%ss=-1.0_dp/lambda*LOG(s1)
 
     ALLOCATE(fi(3,rmsd_atom),stat=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
     DO iat = 1,rmsd_atom
       fi(:,iat) = ds1(:,iat)/s1
@@ -4601,23 +4599,23 @@ CPSourceFileRef,&
     END DO
 
     DEALLOCATE(fi,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(r0,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(r,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(riat,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(s1v,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ds1v,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(ds1,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(drmsd,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
     DEALLOCATE(weight,STAT=stat)
-    CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+    CPASSERT(stat == 0)
 
   END SUBROUTINE dpath_rmsd
 
@@ -4656,11 +4654,11 @@ CPSourceFileRef,&
     ! If we defined the coordination number with KINDS then we have still
     ! to fill few missing informations...
     NULLIFY(particles_i)
-    CPPrecondition(colvar%type_id==population_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==population_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -4761,11 +4759,11 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     NULLIFY(particles_i,my_particles)
-    CPPrecondition(colvar%type_id==gyration_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==gyration_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -4880,11 +4878,11 @@ CPSourceFileRef,&
     failure=.FALSE.
 
     NULLIFY(my_particles,particles_i,weights)
-    CPPrecondition(colvar%type_id==rmsd_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==rmsd_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -4892,17 +4890,17 @@ CPSourceFileRef,&
     natom = SIZE(my_particles)
     nframes=colvar%rmsd_param%nr_frames
     ALLOCATE (drmsd(3,natom,nframes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     drmsd = 0.0_dp
 
     ALLOCATE (r0(3*natom,nframes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (rmsd(nframes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (der(nframes),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE (r(3*natom),STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     weights => colvar%rmsd_param%weights
     DO i = 1,natom
@@ -4958,15 +4956,15 @@ CPSourceFileRef,&
     colvar%ss=cv_val
 
     DEALLOCATE(der,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(r0,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(r,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(drmsd,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(rmsd,STAT=stat)
-    CPPrecondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE rmsd_colvar_low
 
@@ -5007,20 +5005,20 @@ CPSourceFileRef,&
 
     failure=.FALSE.
 
-    CPPrecondition(colvar%type_id==ring_puckering_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==ring_puckering_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
 
     nring = colvar%ring_puckering_param%nring 
     ALLOCATE (r(3,nring),z(nring),cosj(nring),sinj(nring),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     ALLOCATE (nforce(3,3,nring),zforce(nring,nring,3),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
     DO ii = 1,nring
        i=colvar%ring_puckering_param%atoms(ii)
        CALL get_coordinates(colvar, i, r(:,ii), my_particles)
@@ -5102,7 +5100,7 @@ CPSourceFileRef,&
        END DO
     ELSE
        m = ABS(colvar%ring_puckering_param%iq)
-       CPPrecondition(m/=1,cp_failure_level,routineP,failure)
+       CPASSERT(m/=1)
        IF(MOD(nring,2)==0 .AND. colvar%ring_puckering_param%iq == nring/2) THEN
           ! single puckering amplitude
           svar = 0._dp
@@ -5126,7 +5124,7 @@ CPSourceFileRef,&
              CALL put_derivative(colvar, ii, -ftmp)
           END DO
        ELSE
-          CPPrecondition(m<=(nring-1)/2,cp_failure_level,routineP,failure)
+          CPASSERT(m<=(nring-1)/2)
           a = 0._dp
           b = 0._dp
           DO ii = 1,nring
@@ -5166,7 +5164,7 @@ CPSourceFileRef,&
     colvar%ss=svar
 
     DEALLOCATE (r,z,cosj,sinj,nforce,zforce,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,failure)
+    CPASSERT(istat==0)
 
   END SUBROUTINE  ring_puckering_colvar
 
@@ -5275,10 +5273,10 @@ CPSourceFileRef,&
                 n_rep_val=natom)
           IF(i==1) THEN
             ALLOCATE(r_ref(3*natom,nr_frames), STAT=stat)
-            CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+            CPASSERT(stat == 0)
             n_atoms = natom
           ELSE
-           CPPostcondition(3*natom==SIZE(r_ref,1),cp_failure_level,routineP,failure)
+           CPASSERT(3*natom==SIZE(r_ref,1))
           END IF
           DO j = 1, natom
               CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&
@@ -5287,7 +5285,7 @@ CPSourceFileRef,&
           END DO ! natom
        ELSE
           CALL section_vals_val_get(frame_section,"COORD_FILE_NAME",i_rep_section=i,c_val=filename)
-          CPPostcondition(TRIM(filename)/="",cp_failure_level,routineP,failure)
+          CPASSERT(TRIM(filename)/="")
           NULLIFY(parser)
           ALLOCATE(rptr(3))
           CALL parser_create(parser,filename,para_env=para_env,parse_white_lines=.TRUE.)
@@ -5297,10 +5295,10 @@ CPSourceFileRef,&
           CALL parser_get_next_line(parser,1)
           IF(i==1) THEN
              ALLOCATE(r_ref(3*natom,nr_frames), STAT=stat)
-             CPPostcondition(stat == 0,cp_failure_level,routinep,failure)
+             CPASSERT(stat == 0)
              n_atoms = natom
           ELSE
-           CPPostcondition(3*natom==SIZE(r_ref,1),cp_failure_level,routineP,failure)
+           CPASSERT(3*natom==SIZE(r_ref,1))
           END IF
           DO j = 1, natom
             ! Atom coordinates
@@ -5360,11 +5358,11 @@ CPSourceFileRef,&
     failure=.FALSE.
     NULLIFY(particles_i,wc)
 
-    CPPrecondition(colvar%type_id==Wc_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==Wc_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
@@ -5377,9 +5375,9 @@ CPSourceFileRef,&
     CALL get_coordinates(colvar, H, rH, my_particles)
     CALL get_coordinates(colvar, Oa, rOa, my_particles)
     ALLOCATE(wcai(SIZE(wc(1)%WannierHamDiag)),stat=ierror)
-    CPPrecondition(ierror==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierror==0)
     ALLOCATE(wcdi(SIZE(wc(1)%WannierHamDiag)),stat=ierror)
-    CPPrecondition(ierror==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierror==0)
     nwca=0
     nwcd=0
     DO j=1,SIZE(wc(1)%WannierHamDiag)
@@ -5423,9 +5421,9 @@ CPSourceFileRef,&
 !     write(*,'(2(i0,1x),4(f16.8,1x))')idmin,iamin,wc(1)%WannierHamDiag(idmin),wc(1)%WannierHamDiag(iamin),dmin,amin
     colvar%ss = wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
     DEALLOCATE(wcai,stat=ierror)
-    CPPrecondition(ierror==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierror==0)
     DEALLOCATE(wcdi,stat=ierror)
-    CPPrecondition(ierror==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierror==0)
 
     CONTAINS
 ! *****************************************************************************
@@ -5487,20 +5485,20 @@ CPSourceFileRef,&
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
-    CPPrecondition(colvar%type_id==HBP_colvar_id,cp_failure_level,routineP,failure)
+    CPASSERT(colvar%type_id==HBP_colvar_id)
     IF (PRESENT(particles)) THEN
        my_particles => particles
     ELSE
-       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,failure)
+       CPASSERT(PRESENT(subsys))
        CALL cp_subsys_get(subsys,particles=particles_i)
        my_particles => particles_i%els
     END IF
     CALL get_qs_env(qs_env,WannierCentres=wc)
     rcut = colvar%HBP%rcut ! distances are in bohr as far as I remember
     ALLOCATE(wcai(SIZE(wc(1)%WannierHamDiag)),stat=ierror)
-    CPPrecondition(ierror==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierror==0)
     ALLOCATE(wcdi(SIZE(wc(1)%WannierHamDiag)),stat=ierror)
-    CPPrecondition(ierror==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierror==0)
     colvar%ss=0.0_dp
     DO il=1,colvar%HBP%nPoints
       Od=colvar%HBP%ids(il,1)
@@ -5557,9 +5555,9 @@ CPSourceFileRef,&
        WRITE(output_unit,'(a,1(f16.8,1x))')"HBP|\theta(x) = ",colvar%ss
     ENDIF
     DEALLOCATE(wcai,stat=ierror)
-    CPPrecondition(ierror==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierror==0)
     DEALLOCATE(wcdi,stat=ierror)
-    CPPrecondition(ierror==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierror==0)
 
   CONTAINS
 ! *****************************************************************************

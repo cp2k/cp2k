@@ -57,9 +57,9 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(para_env),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(para_env))
     ALLOCATE(para_env,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     para_env%group=group
     para_env%source=0
     para_env%ref_count=1
@@ -93,8 +93,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
-    CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(para_env))
+    CPASSERT(para_env%ref_count>0)
     para_env%ref_count=para_env%ref_count+1
   END SUBROUTINE cp_para_env_retain
 
@@ -121,14 +121,14 @@ CONTAINS
     failure=.FALSE.
 
     IF (ASSOCIATED(para_env)) THEN
-      CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,failure)
+      CPASSERT(para_env%ref_count>0)
       para_env%ref_count=para_env%ref_count-1
       IF (para_env%ref_count<1) THEN
          IF (para_env%owns_group) THEN
             CALL mp_comm_free(para_env%group)
          END IF
          DEALLOCATE(para_env,stat=stat)
-         CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+         CPASSERT(stat==0)
       END IF
     END IF
     NULLIFY(para_env)
@@ -151,8 +151,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,failure)
-    CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(para_env))
+    CPASSERT(para_env%ref_count>0)
     CALL mp_environ(taskid=para_env%mepos,numtask=para_env%num_pe,&
          groupid=para_env%group)
     para_env%ionode=para_env%mepos==para_env%source
@@ -182,23 +182,23 @@ SUBROUTINE cp_para_env_write(para_env,unit_nr)
      WRITE (unit=unit_nr,&
           fmt="(' <cp_para_env>:{ owns_group=',l1,',')",&
           iostat=iostat) para_env%owns_group
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
           iostat=iostat) para_env%group, para_env%ref_count
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  mepos=',i8,',')",&
           iostat=iostat) para_env%mepos
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  source=',i8,',')",&
           iostat=iostat) para_env%source
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  num_pe=',i8,'}')",&
           iostat=iostat) para_env%num_pe
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
   ELSE
      WRITE (unit=unit_nr,&
           fmt="(a)", iostat=iostat) ' <cp_para_env>:*null* '
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
   END IF
 END SUBROUTINE cp_para_env_write
 
@@ -224,9 +224,9 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group)
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(cart),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(cart))
     ALLOCATE(cart,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     cart%owns_group=.TRUE.
     IF (PRESENT(owns_group)) cart%owns_group=owns_group
     cart%ndims=ndims
@@ -234,7 +234,7 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group)
 
     ALLOCATE(cart%source(ndims),cart%periodic(ndims),cart%mepos(ndims),&
          cart%num_pe(ndims),stat=stat)
-    CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+    CPASSERT(stat==0)
 
     cart%source=0
     cart%mepos=0
@@ -259,8 +259,8 @@ SUBROUTINE cp_cart_update(cart)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(cart),cp_failure_level,routineP,failure)
-  CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(cart))
+  CPASSERT(cart%ref_count>0)
   CALL mp_environ( cart%group, cart%ndims, cart%num_pe, task_coor=cart%mepos, &
        periods=cart%periodic)
   CALL mp_environ( numtask=cart%ntask, taskid=cart%rank, groupid=cart%group)
@@ -283,16 +283,16 @@ SUBROUTINE cp_cart_release(cart)
   failure=.FALSE.
 
   IF (ASSOCIATED(cart)) THEN
-     CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,failure)
+     CPASSERT(cart%ref_count>0)
      cart%ref_count=cart%ref_count-1
      IF (cart%ref_count==0) THEN
         IF (cart%owns_group) THEN
             CALL mp_comm_free(cart%group)
          END IF
         DEALLOCATE(cart%source,cart%periodic,cart%mepos,cart%num_pe,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
         DEALLOCATE(cart,stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
   END IF
   NULLIFY(cart)
@@ -313,8 +313,8 @@ SUBROUTINE cp_cart_retain(cart)
 
   failure=.FALSE.
 
-  CPPrecondition(ASSOCIATED(cart),cp_failure_level,routineP,failure)
-  CPPrecondition(cart%ref_count>0,cp_failure_level,routineP,failure)
+  CPASSERT(ASSOCIATED(cart))
+  CPASSERT(cart%ref_count>0)
   cart%ref_count=cart%ref_count+1
 END SUBROUTINE cp_cart_retain
 
@@ -340,32 +340,32 @@ SUBROUTINE cp_cart_write(cart,unit_nr)
      WRITE (unit=unit_nr,&
           fmt="(' <cp_cart>:{ owns_group=',l1,',')",&
           iostat=iostat) cart%owns_group
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
           iostat=iostat) cart%group, cart%ref_count
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  ndims=',i8,',')",&
           iostat=iostat) cart%ndims
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  rank=',i8,', ntask=',i8,',')",&
           iostat=iostat) cart%rank, cart%ntask
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  mepos=',10i8)",&
           iostat=iostat) cart%mepos
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  source=',10i8,',')",&
           iostat=iostat) cart%source
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  num_pe=',10i8,'}')",&
           iostat=iostat) cart%num_pe
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
      WRITE (unit=unit_nr,fmt="('  periodic=',10l2,'}')",&
           iostat=iostat) cart%periodic
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
   ELSE
      WRITE (unit=unit_nr,&
           fmt="(a)", iostat=iostat) ' <cp_cart>:*null* '
-     CPInvariant(iostat==0,cp_failure_level,routineP,failure)
+     CPASSERT(iostat==0)
   END IF
 END SUBROUTINE cp_cart_write
 

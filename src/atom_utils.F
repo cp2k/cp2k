@@ -103,8 +103,8 @@ CONTAINS
 
     occupation = 0._dp
 
-    CPPrecondition(ASSOCIATED(ostring),cp_failure_level,routineP,failure)
-    CPPrecondition(SIZE(ostring) > 0,cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(ostring))
+    CPASSERT(SIZE(ostring) > 0)
 
     no = SIZE(ostring)
 
@@ -115,7 +115,7 @@ CONTAINS
       IF ( INDEX(ostring(is),"(") /= 0 ) THEN
         i1 = INDEX(ostring(is),"(")
         i2 = INDEX(ostring(is),")")
-        CPAssert((i2-i1-1 > 0).AND.(i2-i1-1 < 3),cp_failure_level,routineP,failure)
+        CPASSERT((i2-i1-1 > 0).AND.(i2-i1-1 < 3))
         elem = ostring(is)(i1+1:i2-1)
         IF ( INDEX(elem,"HS") /= 0 ) THEN
           mult=-2 !High spin
@@ -139,7 +139,7 @@ CONTAINS
         ! core occupation from element [XX]
         i1 = INDEX(ostring(is),"[")
         i2 = INDEX(ostring(is),"]")
-        CPAssert((i2-i1-1 > 0).AND.(i2-i1-1 < 3),cp_failure_level,routineP,failure)
+        CPASSERT((i2-i1-1 > 0).AND.(i2-i1-1 < 3))
         elem = ostring(is)(i1+1:i2-1)
         ielem=0
         DO k=1,nelem
@@ -148,7 +148,7 @@ CONTAINS
             EXIT
           END IF
         END DO
-        CPAssert(ielem /= 0,cp_failure_level,routineP,failure)
+        CPASSERT(ielem /= 0)
           DO l=0,3
           el = 2._dp * (2._dp*REAL(l,dp) + 1._dp)
           e0 = ptable(ielem)%e_conv(l)
@@ -170,41 +170,41 @@ CONTAINS
       jp = INDEX(pstring,"P")
       jd = INDEX(pstring,"D")
       jf = INDEX(pstring,"F")
-      CPAssert(js+jp+jd+jf > 0,cp_failure_level,routineP,failure)
+      CPASSERT(js+jp+jd+jf > 0)
       IF ( js > 0 ) THEN
-        CPAssert(jp+jd+jf == 0,cp_failure_level,routineP,failure)
+        CPASSERT(jp+jd+jf == 0)
         READ(pstring(1:js-1),*) n
         READ(pstring(js+1:),*) oo
-        CPAssert(n > 0,cp_failure_level,routineP,failure)
-        CPAssert(oo >= 0._dp,cp_failure_level,routineP,failure)
-        CPAssert(occupation(0,n)==0,cp_failure_level,routineP,failure)
+        CPASSERT(n > 0)
+        CPASSERT(oo >= 0._dp)
+        CPASSERT(occupation(0,n)==0)
         occupation(0,n) = oo
       END IF
       IF ( jp > 0 ) THEN
-        CPAssert(js+jd+jf == 0,cp_failure_level,routineP,failure)
+        CPASSERT(js+jd+jf == 0)
         READ(pstring(1:jp-1),*) n
         READ(pstring(jp+1:),*) oo
-        CPAssert(n > 1,cp_failure_level,routineP,failure)
-        CPAssert(oo >= 0._dp,cp_failure_level,routineP,failure)
-        CPAssert(occupation(1,n-1)==0,cp_failure_level,routineP,failure)
+        CPASSERT(n > 1)
+        CPASSERT(oo >= 0._dp)
+        CPASSERT(occupation(1,n-1)==0)
         occupation(1,n-1) = oo
       END IF
       IF ( jd > 0 ) THEN
-        CPAssert(js+jp+jf == 0,cp_failure_level,routineP,failure)
+        CPASSERT(js+jp+jf == 0)
         READ(pstring(1:jd-1),*) n
         READ(pstring(jd+1:),*) oo
-        CPAssert(n > 2,cp_failure_level,routineP,failure)
-        CPAssert(oo >= 0._dp,cp_failure_level,routineP,failure)
-        CPAssert(occupation(2,n-2)==0,cp_failure_level,routineP,failure)
+        CPASSERT(n > 2)
+        CPASSERT(oo >= 0._dp)
+        CPASSERT(occupation(2,n-2)==0)
         occupation(2,n-2) = oo
       END IF
       IF ( jf > 0 ) THEN
-        CPAssert(js+jp+jd == 0,cp_failure_level,routineP,failure)
+        CPASSERT(js+jp+jd == 0)
         READ(pstring(1:jf-1),*) n
         READ(pstring(jf+1:),*) oo
-        CPAssert(n > 3,cp_failure_level,routineP,failure)
-        CPAssert(oo >= 0._dp,cp_failure_level,routineP,failure)
-        CPAssert(occupation(3,n-3)==0,cp_failure_level,routineP,failure)
+        CPASSERT(n > 3)
+        CPASSERT(oo >= 0._dp)
+        CPASSERT(occupation(3,n-3)==0)
         occupation(3,n-3) = oo
       END IF
 
@@ -239,7 +239,7 @@ CONTAINS
       IF (js==0 .AND. mult==-2) mult=1
       IF (js==0 .AND. mult==-3) mult=1
       IF (js==0) THEN
-        CPAssert(mult==1,cp_failure_level,routineP,failure)
+        CPASSERT(mult==1)
       END IF
       IF (js==1) THEN
         l=i1
@@ -248,10 +248,10 @@ CONTAINS
         IF(k > (2*l+1)) k=2*(2*l+1)-k
         IF(mult==-2) mult=k+1
         IF(mult==-3) mult=MOD(k,2)+1
-        CPAssert(MOD(k+1-mult,2)==0,cp_failure_level,routineP,failure)
+        CPASSERT(MOD(k+1-mult,2)==0)
       END IF
       IF (js>1 .AND. mult/=-2) THEN
-        CPAssert(mult==-2,cp_failure_level,routineP,failure)
+        CPASSERT(mult==-2)
       END IF
 
     END IF
@@ -367,7 +367,7 @@ CONTAINS
     failure = .FALSE.
     IF(PRESENT(typ)) my_typ = typ(1:3)
     IF(my_typ == "KIN") THEN
-      CPPrecondition(PRESENT(rr),cp_failure_level,routineP,failure)
+      CPASSERT(PRESENT(rr))
     END IF
 
     density=0._dp
@@ -387,7 +387,7 @@ CONTAINS
               basis%dbf(:,i,l)*basis%dbf(:,j,l) + &
               REAL(l*(l+1),dp)*basis%bf(:,i,l)*basis%bf(:,j,l)/rr(:))
           ELSE
-            CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+            CPASSERT(.FALSE.)
           END IF
         END DO
       END DO
@@ -666,7 +666,7 @@ CONTAINS
     charge=0._dp
     m=SIZE(basis%bf,1)
     ALLOCATE(den(m),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     n=basis%nbas(l)
     den=0._dp
     DO i=1,n
@@ -680,7 +680,7 @@ CONTAINS
     END DO
     charge = SUM ( den(1:m) * basis%grid%wr(1:m) )
     DEALLOCATE(den,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE atom_orbital_charge
 ! *****************************************************************************
@@ -713,7 +713,7 @@ CONTAINS
     IF(gthpot%nlcc) THEN
       m = SIZE(corden)
       ALLOCATE(fe(m),rc(m),STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
       n=gthpot%nexp_nlcc
       DO i=1,n
         a=gthpot%alpha_nlcc(i)
@@ -729,12 +729,12 @@ CONTAINS
               corden(:) = corden(:) + REAL(2*j-2,dp)*fe(:)*rc**(2*j-3)*gthpot%cval_nlcc(j,i)/a
             END IF
           ELSE
-            CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
+            CPASSERT(.FALSE.)
           END IF
         END DO
       END DO
       DEALLOCATE(fe,rc,STAT=ierr)
-      CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+      CPASSERT(ierr==0)
     END IF
 
   END SUBROUTINE atom_core_density
@@ -761,7 +761,7 @@ CONTAINS
     failure = .FALSE.
     m = SIZE(locpot)
     ALLOCATE(fe(m),rc(m),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     rc(:)=rr(:)/gthpot%rc
     DO i=1,m
        locpot(i) = -gthpot%zion*erf(rc(i)/SQRT(2._dp))/rr(i)
@@ -783,7 +783,7 @@ CONTAINS
        END DO
     END IF
     DEALLOCATE(fe,rc,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE atom_local_potential
 ! *****************************************************************************
@@ -812,7 +812,7 @@ CONTAINS
     failure = .FALSE.
     m=SIZE(basis%bf,1)
     ALLOCATE(dorb(m),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     n=basis%nbas(l)
     dorb=0._dp
     DO i=1,n
@@ -828,7 +828,7 @@ CONTAINS
       END IF
     END DO
     DEALLOCATE(dorb,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE atom_orbital_max
 ! *****************************************************************************
@@ -858,7 +858,7 @@ CONTAINS
     node=0
     m=SIZE(basis%bf,1)
     ALLOCATE(orb(m),STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     n=basis%nbas(l)
     orb=0._dp
     DO i=1,n
@@ -871,7 +871,7 @@ CONTAINS
       END IF
     END DO
     DEALLOCATE(orb,STAT=ierr)
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE atom_orbital_nodes
 ! *****************************************************************************
@@ -927,7 +927,7 @@ CONTAINS
       DIMENSION(:, :)                        :: a
 
     failure = .FALSE.
-    CPPrecondition(ALL(nb >= nv),cp_failure_level,routineP,failure)
+    CPASSERT(ALL(nb >= nv))
 
     orb = 0._dp
     DO l=0,maxl
@@ -936,7 +936,7 @@ CONTAINS
       IF ( n > 0 .AND. m > 0 ) THEN
         lwork = 10*m
         ALLOCATE(a(n,n),w(n),work(lwork),STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
         a(1:m,1:m) = MATMUL(TRANSPOSE(umat(1:n,1:m,l)),MATMUL(hmat(1:n,1:n,l),umat(1:n,1:m,l)))
         CALL lapack_ssyev ( "V", "U", m, a(1:m,1:m), m, w(1:m), work, lwork, info )
         a(1:n,1:m) = MATMUL(umat(1:n,1:m,l),a(1:m,1:m))
@@ -946,7 +946,7 @@ CONTAINS
         ener(1:m,l) = w(1:m)
 
         DEALLOCATE(a,w,work,STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
       END IF
     END DO
 
@@ -1064,7 +1064,7 @@ CONTAINS
     cpot(nc:) = int1/r(nc:)
 
     ! test that grid is decreasing
-    CPPostcondition(r(1)>r(nc),cp_failure_level,routineP,failure)
+    CPASSERT(r(1)>r(nc))
     DO i = 1, nc
       cpot(i) = int1/r(i) + int2
       int1 = int1 - fourpi * density(i)*wr(i)
@@ -1105,7 +1105,7 @@ CONTAINS
     failure = .FALSE.
     m = SIZE(cpot)
     ALLOCATE ( erfa(1:m), expa(1:m), z(1:m), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
     cpot = 0._dp
 
@@ -1113,7 +1113,7 @@ CONTAINS
       IF ( MAXVAL(ABS(pmat(:,:,l))) < 1.e-14_dp ) CYCLE
       SELECT CASE ( basis%basis_type )
         CASE DEFAULT
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+          CPASSERT(.FALSE.)
         CASE ( GTO_BASIS )
           DO i = 1, basis%nbas(l)
             DO j = i, basis%nbas(l)
@@ -1131,7 +1131,7 @@ CONTAINS
               expa(:)= EXP(-z(:)**2)*ff/(a+b)**(l+1)
               SELECT CASE (l)
                 CASE DEFAULT
-                  CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                  CPASSERT(.FALSE.)
                 CASE (0)
                   cpot(:) = cpot(:) + 0.25_dp*erfa(:)
                 CASE (1)
@@ -1147,7 +1147,7 @@ CONTAINS
           n = basis%nprim(l)
           m = basis%nbas(l)
           ALLOCATE ( unp(n,n), STAT=ierr )
-          CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr==0)
 
           unp(1:n,1:n) = MATMUL ( MATMUL(basis%cm(1:n,1:m,l),pmat(1:m,1:m,l)),&
                                   TRANSPOSE(basis%cm(1:n,1:m,l)))
@@ -1167,7 +1167,7 @@ CONTAINS
               expa(:)= EXP(-z(:)**2)*ff/(a+b)**(l+1)
               SELECT CASE (l)
                 CASE DEFAULT
-                  CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                  CPASSERT(.FALSE.)
                 CASE (0)
                   cpot(:) = cpot(:) + 0.25_dp*erfa(:)
                 CASE (1)
@@ -1181,11 +1181,11 @@ CONTAINS
           END DO
 
           DEALLOCATE ( unp, STAT=ierr )
-          CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+          CPASSERT(ierr==0)
       END SELECT
     END DO
     DEALLOCATE ( erfa, expa, z, STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE coulomb_potential_analytic
 
@@ -1232,7 +1232,7 @@ CONTAINS
 
     nr = basis%grid%nr
     ALLOCATE ( nai(nr), nbi(nr), cpot(nr), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
     DO lad = 0, state%maxl_calc
       DO lbc = 0 , state%maxl_occ
@@ -1240,7 +1240,7 @@ CONTAINS
         nbas = basis%nbas(lbc)
         ! calculate orbitals for angmom lbc
         ALLOCATE ( orb(nr,norb), STAT=ierr )
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
         orb = 0._dp
         DO i=1,norb
           DO k=1,nbas
@@ -1264,12 +1264,12 @@ CONTAINS
 
         END DO
         DEALLOCATE ( orb, STAT=ierr )
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
       END DO
     END DO
 
     DEALLOCATE ( nai, nbi, cpot, STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE exchange_numeric
 
@@ -1319,9 +1319,9 @@ CONTAINS
     nr = basis%grid%nr
     nbas = MAXVAL(basis%nbas)
     ALLOCATE ( pot(nr,nbas,nbas), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     ALLOCATE ( nai(nr), nbi(nr), cpot(nr), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
     DO lad = 0, state%maxl_calc
       DO lbc = 0 , state%maxl_occ
@@ -1329,7 +1329,7 @@ CONTAINS
         nbas = basis%nbas(lbc)
         ! calculate orbitals for angmom lbc
         ALLOCATE ( orb(nr,norb), STAT=ierr )
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
         orb = 0._dp
         DO i=1,norb
           DO k=1,nbas
@@ -1356,14 +1356,14 @@ CONTAINS
           END DO
         END DO
         DEALLOCATE ( orb, STAT=ierr )
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
       END DO
     END DO
 
     DEALLOCATE ( pot, STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
     DEALLOCATE ( nai, nbi, cpot, STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE exchange_semi_analytic
 
@@ -1399,7 +1399,7 @@ CONTAINS
     cpot(nc:) = int1/r(nc:)**(nu+1)
 
     ! test that grid is decreasing
-    CPPostcondition(r(1)>r(nc),cp_failure_level,routineP,failure)
+    CPASSERT(r(1)>r(nc))
     DO i = 1, nc
       cpot(i) = int1/r(i)**(nu+1) + int2*r(i)**nu
       int1 = int1 - r(i)**(nu)*density(i)*wr(i)
@@ -1432,7 +1432,7 @@ CONTAINS
     failure = .FALSE.
     m = SIZE(cpot,1)
     ALLOCATE ( erfa(1:m), expa(1:m), z(1:m), STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
     ll = la+lb
 
@@ -1440,7 +1440,7 @@ CONTAINS
 
     SELECT CASE ( basis%basis_type )
       CASE DEFAULT
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
       CASE ( GTO_BASIS )
         DO i = 1, basis%nbas(la)
           DO j = 1, basis%nbas(lb)
@@ -1456,16 +1456,16 @@ CONTAINS
             expa(:)= EXP(-z(:)**2)/(sab**(ll+2))/(2._dp**((ll+nu)/2+2))
             SELECT CASE (ll)
               CASE DEFAULT
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
               CASE (0)
-                CPPostcondition(nu==0,cp_failure_level,routineP,failure)
+                CPASSERT(nu==0)
               CASE (1)
-                CPPostcondition(nu==1,cp_failure_level,routineP,failure)
+                CPASSERT(nu==1)
                 cpot(:,i,j) = cpot(:,i,j)-6._dp*expa(:)/z(:)
               CASE (2)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                   CASE (0)
                     cpot(:,i,j) = cpot(:,i,j)-2._dp*expa(:)
                   CASE (2)
@@ -1474,7 +1474,7 @@ CONTAINS
               CASE (3)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                   CASE (1)
                     cpot(:,i,j) = cpot(:,i,j)-expa(:)*(12._dp*z(:)+30._dp/z(:))
                   CASE (3)
@@ -1483,7 +1483,7 @@ CONTAINS
               CASE (4)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                   CASE (0)
                     cpot(:,i,j) = cpot(:,i,j)-expa(:)*(4._dp*z(:)**2+14._dp)
                   CASE (2)
@@ -1494,7 +1494,7 @@ CONTAINS
               CASE (5)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                   CASE (1)
                     cpot(:,i,j) = cpot(:,i,j)-expa(:)*(24._dp*z(:)**3+108._dp*z(:)+210._dp/z(:))
                   CASE (3)
@@ -1506,7 +1506,7 @@ CONTAINS
               CASE (6)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                   CASE (0)
                     cpot(:,i,j) = cpot(:,i,j)-expa(:)*(8._dp*z(:)**4+44._dp*z(:)**2+114._dp)
                   CASE (2)
@@ -1535,16 +1535,16 @@ CONTAINS
             expa(:)= EXP(-z(:)**2)/sab**(ll+2)/2._dp**((ll+nu)/2+2)
             SELECT CASE (ll)
               CASE DEFAULT
-                CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                CPASSERT(.FALSE.)
               CASE (0)
-                CPPostcondition(nu==0,cp_failure_level,routineP,failure)
+                CPASSERT(nu==0)
               CASE (1)
-                CPPostcondition(nu==1,cp_failure_level,routineP,failure)
+                CPASSERT(nu==1)
                 erfa(:) = erfa(:)-6._dp*expa(:)/z(:)
               CASE (2)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                   CASE (0)
                     erfa(:) = erfa(:)-2._dp*expa(:)
                   CASE (2)
@@ -1553,7 +1553,7 @@ CONTAINS
               CASE (3)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                   CASE (1)
                     erfa(:) = erfa(:)-expa(:)*(12._dp*z(:)+30._dp/z(:))
                   CASE (3)
@@ -1562,7 +1562,7 @@ CONTAINS
               CASE (4)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                   CASE (0)
                     erfa(:) = erfa(:)-expa(:)*(4._dp*z(:)**2+14._dp)
                   CASE (2)
@@ -1573,7 +1573,7 @@ CONTAINS
               CASE (5)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                   CASE (1)
                     erfa(:) = erfa(:)-expa(:)*(24._dp*z(:)**3+108._dp*z(:)+210._dp/z(:))
                   CASE (3)
@@ -1585,7 +1585,7 @@ CONTAINS
               CASE (6)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+                    CPASSERT(.FALSE.)
                   CASE (0)
                     erfa(:) = erfa(:)-expa(:)*(8._dp*z(:)**4+44._dp*z(:)**2+114._dp)
                   CASE (2)
@@ -1609,7 +1609,7 @@ CONTAINS
     END SELECT
 
     DEALLOCATE ( erfa, expa, z, STAT=ierr )
-    CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+    CPASSERT(ierr==0)
 
   END SUBROUTINE potential_analytic
 ! *****************************************************************************
@@ -1691,7 +1691,7 @@ CONTAINS
           END DO
         END DO
       CASE DEFAULT
-        CPPostcondition(.FALSE.,cp_failure_level,routineP,failure)
+        CPASSERT(.FALSE.)
     END SELECT
 
   END SUBROUTINE numpot_matrix
@@ -1885,7 +1885,7 @@ CONTAINS
       m = nbs(l)
       IF (m > 0) THEN
         ALLOCATE(tkmat(1:m,1:m),tpmat(1:m,1:m),STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
         tkmat = 0._dp
         tpmat = 0._dp
         tkmat(1:m,1:m) = MATMUL(TRANSPOSE(umat(1:n,1:m,l)),MATMUL(kmat(1:n,1:n,l),umat(1:n,1:m,l)))
@@ -1895,7 +1895,7 @@ CONTAINS
         emat(1:m,1:m,l) = MATMUL(tkmat(1:m,1:m),tpmat(1:m,1:m)) - MATMUL(tpmat(1:m,1:m),tkmat(1:m,1:m))
 
         DEALLOCATE(tkmat,tpmat,STAT=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,failure)
+        CPASSERT(ierr==0)
       END IF
     END DO
     demax = MAXVAL(ABS(emat))

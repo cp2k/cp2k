@@ -126,7 +126,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(bend_kind_set)
     ALLOCATE (bend_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
        bend_kind_set(ikind)%id_type = do_ff_undef
        bend_kind_set(ikind)%k = 0.0_dp
@@ -161,7 +161,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(bond_kind_set)
     ALLOCATE (bond_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
        bond_kind_set(ikind)%id_type = do_ff_undef
        bond_kind_set(ikind)%k(:) = 0.0_dp
@@ -191,7 +191,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(torsion_kind_set)
     ALLOCATE (torsion_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
     DO ikind=1,nkind
        torsion_kind_set(ikind)%id_type = do_ff_undef
@@ -223,7 +223,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(ub_kind_set)
     ALLOCATE (ub_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
       ub_kind_set(ikind)%id_type = do_ff_undef
       ub_kind_set(ikind)%k = 0.0_dp
@@ -252,7 +252,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(impr_kind_set)
     ALLOCATE (impr_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
       impr_kind_set(ikind)%id_type = do_ff_undef
       impr_kind_set(ikind)%k = 0.0_dp
@@ -281,7 +281,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(opbend_kind_set)
     ALLOCATE (opbend_kind_set(nkind),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DO ikind=1,nkind
       opbend_kind_set(ikind)%id_type = do_ff_undef
       opbend_kind_set(ikind)%k = 0.0_dp
@@ -307,7 +307,7 @@ CONTAINS
 
     failure = .FALSE.
     DEALLOCATE (bend_kind_set,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE deallocate_bend_kind_set
 
 ! *****************************************************************************
@@ -327,7 +327,7 @@ CONTAINS
 
     failure = .FALSE.
     DEALLOCATE (bond_kind_set,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE deallocate_bond_kind_set
 
@@ -349,15 +349,15 @@ CONTAINS
 
     IF(ASSOCIATED(torsion_kind%k)) THEN
        DEALLOCATE(torsion_kind%k,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(torsion_kind%m)) THEN
        DEALLOCATE(torsion_kind%m,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF(ASSOCIATED(torsion_kind%phi0)) THEN
        DEALLOCATE(torsion_kind%phi0,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     END IF
 
   END SUBROUTINE torsion_kind_dealloc_ref
@@ -378,7 +378,7 @@ CONTAINS
 
     failure = .FALSE.
     DEALLOCATE(ub_kind_set, STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
 
   END SUBROUTINE ub_kind_dealloc_ref
 

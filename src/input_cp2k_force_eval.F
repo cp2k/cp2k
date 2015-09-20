@@ -71,7 +71,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="force_eval",&
          description="parameters needed to calculate energy and forces and"//&
          " describe the system you want to analyze.",&
@@ -178,7 +178,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EXTERNAL_POTENTIAL",&
          description="Section controlling the presence of an external potential dependent "//&
          " on the atomic positions (X,Y,Z)",&
@@ -253,7 +253,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RESCALE_FORCES",&
          description="Section controlling the rescaling of forces. Useful when"//&
          " starting from quite bad geometries with unphysically large forces.",&
@@ -292,7 +292,7 @@ CONTAINS
     NULLIFY (keyword)
     NULLIFY (print_key)
 
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
+    CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="PRINT",&
          description="Properties that you want to output and that are common to all methods",&

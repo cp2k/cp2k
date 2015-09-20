@@ -92,8 +92,8 @@ CONTAINS
 
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(pw),cp_failure_level,routineP,failure)
-    CPPreconditionNoFail(pw%ref_count>0,cp_failure_level,routineP)
+    CPASSERT(ASSOCIATED(pw))
+    CPASSERT(pw%ref_count>0)
     pw%ref_count=pw%ref_count+1
   END SUBROUTINE pw_retain
 
@@ -118,7 +118,7 @@ SUBROUTINE pw_release(pw)
   failure=.FALSE.
 
   IF (ASSOCIATED(pw)) THEN
-     CPPreconditionNoFail(pw%ref_count>0,cp_failure_level,routineP)
+     CPASSERT(pw%ref_count>0)
      pw%ref_count=pw%ref_count-1
      IF (pw%ref_count==0) THEN
         pw%ref_count=1
@@ -127,19 +127,19 @@ SUBROUTINE pw_release(pw)
         SELECT CASE(pw % in_use)
         CASE (REALDATA1D)
            DEALLOCATE ( pw % cr, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         CASE(COMPLEXDATA1D)
            DEALLOCATE ( pw % cc, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         CASE(REALDATA3D)
            IF (ASSOCIATED(pw%cr3d)) THEN
               !FM optimizations of pools might have removed the 3d field to cache it
               DEALLOCATE ( pw % cr3d, STAT = stat )
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+              CPASSERT(stat==0)
            END IF
         CASE(COMPLEXDATA3D)
            DEALLOCATE ( pw % cc3d, STAT = stat )
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+           CPASSERT(stat==0)
         CASE(NODATA)
         CASE default
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
@@ -148,7 +148,7 @@ SUBROUTINE pw_release(pw)
         CALL pw_grid_release(pw%pw_grid)
         pw%ref_count=0
         DEALLOCATE(pw, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP)
+        CPASSERT(stat==0)
      END IF
   END IF
   NULLIFY(pw)
@@ -185,9 +185,9 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
   failure=.FALSE.
 
   CALL timeset(routineN,handle)
-  CPPrecondition(.NOT.ASSOCIATED(pw),cp_failure_level,routineP,failure)
+  CPASSERT(.NOT.ASSOCIATED(pw))
   ALLOCATE(pw,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+  CPASSERT(stat==0)
   logger => cp_get_default_logger()
   IF (debug_this_module) THEN
      WRITE (cp_logger_get_default_unit_nr(logger),"('*** allocated pw ***')")
@@ -201,7 +201,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
 
   IF (PRESENT(cr3d_ptr)) THEN
      IF (ASSOCIATED(cr3d_ptr)) THEN
-        CPAssertNoFail(use_data==REALDATA3D,cp_failure_level,routineP)
+        CPASSERT(use_data==REALDATA3D)
      END IF
   END IF
 
@@ -222,18 +222,18 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
   SELECT CASE(use_data)
   CASE(REALDATA1D)
      ALLOCATE ( pw % cr ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
-     CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+     CPASSERT(stat==0)
 
   CASE(COMPLEXDATA1D)
      ALLOCATE ( pw % cc ( pw % pw_grid % ngpts_cut_local ), STAT = stat )
-     CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+     CPASSERT(stat==0)
 
   CASE (REALDATA3D)
      IF (PRESENT(cr3d_ptr)) THEN
         IF (ASSOCIATED(cr3d_ptr)) THEN
            IF (ALL(bounds(1,:) <= bounds(2,:))) THEN
-             CPPreconditionNoFail(ALL(LBOUND(cr3d_ptr)==bounds(1,:)),cp_failure_level,routineP)
-             CPPreconditionNoFail(ALL(UBOUND(cr3d_ptr)==bounds(2,:)),cp_failure_level,routineP)
+             CPASSERT(ALL(LBOUND(cr3d_ptr)==bounds(1,:)))
+             CPASSERT(ALL(UBOUND(cr3d_ptr)==bounds(2,:)))
            END IF
            pw%cr3d => cr3d_ptr
         END IF
@@ -243,7 +243,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
              bounds ( 1, 1 ) : bounds ( 2, 1 ), &
              bounds ( 1, 2 ) : bounds ( 2, 2 ), &
              bounds ( 1, 3 ) : bounds ( 2, 3 ) ), STAT = stat )
-        CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+        CPASSERT(stat==0)
      END IF
 
   CASE(COMPLEXDATA3D)
@@ -251,7 +251,7 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, cr3d_ptr)
           bounds ( 1, 1 ) : bounds ( 2, 1 ), &
           bounds ( 1, 2 ) : bounds ( 2, 2 ), &
           bounds ( 1, 3 ) : bounds ( 2, 3 ) ), STAT = stat )
-     CPPostcondition(stat==0,cp_fatal_level,routineP,failure)
+     CPASSERT(stat==0)
   CASE(NODATA)
   CASE default
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&

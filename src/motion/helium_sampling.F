@@ -76,9 +76,9 @@ MODULE helium_sampling
     TYPE(pint_env_type), POINTER             :: pint_env
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
     IF (failure) THEN
-      CPAssert(.FALSE.,cp_failure_level,routineP,failure)
+      CPASSERT(.FALSE.)
     END IF
 
     NULLIFY(pint_env)
@@ -149,7 +149,7 @@ MODULE helium_sampling
     logger => cp_get_default_logger()
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     solute_present = helium%solute_present
     helium%force_avrg(:,:) = 0.0_dp
@@ -264,7 +264,7 @@ MODULE helium_sampling
     time_start = m_walltime()
 
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(helium),cp_failure_level,routineP,failure)
+    CPASSERT(ASSOCIATED(helium))
 
     ! perform the actual phase space sampling
     CALL helium_sample( helium, pint_env)

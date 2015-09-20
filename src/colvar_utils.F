@@ -239,12 +239,12 @@ CONTAINS
          molecule_set, particles, particle_set, gci)
     IF (PRESENT(Bmatrix)) THEN
        check = ASSOCIATED(Bmatrix)
-       CPPrecondition(check, cp_failure_level, routineP,failure)
+       CPASSERT(check)
        Bmatrix = 0.0_dp
     END IF
     CALL timeset(routineN,handle)
     ALLOCATE(map(SIZE(cvalues)), stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     map=HUGE(0) ! init all, since used in a sort, but not all set in parallel.
     CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
     n_tot=0
@@ -290,13 +290,13 @@ CONTAINS
                               Bmatrix, offset, n_tot, map)
        ENDIF
     END IF
-    CPPrecondition(n_tot==SIZE(cvalues), cp_failure_level, routineP,failure)
+    CPASSERT(n_tot==SIZE(cvalues))
     ! Sort values of Collective Variables according the order of the input
     ! sections
     ALLOCATE(wrk(SIZE(cvalues)), stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(rwrk(SIZE(cvalues)), stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     CALL sort(map, SIZE(map), wrk)
     rwrk = cvalues
     DO i = 1, SIZE(wrk)
@@ -305,33 +305,33 @@ CONTAINS
     ! check and sort on Bmatrix
     IF (PRESENT(Bmatrix)) THEN
        check = n_tot==SIZE(Bmatrix,2)
-       CPPrecondition(check, cp_failure_level, routineP,failure)
+       CPASSERT(check)
        ALLOCATE(bwrk(SIZE(Bmatrix,1),SIZE(Bmatrix,2)), stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        bwrk(:,:) = Bmatrix
        DO i = 1, SIZE(wrk)
           Bmatrix(:,i) = bwrk(:,wrk(i))
        END DO
        DEALLOCATE(bwrk, stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     END IF
     DEALLOCATE(rwrk, stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(wrk, stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(map, stat=stat)
-    CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+    CPASSERT(stat==0)
     ! Construction of the Amatrix
     IF (PRESENT(Bmatrix).AND.PRESENT(Amatrix)) THEN
-       CPPrecondition(ASSOCIATED(Amatrix), cp_failure_level, routineP,failure)
+       CPASSERT(ASSOCIATED(Amatrix))
        check = SIZE(Bmatrix,1)==SIZE(Amatrix,2)
-       CPPrecondition(check, cp_failure_level, routineP,failure)
+       CPASSERT(check)
        check = SIZE(Bmatrix,2)==SIZE(Amatrix,1)
-       CPPrecondition(check, cp_failure_level, routineP,failure)
+       CPASSERT(check)
        ALLOCATE(Gmatrix(n_tot,n_tot), stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(Gmatrix_i(n_tot,n_tot), stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        Gmatrix(:,:) = MATMUL(TRANSPOSE(Bmatrix),Bmatrix)
        CALL invert_matrix(Gmatrix, Gmatrix_i, inv_error)
        CALL cp_assert(ABS(inv_error)<=1.0E-8_dp,cp_warning_level, cp_assertion_failed, routineP,&
@@ -339,14 +339,14 @@ CONTAINS
 CPSourceFileRef)
        Amatrix = MATMUL(Gmatrix_i,TRANSPOSE(Bmatrix))
        DEALLOCATE(Gmatrix_i, stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(Gmatrix, stat=stat)
-       CPPrecondition(stat==0, cp_failure_level, routineP,failure)
+       CPASSERT(stat==0)
     END IF
     IF (PRESENT(MassI)) THEN
        natom = SIZE(particle_set)
-       CPPrecondition(ASSOCIATED(MassI), cp_failure_level, routineP,failure)
-       CPPrecondition(SIZE(MassI)==natom*3, cp_failure_level, routineP,failure)
+       CPASSERT(ASSOCIATED(MassI))
+       CPASSERT(SIZE(MassI)==natom*3)
        DO i = 1, natom
           MassI((i-1)*3+1) = 1.0_dp/particle_set(i)%atomic_kind%mass
           MassI((i-1)*3+2) = 1.0_dp/particle_set(i)%atomic_kind%mass
@@ -583,24 +583,24 @@ CPSourceFileRef)
 
     failure = .FALSE.
     ALLOCATE(Bmatrix(nsize_xyz,nsize_int),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ALLOCATE(MassI(nsize_xyz),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     ! Transform gradients if requested
     IF (PRESENT(forces)) THEN
        ALLOCATE(wrk(nsize_int),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ALLOCATE(Amatrix(nsize_int,nsize_xyz),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        ! Compute the transformation matrices and the invese mass diagonal Matrix
        CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI, Amatrix)
        wrk = MATMUL(Amatrix,forces)
        forces              = 0.0_dp
        forces(1:nsize_int) = wrk
        DEALLOCATE(Amatrix, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
        DEALLOCATE(wrk, stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       CPASSERT(stat==0)
     ELSE
        ! Compute the transformation matrices and the invese mass diagonal Matrix
        CALL eval_colvar(force_env, coords, cvalues, Bmatrix, MassI)
@@ -617,9 +617,9 @@ CPSourceFileRef)
        END DO
     END DO
     DEALLOCATE(MassI, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
     DEALLOCATE(Bmatrix, stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+    CPASSERT(stat==0)
   END SUBROUTINE get_clv_force
 
 ! *****************************************************************************
@@ -665,7 +665,7 @@ CPSourceFileRef)
                 END DO
              END DO
              stat=colvar%coord_param%n_atoms_from
-             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
+             CPASSERT(stat/=0)
           END IF
           ! Atoms to
           IF (colvar%coord_param%use_kinds_to) THEN
@@ -683,7 +683,7 @@ CPSourceFileRef)
                 END DO
              END DO
              stat=colvar%coord_param%n_atoms_to
-             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
+             CPASSERT(stat/=0)
           END IF
           ! Atoms to b
           IF (colvar%coord_param%use_kinds_to_b) THEN
@@ -701,7 +701,7 @@ CPSourceFileRef)
                 END DO
              END DO
              stat=colvar%coord_param%n_atoms_to_b
-             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
+             CPASSERT(stat/=0)
           END IF
 
           ! Setup the colvar
@@ -727,7 +727,7 @@ CPSourceFileRef)
                 END DO
              END DO
              stat=colvar%mindist_param%n_coord_from
-             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
+             CPASSERT(stat/=0)
           END IF
           ! Atoms to
           IF (colvar%mindist_param%use_kinds_to) THEN
@@ -745,7 +745,7 @@ CPSourceFileRef)
                 END DO
              END DO
              stat=colvar%mindist_param%n_coord_to
-             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
+             CPASSERT(stat/=0)
           END IF
           ! Setup the colvar
           CALL colvar_setup(colvar)
@@ -771,7 +771,7 @@ CPSourceFileRef)
                 END DO
              END DO
              stat=colvar%population_param%n_atoms_from
-             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
+             CPASSERT(stat/=0)
           END IF
           ! Atoms to
           IF (colvar%population_param%use_kinds_to) THEN
@@ -789,7 +789,7 @@ CPSourceFileRef)
                 END DO
              END DO
              stat=colvar%population_param%n_atoms_to
-             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
+             CPASSERT(stat/=0)
           END IF
           ! Setup the colvar
           CALL colvar_setup(colvar)
@@ -816,7 +816,7 @@ CPSourceFileRef)
                 END DO
              END DO
              stat=colvar%gyration_param%n_atoms
-             CPPostcondition(stat/=0,cp_failure_level,routineP,failure)
+             CPASSERT(stat/=0)
           END IF
           ! Setup the colvar
           CALL colvar_setup(colvar)
